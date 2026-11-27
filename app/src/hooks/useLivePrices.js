@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { registerTickers, subscribe, getSnapshot, pollNow } from './livePriceStore'
-import { useBoardHidden } from '../components/chart/boardVisibility'
+import { boardHiddenNow, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 
 /** True when every ticker in `key` maps to the same entry object in both snapshots. */
 export function sameSlice(prev, next, key) {
@@ -20,18 +20,7 @@ export function sameSlice(prev, next, key) {
  * one poll per component. Each caller reads only its own slice. Same return
  * shape as before — consumers are unaffected.
  */
-const NO_TICKERS = []
-/** ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board polls no price (its tickers leave
- *  the 2 s poll) and reads what it HELD at the hide until the show. */
 export default function useLivePrices(tickers = []) {
-  const hidden = useBoardHidden()
-  const out = useLivePricesImpl(hidden ? NO_TICKERS : tickers)
-  const heldRef = useRef(out)
-  if (!hidden) heldRef.current = out
-  return hidden ? heldRef.current : out
-}
-
-function useLivePricesImpl(tickers = []) {
   // Stable, sorted, deduped key for this caller's ticker set.
   const key = tickers.length ? [...new Set(tickers)].filter(Boolean).sort().join(',') : ''
 
@@ -46,8 +35,15 @@ function useLivePricesImpl(tickers = []) {
   // render of this component, which is the render this exists to skip.
   const allRef = useRef(all)
   allRef.current = all
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board polls no price (its tickers
+  // leave the shared poll) and is not re-rendered by one; after the show's first paint its tickers come back and it
+  // re-reads the store once (a re-render only when its slice moved while hidden).
+  const layer = useLayerBoard()
+  const layerRef = useRef(layer)
+  layerRef.current = layer
   useEffect(() => {
     const unsub = subscribe(() => {
+      if (boardHiddenNow(layerRef.current)) return
       const next = getSnapshot()
       if (sameSlice(allRef.current, next, keyRef.current)) return
       allRef.current = next
@@ -62,8 +58,17 @@ function useLivePricesImpl(tickers = []) {
   // Register/unregister this caller's tickers in the shared union.
   useEffect(() => {
     if (!key) return undefined
-    return registerTickers(key.split(','))
-  }, [key])
+    let first = true
+    return whileBoardShown(layer, () => {
+      const off = registerTickers(key.split(','))
+      if (!first) {
+        const next = getSnapshot()
+        if (!sameSlice(allRef.current, next, keyRef.current)) { allRef.current = next; setAll(next) }
+      }
+      first = false
+      return off
+    })
+  }, [key, layer])
 
   // Select only this caller's slice (stable ref unless its tickers' data changes).
   const prices = useMemo(() => {

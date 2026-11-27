@@ -8,6 +8,7 @@
 //   S5 (red first) the chart's window.__uctChartDebug handle is gone while hidden and back at the show; a hide never
 //      removes another chart's handle
 //   S6 the <Activity> handle (no `layer`) is none of the above: its loops are ungated, its keys answer
+//   S7 (red first) a hide and a show with nothing new re-render nothing under the chart (React Profiler)
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor } from '@testing-library/react'
 
@@ -112,6 +113,7 @@ beforeEach(() => {
 })
 
 const { default: StockChart } = await import('./StockChart')
+const { Profiler } = await import('react')
 const { BoardVisibilityContext, createBoardVisibility } = await import('./chart/boardVisibility')
 
 // the chart's setInterval callbacks, captured (they never fire by themselves here: S4 runs them by hand)
@@ -213,6 +215,22 @@ describe('StockChart on a layer keep-alive board', () => {
     act(() => { vis.dispose(); view.unmount() })
     expect(window.__uctChartDebug['layer-hide'], 'an unmount while hidden replaced another chart handle').toBe(other)
     delete window.__uctChartDebug['layer-hide']
+  })
+
+  it('S7 (red first) a hide and a show with nothing new re-render nothing under the chart', async () => {
+    const vis = createBoardVisibility({ layer: true })
+    let commits = 0
+    const view = render(
+      <Profiler id="chart" onRender={() => { commits++ }}><Host vis={vis} /></Profiler>,
+    )
+    await waitFor(() => expect(lw.created).toBe(1))
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)) })
+    const before = commits
+    await setTo(vis, 'hidden')
+    await setTo(vis, 'visible')
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    expect(commits - before, 'a hide and a show re-rendered the chart').toBe(0)
+    view.unmount()
   })
 
   it('S6 the <Activity> handle is none of the above', async () => {

@@ -7,7 +7,7 @@
 
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { getBarStore } from './index'
-import { useBoardHidden } from '../../components/chart/boardVisibility'
+import { boardHiddenNow, useLayerBoard, whileBoardShown } from '../../components/chart/boardVisibility'
 
 /**
  * @param {string|null} key   a barStore key (types.keyOf) or null (nothing subscribed)
@@ -20,18 +20,29 @@ export function useBarSnapshot(key, { depth = 0, session = 'rth', priority = 'vi
   // returned is the one as of the last base change — a developing-bar tick never re-renders.
   const base = wake === 'base'
   // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board subscribes to nothing: its
-  // key's network loop, live feed and persist stop as at an unmount, and the show subscribes again. While hidden it
-  // reads the snapshot it HELD at the hide, so nothing the store does meanwhile (an eviction included) reaches its chart.
-  const hidden = useBoardHidden()
-  const sub = useCallback(
-    (cb) => (key && !hidden ? s.subscribe(key, cb, { depth, session, priority, wake: base ? 'base' : 'all' }) : () => {}),
-    [s, key, depth, session, priority, base, hidden],
-  )
-  const get = useCallback(() => (key ? (base ? s.getBaseSnapshot(key) : s.getSnapshot(key)) : null), [s, key, base])
+  // key's network loop, live feed and persist stop as at an unmount; the subscription comes back after the show's first
+  // paint. While hidden the hook reads the snapshot it HELD at the hide (nothing the store does meanwhile, an eviction
+  // included, reaches its chart), and neither the hide nor the show re-renders it: the show's re-subscription tells
+  // React to look, and React re-renders only when the snapshot moved while hidden.
+  const layer = useLayerBoard()
   const heldRef = useRef(null)
-  const getHeld = useCallback(() => (heldRef.current && heldRef.current.key === key ? heldRef.current.snap : get()), [key, get])
-  const read = hidden ? getHeld : get
-  const snap = useSyncExternalStore(sub, read, read)
-  if (!hidden) heldRef.current = { key, snap }
+  const sub = useCallback((cb) => {
+    if (!key) return () => {}
+    let first = true
+    return whileBoardShown(layer, () => {
+      const off = s.subscribe(key, cb, { depth, session, priority, wake: base ? 'base' : 'all' })
+      if (!first) cb()
+      first = false
+      return off
+    })
+  }, [s, key, depth, session, priority, base, layer])
+  const get = useCallback(() => {
+    if (!key) return null
+    const held = heldRef.current
+    if (layer && held && held.key === key && boardHiddenNow(layer)) return held.snap
+    return base ? s.getBaseSnapshot(key) : s.getSnapshot(key)
+  }, [s, key, base, layer])
+  const snap = useSyncExternalStore(sub, get, get)
+  if (!layer || !boardHiddenNow(layer)) heldRef.current = { key, snap }
   return snap
 }

@@ -1,8 +1,10 @@
 // Live prices on a hidden LAYER board (2026-11-27, the board keep-alive's layer mode; boardVisibility.js). The board
 // stays mounted, so its charts' and lists' price hooks would keep their tickers in the 2 s poll and the price stream.
-//   P1 (red first) a hidden layer board polls no price (its tickers leave the shared poll); the show registers them again
+//   P1 (red first) a hidden layer board polls no price (its tickers leave the shared poll); they come back after the
+//      show's first paint
 //   P2 (red first) a hidden layer board streams no price (its tickers leave the stream)
-//   P3 while hidden both hooks return what they held at the hide (a chart sees no change until the show)
+//   P3 (red first) neither the hide nor the show re-renders either hook when nothing moved; while hidden their prices
+//      are the ones held at the hide
 //   P4 the <Activity> mode's handle changes nothing
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -31,23 +33,27 @@ import useRealtimePrices from './useRealtimePrices'
 import { BoardVisibilityContext, createBoardVisibility } from '../components/chart/boardVisibility'
 
 beforeEach(() => { reg.live.clear(); reg.stream.clear() })
-const mount = (hook, vis) => renderHook(() => hook(['AAPL']), {
+let renders = 0
+const mount = (hook, vis) => renderHook(() => { renders++; return hook(['AAPL']) }, {
   wrapper: ({ children }) => <BoardVisibilityContext.Provider value={vis}>{children}</BoardVisibilityContext.Provider>,
 })
+const afterPaint = () => act(async () => { await new Promise((r) => setTimeout(r, 60)) })
 
 describe('price hooks on a hidden layer board', () => {
-  it('P1 (red first) a hidden layer board polls no price; the show registers it again', () => {
+  it('P1 (red first) a hidden layer board polls no price; the show registers it again', async () => {
     const vis = createBoardVisibility({ layer: true })
     const view = mount(useLivePrices, vis)
     expect(reg.live.get('AAPL'), 'NON-VACUITY: a visible board polls its ticker').toBe(1)
     act(() => { vis.set('hidden') })
     expect(reg.live.get('AAPL'), 'a hidden board kept its ticker in the poll').toBe(0)
     act(() => { vis.set('visible') })
+    expect(reg.live.get('AAPL'), 'the show registered in its own task').toBe(0)
+    await afterPaint()
     expect(reg.live.get('AAPL')).toBe(1)
     view.unmount()
   })
 
-  it('P2 (red first) a hidden layer board streams no price', () => {
+  it('P2 (red first) a hidden layer board streams no price', async () => {
     const vis = createBoardVisibility({ layer: true })
     const view = mount(useRealtimePrices, vis)
     expect(reg.stream.get('AAPL'), 'NON-VACUITY: a visible board streams its ticker').toBe(1)
@@ -56,20 +62,26 @@ describe('price hooks on a hidden layer board', () => {
     expect(reg.stream.get('AAPL'), 'a hidden board kept its ticker in the stream').toBe(0)
     expect(reg.live.get('AAPL'), 'a hidden board kept its ticker in the poll').toBe(0)
     act(() => { vis.set('visible') })
+    await afterPaint()
     expect(reg.stream.get('AAPL')).toBe(1)
+    expect(reg.live.get('AAPL')).toBe(1)
     view.unmount()
   })
 
-  it('P3 while hidden both hooks return what they held at the hide', () => {
+  it('P3 (red first) neither the hide nor the show re-renders the hooks when nothing moved', async () => {
     for (const hook of [useLivePrices, useRealtimePrices]) {
       const vis = createBoardVisibility({ layer: true })
       const view = mount(hook, vis)
-      const held = view.result.current
-      expect(Object.keys(held.prices), 'NON-VACUITY: the hook reads a price').toEqual(['AAPL'])
+      await afterPaint()
+      const held = view.result.current.prices
+      expect(Object.keys(held), 'NON-VACUITY: the hook reads a price').toEqual(['AAPL'])
+      const before = renders
       act(() => { vis.set('hidden') })
-      expect(view.result.current, 'a hidden board saw its prices change at the hide').toBe(held)
       view.rerender()
-      expect(view.result.current).toBe(held)
+      expect(view.result.current.prices, 'a hidden board saw its prices change').toBe(held)
+      act(() => { vis.set('visible') })
+      await afterPaint()
+      expect(renders - before, `${hook.name}: the hide or the show re-rendered the reader`).toBe(1)   // the rerender() above
       view.unmount()
     }
   })

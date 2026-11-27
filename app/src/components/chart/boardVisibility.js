@@ -14,9 +14,13 @@
 // ⭐ THE LAYER MODE (2026-11-27, `uct.boardKeepAlive` = '2'; a handle made with `{ layer: true }`). The kept board stays
 // mounted AND laid out (absolute, inset 0, visibility hidden, inert): no effect of it is cleaned up at the hide or re-run
 // at the show, and no canvas changes size. Its work PAUSES instead, each piece reading the handle:
-//   - `useBoardHidden()` (reactive): the bar store's subscriptions, live prices, the developing-bar paint;
+//   - `whileBoardShown(useLayerBoard(), start)`: subscriptions (the bar store's keys and developing bars, live prices,
+//     the price stream) stop at the hide and start again AFTER the show's first paint, with NO re-render at either
+//     (a reader is told only when its value moved while hidden);
 //   - `boardHiddenNow(vis)` (read when it fires): intervals and document key shortcuts;
-//   - `boardLoopGate(vis)`: the adaptive frame loops (parked while hidden, back on the next frame at the show).
+//   - `boardLoopGate(vis)`: the adaptive frame loops (parked while hidden, back on the next frame at the show);
+//   - `useBoardHidden()` (reactive, re-renders its reader): only where a render must change (a chart leaving the
+//     group decisions, ChartWidget).
 // A layer handle never keeps a chart through a cleanup (`boardIsHiding` is false for it): a hidden board's unmount is a
 // plain unmount.
 //
@@ -76,6 +80,49 @@ export function boardHiddenNow(vis) {
 export function boardLoopGate(vis) {
   if (!vis || !vis.layer || typeof vis.subscribe !== 'function') return null
   return { paused: () => boardHiddenNow(vis), subscribe: vis.subscribe }
+}
+
+/** The LAYER handle of the board this component sits on, or null (no handle, or the <Activity> mode's). Stable per
+ *  board: reading it never re-renders. */
+export function useLayerBoard() {
+  const vis = useContext(BoardVisibilityContext)
+  return vis && vis.layer ? vis : null
+}
+
+function afterPaint(fn) {
+  if (typeof requestAnimationFrame !== 'function') {
+    const t = setTimeout(fn, 0)
+    return () => clearTimeout(t)
+  }
+  let t = 0
+  const f = requestAnimationFrame(() => { t = setTimeout(fn, 0) })
+  return () => { cancelAnimationFrame(f); if (t) clearTimeout(t) }
+}
+
+/** Run `start` (it returns its own stop) while the layer board `vis` is shown: stopped at a hide, started again AFTER
+ *  the show's first paint (the show's own task runs none of it). No layer handle: started once, exactly as before.
+ *  Returns the stop of it all. */
+export function whileBoardShown(vis, start) {
+  if (!vis) return start()
+  let stop = null
+  let pending = null
+  let done = false
+  const halt = () => {
+    if (pending) { pending(); pending = null }
+    if (stop) { const s = stop; stop = null; try { s() } catch { /* gone */ } }
+  }
+  const begin = () => {
+    pending = null
+    if (!done && !stop && !boardHiddenNow(vis) && vis.state !== 'disposed') stop = start()
+  }
+  const sync = () => {
+    if (done) return
+    if (boardHiddenNow(vis) || vis.state === 'disposed') halt()
+    else if (!stop && !pending) pending = afterPaint(begin)
+  }
+  if (!boardHiddenNow(vis) && vis.state !== 'disposed') stop = start()
+  const unVis = vis.subscribe(sync)
+  return () => { done = true; unVis(); halt() }
 }
 
 const NO_SUBSCRIBE = () => () => {}

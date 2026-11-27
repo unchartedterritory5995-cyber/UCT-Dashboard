@@ -1,8 +1,9 @@
 // useBarSnapshot on a hidden LAYER board (2026-11-27, the board keep-alive's layer mode; boardVisibility.js). The board
 // stays mounted, so the hook's own subscription is what keeps its key's network loop, live feed and persist running.
-//   B1 (red first) a hidden layer board subscribes to nothing: its key's I/O stops as at an unmount; the show subscribes
-//      again
-//   B2 (red first) while hidden the hook returns the snapshot it held at the hide, whatever the store does meanwhile
+//   B1 (red first) a hidden layer board subscribes to nothing: its key's I/O stops as at an unmount; the subscription
+//      comes back after the show's first paint (never in the show's own task)
+//   B2 (red first) while hidden the hook returns the snapshot it held at the hide, whatever the store does meanwhile;
+//      neither the hide nor the show re-renders it when nothing moved
 //   B3 the <Activity> mode's handle (no `layer`) and no handle at all change nothing
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -27,6 +28,23 @@ function mount(s, vis) {
 }
 
 describe('useBarSnapshot on a hidden layer board', () => {
+  it('B4 (red first) a hide and a show with nothing new re-render nothing', async () => {
+    vi.useFakeTimers()
+    const { s } = store()
+    const vis = createBoardVisibility({ layer: true })
+    let renders = 0
+    const wrapper = ({ children }) => <BoardVisibilityContext.Provider value={vis}>{children}</BoardVisibilityContext.Provider>
+    const view = renderHook(() => { renders++; return useBarSnapshot(K, { store: s }) }, { wrapper })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    act(() => { s.applyLive(K, LIVE(1762786800, 1)) })
+    const before = renders
+    act(() => { vis.set('hidden') })
+    act(() => { vis.set('visible') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    expect(renders - before, 'a hide and a show with nothing new re-rendered the reader').toBe(0)
+    view.unmount()
+  })
+
   it('B1 (red first) a hidden layer board subscribes nothing; the show subscribes again', async () => {
     vi.useFakeTimers()
     const { s } = store()
@@ -37,6 +55,8 @@ describe('useBarSnapshot on a hidden layer board', () => {
     act(() => { vis.set('hidden') })
     expect(s.network.stats().keys, 'a hidden board kept its key running').toBe(0)
     act(() => { vis.set('visible') })
+    expect(s.network.stats().keys, 'the show subscribed in its own task').toBe(0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
     expect(s.network.stats().keys, 'the show did not subscribe again').toBe(1)
     view.unmount()
     expect(s.network.stats().keys).toBe(0)
@@ -59,6 +79,7 @@ describe('useBarSnapshot on a hidden layer board', () => {
     view.rerender()
     expect(view.result.current, 'a hidden board read a snapshot newer than its hide').toBe(held)
     act(() => { vis.set('visible') })
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
     expect(view.result.current, 'the show did not read the current snapshot').toBe(s.getSnapshot(K))
     other()
     view.unmount()

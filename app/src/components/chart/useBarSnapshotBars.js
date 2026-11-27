@@ -25,7 +25,7 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
-import { useBoardHidden } from './boardVisibility'
+import { useLayerBoard, whileBoardShown } from './boardVisibility'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
@@ -414,11 +414,12 @@ export function useBarSnapshotBars({
     }
   }
   const _heldDevRev = _devHeldRef.current.devRev
-  // (layer keep-alive) a hidden board paints no developing bar: its subscription is off until the show
-  const _boardHidden = useBoardHidden()
+  // (layer keep-alive, boardVisibility.js) a hidden layer board paints no developing bar: the subscription stops at the
+  // hide and comes back after the show's first paint (no re-render at either)
+  const _layerBoard = useLayerBoard()
   useEffect(() => {
-    if (!key || !_storeDevRef || _boardHidden) return undefined
-    return store.subscribeDeveloping(key, (s) => {
+    if (!key || !_storeDevRef) return undefined
+    return whileBoardShown(_layerBoard, () => store.subscribeDeveloping(key, (s) => {
       const base = _baseSnapRef.current
       // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
       if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
@@ -427,8 +428,8 @@ export function useBarSnapshotBars({
       _devHeldRef.current = { key, devRev: s.devRev }
       _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
-    })
-  }, [key, store, _boardHidden])  // eslint-disable-line react-hooks/exhaustive-deps
+    }))
+  }, [key, store, _layerBoard])  // eslint-disable-line react-hooks/exhaustive-deps
   // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
   // (the paint refuses a stale / foreign series and an older frame by itself).
   useEffect(() => {

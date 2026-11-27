@@ -3,7 +3,7 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext } from './chart/paintLog'
-import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate, useBoardHidden } from './chart/boardVisibility'
+import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 // (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
@@ -19702,23 +19702,31 @@ function StockChartBody({
   // ⭐ The LAYER keep-alive (boardVisibility.js): a hidden layer board's chart keeps its instance and every effect, but
   // holds no manifest slot and no `window.__uctChartDebug` handle while hidden (the board in front may hold a chart of
   // the same id); the show takes both back. An unmount while hidden (or disposed) takes nothing back.
-  const boardHiddenLayer = useBoardHidden()
-  useLayoutEffect(() => {
-    if (!boardHiddenLayer) return undefined
-    const chart = chartRef.current
-    if (!chart) return undefined
-    dropOwnDebugHandle()
-    try { unregisterManifestRef.current?.() } catch { /* disposed */ }
-    unregisterManifestRef.current = null
-    return () => {
-      if (chartRef.current !== chart || boardVisibilityRef.current?.state !== 'visible') return
-      unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
-      if (chartDebugHandleRef.current && typeof window !== 'undefined') {
-        window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+  // (read through the handle, never as React state: neither the hide nor the show re-renders the chart)
+  useEffect(() => {
+    const vis = boardVisibilityRef.current
+    if (!vis || !vis.layer) return undefined
+    let away = false
+    const follow = () => {
+      const chart = chartRef.current
+      const hidden = boardHiddenNow(vis)
+      if (!chart || hidden === away) return
+      away = hidden
+      if (hidden) {
+        dropOwnDebugHandle()
+        try { unregisterManifestRef.current?.() } catch { /* disposed */ }
+        unregisterManifestRef.current = null
+      } else if (vis.state === 'visible') {
+        unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
+        if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+          window.__uctChartDebug = window.__uctChartDebug || {}
+          window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+        }
       }
     }
-  }, [boardHiddenLayer])   // eslint-disable-line react-hooks/exhaustive-deps -- the refs and chartId are read at the show
+    follow()
+    return vis.subscribe(follow)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- one board for life; the refs and chartId are read when it fires
 
   // ── Clear drawing selection on symbol/tf change ──
   useEffect(() => {
