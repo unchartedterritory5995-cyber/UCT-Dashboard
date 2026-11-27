@@ -2192,3 +2192,8 @@ export const STORE_WARMERS = Object.freeze({
   createNeighborHold,   // store only: the legacy caches have no LRU to pin against
 })
 if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS
+// ⚡ (2026-11-26, the board switch) the board asks whether a chart's bars are HELD before it mounts that chart in the
+// switch's own commit (ChartsWorkspace, useStaggeredMount `admitNowFor`). Registered like the warmers, never imported
+// by the board (an import edge would pull this module out of the chart chunk).
+export const STORE_HOLDS_KEY = '__uctStoreHoldsBars'
+if (BARSTORE && typeof globalThis !== 'undefined') globalThis[STORE_HOLDS_KEY] = holdsBars

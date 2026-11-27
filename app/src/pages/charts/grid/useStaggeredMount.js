@@ -11,10 +11,22 @@
 //
 // Contract: NEVER unmounts a live id (chart-instance-reuse invariant) — a
 // layout switch only queues genuinely-new ids and purges removed ones.
+//
+// ⚡ (2026-11-26, the board switch; owner: "never a lone chart") TWO SWITCH LANES, both opt-in per render:
+//  · `admitNowFor(id)`: a new id it answers true for is mounted in THIS render, so in the switch's own commit, beside
+//    every other such id, outside the limit and the pacing (the board passes it only on a member's switch, for charts
+//    whose bars are already held: nothing to fetch, so no herd). The admission is recorded after the commit and holds a
+//    slot until released, as any admission does.
+//  · `nextFrameFor(id)`: a new id it answers true for is admitted one animation frame after the switch instead of
+//    waiting its turn in the paced queue (the board: a switch's non-chart widgets).
+// Everything else (cold charts, first loads, the board's own reverts) queues exactly as before.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000, slotTimeoutFor = null, minAdmitIntervalMs = 0 } = {}) {
+const NO_IDS = Object.freeze([])
+const nextFrame = (f) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16))
+
+export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000, slotTimeoutFor = null, minAdmitIntervalMs = 0, admitNowFor = null, nextFrameFor = null } = {}) {
   const [mountedIds, setMountedIds] = useState(() => new Set(ids.slice(0, limit)))
   const mountedRef = useRef(null)
   const pendingRef = useRef(null)   // mounted but not yet released (holds a slot)
@@ -28,6 +40,17 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     queueRef.current = ids.slice(limit)
     lastAdmitRef.current = Date.now()
   }
+
+  // the switch lanes (see the header): ids this render mounts at once. They stay mounted in every render until an
+  // effect has recorded them (a render between the commit and that effect no longer has `admitNowFor`, and must not
+  // drop a body it already mounted: the chart-instance-reuse invariant)
+  const stickyNowRef = useRef(null)
+  if (stickyNowRef.current === null) stickyNowRef.current = new Set()
+  if (admitNowFor) for (const id of ids) if (!mountedRef.current.has(id) && admitNowFor(id)) stickyNowRef.current.add(id)
+  const nextFrameForRef = useRef(nextFrameFor)
+  nextFrameForRef.current = nextFrameFor
+  const idsRef = useRef(ids)
+  idsRef.current = ids
 
   const releaseRef = useRef(null)
   const admitRef = useRef(null)
@@ -98,6 +121,24 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // The ids admitted at once (the switch lane) are recorded after the commit that mounted them, each holding a slot until
+  // released like any admission. Declared before the reconcile below, which then finds them mounted, not new.
+  useEffect(() => {
+    const sticky = stickyNowRef.current
+    if (!sticky.size) return
+    const idsNow = new Set(idsRef.current)
+    let changed = false
+    for (const id of sticky) {
+      if (!idsNow.has(id) || mountedRef.current.has(id)) continue
+      mountedRef.current.add(id)
+      pendingRef.current.add(id)
+      armTimer(id)
+      changed = true
+    }
+    sticky.clear()
+    if (changed) setMountedIds(new Set(mountedRef.current))
+  })
+
   // Reconcile on id-set changes (layout switch): purge removed ids, queue new
   // ones, top up free slots. Never evicts a surviving mounted id.
   const idsKey = ids.join(',')
@@ -113,13 +154,32 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     }
     const queuedOrMounted = new Set([...mountedRef.current, ...queueRef.current])
     queueRef.current = queueRef.current.filter(id => idsSet.has(id))
+    const soon = []
     for (const id of ids) {
-      if (!queuedOrMounted.has(id)) queueRef.current.push(id)
+      if (queuedOrMounted.has(id)) continue
+      if (nextFrameForRef.current?.(id)) soon.push(id)
+      else queueRef.current.push(id)
+    }
+    if (soon.length) {
+      nextFrame(() => {
+        let changed = false
+        for (const id of soon) {
+          if (mountedRef.current.has(id) || !idsRef.current.includes(id)) continue
+          mountedRef.current.add(id)
+          pendingRef.current.add(id)
+          armTimer(id)
+          changed = true
+        }
+        if (changed) setMountedIds(new Set(mountedRef.current))
+      })
     }
     admit()
     setMountedIds(new Set(mountedRef.current))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, admit])
 
-  return { mountedIds, release }
+  // the ids this render admits at once are mounted in it (the state catches up after the commit, with the same set)
+  const sticky = stickyNowRef.current
+  const shown = sticky.size ? new Set([...mountedIds, ...[...sticky].filter((id) => ids.includes(id))]) : mountedIds
+  return { mountedIds: shown, release }
 }

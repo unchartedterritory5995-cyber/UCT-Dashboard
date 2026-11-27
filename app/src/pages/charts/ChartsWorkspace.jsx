@@ -909,12 +909,18 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shows the new board arms the two frames (boardSwitchMark.js).
   const switchMarkRef = useRef(null)
   if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
-  const switchLayout = useCallback((next) => {
+  // ⚡ (2026-11-26, the board switch; owner: "never a lone chart") A MEMBER'S SWITCH (`user`: a dock or template open,
+  // UCT Default chosen, New Layout, a version restore; never the first load or a revert) marks the render that shows the
+  // new board, so the staggered mount below admits every chart whose bars are already held in that same commit, and
+  // the switch's other widgets one frame later (useStaggeredMount's switch lanes). Cleared once that board committed.
+  const userSwitchRef = useRef(false)
+  const switchLayout = useCallback((next, { user = false } = {}) => {
     const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
     if (grid && next !== layoutRef.current) switchMarkRef.current.mark(grid)
+    if (user && next !== layoutRef.current) userSwitchRef.current = true
     setLayout(next)
   }, [])
-  useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
+  useLayoutEffect(() => { switchMarkRef.current.committed(); userSwitchRef.current = false }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
@@ -1195,9 +1201,31 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   )
   // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
   // the widgets back in through the same cap instead of mounting them all at once.
+  // A member's switch (switchLayout `user`): the board's charts whose bars the store already HOLDS are mounted in the
+  // switch's own commit, together (nothing to fetch, so no herd); its other widgets one frame later. Cold charts, first
+  // loads and reverts keep the paced admission below. The store answers through its registered reader, no import edge
+  // (data/barStore/prefetch STORE_HOLDS_KEY): no reader yet (no chart loaded on this page) reads as cold.
+  const userSwitchRender = userSwitchRef.current
+  const warmChartNow = (id) => {
+    const holds = typeof globalThis !== 'undefined' ? globalThis.__uctStoreHoldsBars : null
+    if (typeof holds !== 'function') return false
+    const w = layout.widgets.find(x => x.id === id)
+    if (!w) return false
+    const tab = resolveActiveTab(w)
+    if (tab.type !== 'chart') return false
+    const sym = groupSymsStore.get()?.[tab.color]
+    if (!sym) return false
+    try { return !!holds(sym, String(tab.opts?.tf || 'D')) } catch { return false }
+  }
+  const nonChartSoon = (id) => {
+    const w = layout.widgets.find(x => x.id === id)
+    return !!w && resolveActiveTab(w).type !== 'chart'
+  }
   const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
     limit: PANEL_MOUNT_CAP,
     minAdmitIntervalMs: PANEL_ADMIT_INTERVAL_MS,
+    admitNowFor: userSwitchRender ? warmChartNow : null,
+    nextFrameFor: userSwitchRender ? nonChartSoon : null,
     slotTimeoutFor: (id) => {
       const w = layout.widgets.find(x => x.id === id)
       return w && resolveActiveTab(w).type !== 'chart' ? NON_CHART_SLOT_MS : undefined
@@ -2362,7 +2390,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => { switchLayout(boardLayout); setOpenMenuOpen(false) },
+      applyLocal: () => { switchLayout(boardLayout, { user: true }); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2518,7 +2546,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => { if (!keepBoard) switchLayout(normalized) },
+      applyLocal: () => { if (!keepBoard) switchLayout(normalized, { user: !quiet }) },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
@@ -2613,7 +2641,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const blank = { widgets: [], cols: GRID_COLS }
     const g = { A: null, B: null, C: null, D: null }
     commitBoard({
-      applyLocal: () => { switchLayout(blank); setGroupSymsState(g) },
+      applyLocal: () => { switchLayout(blank, { user: true }); setGroupSymsState(g) },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(blank))
         setPref('charts_workspace_groups', JSON.stringify(g))
@@ -2972,7 +3000,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     const restoredLayout = parseLayout(fresh.charts_workspace_layout)
     if (restoredLayout) {
-      switchLayout(restoredLayout)
+      switchLayout(restoredLayout, { user: true })
       loadedFromPrefsRef.current = true
     }
     const g = parsePref(fresh.charts_workspace_groups, null)
