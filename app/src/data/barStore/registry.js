@@ -45,6 +45,14 @@ const _lifeGen = () => (++_lives) * LIFE_STRIDE
 /** The first generation of an entry made now (tests). */
 export function _nextLifeGenForTests() { return (_lives + 1) * LIFE_STRIDE }
 
+/** ⭐ (review of #2935, D-1) THE SWITCH TARGET STAYS HELD UNTIL ITS CHART SUBSCRIBES. The handoff's prepare pins its key
+ *  (ensure) and lets go when it reports; the chart subscribes only at the commit. In between, a never-shown target is an
+ *  ordinary idle intraday entry, and another key's landing over the budget could drop it (an exact reload, but the press
+ *  the member made would wait for it). `holdUntilShown` pins it until a subscriber arrives, at most HANDOFF_HOLD_MS, and
+ *  at most HANDOFF_HOLDS_MAX at once (a fast arrow run hands off two keys a press: the oldest holds go first). */
+export const HANDOFF_HOLD_MS = 1500
+export const HANDOFF_HOLDS_MAX = 4
+
 /** One idle moment (requestIdleCallback; a 50 ms timer where there is none). */
 export function defaultIdle(fn) {
   if (typeof requestIdleCallback === 'function') return requestIdleCallback(() => fn(), { timeout: 1000 })
@@ -80,10 +88,12 @@ export const DEFAULT_RECENT_SYMBOLS = BAR_BUDGET_DESKTOP.recentSymbols
  * @param {(fn: Function) => any} [opts.frame]  the dev-channel coalescing tick (default: one frame)
  * @param {(fn: Function) => any} [opts.idle]   where the eviction a LAST UNSUBSCRIBE asks for runs (default: idle time;
  *                                              never in the press's task that unmounted the old row's chart)
+ * @param {(fn: Function, ms: number) => any} [opts.setTimer] [opts.clearTimer]  the handoff hold's bound (holdUntilShown)
  */
 export function createRegistry({
   maxKeys = DEFAULT_MAX_KEYS, barBudget = DEFAULT_BAR_BUDGET, recentSymbols = DEFAULT_RECENT_SYMBOLS,
   depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}), frame = defaultFrame, idle = defaultIdle,
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
 } = {}) {
   /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
@@ -94,6 +104,8 @@ export function createRegistry({
   /** This registry's own eviction listeners (its network aborts the dropped key's request in flight). */
   const evictSubs = new Set()
   let idleEvict = false
+  /** The handoff holds (holdUntilShown), oldest first: { key, end } */
+  const handoffs = []
   function _evictSoon() {
     if (idleEvict) return
     idleEvict = true
@@ -238,6 +250,8 @@ export function createRegistry({
       e.dwell = false
       e.shown = true
       _noteShown(key)
+      // the switch target's chart is here: its handoff hold has done its job (the subscriber pins it now)
+      for (const h of handoffs.filter((x) => x.key === key)) h.end()
       return () => {
         if (!e.subs.delete(sub)) return
         // the last subscriber gone: the symbol is one just shown, its entry as recent as the moment it left the screen
@@ -283,6 +297,29 @@ export function createRegistry({
       return n
     },
     keys() { return [...entries.keys()] },
+    /** Pin `key` (a switch target its prepare just reported) until a subscriber arrives, at most `ms`; at most
+     *  HANDOFF_HOLDS_MAX holds at once, the oldest released first. A key not held, or already shown, is not pinned.
+     *  Returns the release (idempotent). */
+    holdUntilShown(key, { ms = HANDOFF_HOLD_MS } = {}) {
+      const e = entries.get(key)
+      if (!e || e.subs.size) return () => {}
+      e.refs++
+      e.used = ++clock
+      const h = { key, timer: null, done: false }
+      h.end = () => {
+        if (h.done) return
+        h.done = true
+        if (h.timer != null) { try { clearTimer(h.timer) } catch { /* gone */ } }
+        const i = handoffs.indexOf(h)
+        if (i >= 0) handoffs.splice(i, 1)
+        if (e.refs > 0) e.refs--
+        _evictSoon()
+      }
+      h.timer = setTimer(h.end, ms)
+      handoffs.push(h)
+      while (handoffs.length > HANDOFF_HOLDS_MAX) handoffs[0].end()
+      return h.end
+    },
     /** `cb(key)` whenever THIS registry drops an entry. Returns the unsubscribe. */
     onEvict(cb) { evictSubs.add(cb); return () => { evictSubs.delete(cb) } },
     /** Mark (`on`) an entry a dwell warm made, or make it ordinary; a pinned or subscribed entry is never marked (see
