@@ -108,6 +108,19 @@ export function deriveVolMa(sessionApplied, r) {
 }
 
 /**
+ * Is the chart on the PLAIN path, the one the preparer walks (`recipes.plain`)? No replay, override, framed range or
+ * session candle, and the chain bars → session → applied is the chart's own (nothing between them the preparer does
+ * not do). StockChart asks this every render; off it, the rows around the chart are not prepared.
+ */
+export function neighborPlainOf({
+  hasOverride, isCustomTf, replayMode, replayIndex, replayCutoff, exactDateRange, sessionCandleActive,
+  sessionBars, filteredBars, sessionAppliedBars,
+}) {
+  return !hasOverride && !isCustomTf && !replayMode && replayIndex == null && !replayCutoff
+    && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
+}
+
+/**
  * One row, prepared: a generator for the idle queue (each `yield` a pause point).
  * @param {string} sym   the row's symbol
  * @param {number} rank  0 = the next row ahead, 1 = the row behind, 2/3 = two away

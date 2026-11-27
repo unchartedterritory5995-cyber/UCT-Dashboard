@@ -1908,7 +1908,7 @@ import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, compute
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
-  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes,
+  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes, neighborPlainOf,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
@@ -11285,8 +11285,10 @@ function StockChartBody({
   // on the plain path (no replay, override, custom timeframe, framed range or session candle), where the
   // chain above is bars → session → the very arrays the binder and the series are handed.
   if (_nfRecipes) {
-    _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
-      && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
+    _nfRecipes.plain = neighborPlainOf({
+      hasOverride: _hasOverride, isCustomTf: _isCustomTf, replayMode, replayIndex, replayCutoff, exactDateRange,
+      sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
+    })
   }
   useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
   const overlayData = useMemo(() => {
