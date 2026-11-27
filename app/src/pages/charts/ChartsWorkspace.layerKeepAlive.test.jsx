@@ -395,6 +395,8 @@ test('LK13 (red first) a board kept 30 minutes without a show goes, the page vis
 test('LK14 (red first; review of #2911, F2) a layer switch to a board not kept marks the NEW grid; a return marks nothing', async () => {
   mount()
   await settle()
+  // the load's own switch marked MAIN's grid (the remount path); it clears after two frames
+  await waitFor(() => expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'NON-VACUITY: the load mark clears').toBe(0))
   await act(async () => { dockButton('Two Charts').click() })
   const front = document.querySelector('[data-board-current] .react-grid-layout')
   expect(front, 'NON-VACUITY: the board in front has a grid').toBeTruthy()
