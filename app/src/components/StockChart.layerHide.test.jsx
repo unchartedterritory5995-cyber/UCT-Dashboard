@@ -308,6 +308,25 @@ describe('StockChart on a layer keep-alive board', () => {
     view.unmount()
   })
 
+  it('S12 (review of #2936, LOW-1) a range button writes its view lock in the same task: a press before the next frame finds it', async () => {
+    let api = null
+    const view = render(<Host extra={{ viewLockKey: 'uct.charts.viewLock.s12', onDateNavApi: (a) => { api = a } }} />)
+    await waitFor(() => expect(api?.getDateMeta?.()).toBeTruthy())
+    const frames = []
+    const raf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (cb) => { frames.push(cb); return frames.length }   // no frame runs
+    try {
+      act(() => { api.applyRange(3) })
+      const m = api.getDateMeta()
+      expect(m.frame.locked).toBe(true)
+      expect(m.frame.lock.width).toBeGreaterThan(0)
+      const stored = JSON.parse(localStorage.getItem('uct.charts.viewLock.s12') || 'null')
+      expect(stored?.anchorFrac).toBeCloseTo(m.frame.lock.anchorFrac, 9)
+      expect(stored?.width).toBeCloseTo(m.frame.lock.width, 9)
+    } finally { globalThis.requestAnimationFrame = raf }
+    view.unmount()
+  })
+
   it('S7 (red first) a hide and a show with nothing new re-render nothing under the chart', async () => {
     const vis = createBoardVisibility({ layer: true })
     let commits = 0
