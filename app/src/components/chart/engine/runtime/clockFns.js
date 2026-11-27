@@ -147,34 +147,72 @@ export function instantField(field, ms, zone) {
 
 const MONTHS = Object.freeze({ jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 })
 
-/** Pine's `timestamp(dateString)`: RFC 2822 (`"20 Feb 2020 15:30:00 +0200"`) or
- *  ISO 8601 (`"2020-02-20T15:30:00+02:00"`); no time is 00:00, no zone is GMT+0
- *  (the reference, which says this form diverges from the exchange default).
+/** ⭐⭐ COV-TIME u2 (capmatrix C3, 2026-11-26) — THE ONE READER OF A DATE STRING. Pine's
+ *  `timestamp(dateString)`, the bare call's value on the runtime lane AND every `input.time` default
+ *  (`runtimeInputs.js::timestampOfDateString` IS this function; there is no second grammar).
+ *  The reference (v6): RFC 2822 ("DD MMM YYYY hh:mm:ss ±hhmm") or ISO 8601
+ *  ("YYYY-MM-DDThh:mm:ss±hh:mm"); "If the time is not specified, 00:00 is used. If the time zone is
+ *  not specified, GMT+0 is used" (this form diverges from the exchange default).
+ *
+ *  It reads ONLY the shapes a capture holds or the reference states, and nothing else:
+ *    · day-first RFC 2822, optional `Www, ` — T16 `"18 May 2022 00:00 +0000"`, C3e
+ *      `"20 Jul 2021 00:00 +0300"`, C3c `"01 Jan 2000 00:00:00 GMT+10"`;
+ *    · MONTH-first `"Jan 01 2023 00:00:00"` (C3a, C3b `"Feb 01 2020 22:10:05"`): not RFC 2822, but
+ *      TradingView reads it, as GMT+0 when no zone is written;
+ *    · ISO 8601 `YYYY-MM-DD[Thh:mm[:ss]][Z|±hh:mm|±hhmm]` — C3d `"2023-01-01T12:00:00"` (no zone: GMT+0).
+ *  A zone is none / `GMT` / `UTC` / `Z` (GMT+0), `±hhmm` (RFC 2822), or `GMT±h[h][[:]mm]` /
+ *  `UTC±h[h][[:]mm]`, an offset EAST of UTC: C3c reads `GMT+10` as 14:00 UTC the day before
+ *  (`Etc/GMT+10`'s opposite sign is NOT what TradingView does).
+ *  Captures: `vw-cap-c3-timestamp-{a..e}-spy-{1d,15}-2026-11-26` (FRED capmatrix runA): the input
+ *  and the bare call read the SAME instant on every bar, on both timeframes.
  *  Returns UNIX milliseconds, or null when the text is not one of those shapes. */
+// The time and zone tails are ONE source for both RFC-shaped forms (`.source`, never retyped).
+const DATE_TIME = /(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/.source
+const DATE_ZONE = /(?:\s+(GMT|UTC|Z|[+-]\d{4}|(?:GMT|UTC)[+-]\d{1,2}(?::?\d{2})?))?/.source
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?\s*(Z|[+-]\d{2}:?\d{2})?$/
+const DAY_FIRST_DATE = new RegExp(/^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})/.source + DATE_TIME + DATE_ZONE + '$')
+const MONTH_FIRST_DATE = new RegExp(/^([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})/.source + DATE_TIME + DATE_ZONE + '$')
+
+/** A date string's zone as minutes EAST of UTC, or null when it is not one of the read spellings. */
+function dateZoneMinutes(tz) {
+  if (tz === undefined || tz === 'Z' || tz === 'GMT' || tz === 'UTC') return 0
+  const t = /^(?:(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?|([+-])(\d{2}):?(\d{2}))$/.exec(tz)
+  if (!t) return null
+  const sign = t[1] || t[4]
+  const h = Number(t[2] !== undefined ? t[2] : t[5])
+  const mi = Number((t[2] !== undefined ? t[3] : t[6]) || 0)
+  if (h > 14 || mi > 59) return null
+  return (sign === '-' ? -1 : 1) * (h * 60 + mi)
+}
+
 export function dateStringMs(text) {
   const s = String(text).trim()
-  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?\s*(Z|[+-]\d{2}:?\d{2})?$/.exec(s)
   let y, mo, d, h = 0, mi = 0, sec = 0, tz
+  let m = ISO_DATE.exec(s)
   if (m) {
     [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
     if (m[4] !== undefined) { h = Number(m[4]); mi = Number(m[5]); sec = m[6] === undefined ? 0 : Number(m[6]) }
     tz = m[7]
   } else {
-    m = /^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?(?:\s+(GMT|UTC|Z|[+-]\d{4}))?$/.exec(s)
-    if (!m) return null
-    const mon = MONTHS[m[2].toLowerCase()]
+    let mon
+    m = DAY_FIRST_DATE.exec(s)
+    if (m) {
+      mon = MONTHS[m[2].toLowerCase()]
+      ;[d, y] = [Number(m[1]), Number(m[3])]
+    } else {
+      m = MONTH_FIRST_DATE.exec(s)
+      if (!m) return null
+      mon = MONTHS[m[1].toLowerCase()]
+      ;[d, y] = [Number(m[2]), Number(m[3])]
+    }
     if (!mon) return null
-    ;[d, mo, y] = [Number(m[1]), mon, Number(m[3])]
+    mo = mon
     if (m[4] !== undefined) { h = Number(m[4]); mi = Number(m[5]); sec = m[6] === undefined ? 0 : Number(m[6]) }
     tz = m[7]
   }
   if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || sec > 59) return null
-  let offset = 0
-  if (tz && tz !== 'Z' && tz !== 'GMT' && tz !== 'UTC') {
-    const t = /^([+-])(\d{2}):?(\d{2})$/.exec(tz)
-    if (!t) return null
-    offset = (t[1] === '-' ? -1 : 1) * (Number(t[2]) * 60 + Number(t[3]))
-  }
+  const offset = dateZoneMinutes(tz)
+  if (offset === null) return null
   const wall = wallAsUtc(y, mo, d, h, mi, sec)
   const back = new Date(wall)
   // ⛔ A DATE THAT DOES NOT EXIST ("2021-02-30") is not normalised here: the

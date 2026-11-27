@@ -39,7 +39,9 @@ const anchorScript = (def = 'Session') => [...H,
   '    "Session" => timeframe.change("D")',
   '    "Week" => timeframe.change("W")',
   '    "Month" => timeframe.change("M")',
-  '    "Quarter" => timeframe.change("3M")',
+  // ⚰️ this arm read `timeframe.change("3M")` until COV-TIME u2 served it (capmatrix C2); the refused arm the rail
+  // needs is now a half-year, a period no capture asked (still refused by name)
+  '    "Quarter" => timeframe.change("6M")',
   '    => false',
   'plot(ta.vwap(hlc3, isNew), "VWAP")'].join('\n')
 const plainScript = (anchorExpr) => [...H, `plot(ta.vwap(hlc3, ${anchorExpr}), "VWAP")`].join('\n')

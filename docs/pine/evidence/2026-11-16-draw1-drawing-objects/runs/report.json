@@ -3,9 +3,9 @@
   "capture": {
    "scripts": 1039,
    "admitted": 838,
-   "runtimeLane": 231,
+   "runtimeLane": 232,
    "hostLane": 318,
-   "refused": 289,
+   "refused": 288,
    "coreOnly": 51
   },
   "committed": {
@@ -2915,7 +2915,7 @@
   },
   {
    "capture": "machine-learning-knn-based-strategy-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

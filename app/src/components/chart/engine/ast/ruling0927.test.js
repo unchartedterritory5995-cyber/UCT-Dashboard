@@ -198,11 +198,9 @@ plot(s / 86400000.0)
     try { computeRuntimeColumns(runtimeDoc(text), ONE_BAR, CLOSED); return null } catch (e) { return String(e.message) }
   }
   const REFUSED = [
-    ['timestamp("18 May 2022 00:00")', /not written in the captured form/],
-    ['timestamp("2024-01-01")', /not written in the captured form/],
-    ['timestamp("2022-05-18T00:00:00")', /not written in the captured form/],
-    ['timestamp("18 May 2022 00:00 GMT+10")', /not written in the captured form/],
-    ['timestamp("18 May 2022 00:00:00 +0000")', /not written in the captured form/],
+    // ⚰️ COV-TIME u2: five date-string spellings stood here (no zone, an ISO date, an ISO date-time, `GMT+10`,
+    // seconds with `+0000`). Capmatrix C3 (`vw-cap-c3-timestamp-{a..e}-*-2026-11-26`) holds each shape, so the one
+    // date-string reader serves them (below); what it cannot read is refused by name (`covTimeU2.test.js`).
     // ⚰️ C1 (engine 84, coordinator ruling 2026-11-19): `timestamp("UTC", …)` and a literal count of milliseconds
     // stood here; the reference alone settles both, so they serve (below)
     ['timestamp("18 May 2022 00:00 +0000"), "S", confirm = true', /confirm = true/],
@@ -227,6 +225,13 @@ plot(s / 86400000.0)
     // ⭐ C1 (engine 84) — the forms the reference alone settles, the same instant as the captured form
     ['timestamp("UTC", 2022, 5, 18, 0, 0)', 19130],
     ['1652832000000', 19130],
+    // ⭐ COV-TIME u2 — the C3 shapes (`clockFns.js::dateStringMs`): no zone is GMT+0, `GMT+10` is 10 hours EAST
+    ['timestamp("18 May 2022 00:00")', 19130],
+    ['timestamp("2024-01-01")', Date.UTC(2024, 0, 1) / 86400000],
+    ['timestamp("2022-05-18T00:00:00")', 19130],
+    ['timestamp("18 May 2022 00:00 GMT+10")', (Date.UTC(2022, 4, 18) - 10 * 3600000) / 86400000],
+    ['timestamp("18 May 2022 00:00:00 +0000")', 19130],
+    ['timestamp("May 18 2022 00:00:00")', 19130],
   ])('the captured form, input.time(%s), serves on pane and runtime alike', (args, want) => {
     const t = pane(src(args))
     const got = interpret(parseFormula(t.outputs[0].formula).ast, ONE_BAR, {}, undefined, undefined, { tf: 'D' })

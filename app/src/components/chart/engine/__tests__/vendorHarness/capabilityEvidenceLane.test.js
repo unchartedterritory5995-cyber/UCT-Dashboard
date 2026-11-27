@@ -191,6 +191,11 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // the run and takes it ("cost-route:surface" was the only thing holding it on the host lane). Both lanes graded it
 // INCONCLUSIVE before; the runtime-on grade on that PR's run is in its results comment.
 
+// ⭐ COV-TIME u2 (feat/cov-time-u2) re-pinned 1 row, lane `null` -> `runtime`, populations re-derived:
+// machine-learning-knn-based-strategy-rddt-1d-2026-11-14. Its `input.time(sd)` over `timestamp('01 Jan 2000 00:00:00
+// GMT+10')` is served now (capmatrix C3c holds that spelling: ten hours EAST), so the runtime lane builds it. #2894's pine
+// heavy run (46008459139) grades it runtime-on INCONCLUSIVE (ClearPos MATCH; Buy / Sell refused `pine:collection`), not
+// DIVERGE: no REACH stop.
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission
   // ON (each script's verdict latched admitted below) and the host lane's KNOWN-DIVERGENCE LIST APPLIED, as the

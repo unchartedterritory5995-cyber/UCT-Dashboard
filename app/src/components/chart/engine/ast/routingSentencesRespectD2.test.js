@@ -90,12 +90,13 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
 
   // ⚰️ AN `input.time` EXPRESSION-DEFAULT SENTENCE WAS RAILED HERE. RULING-0927 (2026-11-07)
   // serves `input.time` at its default (capture T16), so there is no item (c) routing for it.
-  it('⭐ RULING-0927 r1 — the input.time specimen (no zone) refuses by name, with no item (c) routing', () => {
+  // ⚰️ RULING-0927 r1 refused this specimen (no zone) by name. COV-TIME u2: capture C3d
+  // (`vw-cap-c3-timestamp-d-*-2026-11-26`) reads an ISO date with no zone as GMT+0, the reference's own sentence,
+  // so the one date-string reader (`clockFns.js::dateStringMs`) serves it; it still carries no item (c) routing.
+  it('⭐ COV-TIME u2 — the input.time specimen (no zone) is served, with no item (c) routing', () => {
     const t = translatePine(TIME_EXPR_DEFAULT, {})
     expect(routing(TIME_EXPR_DEFAULT, 'item (c)')).toEqual([])
-    const r = t.outputs[0].refusal
-    expect(r && r.guard).toBe('pine:input-kind')
-    expect(r.message).toMatch(/timestamp\("2024-01-01"\)` is not written in the captured form[\s\S]*RULING-0927 r1/)
+    expect(t.outputs[0].refusal).toBeFalsy()
   })
 
   it('⛔ CONTROL — R16\'s bare-`input` routing is NOT given the qualification', () => {
