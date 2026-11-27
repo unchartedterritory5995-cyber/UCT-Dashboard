@@ -3073,15 +3073,4 @@
 /* ⭐ Board keep-alive (2026-11-27, boardKeepAlive.js): a board's slot adds no box of its own, so the grid inside lays
    out against the workspace body exactly as without it. A kept board's slot is hidden by <Activity> (display: none). */
 .boardSlot { display: contents; }
-/* The layer keep-alive's kept board (boardKeepAlive.js '2'): laid out exactly where the board in front is (the body's
-   padding box, its own padding the body's), never painted, never hit. Its canvases keep their size. */
-.boardSlotLayer {
-  position: absolute;
-  inset: 0;
-  padding: inherit;
-  box-sizing: border-box;
-  visibility: hidden;
-  pointer-events: none;
-  /* (review of #2901, L2) nothing inside affects the layout or paint of anything outside */
-  contain: strict;
-}
+/* The layer keep-alive's kept board: components/chart/boardLayer.module.css `.boardSlotLayer` (one definition). */
