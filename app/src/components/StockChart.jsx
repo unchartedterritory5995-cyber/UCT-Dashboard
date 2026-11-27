@@ -5405,7 +5405,11 @@ function StockChartBody({
       }
     } catch { top = 0 }
     const want = `${Math.round(top)}px`
-    if (host.style.getPropertyValue('--price-pane-top') !== want) {
+    const cur = host.style.getPropertyValue('--price-pane-top')
+    // ⚡ Unset already reads as `0px`: every reader is `var(--price-pane-top, 0px)` (rail:
+    // StockChart.lookbackPlacement.test.jsx). Writing `0px` over unset changed nothing on screen but, inherited by the
+    // whole chart, restyled every element of it on each mount (the price pane is on top on almost every chart).
+    if (cur !== want && !(cur === '' && want === '0px')) {
       host.style.setProperty('--price-pane-top', want)
     }
   }, [])
@@ -18482,6 +18486,7 @@ function StockChartBody({
     const tick = () => {
       let settled = true
       let sig = ''
+      let lookbackVar = null
       try {
         const rbNow = rangeBarRef.current
         if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
@@ -18570,11 +18575,11 @@ function StockChartBody({
           // stack on the lookback band (PatternOverlay's deal-status notice) reads
           // the one measurement instead of guessing it. Written even when the bar
           // itself is absent: the band is still where the notice belongs.
-          const host = wrapperRef.current
-          if (host) {
-            const want = `${plan.lookbackBottom}px`
-            if (host.style.getPropertyValue('--lookback-bottom') !== want) host.style.setProperty('--lookback-bottom', want)
-          }
+          // ⚡ Written at the END of the pass (`finally` below), after every layout read in it: a custom property on
+          // the wrapper is inherited by the whole chart, so a changed value written here made this pass's next read
+          // restyle every element of it (trace, 2026-11-26: 311 elements, 2-4.5 ms, a frame after each switch). Its
+          // one reader is the deal notice, which none of those reads measure; the frame restyles once instead.
+          lookbackVar = `${plan.lookbackBottom}px`
           const vl = volLegendRef.current
           if (vl) {
             // The VOLUME pane's own top — asked of the volume series, for the same
@@ -18660,18 +18665,30 @@ function StockChartBody({
             if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
-      } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
+      } catch { return null /* pane API missing → CSS fallback; keep measuring */ } finally {
+        const host = wrapperRef.current
+        if (host && lookbackVar !== null && host.style.getPropertyValue('--lookback-bottom') !== lookbackVar) {
+          host.style.setProperty('--lookback-bottom', lookbackVar)
+        }
+      }
       return settled ? sig : null
     }
     const loop = createAdaptiveFrameLoop({ tick })
-    loop.start()
+    // ⚡ (2026-11-27, the board switch) THE FIRST PASS RUNS IN THE NEXT FRAME, before it paints, not here. This effect
+    // runs inside the mount's commit: a pass here forced the freshly committed board's style and layout mid-task
+    // (`container.clientHeight`, 4.6 ms in a trace), and its wrapper writes made the next effect's read restyle the
+    // whole chart again. In the frame it reads the layout that frame computes anyway, and the placement still lands in
+    // the first painted frame (rAF callbacks run before the paint). Rail: StockChart.lookbackPlacement.test.jsx.
+    loop.start({ inFrame: true })
     const wake = () => loop.wake()
     // Anything that can move a surface wakes the loop back to every frame.
     const pointerEvents = ['pointerdown', 'pointermove', 'pointerup', 'wheel']
     for (const ev of pointerEvents) container.addEventListener(ev, wake, { passive: true })
     window.addEventListener('resize', wake)
     let ro = null
-    try { ro = new ResizeObserver(wake); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
+    // Its first delivery comes after this frame's layout and before its paint: a first pass still waiting (this effect
+    // ran inside an animation-frame callback, so the start above asked for the NEXT frame) runs there instead.
+    try { ro = new ResizeObserver(() => { if (!loop.runPendingStart()) wake() }); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
     const unsub = []
     const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
     // ⛔ NO crosshair subscription here: the chart has exactly TWO crosshair subscribers (the
