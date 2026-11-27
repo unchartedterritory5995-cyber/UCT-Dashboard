@@ -115,7 +115,7 @@ def test_the_workflow_is_wired_to_the_decision_and_bounded():
     wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
     assert "python tools/promote_decision.py --self-check" in wf
     assert "promote_decision.py decide" in wf and "promote_decision.py resolve" in wf
-    assert "timeout-minutes: 200" in wf and "timeout-minutes: 130" in wf        # job < 6 h; the wait step bounded
+    assert "timeout-minutes: 45" in wf and "timeout-minutes: 5" in wf           # job 45 min; the (never-run) wait step 5
     assert "cancel-in-progress: true" not in wf
     assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in wf      # only a PR dry run is cancellable
     assert "|| 'promote-production' }}" in wf                                         # ...and it has its own group
