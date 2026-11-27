@@ -86,6 +86,7 @@
 import { IND_TOKENS } from '../designTokens'
 import { paneMode, NO_STACK_MAIN_MARGINS } from './paneLayout'
 import { isHouseCopyMeta } from '../house/houseNames'
+import { PLACEMENT_PIN_SCALES } from './defSchema'
 import { parsePaneOfTarget } from './sourceRef'
 import { readoutConditionOpen } from './readoutSchema'
 
@@ -354,13 +355,17 @@ export function ownScaleOf(def) {
  */
 export const PIN_SCALE_PRICE = 'price'
 export const PIN_SCALE_NONE = 'none'
-export const PIN_SCALE_CHOICES = Object.freeze([PIN_SCALE_PRICE, PIN_SCALE_NONE])
+export const PIN_SCALE_CHOICES = PLACEMENT_PIN_SCALES
 export const PIN_SCALE_LABELS = Object.freeze({ [PIN_SCALE_PRICE]: 'Same as price', [PIN_SCALE_NONE]: 'No scale' })
 export const PIN_SCALE_PREFIX = 'pin:'
 
 /** The answer when the member has not picked: see `pinScaleOf`. */
 export function defaultPinScaleOf(def) {
-  return def && typeof def === 'object' && isHouseCopyMeta(def.meta) ? PIN_SCALE_NONE : PIN_SCALE_PRICE
+  if (!def || typeof def !== 'object') return PIN_SCALE_PRICE
+  // the script author's declaration (`indicator(scale = scale.none)`, `memberPaneDefinition.declaredPinScale`)
+  const declared = def.placement && def.placement.pinScale
+  if (PIN_SCALE_CHOICES.includes(declared)) return declared
+  return isHouseCopyMeta(def.meta) ? PIN_SCALE_NONE : PIN_SCALE_PRICE
 }
 
 /** The member's stored pick, or null when there is none (or it is not a known choice). */
