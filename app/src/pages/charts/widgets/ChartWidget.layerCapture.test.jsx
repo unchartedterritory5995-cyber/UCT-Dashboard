@@ -3,6 +3,8 @@
 // mounted, and a board saved from another shares its widget ids, so without the board's gate one press could capture
 // from the hidden chart too.
 //   J1 (red first) the active chart of a hidden layer board captures nothing; the same chart shown captures once
+//   J2 (red first) its chart decides group switches with the board STORE (never the slot's view), and a hidden layer
+//      board's chart is no member of a decision (the board in front never waits on it)
 import { render, act, cleanup } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
@@ -46,7 +48,15 @@ vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false
 vi.mock('../../../utils/extSession', () => ({ getExtSessionCached: () => ({ session: 'post' }) }))
 vi.mock('../../journal-2-0/lib/embedArchive', () => ({ kickSnapshotWarm: () => {} }))
 
+// the board scope each render hands the symbol handoff (J2)
+const handoff = vi.hoisted(() => ({ scopes: [] }))
+vi.mock('../../../hooks/useSymbolHandoff', async (orig) => {
+  const m = await orig()
+  return { ...m, default: (sym, tf, o) => { handoff.scopes.push(o?.scope ?? null); return m.default(sym, tf, o) } }
+})
+
 import ChartWidget from './ChartWidget'
+import { createGroupSymsStore, createBoardGroupSymsView } from '../groupSymsStore'
 
 let inbox = 0
 beforeEach(() => {
@@ -58,9 +68,10 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); delete globalThis.fetch })
 
-function mount(vis) {
+function mount(vis, store = null) {
   const value = {
     groupSyms: { A: 'AAPL', B: null, C: null, D: null },
+    ...(store ? { groupSymsStore: store } : {}),
     setGroupSym: () => {},
     chartsTheme: 'default',
     crosshairBus: { emit: () => {}, subscribe: () => () => {} },
@@ -93,4 +104,16 @@ test('J1 (red first) the active chart of a hidden layer board captures nothing',
   act(() => { vis.set('visible') })
   await capture()
   expect(inbox).toBe(2)
+})
+
+test('J2 (red first) a hidden layer board is no member of the group decision; the show rejoins the board store', async () => {
+  const source = createGroupSymsStore({ A: 'AAPL', B: null, C: null, D: null })
+  const vis = createBoardVisibility({ layer: true })
+  const view = createBoardGroupSymsView(source, vis)
+  mount(vis, view)
+  expect(handoff.scopes.at(-1), 'a shown chart does not decide with its board store (the view is not the scope)').toBe(source)
+  act(() => { vis.set('hidden') })
+  expect(handoff.scopes.at(-1), 'a hidden board chart is still a member of the group decision').toBeNull()
+  act(() => { vis.set('visible') })
+  expect(handoff.scopes.at(-1)).toBe(source)
 })

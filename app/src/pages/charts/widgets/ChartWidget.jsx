@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BoardVisibilityContext, boardHiddenNow } from '../../../components/chart/boardVisibility'
+import { BoardVisibilityContext, boardHiddenNow, useBoardHidden } from '../../../components/chart/boardVisibility'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -157,12 +157,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // tell when every chart of the group has drawn a new symbol. One opaque token per mounted widget; nothing
   // is stored in it and no rendering decision reads it.
   const [switchMember] = useState(() => ({}))
+  // The board whose setGroupSym DECIDES a group switch: its store (a layer keep-alive slot reads the groups through a
+  // view whose `scope` is that store, groupSymsStore.js). A hidden layer board's chart is no member of a decision: the
+  // board in front must not wait on a chart that switches only at its show.
+  const onHiddenBoard = useBoardHidden()
+  const groupScope = onHiddenBoard ? null : (groupSymsStore?.scope ?? groupSymsStore ?? null)
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
   const sym = useSymbolHandoff(requestedSym, tf, {
     // ⭐ scope: the board whose setGroupSym decides the group's switch in the key handler (/charts only;
     // a host without a store, the drill or the screener, takes the round as before)
-    showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupSymsStore || null,
+    showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupScope,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
     member: switchMember,
   })
@@ -459,7 +464,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   }, [activeColor, setGroupSym, persistActiveSettings])
   // ⭐ (2026-11-23, the typed ticker) the settled typed text starts the linked group's device reads (the same ones the
   // Enter's setGroupSym starts: handoffGroups.primeGroup), so Enter can show it in its own task (typedIntentPrime.js)
-  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupSymsStore, activeColor, s) }, [groupSymsStore, activeColor])
+  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupScope, activeColor, s) }, [groupScope, activeColor])
 
   // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
   // The three stock-specific widgets, docked into THIS chart instead of floating
