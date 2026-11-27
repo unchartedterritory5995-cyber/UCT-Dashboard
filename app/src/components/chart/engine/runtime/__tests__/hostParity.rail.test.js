@@ -12,6 +12,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as hp from '../../../../../../../tools/pine_runtime_host_parity.mjs'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const REPO = resolve(__dirname, '../../../../../../..')
 const TOOL = join(REPO, 'tools', 'pine_runtime_host_parity.mjs')

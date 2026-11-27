@@ -18,6 +18,12 @@ import {
   setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
 } from '../../engine/runtimeKill'
 import { setRuntimeDoorClock } from '../../engine/runtime/runtimeColumns'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../../engine/runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const script = (slug) => fs.readFileSync(path.join(REPO, 'corpus', 'committed', `${slug}.pine`), 'utf8')
