@@ -34,7 +34,7 @@ import { doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, noteDecisio
 /** The store's base snapshot of the key a layer set to `info` reads, NOW (null: no store, no key, not held). Never
  *  creates a registry entry. */
 export function shadowSnapNow(info) {
-  if (!info || !info.sym || !BARSTORE) return null
+  if (!info || !info.sym || !_storeOn()) return null
   const key = chartKeyFor({ sym: info.sym, resolvedTf: info.tf, showExtended: !!info.showExtended, replayCutoff: null, hasOverride: false })
   if (!key) return null
   return _snapOf(key)
@@ -44,12 +44,15 @@ const _storeSnap = (key) => {
   return store.registry.has(key) ? store.getBaseSnapshot(key) : null
 }
 let _snapOf = _storeSnap
+let _storeOn = () => !!BARSTORE
+/** Tests: the bar store's switch as this module reads it (null restores BARSTORE). */
+export function __setDoubleBufferStoreForTests(v) { _storeOn = v === null || v === undefined ? () => !!BARSTORE : () => !!v }
 /** Tests: where a key's base snapshot is read (null restores the bar store). */
 export function __setDoubleBufferSnapSourceForTests(fn) { _snapOf = typeof fn === 'function' ? fn : _storeSnap }
 
 /** Can this widget be double-buffered at all (the page's switch, the store, a deciding board, a layer or no parent)? */
 export function doubleBufferEligible({ scope, color, parentVis }) {
-  return doubleBufferOn() && !!BARSTORE && !!scope && !!color && (!parentVis || !!parentVis.layer)
+  return doubleBufferOn() && _storeOn() && !!scope && !!color && (!parentVis || !!parentVis.layer)
 }
 
 const _ric = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 50))
@@ -190,7 +193,7 @@ export function useDoubleBuffer({ eligible, sym, tf, extRef, settings, scope, me
   const shadowSym = buf.syms[1 - buf.front]
   useEffect(() => {
     const info = infoRef.current
-    if (!eligible || !slotOk || !BARSTORE || !info || info.sym !== shadowSym || !handles[info.idx].current) return undefined
+    if (!eligible || !slotOk || !_storeOn() || !info || info.sym !== shadowSym || !handles[info.idx].current) return undefined
     const key = chartKeyFor({ sym: info.sym, resolvedTf: info.tf, showExtended: !!info.showExtended, replayCutoff: null, hasOverride: false })
     if (!key) return undefined
     const store = getBarStore()

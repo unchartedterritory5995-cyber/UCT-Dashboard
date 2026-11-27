@@ -38,7 +38,6 @@ const renders = vi.hoisted(() => ({ bySym: {} }))
 vi.mock('../../../components/StockChart', () => ({
   default: ({ sym }) => { renders.bySym[sym] = (renders.bySym[sym] || 0) + 1; return <span data-testid="chart-sym">{sym}</span> },
 }))
-vi.mock('../../../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('./ChartDetailDock', () => ({
   default: ({ sym, children }) => (<><span data-testid="dock-sym">{sym}</span>{children}</>),
 }))
@@ -65,7 +64,7 @@ import ChartWidget from './ChartWidget'
 import { createGroupSymsStore } from '../groupSymsStore'
 import * as nf from '../../../components/chart/neighborFrames'
 import * as dbm from '../../../components/chart/doubleBuffer'
-import { __setDoubleBufferSnapSourceForTests } from '../../../components/chart/useDoubleBuffer'
+import { __setDoubleBufferSnapSourceForTests, __setDoubleBufferStoreForTests } from '../../../components/chart/useDoubleBuffer'
 import { chartKeyFor } from '../../../components/chart/useBarSnapshotBars'
 
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
@@ -104,6 +103,7 @@ beforeEach(() => {
   vi.stubGlobal('requestIdleCallback', undefined)
   snaps.clear()
   dbm.__setDoubleBufferForTests(true)
+  __setDoubleBufferStoreForTests(true)
   dbm.__resetDoubleBufferStatsForTests()
   __setDoubleBufferSnapSourceForTests((key) => {
     for (const sym of ['AAA', 'BBB', 'CCC']) {
@@ -120,7 +120,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers(); vi.unstubAllGlobals()
-  dbm.__setDoubleBufferForTests(null); nf.__setNeighborFramesForTests(null); __setDoubleBufferSnapSourceForTests(null)
+  dbm.__setDoubleBufferForTests(null); nf.__setNeighborFramesForTests(null); __setDoubleBufferSnapSourceForTests(null); __setDoubleBufferStoreForTests(null)
 })
 
 test('W1 the slot: a front layer and, after idle time, a shadow on the row ahead (hidden, inert); no scope, no slot', async () => {
