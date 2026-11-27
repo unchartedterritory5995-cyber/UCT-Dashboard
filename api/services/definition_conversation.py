@@ -5894,6 +5894,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                 result = _refusal(TIMEOUT_GATE)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
+    if asks_for_strategy(message):
+        result = with_strategy_sentence(result)                        # the door's sentence, never "no strategy tester"
     if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
         result["envelope"] = _own_notes_only(result["envelope"])      # an older tab: the answer it always got
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -6363,6 +6365,64 @@ def said_why(scripted: Mapping[str, Any]) -> bool:
     reason = scripted.get("reason")
     return (scripted.get("gate") == sc.DECLINED_GATE and isinstance(reason, str) and bool(reason.strip())
             and reason != sc.REASONS.get(sc.DECLINED_GATE))
+
+
+# ⭐ 2026-11-26 -- A STRATEGY OR A BACKTEST IS NEVER TOLD UCT HAS NO STRATEGY TESTER (coordinator's ruling 1, step 1).
+# The write-capability probe (live, admin measurement): "Backtest a strategy that buys when the 20 EMA crosses above
+# the 50 EMA ..." was answered "I can't backtest here -- this builds indicators ..., not a strategy tester". UCT DOES
+# backtest a strategy script a member pastes, where the broker rules it needs are pinned; what is true is that the
+# assistant does not write strategies yet (`pine_authoring`: a strategy is a different document with its own gates).
+# The sentence is the DOOR'S, never the model's: on such a request a decline is answered with it, and a built signal
+# version carries it, with any sentence claiming UCT cannot backtest taken out. Step 2 (the assistant writes
+# strategy() scripts held to the pinned broker rules) replaces this.
+STRATEGY_DECLINE = ("The assistant doesn't write strategies yet. A strategy script you paste here is backtested, "
+                    "where the broker rules it needs are pinned. Ask for the entry and exit rules as an indicator and "
+                    "the assistant will mark each signal on your chart.")
+STRATEGY_NOTE = (" The assistant doesn't write strategies yet, so this marks the signals; a strategy script you paste "
+                 "here is backtested, where the broker rules it needs are pinned.")
+_BACKTEST_WORDS = re.compile(r"\bback-?test\w*", re.I)
+_STRATEGY_WORD = re.compile(r"\bstrateg(?:y|ies)\b", re.I)
+_TRADE_WORDS = re.compile(r"\b(?:buys?|buying|sells?|selling|go(?:es)? long|go(?:es)? short|longs?|shorts?|entr(?:y|ies)|"
+                          r"enters?|exits?|stop[- ]loss|take[- ]profit|positions?|trades?)\b", re.I)
+#: a sentence that says UCT cannot backtest (false: it backtests a pasted strategy where its rules are pinned)
+_BACKTEST_CLAIM = re.compile(
+    r"(?:can'?t|cannot|can not|unable to|doesn'?t|does not|won'?t)\s+(?:\w+\s+){0,3}?(?:back-?test|run a strategy)"
+    r"|\bnot\s+(?:a\s+)?(?:strategy tester|back-?test\w*)|\bno\s+(?:strategy tester|back-?test\w*)"
+    r"|\bonly builds indicators\b", re.I)
+
+
+def asks_for_strategy(message: Any) -> bool:
+    """A request for a backtest, or for a strategy with trade rules ("buy when ...", "go long ...", "exit on ...")."""
+    if not isinstance(message, str):
+        return False
+    return bool(_BACKTEST_WORDS.search(message) or (_STRATEGY_WORD.search(message) and _TRADE_WORDS.search(message)))
+
+
+def _without_backtest_claims(reply: Any) -> str:
+    """The reply with every sentence that claims UCT cannot backtest taken out."""
+    if not isinstance(reply, str):
+        return ""
+    kept = [s for s in re.split(r"(?<=[.!?])\s+", reply.strip()) if s and not _BACKTEST_CLAIM.search(s)]
+    return " ".join(kept)
+
+
+def with_strategy_sentence(result: Mapping[str, Any]) -> Dict[str, Any]:
+    """The door's sentence on a strategy request: a decline (the formula turn's `unsupported`, or the script turn's)
+    is answered with `STRATEGY_DECLINE`; a built signal version carries `STRATEGY_NOTE`. Anything else is unchanged.
+    Returns a NEW result."""
+    from api.services import script_conversation as sc
+    out = dict(result)
+    declined = (out.get("ok") is True and out.get("disposition") == "unsupported") or out.get("gate") == sc.DECLINED_GATE
+    if declined:
+        field = "reply" if out.get("ok") is True else "reason"
+        out[field] = STRATEGY_DECLINE
+        if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
+            out["envelope"] = {**out["envelope"], "reply": out.get(field, out["envelope"]["reply"])}
+    elif out.get("ok") is True and out.get("turn") in ("patch", "script"):
+        out["reply"] = _without_backtest_claims(out.get("reply")) + STRATEGY_NOTE
+        if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
+            out["envelope"] = {**out["envelope"], "reply": out["reply"]}
+    return out
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
