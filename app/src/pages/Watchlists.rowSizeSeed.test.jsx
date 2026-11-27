@@ -433,6 +433,10 @@ describe('ScanRows: the remembered offset fits the list it comes back to', () =>
       const firstMount = mountList('list:R19') // 60 rows of 40 px: 2,400 px, a 400 px box
       await frames()
       const scroller = firstMount.container.querySelector('[data-scroller]')
+      // pass through the middle first, so every row of the first 30 has been measured (remembered at 40 px): the clamp
+      // then has no 30 px estimates in it and the last screenful starts exactly at 800
+      await act(async () => { scroller.scrollTop = 400; scroller.dispatchEvent(new Event('scroll')) })
+      await frames()
       await act(async () => { scroller.scrollTop = 2000; scroller.dispatchEvent(new Event('scroll')) }) // the very end
       await frames()
       firstMount.unmount()
