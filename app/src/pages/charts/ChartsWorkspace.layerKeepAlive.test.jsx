@@ -20,6 +20,7 @@
  *   LK11 (red first, M5) a menu the hidden board opened into document.body (a portal) is closed by the hide
  *   LK12 every way a kept layer board is dropped (a third board, grid mode, the desk hiding the workspace, ten hidden
  *        minutes, the workspace leaving) unmounts it with its handle disposed
+ *   LK13 (red first; review of #2901, D3 + L3) a board kept 30 minutes without a show goes, page visible or not
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -348,4 +349,24 @@ describe('LK12 every way a kept layer board is dropped unmounts it with its hand
     expect(hosts.cleanups['watchlist-1']).toBe(1)
     expect(vis.state).toBe('disposed')
   })
+})
+
+test('LK13 (red first) a board kept 30 minutes without a show goes, the page visible', async () => {
+  // the cap's timer starts at the switch: fake timers first (advancing with real time, so the awaits still run)
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  try {
+    mount()
+    await settle()
+    await go('Two Charts')
+    const vis = hosts.vis['watchlist-1']
+    expect(vis?.state, 'NON-VACUITY: MAIN is kept').toBe('hidden')
+    act(() => { vi.advanceTimersByTime(29 * 60_000) })
+    expect(hosts.cleanups['watchlist-1'] || 0).toBe(0)
+    act(() => { vi.advanceTimersByTime(60_000 + 1) })
+    expect(hosts.cleanups['watchlist-1'], 'a board kept 30 minutes without a show is still kept').toBe(1)
+    expect(vis.state).toBe('disposed')
+    expect(hosts.cleanups['chart-1'] || 0, 'the board in front was dropped').toBe(0)
+  } finally {
+    vi.useRealTimers()
+  }
 })

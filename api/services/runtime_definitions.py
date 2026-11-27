@@ -1203,7 +1203,7 @@ def _store_get(key: str) -> Optional[frozenset]:
     from api.services import pine_capabilities
     from api.services import user_definitions as svc
     try:
-        with contextlib.closing(svc._connect()) as c:
+        with svc._reading() as c:          # the request's shared read connection, when there is one
             r = c.execute(f"SELECT capabilities FROM {CAPS_TABLE} WHERE source_sha256 = ? "
                           "AND detector_version = ?", (key, pine_capabilities.DETECTOR_VERSION)).fetchone()
     except Exception:  # noqa: BLE001 - an unreadable store (or no table yet) is a miss, never an admission
@@ -1242,7 +1242,7 @@ def prefetch_capabilities(rows: Any, budget: "Optional[DetectorBudget]" = None) 
     if budget is not None:
         budget.store_checked.update(keys)       # a miss here is not looked up again per row
     try:
-        with contextlib.closing(svc._connect()) as c:
+        with svc._reading() as c:          # the request's shared read connection, when there is one
             for i in range(0, len(keys), 500):
                 part = keys[i:i + 500]
                 for key, raw in c.execute(

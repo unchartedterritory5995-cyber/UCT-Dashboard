@@ -639,49 +639,18 @@ def test_MQ_an_output_is_one_plain_line_whatever_a_file_is_called(tmp_path, monk
 import datetime  # noqa: E402
 
 UTC = datetime.timezone.utc
-#: Wednesday 2026-11-18 17:00 UTC = 12:00 in New York: a weekday, outside both freeze windows
+#: Wednesday 2026-11-18 17:00 UTC = 12:00 in New York: an ordinary weekday clock (no clock refuses an entry any more)
 OPEN_CLOCK = datetime.datetime(2026, 11, 18, 17, 0, tzinfo=UTC)
 RUN_ID = 55
 
 
 def _et(y, mo, d, h, mi, s=0):
-    """An instant given as New York wall-clock time (the freeze windows' own terms), as an aware UTC datetime."""
+    """An instant given as New York wall-clock time, as an aware UTC datetime."""
     import zoneinfo
     return datetime.datetime(y, mo, d, h, mi, s, tzinfo=zoneinfo.ZoneInfo("America/New_York")).astimezone(UTC)
 
 
-@pytest.mark.parametrize("at,window", [
-    ((9, 19, 59), None), ((9, 20, 0), "09:20-09:45 ET"), ((9, 30, 0), "09:20-09:45 ET"), ((9, 45, 0), "09:20-09:45 ET"), ((9, 45, 1), None),
-    ((12, 0, 0), None),
-    ((15, 29, 59), None), ((15, 30, 0), "15:30-16:15 ET"), ((16, 0, 0), "15:30-16:15 ET"), ((16, 15, 0), "15:30-16:15 ET"), ((16, 15, 1), None),
-    ((0, 0, 0), None), ((23, 59, 59), None), ((21, 30, 0), None),          # 09:30 PM is not 09:30
-])
-def test_MQ_the_freeze_windows_at_their_edges(at, window):
-    for day in (16, 17, 18, 19, 20):                                       # Monday .. Friday, 2026-11-16..20
-        assert acr.freeze_window(_et(2026, 11, day, *at)) == window, (day, at)
-    for day in (21, 22):                                                   # Saturday, Sunday: never frozen
-        assert acr.freeze_window(_et(2026, 11, day, *at)) is None, (day, at)
-    assert acr.FREEZE_WINDOWS == (((9, 20), (9, 45)), ((15, 30), (16, 15))) and acr.FREEZE_TZ == "America/New_York"
-
-
-def test_MQ_the_freeze_windows_follow_new_yorks_clock_across_a_daylight_saving_change():
-    """The windows are wall-clock times in New York, so the UTC instant moves by an hour when the clocks change (US:
-    2026-03-08 and 2026-11-01). The same UTC time of day is inside the window on one side and outside on the other."""
-    utc = lambda y, mo, d, h, mi: datetime.datetime(y, mo, d, h, mi, tzinfo=UTC)   # noqa: E731
-    # Friday 2026-03-06 is EST (UTC-5): 09:20 ET = 14:20Z. Monday 2026-03-09 is EDT (UTC-4): 09:20 ET = 13:20Z.
-    assert acr.freeze_window(utc(2026, 3, 6, 13, 30)) is None and acr.freeze_window(utc(2026, 3, 6, 14, 30)) == "09:20-09:45 ET"
-    assert acr.freeze_window(utc(2026, 3, 9, 13, 30)) == "09:20-09:45 ET" and acr.freeze_window(utc(2026, 3, 9, 14, 30)) is None
-    # Friday 2026-10-30 is EDT: 15:30 ET = 19:30Z. Monday 2026-11-02 is EST: 15:30 ET = 20:30Z.
-    assert acr.freeze_window(utc(2026, 10, 30, 19, 45)) == "15:30-16:15 ET" and acr.freeze_window(utc(2026, 10, 30, 20, 45)) is None
-    assert acr.freeze_window(utc(2026, 11, 2, 19, 45)) is None and acr.freeze_window(utc(2026, 11, 2, 20, 45)) == "15:30-16:15 ET"
-    # the instant decides, whatever zone it is written in: 09:30 in New York given as Tokyo time
-    tokyo = datetime.timezone(datetime.timedelta(hours=9))
-    assert acr.freeze_window(_et(2026, 11, 18, 9, 30).astimezone(tokyo)) == "09:20-09:45 ET"
-    # a Friday evening in New York that is already Saturday in UTC is still a weekday; a Sunday evening that is Monday in UTC is not
-    assert acr.freeze_window(datetime.datetime(2026, 11, 21, 0, 0, tzinfo=UTC)) is None             # Fri 19:00 ET, outside
-    assert acr.freeze_window(_et(2026, 11, 22, 15, 45)) is None                                    # Sunday afternoon
-    with pytest.raises(ValueError):
-        acr.freeze_window(datetime.datetime(2026, 11, 18, 9, 30))        # a naive clock cannot be placed
+def test_MQ_the_follower_clock_is_aware():
     assert acr._utcnow().tzinfo is not None
 
 
@@ -713,7 +682,7 @@ def test_MQ_the_follower_recomputes_the_scope_and_needs_nothing_of_the_run_for_a
     assert _follow(r, api) == ("success", "no Agent paths changed (1 self-protected path(s) touched, no Agent evidence needed)")
     assert api.calls == []
     assert _git(r.work, "rev-parse", "HEAD") == r.base and (r.work / "README.md").read_text(encoding="utf-8") == "r\n"   # nothing checked out
-    # ... inside a freeze window too: the windows are for entries that need Agent evidence
+    # ... at 09:30 ET too (the old opening rush): no clock refuses any entry (owner ruling 2026-11-27)
     assert _follow(r, api, now=_et(2026, 11, 18, 9, 30))[0] == "success"
 
 
@@ -826,17 +795,30 @@ def test_MQ_the_follower_fails_closed_on_everything_it_cannot_read(tmp_path, mon
     assert _follow(r)[0] == "success"
 
 
-@pytest.mark.parametrize("at,window", [((9, 20), "09:20-09:45 ET"), ((9, 45), "09:20-09:45 ET"), ((15, 30), "15:30-16:15 ET"), ((16, 15), "15:30-16:15 ET")])
-def test_MQ_an_agent_entry_is_failed_inside_a_freeze_window_and_a_plain_one_is_not(tmp_path, at, window):
+# ⛔⛔ NO TIME WINDOW (owner ruling 2026-11-27, verbatim: "fuck the deploy freeze i dont ever want to hold anything back
+# from deploying ever"). The queue admits an Agent entry at ANY clock; only its evidence decides. These clocks were all
+# refused until then (the old rushes 09:20-09:45 / 15:30-16:15 ET, both ends included; a half-day's 12:30-13:15 ET).
+ANY_CLOCK = [
+    ("Wed 09:31 ET (old opening rush)", (2026, 11, 18, 9, 31)),
+    ("Wed 15:45 ET (old closing rush)", (2026, 11, 18, 15, 45)),
+    ("half-day Fri 2026-11-27 12:45 ET (old half-day closing rush)", (2026, 11, 27, 12, 45)),
+    ("Wed 09:20 ET (old window's first second)", (2026, 11, 18, 9, 20)),
+    ("Wed 16:15 ET (old window's last second)", (2026, 11, 18, 16, 15)),
+    ("Thu 2029-01-04 15:45 ET (past the calendar horizon: old weekday fallback)", (2029, 1, 4, 15, 45)),
+]
+
+
+@pytest.mark.parametrize("label,at", ANY_CLOCK, ids=[c[0] for c in ANY_CLOCK])
+def test_MQ_an_agent_entry_is_admitted_at_any_clock_on_its_evidence(tmp_path, label, at):
     r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
     api = _RunApi()
-    state, reason = _follow(r, api, now=_et(2026, 11, 18, *at))
-    assert (state, reason) == ("failure", f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards")
-    assert len(reason) <= 140 and api.calls == []
-    assert _follow(r, now=_et(2026, 11, 18, at[0], at[1]) + datetime.timedelta(hours=1))[0] == "success"        # control: an hour later
-    assert _follow(r, now=_et(2026, 11, 21, *at))[0] == "success"                                             # control: a Saturday
+    assert _follow(r, api, now=_et(*at)) == ("success", "all 18 Agent jobs passed on the merge group's commit"), label
+    assert any("/jobs" in c for c in api.calls), "the entry's jobs were read: evidence, not the clock, decided"
+    # the evidence still decides: a red required job is refused at the same clock (the gate is untouched)
+    state, reason = _follow(r, _RunApi(jobs=_listed(conclusion="failure")), now=_et(*at))
+    assert state == "failure" and "not success" in reason and "freeze" not in reason, reason
     plain = _queue_repo(tmp_path / "plain", {"README.md": "r2\n"})
-    assert _follow(plain, now=_et(2026, 11, 18, *at))[0] == "success"
+    assert _follow(plain, now=_et(*at))[0] == "success"
 
 
 # ---- follow(): which runs are judged at all ------------------------------------------------------------------------------------
@@ -944,12 +926,13 @@ def test_MQ_the_follow_stage_posts_one_status_with_the_app_token(tmp_path, monke
     red = _TwoTokens(_RunApi(described=_described(r), jobs=_listed(JOBS[:-1])))
     assert _follow_cli(monkeypatch, r, red) == 1                       # the job is red when the status is
     assert [b["state"] for _, b in red.posted] == ["failure"]
-    frozen = _TwoTokens(_RunApi(described=_described(r)))
-    monkeypatch.setattr(acr, "Api", frozen)
+    # 09:30 ET (the old opening rush): admitted on its evidence, no window refuses it (owner ruling 2026-11-27)
+    rush = _TwoTokens(_RunApi(described=_described(r)))
+    monkeypatch.setattr(acr, "Api", rush)
     monkeypatch.setattr(acr, "_utcnow", lambda: _et(2026, 11, 18, 9, 30))
     assert acr.main(["--event", "merge_group", "--stage", "follow", f"--sha={r.merge}", f"--run-id={RUN_ID}",
-                     f"--head-ref={r.ref[len('refs/heads/'):]}", "--run-event=merge_group", "--root", str(r.work)]) == 1
-    assert frozen.posted[0][1]["description"].startswith("deploy freeze window 09:20-09:45 ET")
+                     f"--head-ref={r.ref[len('refs/heads/'):]}", "--run-event=merge_group", "--root", str(r.work)]) == 0
+    assert [b["state"] for _, b in rush.posted] == ["success"]
     dry = _TwoTokens(_RunApi(described=_described(r)))
     assert _follow_cli(monkeypatch, r, dry, extra=["--dry-run"]) == 0 and dry.posted == []
 
@@ -1585,3 +1568,187 @@ def test_MQ_the_rail_files_and_local_actions_are_self_protected_and_the_rails_ar
     for other in ("tests/test_ci_cost_rails.py", "tests/test_gate_static_rails_pr.py", ".github/CODEOWNERS"):
         assert not acr.matches(other, list(ev.SELF_PROTECTED)) and not acr.matches(other, PATHS), other
     assert not acr.matches(".github/workflows/web-start.yml", PATHS) and not [p for p in PATHS if p in (".github/workflows/**", ".github/**")]
+
+
+# ---- the follower executes ONLY self-protected code (review of #2850, delta 2, X1: HIGH; delta 3, Z3) --------------
+# `--stage follow` holds AGENT_CI_VERDICT_TOKEN (statuses: write). Any repo file it executes that is not SELF_PROTECTED
+# AND an Agent path could be edited by a no-agent-paths PR and run with that token. Until #2850 the freeze exec'd
+# tools/deploy_freeze.py and api/services/session_calendar.py; tools/__init__.py was executed unprotected.
+# HOW THE RAIL MIRRORS THE JOB (delta 3, Z3):
+#   * the checkout: the follower's own root (`work`, a clone of master) gets ONLY the verdict job's sparse files copied
+#     in, and the tool runs FROM there, as `--root .` does in the job (b);
+#   * the entry: runpy.run_path("tools/agent_ci_required.py", run_name="__main__") with the workflow step's argv and
+#     env, sys.path[0] = <checkout>/tools exactly as `python tools/agent_ci_required.py` sets it; main ->
+#     _main_merge_group -> follow -> follow_verdict -> the POST, over a stubbed transport (urlopen), clock pinned (a);
+#   * a fresh interpreter whose FIRST act is an audit hook recording every code object executed ("exec") and every
+#     .py opened, under BOTH roots: the checkout must account for every executed repo file, and this repo (ROOT) for
+#     none (the run used only the copy).
+
+_FOLLOW_PROBE = r"""
+import datetime as _d, json, os, runpy, sys, urllib.request
+work, fx_path = sys.argv[1:3]
+fx = json.load(open(fx_path, encoding="utf-8"))
+roots = {"work": os.path.normcase(os.path.abspath(work)) + os.sep, "repo": os.path.normcase(os.path.abspath(fx["repo"])) + os.sep}
+seen = set()
+def rel(p):
+    p = os.path.normcase(os.path.abspath(p))
+    for name, r in roots.items():
+        if p.startswith(r):
+            return name + ":" + os.path.relpath(p, r).replace(os.sep, "/")
+    return None
+def hook(ev, args):
+    if ev == "exec" and args and getattr(args[0], "co_filename", "") and not args[0].co_filename.startswith("<"):
+        r = rel(args[0].co_filename)
+    elif ev == "open" and args and isinstance(args[0], (str, os.PathLike)):
+        r = rel(os.fspath(args[0]))
+    else:
+        return
+    if r and r.endswith(".py"):
+        seen.add(r)
+sys.addaudithook(hook)
+class _Clock(_d.datetime):
+    @classmethod
+    def now(cls, tz=None):
+        t = cls(2026, 11, 18, 17, 0, tzinfo=_d.timezone.utc)          # Wed 12:00 ET: an ordinary clock
+        return t.astimezone(tz) if tz else t
+_d.datetime = _Clock
+posted = []
+class _Resp:
+    def __init__(self, body): self.body = body
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return self.body
+def _urlopen(req, timeout=None):
+    path = req.full_url.split("/repos/o/r/", 1)[1]
+    if req.get_method() == "POST":
+        posted.append([path, json.loads(req.data), req.get_header("Authorization")])
+        return _Resp(b"{}")
+    if path == "actions/runs/55":
+        return _Resp(json.dumps(fx["described"]).encode())
+    if path.startswith("actions/runs/55/jobs"):
+        return _Resp(json.dumps({"jobs": fx["jobs"]}).encode())
+    raise AssertionError("unexpected API call " + req.full_url)
+urllib.request.urlopen = _urlopen
+os.chdir(work)
+sys.argv = ["tools/agent_ci_required.py", "--event", "merge_group", "--stage", "follow", "--sha=" + fx["sha"],
+            "--run-id=55", "--head-ref=" + fx["head_ref"], "--run-event=merge_group"]
+sys.path[0] = os.path.join(os.path.abspath(work), "tools")
+code = None
+try:
+    runpy.run_path(os.path.join("tools", "agent_ci_required.py"), run_name="__main__")
+except SystemExit as e:
+    code = e.code
+print("@@RESULT " + json.dumps({"code": code, "posted": posted, "seen": sorted(seen)}))
+"""
+
+
+def _follower_checkout(r):
+    """Copy the verdict job's sparse files from this repo into the follower's root (`work`): code, configs, dataset."""
+    import shutil
+    vdoc = yaml.safe_load((ROOT / ".github" / "workflows" / "agent-ci-queue-verdict.yml").read_text(encoding="utf-8"))
+    for pat in vdoc["jobs"]["verdict"]["steps"][0]["with"]["sparse-checkout"].split():
+        rel = pat.lstrip("/")
+        if pat.endswith("/") or rel == ".github/workflows/agent-ci.yml":
+            continue            # folders (/app/: data and configs) and agent-ci.yml: the fixture's master already holds them
+        (r.work / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, r.work / rel)
+    # /app/ is checked out WHOLE by the job: its dataset (the one file the follower reads) and every tracked .py under
+    # it (delta 4, W3), so code the follower might execute from app/ is on disk here as it is there, and counted
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "app/*.py"], capture_output=True, text=True, check=True)
+    app_py = [p for p in listed.stdout.split("\0") if p]
+    assert app_py, "no tracked .py under app/: the mirror would prove nothing"
+    for rel in ["app/src/lib/marketClock/market_calendar.json", *app_py]:
+        (r.work / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, r.work / rel)
+
+
+def _run_follower(tmp_path, r):
+    import os
+    import sys
+    fx = tmp_path / "fx.json"
+    fx.write_text(json.dumps({"repo": str(ROOT), "described": _described(r), "jobs": _listed(), "sha": r.merge,
+                              "head_ref": r.ref[len("refs/heads/"):]}), encoding="utf-8")
+    probe = tmp_path / "follow_probe.py"
+    probe.write_text(_FOLLOW_PROBE, encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTHON", "TARGET_URL"))}
+    env.update(GITHUB_TOKEN="read-token", AGENT_CI_VERDICT_TOKEN="app-token", GITHUB_REPOSITORY="o/r",
+               GITHUB_API_URL="http://api.stub.invalid", PYTHONDONTWRITEBYTECODE="1", PYTHONPYCACHEPREFIX=str(tmp_path / "pyc"))
+    out = subprocess.run([sys.executable, "-B", str(probe), str(r.work), str(fx)], capture_output=True, text=True,
+                         timeout=300, env=env, cwd=str(r.work))
+    lines = [ln for ln in out.stdout.splitlines() if ln.startswith("@@RESULT ")]
+    assert lines, out.stdout + out.stderr
+    return json.loads(lines[-1][len("@@RESULT "):]), out
+
+
+def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    _follower_checkout(r)
+    res, out = _run_follower(tmp_path, r)
+    # it ran the real entry to the POST with the App's token
+    assert res["code"] == 0 and res["posted"] == [[f"statuses/{r.merge}", {
+        "state": "success", "context": "agent-ci-required", "description": "all 18 Agent jobs passed on the merge group's commit"},
+        "Bearer app-token"]], (res, out.stderr[-2000:])
+    work = sorted(p.split(":", 1)[1] for p in res["seen"] if p.startswith("work:"))
+    repo = sorted(p.split(":", 1)[1] for p in res["seen"] if p.startswith("repo:"))
+    assert "tools/agent_ci_required.py" in work, res              # the hook sees the follower's own code (not vacuous)
+    assert repo == [], f"the follower executed files of this repo, not of its own checkout: {repo}"
+    protected = list(ev.protected_patterns(ROOT))
+    outside = [p for p in work if not acr.matches(p, protected)]
+    assert outside == [], f"the token-holding follower executes repo code that is not self-protected: {outside}"
+    # ... and every one of them is an Agent path too: self-protected alone would let a no-agent-paths PR land it
+    paths = acr.agent_paths(acr.load_agent_ci(ROOT))
+    not_agent = [p for p in work if not acr.matches(p, paths)]
+    assert not_agent == [], f"the token-holding follower executes repo code that is not an Agent path: {not_agent}"
+
+
+
+def test_MQ_the_calendar_dataset_stays_an_agent_path_and_self_protected():
+    """AUDIT O1 on #2850 made this dataset an Agent path (agent-ci.yml, both `paths:` lists) AND self-protected, because
+    the follower's freeze windows were derived from it. The freeze is gone (owner ruling 2026-11-27) and the follower no
+    longer reads it, but the SELF_PROTECTED list is deliberately unchanged here: narrowing it is AUDIT's call."""
+    ds = "app/src/lib/marketClock/market_calendar.json"
+    assert (ROOT / ds).is_file()
+    assert acr.matches(ds, PATHS) and acr.matches(ds, list(ev.SELF_PROTECTED)), ds
+    assert acr.decide_scope([ds], PATHS, PROTECTED) == (acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + ds)
+    doc = acr.load_agent_ci(ROOT)
+    on = doc.get("on", doc.get(True))
+    for trigger in ("push", "pull_request"):
+        assert ds in on[trigger]["paths"], trigger                       # both lists, by name
+    # control: a neighbour in the same folder is neither
+    other = "app/src/lib/marketClock/sessionCalendar.js"
+    assert not acr.matches(other, list(ev.SELF_PROTECTED)) and not acr.matches(other, PATHS)
+
+
+# ---- NO TIME-WINDOW FREEZE IN THE MERGE QUEUE (owner ruling 2026-11-27) ----------------------------------------------
+# Owner, verbatim: "fuck the deploy freeze i dont ever want to hold anything back from deploying ever". The follower's
+# refusal of Agent entries inside the market rushes (AUDIT D2.1 on #2495; calendar-aware since #2850) is removed, and
+# with it the calendar FLOOR that bounded the dataset it read. Everything else the follower requires is unchanged.
+
+def test_MQ_the_follower_has_no_freeze_left_to_consult():
+    for gone in ("freeze_window", "freeze_window_detail", "freeze_day", "freeze_windows_on", "FreezeFloorError",
+                 "FREEZE_FLOOR", "FREEZE_TZ", "FREEZE_CALENDAR", "FREEZE_RUSHES", "_floor_calendar"):
+        assert not hasattr(acr, gone), gone
+    import inspect
+    body = inspect.getsource(acr.follow_verdict).lower()
+    assert "freeze" not in body and "window" not in body.replace("workflow", ""), "follow_verdict must read no clock window"
+
+
+@pytest.mark.parametrize("dataset", ["missing", "broken", "out_of_bounds"])
+def test_MQ_the_calendar_dataset_cannot_refuse_an_entry(tmp_path, monkeypatch, dataset):
+    """The dataset used to be read (and bounded) by the follower; a bad one failed EVERY Agent entry closed. It is no
+    longer an input: whatever it holds, the entry is judged on its evidence."""
+    r = _queue_repo(tmp_path / "agent", {"app/src/agent/a.js": "a2\n"})
+    real_read = pathlib.Path.read_text
+
+    def read_text(self, *a, **k):
+        if self.name == "market_calendar.json":
+            if dataset == "missing":
+                raise FileNotFoundError(str(self))
+            if dataset == "broken":
+                return "{ not json"
+            raw = json.loads(real_read(self, *a, **k))
+            raw["sessions"]["close"] = "13:00"
+            return json.dumps(raw)
+        return real_read(self, *a, **k)
+    monkeypatch.setattr(pathlib.Path, "read_text", read_text)
+    assert _follow(r, now=_et(2026, 11, 18, 15, 45)) == ("success", "all 18 Agent jobs passed on the merge group's commit")

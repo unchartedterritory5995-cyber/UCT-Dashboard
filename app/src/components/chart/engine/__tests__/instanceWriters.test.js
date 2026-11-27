@@ -462,7 +462,9 @@ describe('⛔ the writer census (2a-12)', () => {
     expect(writers).toEqual([
       'setInstanceAppearance', 'setInstanceCalculationTimeframe', 'setInstanceCandleColor',
       'setInstanceDisplayTarget', 'setInstanceDotSize', 'setInstanceHidden', 'setInstanceInput',
-      'setInstancePanePosition', 'setInstancePlotStyle', 'setInstanceVisibility',
+      'setInstancePanePosition', 'setInstancePinScale', 'setInstancePlotStyle', 'setInstanceVisibility',
     ])
+    // setInstancePinScale (#2828, 2026-11-27): the legend's "Pin to scale" (TradingView's Right / Left / No scale),
+    // a deliberate new per-instance writer, railed in its own tests.
   })
 })

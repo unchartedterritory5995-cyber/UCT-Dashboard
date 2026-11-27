@@ -14,6 +14,9 @@ THE RULES (each one is a test in tests/test_promote_decision.py and a case in --
   * SHA ⊑ master and production ⊑ SHA (fast-forward only). production ⊒ SHA is "Already promoted" (idempotent, and the
     stale-SHA guard: an older SHA never moves production backwards).
   * Frozen ⇒ HOLD: the SHA is recorded PENDING. A newer gated SHA replaces the pending one ONLY if it descends from it.
+    ⛔ Since the owner ruling of 2026-11-27 ("i dont ever want to hold anything back from deploying ever") the
+    workflow never passes frozen=True (tools/deploy_freeze.py always answers NOT FROZEN), so HOLD is unreachable in
+    production; the branch is kept only as a pure function of its input. Rails: tests/test_no_deploy_freeze.py.
   * A self re-dispatch (GITHUB_TOKEN workflow_dispatch DOES start runs) is capped at MAX_REDISPATCH per pending SHA, and
     the count lives in the pending record.
 

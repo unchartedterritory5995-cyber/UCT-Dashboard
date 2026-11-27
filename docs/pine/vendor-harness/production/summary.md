@@ -2,7 +2,7 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 556) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
+Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 558) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
 
 Graded at script engine **98**.
 
@@ -718,6 +718,8 @@ keltner-channels-bands-spy-1d-2026-10-03     AMEX:SPY 1D      7      MATCH      
     Lower 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.95e-16
     objects                                  MATCH         neither side draws an object
 kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`)
+kernel-channel-backquant-regime-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`) (the vendor study also ran with non-default inputs: Color Bars By Regime=true vs default false)
+kernel-channel-backquant-regime-spy-1d-2026- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`) (the vendor study also ran with non-default inputs: Color Bars By Regime=true vs default false)
 lib-v5-in-v6-rddt-1d-2026-11-16              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module): importing another script pulls in code this engine never sees — the library `BarefootJoey/AstroLib/1` is not in this engine's library registry, so its code cannot be compiled
 linear-regression-channel-200-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple): this Pine call answers with several values at once and a column carries one — `price1` — `calculateRegression` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `calculateRegression`)
 linear-regression-channel-tradingfinder-exis NYSE:RDDT 1D     0      MATCH             all 1 items agree
@@ -3898,6 +3900,321 @@ vw-other-symbol-rddt-1d-2026-09-30           NYSE:RDDT 1D     8      DIVERGE    
     O06_NYSE_BRKB                            DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 0.00e+0 — 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333
     O07_brkb_bare_eq_nyse                    DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 1.00e+0 — 334 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 333
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
+vw-plotshape-abovebar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-absolute-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-belowbar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-bottom-spy-1d-2026-11-26        AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-top-spy-1d-2026-11-26           AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-pt-na-guard-and-rddt-1d-2026-11-16        NYSE:RDDT 1D     9      INCONCLUSIVE      3 of 10 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     A01_left_side_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
@@ -5063,10 +5380,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 DIVERGE 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 DIVERGE 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
+TOTAL 1045 captures — MATCH 240 · DIVERGE 94 · INCONCLUSIVE 711
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 240 · DIVERGE 94 · INCONCLUSIVE 711
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 243 · DIVERGE 94 · INCONCLUSIVE 701
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 248 · DIVERGE 94 · INCONCLUSIVE 703
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 

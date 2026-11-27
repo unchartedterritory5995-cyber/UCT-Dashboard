@@ -41,6 +41,8 @@ export function createAdaptiveFrameLoop({
   let stopped = false
   let parked = false
   let unGate = null
+  // an `inFrame` start whose first measurement has not run yet
+  let firstPending = false
 
   const clearPending = () => {
     if (frameId !== null) { caf(frameId); frameId = null }
@@ -72,6 +74,7 @@ export function createAdaptiveFrameLoop({
   function run() {
     frameId = null
     timerId = null
+    firstPending = false
     if (stopped) return
     let paused = false
     try { paused = !!gate?.paused() } catch { paused = false }
@@ -97,10 +100,29 @@ export function createAdaptiveFrameLoop({
   }
 
   return {
-    start() {
+    /**
+     * Measure now, then keep measuring. `{ inFrame: true }`: the first measurement waits for the next frame
+     * (`raf`, which runs before that frame paints) instead of running inside the caller. A caller inside a React
+     * commit measured the freshly committed DOM there: its first layout read forced the whole style and layout in
+     * the middle of the task, and its writes invalidated it again for the next effect's read. In the frame it reads
+     * the layout the frame computes anyway, once.
+     */
+    start({ inFrame = false } = {}) {
       stopped = false
       clearPending()
+      if (inFrame) { firstPending = true; frameId = raf(run) } else run()
+    },
+    /**
+     * An `inFrame` start whose first measurement is still waiting: take it now, and say so (`true`). For a
+     * ResizeObserver's delivery, which comes after this frame's layout and before its paint: a start made inside an
+     * animation-frame callback (a `flushSync` from one) asked for the NEXT frame, and this keeps the first painted
+     * frame placed. `false` (and nothing runs) once the first measurement has run, or after `stop()`.
+     */
+    runPendingStart() {
+      if (stopped || !firstPending) return false
+      clearPending()
       run()
+      return true
     },
     /** Something may be moving: measure every frame again, starting with the next frame. */
     wake() {
@@ -114,6 +136,7 @@ export function createAdaptiveFrameLoop({
     stop() {
       stopped = true
       parked = false
+      firstPending = false
       clearPending()
       dropGate()
     },
