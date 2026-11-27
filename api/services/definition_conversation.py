@@ -2668,7 +2668,8 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
     inputs = sorted(declared_inputs(envelope, view))
     existing = _view_trees(view)
     for e in named:
-        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+        if (named_indicators.held([house_tree(t) for t in trees], e, inputs)       # a twin read as the library's name
+                or named_indicators.held([house_tree(t) for t in existing], e, inputs)):
             continue
         at = named_indicators.defaults(e)
         formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
@@ -2708,7 +2709,8 @@ def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[T
         if not isinstance(key, str):
             continue
         for e in named:
-            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            got = next((g for g in (named_indicators.output_in(house_tree(tree), e, o, inputs) for o in e["outputs"])
+                        if g is not None), None)                     # (a twin read as the library's house name)
             if got is not None:
                 found.append((key, e, got))
                 break
@@ -3070,6 +3072,45 @@ def _trees_of(envelope: Mapping[str, Any]) -> List[Tuple[str, Any]]:
                 if isinstance(s, Mapping) and "when" in s:
                     out.append((f"ops[{i}].states[{j}].when", s["when"]))
     return out
+
+
+def with_pine_twins(envelope: Mapping[str, Any]) -> Dict[str, Any]:
+    """⭐ 2026-11-26 -- THE WORDS DOOR BUILDS TRADINGVIEW'S CALCULATION WHERE THE ENGINE HAS ONE (coordinator's
+    ruling). The fifty-set probe (live, admin measurement): "the 5 bar ATR divided by the 50 bar ATR" was built
+    with the house `atr` (Wilder's original, true range from bar 1), which reads 4.35% below TradingView's
+    `ta.atr(14)` at its first value and 1.4% below twenty bars on, the left edge a member compares. Every call
+    to a function with a Pine-parity twin (`ast_table.PINE_TWINS`: `atr`, `stoch`, `mfi`) is written as the twin;
+    the arguments are the same. Runs AFTER `check_named` (the library's checked formulas carry the house name,
+    and the library match reads a twin as its house name: `house_tree`). ⛔ The native indicators, ThinkScript and
+    the pattern levels are other doors and keep the house calculation. Returns a NEW envelope."""
+    from api.services import ast_table
+    twins = ast_table.PINE_TWINS
+    out = copy.deepcopy(dict(envelope))
+    for where, tree in _trees_of(out):
+        for node in _walk(tree):
+            if node.get("type") == "call" and node.get("name") in twins:
+                node["name"] = twins[node["name"]]
+    return out
+
+
+def house_tree(tree: Any) -> Any:
+    """The reverse of `pine_twin_tree`: each Pine-parity twin read back as its house function. ONLY for matching a
+    built tree against the named-indicator library, whose checked formulas carry the house names, so a library
+    indicator the door built as the twin is still recognised as that indicator (`check_named`, `_named_outputs`).
+    `named_indicators` itself stays free of the engine's table. A NEW tree; never what is built."""
+    from api.services import ast_table
+    house = {twin: name for name, twin in ast_table.PINE_TWINS.items()}
+    out = copy.deepcopy(tree)
+    for node in _walk(out):
+        if node.get("type") == "call" and node.get("name") in house:
+            node["name"] = house[node["name"]]
+    return out
+
+
+def pine_twin_tree(tree: Any) -> Any:
+    """One tree as the words door builds it (`with_pine_twins`): every house call with a Pine-parity twin
+    written as the twin. A NEW tree."""
+    return with_pine_twins({"ops": [{"op": "tree", "tree": tree}]})["ops"][0]["tree"]
 
 
 def _walk(tree: Any):
@@ -6529,6 +6570,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
+            envelope = with_pine_twins(envelope)              # TradingView's calculation where the engine has it
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
