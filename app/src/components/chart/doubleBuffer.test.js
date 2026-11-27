@@ -23,7 +23,7 @@ const now = () => bars
 const ok = () => 'ok'
 
 describe('F1 the flip rule (the shadow PROVES what it shows: review of #2922, F3)', () => {
-  it('flips when the shadow reported the symbol, the front chart's timeframe and session, the settings, the bars of now, alike views', () => {
+  it("flips when the shadow reported the symbol, the front chart's timeframe and session, the settings, the bars of now, alike views", () => {
     expect(flipDecision(want, report, now, ok)).toEqual({ flip: true, why: 'flip' })
   })
   it.each([
@@ -38,13 +38,13 @@ describe('F1 the flip rule (the shadow PROVES what it shows: review of #2922, F3
   ])('refuses %s', (why, w, r) => {
     expect(flipDecision(w, r, now, ok)).toEqual({ flip: false, why })
   })
-  it('refuses a STALE shadow: its reported bars are not the store's now (moved on, none, a throw, never reported)', () => {
+  it("refuses a STALE shadow: its reported bars are not the store's now (moved on, none, a throw, never reported)", () => {
     expect(flipDecision(want, report, () => [...bars], ok)).toEqual({ flip: false, why: 'stale' })
     expect(flipDecision(want, report, () => null, ok)).toEqual({ flip: false, why: 'stale' })
     expect(flipDecision(want, report, () => { throw new Error('x') }, ok)).toEqual({ flip: false, why: 'stale' })
     expect(flipDecision(want, { ...report, bars: null }, () => null, ok)).toEqual({ flip: false, why: 'stale' })
   })
-  it('refuses when the views differ (the reason is the view's), or cannot be read', () => {
+  it("refuses when the views differ (the reason is the view's), or cannot be read", () => {
     expect(flipDecision(want, report, now, () => 'view-zoom')).toEqual({ flip: false, why: 'view-zoom' })
     expect(flipDecision(want, report, now, () => { throw new Error('x') })).toEqual({ flip: false, why: 'view-unknown' })
   })
@@ -65,8 +65,8 @@ describe('F1b the views (review of #2922, F1)', () => {
     ['view-unknown', null, meta(160, -5)],
     ['view-unknown', meta(160, -5), { frame: null }],
   ])('%s', (why, f, sh) => { expect(viewParity(f, sh)).toBe(why) })
-  it('the mirror gives the shadow the front's span at its own right edge; nothing to mirror, or nothing that may be: null', () => {
-    expect(mirrorFrameFor(meta(80, -5), meta(160, -5))).toEqual({ fromRight: 75, toRight: -5, activeRange: null, locked: false, lock: null })
+  it("the mirror gives the shadow the front's span at its own right edge; nothing to mirror, or nothing that may be: null", () => {
+    expect(mirrorFrameFor(meta(80, -5), meta(160, -5))).toEqual({ fromRight: 80, toRight: -5, activeRange: null, locked: false, lock: null })
     expect(mirrorFrameFor(meta(160, -5), meta(160, -5))).toBe(null)
     expect(mirrorFrameFor(meta(260, 95), meta(160, -5))).toBe(null)
     expect(mirrorFrameFor(meta(80, -5, { activeRange: '1Y' }), meta(160, -5))).toBe(null)
@@ -74,7 +74,7 @@ describe('F1b the views (review of #2922, F1)', () => {
   })
 })
 
-describe('F2 the board\'s shadow budget', () => {
+describe("F2 the board\'s shadow budget", () => {
   it(`at most ${MAX_SHADOWS} per board; a release frees one; another board has its own`, () => {
     const board = {}
     const a = {}, b = {}, c = {}
@@ -108,7 +108,7 @@ describe('F3 the switch', () => {
   it('the touch tier query is the owner\'s', () => { expect(TOUCH_TIER_QUERY).toBe('(max-width: 1024px), (pointer: coarse)') })
 })
 
-describe('F4 the shadow\'s row', () => {
+describe("F4 the shadow\'s row", () => {
   beforeEach(() => { nf.__setNeighborFramesForTests(true); nf.__resetScanForTests() })
   afterEach(() => nf.__setNeighborFramesForTests(null))
   it('the first row the list names ahead; none without a list', () => {

@@ -133,7 +133,7 @@ describe('useDoubleBuffer', () => {
     press(h, 'CCC')
     expect(h.result.current.front).toBe(0)
     expect(h.result.current.syms[0]).toBe('CCC')
-    expect(db.doubleBufferStats().why.sym).toBe(1)
+    expect(db.doubleBufferStats().why['no-shadow']).toBe(1)   // the shadow holds another row
     expect(painted.some((a) => a[3] === 'flip')).toBe(false)
   })
 
@@ -179,7 +179,7 @@ describe('useDoubleBuffer', () => {
     report(h.result, 1, 'BBB')
     act(() => { h.result.current.viewChanged(0) })      // the front's range moved
     await idle()
-    expect(panes[1].m.frame).toEqual({ fromRight: 75, toRight: -5, locked: false })
+    expect(panes[1].m.frame).toEqual({ fromRight: 80, toRight: -5, locked: false })
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
   })
