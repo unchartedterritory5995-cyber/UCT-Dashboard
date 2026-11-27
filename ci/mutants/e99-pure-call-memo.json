@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "PM1",
+   "mutant": "an impure body memoised (the opcode allowlist dropped)",
+   "file": "app/src/components/chart/engine/runtime/pureCalls.js",
+   "from": "      if (!PURE_LEAF_OPS.has(op)) return\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "impure"
+  },
+  {
+   "id": "PM2",
+   "mutant": "-0 and 0 one key",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "              if (v === 0 && 1 / v < 0) v = NEG_ZERO_KEY\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "-0 and 0"
+  },
+  {
+   "id": "PM3",
+   "mutant": "a hit charges no instructions",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "                perBar += e.dI\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "EXACT"
+  },
+  {
+   "id": "PM4",
+   "mutant": "a varying column admitted",
+   "file": "app/src/components/chart/engine/runtime/pureCalls.js",
+   "from": "      if (!constant.get(c)) { out[i] = 0; break }",
+   "to": "      void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "VARIES"
+  },
+  {
+   "id": "PM5",
+   "mutant": "a function whose answers never repeat is memoised for the whole run",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "                if (m >= PURE_MEMO_GIVE_UP.misses && pureFnHit[a] * PURE_MEMO_GIVE_UP.ratio < m) { pureLeaf[a] = 0; pureMemo[a] = undefined }",
+   "to": "                if (false) { pureLeaf[a] = 0 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/pureCallMemo.test.js",
+   "expectRed": "rarely repeat"
+  }
+ ]
+}
