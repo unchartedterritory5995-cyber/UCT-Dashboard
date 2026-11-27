@@ -6,7 +6,9 @@
     arrangement, a restore, and a member's first version are not;
   * the output names members by hash and layouts by id, with widget ids only: no layout name, no ticker, no raw
     member id;
-  * the stores are opened read-only: a scan leaves both files byte-identical.
+  * the stores are opened read-only (mode=ro, query_only): a scan leaves both files byte-identical, and a write
+    through its connection is refused;
+  * --count reports what a scan would read (rows, payload bytes, an estimated peak) without reading it.
 """
 from __future__ import annotations
 
@@ -82,19 +84,20 @@ def stores(tmp_path):
 
 def test_rows_sharing_an_arrangement(stores):
     ldb, _ = stores
-    found = scan.scan_rows(ldb)
+    found = scan.scan_rows(scan.load_rows(ldb))
     assert [(f["member"], f["layout_ids"]) for f in found] == [(scan.member_hash(501), [10, 11])]
     assert found[0]["widget_ids"] == ["a1", "a2", "wl"]
 
 
 def test_a_save_that_jumped_to_another_layout(stores):
     ldb, vdb = stores
-    found = scan.scan_history(ldb, vdb)
+    rows = scan.load_rows(ldb)
+    found = scan.scan_history(rows, vdb)
     # 11 jumped to 10's board (10 held it from 950; 12 briefly, by a restore at 960). 10's own growth (v2 at 950) came
     # first, so it is not a jump; a restore is a member's choice; 12's return to its own board is its own.
     assert [(f["layout_id"], f["version"], f["matches_layout_ids"]) for f in found] == [(11, 2, [10, 12])]
     # --since leaves out what came before it
-    assert scan.scan_history(ldb, vdb, since=2001) == []
+    assert scan.scan_history(rows, vdb, since=2001) == []
 
 
 def test_output_holds_no_content_and_no_raw_member_id(stores, capsys):
@@ -113,11 +116,35 @@ def test_output_holds_no_content_and_no_raw_member_id(stores, capsys):
 def test_the_scan_writes_nothing(stores):
     ldb, vdb = stores
     before = (open(ldb, "rb").read(), open(vdb, "rb").read())
-    scan.scan_rows(ldb)
-    scan.scan_history(ldb, vdb)
+    rows = scan.load_rows(ldb)
+    scan.scan_rows(rows)
+    scan.scan_history(rows, vdb)
     assert (open(ldb, "rb").read(), open(vdb, "rb").read()) == before
     # and a store that is not there is never created
     missing = ldb + ".absent"
     assert scan.main(["--layouts-db", missing, "--versions-db", vdb]) == 2
     import os
     assert not os.path.exists(missing)
+
+
+def test_a_write_through_the_scan_connection_is_refused(stores):
+    ldb, _ = stores
+    conn = scan._open_ro(ldb)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute("INSERT INTO charts_layouts (id, scope, user_id, name, layout_json, created_at) "
+                         "VALUES (99, 'user', 1, 'x', '{}', 1)")
+    finally:
+        conn.close()
+
+
+def test_count_reports_what_a_scan_would_read(stores, capsys):
+    ldb, vdb = stores
+    c = scan.count(ldb, vdb)
+    assert c["layout_rows"] == 7 and c["versions"] == 8          # own rows only; layout versions only
+    assert c["layout_json_bytes"] > 0 and c["payload_json_bytes"] > 0
+    assert c["estimated_peak_mb"] >= 0
+    assert scan.main(["--layouts-db", ldb, "--versions-db", vdb, "--count"]) == 0
+    out = capsys.readouterr().out
+    assert "layout_rows=7" in out and "estimated_peak_mb=" in out
+    assert SECRET_NAME not in out and TICKER not in out
