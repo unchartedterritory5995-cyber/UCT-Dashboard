@@ -704,9 +704,16 @@ export function createNetwork({
     lakeSeed(key, { awaited = false } = {}) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
       const target = lakeTargetBars(parseKey(key)?.tf)
-      if ((registry.peek(key)?.bars.length ?? 0) >= target) return Promise.resolve(false)
-      if (awaited) lakeAwaited.add(key)
+      const held0 = registry.peek(key)
+      if ((held0?.bars.length ?? 0) >= target) return Promise.resolve(false)
       const running = lakeSeeds.get(key)
+      // ⭐ (2026-11-26, review of #2866) AN ANSWERED ENTRY WHOSE LOAD SETTLED AT WHAT IT HOLDS IS NOT LOADED AGAIN: the typed
+      // warm, a hover or a neighbour joined it, and Enter's subscribe (index._start) and the handoff would re-read and
+      // re-decode the same pieces to add nothing. EXACTLY `!lakePending` (review of #2871): an entry holding LESS than its
+      // settled depth (a basis / cache_key / history_rev reset, an eviction rebuilt shallow) is due and is loaded.
+      const settled0 = lakeSettled.get(key)
+      if (!running && held0?.restSeen && settled0 != null && held0.bars.length >= settled0) return Promise.resolve(false)
+      if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
       const p = Promise.resolve()
@@ -739,6 +746,8 @@ export function createNetwork({
       lakeSeeds.set(key, p)
       return p
     },
+    /** The lake load of `key` in flight (lakeSeed's shared promise), or null. Starts nothing. */
+    lakeLoading(key) { return lakeSeeds.get(key) || null },
     /** Is the lake's whole depth still DUE for `key`: the lake carries it, it holds less than that
      *  depth, and its lake load has not finished on this page (in flight, or never asked)? The
      *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
