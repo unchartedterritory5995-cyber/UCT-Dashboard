@@ -13,11 +13,24 @@
 //      a handle another chart (same widget id, the board in front) registered meanwhile
 //   H7 (red first) a subtree UNMOUNTED while its handle says 'hidden' (the workspace leaving, grid mode) still
 //      destroys the chart: only a chart whose element is still in the document is kept
+//   H8 (red first, review of #2880) a board deleted AFTER an <Activity> hide runs no cleanup again: the handle's
+//      dispose() removes the kept chart, exactly once
+//   H9 a shown chart is not torn down by its handle later (the show took the teardown back)
+//   H10 a hide then a show leaves the chart's subscriptions and the window's listeners exactly as a fresh mount
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor } from '@testing-library/react'
 import { Activity } from 'react'
 
-const lw = vi.hoisted(() => ({ created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null }))
+const lw = vi.hoisted(() => ({ created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map() }))
+// the chart's live subscriptions: every subscribe* adds the handler, its unsubscribe* removes it
+const track = vi.hoisted(() => (obj) => {
+  for (const k of Object.keys(obj)) {
+    const m = /^(un)?subscribe(.+)$/.exec(k)
+    if (!m) continue
+    obj[k] = (fn) => { const s = lw.subs.get(m[2]) || new Set(); lw.subs.set(m[2], s); if (m[1]) s.delete(fn); else s.add(fn) }
+  }
+  return obj
+})
 
 vi.mock('lightweight-charts', () => {
   const series = {
@@ -29,7 +42,7 @@ vi.mock('lightweight-charts', () => {
   }
   // Same surface as the smoke harness, except timeScale() is a STABLE object whose
   // setVisibleLogicalRange forwards to the test spy (the smoke version is a no-op).
-  const timeScale = {
+  const timeScale = track({
     applyOptions: () => {}, fitContent: () => {},
     setVisibleLogicalRange: (r) => {
       lw.last = r
@@ -43,8 +56,8 @@ vi.mock('lightweight-charts', () => {
     subscribeVisibleTimeRangeChange: () => {}, unsubscribeVisibleTimeRangeChange: () => {},
     getVisibleRange: () => null, coordinateToLogical: () => 0, logicalToCoordinate: () => 0,
     timeToIndex: () => 0, height: () => 40, scrollPosition: () => 0,
-  }
-  const chart = {
+  })
+  const chart = track({
     addSeries: () => series, addCandlestickSeries: () => series, addHistogramSeries: () => series,
     addLineSeries: () => series, addAreaSeries: () => series, addBarSeries: () => series,
     removeSeries: () => {}, applyOptions: (o) => { if (o && 'autoSize' in o) lw.autoSize.push(o.autoSize) }, priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
@@ -52,7 +65,7 @@ vi.mock('lightweight-charts', () => {
     subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
     panes: () => [{ getHeight: () => 300, getHTMLElement: () => document.createElement('div') }],
     resize: (w, h, f) => { lw.resize.push([w, h, f]) }, remove: () => { lw.removed++ }, takeScreenshot: () => document.createElement('canvas'),
-  }
+  })
   return {
     createChart: (container) => {
       lw.created++
@@ -92,7 +105,7 @@ const FIXTURE_BARS = BAR_DATES.map((t, i) => ({ t, o: 10 + i, h: 11 + i, l: 9 + 
 
 beforeEach(() => {
   cleanup()
-  Object.assign(lw, { created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null })
+  Object.assign(lw, { created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map() })
   try { localStorage.clear() } catch { /* jsdom always has it */ }
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
     ok: true,
@@ -200,5 +213,47 @@ describe('StockChart keeps its chart through a board hide', () => {
     const view = await mounted(vis)
     act(() => { vis.state = 'hidden'; view.unmount() })
     expect(lw.removed, 'a chart unmounted under a hidden handle was kept (a leak)').toBe(1)
+  })
+
+  it('H8 (red first) a board deleted after its hide: dispose() removes the kept chart, exactly once', async () => {
+    const vis = createBoardVisibility()
+    const view = await mounted(vis)
+    await hide(view, vis)
+    expect(lw.removed).toBe(0)
+    act(() => { vis.dispose(); view.unmount() })
+    expect(lw.removed, 'the kept chart outlived its disposed board (a leak)').toBe(1)
+  })
+
+  it('H9 a shown chart is not torn down by its handle later', async () => {
+    const vis = createBoardVisibility()
+    const view = await mounted(vis)
+    await hide(view, vis)
+    await show(view, vis)
+    act(() => { vis.dispose() })
+    expect(lw.removed, 'a stale teardown removed the chart on screen').toBe(0)
+    view.unmount()
+    expect(lw.removed).toBe(1)
+  })
+
+  it('H10 a hide then a show leaves the subscriptions and listeners of a fresh mount', async () => {
+    const live = new Map()
+    const add = window.addEventListener.bind(window)
+    const rem = window.removeEventListener.bind(window)
+    vi.spyOn(window, 'addEventListener').mockImplementation((t, f, o) => { const s = live.get(t) || new Set(); live.set(t, s); s.add(f); return add(t, f, o) })
+    vi.spyOn(window, 'removeEventListener').mockImplementation((t, f, o) => { live.get(t)?.delete(f); return rem(t, f, o) })
+    const counts = () => JSON.stringify({
+      subs: [...lw.subs].map(([k, s]) => [k, s.size]).sort(),
+      win: [...live].map(([k, s]) => [k, s.size]).filter(([, n]) => n).sort(),
+    })
+    const vis = createBoardVisibility()
+    const view = await mounted(vis)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    const fresh = counts()
+    await hide(view, vis)
+    await show(view, vis)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(counts(), 'a hide and a show changed what the chart is subscribed to').toBe(fresh)
+    view.unmount()
+    vi.restoreAllMocks()
   })
 })
