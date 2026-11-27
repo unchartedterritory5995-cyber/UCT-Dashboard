@@ -4,7 +4,8 @@
 //      (a constant-reading leaf yes; a history read, a `var`, a window builtin, a caller of another function, no;
 //      on kernel-channel exactly one function, `kernelWeight`, is memoised);
 //   2. EXACT: kernel-channel over SPY 1D, memo on and off, gives byte-identical columns AND identical budget counts,
-//      and stops on the same bar with the same numbers under the shipped limits;
+//      and stops on the same bar with the same numbers at a named whole-chart ceiling (TRAIN e99: the shipped
+//      limits scale with the bars, and it completes under them);
 //   3. an impure function is never answered from a memo (its values stay right);
 //   4. `-0` and `0` are different arguments.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -106,11 +107,21 @@ describe('e99 b2 — pure leaf calls from a memo', () => {
     expect(off.memo).toBe(null)
     // eslint-disable-next-line no-console
     console.log(`kernel-channel SPY 8,509: memo ${Math.round(on.ms)} ms, no memo ${Math.round(off.ms)} ms`)
-    const sOn = run(true)
-    const sOff = run(false)
+    // ⭐ TRAIN e99 (#2805 x #2802/#2832): the shipped whole-run counts now scale with the bars a run covers, and
+    // kernel-channel over SPY 1D COMPLETES under them (#2802's own rail). So the stop half keeps its point at the old
+    // whole-chart ceiling, NAMED (a ceiling the caller names does not scale): memo on and off stop on the same bar with
+    // the same numbers. Under the shipped limits both complete, with identical counts.
+    const old = { TOTAL_INSTRUCTIONS: 200000000 }
+    const sOn = run(true, old)
+    const sOff = run(false, old)
     expect(sOn.err && sOn.err.message).toBe(sOff.err && sOff.err.message)
     expect(sOn.err.guard).toBe('runtime:limit')
-  }, 180000)
+    const shOn = run(true)
+    const shOff = run(false)
+    expect(shOn.err).toBe(null)
+    expect(shOff.err).toBe(null)
+    expect(shOn.counts).toEqual(shOff.counts)
+  }, 240000)
 
   it('⛔ an impure function is never answered from a memo', () => {
     const r = vmRun(L('c(int i) =>', '    close[i]', 'v() =>', '    var int n = 0', '    n += 1', '    n',
