@@ -1,0 +1,23 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "TI1",
+   "mutant": "the instruction ceiling no longer scales",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "  TOTAL_INSTRUCTIONS: TOTAL_INSTRUCTIONS_PER_BAR,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/totalInstructionsPerBar.test.js",
+   "expectRed": "kernel-channel"
+  },
+  {
+   "id": "TI2",
+   "mutant": "a named ceiling scales anyway",
+   "file": "app/src/components/chart/engine/runtime/limits.js",
+   "from": "    this.scales = Object.keys(PER_BAR_LIMITS).filter((k) => !(limits && Object.prototype.hasOwnProperty.call(limits, k)))",
+   "to": "    this.scales = Object.keys(PER_BAR_LIMITS)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/totalInstructionsPerBar.test.js",
+   "expectRed": "NAMES the ceiling"
+  }
+ ]
+}
