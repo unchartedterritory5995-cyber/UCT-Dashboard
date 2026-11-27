@@ -426,7 +426,7 @@ describe('ScanRows: corrections in one commit; a remembered offset; the warm fir
 // ⭐ (review of #2916, LOW) A list that comes back SHORTER than it was scrolled: the remembered offset is clamped to the
 // last screenful of the rows it has now, so the first commit is never blank space past the end.
 describe('ScanRows: the remembered offset fits the list it comes back to', () => {
-  it('R19 (red first) half the rows: the first commit holds the last screenful, the scroller at its end', async () => {
+  it('R19 (red first) half the rows: the first commit holds the last screenful, the scroller at its end', () => withRowObservers(async (deliver) => {
     const realScrollTo = HTMLElement.prototype.scrollTo
     Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
     HTMLElement.prototype.scrollTo = function (opts) { this.scrollTop = typeof opts === 'object' ? (opts.top ?? this.scrollTop) : opts }
@@ -435,9 +435,12 @@ describe('ScanRows: the remembered offset fits the list it comes back to', () =>
       await frames()
       const scroller = firstMount.container.querySelector('[data-scroller]')
       // pass through the middle first, so every row of the first 30 has been measured (remembered at 40 px): the clamp
-      // then has no 30 px estimates in it and the last screenful starts exactly at 800
+      // then has no 30 px estimates in it and the last screenful starts exactly at 800. Rows that mount DURING a scroll
+      // are not measured at attach (the library skips it while `isScrolling`); the browser's observer measures them,
+      // so the observer delivers their border boxes here (diagnosed: R26-R29 were unknown, estimated 30, clamp 760).
       await act(async () => { scroller.scrollTop = 400; scroller.dispatchEvent(new Event('scroll')) })
       await frames()
+      await act(async () => { for (const el of scroller.querySelectorAll('[data-index]')) deliver(firstMount.container, Number(el.getAttribute('data-index')), ROW_PX) })
       await act(async () => { scroller.scrollTop = 2000; scroller.dispatchEvent(new Event('scroll')) }) // the very end
       await frames()
       firstMount.unmount()
@@ -475,14 +478,14 @@ describe('ScanRows: the remembered offset fits the list it comes back to', () =>
       for (let y = atFirst.top; y < atFirst.top + 400; y += 10) expect(covered(y), `blank at ${y} px`).toBe(true)
       expect(atFirst.top, 'the scroller past the shorter list').toBeLessThan(1200)
     } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop }
-  })
+  }))
 })
 
 // ⭐ (review of #2921) A REAL WATCHLIST HAS A SCROLL MARGIN: its description, add row or column header sits inside the
 // scroller above the rows, so the scroller's offset (what is remembered) includes it. The last screenful of a list that
 // comes back shorter starts at margin + rows - view, and the warm first render chooses its window with that margin.
 describe('ScanRows: the remembered offset and a scroll margin', () => {
-  it('R20 (red first) a 100 px margin: half the rows come back, the first commit is the last screenful at margin + rows - view', async () => {
+  it('R20 (red first) a 100 px margin: half the rows come back, the first commit is the last screenful at margin + rows - view', () => withRowObservers(async (deliver) => {
     const realScrollTo = HTMLElement.prototype.scrollTo
     const realRect = HTMLElement.prototype.getBoundingClientRect
     Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
@@ -502,6 +505,8 @@ describe('ScanRows: the remembered offset and a scroll margin', () => {
       const scroller = view.container.querySelector('[data-scroller]')
       await act(async () => { scroller.scrollTop = 500; scroller.dispatchEvent(new Event('scroll')) })
       await frames()
+      // the rows that mounted during the scroll are measured by the observer (see R19)
+      await act(async () => { for (const el of scroller.querySelectorAll('[data-index]')) deliver(view.container, Number(el.getAttribute('data-index')), ROW_PX) })
       await act(async () => { scroller.scrollTop = 2100; scroller.dispatchEvent(new Event('scroll')) }) // the end: 100 + 2400 - 400
       await frames()
       view.unmount()
@@ -523,5 +528,5 @@ describe('ScanRows: the remembered offset and a scroll margin', () => {
       HTMLElement.prototype.getBoundingClientRect = realRect
       delete HTMLElement.prototype.scrollTop
     }
-  })
+  }))
 })
