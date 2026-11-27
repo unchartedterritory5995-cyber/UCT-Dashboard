@@ -16,6 +16,7 @@
 // ⛔ WITHOUT `Worker` (tests, a non-browser host) nothing is installed and every
 // run is synchronous — the same computation, under the same time budget.
 import { registerRuntimeLane } from '../nativeRegistry.js'
+import { setRuntimeBudgetStopClock } from '../runtimeBudgetStops.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
@@ -551,6 +552,9 @@ const defaultFactory = () => new Worker(new URL('./runtimeWorker.js', import.met
 /** Make runtime documents computable in this client. Idempotent. */
 export function ensureRuntimeLane({ factory } = {}) {
   registerRuntimeLane(runtimeColumnsFor)
+  // the page's wall clock for a remembered time-budget stop's hold (`runtimeBudgetStops.js`: the compute closure reads
+  // no clock of its own, design 2.2 H5)
+  setRuntimeBudgetStopClock(() => Date.now())
   if (_ready) return
   _ready = true
   onRuntimeColumnsLanded((key) => notifyColumnsLanded(key))
