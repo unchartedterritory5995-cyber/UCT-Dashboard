@@ -117,8 +117,9 @@ describe('StockChart uses the adaptive loop for its chrome placement', () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
-    // Chrome placement, the extended-hours chip glue and the chip placement: all adaptive.
-    expect((src.match(/createAdaptiveFrameLoop\(\{ tick \}\)/g) || []).length).toBeGreaterThanOrEqual(3)
+    // Chrome placement, the extended-hours chip glue and the chip placement: all adaptive (each with the board
+    // keep-alive's pause gate since #2901: boardVisibility.js `boardLoopGate`).
+    expect((src.match(/createAdaptiveFrameLoop\(\{ tick(, gate: boardLoopGate\(boardVisibilityRef\.current\))? \}\)/g) || []).length).toBeGreaterThanOrEqual(3)
     // No loop re-arms itself every frame unconditionally. (The price-fade loop is finite: it
     // re-arms only `if (p < 1)` into `fadeRafRef`, and this pattern deliberately does not match it.)
     expect(src).not.toMatch(/\braf\s*=\s*requestAnimationFrame\(tick\)/)
