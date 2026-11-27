@@ -1584,6 +1584,39 @@ function chartDebugHandle({
     priceToY: (price) => {
       try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
     },
+    /** ⭐ (2026-11-27, the CRBG 15m rescale ~240 ms after a deep join that changed neither the range nor the candles)
+     *  WHAT THE PRICE SCALE FITS, BY SERIES: every series in the candles' pane on their scale, with its extent over the
+     *  visible time range and whether it joins the autoscale. A rig that sees the scale move reads which series moved
+     *  it, instead of inferring it from pixels. Diagnostic only: copies each series' rows (`data()`), so a probe calls it
+     *  on a change it saw, never per frame. */
+    autoscaleSources: () => {
+      try {
+        const chart = chartRef.current
+        const candles = candleSeriesRef.current
+        const vr = chart?.timeScale?.().getVisibleRange?.()
+        const pane = candles?.getPane?.()
+        if (!vr || !pane) return null
+        const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+        const inView = (t) => t != null && typeof t !== 'object' && cmp(t, vr.from) >= 0 && cmp(t, vr.to) <= 0
+        const scaleId = candles.options?.()?.priceScaleId ?? 'right'
+        return (pane.getSeries?.() || []).filter((s) => (s.options?.()?.priceScaleId ?? 'right') === scaleId).map((s) => {
+          const o = s.options?.() || {}
+          let lo = Infinity, hi = -Infinity, n = 0
+          for (const r of (s.data?.() || [])) {
+            if (!inView(r.time)) continue
+            const a = Number.isFinite(r.low) ? r.low : r.value
+            const b = Number.isFinite(r.high) ? r.high : r.value
+            if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+            n++; if (a < lo) lo = a; if (b > hi) hi = b
+          }
+          let joins = o.visible !== false
+          if (joins && typeof o.autoscaleInfoProvider === 'function') {
+            try { joins = o.autoscaleInfoProvider(() => ({ priceRange: { minValue: 0, maxValue: 1 } })) != null } catch { /* unknown: as drawn */ }
+          }
+          return { type: s.seriesType?.() || '?', title: o.title || null, candles: s === candles, joins, n, lo: n ? lo : null, hi: n ? hi : null }
+        })
+      } catch { return null }
+    },
   }
 }
 

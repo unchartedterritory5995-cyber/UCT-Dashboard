@@ -105,6 +105,8 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 // while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
 // behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** The most linked charts' keys a typed warm fetches beside its own (_fetchLinked): a board's linked group is 2-4 charts. */
+export const LINKED_TYPED_MAX = 3
 /** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
 const ASK_AGAIN = Object.freeze([])
 /** ⚰️ (2026-11-25) How long the handoff USED to wait for the tail of a copy behind the clock before it painted the copy as
@@ -2072,6 +2074,39 @@ export function createPrefetch(o = {}) {
     }
   }
 
+  /** ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...AND THE LINKED CHARTS' KEYS ARE FETCHED, not only
+   *  joined when held (`_joinLinked`) or told to the column warmers (`_tellTyped`). Enter shows the typed ticker on every
+   *  chart of the linked group; a cold page takes 100-350 ms, so a linked key not asked before Enter cannot paint in the
+   *  key's task. Each linked key not already held in a painting state is asked now (its first page, at `visible` rank so
+   *  it never queues behind background work), then joined: the lake's depth for intraday, the deep sealed history for
+   *  D/W/M. At most LINKED_TYPED_MAX keys; `signal` is the typed warm's own (a newer text aborts it, Enter keeps it). */
+  function _fetchLinked(T, tf, alsoTfs, signal) {
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    let n = 0
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k0 = String(t)
+      if (!t || seen.has(k0)) continue
+      seen.add(k0)
+      if (n >= LINKED_TYPED_MAX) break
+      const k = keyFor(T, t)
+      const p = k ? parseKey(k) : null
+      if (!p || p.window) continue
+      const held = S().peek(k)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)) continue
+      n++
+      const date = !isIntradayTf(p.tf)
+      Promise.resolve().then(async () => {
+        if (signal?.aborted) return
+        if (date) { _joinDeepDate(k, { priority: 'visible' }).catch(() => {}); return }
+        try { S().primeLake?.(k) } catch { /* a warm only */ }
+        const s = await ensure(k, { until: DISPLAYABLE, priority: 'visible', signal, local: false, _s0: S().peek(k) || {} })
+        if (!signal?.aborted && s?.restSeen && !s.error) _joinLake(k)
+      }).catch(() => {})
+    }
+    return n
+  }
+
   function _warmTypedIntraday(sym, tf, alsoTfs) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
@@ -2097,6 +2132,7 @@ export function createPrefetch(o = {}) {
     if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) {
       if (S().lakePending?.(key)) _joinLake(key)
       _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, null)
       return null
     }
     if (typed && typed.key === key) return null
@@ -2128,6 +2164,7 @@ export function createPrefetch(o = {}) {
       if (typed !== mine) return 'superseded'
       _tellTyped(T, tf, alsoTfs)
       _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, ctl.signal)
       const behind = closedBehind(s0)
       // ⭐ (2026-11-26, the owner's cold typed Enter) A local copy that paints answers from memory ONLY when it covers the
       // view (COVER_ROWS: the switch then paints it at once and the depth joins behind the view). The device's copy of a
@@ -2162,6 +2199,7 @@ export function createPrefetch(o = {}) {
     const typedSym = String(sym).trim().toUpperCase()
     if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       _tellTyped(typedSym, tf, alsoTfs)   // a known name, bars current: its companions may not be
+      _fetchLinked(typedSym, tf, alsoTfs, null)
       return null
     }
     if (typed && typed.key === key) return null
@@ -2180,6 +2218,7 @@ export function createPrefetch(o = {}) {
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         _tellTyped(typedSym, tf, alsoTfs)
+        _fetchLinked(typedSym, tf, alsoTfs, ctl.signal)
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
@@ -2189,7 +2228,7 @@ export function createPrefetch(o = {}) {
       const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
-      if (answered && !s0?.depth && typed === mine) _tellTyped(typedSym, tf, alsoTfs)   // the authority just said it is real
+      if (answered && !s0?.depth && typed === mine) { _tellTyped(typedSym, tf, alsoTfs); _fetchLinked(typedSym, tf, alsoTfs, ctl.signal) }   // the authority just said it is real
       return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }

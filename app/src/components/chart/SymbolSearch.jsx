@@ -20,10 +20,12 @@ export { POPULAR_RESULTS }
 // ticker (G, GO, GOO, GOOG) is not intent, and warming it is cache churn plus, when the
 // today-pack is unusable, a wasted /api/bars request.
 export const TYPED_INTENT_SETTLE_MS = 140
-// ⭐ (2026-11-27, owner: "fully instant like deepvue") How long the HIGHLIGHTED suggestion must stay highlighted before the
-// host is told it (the same warm as the settled text: the chart fetches its covering page before Enter). Shorter than the
-// text's settle: a highlighted row is a real ticker from the search, never a prefix being typed through.
-export const HIGHLIGHT_INTENT_MS = 70
+// ⭐ (2026-11-27, owner: "fully instant like deepvue", then "close to 30MS for everything always") How long the HIGHLIGHTED
+// suggestion must stay highlighted before the host is told it (the same warm as the settled text: the chart fetches its
+// covering page before Enter). ZERO: a highlighted row is a real ticker from the search, never a prefix being typed through,
+// and a cold page takes 100-350 ms, so every millisecond waited here is one Enter can find. A newer highlight still cancels
+// a pending one (the timer), and the chart's typed warm keeps one warm at a time.
+export const HIGHLIGHT_INTENT_MS = 0
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -89,6 +91,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
   const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
+  // the real tickers this open search has been answered with (ticker-search rows): typed text equal to one IS a ticker, so
+  // it is reported at once (the first unambiguous match), not after the typing pause
+  const knownRef = useRef(new Set())
   // The typing pause's timer. `submit` clears it: the Enter commit no longer re-renders the search (its teardown waits
   // for the frame), so a pause still running at Enter would otherwise report the entered text after the switch.
   const intentTimerRef = useRef(0)
@@ -236,6 +241,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
           // wrong category through). Typeless responses (old server) pass through.
           if (typeParam && arr.some(r => r.type)) arr = arr.filter(r => r.type === typeParam)
           const hasExact = arr.some(r => r.ticker === q.toUpperCase())
+          for (const r of arr) if (r && !r.econ && typeof r.ticker === 'string') knownRef.current.add(r.ticker.toUpperCase())
           const merged = (hasExact || typeParam) ? arr : [...arr, { ticker: q.toUpperCase(), name: null, _typed: true }]
           setResults(merged)
           setActiveIdx(0)
@@ -263,10 +269,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     const text = clean.toUpperCase()
     // Once per text: a re-run for another reason (the breadth catalogue landing) is not new intent.
     if (lastIntentRef.current === text) return undefined
+    // ⭐ (2026-11-27, "close to 30MS for everything always") text that IS a ticker this search was answered with (typing
+    // CRBG after CRB's answer listed it) is the first unambiguous match: told NOW, not after the pause
     const t = setTimeout(() => {
       lastIntentRef.current = text
       try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
-    }, TYPED_INTENT_SETTLE_MS)
+    }, knownRef.current.has(text) ? 0 : TYPED_INTENT_SETTLE_MS)
     intentTimerRef.current = t
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
@@ -294,7 +302,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     return () => clearTimeout(t)
   }, [highlightedTicker, open, chip, onTypedIntent, sym, query])
   // A new search session may warm the same text again.
-  useEffect(() => { if (!open) lastIntentRef.current = null }, [open])
+  useEffect(() => { if (!open) { lastIntentRef.current = null; knownRef.current = new Set() } }, [open])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {

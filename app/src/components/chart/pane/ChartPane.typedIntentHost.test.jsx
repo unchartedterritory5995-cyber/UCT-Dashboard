@@ -16,7 +16,8 @@ vi.mock('../SymbolSearch', async () => {
 const storeWarm = vi.fn()
 const legacyWarm = vi.fn()
 const lakeJoined = vi.fn(() => Promise.resolve(false))
-vi.mock('../../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => storeWarm(...a), lakeJoined: (...a) => lakeJoined(...a) }))
+const heldRows = vi.fn(() => 0)
+vi.mock('../../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => storeWarm(...a), lakeJoined: (...a) => lakeJoined(...a), heldRows: (...a) => heldRows(...a) }))
 vi.mock('../../../utils/prefetchBars', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => legacyWarm(...a) }))
 vi.mock('../barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../StockChart', () => ({ default: () => <div data-testid="chart" /> }))
@@ -177,5 +178,45 @@ test('nothing is named for a chart that moved to another symbol before the join 
   expect(nf.scanNeighborsFor('NVDA')).toEqual([])
   expect(nf.scanNeighborsFor('TSLA')).toEqual([])
   storeWarm.mockReset(); lakeJoined.mockReset(); lakeJoined.mockImplementation(() => Promise.resolve(false))
+  nf.__setNeighborFramesForTests(null)
+})
+
+// ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...OR AT ONCE WHEN ITS ROWS COVER THE VIEW: the double
+// buffer's shadow takes the typed next symbol from this publication, and waiting for the lake join left Enter before the
+// shadow had mounted. The cover is the switch's own rule (paintLog viewNeed: COVER_ROWS with no member view).
+test('a typed ticker whose rows already cover the view is named at once, before its lake join', async () => {
+  const { COVER_ROWS } = await import('../../../data/barStore/coverRows')
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  lakeJoined.mockImplementation(() => new Promise(() => {}))        // the join never lands in this test
+  storeWarm.mockImplementation(() => Promise.resolve('network'))
+  heldRows.mockImplementation(() => COVER_ROWS)
+  render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(heldRows).toHaveBeenCalledWith('AMD', '5', expect.objectContaining({ upTo: COVER_ROWS }))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMD'])
+  storeWarm.mockReset(); lakeJoined.mockReset(); lakeJoined.mockImplementation(() => Promise.resolve(false)); heldRows.mockReset(); heldRows.mockImplementation(() => 0)
+  nf.__setNeighborFramesForTests(null)
+})
+
+test('CONTROL: one row short of the view, it still waits for the join', async () => {
+  const { COVER_ROWS } = await import('../../../data/barStore/coverRows')
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  let joined
+  lakeJoined.mockImplementation(() => new Promise((r) => { joined = r }))
+  storeWarm.mockImplementation(() => Promise.resolve('network'))
+  heldRows.mockImplementation(() => COVER_ROWS - 1)
+  render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual([])
+  joined(true)
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMD'])
+  storeWarm.mockReset(); lakeJoined.mockReset(); lakeJoined.mockImplementation(() => Promise.resolve(false)); heldRows.mockReset(); heldRows.mockImplementation(() => 0)
   nf.__setNeighborFramesForTests(null)
 })

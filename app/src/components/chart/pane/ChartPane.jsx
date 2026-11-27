@@ -1,5 +1,5 @@
 import {
-  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useContext, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
@@ -70,7 +70,8 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
+import { PaintMemberContext, viewNeed } from '../paintLog'
 import { BARSTORE } from '../barStoreSwitch'
 import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
@@ -439,6 +440,8 @@ function ChartPane({
   })
   // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
   const extHoursOn = resolveShowExtended(canvasCs)
+  const extOnRef = useRef(false)   // the typed warm's cover check reads the session the chart shows
+  extOnRef.current = !!extHoursOn
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -1176,6 +1179,14 @@ function ChartPane({
   const symRef = useRef(chartSym)
   symRef.current = chartSym
   const typedNextRef = useRef(null)
+  // ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...OR AT ONCE, when the warm's rows already COVER the
+  // view (paintLog viewNeed, the switch's own rule). The double buffer's shadow takes the typed next symbol from here
+  // (useDoubleBuffer retargets on publishTypedNext) and Enter flips to it in the key's task; waiting for the lake join
+  // (30-400 ms more) left Enter before the shadow had even mounted. A short copy still waits for the join; the join that
+  // lands later behind the left edge re-renders the shadow in idle time, and the flip proves its bars are the store's NOW.
+  const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
   const handleTypedIntent = useCallback((s) => {
     const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
@@ -1187,6 +1198,14 @@ function ChartPane({
     Promise.resolve(warm).then((r) => {
       if (!live()) return
       if (r === 'unknown' || r === 'superseded') { publishTypedNext(center, null); return }
+      if (r) {
+        let covers = false
+        try {
+          const need = viewNeed(paintMemberRef.current)
+          covers = (storeHeldRows(s, effectiveTf, { showExtended: extOnRef.current, upTo: need }) || 0) >= need
+        } catch { covers = false }
+        if (covers) publishTypedNext(center, s)
+      }
       return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
     }).catch(() => {})
   }, [effectiveTf])
