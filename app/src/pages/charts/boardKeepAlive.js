@@ -20,15 +20,37 @@
 export const BOARD_KEEPALIVE_KEY = 'uct.boardKeepAlive'
 /** A kept board is disposed once the page has been hidden this long (memory: nobody is coming back soon). */
 export const KEPT_BOARD_HIDDEN_DISPOSE_MS = 10 * 60_000
+/** ...and once it has not been shown for this long, page visible or not: a kept board's store keys and live feed stay
+ *  subscribed while it is hidden (review of #2901, D3), so a board nobody returns to stops costing after this. */
+export const KEPT_BOARD_MAX_HIDDEN_MS = 30 * 60_000
 
-/** 'off' | 'activity' ('1') | 'layer' ('2'): storage first, then the build's default. */
+// ⭐ DEFAULT ON (owner directive 2026-11-27: the keep-alive ends up on by default for everyone once proven). With no
+// choice made (no `uct.boardKeepAlive` in storage, no VITE_BOARD_KEEPALIVE in the build) the default is the LAYER mode
+// wherever the device can afford a second board; '0' in storage stays the opt-out.
+export const KEEPALIVE_DEFAULT_MODE = 'layer'
+/** Below this much device memory (navigator.deviceMemory, GB, Chromium only) no board is kept. ⚠️ PROVISIONAL until the
+ *  per-board memory is measured on a clean machine (the 2026-11-27 measurements ran under a paging disk). */
+export const KEEPALIVE_MIN_DEVICE_GB = 4
+/** The touch tier (<= 1024 px: tablets; phones use the mobile shell, which keeps no board) keeps one only when the
+ *  device REPORTS enough memory: Safari reports none, and an iPad's tab is the first thing memory pressure reloads. */
+export function deviceCanKeepBoard(nav = globalThis.navigator, matchMedia = globalThis.matchMedia) {
+  const gb = typeof nav?.deviceMemory === 'number' ? nav.deviceMemory : null
+  if (gb != null) return gb >= KEEPALIVE_MIN_DEVICE_GB
+  let narrow = false
+  try { narrow = !!(typeof matchMedia === 'function' && matchMedia('(max-width: 1024px)').matches) } catch { narrow = false }
+  return !narrow
+}
+
+/** 'off' | 'activity' ('1') | 'layer' ('2'): storage first, then the build's default, then the device's default. */
 export function boardKeepAliveMode() {
   const of = (v) => (v === '2' ? 'layer' : v === '1' ? 'activity' : v === '0' ? 'off' : null)
   try {
     const m = of(globalThis.localStorage?.getItem(BOARD_KEEPALIVE_KEY))
     if (m) return m
   } catch { /* storage off */ }
-  return of(import.meta.env?.VITE_BOARD_KEEPALIVE) || 'off'
+  const built = of(import.meta.env?.VITE_BOARD_KEEPALIVE)
+  if (built) return built
+  return deviceCanKeepBoard() ? KEEPALIVE_DEFAULT_MODE : 'off'
 }
 
 export function boardKeepAliveEnabled() {

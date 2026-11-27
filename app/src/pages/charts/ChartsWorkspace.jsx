@@ -1,6 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
-import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
+import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -3216,6 +3216,19 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     keptBoardRef.current = null
     setKeptBoard(null)
   }, [gridMode, boardHidden])
+  // A board kept for KEPT_BOARD_MAX_HIDDEN_MS without a show lets go too, page visible or not (its feeds stay live while
+  // it is kept: review of #2901, D3). The timer belongs to the kept board it was started for.
+  useEffect(() => {
+    if (!keptBoard) return undefined
+    const t = setTimeout(() => {
+      const kept = keptBoardRef.current
+      if (kept !== keptBoard) return
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }, KEPT_BOARD_MAX_HIDDEN_MS)
+    return () => clearTimeout(t)
+  }, [keptBoard])
   // A page hidden for KEPT_BOARD_HIDDEN_DISPOSE_MS lets the kept board go (memory); the workspace leaving disposes it.
   useEffect(() => {
     if (!keepAliveOn) return undefined
