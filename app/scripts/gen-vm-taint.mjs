@@ -240,6 +240,18 @@ export function generateVmTaint(vmSource) {
   // whole-line comments go (the generated file points at vm.js for every why); code lines are kept verbatim
   body = body.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
 
+  // the ARMED broker's setup is not copied: the taint run refuses an armed broker before it (PROLOGUE), and the
+  // broker's context (`minContract`, the test-only pin predicate) keeps ONE writer, `execute` (the W9 single-writer
+  // rails: `minContractLock`, `w9T1Broker`, `w9T4Sizing`). `broker` stays `null`, as in a disarmed run.
+  {
+    const head = '  if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {\n'
+    if (countOf(body, head) !== 1) throw new Error('gen-vm-taint: the armed-broker block of execute moved (its `if` must occur once)')
+    const from = body.indexOf(head)
+    const to = body.indexOf('\n  }\n', from)
+    if (to < 0) throw new Error('gen-vm-taint: the armed-broker block of execute has no closing brace at its indent')
+    body = `${body.slice(0, from)}  // (generated) the armed broker's setup is not copied: refused above\n${body.slice(to + '\n  }\n'.length)}`
+  }
+
   for (const [needle, put] of ANCHORS) {
     const k = countOf(body, needle)
     if (k !== 1) throw new Error(`gen-vm-taint: anchor ${JSON.stringify(needle.trim())} occurs ${k} times in execute (once required)`)

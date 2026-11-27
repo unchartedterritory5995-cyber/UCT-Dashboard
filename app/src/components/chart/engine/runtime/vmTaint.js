@@ -115,30 +115,7 @@ export function executeTainted(program, ctx, limits, opts) {
   const brokerOps = program.brokerOps || []
   let broker = null
   const disarmed = !!(opts && opts.brokerDisarmed === true)
-  if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {
-    if (program.broker.fromListing !== true) {
-      throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
-        + "not known to start at the symbol's first bar", 'Q-S1n')
-    }
-    if (program.broker.calcOnEveryTick === true && ctx.confirmed === false) {
-      throw new BrokerRefusal('`calc_on_every_tick = true` executes this strategy on every tick of the forming '
-        + 'bar, which a run over bars cannot reproduce', 'Q-S1o')
-    }
-    const win = ctx.historyWindowBars
-    if (!(Number.isInteger(win) && win > 0)) {
-      throw new BrokerStart('a strategy run needs the history window it starts from, and this run was not told it')
-    }
-    if (ctx.bars > win) {
-      throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
-    }
-    const depth = Number.isInteger(ctx.listingDepthBars) && ctx.listingDepthBars > 0 ? ctx.listingDepthBars : win
-    broker = makeBroker(program.broker, {
-      series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
-      tradingDays: ctx.tradingDays,
-      formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
-      deepFrom: ctx.bars > depth ? ctx.bars - depth : null,
-    })
-  }
+  // (generated) the armed broker's setup is not copied: refused above
   const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
 
   const winPlan = program.windows || []
