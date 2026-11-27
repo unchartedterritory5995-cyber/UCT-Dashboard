@@ -219,3 +219,47 @@ the start can land a chunk late. A 5m ETH week is 960 bars, so a 1,583-bar misma
   the owner and chart-speed tickets, never 13:55-15:05Z.
 - FRED phase 2: scroll and reload do not move the study's first bar, and whether the forming bar counts.
 - 2m/3m/10m chunks, weekend-trading week chunks, and D/W/M beyond 16,333 bars.
+
+## 10. Phase 2 as built: the stamp and the slice (2026-11-27)
+
+`app/src/components/chart/engine/tvRunWindow.js`, rails `__tests__/tvRunWindow.test.js` (25 tests, 11 mutants all red).
+It is NUMBER PENDING: it changes which bars a listing document's run sees on an intraday chart.
+
+- **The stamp** (`tvRunStartStampOf`, made in `StockChart.jsx` beside `historyFromListing`, handed to the binder as
+  `ctx.tvRunStart` and to `engineChart`): `tvRunStart` over the chart's session bars in New York time, keyed by the start
+  bar's TIME. It is LATCHED for the series (`sym|tf|eth/rth`): while the chart still holds a proven start's bar, a new
+  bar, a scroll-back prepend or a chunk move of the cap-th newest bar never moves it. Only plain US tickers on numeric
+  intraday timeframes are stamped; replay and exact-range frames are not.
+- **Population tolerance**: the cap range is widened by the session slots our own series leaves EMPTY over the cap window
+  (`missingSessionSlots`: per New York day held, the day's 960 (extended) or 390 (regular) minutes over the timeframe,
+  minus the bars held; the day the window cuts is not counted). Measured on production bars 2026-11-27: SPY 5m ETH 53
+  (a week is 960 bars), SPY 15m ETH 36, SPY 30m ETH 57, SPY 1m ETH 662; RDDT 5m ETH 4,940 and 15m ETH 1,824, so RDDT's
+  extended-hours charts stay withheld (its population differs from TradingView's by +1,580 / +750, section 7).
+  SPY ETH against the fixture: TradingView's count from its first bar lies inside ours over the same span (5m
+  20,737 in 20,718..20,898; 15m 21,107 in 21,096..21,156; 30m 23,195 in 23,180..23,210).
+- **The slice** (`runtimeColumns.js::computeRuntimeColumns`, first line): a `meta.runtimeHistory === 'listing'`
+  document whose chart is not from the listing, with a PROVEN stamp whose bar is in the rows, runs `rows.slice(cut)` with
+  `historyFromListing: true` and is widened back (`NaN` before), its drawings shifted. The record rides the warm-up record
+  (`withheldBars: cut`, `tvRunStart: {cut, t, rule, chunk}`), so it crosses the worker and the run half's column rail
+  compares from the start; `nativeRegistry.runtimeObjectsWithheld` does not treat it as a curtain. The stamp is in the
+  run's memo key (`runKey`), the worker's coalesce key and the binder's signature. A run half (Fred RS's drawings) is
+  sliced the same way.
+- **Withheld by name**: an unproven stamp leaves the run as before and rewrites a `runtime:history-start` refusal's
+  sentence to say why (the start is further back than the loaded history; the 20,000th bar is on a chunk boundary the cap
+  range and the tolerance cannot decide; the timeframe is unmeasured).
+
+What this serves TODAY, at today's held depth (lake 20,000 store bars 1m/5m/15m, 40,000 30m, 50,000 60m), measured from
+production `/api/bars` 2026-11-27 (start times UTC):
+
+| chart | held session bars | stamp | TradingView rule on our deep bars | fixture (TV) |
+|---|---|---|---|---|
+| SPY 30m ETH | 40,000 from 2020-03-25 | **proven 2024-01-02 09:00** | 2024-01-02 09:00 | 2024-01-02 09:00 (11-23) |
+| SPY 1m ETH | 20,000 from 2026-10-28 | short | 2026-10-26 08:00 (proven) | - |
+| SPY 5m ETH | 20,000 from 2026-07-01 | short | 2026-06-29 08:00 (proven) | 2026-06-22 (11-23; moved a week since) |
+| SPY 15m ETH | 20,000 from 2025-08-29 | short | ambiguous (month boundary) | 2025-08-01 |
+| SPY 1m/5m/15m/30m RTH | 8.1k-16k | short | 1m 2026-09-14 proven; 5m/15m ambiguous; 30m below the cap | - |
+| RDDT 1m/5m/15m ETH | 20,000 | ambiguous (tolerance) | ambiguous | 09-21 / 05-04 / 06-02 |
+| SPY 60m | `/api/bars` serves 7,498 ETH-grid bars (2025-01-15 on) | short | - | 2021-01-04 |
+
+So phase 2 alone serves SPY-like 30m extended-hours charts; the rest are withheld by name until phase 3's depth
+(ETH 1m ~26k store bars, 5m ~22k, 15m ~23k; RTH needs a regular-session count, about 2.5x the store bars).
