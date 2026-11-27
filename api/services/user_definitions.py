@@ -452,10 +452,7 @@ def _init_db() -> None:
         c.executescript(_SCHEMA)
         _migrate(c)
         c.commit()
-    ident = _db_identity()
-    if ident is not None:
-        with _ENSURED_LOCK:
-            _ENSURED.add(ident)
+    _remember_ensured(_db_identity())
 
 
 def _ensure(c: sqlite3.Connection) -> None:
@@ -468,26 +465,37 @@ def _ensure(c: sqlite3.Connection) -> None:
     file's identity (path, device, inode, creation time), so a file replaced or recreated at the same path is
     ensured again, and the schema's own text, so a schema change is ensured again."""
     ident = _db_identity()
-    if ident is not None and ident in _ENSURED:
+    if ident is not None and _ENSURED.get(ident[0]) == ident:
         return
     c.executescript(_SCHEMA)
     _migrate(c)
-    if ident is not None:
-        with _ENSURED_LOCK:
-            _ENSURED.add(ident)
+    _remember_ensured(ident)
 
 
-#: The database files this process has ensured (`_ensure`), by `_db_identity`.
-_ENSURED: set = set()
+#: The database files this process has ensured (`_ensure`): ONE identity per path, the newest (review of #2896:
+#: on Linux the change time moves with every write to the file, a WAL checkpoint or an ALTER; each move costs one
+#: more ensure and REPLACES the remembered identity, so this never grows with the writes).
+_ENSURED: dict = {}
 _ENSURED_LOCK = threading.Lock()
 
 
+def _remember_ensured(ident: Optional[tuple]) -> None:
+    if ident is not None:
+        with _ENSURED_LOCK:
+            _ENSURED[ident[0]] = ident
+
+
 def _db_identity() -> Optional[tuple]:
-    """``(path, device, inode, creation time, schema)`` of the file `_connect` opens, or None when it
-    cannot be read (then nothing is skipped)."""
+    """``(path, device, inode, change time, schema)`` of the file `_connect` opens, or None (then nothing is
+    skipped) when it cannot be read or has NO INODE NUMBER (``st_ino == 0``: FAT / exFAT / some network shares,
+    where a file recreated within one coarse clock tick could pass for the old one; review of #2896).
+    ⚠️ The change time stays in the key on purpose: Linux reuses a freed inode number at once, so
+    ``(device, inode)`` alone can match a file deleted and recreated at the same path."""
     try:
         st = os.stat(_DB_PATH)
     except (OSError, TypeError, ValueError):
+        return None
+    if not st.st_ino:
         return None
     return (os.path.abspath(_DB_PATH), st.st_dev, st.st_ino, st.st_ctime_ns,
             hash((_SCHEMA, _ADDED_COLUMNS)))

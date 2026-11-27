@@ -193,3 +193,58 @@ def test_a_changed_schema_is_ensured_again(store, monkeypatch):
         assert c.execute("SELECT name FROM sqlite_master WHERE name='zz_schema_probe'").fetchone()
     finally:
         c.close()
+
+
+class _FakeStat:
+    def __init__(self, st, ino=None, ctime_ns=None):
+        self._st = st
+        self.st_dev = st.st_dev
+        self.st_ino = st.st_ino if ino is None else ino
+        self.st_ctime_ns = st.st_ctime_ns if ctime_ns is None else ctime_ns
+
+    def __getattr__(self, k):
+        return getattr(self._st, k)
+
+
+def _fake_stat(monkeypatch, **fields):
+    real = os.stat
+    target = os.path.abspath(svc._DB_PATH)
+
+    def fake(p, *a, **k):
+        st = real(p, *a, **k)
+        try:
+            same = os.path.abspath(p) == target
+        except TypeError:
+            same = False
+        if not same:
+            return st
+        return _FakeStat(st, **{k2: (v() if callable(v) else v) for k2, v in fields.items()})
+
+    monkeypatch.setattr(svc.os, "stat", fake)
+
+
+def test_a_file_with_no_inode_number_is_always_ensured(store, monkeypatch):
+    """FAT / exFAT / some network shares report inode 0: no identity can be trusted there, so the schema runs on
+    every connection (a file recreated within one coarse clock tick must never be taken for the old one)."""
+    _make(1)
+    _fake_stat(monkeypatch, ino=0)
+    runs = []
+    real_migrate = svc._migrate
+    monkeypatch.setattr(svc, "_migrate", lambda c: runs.append(1) or real_migrate(c))
+    for _ in range(3):
+        svc.list_for_user(USER)
+    assert len(runs) == 3, f"the schema ran {len(runs)} times over 3 reads of an inode-less file"
+
+
+def test_one_remembered_identity_per_file(store, monkeypatch):
+    """On Linux the change time moves with every write to the file (a WAL checkpoint, an ALTER): each move is one
+    more ensure, and the newest identity REPLACES the old one, so the memory does not grow with the writes."""
+    _make(1)
+    tick = iter(range(1, 10_000))
+    _fake_stat(monkeypatch, ctime_ns=lambda: next(tick))
+    for _ in range(20):
+        svc.list_for_user(USER)
+    target = os.path.abspath(svc._DB_PATH)
+    held = svc._ENSURED
+    n = sum(1 for k in (held if not isinstance(held, dict) else held.values()) if k and k[0] == target)
+    assert n == 1, f"{n} identities remembered for one file"
