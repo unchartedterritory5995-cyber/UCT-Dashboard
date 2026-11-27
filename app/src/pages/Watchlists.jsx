@@ -31,7 +31,7 @@ import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
-import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
+import { useVirtualizer } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
 // just above the enrichment batches' own 100-ticker boundary, so a list either fits
@@ -53,13 +53,66 @@ const SCAN_URGENT_NEXT = 2
 // Deferring each measurement to the next animation frame breaks the SYNCHRONOUS
 // nesting React counts, so the loop can no longer crash the page (at worst a
 // harmless one-per-frame settle). Measuring a frame late is imperceptible.
+//
+// ⚡ (2026-11-27, the board switch) AND THE BOX IS READ IN THAT FRAME, NOT IN THE COMMIT. The library's own
+// `observeElementRect` reads `offsetWidth` / `offsetHeight` synchronously when the list mounts (inside the commit's
+// layout effects: a forced layout of the freshly committed board, ~2 ms a click in a profile) and this wrapper then
+// held that value for the next frame anyway. The read now happens where the value is delivered; the observer's
+// border-box deliveries are unchanged. Same contract as the library's (3.14): a rounded `{ width, height }`, from the
+// observer's border box when it has one, else the element's offset box.
 function rafObserveElementRect(instance, cb) {
+  const element = instance.scrollElement
+  const win = instance.targetWindow
+  if (!element || !win) return undefined
   let raf = 0
-  const stop = observeElementRect(instance, (rect) => {
+  const later = (read) => {
     if (raf) cancelAnimationFrame(raf)
-    raf = requestAnimationFrame(() => { raf = 0; cb(rect) })
-  })
-  return () => { if (raf) cancelAnimationFrame(raf); if (typeof stop === 'function') stop() }
+    raf = requestAnimationFrame(() => { raf = 0; cb(read()) })
+  }
+  const offsetBox = () => ({ width: Math.round(element.offsetWidth), height: Math.round(element.offsetHeight) })
+  later(offsetBox)
+  let ro = null
+  if (win.ResizeObserver) {
+    ro = new win.ResizeObserver((entries) => {
+      const box = entries[0]?.borderBoxSize?.[0]
+      later(box ? () => ({ width: Math.round(box.inlineSize), height: Math.round(box.blockSize) }) : offsetBox)
+    })
+    ro.observe(element, { box: 'border-box' })
+  }
+  return () => { if (raf) cancelAnimationFrame(raf); if (ro) ro.disconnect() }
+}
+
+// ⚡ (2026-11-27, the board switch) THE ROW SIZES A LIST MEASURED, KEPT FOR ITS NEXT MOUNT. Rows are content-sized, so
+// the virtualizer measures each one; it did that on every mount (a board switch remounts the list), on ref attach,
+// inside the commit (`offsetHeight`: 12-25 ms a first click in untraced profiles), and every row that measured other
+// than the estimate re-rendered the list after the commit. A list with a `sizeCacheKey` now starts from what it
+// measured last time: those sizes are its estimates (the first render is placed right) and its attach-time answers (no
+// layout read). The ResizeObserver still measures every mounted row from its border box (after layout, before paint),
+// so a row that changed height since is corrected; only those re-render. Rail: Watchlists.rowSizeSeed.test.jsx.
+const ROW_SIZES = new Map()        // sizeCacheKey -> Map(row key -> px), most recently mounted last
+const ROW_SIZE_LISTS_MAX = 24
+function rowSizesFor(key) {
+  let sizes = ROW_SIZES.get(key)
+  if (sizes) ROW_SIZES.delete(key)
+  else sizes = new Map()
+  ROW_SIZES.set(key, sizes)
+  if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
+  return sizes
+}
+/** The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
+ *  size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit. */
+function measureRememberedRow(el, entry, instance, sizes) {
+  const key = instance.options.getItemKey(instance.indexFromElement(el))
+  const box = entry?.borderBoxSize?.[0]
+  let size
+  if (box) size = Math.round(box.blockSize)
+  else {
+    const known = sizes.get(key)
+    if (known !== undefined) return known
+    size = el.offsetHeight
+  }
+  if (size > 0) sizes.set(key, size) // a hidden list (0) teaches nothing
+  return size
 }
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
@@ -690,7 +743,9 @@ export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
   return m.end > top - size && m.start < bottom + size ? 'near' : 'far'
 }
 
-export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
+export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false, sizeCacheKey = null }) {
+  // the row sizes this list measured on its last mount (see `rowSizesFor`); none: measured as they mount, as before
+  const rowSizes = useMemo(() => (sizeCacheKey ? rowSizesFor(sizeCacheKey) : null), [sizeCacheKey])
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -733,14 +788,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     }
   }, [measureOffset, scrollRef, items.length])
 
+  const rowKey = (i) => items[i]?.id || items[i]?.sym || i
   const virt = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 30,
+    estimateSize: rowSizes ? (i) => rowSizes.get(rowKey(i)) ?? 30 : () => 30,
+    ...(rowSizes ? { measureElement: (el, entry, instance) => measureRememberedRow(el, entry, instance, rowSizes) } : null),
     // Measured heights keyed by the ROW, not its position: a grouped list puts a
     // taller section header where a ticker row used to be, and a position-keyed
     // cache kept the old 29px height (headers overlapped).
-    getItemKey: (i) => items[i]?.id || items[i]?.sym || i,
+    getItemKey: rowKey,
     overscan: 12,
     scrollMargin,
     scrollPaddingStart: stickyTop,
@@ -3383,6 +3440,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   scrollToSym={selectedSym}
                   noScrollRef={clickSelectRef}
                   measureOffset
+                  sizeCacheKey={`wl:${wl.id}:${wlSettings.fontSize}`}
                 />
               </>
             )
@@ -3791,6 +3849,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}
               noScrollRef={clickSelectRef}
+              sizeCacheKey={`scan:${scanWl.name}:${wlSettings.fontSize}`}
             />
           )}
 
