@@ -644,11 +644,16 @@ export default function PatternOverlay({
   const measuredElRef = useRef(null)   // the pane `size` was read from
   const drawsRef = useRef(false)       // this render draws (set below, where it returns the drawing)
   drawsRef.current = false
+  // the size last handed to state: an unchanged one schedules nothing (an updater returning the previous object
+  // still re-runs this component once whenever React cannot bail out eagerly, and that run is the pattern pipeline)
+  const sizeRef = useRef(size)
   const measure = useCallback((el) => {
     measuredElRef.current = el
     const width = el.clientWidth
     const height = el.clientHeight
-    setSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }))
+    if (sizeRef.current.width === width && sizeRef.current.height === height) return
+    sizeRef.current = { width, height }
+    setSize(sizeRef.current)
   }, [])
 
   // Force a re-render so coordinate conversions re-run with the chart's latest visible range.
