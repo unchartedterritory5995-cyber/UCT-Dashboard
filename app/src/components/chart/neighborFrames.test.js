@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   scheduleIdle, cancelIdle, cancelIdleFor, __idleQueueLength, IDLE_SLICE_MS,
-  publishScanNeighbors, scanNeighborsFor, subscribeScanNeighbors, __resetScanForTests,
+  publishScanNeighbors, scanNeighborsFor, subscribeScanNeighbors, __resetScanForTests, publishTypedNext, TYPED_NEXT_MS,
   __setNeighborFramesForTests, neighborFramesOn, NEIGHBOR_FRAMES_KEY,
 } from './neighborFrames'
 
@@ -144,6 +144,42 @@ describe('the scan channel', () => {
     publishScanNeighbors('BBB', ['CCC'], ['AAA'])
     expect(seen).toEqual(['AAA'])
     expect(scanNeighborsFor('nope')).toEqual([])
+  })
+
+  // ⭐ (2026-11-26) the typed ticker is the next row too: Enter lands on it
+  it('a TYPED next symbol goes first, ahead of the list\'s rows (deduped), and its centre\'s charts are told', () => {
+    __setNeighborFramesForTests(true)
+    const seen = []
+    const off = subscribeScanNeighbors((c) => seen.push(c))
+    publishScanNeighbors('AAA', ['BBB', 'CCC'], ['ZZZ'])
+    publishTypedNext('aaa', 'ccc')
+    expect(scanNeighborsFor('AAA')).toEqual(['CCC', 'BBB', 'ZZZ'])
+    expect(seen).toEqual(['AAA', 'AAA'])
+    publishTypedNext('QQQ', 'TYP')                                  // a chart no list is centred on
+    expect(scanNeighborsFor('QQQ')).toEqual(['TYP'])
+    publishTypedNext('AAA', 'aaa')                                  // the chart's own symbol is no next row
+    expect(scanNeighborsFor('AAA')).toEqual(['BBB', 'ZZZ', 'CCC'])  // the list's own order again
+    publishTypedNext('QQQ', null)                                 // cleared
+    expect(scanNeighborsFor('QQQ')).toEqual([])
+    off()
+  })
+
+  it('a typed next symbol is forgotten after TYPED_NEXT_MS (an abandoned search stops costing idle work)', () => {
+    __setNeighborFramesForTests(true)
+    const t0 = Date.now()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(t0)
+    publishTypedNext('AAA', 'TYP')
+    now.mockReturnValue(t0 + TYPED_NEXT_MS - 1)
+    expect(scanNeighborsFor('AAA')).toEqual(['TYP'])
+    now.mockReturnValue(t0 + TYPED_NEXT_MS + 1)
+    expect(scanNeighborsFor('AAA')).toEqual([])
+  })
+
+  it('off: no typed next symbol is kept', () => {
+    __setNeighborFramesForTests(false)
+    publishTypedNext('AAA', 'TYP')
+    __setNeighborFramesForTests(true)
+    expect(scanNeighborsFor('AAA')).toEqual([])
   })
 
   it('the switch is ON by default; only the stored value "0" turns it off', () => {
