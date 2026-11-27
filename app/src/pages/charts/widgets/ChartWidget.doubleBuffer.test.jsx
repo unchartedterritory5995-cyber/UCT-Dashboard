@@ -37,7 +37,7 @@ vi.mock('../../../utils/prefetchBars', () => ({
 
 // Every identity-bearing child reports the symbol IT was given, so a mixed
 // state is directly observable rather than inferred.
-const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {}, unmounts: 0 }))
+const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {}, unmounts: 0, mounts: 0 }))
 // The chart: shows its symbol, and like StockChart REPORTS each committed pass to its layer (chart/layerPaint.js) with the
 // bars the store gives its key at that commit, and publishes a date-nav API (a frame at the right edge, default zoom)
 vi.mock('../../../components/StockChart', async () => {
@@ -50,7 +50,7 @@ vi.mock('../../../components/StockChart', async () => {
       ;(renders.props[sym] = renders.props[sym] || []).push(props)
       const report = useContext(LayerPaintContext)
       useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym] }) })
-      useLayoutEffect(() => () => { renders.unmounts += 1 }, [])
+      useLayoutEffect(() => { renders.mounts += 1; return () => { renders.unmounts += 1 } }, [])
       useEffect(() => {
         if (typeof onDateNavApi !== 'function') return undefined
         const m = { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } }
@@ -260,4 +260,22 @@ test("W5 (N1) a board switch's click commits nothing of the widget; the shadow g
   expect(dbm.shadowsHeld(board)).toBe(1)
   await settle()
   expect(symIn(layer('shadow'))).toBe('BBB')
+})
+
+// (2026-11-27, the live dry run's canvas count) a hidden pane is RE-USED for each next row, never re-created: the widget
+// holds two charts for its life, whatever the presses
+test('W6 the two layers are mounted once: flips and retargets re-use the same two charts (no canvas growth)', async () => {
+  const m0 = renders.mounts, u0 = renders.unmounts
+  render(<Wrap />)
+  await settle()
+  expect(renders.mounts - m0).toBe(2)
+  act(() => { setGroup('BBB') })
+  await settle(400)
+  act(() => { setGroup('CCC') })
+  await settle(400)
+  act(() => { setGroup('AAA') })
+  await settle(400)
+  expect(dbm.doubleBufferStats().flips).toBeGreaterThanOrEqual(1)
+  expect(renders.mounts - m0, 'a press or a retarget mounted another chart').toBe(2)
+  expect(renders.unmounts - u0).toBe(0)
 })
