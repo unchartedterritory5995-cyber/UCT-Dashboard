@@ -32,9 +32,13 @@ import { memo, useLayoutEffect, useState } from 'react'
 import StockChart from '../../StockChart'
 import { createValueChannel } from '../chartMetaStore'
 
+// ⭐ (2026-11-27, the double-buffered next row) + the pane's colour-swatch save / delete (handed to StockChart's colour
+// pickers, called on a click) and the volume separator's resize (read when a drag ends: StockChart's separator effect
+// keeps it in its deps, and a trampoline calls the newest one). Inline arrows in ChartPane, so every pane render
+// re-created them and rendered StockChart: a double-buffer flip rendered the shown chart twice for them alone.
 const TRAMPOLINED_PROPS = Object.freeze([
   'onSettingsPersist', 'onSymbolChange', 'onTfChange', 'onWatermarkAdjustEnd', 'onWatermarkAnchor',
-  'onTimeRangeChange', 'onDateNavApi', 'onDrawnBarCount',
+  'onTimeRangeChange', 'onDateNavApi', 'onDrawnBarCount', 'onSaveColor', 'onDeleteColor', 'onVolumePaneResize',
 ])
 
 const MemoStockChart = memo(StockChart)

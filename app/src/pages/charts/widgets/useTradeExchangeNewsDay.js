@@ -19,6 +19,7 @@
 // A filter change returns to the top of the SAME date; a new epoch (database
 // recreated) reloads it. Keyset steps mean arrivals can never duplicate or skip a row.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import { fetchDay, fetchDays } from '../../../lib/tradeExchangeNewsStreamManager'
 import { addDays, DAY_LIMIT, etDateKey, mergeDay } from './tradeExchangeNewsModel'
 
@@ -52,12 +53,15 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
   const [nonce, setNonce] = useState(0)
   const [clock, setClock] = useState(() => Date.now())
   const epoch = feed.epoch
+  const layerBoard = useLayerBoard()
 
   // ── which date: Today follows the ET calendar (the server's word when known) ──
+  // (review of #2901, H3) on a hidden layer keep-alive board this does nothing; the show runs it once, in its own task
   useEffect(() => {
-    const t = setInterval(() => setClock(Date.now()), 60_000)
-    return () => clearInterval(t)
-  }, [])
+    const f = forwardWhileShown(layerBoard, () => setClock(Date.now()))
+    const t = setInterval(f.cb, 60_000)
+    return () => { clearInterval(t); f.stop() }
+  }, [layerBoard])
   const localToday = etDateKey(clock)
   const todayKey = meta?.today && meta.today > localToday ? meta.today : localToday
   const allHistory = history && sel.date === 'all'
@@ -69,10 +73,11 @@ export default function useTradeExchangeNewsDay({ feed, matches, request, enable
     if (!enabled) return undefined
     let dead = false
     const load = () => fetchDays().then((m) => { if (!dead) setMeta(m) }).catch(() => {})
-    load()
-    const t = setInterval(load, DAYS_REFRESH_MS)
-    return () => { dead = true; clearInterval(t) }
-  }, [enabled, epoch, todayKey])
+    const f = forwardWhileShown(layerBoard, load)
+    f.cb()
+    const t = setInterval(f.cb, DAYS_REFRESH_MS)
+    return () => { dead = true; clearInterval(t); f.stop() }
+  }, [enabled, epoch, todayKey, layerBoard])
 
   // A filter change returns to the top of the selected date (the date stays).
   const firstReq = useRef(true)

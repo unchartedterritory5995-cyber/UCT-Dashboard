@@ -286,6 +286,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    // ⭐ (2026-11-27) the board keep-alive is ON by default in the product where the device allows it
+    // (pages/charts/boardKeepAlive.js); the suite tests the workspace as it was unless a test opts in
+    // (localStorage `uct.boardKeepAlive` wins over this build value, which is what the keep-alive rails set).
+    // UCT_TEST_KEEPALIVE=2 runs the suites the way production runs them (the layer mode): the keep-alive lane
+    // (review of #2911, M2).
+    env: { VITE_BOARD_KEEPALIVE: process.env.UCT_TEST_KEEPALIVE || '0' },
     // + the read capture, ONLY when asked (pine heavy's legs set UCT_READ_CAPTURE_DIR): which files each
     // test file reads, for tools/ci_whole_app_rails.py. Header: src/test-read-capture.cjs.
     setupFiles: process.env.UCT_READ_CAPTURE_DIR

@@ -33,14 +33,24 @@
 //                the member reads names it
 //   withheld (by: 'run')  e98: our RUN STOPPED (a run-stop guard on the paint's columns:
 //                `RUN_STOP_GUARDS`), so nothing is drawn and the member's pane names the stop. Graded
-//                INCONCLUSIVE by that name, never DIVERGE: a stopped run is not a wrong colour
+//                INCONCLUSIVE by that name, never DIVERGE: a stopped run is not a wrong colour.
+//                e102 follow-up: the same for a run REFUSED BY NAME as `runtime:history-start` (one list)
 import { vendorColorsFor, coloursAgree, normalizeColor, NO_COLOUR, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
-import { RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD } from '../../runtime/runtimeColumns.js'
+import { RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD, RUNTIME_HISTORY_GUARD } from '../../runtime/runtimeColumns.js'
 
 /** ⭐ e98 — the guards of a run that STOPPED (its wall-clock budget, a declared VM limit, an unexpected throw): the
- *  run's own constants, never restated. A paint our side did not draw because of one is withheld by the run's name. */
-export const RUN_STOP_GUARDS = Object.freeze(new Set([RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD]))
+ *  run's own constants, never restated. A paint our side did not draw because of one is withheld by the run's name.
+ *  ⭐ e102 follow-up (coordinator ruling 2026-11-27) — AND a run REFUSED BY NAME before it draws anything,
+ *  `runtime:history-start` (the curtain off, #2893: a chart whose bars do not start at the listing withholds the whole
+ *  run, plots, paints and drawings alike). ⚰️ MEASURED: master cae9fb8ac7's own regen graded fvg-trend,
+ *  trend-targets-algoalpha, inside-bar-boxes and machine-learning-moving-average-backquant SPY 1D runtime-on DIVERGE
+ *  for exactly that: each run withheld whole, the only DIVERGE item a bgcolor / barcolor paint "notDrawn". Nothing was
+ *  served that differs; a refused run is not a wrong colour. ONE list: every code here reads INCONCLUSIVE by name. */
+export const RUN_STOP_GUARDS = Object.freeze(new Set([RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
+  RUNTIME_HISTORY_GUARD]))
+/** The one code in `RUN_STOP_GUARDS` that is a refusal before the run, not a stop during it (its sentence says so). */
+const RUN_REFUSED_BEFORE = RUNTIME_HISTORY_GUARD
 
 /** The run-stop guard among a computation's column errors, or null (`ourSide.js` reads it off the paint columns). */
 export function runStopOf(columnErrors) {
@@ -208,7 +218,9 @@ export function gradePaints(capture, ours, { window = null } = {}) {
           // ⭐ e98 — our RUN STOPPED: withheld by the run's own name (INCONCLUSIVE), never a missing colour (DIVERGE)
           if (ours.paintRunStop && ours.paintRunStop.code) {
             rows.push({ ...base, state: 'withheld', by: 'run', code: ours.paintRunStop.code,
-              reason: `our run stopped (${ours.paintRunStop.code}), so nothing is drawn for it`, displayed: v.displayed, vendorPainted })
+              reason: ours.paintRunStop.code === RUN_REFUSED_BEFORE
+                ? `our run was withheld by name (${ours.paintRunStop.code}), so nothing is drawn for it`
+                : `our run stopped (${ours.paintRunStop.code}), so nothing is drawn for it`, displayed: v.displayed, vendorPainted })
             return
           }
           rows.push({ ...base, state: 'notDrawn', vendorPainted })

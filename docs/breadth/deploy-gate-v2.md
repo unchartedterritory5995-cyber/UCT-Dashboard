@@ -237,12 +237,22 @@ gate runs, reports, and no-ops.
 
 ---
 
-## 5.2a Held promotions and the manual door (2026-11-10, docs/agent/program/PROMOTE-CATCHUP-DESIGN.md)
+## 5.2a Promotions never hold on a time window; pending SHAs and the manual door
 
-- **A promotion inside a freeze** (the weekday rushes, the Wednesday window) is HELD. The held run records the exact
-  gated SHA as PENDING (`deploy-gate-state/pending-promotion.json`) and waits in-job until the window closes (bounded,
-  ≤ 126 min). It then re-checks the freeze, the gating checks, the SHA's own gate run and the ancestry, and fast-forwards
-  production to EXACTLY that SHA, never to master's tip. A capped self re-dispatch (≤ 2 per SHA) and the crons back it up.
+- ⛔⛔ **NO TIME HOLD, EVER (owner ruling 2026-11-27, verbatim: "fuck the deploy freeze i dont ever want to hold anything back from deploying ever").** `tools/deploy_freeze.py` answers NOT
+  FROZEN at every instant: no Wednesday measurement window, no opening/closing rush, no 09:20-16:15 ET session hold,
+  no half-day rule, no in-job wait. A gated-green SHA is fast-forwarded to production the moment its gate passes.
+  The GATE is unchanged: a SHA promotes only when its gating checks and its own master deploy gate run succeeded.
+  Rails: `tests/test_no_deploy_freeze.py`. (2026-11-10 to 2026-11-27 such a promotion was HELD, recorded PENDING and
+  waited in-job; see docs/agent/program/PROMOTE-CATCHUP-DESIGN.md, now history for that part.)
+- **A SHA can still be PENDING** when its gating poll timed out (checks still running). The PENDING record
+  (`deploy-gate-state/pending-promotion.json`) keeps that exact SHA; a capped self re-dispatch (≤ 2 per SHA), the
+  HOURLY backup (`.github/workflows/promote-resume-hourly.yml`: dispatches one resume only when a SHA is pending and
+  no promotion run is active or queued) or the next green gate resume it, and production moves to EXACTLY that SHA,
+  never master's tip. The promote job's timeout is 45 min (the gating poll is at most 20).
+- **The merge queue has no time window either.** The Agent-CI follower (`tools/agent_ci_required.py`) used to refuse
+  Agent-path ENTRIES into master inside the opening/closing rushes; the same ruling removed that refusal. An entry is
+  judged on its evidence at any clock.
 - **Manual "Run workflow" (promote to production):**
   - `sha=<commit>` promotes that commit, through every check.
   - Blank promotes the PENDING SHA. If nothing is pending, it promotes master's tip ONLY when the tip's own master

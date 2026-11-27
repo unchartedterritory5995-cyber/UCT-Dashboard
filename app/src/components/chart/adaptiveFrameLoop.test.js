@@ -112,13 +112,71 @@ describe('createAdaptiveFrameLoop', () => {
   })
 })
 
+describe('start({ inFrame: true }): the first measurement waits for the frame, not the caller', () => {
+  it('measures nothing synchronously, then once in the next frame, then every frame as before', () => {
+    let n = 0
+    const tick = vi.fn(() => String(n++))
+    const h = harness(tick)
+    h.loop.start({ inFrame: true })
+    expect(tick).toHaveBeenCalledTimes(0) // no layout read inside the caller (a React commit)
+    expect(h.pendingFrames()).toBe(1)
+    h.frame()
+    expect(tick).toHaveBeenCalledTimes(1)
+    h.frames(10)
+    expect(tick).toHaveBeenCalledTimes(11)
+  })
+
+  it('runPendingStart() takes a waiting first measurement NOW, once (the ResizeObserver delivery, before paint)', () => {
+    const tick = vi.fn(() => 'x')
+    const h = harness(tick)
+    h.loop.start({ inFrame: true })
+    expect(h.loop.runPendingStart()).toBe(true)
+    expect(tick).toHaveBeenCalledTimes(1)
+    expect(h.pendingFrames()).toBe(1) // the next frame's pass, not a second copy of the first
+    expect(h.loop.runPendingStart()).toBe(false) // nothing waits any more
+    h.frame()
+    expect(tick).toHaveBeenCalledTimes(2)
+  })
+
+  it('once the frame has run it, runPendingStart() does nothing; wake() while it waits does not double-schedule', () => {
+    const tick = vi.fn(() => 'x')
+    const h = harness(tick)
+    h.loop.start({ inFrame: true })
+    h.loop.wake()
+    expect(h.pendingFrames()).toBe(1)
+    h.frame()
+    expect(h.loop.runPendingStart()).toBe(false)
+    expect(tick).toHaveBeenCalledTimes(1)
+  })
+
+  it('stop() before the frame cancels the waiting measurement, and runPendingStart() cannot revive it', () => {
+    const tick = vi.fn(() => 'x')
+    const h = harness(tick)
+    h.loop.start({ inFrame: true })
+    h.loop.stop()
+    expect(h.pendingFrames()).toBe(0)
+    expect(h.loop.runPendingStart()).toBe(false)
+    h.frames(5)
+    expect(tick).toHaveBeenCalledTimes(0)
+  })
+
+  it('a plain start() is unchanged: the first measurement is synchronous', () => {
+    const tick = vi.fn(() => 'x')
+    const h = harness(tick)
+    h.loop.start()
+    expect(tick).toHaveBeenCalledTimes(1)
+    expect(h.loop.runPendingStart()).toBe(false)
+  })
+})
+
 describe('StockChart uses the adaptive loop for its chrome placement', () => {
   it('no unconditional per-frame re-arm of the placement tick remains', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
-    // Chrome placement, the extended-hours chip glue and the chip placement: all adaptive.
-    expect((src.match(/createAdaptiveFrameLoop\(\{ tick \}\)/g) || []).length).toBeGreaterThanOrEqual(3)
+    // Chrome placement, the extended-hours chip glue and the chip placement: all adaptive (each with the board
+    // keep-alive's pause gate since #2901: boardVisibility.js `boardLoopGate`).
+    expect((src.match(/createAdaptiveFrameLoop\(\{ tick(, gate: boardLoopGate\(boardVisibilityRef\.current\))? \}\)/g) || []).length).toBeGreaterThanOrEqual(3)
     // No loop re-arms itself every frame unconditionally. (The price-fade loop is finite: it
     // re-arms only `if (p < 1)` into `fadeRafRef`, and this pattern deliberately does not match it.)
     expect(src).not.toMatch(/\braf\s*=\s*requestAnimationFrame\(tick\)/)
@@ -128,5 +186,18 @@ describe('StockChart uses the adaptive loop for its chrome placement', () => {
     }
     // ...and never a crosshair subscription: the chart keeps exactly two (legendFromDefinitions).
     expect(src).not.toContain('subscribeCrosshairMove(wake)')
+  })
+
+  it('the chrome placement loop starts in the frame, and its ResizeObserver takes a first pass still waiting', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    const at = src.indexOf('let lastBottom = -1, lastTop = -1, lastRb = null, lastVl = null')
+    expect(at).toBeGreaterThan(0)
+    const effect = src.slice(at, src.indexOf('}, [showRangeSelector, showVolLegend, verticalLegend', at))
+    expect(effect).toContain('loop.start({ inFrame: true })')
+    // the safety net: an effect run inside an animation frame (a flushSync from a frame callback) asks for the NEXT
+    // frame; the observer's first delivery comes after this frame's layout and before its paint, and runs it there
+    expect(effect).toMatch(/new ResizeObserver\(\(\) => \{ if \(!loop\.runPendingStart\(\)\) wake\(\) \}\)/)
   })
 })

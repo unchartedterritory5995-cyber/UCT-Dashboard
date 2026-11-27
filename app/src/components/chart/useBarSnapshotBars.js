@@ -25,6 +25,7 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
+import { forwardWhileShown, useLayerBoard } from './boardVisibility'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
@@ -35,6 +36,7 @@ import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/b
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
+import { deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
@@ -185,8 +187,10 @@ export function useBarSnapshotBars({
     [_staleSrc],
   )
   // ── custom timeframe: a memoized resample of the NATIVE base key (Writer F's input) ──
+  // ⭐ (2026-11-27) filed under the base rows (customTfRows.deriveCustomTf): the array the idle preparer of this row
+  // asked for, so every value derived from it before the press is found on it (neighbour frames on; off, as before).
   const _customBars = useMemo(
-    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? resampleForSpec(all, _customSpec) : null),
+    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? deriveCustomTf(all, _customSpec) : null),
     [_isCustomTf, all, status, _customSpec],
   )
   // ── W/M while its own key is empty: the same-frame resample of the held DAILY snapshot ──
@@ -194,7 +198,7 @@ export function useBarSnapshotBars({
     ? store.peek(keyOf({ sym, tf: 'D' })) : null
   const _aggBars = useMemo(() => {
     const d = _dSnap ? legacyBars(_dSnap) : null
-    return d?.length ? resample(d, 'D', resolvedTf) : null
+    return d?.length ? deriveWmFromDaily(d, resolvedTf) : null   // filed (customTfRows): the double buffer proves it
   }, [_dSnap, resolvedTf])
   // ⛔ THE DEVICE'S ONE REFUSAL HERE TOO (review of #2554, P3-M2). A chart's FIRST MOUNT (a new widget, a grid cell, the
   // phone workspace) and a same-symbol timeframe change are decided here, not at the switch's doors, and here the status
@@ -413,9 +417,12 @@ export function useBarSnapshotBars({
     }
   }
   const _heldDevRev = _devHeldRef.current.devRev
+  // (layer keep-alive, boardVisibility.js) a hidden layer board paints no developing bar: the subscription stays, its
+  // flushes are only noted, and the show paints the store's newest in its own task (no re-render at either end)
+  const _layerBoard = useLayerBoard()
   useEffect(() => {
     if (!key || !_storeDevRef) return undefined
-    return store.subscribeDeveloping(key, (s) => {
+    const onDev = (s) => {
       const base = _baseSnapRef.current
       // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
       if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
@@ -424,8 +431,11 @@ export function useBarSnapshotBars({
       _devHeldRef.current = { key, devRev: s.devRev }
       _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
-    })
-  }, [key, store])  // eslint-disable-line react-hooks/exhaustive-deps
+    }
+    const f = forwardWhileShown(_layerBoard, onDev, () => { const s = store.getSnapshot(key); if (s) onDev(s) })
+    const off = store.subscribeDeveloping(key, f.cb)
+    return () => { f.stop(); off() }
+  }, [key, store, _layerBoard])  // eslint-disable-line react-hooks/exhaustive-deps
   // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
   // (the paint refuses a stale / foreign series and an older frame by itself).
   useEffect(() => {

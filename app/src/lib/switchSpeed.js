@@ -242,9 +242,11 @@ function _rthNow(now) {
 /**
  * A CHART'S PAINT RECORD (chart/paintLog.recordPaint hands every pass of a chart that has an identity).
  * Returns at once unless a switch is waiting; a pass with no bars, or one that re-set nothing, drew nothing.
+ * ⭐ (2026-11-27) 'flip': the double buffer showed a pane already painted with the symbol (chart/useDoubleBuffer.js),
+ * recorded in the flip's commit, so the stamp is the flip's own frame.
  */
 export function chartPainted(key, sym, bars, mode) {
-  if (!_pending.size || mode !== 'full' || !(bars > 0)) return
+  if (!_pending.size || (mode !== 'full' && mode !== 'flip') || !(bars > 0)) return
   for (const p of _pending.values()) {
     if (p.ready || p.sym !== sym) continue
     const ms = p.members
