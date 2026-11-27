@@ -5044,8 +5044,17 @@ PRODUCT_NOUNS: Tuple[str, ...] = (
     "Info Row", "Info Rows", "Info Value", "Info Values", "Info Bar",
     "Chart Header", "Chart Settings", "Chart Legend",
 )
+#: ⭐ 2026-11-26 -- THE PLACES A MARKET SESSION IS NAMED AFTER, lowercased the same way. The write-capability
+#: probe (live, admin measurement): "shade the Asian, London and New York sessions in three different colors"
+#: lost its whole last clause, because "New York" -- two Title-Case words -- was refused as an unknown named
+#: indicator, and the model read a message that stopped at "London" and asked whether New York was meant.
+#: "London" and "Tokyo" were never caught (one word). A closed list of the TWO-word places a trading session is
+#: named after; a place is not an indicator, and the model still decides what a session's hours are.
+SESSION_PLACE_NAMES: Tuple[str, ...] = (
+    "New York", "Hong Kong", "New Zealand",
+)
 _PRODUCT_NOUN_RE = re.compile(
-    r"\b(" + "|".join(re.escape(p) for p in PRODUCT_NOUNS) + r")\b", re.I)
+    r"\b(" + "|".join(re.escape(p) for p in PRODUCT_NOUNS + SESSION_PLACE_NAMES) + r")\b", re.I)
 
 
 def _product_nouns_plain(message: str) -> str:

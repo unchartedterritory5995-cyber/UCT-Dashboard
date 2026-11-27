@@ -145,8 +145,9 @@ describe('the legend reads it: every neutral legend text rule, and StockChart pu
   })
 
   it('StockChart publishes legendInkVars from the DOM-read tokens and the canvas samples', () => {
-    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContext, legibleInk, legendValueBandVars \} from '\.\/chart\/legendInk'/)
-    expect(STOCK_JSX).toMatch(/const \{ tokens, under \} = readLegendContext\(el\)/)
+    // (2026-11-26) read once per element chain: legendInk.readLegendContextCached, keyed by the chain (legendInk.contextCache.test.js)
+    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContextCached, legibleInk, legendValueBandVars \} from '\.\/chart\/legendInk'/)
+    expect(STOCK_JSX).toMatch(/const \{ tokens, under \} = readLegendContextCached\(el\)/)
     expect(STOCK_JSX).toMatch(/legendInkVars\(\{ tokens, top: canvasSample\.top, low: canvasSample\.low, under, legendColor \}\)/)
     // the measured inks (and the band measured from them) spread LAST, over the pre-measure fallback band
     expect(STOCK_JSX).toMatch(/style=\{\{ height, \.\.\.panelVars, \.\.\.legendValueBounds, \.\.\.legendInks \}\}/)

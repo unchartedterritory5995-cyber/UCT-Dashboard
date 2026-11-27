@@ -31,8 +31,25 @@
 //                `by: 'bind'`)
 //   notDrawn     the vendor draws it, our door carried nothing for it, and nothing
 //                the member reads names it
+//   withheld (by: 'run')  e98: our RUN STOPPED (a run-stop guard on the paint's columns:
+//                `RUN_STOP_GUARDS`), so nothing is drawn and the member's pane names the stop. Graded
+//                INCONCLUSIVE by that name, never DIVERGE: a stopped run is not a wrong colour
 import { vendorColorsFor, coloursAgree, normalizeColor, NO_COLOUR, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
+import { RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD } from '../../runtime/runtimeColumns.js'
+
+/** ⭐ e98 — the guards of a run that STOPPED (its wall-clock budget, a declared VM limit, an unexpected throw): the
+ *  run's own constants, never restated. A paint our side did not draw because of one is withheld by the run's name. */
+export const RUN_STOP_GUARDS = Object.freeze(new Set([RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD]))
+
+/** The run-stop guard among a computation's column errors, or null (`ourSide.js` reads it off the paint columns). */
+export function runStopOf(columnErrors) {
+  for (const e of Object.values(columnErrors || {})) {
+    const g = e && (e.guard || e.status)
+    if (RUN_STOP_GUARDS.has(g)) return { code: g, reason: (e && e.message) ? String(e.message).slice(0, 200) : null }
+  }
+  return null
+}
 
 const PAINT_TYPES = Object.freeze({ bg_colorer: 'bgcolor', bar_colorer: 'barcolor' })
 
@@ -131,7 +148,7 @@ export function paintWarmupOf(capture, supply) {
 }
 
 /** One capture's paints, paired and graded. `ours` is `runOurSide(capture)`. */
-export function gradePaints(capture, ours) {
+export function gradePaints(capture, ours, { window = null } = {}) {
   const vendor = vendorPaints(capture)
   const rows = []
   const unpaired = []
@@ -141,7 +158,9 @@ export function gradePaints(capture, ours) {
   const tr = ours.translationPaints || []
   // ⭐ RC1 — which bars the paints were replayed over, carried into the grade so a
   // reader can tell a warm replay from a cold one, and the warm-up it implies.
-  const warmupBars = paintWarmupOf(capture, ours.paintSupply)
+  // ⭐ e98 — a bounded window (`harness.js::harnessWindowOf`): only the newest `window` bars are graded
+  const nBars = ((capture.bars && capture.bars.rows) || []).length
+  const warmupBars = Math.max(paintWarmupOf(capture, ours.paintSupply), window ? Math.max(0, nBars - window) : 0)
   const supply = { ...(ours.paintSupply || { kind: 'cold', file: null, bars: 0, refused: [], reason: 'no supply recorded' }), warmupBars }
   for (const kind of ['bgcolor', 'barcolor']) {
     const vk = vendor.filter((v) => v.kind === kind)
@@ -186,6 +205,12 @@ export function gradePaints(capture, ours) {
           // how many bars TradingView painted — 0 means neither side draws a bar
           // (the verdict counts that, `compare.mjs::comparePaints`)
           const vendorPainted = v.colors.filter((c) => c !== undefined && canon(c) !== NO_COLOUR).length
+          // ⭐ e98 — our RUN STOPPED: withheld by the run's own name (INCONCLUSIVE), never a missing colour (DIVERGE)
+          if (ours.paintRunStop && ours.paintRunStop.code) {
+            rows.push({ ...base, state: 'withheld', by: 'run', code: ours.paintRunStop.code,
+              reason: `our run stopped (${ours.paintRunStop.code}), so nothing is drawn for it`, displayed: v.displayed, vendorPainted })
+            return
+          }
           rows.push({ ...base, state: 'notDrawn', vendorPainted })
           return
         }
