@@ -12,10 +12,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import INDEX_HTML from '../../index.html?raw'
 import {
-  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_MAX_AGE_MS, SIGNED_IN_HINT, BARS_PREFIX,
+  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_MAX_AGE_MS, SIGNED_IN_HINT,
   takeBootSecondaryBars, noteSecondaryNeeds, forgetSecondaryNeeds, __resetBootSecondaryForTests,
 } from './bootSecondaryBars'
-import { ensureSecondaryBars, cachedBars, clearSecondaryBars, SOURCE_STATUS } from '../components/chart/engine/secondaryBars'
+import { ensureSecondaryBars, cachedBars, clearSecondaryBars, SOURCE_STATUS, BARS_PATH } from '../components/chart/engine/secondaryBars'
 import { secondaryNeedUrls, ensureChartSources, useSecondarySources } from '../components/chart/engine/useSecondarySources'
 
 const memStorage = (init = {}) => {
@@ -137,7 +137,7 @@ describe('boot: the windows this page needed last time leave as the document par
   it("B6 the document starts it before any bundle: the inline script, with this module's own limits", () => {
     expect(BOOT_SCRIPT).toContain(`'${SIGNED_IN_HINT}'`)
     expect(BOOT_SCRIPT).toContain(`'${SECONDARY_NEEDS_KEY}'`)
-    expect(BOOT_SCRIPT).toContain(`'${BARS_PREFIX}'`)
+    expect(BOOT_SCRIPT).toContain(`'${BARS_PATH}'`)
     expect(BOOT_SCRIPT).toContain(`age < ${SECONDARY_NEEDS_MAX_AGE_MS}`)
     expect(BOOT_SCRIPT).toContain(`.slice(0, ${SECONDARY_NEEDS_MAX})`)
     // before the entry bundle's own script tag

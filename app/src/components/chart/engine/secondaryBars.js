@@ -26,7 +26,7 @@
 /** The canonical bars route — the SAME endpoint the primary chart and Compare
  *  Symbols already use. A second browser bars client would be a second answer to
  *  "what are QQQ's bars", and the two would drift. */
-const BARS_PATH = '/api/bars/'
+export const BARS_PATH = '/api/bars/'
 
 // ─── ⭐⭐ (e95, 2026-11-22) A CUSTOM TIMEFRAME IS BUILT HERE, THE WAY THE CHART BUILDS ITS OWN ─────────────────────────────
 // ⚰️ Measured on production 2026-11-22 (the every-timeframe Fred RS run): on a 4h chart the Fred RS legend was ABSENT.

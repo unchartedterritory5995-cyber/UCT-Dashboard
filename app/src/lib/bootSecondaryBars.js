@@ -27,12 +27,14 @@
 //  * Market data only: a bars window is the same for every member, and the request carries the session cookie exactly as
 //    the chart's own would.
 
+// (the bars route's path, from its one owner on this side: `secondaryBars.js`)
+import { BARS_PATH } from '../components/chart/engine/secondaryBars'
+
 export const SECONDARY_NEEDS_KEY = 'uct.secondaryNeeds.v1'
 export const SECONDARY_NEEDS_MAX = 4
 export const SECONDARY_NEEDS_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000
 export const BOOT_SECONDARY_MAX_AGE_MS = 60_000
 export const SIGNED_IN_HINT = 'uct.signedIn.v1'
-export const BARS_PREFIX = '/api/bars/'
 
 const needsByChart = new Map()   // chart slot -> urls (this page's charts, right now)
 let writeTimer = null
@@ -60,7 +62,8 @@ export function takeBootSecondaryBars(url) {
 /** `useSecondarySources`: the windows chart `slot` needs right now (an empty list or null when it needs none). The page's
  *  record is the union over its charts, written after the current task. */
 export function noteSecondaryNeeds(slot, urls, { storage = safeStorage(), path = pathNow(), schedule = defaultSchedule } = {}) {
-  const list = Array.isArray(urls) ? urls.filter((u) => typeof u === 'string' && u.startsWith(BARS_PREFIX)) : []
+  // (the windows' own fetch URLs, `secondaryNeedUrls` -> `secondaryBars.secondaryFetchOf`: the bars route's, built by its owner)
+  const list = Array.isArray(urls) ? urls.filter((u) => typeof u === 'string' && u.startsWith(BARS_PATH)) : []
   const before = needsByChart.get(slot)
   if (!list.length) { if (!before) return; needsByChart.delete(slot) } else {
     if (before && before.length === list.length && before.every((u, i) => u === list[i])) return
