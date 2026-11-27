@@ -11,6 +11,12 @@ import { workerRunner, resetRuntimeAsync, ensureRuntimeLane } from '../runtimeAs
 import { computeRuntimeColumns, runtimeColumnsFor, setRuntimeRunner } from '../runtimeColumns.js'
 import * as registry from '../../nativeRegistry.js'
 import { subscribe } from '../../serverCompute.js'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const SOURCE = '//@version=5\nindicator("t")\nvar float s = 0.0\ns := s + close\nplot(s)\n'
 const DEF = { id: 'x', compute: { fn: 'x', source: SOURCE, outputs: { v: 0 } } }
