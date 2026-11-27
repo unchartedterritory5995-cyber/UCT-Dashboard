@@ -48,7 +48,9 @@ SUPPLY_HELD = None   # --supply-held <dir>, set by main()
 
 def lane_command(lane, store, out=None, dirs=None, label=None):
     """(argv, env) of one lane's run, under its own lock hold."""
-    env = dict(os.environ, PINE_LIBRARY_STORE=os.path.abspath(store), VENDOR_HARNESS_RUNTIME_ON=LANES[lane],
+    # e98: a bounded-window grade (VENDOR_HARNESS_WINDOW) is never a committed snapshot: dropped here, whatever the shell
+    env = {k: v for k, v in os.environ.items() if k != "VENDOR_HARNESS_WINDOW"}
+    env = dict(env, PINE_LIBRARY_STORE=os.path.abspath(store), VENDOR_HARNESS_RUNTIME_ON=LANES[lane],
                VENDOR_HARNESS_OUT=out or "../docs/pine/vendor-harness/%s" % lane, VITEST_MAX_WORKERS="1")
     env.pop("VENDOR_HARNESS_DIR", None)  # the default: every committed capture
     # ⭐⭐ (2026-11-19) the HELD supply records the rows were graded with (store_held.py: supplyHeld), stated, never

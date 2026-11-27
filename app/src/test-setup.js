@@ -42,6 +42,7 @@ import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTe
 import { __setTodayLandingForTests } from './pages/journal-2-0/lib/todayHome'
 import { __setRsTelemetryOffForTests } from './lib/rsTelemetry'
 import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liveTail'
+import { DEFS_CACHE_KEY } from './lib/userDefsCache'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -118,6 +119,9 @@ try { delete import.meta.env.VITE_RS_SPLIT_ENABLED } catch { /* a read-only env 
 // (`liveTail.test.js`, `__tests__/liveTailLane.test.js`). ⚠️ This reaches the module instance imported HERE: a file
 // that `vi.resetModules()` and re-imports the chart door gets a fresh, armed store for that test, as the browser does.
 beforeEach(() => { __setBenchmarkTailFetcherForTests(null) })
+// ⭐ (2026-11-26) the member's kept definitions list (`lib/userDefsCache.js`) is localStorage: one case's served list must
+// never be the next case's first answer (`useUserDefinitions` starts from it)
+beforeEach(() => { try { window.localStorage.removeItem(DEFS_CACHE_KEY) } catch { /* no storage */ } })
 
 // ── UCT RS (2026-11-07): the six RS counts are ON by default in a build since the server lists them. The chart
 // suites written while they were dark mount RS copies under fetch mocks that count calls, so the counts are off here
