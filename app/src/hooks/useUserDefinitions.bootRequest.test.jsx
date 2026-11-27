@@ -92,13 +92,14 @@ describe('the definitions list starts as the chart chunk loads', () => {
   it('B5 one use: a later read fetches its own', async () => {
     startUserDefinitionsBootRequest({ fetchImpl: () => Promise.resolve(reply(BOOT_ROW)), storage: signedIn() })
     noteBootUser('m1')
-    const h = renderHook(() => useUserDefinitions(), { wrapper: wrapperFor({ id: 'm1' }) })
+    renderHook(() => useUserDefinitions(), { wrapper: wrapperFor({ id: 'm1' }) })
     await settle()
     expect(listReads()).toBe(0)
-    await act(async () => { await h.result.current.refresh() })
+    // a second read (a fresh cache, as a revalidation after a save reads the store again): the boot answer is gone
+    const again = renderHook(() => useUserDefinitions(), { wrapper: wrapperFor({ id: 'm1' }) })
     await settle()
     expect(listReads()).toBe(1)
-    expect(h.result.current.rows.map((r) => r.def_id)).toEqual(['u_own00000000'])
+    expect(again.result.current.rows.map((r) => r.def_id)).toEqual(['u_own00000000'])
   })
 
   it('B6 StockChart starts it at module scope, outside tests', () => {
