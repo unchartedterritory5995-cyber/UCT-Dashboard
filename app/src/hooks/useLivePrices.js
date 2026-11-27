@@ -36,8 +36,8 @@ export default function useLivePrices(tickers = []) {
   const allRef = useRef(all)
   allRef.current = all
   // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board polls no price (its tickers
-  // leave the shared poll) and is not re-rendered by one; after the show's first paint its tickers come back and it
-  // re-reads the store once (a re-render only when its slice moved while hidden).
+  // leave the shared poll) and is not re-rendered by one; in the show's task its tickers come back (a new ticker is
+  // polled at once) and it re-reads the store (a re-render only when its slice moved while hidden).
   const layer = useLayerBoard()
   const layerRef = useRef(layer)
   layerRef.current = layer

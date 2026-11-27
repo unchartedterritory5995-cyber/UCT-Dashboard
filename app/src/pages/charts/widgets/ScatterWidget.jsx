@@ -15,6 +15,7 @@
  */
 import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import { createPortal } from 'react-dom'
 import ReactECharts from 'echarts-for-react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
@@ -378,6 +379,8 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   const [live, setLive] = useState({})
   const [liveCf, setLiveCf] = useState(1)
   const rth = data?.rth !== false
+  const layerBoard = useLayerBoard()
+  // (review of #2901, H3) on a hidden layer keep-alive board this does nothing; the show runs it once, in its own task
   useEffect(() => {
     if (!baseTickers.length) { setLive({}); return undefined }
     let alive = true
@@ -393,10 +396,11 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         if (alive && j?.points) { setLive(j.points); if (typeof j.cumfrac === 'number') setLiveCf(j.cumfrac) }
       } catch { /* keep last */ }
     }
-    poll()
-    const id = setInterval(poll, rth ? 5000 : 30000)
-    return () => { alive = false; clearInterval(id) }
-  }, [tickersKey, rth])   // eslint-disable-line react-hooks/exhaustive-deps
+    const f = forwardWhileShown(layerBoard, poll)
+    f.cb()
+    const id = setInterval(f.cb, rth ? 5000 : 30000)
+    return () => { alive = false; clearInterval(id); f.stop() }
+  }, [tickersKey, rth, layerBoard])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Merge daily + live, then project onto the chosen X / Y / Size. RVOL is a
   // run rate: (today_vol / cumfrac) / avg_vol, so it projects to full-day intraday

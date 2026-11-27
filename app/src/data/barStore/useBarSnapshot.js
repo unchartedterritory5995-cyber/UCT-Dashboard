@@ -7,7 +7,7 @@
 
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { getBarStore } from './index'
-import { boardHiddenNow, useLayerBoard, whileBoardShown } from '../../components/chart/boardVisibility'
+import { boardHiddenNow, forwardWhileShown, useLayerBoard } from '../../components/chart/boardVisibility'
 
 /**
  * @param {string|null} key   a barStore key (types.keyOf) or null (nothing subscribed)
@@ -19,22 +19,18 @@ export function useBarSnapshot(key, { depth = 0, session = 'rth', priority = 'vi
   // wake 'base': re-render only on BASE changes (the registry's split notify); the snapshot
   // returned is the one as of the last base change — a developing-bar tick never re-renders.
   const base = wake === 'base'
-  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board subscribes to nothing: its
-  // key's network loop, live feed and persist stop as at an unmount; the subscription comes back after the show's first
-  // paint. While hidden the hook reads the snapshot it HELD at the hide (nothing the store does meanwhile, an eviction
-  // included, reaches its chart), and neither the hide nor the show re-renders it: the show's re-subscription tells
-  // React to look, and React re-renders only when the snapshot moved while hidden.
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board KEEPS its key subscribed (its
+  // network loop and live feed keep the store current, and a subscribed key is never evicted) but is not re-rendered
+  // by it: while hidden the hook reads the snapshot it HELD at the hide. The show catches up in its own task: React
+  // re-reads the store and re-renders only when the snapshot moved while hidden (review of #2901, M2: the first frame
+  // after a show is never a stale one).
   const layer = useLayerBoard()
   const heldRef = useRef(null)
   const sub = useCallback((cb) => {
     if (!key) return () => {}
-    let first = true
-    return whileBoardShown(layer, () => {
-      const off = s.subscribe(key, cb, { depth, session, priority, wake: base ? 'base' : 'all' })
-      if (!first) cb()
-      first = false
-      return off
-    })
+    const f = forwardWhileShown(layer, cb)
+    const off = s.subscribe(key, f.cb, { depth, session, priority, wake: base ? 'base' : 'all' })
+    return () => { f.stop(); off() }
   }, [s, key, depth, session, priority, base, layer])
   const get = useCallback(() => {
     if (!key) return null

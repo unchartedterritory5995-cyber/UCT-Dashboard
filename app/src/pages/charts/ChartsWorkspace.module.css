@@ -3082,4 +3082,6 @@
   box-sizing: border-box;
   visibility: hidden;
   pointer-events: none;
+  /* (review of #2901, L2) nothing inside affects the layout or paint of anything outside */
+  contain: strict;
 }

@@ -14,10 +14,14 @@
 // ⭐ THE LAYER MODE (2026-11-27, `uct.boardKeepAlive` = '2'; a handle made with `{ layer: true }`). The kept board stays
 // mounted AND laid out (absolute, inset 0, visibility hidden, inert): no effect of it is cleaned up at the hide or re-run
 // at the show, and no canvas changes size. Its work PAUSES instead, each piece reading the handle:
-//   - `whileBoardShown(useLayerBoard(), start)`: subscriptions (the bar store's keys and developing bars, live prices,
-//     the price stream) stop at the hide and start again AFTER the show's first paint, with NO re-render at either
-//     (a reader is told only when its value moved while hidden);
-//   - `boardHiddenNow(vis)` (read when it fires): intervals and document key shortcuts;
+//   - `forwardWhileShown(vis, notify)`: a feed the board keeps (the bar store's keys and developing bars, the price and
+//     bar streams) stays SUBSCRIBED, so its data stays current and nothing is evicted, but its React notifications are
+//     MUTED while hidden; the show catches up SYNCHRONOUSLY in its own task (review of #2901, M2: never a stale frame),
+//     and a reader whose value did not move is not re-rendered at either end;
+//   - `whileBoardShown(vis, start)`: what costs work or network while hidden (the shared price poll's registration,
+//     the legacy per-hook stream, a chart's membership of its group's switch decisions) stops at the hide and starts
+//     again in the show's task;
+//   - `boardHiddenNow(vis)` (read when it fires): intervals, polls, clocks and key shortcuts;
 //   - `boardLoopGate(vis)`: the adaptive frame loops (parked while hidden, back on the next frame at the show);
 //   - `useBoardHidden()` (reactive, re-renders its reader): only where a render must change (a chart leaving the
 //     group decisions, ChartWidget).
@@ -71,9 +75,10 @@ export function boardIsHiding(vis) {
   return !!vis && !vis.layer && vis.state === 'hidden'
 }
 
-/** Is the board this handle names a hidden LAYER now (its work paused)? Read when an interval or a key fires. */
+/** Is the board this handle names a LAYER that is not shown now (hidden, or disposed and about to unmount: its work
+ *  paused)? Read when an interval, a poll or a key fires. */
 export function boardHiddenNow(vis) {
-  return !!vis && !!vis.layer && vis.state === 'hidden'
+  return !!vis && !!vis.layer && vis.state !== 'visible'
 }
 
 /** The pause gate of an adaptive frame loop on this board (adaptiveFrameLoop.js `gate`), or null (no layer handle). */
@@ -89,40 +94,42 @@ export function useLayerBoard() {
   return vis && vis.layer ? vis : null
 }
 
-function afterPaint(fn) {
-  if (typeof requestAnimationFrame !== 'function') {
-    const t = setTimeout(fn, 0)
-    return () => clearTimeout(t)
-  }
-  let t = 0
-  const f = requestAnimationFrame(() => { t = setTimeout(fn, 0) })
-  return () => { cancelAnimationFrame(f); if (t) clearTimeout(t) }
-}
-
-/** Run `start` (it returns its own stop) while the layer board `vis` is shown: stopped at a hide, started again AFTER
- *  the show's first paint (the show's own task runs none of it). No layer handle: started once, exactly as before.
- *  Returns the stop of it all. */
+/** Run `start` (it returns its own stop) while the layer board `vis` is shown: stopped at a hide, started again in the
+ *  show's own task. No layer handle: started once, exactly as before. Returns the stop of it all. */
 export function whileBoardShown(vis, start) {
   if (!vis) return start()
   let stop = null
-  let pending = null
   let done = false
   const halt = () => {
-    if (pending) { pending(); pending = null }
     if (stop) { const s = stop; stop = null; try { s() } catch { /* gone */ } }
-  }
-  const begin = () => {
-    pending = null
-    if (!done && !stop && !boardHiddenNow(vis) && vis.state !== 'disposed') stop = start()
   }
   const sync = () => {
     if (done) return
-    if (boardHiddenNow(vis) || vis.state === 'disposed') halt()
-    else if (!stop && !pending) pending = afterPaint(begin)
+    if (boardHiddenNow(vis)) halt()
+    else if (!stop) stop = start()
   }
-  if (!boardHiddenNow(vis) && vis.state !== 'disposed') stop = start()
+  if (!boardHiddenNow(vis)) stop = start()
   const unVis = vis.subscribe(sync)
   return () => { done = true; unVis(); halt() }
+}
+
+/** A feed's callback for a component on the layer board `vis`: forwarded while the board is shown; while it is hidden
+ *  (or disposed) the feed stays subscribed and the call is only NOTED, and the show runs `catchUp` (default: `notify`
+ *  with no argument) once, synchronously in its own task, when anything was noted. No layer handle: `notify` itself.
+ *  Returns { cb, stop }: subscribe the feed with `cb`, and call `stop` with the feed's own unsubscribe. */
+export function forwardWhileShown(vis, notify, catchUp = () => notify()) {
+  if (!vis) return { cb: notify, stop: () => {} }
+  let missed = false
+  const cb = (...args) => {
+    if (boardHiddenNow(vis)) { missed = true; return }
+    notify(...args)
+  }
+  const stop = vis.subscribe(() => {
+    if (!missed || vis.state !== 'visible') return
+    missed = false
+    catchUp()
+  })
+  return { cb, stop }
 }
 
 const NO_SUBSCRIBE = () => () => {}
@@ -131,5 +138,5 @@ const NO_SUBSCRIBE = () => () => {}
 export function useBoardHidden() {
   const vis = useContext(BoardVisibilityContext)
   const layer = !!vis && !!vis.layer
-  return useSyncExternalStore(layer ? vis.subscribe : NO_SUBSCRIBE, () => layer && vis.state === 'hidden', () => false)
+  return useSyncExternalStore(layer ? vis.subscribe : NO_SUBSCRIBE, () => layer && vis.state !== 'visible', () => false)
 }

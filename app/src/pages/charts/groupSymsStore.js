@@ -43,7 +43,7 @@ export function createBoardGroupSymsView(source, vis) {
   const subs = new Set()
   const emit = () => { for (const fn of [...subs]) fn() }
   const onVis = () => {
-    if (vis.state === 'hidden') {
+    if (vis.state !== 'visible') {
       if (!held) held = { snap: source.get() }
     } else if (held) {
       const was = held.snap

@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
+import { boardHiddenNow, useLayerBoard } from '../components/chart/boardVisibility'
 import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
@@ -955,6 +956,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   )
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
+  // the layer keep-alive's handle of this list's board, or null (boardVisibility.js); stable for the list's life
+  const layerBoard = useLayerBoard()
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
 
   // ── Watchlist appearance settings (⚙ panel) ────────────────────────────────
@@ -1902,6 +1905,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
     if (isHiddenDeskKey(e)) return
+    // (review of #2901, H1) a hidden layer keep-alive board's list answers no key: the board in front may hold a list of
+    // the same widget id, and this one would move a list nobody sees and switch the front board's linked charts
+    if (boardHiddenNow(layerBoard)) return
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
@@ -2003,7 +2009,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       toggleFlag(selectedSym)
       setFlagToast(willFlag ? 'added' : 'removed')
     }
-  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym])
+  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym, layerBoard])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)

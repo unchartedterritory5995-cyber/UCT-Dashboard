@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { mergeLiveQuote } from '../lib/liveQuoteMerge'
 import useLivePrices from './useLivePrices'
-import { boardHiddenNow, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
+import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
@@ -39,21 +39,18 @@ function usePooledRealtimePrices(tickers = []) {
 
   const sorted = [...new Set(tickers)].sort().join(',')
 
-  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board streams no price: its tickers
-  // leave the stream at the hide and come back after the show's first paint; while hidden it reads the snapshot it
-  // held, and neither the hide nor the show re-renders it unless the stream moved meanwhile.
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board keeps its tickers in the ONE
+  // shared stream (no rebuild of the stream at a switch, and a current price at the show) but is not re-rendered by
+  // it: while hidden it reads the snapshot it held; the show catches up in its own task, re-rendering only when the
+  // stream moved meanwhile.
   const layer = useLayerBoard()
   const heldSnapRef = useRef(null)
   const subscribeStore = useCallback(
     (onStoreChange) => {
       if (!sorted) return () => {}   // idle consumer: never registers, never notified
-      let first = true
-      return whileBoardShown(layer, () => {
-        const off = priceStreamManager.subscribe(sorted.split(','), onStoreChange)
-        if (!first) onStoreChange()
-        first = false
-        return off
-      })
+      const f = forwardWhileShown(layer, onStoreChange)
+      const off = priceStreamManager.subscribe(sorted.split(','), f.cb)
+      return () => { f.stop(); off() }
     },
     [sorted, layer],
   )

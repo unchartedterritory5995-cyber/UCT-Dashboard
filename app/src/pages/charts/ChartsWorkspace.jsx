@@ -1,4 +1,4 @@
-import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
 import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
@@ -20,6 +20,7 @@ import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSym
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { SWRConfig, useSWRConfig } from 'swr'
+import { isAppVisible } from '../../lib/deskVisibility'
 import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
@@ -745,9 +746,68 @@ function withGroupSymsView(base, view) {
   out.groupSymsStore = view
   return out
 }
-function BoardSlotWorkspace({ base, view, children }) {
-  const value = useMemo(() => withGroupSymsView(base, view), [base, view])
+// Two slot values carry the same content: every field the same, or (plain data, e.g. `widgetCanvasById` recomputed
+// for the other board's layout) equal by value. A board's readers then keep the value they had (no re-render).
+function plainData(v) {
+  if (v == null || typeof v !== 'object') return false
+  const p = Object.getPrototypeOf(v)
+  return Array.isArray(v) || p === Object.prototype || p === null
+}
+function sameSlotValue(a, b) {
+  for (const k of Object.keys(b)) {
+    if (k === 'groupSyms') continue   // read through the slot's view, the same object in both
+    const x = a[k], y = b[k]
+    if (x === y) continue
+    if (!plainData(x) || !plainData(y)) return false
+    try { if (JSON.stringify(x) !== JSON.stringify(y)) return false } catch { return false }
+  }
+  return Object.keys(a).length === Object.keys(b).length
+}
+// ⭐ (review of #2901, M4) while its board is hidden a slot HOLDS the workspace value it last showed: a group
+// timeframe, the theme or anything else that changes on the board in front reaches the hidden board's widgets only at
+// its show (as the group symbols do, through the view). A shown slot keeps its value object whenever the content is
+// the same, so a switch between two boards re-renders neither board's workspace readers.
+function BoardSlotWorkspace({ base, view, vis, children }) {
+  const live = useMemo(() => withGroupSymsView(base, view), [base, view])
+  const lastRef = useRef(null)
+  let value
+  if (boardHiddenNow(vis) && lastRef.current) value = lastRef.current
+  else {
+    value = lastRef.current && sameSlotValue(lastRef.current, live) ? lastRef.current : live
+    lastRef.current = value
+  }
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+}
+
+// ⭐ The slot's board, rendered: in front, at once; hidden, the re-render that takes its writes and attributes away
+// (HIDDEN_GRID_HANDLERS, no data-widget-id) is DEFERRED (useDeferredValue: a background render after the click's task),
+// as an <Activity> hide defers its subtree. The slot itself is already inert and invisible in the click's commit.
+function SlotBoard({ el, hidden }) {
+  const deferred = useDeferredValue(el)
+  return hidden ? deferred : el
+}
+
+// ⭐ (review of #2901, M3) the slot's SWR hooks, recorded so a show can revalidate them (a hidden board's polls are
+// off: SWRConfig isVisible). Each entry is the hook's bound mutate, read through a ref.
+function slotSwrMiddleware(hooks) {
+  return (useSWRNext) => (key, fetcher, config) => {
+    const swr = useSWRNext(key, fetcher, config)
+    const mutateRef = useRef(swr.mutate)
+    mutateRef.current = swr.mutate
+    useEffect(() => {
+      const entry = { revalidate: () => mutateRef.current() }
+      hooks.add(entry)
+      return () => { hooks.delete(entry) }
+    }, [])
+    return swr
+  }
+}
+// A board hidden at least this long revalidates its SWR reads after its show's first paint (a quick back-and-forth
+// does not: SWR's own dedupe window).
+const SLOT_REVALIDATE_AFTER_MS = 2000
+function afterFirstPaint(fn) {
+  if (typeof requestAnimationFrame !== 'function') { setTimeout(fn, 0); return }
+  requestAnimationFrame(() => { setTimeout(fn, 0) })
 }
 
 // Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
@@ -945,6 +1005,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const keepAliveOn = keepAliveMode !== 'off'
   const layerMode = keepAliveMode === 'layer'
   const keepAliveOnRef = useRef(keepAliveOn)
+  // what a layer hide resets that lives further down this component (set there: the active chart / watchlist refs)
+  const onLayerHideRef = useRef(null)
   const boardSlotSeqRef = useRef(0)
   const currentBoardRef = useRef(null)   // { slot, key, vis } of the board in front
   if (!currentBoardRef.current) currentBoardRef.current = { slot: 0, key: null, vis: createBoardVisibility({ layer: layerMode }) }
@@ -966,8 +1028,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         // a slot's record carries what is its for life (the handle; in the layer mode its views, made at its first render)
         const leaving = { ...cur, key: prevKey, layout: layoutRef.current }
         leaving.vis.set('hidden')
+        if (leaving.vis.layer) {
+          leaving.hiddenAt = Date.now()
+          onLayerHideRef.current?.()
+        }
         if (reuse) {
           kept.vis.set('visible')
+          // M3: a kept layer board hidden long enough revalidates its SWR reads after the show's first paint
+          if (kept.vis.layer && kept.swrHooks && Date.now() - (kept.hiddenAt || 0) >= SLOT_REVALIDATE_AFTER_MS) {
+            const hooks = [...kept.swrHooks]
+            afterFirstPaint(() => { for (const h of hooks) { try { h.revalidate() } catch { /* one read */ } } })
+          }
           const { layout: _shownLayout, ...slotRec } = kept
           currentBoardRef.current = { ...slotRec, key }
           shown = kept.layout
@@ -1208,6 +1279,20 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.
   const activeWatchlistRef = useRef(null)
+  // (review of #2901, H1) a layer hide leaves no chart or watchlist of the hidden board "active": the key handlers that
+  // follow these refs answer the board in front only (an unmount does the same through the widgets' own cleanups)
+  // ...and (M5) a menu or popover the hidden board opened into document.body (a portal: outside the inert, invisible
+  // layer) is told the press went elsewhere, as a pointer press on the dock would have told it, so it closes
+  onLayerHideRef.current = () => {
+    activeChartRef.current = null
+    activeWatchlistRef.current = null
+    try {
+      const body = document.body
+      const P = typeof PointerEvent === 'function' ? PointerEvent : MouseEvent
+      body.dispatchEvent(new P('pointerdown', { bubbles: true, cancelable: true }))
+      body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+    } catch { /* no DOM */ }
+  }
 
   // AI-search bus: a chart's "AI search" context action routes a query to any
   // mounted AI Search widget; request() returns false when none exist so the
@@ -4178,10 +4263,26 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       recs.sort((a, z) => a.rec.slot - z.rec.slot)
       return recs.map(({ rec, front: isFront }) => {
         if (!rec.groupView) rec.groupView = createBoardGroupSymsView(groupSymsStore, rec.vis)
-        if (!rec.swr) { const vis = rec.vis; rec.swr = { isPaused: () => boardHiddenNow(vis) } }
+        if (!rec.swr) {
+          // ⛔ (review of #2901, H2) NOT isPaused: SWR hands a key's mutate() and its error retry to the FIRST hook
+          // mounted for it, which after a switch is often the kept board's; a paused hook drops them for the board in
+          // front. isVisible gates only the hidden hook's own interval and focus revalidation.
+          const vis = rec.vis
+          rec.swrHooks = new Set()
+          rec.swr = { isVisible: () => !boardHiddenNow(vis) && isAppVisible(), use: [slotSwrMiddleware(rec.swrHooks)] }
+        }
+        // the hidden board's element is made once per hide (a later render of the workspace re-renders nothing of it)
+        let content = front
+        if (!isFront) {
+          const sig = `${poppedWidgetIds.join(',')}|${floatingWidgetIds.join(',')}|${merged ? 1 : 0}`
+          if (!rec.hiddenEl || rec.hiddenSig !== sig) { rec.hiddenEl = keptGrid(); rec.hiddenSig = sig }
+          content = rec.hiddenEl
+        } else {
+          rec.hiddenEl = null
+        }
         return (
           <BoardVisibilityContext.Provider key={`board-slot-${rec.slot}`} value={rec.vis}>
-            <BoardSlotWorkspace base={workspaceValue} view={rec.groupView}>
+            <BoardSlotWorkspace base={workspaceValue} view={rec.groupView} vis={rec.vis}>
               <SWRConfig value={rec.swr}>
                 <div
                   className={isFront ? styles.boardSlot : styles.boardSlotLayer}
@@ -4189,7 +4290,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
                   inert={!isFront}
                   aria-hidden={isFront ? undefined : true}
                 >
-                  {isFront ? front : keptGrid()}
+                  <SlotBoard el={content} hidden={!isFront} />
                 </div>
               </SWRConfig>
             </BoardSlotWorkspace>

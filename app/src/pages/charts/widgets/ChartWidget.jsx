@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BoardVisibilityContext, boardHiddenNow, useBoardHidden } from '../../../components/chart/boardVisibility'
+import { BoardVisibilityContext, boardHiddenNow, useLayerBoard, whileBoardShown } from '../../../components/chart/boardVisibility'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -158,10 +158,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // is stored in it and no rendering decision reads it.
   const [switchMember] = useState(() => ({}))
   // The board whose setGroupSym DECIDES a group switch: its store (a layer keep-alive slot reads the groups through a
-  // view whose `scope` is that store, groupSymsStore.js). A hidden layer board's chart is no member of a decision: the
-  // board in front must not wait on a chart that switches only at its show.
-  const onHiddenBoard = useBoardHidden()
-  const groupScope = onHiddenBoard ? null : (groupSymsStore?.scope ?? groupSymsStore ?? null)
+  // view whose `scope` is that store, groupSymsStore.js). A hidden layer board's chart leaves the decisions through
+  // its board handle inside useSymbolHandoff (no re-render here: review of #2901, M1).
+  const groupScope = groupSymsStore?.scope ?? groupSymsStore ?? null
+  // the layer keep-alive's handle of this widget's board, or null (boardVisibility.js); stable for the widget's life
+  const layerBoard = useLayerBoard()
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
   const sym = useSymbolHandoff(requestedSym, tf, {
@@ -219,13 +220,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // `sym` is in the deps purely so a ticker switch re-subscribes, which makes
   // StockChart's teardown clear any crosshair still drawn for the old symbol
   // (the state-based path did that with a null push on [sym]).
+  // ⭐ (review of #2901, H3) a hidden layer board's chart takes no crosshair: the bus is workspace-wide, and every
+  // pointer move over a chart in front would move and redraw it. The hide clears the one it may still draw.
   const subscribeCrosshair = useCallback((cb) => {
     if (!crosshairBus) return () => {}
-    return crosshairBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== widgetIdRef.current) cb(payload)
+    const off = crosshairBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId === widgetIdRef.current) return
+      if (boardHiddenNow(layerBoard)) return
+      cb(payload)
     })
+    const offVis = layerBoard ? layerBoard.subscribe(() => { if (boardHiddenNow(layerBoard)) cb(null) }) : null
+    return () => { offVis?.(); off() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [crosshairBus, sym])
+  }, [crosshairBus, sym, layerBoard])
 
   // ── Hotkey dedupe: only the last-hovered chart widget handles keydowns ──
   // null-means-all preserves the legacy behavior until the first hover; after
@@ -351,9 +358,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
     symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings, chartsTheme,
   }
+  // (review of #2901, H1) a hidden layer board's chart is not in the registry the agent's and indicator doors read
   useEffect(() => {
     if (!chartApiById) return undefined
     const id = widgetIdRef.current
+    return whileBoardShown(layerBoard, () => {
     chartApiById.current.set(id, {
       getComparison: () => (Array.isArray(chartCsRef.current?.comparisonSymbols) ? chartCsRef.current.comparisonSymbols : []),
       setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
@@ -449,7 +458,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       },
     })
     return () => { chartApiById.current.delete(id) }
-  }, [chartApiById, persistActiveSettings])
+    })
+  }, [chartApiById, persistActiveSettings, layerBoard])
 
   // Every ticker change routes through here; the pane adds the refocus so the
   // user can type the next ticker without re-clicking the chart.

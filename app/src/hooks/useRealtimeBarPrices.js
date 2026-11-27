@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as barsStreamManager from '../lib/barsStreamManager'
+import { boardHiddenNow, useLayerBoard } from '../components/chart/boardVisibility'
 
 // How recent a Massive bar tick must be (ms) to be trusted over the Finnhub
 // price. The Massive bars feed periodically gaps ~15s (upstream/thin symbols);
@@ -43,6 +44,9 @@ export default function useRealtimeBarPrices(symbols = [], maxSymbols = 50) {
     : ''
   const [prices, setPrices] = useState({})
   const pricesRef = useRef({})
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) on a hidden layer board the ticks still land in
+  // `pricesRef` (the shared stream stays) but re-render nothing; the show sets what landed, in its own task.
+  const layer = useLayerBoard()
 
   useEffect(() => {
     if (!key) {
@@ -54,11 +58,17 @@ export default function useRealtimeBarPrices(symbols = [], maxSymbols = 50) {
 
     // Coalesce a burst of ticks (across many symbols) into one render per frame.
     let rafPending = false
+    let missed = false
     const flush = () => {
       rafPending = false
+      if (boardHiddenNow(layer)) { missed = true; return }
       setPrices(pricesRef.current)
     }
+    const stopVis = layer ? layer.subscribe(() => {
+      if (missed && layer.state === 'visible') { missed = false; setPrices(pricesRef.current) }
+    }) : null
     const schedule = () => {
+      if (boardHiddenNow(layer)) { missed = true; return }
       if (rafPending) return
       rafPending = true
       requestAnimationFrame(flush)
@@ -90,9 +100,10 @@ export default function useRealtimeBarPrices(symbols = [], maxSymbols = 50) {
     )
 
     return () => {
+      stopVis?.()
       unsubs.forEach((u) => { try { u() } catch { /* already gone */ } })
     }
-  }, [key])
+  }, [key, layer])
 
   return prices
 }

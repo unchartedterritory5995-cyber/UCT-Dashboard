@@ -25,7 +25,8 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
 import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly, observeGroupSwitches } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
@@ -290,7 +291,19 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // them takes the symbol and its sibling does not, which is the mixed frame this exists to prevent. A timeframe
   // that moved in the same event is therefore NOT a reason to refuse it (it was, and the rail caught a mixed frame):
   // that chart switches timeframe as it would on its own, with the chart's own loading state for the new one.
-  const decision = useSyncExternalStore(scoped ? subscribeDecisions : NO_SUBSCRIPTION, scoped ? () => decisionFor(scope, group) : NO_DECISION)
+  // ⭐ (2026-11-27, board keep-alive, layer mode; review of #2901, M1) a chart on a hidden layer board is no member of
+  // its group's decisions (registerMember below follows the board handle) and is not re-rendered by one: the decision
+  // feed is muted while hidden and caught up at the show, with no React state of its own.
+  const layerBoard = useLayerBoard()
+  const heldDecisionRef = useRef(null)
+  const subscribeBoardDecisions = useCallback((cb) => {
+    const f = forwardWhileShown(layerBoard, cb)
+    const off = subscribeDecisions(f.cb)
+    return () => { f.stop(); off() }
+  }, [layerBoard])
+  const decision = useSyncExternalStore(scoped ? subscribeBoardDecisions : NO_SUBSCRIPTION,
+    scoped ? () => (boardHiddenNow(layerBoard) ? heldDecisionRef.current : decisionFor(scope, group)) : NO_DECISION)
+  if (!boardHiddenNow(layerBoard)) heldDecisionRef.current = decision
   const memberId = memberIdRef.current
   if (decision && scoped && requestedSym && tf && requestedSym !== displayedSym && decision.sym === requestedSym
       && memberId in decision.tfs && !decision.applied[memberId]) {
@@ -307,7 +320,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
-    return registerMember(scope, group, memberIdRef.current, {
+    return whileBoardShown(layerBoard, () => registerMember(scope, group, memberIdRef.current, {
       key: member,
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
@@ -320,8 +333,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
         noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null, null, null)
       },
-    })
-  }, [scoped, scope, group, member])
+    }))
+  }, [scoped, scope, group, member, layerBoard])
 
   // ⭐⭐ ONE FRAME FOR THE GROUP, WHEN THE DECISION SAID NO: join the round for the requested symbol in the LAYOUT
   // phase (see GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
