@@ -113,8 +113,10 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const reportsRef = useRef([null, null])   // each layer's chart's last committed pass (F3)
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
-  const heldRef = useRef(false)
-  const timesRef = useRef({ set: [null, null], report: [null, null] })   // when each layer was last set to a row / last reported             // the widget holds a shadow NOW (set in the board handle's own task)
+  const heldRef = useRef(false)             // the widget holds a shadow NOW (set in the board handle's own task)
+  const timesRef = useRef({ set: [null, null], report: [null, null] })   // when each layer was last set to a row / last reported
+  const waitFrontRef = useRef(null)         // the mount's retarget, waiting for the front chart's first report (LOW-2)
+  const firstRetargetRef = useRef(false)    // the widget's first retarget has been scheduled
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
   // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
@@ -249,6 +251,9 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
     reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
+    // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
+    // the board's first paint, and is still set long before the first press
+    if (i === bufRef.current.front && waitFrontRef.current) { const w = waitFrontRef.current; waitFrontRef.current = null; w() }
     if (i !== bufRef.current.front) scheduleMirror()
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
@@ -258,12 +263,13 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   // ⭐ (2026-11-27, the live dry run: 1 s presses found the hidden pane not on the row ahead yet) RIGHT AFTER THE FRAME,
   // not in idle time: a page busy with streams and history landing gave `requestIdleCallback` no idle period for most of
   // a second. The retarget is a transition (React yields to any press), scheduled after the paint of the frame that
-  // showed the press (utils/afterPaint), and at mount right after the first frame, so the FIRST press finds it too.
+  // showed the press (utils/afterPaint); at mount after the FRONT chart's first pass (review of #2930, LOW-2), so the
+  // FIRST press finds it too. ONE pending schedule at a time (LOW-1): a live-sorted list republishes its neighbours often.
   const frontSym = buf.syms[buf.front]
   useEffect(() => {
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
-    const cancels = []
+    let pending = null
     const run = () => {
       if (!alive) return
       const b = bufRef.current
@@ -272,8 +278,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       const s = 1 - b.front
       if (!next || next === f || b.syms[s] === next) return
       reportsRef.current[s] = null
-      timesRef.current.set[s] = _now()
-      timesRef.current.report[s] = null
+      timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
       noteRetarget()
       startTransition(() => {
         setBuf((x) => {
@@ -284,11 +289,28 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         })
       })
     }
-    const schedule = () => { if (alive) cancels.push(afterPaint(run)) }
-    schedule()
+    const schedule = () => {
+      if (!alive) return
+      if (pending) pending()
+      pending = afterPaint(() => { pending = null; run() })
+    }
+    if (!firstRetargetRef.current && !reportsRef.current[bufRef.current.front]) waitFrontRef.current = schedule
+    else schedule()
+    firstRetargetRef.current = true
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
-    return () => { alive = false; for (const c of cancels) c(); offScan() }
+    return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
   }, [eligible, slotOk, frontSym])
+
+  // (review of #2930, LOW-4) a layer's `set` time is when its new row COMMITS (the retarget's transition), not when the
+  // retarget asked for it
+  const prevSymsRef = useRef(buf.syms)
+  useLayoutEffect(() => {
+    const was = prevSymsRef.current
+    prevSymsRef.current = buf.syms
+    for (const i of [0, 1]) {
+      if (i !== buf.front && buf.syms[i] != null && buf.syms[i] !== was[i]) timesRef.current.set[i] = _now()
+    }
+  }, [buf])
 
   return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged }),
     [eligible, buf, handles, reporters, viewChanged])
