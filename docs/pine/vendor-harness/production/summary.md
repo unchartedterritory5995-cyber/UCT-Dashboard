@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 556) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
+Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 552) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
 
-Graded at script engine **98**.
+Graded at script engine **99**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -89,8 +89,10 @@ artemis-oscillator-pro-spy-1d-2026-11-15     AMEX:SPY 1D      12     DIVERGE    
     Plot                                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 608 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-asianrange-and-killzones-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
-asianrange-and-killzones-spy-1d-2026-11-14   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
+asianrange-and-killzones-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+asianrange-and-killzones-spy-1d-2026-11-14   AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 atr-bands-rddt-1d-2026-10-02                 NYSE:RDDT 1D     4      MATCH             all 5 items agree
     Upper ATR Band                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lower ATR Band                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -2347,8 +2349,26 @@ vw-bt-session-to-midnight-daymask-btcusd-60- BITSTAMP:BTCUSD  5      DIVERGE    
     M1_na_to_midnight_weekdays               DIVERGE           cmp 25216 ok 19218 warm 0/0 steady 5998/25216 maxRel 1.00e+0 — 5998 steady-state bars disagree; first at bar 20 (value: vendor 0 vs ours 1) — scattered, last at bar 25153
     M2_na_to_midnight_every_day_CONTROL      DIVERGE           cmp 25216 ok 16814 warm 0/0 steady 8402/25216 maxRel 1.00e+0 — 8402 steady-state bars disagree; first at bar 1 (value: vendor 1 vs ours 0) — scattered, last at bar 25201
     objects                                  MATCH         neither side draws an object
-vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function): this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
-vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function): this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      8      INCONCLUSIVE      1 of 9 items could not be compared
+    R0_bar_index_CONTROL                     MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R1_secs_1440_rth                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R2_secs_D_rth                            MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R3_secs_1440_premarket                   MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R4_secs_D_premarket                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R5_secs_1440_anchor                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R6_secs_D_anchor                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R7_in_seconds_1440                       INCONCLUSIVE      cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      8      INCONCLUSIVE      4 of 9 items could not be compared
+    R0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    R1_secs_1440_rth                         MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R2_secs_D_rth                            MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R3_secs_1440_premarket                   INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (time-session:day-on-other-chart) — nothing is drawn for it
+    R4_secs_D_premarket                      INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (time-session:day-on-other-chart) — nothing is drawn for it
+    R5_secs_1440_anchor                      MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R6_secs_D_anchor                         MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R7_in_seconds_1440                       INCONCLUSIVE      cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
 vw-bt-toradians-spy-1d-2026-11-16            AMEX:SPY 1D      8      DIVERGE           D3_minus_x_times_pi_180: bar 0 t=728317800 value vendor=-888.1784197001252 ours=0
     D0_bar_index_CONTROL                     MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
     X_degrees                                MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
@@ -5070,7 +5090,7 @@ WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 2
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 
-## Not comparable (97)
+## Not comparable (99)
 
 - `tests/fixtures/vendor/agen-1d-bars-2000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
 - `tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json` — vendor built-in study — no Pine source exists to run on our side
@@ -5081,6 +5101,7 @@ CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLU
 - `tests/fixtures/vendor/divergences.json` — not a capture (schema / divergence register)
 - `tests/fixtures/vendor/divergences.schema.json` — not a capture (schema / divergence register)
 - `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/financial-steps-aapl-nvda-1d-2026-11-26.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/fold-numeric-spy-1d-1w-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
 - `tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
 - `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
@@ -5161,6 +5182,7 @@ CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLU
 - `tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
 - `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/tuple-security-spy-1d-closed-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/tv-marker-geometry-spy-1d-2026-11-26.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json` — only 4 hand-read rows and no vendor OHLCV series
 - `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json` — only 4 hand-read rows and no vendor OHLCV series

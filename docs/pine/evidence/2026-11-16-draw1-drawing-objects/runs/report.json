@@ -3,17 +3,17 @@
   "capture": {
    "scripts": 1039,
    "admitted": 838,
-   "runtimeLane": 231,
-   "hostLane": 318,
-   "refused": 289,
+   "runtimeLane": 233,
+   "hostLane": 322,
+   "refused": 283,
    "coreOnly": 51
   },
   "committed": {
    "scripts": 266,
    "admitted": 195,
    "runtimeLane": 51,
-   "hostLane": 62,
-   "refused": 82,
+   "hostLane": 63,
+   "refused": 81,
    "coreOnly": 4
   },
   "reference": {
@@ -252,7 +252,7 @@
   },
   {
    "capture": "asianrange-and-killzones-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -273,7 +273,7 @@
   },
   {
    "capture": "asianrange-and-killzones-spy-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -761,7 +761,7 @@
   {
    "capture": "cc-yata-rddt-1d-2026-09-27",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -1109,7 +1109,7 @@
   {
    "capture": "delta-rsi-oscillator-strategy-spy-1d-2026-10-02",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -3921,8 +3921,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3936,8 +3936,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3951,8 +3951,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3966,8 +3966,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -7100,8 +7100,8 @@
   {
    "capture": "support-and-resistance-5f95e90f-rddt-1d-2026-11-13",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "if-block",
@@ -8866,7 +8866,7 @@
   },
   {
    "capture": "vw-bi-time-d-extended-btcusd-60-2026-11-19",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8877,7 +8877,7 @@
   },
   {
    "capture": "vw-bi-time-d-extended-spy-60-2026-11-19",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8978,7 +8978,7 @@
   },
   {
    "capture": "vw-bt-time-1440-spy-1d-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8989,7 +8989,7 @@
   },
   {
    "capture": "vw-bt-time-1440-spy-60-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -13976,8 +13976,8 @@
   {
    "key": "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd",
    "lane": null,
-   "guard": "pine:builtin",
-   "declined": "pine:builtin",
+   "guard": "pine:window",
+   "declined": "runtime:request-with-state",
    "caps": [
     "conditional-ta",
     "core",
@@ -14139,7 +14139,7 @@
    "key": "reference:bb-custom-indicator-tradingview-version__Vf3832aju8",
    "lane": null,
    "guard": "pine:plot-offset",
-   "declined": "pine:function",
+   "declined": "pine:builtin",
    "caps": [
     "core",
     "if-block",
@@ -17497,7 +17497,7 @@
    "key": "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R",
    "lane": null,
    "guard": "pine:reassign",
-   "declined": "pine:builtin",
+   "declined": "pine:function",
    "caps": [
     "core",
     "fn-multi",
@@ -19220,7 +19220,7 @@
   },
   {
    "key": "committed:asianrange-and-killzones__ef41eb5ad6",
-   "lane": null,
+   "lane": "host",
    "caps": [
     "core",
     "fn-multi",

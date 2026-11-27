@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 631, host refusals 680) · objects-only pane ARMED · runtime drew 283, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 285, declined 342 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **98**.
+Graded at script engine **99**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -49,8 +49,10 @@ artemis-oscillator-pro-rddt-1d-2026-09-28    NYSE:RDDT 1D     0      INCONCLUSIV
 artemis-oscillator-pro-rddt-1d-2026-11-15    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:call-windowed-state]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture artemis-oscillator-pro-rddt-1d-2026-09-28) it draws something that differs from TradingView: tableCells text_font_family of cell (0,0) of table #31: TradingView "monospace", ours "default". It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
 artemis-oscillator-pro-spy-1d-2026-10-03     AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:call-windowed-state]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture artemis-oscillator-pro-rddt-1d-2026-09-28) it draws something that differs from TradingView: tableCells text_font_family of cell (0,0) of table #31: TradingView "monospace", ours "default". It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
 artemis-oscillator-pro-spy-1d-2026-11-15     AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:call-windowed-state]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture artemis-oscillator-pro-rddt-1d-2026-09-28) it draws something that differs from TradingView: tableCells text_font_family of cell (0,0) of table #31: TradingView "monospace", ours "default". It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
-asianrange-and-killzones-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:function]: the pasted script offers no plot and no alert condition to filter on
-asianrange-and-killzones-spy-1d-2026-11-14   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:function]: the pasted script offers no plot and no alert condition to filter on
+asianrange-and-killzones-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+asianrange-and-killzones-spy-1d-2026-11-14   AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 atr-bands-rddt-1d-2026-10-02                 NYSE:RDDT 1D     4      MATCH             all 5 items agree
     Upper ATR Band                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lower ATR Band                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -63,8 +65,8 @@ atr-bands-spy-1d-2026-10-03                  AMEX:SPY 1D      4      MATCH      
     Upper Take-Profit Band                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lower Take-Profit Band                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-atr-god-strategy-by-tradesmart-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
-atr-god-strategy-by-tradesmart-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+atr-god-strategy-by-tradesmart-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+atr-god-strategy-by-tradesmart-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03   NYSE:RDDT 1D     3      MATCH             all 5 items agree
     ATR-Stepped, PDF MA                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.67e-16
     Long                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -469,11 +471,11 @@ delta-rsi-oscillator-strategy-rddt-1d-2026-1 NYSE:RDDT 1D     4      MATCH      
     Exit Long                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Exit Short                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-delta-rsi-oscillator-strategy-spy-1d-2026-10 AMEX:SPY 1D      4      INCONCLUSIVE      4 of 5 items could not be compared
-    Buy                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:limit)
-    Sell                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:limit)
-    Exit Long                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:limit)
-    Exit Short                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:limit)
+delta-rsi-oscillator-strategy-spy-1d-2026-10 AMEX:SPY 1D      4      MATCH             all 5 items agree
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Exit Long                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Exit Short                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 delta-volume-candles-lucf-rddt-1d-2026-11-15 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/2` is not in this engine's library registry, so its code cannot be compiled
 delta-volume-candles-lucf-spy-1d-2026-11-15  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/2` is not in this engine's library registry, so its code cannot be compiled
@@ -971,10 +973,10 @@ machine-learning-moving-average-backquant-rd NYSE:RDDT 1D     1      MATCH      
     ML MA                                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      INCONCLUSIVE      3 of 3 items could not be compared
-    ML MA                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:limit)
-    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 4,254,500 for 8,509 bars, it reached 4,254,644) on bar 5,602 of 8,509, so it is stopped and nothing is drawn rather than part of it.)
-    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_6 "Bar Color" — our run stopped (runtime:limit), so nothing is drawn for it)
+machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      MATCH             all 3 items agree
+    ML MA                                    MATCH             cmp 8509 ok 7242 warm 1267/1267 steady 0/7242 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
 machine-learning-rsi-bullvision-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:conditional-history]: this Pine call answers with several values at once and a column carries one — `knnRsi` — `knnEnhancedRsi` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `knnEnhancedRsi`)
 madrid-moving-average-ribbon-rddt-1d-2026-09 NYSE:RDDT 1D     18     MATCH             all 19 items agree
     MMA05                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 4.49e-16
@@ -2781,8 +2783,36 @@ vw-bi-str-tonumber-spy-1d-2026-11-19         AMEX:SPY 1D      22     MATCH      
     objects                                  MATCH         neither side draws an object
 vw-bi-time-close-2arg-spy-1d-2026-11-19      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time_close(<timeframe>)`: its timeframe does not fold to a literal this translation can read
 vw-bi-time-close-2arg-spy-60-2026-11-19      AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time_close(<timeframe>)`: its timeframe does not fold to a literal this translation can read
-vw-bi-time-d-extended-btcusd-60-2026-11-19   BITSTAMP:BTCUSD  0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:function]: this Pine built-in names something the engine grammar does not hold — `hour` with that argument. `hour(timenow)` -- this engine's answer for Pine's live wall clock, the newest fetched bar's own value -- translates, and so does `hour(time)`, which is this bar's own value. A different bar (`hour(time[1])`), a named timezone, and a computed timestamp are all real Pine and all currently refused as a function argument. TO UNBLOCK: read the bare `hour` (or `hour(time)`) for this bar's own value, or `hour(timenow)` for the newest fetched bar's.
-vw-bi-time-d-extended-spy-60-2026-11-19      AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:function]: this Pine built-in names something the engine grammar does not hold — `hour` with that argument. `hour(timenow)` -- this engine's answer for Pine's live wall clock, the newest fetched bar's own value -- translates, and so does `hour(time)`, which is this bar's own value. A different bar (`hour(time[1])`), a named timezone, and a computed timestamp are all real Pine and all currently refused as a function argument. TO UNBLOCK: read the bare `hour` (or `hour(time)`) for this bar's own value, or `hour(timenow)` for the newest fetched bar's.
+vw-bi-time-d-extended-btcusd-60-2026-11-19   BITSTAMP:BTCUSD  13     INCONCLUSIVE      13 of 14 items could not be compared
+    A0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:chart-clock)
+    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:chart-clock)
+    A1_secs_time_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:chart-clock)
+    A2_change_time_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:chart-clock)
+    A3_timeframe_change_D                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:chart-clock)
+    A4_hhmm_time_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:chart-clock)
+    A5_day_offset_time_D                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:chart-clock)
+    S1_secs_D_rth                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:chart-clock)
+    S2_secs_D_extended                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:chart-clock)
+    S3_secs_D_after_open                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:chart-clock)
+    S4_secs_D_after_hours                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:chart-clock)
+    S5_secs_1440                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:chart-clock)
+    objects                                  MATCH         neither side draws an object
+vw-bi-time-d-extended-spy-60-2026-11-19      AMEX:SPY 60      13     INCONCLUSIVE      13 of 14 items could not be compared
+    A0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
+    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
+    A1_secs_time_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+    A2_change_time_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    A3_timeframe_change_D                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
+    A4_hhmm_time_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    A5_day_offset_time_D                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
+    S1_secs_D_rth                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
+    S2_secs_D_extended                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
+    S3_secs_D_after_open                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
+    S4_secs_D_after_hours                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
+    S5_secs_1440                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
+    objects                                  MATCH         neither side draws an object
 vw-bi-weekofyear-spy-1d-2026-11-19           AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold — `weekofyear`
 vw-bool-cast-spy-1d-2026-09-28               AMEX:SPY 1D      10     MATCH             all 11 items agree
     B00_bar_index_CONTROL                    MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
@@ -2859,8 +2889,26 @@ vw-bt-session-to-midnight-daymask-btcusd-60- BITSTAMP:BTCUSD  5      INCONCLUSIV
     M1_na_to_midnight_weekdays               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
     M2_na_to_midnight_every_day_CONTROL      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
     objects                                  MATCH         neither side draws an object
-vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
-vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      8      INCONCLUSIVE      1 of 9 items could not be compared
+    R0_bar_index_CONTROL                     MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R1_secs_1440_rth                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R2_secs_D_rth                            MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R3_secs_1440_premarket                   MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R4_secs_D_premarket                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R5_secs_1440_anchor                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R6_secs_D_anchor                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    R7_in_seconds_1440                       INCONCLUSIVE      cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      8      INCONCLUSIVE      4 of 9 items could not be compared
+    R0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    R1_secs_1440_rth                         MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R2_secs_D_rth                            MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R3_secs_1440_premarket                   INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (time-session:day-on-other-chart) — nothing is drawn for it
+    R4_secs_D_premarket                      INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (time-session:day-on-other-chart) — nothing is drawn for it
+    R5_secs_1440_anchor                      MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R6_secs_D_anchor                         MATCH             cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0
+    R7_in_seconds_1440                       INCONCLUSIVE      cmp 20861 ok 20861 warm 0/0 steady 0/20861 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
 vw-bt-toradians-spy-1d-2026-11-16            AMEX:SPY 1D      8      DIVERGE           D3_minus_x_times_pi_180: bar 0 t=728317800 value vendor=-888.1784197001252 ours=0
     D0_bar_index_CONTROL                     MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
     X_degrees                                MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
@@ -7319,28 +7367,28 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 MATCH_SUBSTITUTED 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 MATCH_SUBSTITUTED 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 INCONCLUSIVE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 MATCH_SUBSTITUTED 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 377 · DIVERGE 38 · INCONCLUSIVE 600 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 378 · DIVERGE 38 · INCONCLUSIVE 599
+TOTAL 1038 captures — MATCH 379 · DIVERGE 38 · INCONCLUSIVE 598 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 208 captures) — MATCH 380 · DIVERGE 38 · INCONCLUSIVE 597
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 380 · DIVERGE 33 · INCONCLUSIVE 602
+WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 382 · DIVERGE 33 · INCONCLUSIVE 600
 CHANGED BY PAINTS (8): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
-## Runtime declines by code (348)
+## Runtime declines by code (342)
 
 - `pine:builtin` 43
-- `pine:function` 34
 - `runtime:library` 32
+- `pine:function` 28
 - `pine:request` 25
 - `lower-tf:store-unmeasured` 22
 - `runtime:request` 21
 - `runtime:conditional-history` 18
 - `runtime:request-with-state` 18
 - `runtime:call-text-state` 14
-- `runtime:call-undeclared-builtin-state` 11
-- `runtime:statement` 10
+- `runtime:statement` 12
 - `pine:library-denied` 9
 - `runtime:block-value` 9
+- `runtime:call-undeclared-builtin-state` 9
 - `runtime:loop` 9
 - `runtime:unbound` 8
 - `pine:arity` 6
@@ -7368,7 +7416,7 @@ CHANGED BY PAINTS (8): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-20
 - `runtime:colour` 1
 - `runtime:enum` 1
 
-## Not comparable (97)
+## Not comparable (99)
 
 - `tests/fixtures/vendor/agen-1d-bars-2000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
 - `tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json` — vendor built-in study — no Pine source exists to run on our side
@@ -7379,6 +7427,7 @@ CHANGED BY PAINTS (8): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-20
 - `tests/fixtures/vendor/divergences.json` — not a capture (schema / divergence register)
 - `tests/fixtures/vendor/divergences.schema.json` — not a capture (schema / divergence register)
 - `tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/financial-steps-aapl-nvda-1d-2026-11-26.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/fold-numeric-spy-1d-1w-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
 - `tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
 - `tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json` — no vendor OHLCV series together with per-bar study values and a script source
@@ -7459,6 +7508,7 @@ CHANGED BY PAINTS (8): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-20
 - `tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
 - `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/tuple-security-spy-1d-closed-2026-09-10.json` — the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars
+- `tests/fixtures/vendor/tv-marker-geometry-spy-1d-2026-11-26.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json` — only 4 hand-read rows and no vendor OHLCV series
 - `tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json` — only 4 hand-read rows and no vendor OHLCV series
