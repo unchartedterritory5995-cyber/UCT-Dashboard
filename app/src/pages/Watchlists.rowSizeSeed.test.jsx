@@ -72,13 +72,13 @@ afterEach(() => {
 
 // The scroller is mounted BEFORE the list, as in the widget (the list body exists, then a list is opened or loaded):
 // the virtualizer reads its scroll element in its layout effect, and a parent's ref is attached after a child's.
-function List({ cacheKey, show = true, onCommit = null }) {
+function List({ cacheKey, show = true, onCommit = null, items = ITEMS }) {
   const scrollRef = useRef(null)
   return (
     <Profiler id="list" onRender={onCommit || (() => {})}>
     <div ref={scrollRef} data-scroller="" data-scan-scroller="" style={{ height: 400, overflowY: 'auto' }}>
       {show ? (
-        <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
+        <ScanRows scrollRef={scrollRef} items={items} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
           sizeCacheKey={cacheKey} />
       ) : null}
     </div>
@@ -419,5 +419,37 @@ describe('ScanRows: corrections in one commit; a remembered offset; the warm fir
     expect(firstCount).toBeGreaterThanOrEqual(10)
     await act(async () => {})
     expect(view.container.querySelectorAll('[data-index]').length, 'the overscan joined after the first commit').toBeGreaterThan(firstCount)
+  })
+})
+
+// ⭐ (review of #2916, LOW) A list that comes back SHORTER than it was scrolled: the remembered offset is clamped to the
+// last screenful of the rows it has now, so the first commit is never blank space past the end.
+describe('ScanRows: the remembered offset fits the list it comes back to', () => {
+  it('R19 (red first) half the rows: the first commit holds the last screenful, the scroller at its end', async () => {
+    const realScrollTo = HTMLElement.prototype.scrollTo
+    Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
+    HTMLElement.prototype.scrollTo = function (opts) { this.scrollTop = typeof opts === 'object' ? (opts.top ?? this.scrollTop) : opts }
+    try {
+      const firstMount = mountList('list:R19') // 60 rows of 40 px: 2,400 px, a 400 px box
+      await frames()
+      const scroller = firstMount.container.querySelector('[data-scroller]')
+      await act(async () => { scroller.scrollTop = 2000; scroller.dispatchEvent(new Event('scroll')) }) // the very end
+      await frames()
+      firstMount.unmount()
+      vi.stubGlobal('requestAnimationFrame', () => 0)
+      vi.stubGlobal('cancelAnimationFrame', () => {})
+      const half = ITEMS.slice(0, 30) // it comes back with 30 rows: 1,200 px, so the last screenful starts at 800
+      let atFirst = null
+      const onCommit = () => {
+        if (atFirst) return
+        const sc = document.querySelector('[data-scroller]')
+        atFirst = { top: sc.scrollTop, rows: [...sc.querySelectorAll('[data-index]')].map((el) => Number(el.getAttribute('data-index'))) }
+      }
+      render(<List cacheKey="list:R19" items={half} onCommit={onCommit} />)
+      expect(atFirst.rows.length, 'blank space: no rows in the first commit').toBeGreaterThan(0)
+      expect(Math.max(...atFirst.rows), 'the last row').toBe(29)
+      expect(Math.min(...atFirst.rows), 'the last screenful starts at row 20').toBe(20)
+      expect(atFirst.top, 'the scroller at the end of the shorter list').toBe(800)
+    } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop }
   })
 })
