@@ -8,6 +8,7 @@
 // on themselves (`setOffListingCurtainEnabled(true)`); it must never be on by default while this rail stands.
 import { describe, it, expect, afterEach } from 'vitest'
 import SRC from '../runtimeColumns.js?raw'
+import SERVER_ENTRY from '../serverEntry.js?raw'
 import {
   computeRuntimeColumns, resetRuntimeSessions, setOffListingCurtainEnabled, RUNTIME_HISTORY_GUARD,
 } from '../runtimeColumns.js'
@@ -34,6 +35,13 @@ describe('the off-listing curtain is off for every member', () => {
   it('the module starts with the curtain switched off', () => {
     expect(SRC).toMatch(/^let _offListingCurtainOn = false$/m)
     expect(SRC).not.toMatch(/^let _offListingCurtainOn = true$/m)
+  })
+
+  it('the server bundle (pine-runtime: server alerts) runs the same switch and cannot turn it on', () => {
+    // `serverEntry.js` re-exports this module's `computeRuntimeColumns` into `dist-server/pine-runtime.mjs`, which
+    // `services/pine_runtime/job.mjs` runs: one module, one switch; the seam is not exported to the service
+    expect(SERVER_ENTRY).toMatch(/computeRuntimeColumns/)
+    expect(SERVER_ENTRY).not.toMatch(/setOffListingCurtainEnabled/)
   })
 
   it('⛔ TWO STARTS THAT AGREE ARE NOT A PROOF: a listing document off the listing is refused by name, never released', () => {
