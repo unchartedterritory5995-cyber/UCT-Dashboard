@@ -197,6 +197,8 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)
     await vi.advanceTimersByTimeAsync(20)
     expect(lake.olderBars.mock.calls.length).toBe(loads)
+  })
+
   // (review of #2868) the pane names the typed ticker for preparation only once its lake join has landed
   it('lakeJoined resolves only after the typed warm lake load has joined (and at once when none runs)', async () => {
     const w = await boot({ lake: slowLake(likeServer(OPEN - 300 * 60, OPEN + 600), 300) })
