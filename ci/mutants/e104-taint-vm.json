@@ -1,12 +1,12 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "START-TAINT part 2 (runtime/vmTaint.js, generated from vm.js by app/scripts/gen-vm-taint.mjs; runtime/taintTags.js): every source, propagation rule and the generator's own refusals must be able to fail.",
+ "about": "START-TAINT part 2 (runtime/vmTaint.js, generated from vm.js by app/scripts/gen-vm-taint.mjs; runtime/taintTags.js): every source, propagation rule and the generator's own refusals must be able to fail. E105: the inlined joins, the algebra's drift, the generator's inline refusal and the stack at a join.",
  "mutants": [
   {
    "id": "E104-S1",
    "mutant": "source 1 dropped: a var initialiser running is not a T branch",
    "file": "app/src/components/chart/engine/runtime/vmTaint.js",
-   "from": "case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }",
+   "from": "case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop, sp); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }",
    "to": "case 62 /* OP.JUMP_IF_INIT */:",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
    "expectRed": "a counter built on itself"
@@ -105,8 +105,8 @@
    "id": "E104-JOIN",
    "mutant": "a region never closes: stores after the join stay under the branch",
    "file": "app/src/components/chart/engine/runtime/vmTaint.js",
-   "from": "      while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1",
-   "to": "      void 0",
+   "from": "while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) {",
+   "to": "while (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
    "expectRed": "the region closes at the join"
   },
@@ -208,6 +208,15 @@
    "to": "if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
    "expectRed": "stops by name on an algebra function"
+  },
+  {
+   "id": "E105-JOIN-STACK",
+   "mutant": "a region closes without tainting what its arms left on the stack (a ternary lowered to branches)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "for (let k = rSp[rTop - 1]; k < sp; k += 1) ts[k] = 2",
+   "to": "void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "a value an arm leaves on the stack"
   }
  ]
 }

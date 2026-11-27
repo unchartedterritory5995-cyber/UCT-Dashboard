@@ -86,14 +86,15 @@ export const TAG_RULES = Object.freeze({
   LOAD_GLOBAL_PERSIST: 'ts[sp] = tp[a];',
   // ── control: a T condition taints the branch's whole write set and opens a region until its join ──
   JUMP: '',
-  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
+  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop, sp - 1); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   // source 1: whether a `var` initialiser runs here is start-dependent (another start ran it on ITS first bar)
-  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
+  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop, sp); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   CALL: '{ const _f = program.functions[a]; const _nb = localsTop; '
     + 'for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; '
     + 'tl.fill(0, _nb + _f.params, _nb + _f.frameSize) }',
-  // the frame's own regions end here; the site's held cells take the slots' tags (T if the CALL itself was steered)
-  RET: '{ while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; '
+  // the frame's own regions end here (what they left on the stack, the return values included, is T); the site's held
+  // cells take the slots' tags (T if the CALL itself was steered)
+  RET: '{ while (rTop > 0 && rDepth[rTop - 1] >= depth) { for (let _k = rSp[rTop - 1]; _k < sp; _k += 1) ts[_k] = 2; rTop -= 1 } rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; '
     + 'for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 '
     + ': (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) }',
   // ── calls over values: clean only over clean values (a drawing asked `na(h)` of is the store's state: T) ──
@@ -169,17 +170,18 @@ const SETUP = `  // ─── START-TAINT (generated, \`app/scripts/gen-vm-taint
   const theld = new Uint8Array(held.length).fill(2)
   const outT = outputs.map((o) => new Uint8Array(o.length))
   const iterT = iters.map(() => new Uint8Array(ITER_SLOTS))
-  // the implicit-flow regions open now: [branch pc, its join, the call depth it was taken at]
+  // the implicit-flow regions open now: [branch pc, its join, the call depth it was taken at, the stack height then]
   const rBr = []
   const rJoin = []
   const rDepth = []
+  const rSp = []
   let rTop = 0
   // ⭐ PERF: the innermost region's join in one scalar: each fetch is ONE compare (\`pc === rJT\`); the region arrays (and
   // the call depth) are read only when control reaches a join
   let rJT = -3
   // ⭐ PERF: the implicit-flow work lives in \`taintTags.js::taintBranch\` and is handed this state, so no closure here
   // captures a tag array or \`rTop\`: the loop keeps them in registers, not context slots loaded per instruction
-  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, wc, cc, cc2, th, histOffset, histPlan }
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, rSp, wc, cc, cc2, th, histOffset, histPlan }
 `
 
 const PROLOGUE = `  // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
@@ -197,9 +199,11 @@ export const ANCHORS = Object.freeze([
   ['  for (let bar = startBar; bar < runBars; bar += 1) {\n', (m) => SETUP + m],
   // the main frame's locals are `na` again each bar (clean); no region outlives its bar
   ['    locals.fill(NaN, 0, program.locals)\n', (m) => `${m}    tl.fill(0, 0, program.locals)\n    rTop = 0\n    rJT = -3\n`],
-  // a region closes when control reaches its join in the frame that opened it
+  // a region closes when control reaches its join in the frame that opened it; a value it left on the stack (an arm of
+  // a ternary lowered to branches, `and` / `or` short-circuits) was made under the branch: T (e105, kernel-channel's
+  // `midColor = a > a[1] ? up : down` released bar 0 clean from the arm's constant)
   ['      const b = code[base + 2]\n',
-    (m) => `${m}      if (pc === rJT) {\n        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1\n        rJT = rTop > 0 ? rJoin[rTop - 1] : -3\n      }\n`],
+    (m) => `${m}      if (pc === rJT) {\n        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) {\n          for (let k = rSp[rTop - 1]; k < sp; k += 1) ts[k] = 2\n          rTop -= 1\n        }\n        rJT = rTop > 0 ? rJoin[rTop - 1] : -3\n      }\n`],
   // the rings' tags commit with their values (same cell, same source)
   ['    committed += 1\n', (m) => '    if (nHist) {\n      for (let i = 0; i < nHist; i += 1) {\n'
     + '        const plan = histPlan[i]\n        th[histOffset[i] + (committed % plan.depth)] = plan.site === null\n'

@@ -156,6 +156,16 @@ describe('implicit flow: a T condition taints everything either arm may write, u
     const { res } = pine('float x = 0.0\nif close > open\n    x := 1.0\nplot(x)')
     expect(tags(res.taint.outputs[0])).toBe('CCCCCCCCCCCC')
   })
+  it('a value an arm leaves on the stack is T at the join: a nested ternary of constants under hi[1] (e105)', () => {
+    // lowered to branches (JUMP_IF_FALSE / JUMP), the arms push a constant each and the STORE runs AFTER the join; on
+    // bar 0 the condition reads hi[1] before the first bar. Found by the two-start oracle on kernel-channel's
+    // `midColor = midline > midline[1] ? up : midline < midline[1] ? down : flat` (bar 0 released clean, wrong).
+    const { res, program } = pine('var float hi = na\nhi := high\nc = hi > hi[1] ? 1.0 : hi < hi[1] ? 2.0 : 3.0\nplot(c)')
+    const ops = []
+    for (let pc = 0; pc < program.code.length / 3; pc += 1) ops.push(program.code[pc * 3])
+    expect(ops.filter((op) => op === OP.JUMP_IF_FALSE).length, 'non-vacuity: the ternary is lowered to branches').toBe(2)
+    expect(tags(res.taint.outputs[0])).toBe('TCCCCCCCCCCC')
+  })
 })
 
 describe('calls: an argument\'s tag reaches the body, the result\'s tag comes back', () => {

@@ -65,7 +65,13 @@ clean. ⚰️ This line said "`O` as ... a history offset -> fine" until part 2 
   pass finds each branch's join (immediate post-dominator) and the set of slots, collections, drawings and emits
   written anywhere between them (both arms, loop bodies, called functions). When a branch condition is `T`, every
   member of that write set is tainted at the branch (the arm not taken may have written it), and every write until
-  the join is `T` (a pc-taint counter). An emit under a `T` branch taints that output bar.
+  the join is `T` (a pc-taint counter). An emit under a `T` branch taints that output bar. ⛔ So is every value an
+  arm leaves ON THE STACK: a ternary lowered to branches (`a ? x : b ? y : z`, an `and` / `or` short-circuit) pushes
+  its result inside the region and stores it after the join, so the region records the stack height at the branch
+  and taints everything above it when it closes (and at a `RET` that closes it). ⚰️ Missing until e105: the two-start
+  oracle found kernel-channel's `midColor = midline > midline[1] ? up : ...` released clean on bar 0 from the arm's
+  constant, 234 wrong released bars over 4 of 11 scripts; rail `taintVm.test.js` (a value an arm leaves on the
+  stack), mutant E105-JOIN-STACK.
 - Collections (array, map, matrix, UDT record): one tag per container, joined on every write; any read is the
   container's tag joined with the index's. (Per-element tags are a later refinement, only if the census asks.)
   Fred RS's `var float[] different_values` is therefore `T` for ever: its `includes` test steers its own writes.
@@ -104,6 +110,15 @@ constant labels) and, it predicts, one more thing: on a DAILY chart the "RS Rati
 
 Only off-listing runs pay. Expected 1.3-2x VM time there (a tag load and an `or` per operand). The listing run takes
 the untouched dispatch loop (a separate taint-enabled loop, chosen once per run, never a flag test per opcode).
+
+MEASURED (`taintDifferential.test.js`, `RUNTIME_PERF_CENSUS=taint`: the runtime corpus through the product path, SPY
+1D, 5,000 bars, fastest of 3 each, a GitHub runner; per-script ratios over scripts of 5 ms or more): see the table
+in the e105 note of PR #2925. Two causes of the first measurement (2.95x total), both in how the loop is generated,
+neither in the tag rules: (1) `vm.js`'s module constants (`ADD`, `LT`, `PW`, ...) reached the generated loop by
+import, and under vitest an import is a namespace property read (a Proxy where a test mocks `vm.js`) on every
+arithmetic opcode: the generator now binds them to locals once per run; (2) the joins were calls (`tAdd(...)`) that
+competed with the value code for TurboFan's inlining budget in one very large function: the generator now inlines
+them from `taintTags.js`'s own text (`gen-vm-taint.mjs::INLINED`).
 
 ## Build order
 
