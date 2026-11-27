@@ -40,7 +40,7 @@ vi.mock('react-grid-layout', async () => {
     Responsive: ({ children, onLayoutChange, className, layouts }) => {
       const ref = useRef(null)
       const lg = (layouts && layouts.lg) || []
-      useLayoutEffect(() => { gridCommits.push({ classes: String(ref.current?.className || ''), lg }) })
+      useLayoutEffect(() => { gridCommits.push({ classes: String(ref.current?.className || ''), lg, el: ref.current }) })
       return (
         <div ref={ref} data-testid="rgl-responsive" className={`react-grid-layout ${className || ''}`}>
           <button data-testid="rgl-drag" onClick={() => onLayoutChange && onLayoutChange([{ i: 'watchlist-1', x: 10, y: 2, w: 6, h: 8 }])}>drag</button>
@@ -104,6 +104,7 @@ import ChartsWorkspace from './ChartsWorkspace'
 beforeEach(() => {
   hosts.created = {}
   hosts.renders = []
+  gridCommits.length = 0
   MAIN_LAYOUT = mainLayout(0)
   try { localStorage.clear() } catch { /* */ }
   globalThis.fetch = vi.fn(async (url) => {
@@ -157,13 +158,14 @@ test('K2 with the keep-alive off the return mounts the board again', async () =>
 test('K3 the kept board is never written: a drag on its grid moves nothing on the board in front', async () => {
   mount()
   await settle()
-  await go('Dup Board')                       // the board in front holds a watchlist-1 of its own
+  await go('Dup Board')                       // the board in front holds a watchlist-1 of its own, at x 12
   const hiddenGrid = [...document.querySelectorAll('[data-testid="rgl-responsive"]')].find((g) => !shown(g))
   expect(hiddenGrid, 'NON-VACUITY: the kept board has its grid').toBeTruthy()
-  const before = prefStore.get().charts_workspace_layout
-  await act(async () => { hiddenGrid.querySelector('[data-testid="rgl-drag"]').click() })
+  const frontX = () => [...gridCommits].reverse().find((c) => c.el && c.el.isConnected && shown(c.el))?.lg.find((i) => i.i === 'watchlist-1')?.x
+  expect(frontX(), 'NON-VACUITY: the board in front shows its own watchlist-1').toBe(12)
+  await act(async () => { hiddenGrid.querySelector('[data-testid="rgl-drag"]').click() })   // the stand-in drag: watchlist-1 to x 10
   await settle()
-  expect(prefStore.get().charts_workspace_layout, 'a drag on the kept board moved the board in front').toBe(before)
+  expect(frontX(), 'a drag on the kept board moved the board in front').toBe(12)
 })
 
 test('K4 data-widget-id is only on the board in front', async () => {
