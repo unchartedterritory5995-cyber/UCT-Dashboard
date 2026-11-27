@@ -2,16 +2,16 @@
  "populations": {
   "capture": {
    "scripts": 1039,
-   "admitted": 838,
-   "runtimeLane": 233,
+   "admitted": 841,
+   "runtimeLane": 236,
    "hostLane": 322,
    "refused": 283,
    "coreOnly": 51
   },
   "committed": {
    "scripts": 266,
-   "admitted": 195,
-   "runtimeLane": 51,
+   "admitted": 196,
+   "runtimeLane": 52,
    "hostLane": 63,
    "refused": 81,
    "coreOnly": 4
@@ -2974,6 +2974,81 @@
     "request-other",
     "ternary",
     "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-14",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
     "var"
    ]
   },
@@ -20356,6 +20431,29 @@
     "request-other",
     "ternary",
     "tuple-destructure",
+    "var"
+   ]
+  },
+  {
+   "key": "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+   "lane": "runtime",
+   "caps": [
+    "collections:array",
+    "compound-assign",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "generics",
+    "if-block",
+    "obj:box",
+    "obj:label",
+    "obj:line",
+    "obj:table",
+    "realtime-state",
+    "reassign",
+    "ternary",
     "var"
    ]
   },
