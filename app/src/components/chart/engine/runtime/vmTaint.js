@@ -29,7 +29,7 @@ import { workPulse } from '../workPulse.js'
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
-import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf } from './taintTags.js'
+import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf, taintBranch } from './taintTags.js'
 import { ADD, AND, CLOCK_GETTER, CUMULATIVE_LIMITS, DISARMED_NO_OPS, DIV, DisarmedBrokerRead, EQ, GE, GT, LE, LT, MUL, NE, NEG, NOT, NO_OUTPUT, OP_HALT, OR, PW, SUB, VmError, _regionScopeOff, chargedSince, countsOf, requestRegionScopeOf, runNow, runRequest } from './vm.js'
 
 export { TAG }
@@ -388,25 +388,12 @@ export function executeTainted(program, ctx, limits, opts) {
   const rJoin = []
   const rDepth = []
   let rTop = 0
-  const taintWrites = (w, lb, pb, bar) => {
-    for (const x of w.locals) tl[lb + x] = 2
-    for (const x of w.persist) tp[pb + x] = 2
-    for (const x of w.held) theld[x] = 2
-    for (const x of w.outputs) outT[x][bar] = 2
-    for (const x of w.iters) iterT[x].fill(2)
-  }
-  // a T branch: every effect EITHER arm may have (the arm not taken included) is T now, and every write until the
-  // join is T (`rTop`); a loop head re-tested inside its own region opens nothing new
-  const taintBranch = (p, lb, pb, bar, d) => {
-    for (let r = 0; r < rTop; r += 1) if (rBr[r] === p && rDepth[r] === d) return
-    const w = brW[p]
-    taintWrites(w, lb, pb, bar)
-    for (const s of w.calls) taintWrites(siteW[s], 0, 0, bar)
-    rBr[rTop] = p
-    rJoin[rTop] = brJoin[p]
-    rDepth[rTop] = d
-    rTop += 1
-  }
+  // ⭐ PERF: the innermost region's join in one scalar: each fetch is ONE compare (`pc === rJT`); the region arrays (and
+  // the call depth) are read only when control reaches a join
+  let rJT = -3
+  // ⭐ PERF: the implicit-flow work lives in `taintTags.js::taintBranch` and is handed this state, so no closure here
+  // captures a tag array or `rTop`: the loop keeps them in registers, not context slots loaded per instruction
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }
   for (let bar = startBar; bar < runBars; bar += 1) {
     let extraRun = false
     if (broker) {
@@ -417,6 +404,7 @@ export function executeTainted(program, ctx, limits, opts) {
     locals.fill(NaN, 0, program.locals)
     tl.fill(0, 0, program.locals)
     rTop = 0
+    rJT = -3
     let sp = 0
     let pc = entryPc
     let perBar = 0
@@ -433,7 +421,10 @@ export function executeTainted(program, ctx, limits, opts) {
       const op = code[base]
       const a = code[base + 1]
       const b = code[base + 2]
-      while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1
+      if (pc === rJT) {
+        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1
+        rJT = rTop > 0 ? rJoin[rTop - 1] : -3
+      }
       pc += 1
       perBar += 1
       if (perBar > instrCap) {
@@ -573,12 +564,12 @@ export function executeTainted(program, ctx, limits, opts) {
           initialised[persistBase + a] = 1
           break
         case 60 /* OP.JUMP */: pc = a; break
-        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) taintBranch(pc - 1, localsBase, persistBase, bar, depth); {
+        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } {
           const t = stack[--sp]
           if (t !== t || t === 0) pc = a
           break
         }
-        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) taintBranch(pc - 1, localsBase, persistBase, bar, depth); if (initialised[persistBase + a]) pc = b; break
+        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } if (initialised[persistBase + a]) pc = b; break
         case 70 /* OP.CALL */: { const _f = program.functions[a]; const _nb = localsTop; for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; tl.fill(0, _nb + _f.params, _nb + _f.frameSize) } {
           const fn = program.functions[a]
           const site = program.callSites[b]
@@ -838,7 +829,7 @@ export function executeTainted(program, ctx, limits, opts) {
             car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n, v2third)
           break
         }
-                case 71 /* OP.RET */: { while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; const _rf = program.functions[frFn[depth - 1]]; for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 : (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) } {
+                case 71 /* OP.RET */: { while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 : (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) } {
           {
             const rf = program.functions[frFn[depth - 1]]
             const hc = rf.historyCount
@@ -941,7 +932,7 @@ export function executeTainted(program, ctx, limits, opts) {
           break
         }
         case 86 /* OP.DROP */: sp -= a; break
-        case 41 /* OP.HALT */: rTop = 0; break
+        case 41 /* OP.HALT */: rTop = 0; rJT = -3; break
         default:
           throw new VmError(
             `pc ${pc - 1}: ${IMPLEMENTED.has(op) ? 'unhandled' : 'reserved'} opcode `

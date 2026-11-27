@@ -6,7 +6,7 @@
    "id": "E104-S1",
    "mutant": "source 1 dropped: a var initialiser running is not a T branch",
    "file": "app/src/components/chart/engine/runtime/vmTaint.js",
-   "from": "case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) taintBranch(pc - 1, localsBase, persistBase, bar, depth);",
+   "from": "case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }",
    "to": "case 62 /* OP.JUMP_IF_INIT */:",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
    "expectRed": "a counter built on itself"
@@ -86,8 +86,8 @@
   {
    "id": "E104-WRITESET",
    "mutant": "implicit flow without the write set: the arm not taken leaves its local clean",
-   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
-   "from": "for (const x of w.locals) tl[lb + x] = 2",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "for (const x of w.locals) S.tl[lb + x] = 2",
    "to": "for (const x of w.locals) void x",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
    "expectRed": "the bars that did not take the arm included"

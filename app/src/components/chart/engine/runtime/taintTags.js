@@ -58,6 +58,30 @@ export function branchTableOf(program) {
   return t
 }
 
+/** Every effect in a write set is T now: `S` is the run's tag state, `lb` / `pb` the frame's locals / persist bases. */
+function taintWrites(S, w, lb, pb, bar) {
+  for (const x of w.locals) S.tl[lb + x] = 2
+  for (const x of w.persist) S.tp[pb + x] = 2
+  for (const x of w.held) S.theld[x] = 2
+  for (const x of w.outputs) S.outT[x][bar] = 2
+  for (const x of w.iters) S.iterT[x].fill(2)
+}
+
+/** A T branch at `p` (call depth `d`), with `top` regions open: every effect EITHER arm may have (the arm not taken
+ *  included) is T now, the called sites' absolute effects too, and a region opens until the branch's join (every write
+ *  until then is T). Answers the new number of open regions. A loop head re-tested inside its own region opens nothing.
+ *  `S` = `{ tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }` (the generated loop's own arrays). */
+export function taintBranch(S, p, lb, pb, bar, d, top) {
+  for (let r = 0; r < top; r += 1) if (S.rBr[r] === p && S.rDepth[r] === d) return top
+  const w = S.brW[p]
+  taintWrites(S, w, lb, pb, bar)
+  for (const s of w.calls) taintWrites(S, S.siteW[s], 0, 0, bar)
+  S.rBr[top] = p
+  S.rJoin[top] = S.brJoin[p]
+  S.rDepth[top] = d
+  return top + 1
+}
+
 // ─── THE COLUMNS' TAGS (part 2: one tag per column; part 3 replaces this with each node's `cleanFrom`) ─────────────
 /** The bar series a column may read and stay clean (each bar's own value, whatever the start). */
 const CLEAN_SERIES = new Set(['open', 'high', 'low', 'close', 'volume'])

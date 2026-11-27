@@ -33,7 +33,7 @@ export const OUT_PATH = path.resolve(HERE, '../src/components/chart/engine/runti
 /** Each opcode's tag statement(s), keyed by the name in the case label. In scope: the value loop's own variables
  *  (`sp` and `pc` as the case finds them, `a`, `b`, `bar`, the frame bases, `depth`, `committed`, `stack`, ...) and
  *  the tag state the setup anchor declares (`ts` stack, `tl` locals, `tp` persist, `th` rings, `theld` held cells,
- *  `outT` outputs, `iterT` iteration buffers, `colTag`, `rTop` the implicit-flow depth, `taintBranch`). Tags are
+ *  `outT` outputs, `iterT` iteration buffers, `colTag`, `rTop` the implicit-flow depth, `TS` the state `taintBranch` is handed). Tags are
  *  C 0, O 1, T 2. Every multi-statement rule is braced, so its names never meet the case's own. */
 export const TAG_RULES = Object.freeze({
   // ── sources: constants, the bar's own prices and clock are clean ──
@@ -84,14 +84,14 @@ export const TAG_RULES = Object.freeze({
   LOAD_GLOBAL_PERSIST: 'ts[sp] = tp[a];',
   // ── control: a T condition taints the branch's whole write set and opens a region until its join ──
   JUMP: '',
-  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) taintBranch(pc - 1, localsBase, persistBase, bar, depth);',
+  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   // source 1: whether a `var` initialiser runs here is start-dependent (another start ran it on ITS first bar)
-  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) taintBranch(pc - 1, localsBase, persistBase, bar, depth);',
+  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   CALL: '{ const _f = program.functions[a]; const _nb = localsTop; '
     + 'for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; '
     + 'tl.fill(0, _nb + _f.params, _nb + _f.frameSize) }',
   // the frame's own regions end here; the site's held cells take the slots' tags (T if the CALL itself was steered)
-  RET: '{ while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; const _rf = program.functions[frFn[depth - 1]]; '
+  RET: '{ while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; '
     + 'for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 '
     + ': (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) }',
   // ── calls over values: clean only over clean values (a drawing asked `na(h)` of is the store's state: T) ──
@@ -120,7 +120,7 @@ export const TAG_RULES = Object.freeze({
   LOOP_TICK: '',
   WHILE_BOUND: '',
   DROP: '',
-  HALT: 'rTop = 0;',
+  HALT: 'rTop = 0; rJT = -3;',
 })
 
 const SETUP = `  // ─── START-TAINT (generated, \`app/scripts/gen-vm-taint.mjs\`) — THE TAGS, one byte beside every value ───
@@ -153,25 +153,12 @@ const SETUP = `  // ─── START-TAINT (generated, \`app/scripts/gen-vm-taint
   const rJoin = []
   const rDepth = []
   let rTop = 0
-  const taintWrites = (w, lb, pb, bar) => {
-    for (const x of w.locals) tl[lb + x] = 2
-    for (const x of w.persist) tp[pb + x] = 2
-    for (const x of w.held) theld[x] = 2
-    for (const x of w.outputs) outT[x][bar] = 2
-    for (const x of w.iters) iterT[x].fill(2)
-  }
-  // a T branch: every effect EITHER arm may have (the arm not taken included) is T now, and every write until the
-  // join is T (\`rTop\`); a loop head re-tested inside its own region opens nothing new
-  const taintBranch = (p, lb, pb, bar, d) => {
-    for (let r = 0; r < rTop; r += 1) if (rBr[r] === p && rDepth[r] === d) return
-    const w = brW[p]
-    taintWrites(w, lb, pb, bar)
-    for (const s of w.calls) taintWrites(siteW[s], 0, 0, bar)
-    rBr[rTop] = p
-    rJoin[rTop] = brJoin[p]
-    rDepth[rTop] = d
-    rTop += 1
-  }
+  // ⭐ PERF: the innermost region's join in one scalar: each fetch is ONE compare (\`pc === rJT\`); the region arrays (and
+  // the call depth) are read only when control reaches a join
+  let rJT = -3
+  // ⭐ PERF: the implicit-flow work lives in \`taintTags.js::taintBranch\` and is handed this state, so no closure here
+  // captures a tag array or \`rTop\`: the loop keeps them in registers, not context slots loaded per instruction
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }
 `
 
 const PROLOGUE = `  // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
@@ -188,10 +175,10 @@ export const ANCHORS = Object.freeze([
   // the tags, allocated once, after every store they shadow exists
   ['  for (let bar = startBar; bar < runBars; bar += 1) {\n', (m) => SETUP + m],
   // the main frame's locals are `na` again each bar (clean); no region outlives its bar
-  ['    locals.fill(NaN, 0, program.locals)\n', (m) => `${m}    tl.fill(0, 0, program.locals)\n    rTop = 0\n`],
+  ['    locals.fill(NaN, 0, program.locals)\n', (m) => `${m}    tl.fill(0, 0, program.locals)\n    rTop = 0\n    rJT = -3\n`],
   // a region closes when control reaches its join in the frame that opened it
   ['      const b = code[base + 2]\n',
-    (m) => `${m}      while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1\n`],
+    (m) => `${m}      if (pc === rJT) {\n        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1\n        rJT = rTop > 0 ? rJoin[rTop - 1] : -3\n      }\n`],
   // the rings' tags commit with their values (same cell, same source)
   ['    committed += 1\n', (m) => '    if (nHist) {\n      for (let i = 0; i < nHist; i += 1) {\n'
     + '        const plan = histPlan[i]\n        th[histOffset[i] + (committed % plan.depth)] = plan.site === null\n'
@@ -296,7 +283,7 @@ export function generateVmTaint(vmSource) {
     '// explain the value code are in `vm.js`, line for line.',
     '/* eslint-disable */',
     ...importsOf(src),
-    "import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf } from './taintTags.js'",
+    "import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf, taintBranch } from './taintTags.js'",
     `import { ${fromVm.join(', ')} } from './vm.js'`,
     '',
     'export { TAG }',
