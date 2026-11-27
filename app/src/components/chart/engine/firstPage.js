@@ -44,6 +44,8 @@ export const FIRST_PAGE_POST_ROWS = FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
 /** Clock leaves counted from the history's first bar (`closedTable.json` clock): the same bar reads another number when
  *  the history starts elsewhere, whatever its reach says. (A higher timeframe's read is refused beside them.) */
 export const START_COUNTED_CLOCK = Object.freeze(['barindex', 'isfirst', 'lastbarindex'])
+/** Reads resampled to another timeframe (`parse.js::NODE_TYPES`): higher (`tf`, `tf_live`, `tf_merge`) and lower (`ltf`). */
+export const OTHER_TIMEFRAME_NODES = Object.freeze(['tf', 'tf_live', 'tf_merge', 'ltf'])
 const readsStartCounted = (tree) => {   // …or anything else the reach cannot bound (below)
   const stack = [tree]
   const seen = new Set()
@@ -52,10 +54,10 @@ const readsStartCounted = (tree) => {   // …or anything else the reach cannot 
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
     if (typeof n.name === 'string' && START_COUNTED_CLOCK.includes(n.name)) return true
-    // ⛔ a HIGHER timeframe's read (`tf`, `tf_live`): its reach in chart bars is a span ESTIMATE (`lint.js`: a period
+    // ⛔ another timeframe's read (`OTHER_TIMEFRAME_NODES`): its reach in chart bars is a span ESTIMATE (`lint.js`: a period
     // is counted as a fixed number of chart bars), not a bound, and its first period on a page is partial. MEASURED: the
     // census's one remaining wrong plot after the reach rule was a monthly `valuewhen` whose estimated reach fit the probe.
-    if (n.type === 'tf' || n.type === 'tf_live') return true
+    if (OTHER_TIMEFRAME_NODES.includes(n.type)) return true
     // ⛔ a call whose declared reach is not a WINDOW (`closedTable.json` lookback: a number, or `argN` / `k*argN`): a
     // `series` reach (`cum`, an anchored VWAP, `valuewhenOccurrence`) or a `session` one is not a bar count the linter
     // can bound. MEASURED (the rail): `cum(close)` came back with a finite reach. A function the table does not name is

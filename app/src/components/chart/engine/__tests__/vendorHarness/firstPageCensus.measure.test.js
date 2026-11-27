@@ -25,8 +25,12 @@ const REPO = path.resolve(process.cwd(), '..')
 const CORPUS = path.join(REPO, 'corpus', 'committed')
 const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
 const SERIES = [
-  { file: 'adx-and-di-for-v4-spy-1d-2026-11-17.json', tf: 'D', historyFromListing: true },
-  { file: '3-level-zigzag-semafor-spy-60-2026-11-14.json', tf: '60', historyFromListing: false },
+  { file: 'adx-and-di-for-v4-spy-1d-2026-11-17.json', tf: 'D', historyFromListing: true, ticker: 'SPY', exchange: 'NYSE Arca' },
+  { file: '3-level-zigzag-semafor-spy-60-2026-11-14.json', tf: '60', historyFromListing: false, ticker: 'SPY', exchange: 'NYSE Arca' },
+  // (coordinator, 2026-11-27) two more shapes: a short-history symbol and a 5m chart
+  { file: 'vw-format-percent-rddt-1d-2026-11-23-preopen.json', tf: 'D', historyFromListing: true, ticker: 'RDDT', exchange: 'NYSE' },
+  { file: 'vw-lower-tf-bars-rddt-5-2026-11-16.json', tf: '5', historyFromListing: false, ticker: 'RDDT', exchange: 'NYSE' },
+  { file: 'vw-udaily-expr-spy-5-2026-11-23.json', tf: '5', historyFromListing: false, ticker: 'SPY', exchange: 'NYSE Arca' },
 ]
 
 afterEach(() => { vi.unstubAllEnvs() })
@@ -43,7 +47,10 @@ describe.skipIf(!RUN)('the host lane\'s first page against the full history (opt
       const cap = JSON.parse(fs.readFileSync(path.join(HARNESS, s.file), 'utf8'))
       return { ...s, rows: cap.bars.rows }
     })
-    for (const s of series) expect(s.rows.length, s.file).toBeGreaterThan(2 * FIRST_PAGE_ROWS + 251)
+    // a chart shorter than a page never gets one (`hostLaneAsync.firstPageJobOf`): counted, not computed
+    const PAGE_MIN = 2 * FIRST_PAGE_ROWS + 251
+    tally.perSeries = Object.fromEntries(series.map((s) => [s.file, { rows: s.rows.length, pageApplies: s.rows.length >= PAGE_MIN, pages: 0, exactOnPage: 0, wrong: 0 }]))
+    expect(series.filter((s) => s.rows.length >= PAGE_MIN).length).toBeGreaterThanOrEqual(4)
     for (const f of files) {
       const source = fs.readFileSync(path.join(CORPUS, f), 'utf8')
       let door
@@ -52,9 +59,10 @@ describe.skipIf(!RUN)('the host lane\'s first page against the full history (opt
         if (!door.def || !door.built || door.built.lane === 'runtime' || door.def.compute.kind !== 'ast') continue
         tally.hostScripts += 1
         for (const s of series) {
+          if (!tally.perSeries[s.file].pageApplies) continue
           const rows = freshBars(s.rows)
           const ctx = { tf: s.tf, newestBarIsForming: false, historyFromListing: s.historyFromListing,
-            symbol: { ticker: 'SPY', exchange: 'NYSE Arca' } }
+            symbol: { ticker: s.ticker, exchange: s.exchange } }
           let plan
           let page
           let full
@@ -65,10 +73,12 @@ describe.skipIf(!RUN)('the host lane\'s first page against the full history (opt
             full = astColumnsGiven(plan.def, rows, plan.scalars, ctx, null)
           } catch { tally.threw += 1; continue }
           tally.pages += 1
+          tally.perSeries[s.file].pages += 1
           page.keys.forEach((key, j) => {
             tally.plots += 1
             if (!page.exact[j]) return
             tally.exactOnPage += 1
+            tally.perSeries[s.file].exactOnPage += 1
             const col = full[key]
             const vals = page.values[j]
             let firstBad = -1
@@ -76,7 +86,7 @@ describe.skipIf(!RUN)('the host lane\'s first page against the full history (opt
               const want = col ? col[col.length - FIRST_PAGE_ROWS + i] : undefined
               if (!Object.is(Number(want), vals[i]) && !(Number.isNaN(Number(want)) && Number.isNaN(vals[i]))) { firstBad = i; break }
             }
-            if (firstBad >= 0) tally.wrong.push(`${f} ${s.tf} ${key} first page bar ${firstBad}`)
+            if (firstBad >= 0) { tally.wrong.push(`${f} ${s.file} ${key} first page bar ${firstBad}`); tally.perSeries[s.file].wrong += 1 }
           })
         }
       } finally {

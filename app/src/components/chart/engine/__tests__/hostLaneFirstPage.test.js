@@ -15,6 +15,7 @@ import {
   FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE,
 } from '../hostLaneAsync'
 import { FIRST_PAGE_NOTE, pageReachProvable } from '../firstPage'
+import { maxLookback } from '../ast/lint'
 import { withheldBarsReport } from '../astColumns'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { OWN_DAILY_KEY } from '../otherSymbols'
@@ -210,9 +211,11 @@ describe('the first page: drawn at once, byte-equal to the full history where it
       none: pageReachProvable(tree(null), 'v'),
     }
     // a monthly read: its reach is a span estimate, never trusted
-    got.monthly = pageReachProvable(tree({ type: 'tf', code: 'M', args: [close] }), 'v')
+    got.monthly = pageReachProvable(tree({ type: 'tf', value: 'M', args: [close] }), 'v')
+    // non-vacuity: the same monthly read without the timeframe node's refusal has a finite reach within the probe
+    got.monthlyReachAlone = pageReachProvable(tree(close), 'v') && typeof maxLookback({ type: 'tf', value: 'M', args: [close] }) === 'number'
     expect(JSON.stringify(got)).toBe(JSON.stringify({ close: true, sma20: true, smaAtProbe: true, smaPastProbe: false,
-      barindex: false, cum: false, none: false, monthly: false }))
+      barindex: false, cum: false, none: false, monthly: false, monthlyReachAlone: true }))
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {

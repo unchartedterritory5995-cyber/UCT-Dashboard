@@ -21,9 +21,9 @@
   },
   {
    "id": "P3",
-   "mutant": "a higher timeframe's read is trusted",
+   "mutant": "another timeframe's read is trusted",
    "file": "app/src/components/chart/engine/firstPage.js",
-   "from": "    if (n.type === 'tf' || n.type === 'tf_live') return true\n",
+   "from": "    if (OTHER_TIMEFRAME_NODES.includes(n.type)) return true\n",
    "to": "",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
    "expectRed": "the reach rule"
