@@ -11,6 +11,9 @@
 //   D3 an entry rebuilt deeper than first paint but shallower than the join (a saved copy) asks again
 //   D4 a page with no join of its own (a new network on a registry still holding the deep copy) asks, as today
 //   D5 a failed join (settled at the tail's depth) whose entry is rebuilt shallow asks again
+//   D6 (red first, review of #2869) a join that ended in an error records no depth: an entry deeper than first paint
+//      (a saved copy) whose history and full-read recovery both failed asks again in the next key life
+//   D7 a display waiting on the join is released on a failed join too (not after its timeout)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork } from './network'
@@ -33,7 +36,7 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok' } = {}) {
+function world({ history = 'ok', full = 'ok' } = {}) {
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
@@ -42,6 +45,7 @@ function world({ history = 'ok' } = {}) {
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
     }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
+    if (full === 'throw' && n > 600) throw Object.assign(new Error('origin down'), { status: 502 })
     return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), '2026-11-10').map((t) => bar(t)) }
   })
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
@@ -107,5 +111,25 @@ describe('BarStore deep daily history: once per page while held', () => {
     w.registry.invalidate(w.key, 'test-reset')
     await visit(w, w.net, 200)
     expect(histCalls(w).length, 'a failed join read as joined after a shallow rebuild').toBe(2)
+  })
+
+  it('D6 (red first) a join that ended in an error records no depth: the next key life asks again', async () => {
+    const w = world({ history: 'throw', full: 'throw' })
+    w.registry.dispatch(w.key, { type: ACTION.IDB_HIT, key: w.key, payload: { bars: weekdays(1000, '2026-11-09').map((t) => bar(t)) } })
+    await visit(w, w.net, 200)
+    expect(histCalls(w).length).toBe(1)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(1000)
+    await visit(w, w.net, 200)
+    expect(histCalls(w).length, 'the depth of a failed join read as joined in the next key life').toBe(2)
+  })
+
+  it('D7 a display waiting on the join is released when the join fails', async () => {
+    const w = world({ history: 'throw' })
+    const stop = w.net.start(w.key, { depth: w.depth })
+    let got = 'waiting'
+    w.net.deepJoined(w.key, 5000).then((v) => { got = v })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(got, 'the waiter was held to its timeout by a failed join').toBe(true)
+    stop()
   })
 })
