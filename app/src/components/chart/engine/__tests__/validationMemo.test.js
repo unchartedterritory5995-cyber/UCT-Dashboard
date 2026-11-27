@@ -16,6 +16,7 @@ import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinit
 import { setRuntimeKillList } from '../runtimeKill'
 import { HELD_DIVERGENCE_STAMP } from '../heldWithholds'
 import { asMember } from '../../../../testing/runtimeGate'
+import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 
 vi.setConfig({ testTimeout: 300000 })
 asMember({ allow: true, pane: true, hkd: true })
@@ -45,10 +46,12 @@ afterEach(() => {
   registry.__validationMemoOffForTests(false)
   registry.clearUserDefinitions()
   setRuntimeKillList([])
+  __resetRuntimePanePermission()
 })
 const paneOn = () => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+  __permitRuntimePaneForTests()      // the member's permission (the build flag alone does not admit the lane)
 }
 
 describe('an unchanged list is not validated twice; every live gate is asked every time', () => {
