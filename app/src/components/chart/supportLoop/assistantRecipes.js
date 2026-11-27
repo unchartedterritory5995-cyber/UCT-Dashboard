@@ -207,6 +207,20 @@ export function memberProofStands(member, finishedBarsOnly) {
     && member[h].forming === (finishedBarsOnly === true ? MEMBER_ANSWER.WAITS : MEMBER_ANSWER.RUNS))
 }
 
+/** ⭐⭐ (e102, coordinator ruling 2026-11-27) THE SCOPE OF A RECIPE THAT CARRIES STATE BAR TO BAR. With the off-listing
+ *  curtain off (`runtime/runtimeColumns.js::_offListingCurtainOn`) such a recipe is refused BY NAME on a chart whose history
+ *  does not reach the listing, and computes exactly on one that does. It is served with that scope stated
+ *  (`historyScope: 'fromListing'`), never dropped and never promised on an intraday chart (`pine_authoring.recipes_text`).
+ *  Only this one refusal earns a scope: any other answer off the listing is not served. */
+export const HISTORY_START_GUARD = 'runtime:history-start'
+export const FROM_LISTING_SCOPE = 'fromListing'
+const provenOn = (h, runs, member, draws, waits) => runs[h].ok && runs[h].values > 0 && (!draws || drawingsMade(runs[h].drawings))
+  && !!member && !!member[h] && member[h].finished === MEMBER_ANSWER.RUNS
+  && member[h].forming === (waits ? MEMBER_ANSWER.WAITS : MEMBER_ANSWER.RUNS)
+const refusedOffListingByName = (runs, member) => runs.offListing && runs.offListing.ok === false
+  && runs.offListing.guard === HISTORY_START_GUARD && !!member && !!member.offListing
+  && member.offListing.finished === `stopped: ${HISTORY_START_GUARD}`
+
 export function buildAssistantRecipes({ recipes = [], verdictOf, computeOf, memberOf, stopProbes = RUN_STOP_PROBES }) {
   const rows = recipes.map((r) => {
     const v = verdictOf(r.source) || {}
@@ -236,11 +250,16 @@ export function buildAssistantRecipes({ recipes = [], verdictOf, computeOf, memb
         finished: clean(m.finished).slice(0, 120) || MEMBER_ANSWER.NOT_PROVEN,
       }
     }
-    const served = pasted && RECIPE_HISTORIES.every((h) => runs[h].ok && runs[h].values > 0
+    const everywhere = pasted && RECIPE_HISTORIES.every((h) => runs[h].ok && runs[h].values > 0
       && (!draws || drawingsMade(runs[h].drawings))) && memberProofStands(member, waits)
+    // ⭐⭐ (e102) proven from the listing, refused off it by name: served WITH its scope
+    const fromListingOnly = !everywhere && pasted && provenOn('fromListing', runs, member, draws, waits)
+      && refusedOffListingByName(runs, member)
+    const served = everywhere || fromListingOnly
     return {
       id: r.id, title: r.title, asks: r.asks, shows: r.shows, chart: r.chart, source: r.source,
       lane: v.lane || 'host', state: v.state || 'unknown', headline: clean(v.headline), draws, runs, member, served,
+      ...(fromListingOnly ? { historyScope: FROM_LISTING_SCOPE } : {}),
       // ⭐ 2026-11-19: DECLARED in the folder's index, never worked out here. A recipe that does its work on the
       // chart's last bar is admitted for FINISHED bars only (G6), so on a live chart it is drawn when the newest
       // bar closes. The server's own rule is asked about every recipe and holds this flag to its answer

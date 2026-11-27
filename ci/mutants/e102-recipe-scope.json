@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "a scoped recipe is offered WITHOUT its scope sentence",
+   "file": "api/services/pine_authoring.py",
+   "from": "        if scope_line(r):\n            out += [scope_line(r)]\n",
+   "to": "",
+   "rail": "python -m pytest tests/test_pine_authoring.py -q -p no:cacheprovider -k scoped_to_the_listing",
+   "expectRed": "scoped_to_the_listing"
+  },
+  {
+   "id": "S2",
+   "mutant": "the generator drops the recipe's history scope",
+   "file": "app/src/components/chart/supportLoop/assistantRecipes.js",
+   "from": "      ...(fromListingOnly ? { historyScope: FROM_LISTING_SCOPE } : {}),\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/supportLoop/assistantPineReference.test.js",
+   "expectRed": "every recipe in the folder is SERVED today"
+  },
+  {
+   "id": "S3",
+   "mutant": "a scoped worked example is shown WITHOUT its scope sentence",
+   "file": "api/services/pine_authoring.py",
+   "from": "        examples += ([scope_line(e)] if scope_line(e) else []) + [\"\"]\n",
+   "to": "        examples += [\"\"]\n",
+   "rail": "python -m pytest tests/test_pine_authoring.py -q -p no:cacheprovider -k scoped_to_the_listing",
+   "expectRed": "scoped_to_the_listing"
+  }
+ ]
+}

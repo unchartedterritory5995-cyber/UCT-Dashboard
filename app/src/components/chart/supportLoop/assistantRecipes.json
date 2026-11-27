@@ -83,14 +83,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1439,
-     "drawings": {
-      "made": 6,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -99,11 +95,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "volume-profile",
@@ -134,14 +131,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1,
-     "drawings": {
-      "made": 24,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -151,10 +144,11 @@
     },
     "offListing": {
      "forming": "waits",
-     "finished": "runs"
+     "finished": "stopped: runtime:history-start"
     }
    },
    "served": true,
+   "historyScope": "fromListing",
    "finishedBarsOnly": true
   },
   {
@@ -180,8 +174,10 @@
      "values": 3120
     },
     "offListing": {
-     "ok": true,
-     "values": 2808
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -190,11 +186,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "rsi-divergence",
@@ -266,14 +263,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1405,
-     "drawings": {
-      "made": 40,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -282,11 +275,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "gap-zones",
@@ -317,14 +311,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1685,
-     "drawings": {
-      "made": 4,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -333,11 +323,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "regression-channel",
@@ -361,8 +352,10 @@
      "values": 1901
     },
     "offListing": {
-     "ok": true,
-     "values": 1650
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -371,11 +364,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "schaff-trend-cycle",
@@ -398,8 +392,10 @@
      "values": 2000
     },
     "offListing": {
-     "ok": true,
-     "values": 1154
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -408,11 +404,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "weekday-returns-table",
@@ -443,14 +440,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1,
-     "drawings": {
-      "made": 1,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -460,10 +453,11 @@
     },
     "offListing": {
      "forming": "waits",
-     "finished": "runs"
+     "finished": "stopped: runtime:history-start"
     }
    },
    "served": true,
+   "historyScope": "fromListing",
    "finishedBarsOnly": true
   },
   {
@@ -530,8 +524,10 @@
      "values": 282
     },
     "offListing": {
-     "ok": true,
-     "values": 282
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -540,11 +536,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "opening-range",
@@ -569,8 +566,10 @@
      "values": 2808
     },
     "offListing": {
-     "ok": true,
-     "values": 2592
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -579,11 +578,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "fibonacci-swings",
@@ -614,14 +614,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1703,
-     "drawings": {
-      "made": 14,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -630,11 +626,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "auto-trendlines",
@@ -666,14 +663,10 @@
      }
     },
     "offListing": {
-     "ok": true,
-     "values": 1638,
-     "drawings": {
-      "made": 2,
-      "lost": false,
-      "withheld": null,
-      "partial": false
-     }
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -682,11 +675,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "heikin-ashi-candles",
@@ -711,8 +705,10 @@
      "values": 2000
     },
     "offListing": {
-     "ok": true,
-     "values": 1729
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -721,11 +717,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "average-cloud",
@@ -792,8 +789,10 @@
      "values": 2262
     },
     "offListing": {
-     "ok": true,
-     "values": 2028
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -802,11 +801,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "distribution-days",
@@ -829,8 +829,10 @@
      "values": 2000
     },
     "offListing": {
-     "ok": true,
-     "values": 1725
+     "ok": false,
+     "guard": "runtime:history-start",
+     "why": "this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history r",
+     "values": 0
     }
    },
    "member": {
@@ -839,11 +841,12 @@
      "finished": "runs"
     },
     "offListing": {
-     "forming": "runs",
-     "finished": "runs"
+     "forming": "stopped: runtime:history-start",
+     "finished": "stopped: runtime:history-start"
     }
    },
-   "served": true
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "follow-through-day",
@@ -907,7 +910,7 @@
    "id": "running-total",
    "history": "offListing",
    "standing": true,
-   "guard": "runtime:warmup-never-converges"
+   "guard": "runtime:history-start"
   },
   {
    "id": "timestamp-clock",

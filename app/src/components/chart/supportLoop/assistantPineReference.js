@@ -192,7 +192,9 @@ export function buildAssistantPineReference({ allowlist, doorNames, examples = [
       const v = verdictRow(verdictOf(PITFALL_PROBES[id]))
       return { id, state: v.state, standing: !(v.ok && RUNS_STATES.includes(v.state)) }
     }),
-    examples: examples.map((e) => ({ id: e.id, title: e.title, shows: e.shows, source: e.source, ...verdictRow(verdictOf(e.source)) })),
+    examples: examples.map((e) => ({ id: e.id, title: e.title, shows: e.shows, source: e.source, ...verdictRow(verdictOf(e.source)),
+      // ⭐⭐ (e102) its history scope, declared in the folder's index and held to a real run by the test
+      ...(e.historyScope ? { historyScope: e.historyScope } : {}) })),
   }
 }
 

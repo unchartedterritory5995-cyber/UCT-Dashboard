@@ -389,8 +389,12 @@ def test_every_recipe_in_the_file_is_served_and_only_served_ones_are_ever_handed
     for r in served:
         assert r["source"].startswith("//@version=5") and "indicator(" in r["source"], r["id"]
         assert pa.script_problem(r["source"]) is None, r["id"]
-        for history in ("fromListing", "offListing"):
+        # (e102) a recipe scoped to charts that reach the listing is proven there, and refused off it BY NAME
+        scoped = r.get("historyScope") == pa.FROM_LISTING_SCOPE
+        for history in ("fromListing",) if scoped else ("fromListing", "offListing"):
             assert r["runs"][history]["ok"] is True and r["runs"][history]["values"] > 0, (r["id"], history)
+        if scoped:
+            assert r["runs"]["offListing"]["ok"] is False and r["runs"]["offListing"]["guard"] == "runtime:history-start", r["id"]
     # CONTROL: a recipe the run refused, or one that is not a script, is never handed over
     doc = json.loads(json.dumps(RECIPES_DOC))
     doc["recipes"][0]["served"] = False
@@ -728,6 +732,10 @@ def test_every_recipe_the_assistant_is_shown_is_proven_as_a_member_has_it():
         assert waits is (r.get("finishedBarsOnly") is True), r["id"]
         assert set(r["member"]) == {"fromListing", "offListing"}, (r["id"], sorted(r["member"]))
         for history, answer in r["member"].items():
+            if history == "offListing" and r.get("historyScope") == pa.FROM_LISTING_SCOPE:
+                # (e102) refused by name off the listing, as a member has it
+                assert answer["finished"] == "stopped: runtime:history-start", (r["id"], answer)
+                continue
             assert answer == {"forming": "waits" if waits else "runs", "finished": "runs"}, (r["id"], history, answer)
         if waits:
             waiting.add(r["id"])
@@ -735,6 +743,29 @@ def test_every_recipe_the_assistant_is_shown_is_proven_as_a_member_has_it():
     # CONTROL: the lane matters. A fast-lane recipe that reads another timeframe carries the fact and does not wait.
     fast = [r for r in shown if r["lane"] == "host" and pa.waits_for_the_bar(r["source"])]
     assert fast and all(r["member"]["fromListing"]["forming"] == "runs" for r in fast), [r["id"] for r in fast]
+
+
+def test_a_recipe_scoped_to_the_listing_is_offered_and_its_scope_reaches_the_assistant():
+    """(e102, coordinator ruling 2026-11-27) The off-listing curtain is off: a recipe that carries state bar to bar is
+    refused by name on an intraday chart and computes exactly on a daily one that reaches the listing. It is OFFERED with
+    its scope stated, never dropped, and the assistant is never told it runs on an intraday chart."""
+    shown = {r["id"]: r for r in pa.recipes()}
+    scoped = [r for r in shown.values() if r.get("historyScope") == pa.FROM_LISTING_SCOPE]
+    assert len(scoped) >= 10, sorted(shown)                       # non-vacuity: the generated file carries scopes
+    assert "supply-demand-zones" in {r["id"] for r in scoped}
+    found = pa.recipes_for("mark supply and demand zones")
+    assert found and found[0]["id"] == "supply-demand-zones"      # OFFERED
+    text = pa.recipes_text(found)
+    assert pa.FROM_LISTING_SCOPE_LINE in text                     # its scope reaches the assistant
+    assert "intraday" in pa.FROM_LISTING_SCOPE_LINE and "Never say it runs on an intraday chart" in pa.FROM_LISTING_SCOPE_LINE
+    # a recipe with no scope carries no scope line
+    plain = [r for r in shown.values() if not r.get("historyScope")]
+    assert plain and pa.FROM_LISTING_SCOPE_LINE not in pa.recipes_text(plain[:1])
+    # the worked examples declared with the scope carry the same line in the contract
+    contract = pa.document()   # the reference document every script turn reads (its worked examples)
+    examples = [e for e in pa.worked_examples() if e.get("historyScope") == pa.FROM_LISTING_SCOPE]
+    assert {e["id"] for e in examples} == {"loops-and-arrays", "levels-from-a-list", "heikin-ashi-candles"}
+    assert contract.count(pa.FROM_LISTING_SCOPE_LINE) == len(examples)
 
 
 def test_the_sentence_about_the_bar_is_the_windows_and_word_for_word_this_one():
