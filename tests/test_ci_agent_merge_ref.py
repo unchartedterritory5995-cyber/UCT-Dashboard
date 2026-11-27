@@ -1047,8 +1047,26 @@ FOLLOW_ENV = {
     "RUN_EVENT": "${{ github.event.workflow_run.event }}",
     "TARGET_URL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
 }
-#: @v1 is the major rehearsed with the real App (2026-11-22, `app-id` + `private-key`)
-FOLLOW_USES = ["actions/checkout@v4", "actions/setup-python@v5", "actions/create-github-app-token@v1"]
+#: Z5 (review of #2850, supply chain): the two jobs that hold the verdict App's token pin every action to a COMMIT SHA
+#: (a tag can be moved), the tag kept in a trailing comment. These are the commits the majors in use pointed at on
+#: 2026-11-26 (v1 of create-github-app-token is the major rehearsed with the real App, 2026-11-22). Moving one is an
+#: edit to this table AND the workflow: both self-protected.
+TOKEN_JOB_ACTIONS = {
+    "actions/checkout": ("11d5960a326750d5838078e36cf38b85af677262", "v4.4.0"),
+    "actions/setup-python": ("a26af69be951a213d495a4c3e4e4022e16d87065", "v5.6.0"),
+    "actions/create-github-app-token": ("d72941d797fd3113feb6b93fd0dec494b13a2547", "v1.12.0"),
+}
+FOLLOW_USES = [f"{a}@{TOKEN_JOB_ACTIONS[a][0]}" for a in ("actions/checkout", "actions/setup-python", "actions/create-github-app-token")]
+#: (the follow-up to #2850/#2855) the install is its OWN step, `install`, so a failure there is told apart from the
+#: tool's own exits: only an install failure triggers the fail-closed POST below (the tool's exit 2 posts NOTHING on
+#: purpose, and must stay so).
+#: ... and install PyYAML by HASH, wheel only (site-packages code runs in the token process): the CPython 3.12
+#: manylinux x86_64 wheel of 6.0.2, the runner's platform (ubuntu-latest, setup-python 3.12).
+PYYAML_SHA256 = "80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476"
+TOKEN_JOB_INSTALL = (
+    f"printf '%s\\n' 'pyyaml==6.0.2 --hash=sha256:{PYYAML_SHA256}' > \"$RUNNER_TEMP/token-job-requirements.txt\"\n"
+    'python -m pip install --quiet --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/token-job-requirements.txt"'
+    "   # pinned by hash: this job holds the App's token\n")
 
 
 def _follow_ctx(event="merge_group", pr=1700, sha=MERGE, run_id=991):
@@ -1062,9 +1080,26 @@ def _follow_ctx(event="merge_group", pr=1700, sha=MERGE, run_id=991):
             "steps": {"app-token": {"outputs": {"token": "app-installation-token"}}}, "secrets": {"GITHUB_TOKEN": "read-only-token"}}
 
 
+def _split_failsafe(doc, job_id) -> tuple:
+    """(doc without the job's failsafe step, problems): the failsafe must be exactly FAILSAFE[job_id] and last; every
+    other rule is then applied to the job WITHOUT it (it is the one conditional step, and the token's one other use)."""
+    import copy
+    doc = copy.deepcopy(doc)
+    steps = ((doc.get("jobs") or {}).get(job_id) or {}).get("steps") or []
+    fs = [s for s in steps if s.get("name") == FAILSAFE_NAME]
+    bad = [] if (fs and fs == [steps[-1]] and fs[0] == FAILSAFE[job_id]) else ["the last step is exactly the fail-closed POST for an install failure"]
+    if fs:
+        steps.remove(fs[0])
+    inst = [s for s in steps if s.get("id") == "install"]
+    if inst != [TOKEN_JOB_INSTALL_STEP]:
+        bad.append("PyYAML is installed in its own step, by hash, exactly")
+    return doc, bad
+
+
 def follower_violations(doc) -> list[str]:
     """Every rule agent-ci-queue-verdict.yml must keep, as a list of what is broken (empty = it holds)."""
-    bad = []
+    doc, bad_fs = _split_failsafe(doc, "verdict")
+    bad = list(bad_fs)
     on = doc.get("on", doc.get(True))
     if on != {"workflow_run": {"workflows": [QDOC["name"]], "types": ["completed"]}}:
         bad.append(f"the only trigger is workflow_run on {QDOC['name']!r} completed (it then runs master's copy of this file)")
@@ -1096,7 +1131,7 @@ def follower_violations(doc) -> list[str]:
         bad.append(f"timeout-minutes is {t!r}")
     # ---- the steps: master's checkout, python, the App's token, the tool; nothing else, nothing optional
     if [s.get("uses") for s in steps if "uses" in s] != FOLLOW_USES:
-        bad.append(f"the actions used are exactly {FOLLOW_USES} (GitHub-owned, pinned to a major)")
+        bad.append(f"the actions used are exactly {FOLLOW_USES} (GitHub-owned, pinned to a commit)")
     co = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
     if len(co) != 1 or steps[0] is not co[0] or (co[0].get("with") or {}).get("ref") != DEFAULT_BRANCH \
             or "sparse-checkout" not in (co[0].get("with") or {}):
@@ -1387,7 +1422,10 @@ def test_MQ_each_checkout_holds_every_file_its_stage_reads():
     """A file that is not on disk makes the protected list unreadable, or the tool unimportable. Both stages (the
     in-group scope and the follower, which RECOMPUTES that scope) read: both tools, agent-ci.yml, every vite / vitest
     config and every file those configs import (derived by the same code the stages run, never listed here)."""
-    tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/__init__.py", ".github/workflows/agent-ci.yml"}
+    tools = {"tools/agent_ci_required.py", "tools/agent_ci_evidence.py", "tools/__init__.py", ".github/workflows/agent-ci.yml",
+             # the follower's freeze reads the NYSE calendar DATASET itself (2026-11-26): without it the windows fall
+             # back to the weekday rule, a holiday is refused for nothing
+             "app/src/lib/marketClock/market_calendar.json"}
     configs = {p.relative_to(ROOT).as_posix() for pat in ("vite*.config.*", "vitest*.config.*") for p in (ROOT / "app").glob(pat)}
     imported = set(ev.config_imports(ROOT))
     assert len(configs) >= 2 and len(imported) >= 3, (configs, imported)
@@ -1398,6 +1436,9 @@ def test_MQ_each_checkout_holds_every_file_its_stage_reads():
     assert sorted(f for f in tools | configs | imported if not _held(f, scope)) == []
     # control: the judge can say no, and refuses a pattern it cannot read
     assert not _held("api/main.py", scope) and not _held("tools/agent_ci_rearm.py", scope)
+    # the token job holds no unprotected CODE (review of #2850, delta 2, X1): deploy_freeze and session_calendar are
+    # not checked out (their agreement with the follower's windows is a test rail, not a runtime import)
+    assert not _held("tools/deploy_freeze.py", scope) and not _held("api/services/session_calendar.py", scope)
     assert not _held("tools/agent_ci_required.pyc", ["/tools/agent_ci_required.py"]) and _held("app/x/y.js", ["/app/"])
     with pytest.raises(AssertionError):
         _held("app/x.js", ["app/"])
@@ -1554,7 +1595,6 @@ PR_STAGE_ENV = {
 }
 PR_STAGE_RUN = (
     'set -euo pipefail\n'
-    'python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds the App\'s token\n'
     'if [ "$EVENT" = "pull_request_target" ]; then\n'
     '  python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"\n'
     'else\n'
@@ -1564,7 +1604,8 @@ PR_STAGE_RUN = (
 
 def pr_stage_violations(doc) -> list[str]:
     """Every rule agent-ci-required.yml must keep now that it is a `pull_request_target` job with a secret in reach."""
-    bad = []
+    doc, bad_fs = _split_failsafe(doc, "status")
+    bad = list(bad_fs)
     on = doc.get("on", doc.get(True))
     want_on = {"pull_request_target": {"branches": ["master"], "types": ["opened", "synchronize", "reopened"]},
                "workflow_run": {"workflows": [DOC["name"]], "types": ["completed"]}}
@@ -1589,8 +1630,8 @@ def pr_stage_violations(doc) -> list[str]:
     if not (isinstance(t, int) and 0 < t <= 10):
         bad.append(f"timeout-minutes is {t!r}")
     # ---- pull_request_target safety 1: nothing of the pull request is checked out or executed
-    if [s.get("uses") for s in steps if "uses" in s] != ["actions/checkout@v4", "actions/setup-python@v5", "actions/create-github-app-token@v1"]:
-        bad.append("the actions used are exactly checkout, setup-python and create-github-app-token (GitHub-owned, pinned to a major)")
+    if [s.get("uses") for s in steps if "uses" in s] != FOLLOW_USES:
+        bad.append("the actions used are exactly checkout, setup-python and create-github-app-token (GitHub-owned, pinned to a commit)")
     co = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
     with_ = (co[0].get("with") or {}) if co else {}
     if len(co) != 1 or steps[0] is not co[0] or with_.get("ref") != DEFAULT_BRANCH \
@@ -1601,7 +1642,7 @@ def pr_stage_violations(doc) -> list[str]:
         if taken in flat:
             bad.append(f"the job reads {taken} from the event: only the head SHA and the PR number are taken")
     # ---- safety 2: the event reaches the shell only as environment variables
-    runs = [s for s in steps if "run" in s]
+    runs = [s for s in steps if "run" in s and s.get("id") != "install"]
     if len(runs) != 1 or runs[0].get("run") != PR_STAGE_RUN:
         bad.append("the one run: step is the pinned script (no expression in it, the event only through $EVENT / $PR_SHA / $PR_NUMBER / $RUN_SHA)")
     if not runs or runs[0].get("env") != PR_STAGE_ENV:
@@ -1642,8 +1683,11 @@ def _pr_stage_mutants():
     def on(doc):
         return doc[True if True in doc else "on"]
 
-    def run_step(doc):
-        return next(s for s in job(doc)["steps"] if "run" in s)
+    def run_step(doc):          # the TOOL step (the install is its own step since the #2850/#2855 follow-up)
+        return next(s for s in job(doc)["steps"] if "tools/agent_ci_required.py" in (s.get("run") or ""))
+
+    def install_step(doc):
+        return next(s for s in job(doc)["steps"] if s.get("id") == "install")
 
     def mint(doc):
         return next(s for s in job(doc)["steps"] if "create-github-app-token" in str(s.get("uses")))
@@ -1703,7 +1747,7 @@ def _pr_stage_mutants():
         job(doc)["steps"].append({"run": "echo done"})
 
     def installs_unpinned(doc):
-        run_step(doc)["run"] = run_step(doc)["run"].replace("pyyaml==6.0.2", "pyyaml")
+        install_step(doc)["run"] = install_step(doc)["run"].replace("pyyaml==6.0.2", "pyyaml")
 
     def a_third_party_action(doc):
         job(doc)["steps"].insert(2, {"uses": "someone/some-action@v1"})
@@ -1759,3 +1803,154 @@ def test_MQ_no_pull_request_target_job_anywhere_else():
         if "pull_request_target" in (on if isinstance(on, (dict, list)) else [on]):
             users.append(name)
     assert users == ["agent-ci-required.yml"], users
+
+
+
+# ---- Z5: the token jobs' supply chain (review of #2850, delta 3) -------------------------------------------------
+def test_Z5_the_token_jobs_pin_actions_by_sha_with_the_tag_in_a_comment_and_pyyaml_by_hash():
+    import re as _re
+    for wf in (VWF, RWF):
+        text = wf.read_text(encoding="utf-8")
+        uses = _re.findall(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", text, flags=_re.M)
+        assert len(uses) == 3, (wf.name, uses)
+        for ref, rest in uses:
+            action, _, pin = ref.partition("@")
+            sha, tag = TOKEN_JOB_ACTIONS[action]
+            assert pin == sha and _re.fullmatch(r"[0-9a-f]{40}", pin), (wf.name, ref)
+            assert rest.strip() == f"# {tag}", (wf.name, ref, rest)          # the tag stays readable
+        step = next(st for st in yaml.safe_load(text)["jobs"][next(iter(yaml.safe_load(text)["jobs"]))]["steps"]
+                    if "pip install" in (st.get("run") or ""))
+        assert TOKEN_JOB_INSTALL in step["run"], (wf.name, step["run"])
+        assert step["run"].count("pip install") == 1 and "pyyaml==6.0.2   #" not in step["run"]
+
+
+@pytest.mark.parametrize("weaken", ["no_require_hashes", "sdist_allowed", "tag_not_sha", "comment_dropped"])
+def test_Z5_each_weakening_is_caught(weaken):
+    good = VWF.read_text(encoding="utf-8")
+    bad = {"no_require_hashes": lambda t: t.replace("--require-hashes ", ""),
+           "sdist_allowed": lambda t: t.replace("--only-binary=:all: ", ""),
+           "tag_not_sha": lambda t: t.replace(f"actions/create-github-app-token@{TOKEN_JOB_ACTIONS['actions/create-github-app-token'][0]}",
+                                              "actions/create-github-app-token@v1"),
+           "comment_dropped": lambda t: t.replace(f"@{TOKEN_JOB_ACTIONS['actions/checkout'][0]} # v4.4.0",
+                                                  f"@{TOKEN_JOB_ACTIONS['actions/checkout'][0]}")}[weaken](good)
+    assert bad != good, weaken
+    doc = yaml.safe_load(bad)
+    step_runs = [st.get("run") or "" for st in doc["jobs"]["verdict"]["steps"]]
+    import re as _re
+    uses = _re.findall(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", bad, flags=_re.M)
+    caught = (not any(TOKEN_JOB_INSTALL in r for r in step_runs)) or any(
+        ref.partition("@")[2] != TOKEN_JOB_ACTIONS[ref.partition("@")[0]][0]
+        or rest.strip() != f"# {TOKEN_JOB_ACTIONS[ref.partition('@')[0]][1]}" for ref, rest in uses)
+    assert caught, weaken
+
+
+#: the install step both token jobs run right before the tool
+#: its own step timeout (review of #2856): a hung pip then FAILS the step, so the failsafe below fires; without one
+#: the job would hit its own timeout, be cancelled, and post nothing
+TOKEN_JOB_INSTALL_TIMEOUT = 3
+TOKEN_JOB_INSTALL_STEP = {"name": "Install PyYAML (pinned by hash)", "id": "install", "timeout-minutes": TOKEN_JOB_INSTALL_TIMEOUT,
+                          "run": "set -euo pipefail\n" + TOKEN_JOB_INSTALL}
+#: FAIL CLOSED AT ONCE (follow-up to #2855, review section 4): when the hashed install fails (a runner change, a deleted
+#: wheel) nothing would be posted and every merge group would wait out the queue's 60-minute check timeout. This last
+#: step posts `failure` with the ALREADY-minted token, through curl (no Python), only when the install step failed and
+#: a token exists. It never decides anything else.
+FAILSAFE_NAME = "Fail closed at once when the install failed"
+FAILSAFE_IF = "failure() && steps.install.outcome == 'failure' && steps.app-token.outputs.token != ''"
+FAILSAFE_POST = (
+    'case "$SHA" in *[!0-9a-f]*|\'\') echo "not a commit: $SHA" >&2; exit 1 ;; esac\n'
+    '[ "${#SHA}" -eq 40 ] || { echo "not a commit: $SHA" >&2; exit 1; }\n'
+    'printf \'{"state":"failure","context":"agent-ci-required","description":"%s","target_url":"%s"}\' '
+    '"fail closed: this job could not install its pinned tool; nothing was decided" "$TARGET_URL" > "$RUNNER_TEMP/failsafe.json"\n'
+    'curl -fsS -X POST -H "Authorization: Bearer $AGENT_CI_VERDICT_TOKEN" -H "Accept: application/vnd.github+json" '
+    '-H "X-GitHub-Api-Version: 2022-11-28" --data @"$RUNNER_TEMP/failsafe.json" "$API/repos/$REPO/statuses/$SHA" > /dev/null\n')
+FAILSAFE_COMMON_ENV = {
+    "AGENT_CI_VERDICT_TOKEN": "${{ steps.app-token.outputs.token }}",
+    "REPO": "${{ github.repository }}",
+    "API": "${{ github.api_url }}",
+    "TARGET_URL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+}
+FAILSAFE = {
+    "verdict": {"name": FAILSAFE_NAME, "if": FAILSAFE_IF,
+                "env": {**FAILSAFE_COMMON_ENV, "SHA": "${{ github.event.workflow_run.head_sha }}",
+                        "HEAD_BRANCH": "${{ github.event.workflow_run.head_branch }}"},
+                "run": 'set -euo pipefail\n'
+                       'case "$HEAD_BRANCH" in gh-readonly-queue/*) ;; *) echo "not a merge group: $HEAD_BRANCH" >&2; exit 1 ;; esac\n'
+                       + FAILSAFE_POST},
+    "status": {"name": FAILSAFE_NAME, "if": FAILSAFE_IF,
+               "env": {**FAILSAFE_COMMON_ENV, "SHA": "${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}"},
+               "run": 'set -euo pipefail\n' + FAILSAFE_POST},
+}
+TOKEN_JOBS = {("agent-ci-queue-verdict.yml", "verdict"), ("agent-ci-required.yml", "status")}
+
+
+def _token_job_steps(wf, job_id):
+    return yaml.safe_load(wf.read_text(encoding="utf-8"))["jobs"][job_id]["steps"]
+
+
+def test_FU_only_the_two_known_jobs_hold_the_verdict_app():
+    """A third job that mints or holds the verdict App's token would escape every pin and rule above (#2855 review, 3)."""
+    held = set()
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.y*ml")):
+        doc = yaml.safe_load(wf.read_text(encoding="utf-8")) or {}
+        marks = (APP_KEY_SECRET, "create-github-app-token", acr.VERDICT_TOKEN_ENV, APP_ID_VAR)
+        outside = {k: v for k, v in doc.items() if k != "jobs"}
+        assert not any(m in repr(outside) for m in marks), f"{wf.name}: the verdict App outside a job"
+        for jid, job in (doc.get("jobs") or {}).items():
+            if any(m in repr(job) for m in marks):
+                held.add((wf.name, jid))
+    assert held == TOKEN_JOBS, held
+
+
+def test_FU_both_token_jobs_install_in_their_own_step_and_end_with_the_failsafe():
+    for wf, jid in ((VWF, "verdict"), (RWF, "status")):
+        steps = _token_job_steps(wf, jid)
+        names = [s.get("name") or s.get("uses") for s in steps]
+        assert steps[-1] == FAILSAFE[jid], (wf.name, steps[-1])
+        inst = [s for s in steps if s.get("id") == "install"]
+        assert inst == [TOKEN_JOB_INSTALL_STEP], (wf.name, inst)
+        tool = _tool_step({"steps": steps})
+        assert tool is not None and steps.index(inst[0]) == steps.index(tool) - 1, names
+        assert "pip install" not in tool["run"], tool["run"]
+        job_timeout = yaml.safe_load(wf.read_text(encoding="utf-8"))["jobs"][jid]["timeout-minutes"]
+        assert 0 < inst[0]["timeout-minutes"] < job_timeout, (wf.name, inst[0].get("timeout-minutes"), job_timeout)
+        mint = next(s for s in steps if "create-github-app-token" in str(s.get("uses")))
+        assert steps.index(mint) < steps.index(inst[0]), names           # the token exists before the install runs
+
+
+def _run_failsafe(tmp_path, jid, sha, branch="gh-readonly-queue/master/pr-7-" + "a" * 40):
+    import json
+    import os
+    import shutil
+    import sys
+    bash = shutil.which("bash")
+    if not bash:
+        pytest.skip("no bash")
+    bindir = tmp_path / "bin"
+    bindir.mkdir(parents=True, exist_ok=True)
+    log = tmp_path / "curl.log"
+    (bindir / "curl").write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$@" > "$CURL_LOG"\nfor a in "$@"; do case "$a" in @*) cat "${a#@}" >> "$CURL_LOG.body";; esac; done\n', encoding="utf-8")
+    os.chmod(bindir / "curl", 0o755)
+    env = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ["PATH"], CURL_LOG=str(log), RUNNER_TEMP=str(tmp_path),
+               AGENT_CI_VERDICT_TOKEN="app-token", REPO="o/r", API="https://api.stub.invalid", TARGET_URL="https://run.invalid/1",
+               SHA=sha, HEAD_BRANCH=branch)
+    out = subprocess.run([bash, "-c", FAILSAFE[jid]["run"]], capture_output=True, text=True, env=env, timeout=60)
+    body = (tmp_path / "curl.log.body")
+    return out.returncode, (log.read_text(encoding="utf-8") if log.exists() else ""), (json.loads(body.read_text(encoding="utf-8")) if body.exists() else None)
+
+
+@pytest.mark.parametrize("jid", ["verdict", "status"])
+def test_FU_the_failsafe_posts_failure_once_and_only_for_a_real_commit(tmp_path, jid):
+    sha = "c" * 40
+    code, args, body = _run_failsafe(tmp_path / "ok", jid, sha)
+    assert code == 0, args
+    assert body == {"state": "failure", "context": "agent-ci-required",
+                    "description": "fail closed: this job could not install its pinned tool; nothing was decided",
+                    "target_url": "https://run.invalid/1"}
+    assert len(body["description"]) <= 140
+    assert f"https://api.stub.invalid/repos/o/r/statuses/{sha}" in args and "Authorization: Bearer app-token" in args
+    for bad in ("", "C" * 40, "c" * 39, "c" * 40 + ";touch x"):
+        code, args, body = _run_failsafe(tmp_path / f"bad{len(bad)}{bad[:1]}", jid, bad)
+        assert code != 0 and args == "" and body is None, (jid, bad)             # nothing posted for a non-commit
+    if jid == "verdict":
+        code, args, body = _run_failsafe(tmp_path / "pr", jid, sha, branch="feature/x")
+        assert code != 0 and args == "", "the follower's failsafe posts only on a merge group's commit"

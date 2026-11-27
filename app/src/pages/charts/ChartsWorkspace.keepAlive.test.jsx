@@ -128,7 +128,8 @@ beforeEach(() => {
 afterEach(() => { cleanup(); delete globalThis.fetch })
 
 function mount({ keepAlive = true } = {}) {
-  if (keepAlive) localStorage.setItem('uct.boardKeepAlive', '1')
+  // '0' pinned for the OFF case: the default may be on (boardKeepAlive.js; the '2' lane runs the suite that way)
+  localStorage.setItem('uct.boardKeepAlive', keepAlive ? '1' : '0')
   prefStore.set({
     charts_workspace_layout: JSON.stringify(MAIN.layout),
     charts_active_template: JSON.stringify({ id: MAIN.id, name: MAIN.name, scope: MAIN.scope }),

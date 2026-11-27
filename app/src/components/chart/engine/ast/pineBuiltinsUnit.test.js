@@ -34,6 +34,12 @@ import * as registry from '../nativeRegistry'
 import { runOurSide, HARNESS_DEF_ID } from '../__tests__/vendorHarness/ourSide'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const REPO = path.resolve(process.cwd(), '..')
 const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')

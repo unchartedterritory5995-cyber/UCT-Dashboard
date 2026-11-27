@@ -6,6 +6,8 @@
 //      readers whose renders call Date.now many times (a chart does) mount and re-render without a loop (a read with
 //      no subscriber still follows the live clock: React's double read at mount may warn once under this clock)
 //   J2 the minute tick still announces a new state (the hook's every-minute contract)
+//   J3 (red first; review of the fix, LOW) a first reader rendered at 09:29:59.9 and subscribed at 09:30:00.05 shows
+//      the open at once, not at the next tick
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, act, cleanup } from '@testing-library/react'
 import { useState } from 'react'
@@ -52,5 +54,21 @@ describe('useMarketOpen under a clock that moves between calls', () => {
     expect(seen.at(-1)).toMatchObject({ isOpen: false, isPremarket: true })
     act(() => { vi.advanceTimersByTime(31_000) })        // the 09:30 tick
     expect(seen.at(-1), 'the minute tick did not announce the open').toMatchObject({ isOpen: true, isPremarket: false })
+  })
+
+  it('J3 (red first) a minute that turns between the first render and its subscribe is announced at once', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-15T14:29:59.900Z'))   // 09:29:59.9 ET: pre-market
+    _resetMarketStateCacheForTests()
+    const seen = []
+    function Straddle() {
+      const s = useMarketOpen()
+      seen.push(s)
+      if (seen.length === 1) vi.setSystemTime(new Date('2026-01-15T14:30:00.050Z'))   // the commit lands in 09:30
+      return <span>{String(s.isOpen)}</span>
+    }
+    render(<Straddle />)
+    expect(seen[0], 'NON-VACUITY: the first render read the pre-market minute').toMatchObject({ isOpen: false, isPremarket: true })
+    expect(seen.at(-1), 'the open waits for the next tick').toMatchObject({ isOpen: true, isPremarket: false })
   })
 })

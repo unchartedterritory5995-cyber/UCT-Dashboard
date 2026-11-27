@@ -1,7 +1,7 @@
 import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
 import { boardLayerProps } from '../../components/chart/boardLayer'
-import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
+import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -1048,6 +1048,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const body = bodyRef.current
     const grid = body?.querySelector?.('[data-board-current] .react-grid-layout') || body?.querySelector?.('.react-grid-layout')
     let shown = next
+    let layerSwitch = false
     if (keepAliveOnRef.current && user && key != null) {
       const cur = currentBoardRef.current
       const prevKey = cur.key ?? dockActiveIdRef.current
@@ -1056,6 +1057,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         const reuse = !!kept && String(kept.key) === String(key) && sameBoard(kept.layout, next, serializeLayout)
         // a slot's record carries what is its for life (the handle; in the layer mode its views, made at its first render)
         const leaving = { ...cur, key: prevKey, layout: layoutRef.current }
+        layerSwitch = !!leaving.vis.layer
         leaving.vis.set('hidden')
         if (leaving.vis.layer) {
           leaving.hiddenAt = Date.now()
@@ -1081,7 +1083,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         cur.key = key
       }
     }
-    if (grid && shown !== layoutRef.current) switchMarkRef.current.mark(grid)
+    // the switch mark is for a grid that stays and takes the new layout (the remount path); a layer keep-alive switch
+    // shows a kept grid as it was or mounts a fresh one, and the grid it would mark is the one now hidden
+    if (grid && shown !== layoutRef.current && !layerSwitch) switchMarkRef.current.mark(grid)
     setLayout(shown)
   }, [])
   useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
@@ -2936,6 +2940,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // the bar optimistically, so both halves of the click land together.
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id === id) applyUctDefault()
+    // the keep-alive keeps no board of a layout that no longer exists (nothing can switch back to it): the switch above
+    // kept the open one, and a layout deleted from the list may be the kept one
+    const kept = keptBoardRef.current
+    if (kept && String(kept.key) === String(id)) {
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }
     try { await deleteLayout(id) } catch { /* restored by the optimistic rollback */ }
   }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
@@ -3217,6 +3229,19 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     keptBoardRef.current = null
     setKeptBoard(null)
   }, [gridMode, boardHidden])
+  // A board kept for KEPT_BOARD_MAX_HIDDEN_MS without a show lets go too, page visible or not (its feeds stay live while
+  // it is kept: review of #2901, D3). The timer belongs to the kept board it was started for.
+  useEffect(() => {
+    if (!keptBoard) return undefined
+    const t = setTimeout(() => {
+      const kept = keptBoardRef.current
+      if (kept !== keptBoard) return
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }, KEPT_BOARD_MAX_HIDDEN_MS)
+    return () => clearTimeout(t)
+  }, [keptBoard])
   // A page hidden for KEPT_BOARD_HIDDEN_DISPOSE_MS lets the kept board go (memory); the workspace leaving disposes it.
   useEffect(() => {
     if (!keepAliveOn) return undefined

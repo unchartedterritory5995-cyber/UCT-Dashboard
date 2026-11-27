@@ -1276,3 +1276,14 @@ one timer on the wall-clock minute boundary shared by all of them, plus a wake o
 `focus` so a laptop opened in the morning reads the current session at once. The hook is in the main chunk, so the
 Notebook's first open grew: CI read 2,263,406 B at baf6e4ffe7 against the 2,263,041 B line (+365 B). The owner approved
 a raise ("I approve", 2026-11-27): max 2,263,041 -> 2,264,065 B (+1,024 B, headroom), listed in `owner_raises`.
+
+## 2026-11-27: +2,048 B for the board keep-alive layer mode (#2901), owner directive
+
+#2901 (the board keep-alive's layer mode) pauses a hidden board's work through its board-visibility handle
+(`components/chart/boardVisibility.js`). The handle is read by hooks the whole app shares (`useLivePrices`,
+`useRealtimePrices`, `useRealtimeBarPrices`, `useBarSnapshot`, `useSymbolHandoff`), so it sits in the main chunk, and
+the Notebook's first open grew: CI read 2,265,502 B at 7246dfa732 against the 2,264,065 B line (+1,437 B). Moving it to a
+lazy chunk would mean those shared hooks lazy-load their own pause, which costs more than it saves. Raised by the
+owner's directive of 2026-11-27 ("I dont want to hold anything ever... we need it all done"), relayed by the
+coordinator, who confirms this raise with the owner: max 2,264,065 -> 2,266,113 B (+2,048 B, headroom for #2911's
+default-on change), listed in `owner_raises`.
