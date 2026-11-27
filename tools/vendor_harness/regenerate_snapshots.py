@@ -17,8 +17,9 @@ WHAT IT DOES, in order, and it stops at the first refusal:
   3. The licence-held captures under tests/fixtures/vendor (`licence-held.json`) are graded from the local capture
      store in a short hold of their own and spliced in under their canonical path (`splice_held.mjs`), as every
      regeneration since 53b3a790cb has done: a machine without that store refuses rather than drop their rows.
-  4. The snapshot's `sourceHeldStore` keeps only the pins its rows cite (`prune_source_held.mjs`, #2848 ruling (b)):
-     this machine's other licence-held built-in pins never reach the public repo.
+  4. The snapshot's `sourceHeldStore` keeps the pins master's snapshot already carries and the pins its rows cite
+     (`prune_source_held.mjs`, #2848 ruling (b)): this machine's local licence-held built-in listing never reaches
+     the public repo.
   5. The written snapshot's `libraryStore` equals the promote rows (`store_held.snapshot_store_problems`).
 The lock is `$UCT_HEAVY_LOCK_PY` (default: this PC's `uct-clips/tools/heavy_lock.py`), `--priority normal`.
 (Never `$UCT_HEAVY_LOCK`: since 2026-11-18 heavy_lock sets THAT to "<label>|<lock>|<pid>" for every `run` child,
@@ -93,10 +94,32 @@ def splice_held(lane, store):
                             os.path.join(out, "verdicts.json"), *[c for c, _p in held]], cwd=ROOT)
 
 
-def prune_source_held(lane):
-    """#2848 ruling (b): the snapshot keeps only the sourceHeldStore pins its own rows were graded on. The harness
-    lists this machine's whole licence-held built-in store; a pin no row cites is machine-local, never committed."""
-    return subprocess.call(["node", os.path.join(HERE, "prune_source_held.mjs"), SH.SNAPSHOTS[lane]], cwd=ROOT)
+MASTER_REF = "origin/master"
+
+
+def master_snapshot(lane, ref=MASTER_REF):
+    """The text of `lane`'s snapshot as `ref` (master) commits it, or None when git cannot read it."""
+    rel = os.path.relpath(SH.SNAPSHOTS[lane], ROOT).replace(os.sep, "/")
+    r = subprocess.run(["git", "show", "%s:%s" % (ref, rel)], cwd=ROOT, capture_output=True)
+    return r.stdout.decode("utf-8") if r.returncode == 0 else None
+
+
+def prune_source_held(lane, master_text=None):
+    """#2848 ruling (b): the snapshot's sourceHeldStore keeps the pins master's snapshot already carries and the pins
+    its own rows cite. The harness lists this machine's whole licence-held built-in store; any other pin is this
+    machine's local listing and never reaches the public repo. Refuses (2) when master's snapshot cannot be read."""
+    text = master_text if master_text is not None else master_snapshot(lane)
+    if text is None:
+        print("REFUSED: cannot read %s's %s snapshot to keep its sourceHeldStore pins" % (MASTER_REF, lane))
+        return 2
+    fd, base = tempfile.mkstemp(suffix="-%s-master-verdicts.json" % lane)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        return subprocess.call(["node", os.path.join(HERE, "prune_source_held.mjs"), SH.SNAPSHOTS[lane], base],
+                               cwd=ROOT)
+    finally:
+        os.unlink(base)
 
 
 def main(argv=None):
