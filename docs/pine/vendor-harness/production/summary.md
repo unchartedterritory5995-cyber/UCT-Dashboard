@@ -1031,13 +1031,13 @@ opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH      
     OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 626 ok 626 warm 0/0 steady 0/626 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 626 ok 626 warm 0/0 steady 0/626 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 626 ok 626 warm 0/0 steady 0/626 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 626 ok 626 warm 0/0 steady 0/626 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1047,13 +1047,13 @@ opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH      
     OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 656 ok 656 warm 0/0 steady 0/656 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 661 ok 661 warm 0/0 steady 0/661 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 661 ok 661 warm 0/0 steady 0/661 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 661 ok 661 warm 0/0 steady 0/661 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 656 ok 656 warm 0/0 steady 0/656 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 656 ok 656 warm 0/0 steady 0/656 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 656 ok 656 warm 0/0 steady 0/656 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1063,13 +1063,13 @@ opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH      
     OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1790 ok 1790 warm 0/0 steady 0/1790 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1795 ok 1795 warm 0/0 steady 0/1795 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1795 ok 1795 warm 0/0 steady 0/1795 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1795 ok 1795 warm 0/0 steady 0/1795 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1790 ok 1790 warm 0/0 steady 0/1790 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1790 ok 1790 warm 0/0 steady 0/1790 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 1790 ok 1790 warm 0/0 steady 0/1790 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
@@ -1079,13 +1079,13 @@ opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH      
     OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8497 ok 8497 warm 0/0 steady 0/8497 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8502 ok 8502 warm 0/0 steady 0/8502 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8502 ok 8502 warm 0/0 steady 0/8502 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8502 ok 8502 warm 0/0 steady 0/8502 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8497 ok 8497 warm 0/0 steady 0/8497 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8497 ok 8497 warm 0/0 steady 0/8497 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8497 ok 8497 warm 0/0 steady 0/8497 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      MATCH             all 6 items agree
     Upper                                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.65e-16
@@ -5063,10 +5063,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 DIVERGE 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 DIVERGE 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
+TOTAL 1038 captures — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 238 · DIVERGE 94 · INCONCLUSIVE 706
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 243 · DIVERGE 94 · INCONCLUSIVE 701
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 
