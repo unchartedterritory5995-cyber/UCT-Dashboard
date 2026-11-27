@@ -17,6 +17,9 @@
 //      curtain's first run is held to the scaled number;
 //   6. only the worker (and, e99 2026-11-26, the pine-runtime service, which holds a run to the member's own budget)
 //      hands the VM its budget as `WALL_TIME`: every other caller keeps 5,000, each by name.
+//   7. (e102, coordinator ruling 2026-11-27, option A) the off-listing curtain runs the script twice, and its budget
+//      scales with the bars BOTH runs cover: kernel-channel-backquant on 3,000 weekly rows, on a device where the
+//      on-listing run costs 80% of its budget, is drawn on AND off the listing under the worker's options.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -25,6 +28,7 @@ import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeColumnsFor, setRuntimeRunner,
   runtimePaneBudgetFor, runLimitsOf, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD,
 } from '../runtimeColumns.js'
+import { runtimeWarmupOf } from '../runtimeObjects.js'
 import { DEFAULT_LIMITS } from '../limits.js'
 import { resetRuntimeAsync } from '../runtimeAsync.js'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition.js'
@@ -283,4 +287,52 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     expect(stopped && stopped.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
     expect(stopped.message).toMatch(/took more than 5000 ms .*the most time one run of a script may take/)
   })
+
+  it("7. (e102, option A) kernel-channel-backquant on 3,000 weekly rows: drawn on AND off the listing under the worker's options, where the on-listing run costs 80% of its budget", () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1'); vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const src = fs.readFileSync(path.join(REPO, 'corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine'), 'utf8')
+    const built = memberPaneDefinition({ source: src, name: 'Kernel Channel', id: 'u_pb_kernel' })
+    expect(built.ok, built.reason).toBe(true)
+    const def = built.definition
+    expect(def.compute.kind, 'the member door puts it on the runtime lane').toBe('runtime')
+    expect(def.meta.runtimeHistory, 'a listing document: off the listing it runs the curtain').toBe('listing')
+    const N = 3000
+    const weekly = Array.from({ length: N }, (_, i) => {
+      const c = 100 + 10 * Math.sin(i / 13) + 3 * Math.sin(i / 4.1) + i * 0.02
+      return { t: 1e9 + i * 7 * 86400, o: c - 0.4, h: c + 1.2, l: c - 1.1, c, v: 1000 + (i % 17) * 13 }
+    })
+    const W = { tf: 'W', newestBarIsForming: false, symbol: { ticker: 'SPY', exchange: 'AMEX' } }
+    const on = { ...W, historyFromListing: true }
+    const off = { ...W, historyFromListing: false }
+    // the worker's own options (`runtimeWorker.js`, railed in 6)
+    const WORKER = { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true }
+    const run = (step, c) => {
+      vi.restoreAllMocks()
+      const clock = steppingClock(step)
+      resetRuntimeSessions(); resetRuntimeLedgers()
+      let cols = null
+      const err = refusedWith(() => { cols = computeRuntimeColumns(def, weekly, c, WORKER) })
+      return { err, reads: clock.reads, cols }
+    }
+    // calibrate: how often each run reads the clock (a crawl: no budget can fire)
+    const crawlOn = run(1e-7, on)
+    const crawlOff = run(1e-7, off)
+    expect(crawlOn.err).toBe(null)
+    expect(crawlOff.err).toBe(null)
+    const step = (0.8 * RUNTIME_PANE_TIME_BUDGET_MS) / crawlOn.reads
+    // the preconditions, so the case cannot pass by not reaching what it is about: off the listing the curtain costs
+    // more than ONE run's budget (the single-run scaling stops it), and within the budget of both runs' bars
+    expect(step * crawlOff.reads, 'the curtain costs more than one run of 3,000 bars may').toBeGreaterThan(runtimePaneBudgetFor(N))
+    expect(step * crawlOff.reads, 'and less than the bars both runs cover').toBeLessThan(runtimePaneBudgetFor(N + N - 251))
+    const drawnOn = run(step, on)
+    expect(drawnOn.err && drawnOn.err.message, 'on the listing: drawn').toBe(null)
+    const drawnOff = run(step, off)
+    expect(drawnOff.err && drawnOff.err.message, 'off the listing: drawn, the budget scaled by both runs').toBe(null)
+    // and the curtain released values (not a refusal by another name)
+    const w = runtimeWarmupOf(drawnOff.cols)
+    expect(w && w.withheldBars, 'a warm-up was withheld').toBeGreaterThan(0)
+    expect(w.withheldBars).toBeLessThan(N / 2)
+    const key = Object.keys(drawnOff.cols)[0]
+    expect(Number.isFinite(drawnOff.cols[key][N - 1]), 'its newest bar is drawn').toBe(true)
+  }, 180000)
 })

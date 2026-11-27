@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "A1",
+   "mutant": "the curtain's budget is scaled by ONE run's bars again (before the 2026-11-27 amendment)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  const budgetMs = budgetFor(opts, n + (n - shift))\n",
+   "to": "  const budgetMs = budgetFor(opts, n)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/paneBudgetPerBar.test.js",
+   "expectRed": "off the listing: drawn"
+  },
+  {
+   "id": "B1",
+   "mutant": "a remembered stop never expires (no 20 s hold)",
+   "file": "app/src/components/chart/engine/runtimeBudgetStops.js",
+   "from": "  if (!returned && now() - s.at < RUNTIME_BUDGET_STOP_HOLD_MS) return s\n",
+   "to": "  if (!returned) return s\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeBudgetStopMemory.test.jsx",
+   "expectRed": "ASKED AGAIN AFTER THE HOLD"
+  },
+  {
+   "id": "B2",
+   "mutant": "no cap: a stopped picture is asked again without limit",
+   "file": "app/src/components/chart/engine/runtimeBudgetStops.js",
+   "from": "  if (spent >= RUNTIME_BUDGET_STOP_REASKS) return s\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeBudgetStopMemory.test.jsx",
+   "expectRed": "CAPPED AT 2"
+  },
+  {
+   "id": "B3",
+   "mutant": "a return to the picture is not seen (only the hold releases)",
+   "file": "app/src/components/chart/engine/runtimeBudgetStops.js",
+   "from": "  const returned = id !== null && lastAsked.has(id) && lastAsked.get(id) !== key\n",
+   "to": "  const returned = false\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeBudgetStopMemory.test.jsx",
+   "expectRed": "ON A RETURN"
+  }
+ ]
+}
