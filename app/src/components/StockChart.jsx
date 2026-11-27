@@ -12442,10 +12442,12 @@ function StockChartBody({
       // CALL time; keyed by chartId so multi-chart pages don't collide.
       if (typeof window !== 'undefined') {
         window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+        const _dbg = chartDebugHandle({
           chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
           userLockedViewRef, userViewLockedRef, vertMarginsRef,
         })
+        chartDebugHandleRef.current = _dbg
+        window.__uctChartDebug[chartId || 'main'] = _dbg
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
@@ -19568,6 +19570,16 @@ function StockChartBody({
   const boardVisibilityRef = useRef(boardVisibility)
   boardVisibilityRef.current = boardVisibility
   const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
+  // This chart's own `window.__uctChartDebug` handle: a kept (hidden) board's chart may share its widget id with one on
+  // the board in front, so a handle is removed only while it is still THIS chart's, and re-registered at the show.
+  const chartDebugHandleRef = useRef(null)
+  const dropOwnDebugHandle = () => {
+    try {
+      const d = typeof window !== 'undefined' ? window.__uctChartDebug : null
+      const id = chartId || 'main'
+      if (d && chartDebugHandleRef.current && d[id] === chartDebugHandleRef.current) delete d[id]
+    } catch { /* SSR/teardown */ }
+  }
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
@@ -19576,6 +19588,7 @@ function StockChartBody({
       if (keep && boardIsHiding(boardVisibilityRef.current)) {
         try { keep.applyOptions({ autoSize: false }) } catch { /* disposed */ }
         keptThroughHideRef.current = { dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1 }
+        dropOwnDebugHandle()
         return
       }
       try { markersControllerRef.current?.detach?.() } catch {}
@@ -19595,7 +19608,7 @@ function StockChartBody({
       try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
       engineRef.current = null
       if (chartRef.current) {
-        try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
+        dropOwnDebugHandle()
         chartRef.current.remove()
         chartRef.current = null
         candleSeriesRef.current = null
@@ -19651,7 +19664,11 @@ function StockChartBody({
       try { chart.resize(el?.clientWidth || 0, el?.clientHeight || 0, true) } catch { /* disposed */ }
     }
     try { chart.applyOptions({ autoSize: true }) } catch { /* disposed */ }
-  }, [])
+    if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+      window.__uctChartDebug = window.__uctChartDebug || {}
+      window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+    }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- a show only: the refs and chartId are read at that moment
 
   // ── Clear drawing selection on symbol/tf change ──
   useEffect(() => {
