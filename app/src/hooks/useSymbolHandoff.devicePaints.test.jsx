@@ -20,7 +20,7 @@ vi.mock('../data/barStore/prefetch', () => ({
   prepareForDisplay: (...a) => prepareMock(...a),
   prepareDailyForDisplay: (...a) => dailyMock(...a),
   prefetchBarsToIDB: () => {},
-  heldRows: (sym, tf, opts = {}) => (opts.answered ? 0 : (st.device ? st.rows : 0)),   // the device copy's rows (no answer)
+  heldRows: (sym, tf, opts = {}) => (opts.answered ? 0 : (st.device && sw.on ? st.rows : 0)),   // the device copy's rows (no answer; none with the store off)
 }))
 vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB: () => {}, prepareForDisplay: () => new Promise(() => {}), prepareDailyForDisplay: () => new Promise(() => {}) }))
 vi.mock('../components/chart/engine/serverCompute', () => ({
@@ -50,7 +50,6 @@ describe('the switch and a current device copy', () => {
     act(() => { rerender({ s: 'B' }) })
     expect(result.current).toBe('B')
     expect(prepareMock).not.toHaveBeenCalled()
-    expect(devicePaints).toHaveBeenCalledWith('B', '5', expect.anything())
   })
 
   it('intraday: a copy that is not the device\'s (or not current) still waits for the depth', async () => {

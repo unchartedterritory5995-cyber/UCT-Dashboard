@@ -599,7 +599,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // (its lake wait ran out first) does not commit; the watcher commits the moment they cover it, and the hang guard
         // below stays. A failure or an empty answer commits (the chart shows its own honest state).
         const failed = outcome === 'error' || outcome === 'nodata' || outcome === 'hang'
-        if (failed || !BARSTORE || !INTRADAY.has(String(tf)) || paintsWholeNow(requestedSym, tf, sess, need)) commitHere()
+        // (zero rows counted: a source that cannot count them, so the report commits as before)
+        const uncounted = !(storePrefetch.heldRows?.(requestedSym, fetchTf(tf), sess) ?? 0)
+        if (failed || uncounted || !BARSTORE || !INTRADAY.has(String(tf)) || paintsWholeNow(requestedSym, tf, sess, need)) commitHere()
       }).catch(() => { if (alive && genRef.current === gen) commitHere() })
 
       // A poll alongside it, because the ±6 neighbour warmer may repair this

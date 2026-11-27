@@ -282,7 +282,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth' || !highlightedTicker || !query.trim()) return undefined
     if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(highlightedTicker) || highlightedTicker === String(sym || '').toUpperCase()) return undefined
     if (lastIntentRef.current === highlightedTicker) return undefined
+    // a row from an earlier answer (results land after the typing pause) is not the text's: it must complete what is typed
+    if (!highlightedTicker.startsWith(query.trim().toUpperCase())) return undefined
     const t = setTimeout(() => {
+      if (!openRef.current) return   // Enter (or a close) came first: nothing is reported after it
       lastIntentRef.current = highlightedTicker
       try { onTypedIntent(highlightedTicker) } catch { /* a warm never breaks search */ }
     }, HIGHLIGHT_INTENT_MS)
