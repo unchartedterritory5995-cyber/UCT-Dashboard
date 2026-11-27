@@ -163,7 +163,7 @@ describe('useDoubleBuffer', () => {
     expect(painted.some((a) => a[3] === 'flip')).toBe(false)
   })
 
-  it('H5 the board\'s budget taken: no shadow, no flip', async () => {
+  it("H5 the board\'s budget taken: no shadow, no flip", async () => {
     db.acquireShadow(scope, {}); db.acquireShadow(scope, {})
     const h = mount()
     report(h.result, 0, 'AAA')
@@ -173,7 +173,7 @@ describe('useDoubleBuffer', () => {
     expect(h.result.current.front).toBe(0)
   })
 
-  it('H6 (F2) a hidden board gives its shadow back and drops the hidden pane; shown again, the shadow returns; the budget is the slot\'s', async () => {
+  it("H6 (F2) a hidden board gives its shadow back and drops the hidden pane; shown again, the shadow returns; the budget is the slot\'s", async () => {
     const board = createBoardVisibility({ layer: true })
     const other = createBoardVisibility({ layer: true })
     db.acquireShadow(other, {}); db.acquireShadow(other, {})   // another board slot's budget is full: not this one's
@@ -225,14 +225,14 @@ describe('useDoubleBuffer', () => {
     expect(h.result.current.front).toBe(1)
   })
 
-  it('H12 (typed-Enter dry run) a hidden chart pinned at its OWN right edge (its symbol's reserve) flips: only the width must match', async () => {
+  it("H12 (typed-Enter dry run) a hidden chart pinned at its OWN right edge (its symbol's reserve) flips: only the width must match", async () => {
     const h = await ready()
     panes[1].m = meta(160, 1)                            // the hidden symbol's developing slot moves its right edge
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
   })
 
-  it('H13 (typed-Enter dry run) a typed ticker is the hidden pane's row: the chart names it next (publishTypedNext), Enter flips', async () => {
+  it("H13 (typed-Enter dry run) a typed ticker is the hidden pane's row: the chart names it next (publishTypedNext), Enter flips", async () => {
     const h = await ready()
     fresh('NVDA')
     __setDoubleBufferBarsSourceForTests((k) => (k === keyOf('NVDA') ? bars.NVDA : k === keyOf('AAA') ? bars.AAA : k === keyOf('BBB') ? bars.BBB : null))

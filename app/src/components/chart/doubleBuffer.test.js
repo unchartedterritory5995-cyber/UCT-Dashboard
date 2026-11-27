@@ -71,7 +71,7 @@ describe('F1b the views (review of #2922, F1; the typed-Enter dry run)', () => {
     ['view-unknown', null, pinned(160)],
     ['view-unknown', pinned(160), { frame: null }],
   ])('%s', (why, f, sh) => { expect(viewParity(f, sh)).toBe(why) })
-  it('the mirror re-pins the hidden chart at the front's width, keeping its own reserve; then the views are alike', () => {
+  it("the mirror re-pins the hidden chart at the front's width, keeping its own reserve; then the views are alike", () => {
     expect(mirrorFrameFor(pinned(80), pinned(160))).toEqual({ fromRight: 76, toRight: -4, activeRange: null, locked: false, lock: null })
     expect(mirrorFrameFor(pinned(80), pinned(160, 1))).toEqual({ fromRight: 75, toRight: -5, activeRange: null, locked: false, lock: null })
     const noWidth = (m) => ({ ...m, plotWidthPx: null })
