@@ -21,7 +21,7 @@ export const FIRST_PAINT_BARS = 600
  * lookback in one answer. The deep history still joins older rows behind the left edge. Store path only (data/barStore
  * network: barsCountFor, the split tail, deepPending); the legacy warmers keep FIRST_PAINT_BARS.
  */
-export const DATE_FIRST_PAGE = Object.freeze({ D: 2000, W: 2000, M: 1200 })
+export const DATE_FIRST_PAGE = Object.freeze({ D: 600, W: 2000, M: 1200 })
 /** The first page of a D/W/M tail (DATE_FIRST_PAGE); FIRST_PAINT_BARS for anything else. */
 export function dateFirstPageFor(tf) { return DATE_FIRST_PAGE[String(tf)] ?? FIRST_PAINT_BARS }
 
