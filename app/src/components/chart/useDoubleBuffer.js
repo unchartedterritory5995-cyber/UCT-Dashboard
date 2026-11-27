@@ -114,7 +114,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
   const heldRef = useRef(false)
-  const timesRef = useRef({ set: [0, 0], report: [0, 0] })   // when each layer was last set to a row / last reported             // the widget holds a shadow NOW (set in the board handle's own task)
+  const timesRef = useRef({ set: [null, null], report: [null, null] })   // when each layer was last set to a row / last reported             // the widget holds a shadow NOW (set in the board handle's own task)
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
   // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
@@ -185,7 +185,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     const t = timesRef.current
     pendingRef.current = {
       d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1,
-      sinceSet: t.set[s] ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] ? Math.round(now - t.report[s]) : null,
+      sinceSet: t.set[s] != null ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] != null ? Math.round(now - t.report[s]) : null,
     }
     if (d.flip) {
       setBuf({ syms: buf.syms, front: s })
@@ -273,7 +273,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       if (!next || next === f || b.syms[s] === next) return
       reportsRef.current[s] = null
       timesRef.current.set[s] = _now()
-      timesRef.current.report[s] = 0
+      timesRef.current.report[s] = null
       noteRetarget()
       startTransition(() => {
         setBuf((x) => {

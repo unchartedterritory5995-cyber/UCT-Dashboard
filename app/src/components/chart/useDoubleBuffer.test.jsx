@@ -97,7 +97,7 @@ describe('useDoubleBuffer', () => {
     const handles = h.result.current.handles
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
-    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
+    expect(h.result.current.syms[1]).toBe('BBB')           // the flip changed no layer's symbol (the retarget then moves layer 0: H10)
     expect(handles[1].state).toBe('visible')
     expect(handles[0].state).toBe('hidden')
     expect(db.doubleBufferStats().flips).toBe(1)
