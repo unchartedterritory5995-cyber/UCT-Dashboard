@@ -70,7 +70,7 @@ export function createBoardVisibility({ layer = false, current = false, parent =
   // a nested handle follows its parent while anyone listens to it (a parent change it inherits is told on, as quiet as
   // the parent's was)
   const follow = () => {
-    if (!nested || unParent) return
+    if (!nested || unParent || own === 'disposed') return
     unParent = parent.subscribe((info) => { if (own === 'visible') notify(!!info?.quiet) })
   }
   const unfollow = () => {
@@ -111,7 +111,8 @@ export function createBoardVisibility({ layer = false, current = false, parent =
       disposers.add(fn)
       return () => { disposers.delete(fn) }
     },
-    /** The board goes for good: every registered teardown runs, once. */
+    /** The board goes for good: every registered teardown runs, once. A NESTED handle (a chart slot) then drops its
+     *  listeners and readers and stops following its board (review of #2918, LOW 2): the board outlives its slots. */
     dispose() {
       own = 'disposed'
       for (const fn of [...disposers]) {
@@ -119,6 +120,11 @@ export function createBoardVisibility({ layer = false, current = false, parent =
         try { fn() } catch { /* one teardown never stops the rest */ }
       }
       notify()
+      if (nested) {
+        listeners.clear()
+        readers.clear()
+        if (unParent) { const u = unParent; unParent = null; u() }
+      }
     },
   }
 }
@@ -183,12 +189,16 @@ export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
   if (!vis || !vis.current) return forwardWhileShown(vis, notify, catchUp)
   let cancel = null
   const cb = (...args) => {
+    // (review of #2918, LOW 1) a disposed slot (still mounted, about to go) schedules no idle re-render
+    if (vis.state === 'disposed') return
     if (!boardHiddenNow(vis)) { notify(...args); return }
     if (cancel) return
-    cancel = idleTask(() => { cancel = null; notify() })
+    cancel = idleTask(() => { cancel = null; if (vis.state !== 'disposed') notify() })
   }
   const unVis = vis.subscribe(() => {
-    if (!cancel || vis.state !== 'visible') return
+    if (!cancel) return
+    if (vis.state === 'disposed') { cancel(); cancel = null; return }
+    if (vis.state !== 'visible') return
     cancel(); cancel = null
     catchUp()
   })
