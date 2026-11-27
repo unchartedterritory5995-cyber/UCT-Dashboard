@@ -186,7 +186,6 @@ describe('the typed ticker, named as the next symbol, is prepared by Enter (two 
   beforeAll(async () => {
     before = await run(false)
     after = await run(true)
-    // eslint-disable-next-line no-console
     console.log('[typed next prepared] switches before:', JSON.stringify(before.stats.switches), 'after:', JSON.stringify(after.stats.switches))
   }, 300_000)
 
