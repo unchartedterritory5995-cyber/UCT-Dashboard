@@ -144,6 +144,7 @@ describe('a prepend behind the window hands the library nothing', () => {
   for (const order of ['candles first', 'compare first']) {
     it(`a compare series with a newer bar joins in the same pass as front-grown candles (${order}): the candles are handed`, async () => {
       const b = board(); load(b)
+      await tick()                                                    // the load's pass is over
       const cmp = b.chart.addSeries(LineSeries, {})
       const pts = BARS.slice(-40).map((r) => ({ time: r.time + 3600, value: 100 }))
       pts.push({ time: T(N - 1) + 2 * 86_400, value: 100 })        // a bar NEWER than the newest candle
@@ -158,6 +159,7 @@ describe('a prepend behind the window hands the library nothing', () => {
 
   it('control: a value-only re-set of another series does not move the axis (the candles still skip)', async () => {
     const b = board(); load(b)
+    await tick()                                                      // the load's pass is over
     const sets = spySets(b)
     b.candles.setData([...OLDER, ...copy(BARS)])
     b.ma.setData([...OLDER.map((r) => ({ time: r.time })), ...MA.map((r) => (r.value == null ? { ...r } : { ...r, value: r.value + 1 }))])
