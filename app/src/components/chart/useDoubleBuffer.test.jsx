@@ -83,9 +83,11 @@ async function ready(over = {}) {
 const press = (h, sym, over = {}) => h.rerender({ ...base(), ...over, sym })
 
 describe('useDoubleBuffer', () => {
-  it('H1 the hidden layer takes the row ahead right after the first frame (no idle time needed: the first press flips)', async () => {
+  it('H1 the hidden layer takes the row ahead once the front has drawn, with no idle time (the first press flips)', async () => {
     const { result } = mount()
-    expect(result.current.syms).toEqual(['AAA', 'BBB'])   // (afterPaint is immediate here; no timer has run)
+    expect(result.current.syms).toEqual(['AAA', null])    // (LOW-2) the mount's retarget waits for the front's first pass…
+    report(result, 0, 'AAA')
+    expect(result.current.syms).toEqual(['AAA', 'BBB'])   // …then the frame (afterPaint is immediate here; no timer has run)
     expect(result.current.front).toBe(0)
     expect(result.current.syms).toEqual(['AAA', 'BBB'])
     expect(result.current.handles[0].state).toBe('visible')
