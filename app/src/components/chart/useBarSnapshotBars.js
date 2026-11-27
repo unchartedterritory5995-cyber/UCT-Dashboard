@@ -36,7 +36,7 @@ import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/b
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
-import { deriveCustomTf } from './customTfRows'
+import { deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
@@ -198,7 +198,7 @@ export function useBarSnapshotBars({
     ? store.peek(keyOf({ sym, tf: 'D' })) : null
   const _aggBars = useMemo(() => {
     const d = _dSnap ? legacyBars(_dSnap) : null
-    return d?.length ? resample(d, 'D', resolvedTf) : null
+    return d?.length ? deriveWmFromDaily(d, resolvedTf) : null   // filed (customTfRows): the double buffer proves it
   }, [_dSnap, resolvedTf])
   // ⛔ THE DEVICE'S ONE REFUSAL HERE TOO (review of #2554, P3-M2). A chart's FIRST MOUNT (a new widget, a grid cell, the
   // phone workspace) and a same-symbol timeframe change are decided here, not at the switch's doors, and here the status

@@ -121,6 +121,16 @@ describe('one switch, one count', () => {
   })
 })
 
+describe("the double buffer's flip (chart/useDoubleBuffer.js, 2026-11-27)", () => {
+  it("a 'flip' (a pane already painted with the symbol, shown) is a drawn chart", async () => {
+    const m = member()
+    const t0 = arrow('BBB', group(m))
+    chartPainted(m.key, 'BBB', 300, 'flip')
+    expect(await frame(t0 + 3)).toBe(1)
+    expect(takeSwitchCounts().cells).toHaveLength(1)
+  })
+})
+
 describe('what is NOT a drawn chart', () => {
   it('a pass with no bars, a pass that re-set nothing, another symbol, or a chart that is not a member', async () => {
     const m = member()

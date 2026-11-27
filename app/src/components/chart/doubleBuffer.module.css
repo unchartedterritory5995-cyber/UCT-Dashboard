@@ -1,0 +1,20 @@
+/* The double-buffered next row (chart/useDoubleBuffer.js): the widget's pane slot holds two layers in the SAME box, the
+   front shown and the shadow laid out under it at the same size (so a flip changes no canvas size), hidden and inert.
+   The slot takes the pane's own place in the dock (ChartDetailDock .dockChartPane: a flex row). */
+.slot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* the hidden layer is the keep-alive's one primitive (boardLayer.js boardLayerProps: absolute, invisible, inert) */

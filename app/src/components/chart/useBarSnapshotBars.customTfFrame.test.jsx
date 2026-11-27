@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { pinWallClock } from '../../testing/pinnedWallClock'
-import { useBarSnapshotBars } from './useBarSnapshotBars'
+import { useBarSnapshotBars, viewDevelopingOf } from './useBarSnapshotBars'
 import { getBarStore, _resetBarStoreForTests } from '../../data/barStore/index'
 import { keyOf } from '../../data/barStore/types'
 import { legacyBars } from '../../data/barStore/adapter'
@@ -74,5 +74,32 @@ describe("a custom timeframe chart's bars (store path)", () => {
     const all = legacyBars(getBarStore().getBaseSnapshot(K))
     expect(result.current.bars).toEqual(resampleForSpec(all, customSpecOf('240', false)))
     expect(nf.hasDerived(all, 'customTf', nf.stableSig(customSpecOf('240', false)))).toBe(false)
+  })
+
+  // (review of #2909, c + L2) a tick that moves only the developing bar is not a base change: the chart keeps the very
+  // filed array (no re-render of the series, no new resample), nothing writes into that shared array, and the forming
+  // 4h bucket the developing channel paints (`viewDevelopingOf`) carries the tick.
+  it('a developing-only change returns the same filed array, unchanged; the dev channel carries the tick', () => {
+    nf.__setNeighborFramesForTests(true)
+    const { result } = renderHook(() => useBarSnapshotBars(params()))
+    answer(rows())   // 09:30 .. 12:30 at 13:17 ET: the 12:30 hour is forming
+    const st = getBarStore()
+    const before = st.getSnapshot(K)
+    expect(before.developing).toBeTruthy()
+    const base0 = st.getBaseSnapshot(K)
+    const bars0 = result.current.bars
+    const copy = JSON.stringify(bars0)
+    act(() => {
+      st.registry.dispatch(K, { key: K, gen: st.getSnapshot(K).gen, type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(12, 30) * 1000, o: 3, h: 9, l: 2, c: 8, v: 5 }, rev: Date.now() + 1 } })   // the 12:30 hour to date
+    })
+    expect(st.getBaseSnapshot(K)).toBe(base0)                    // a developing-only change
+    expect(st.getSnapshot(K).developing).not.toEqual(before.developing)
+    expect(result.current.bars).toBe(bars0)                      // the same filed array
+    expect(bars0).toBe(deriveCustomTf(legacyBars(base0), customSpecOf('240', false)))
+    expect(JSON.stringify(result.current.bars)).toBe(copy)       // nothing wrote into it
+    const dev = viewDevelopingOf(st.getSnapshot(K), base0, { spec: customSpecOf('240', false) })
+    expect(dev.t).toBe(et(9, 30))
+    expect(dev.h).toBe(9)
+    expect(dev.c).toBe(8)
   })
 })

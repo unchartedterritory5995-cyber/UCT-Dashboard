@@ -218,6 +218,72 @@ describe('StockChart on a layer keep-alive board', () => {
     delete window.__uctChartDebug['layer-hide']
   })
 
+  // ⭐ (2026-11-27, the double-buffered next row: chart/useDoubleBuffer.js) a shadow pane's chart is CREATED hidden
+  it('S8 (red first) a chart created on a hidden layer takes no debug handle; its first show takes it', async () => {
+    window.__uctChartDebug = window.__uctChartDebug || {}
+    const front = { front: true }
+    window.__uctChartDebug['layer-hide'] = front
+    const vis = createBoardVisibility({ layer: true })
+    vis.state = 'hidden'
+    const view = await mounted(vis)
+    expect(window.__uctChartDebug['layer-hide'], 'a chart created hidden took the handle of the chart in front').toBe(front)
+    delete window.__uctChartDebug['layer-hide']
+    await setTo(vis, 'visible')
+    expect(window.__uctChartDebug['layer-hide'], 'the first show did not take the handle').toBeTruthy()
+    expect(window.__uctChartDebug['layer-hide']).not.toBe(front)
+    await setTo(vis, 'hidden')
+    expect(window.__uctChartDebug['layer-hide'], 'the hide after it kept the handle').toBeUndefined()
+    view.unmount()
+  })
+
+  it("S9 (red first) a pass on a hidden layer is no group member's paint; on a shown one it is", async () => {
+    const { PaintMemberContext, onChartPaint } = await import('./chart/paintLog')
+    const seen = []
+    onChartPaint((member, sym, bars, mode) => { seen.push({ member, sym, mode }) })
+    const member = { m: 1 }
+    const vis = createBoardVisibility({ layer: true })
+    vis.state = 'hidden'
+    const view = render(
+      <PaintMemberContext.Provider value={member}>
+        <Host vis={vis} />
+      </PaintMemberContext.Provider>,
+    )
+    await waitFor(() => expect(lw.setData).toBeGreaterThan(0))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(seen.filter((x) => x.member === member), 'a hidden pass was handed to the switch instrument').toEqual([])
+    view.unmount()
+    seen.length = 0
+    const vis2 = createBoardVisibility({ layer: true })
+    const view2 = render(
+      <PaintMemberContext.Provider value={member}>
+        <Host vis={vis2} />
+      </PaintMemberContext.Provider>,
+    )
+    await waitFor(() => expect(seen.some((x) => x.member === member)).toBe(true))
+    view2.unmount()
+    onChartPaint(null)
+  })
+
+  it('S10 (review of #2922, F3) each pass reports what it committed: the symbol, timeframe, session and the bars handed in', async () => {
+    const { LayerPaintContext } = await import('./chart/layerPaint')
+    const seen = []
+    const vis = createBoardVisibility({ layer: true })
+    vis.state = 'hidden'
+    const view = render(
+      <LayerPaintContext.Provider value={(r) => { seen.push(r) }}>
+        <Host vis={vis} />
+      </LayerPaintContext.Provider>,
+    )
+    await waitFor(() => expect(lw.setData).toBeGreaterThan(0))
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0))
+    const last = seen[seen.length - 1]
+    expect(last.sym).toBe('AAPL')
+    expect(last.tf).toBe('D')
+    expect(typeof last.ext).toBe('boolean')
+    expect(last.bars, 'the report names the very bars array the pass committed').toBe(FIXTURE_BARS)
+    view.unmount()
+  })
+
   it('S7 (red first) a hide and a show with nothing new re-render nothing under the chart', async () => {
     const vis = createBoardVisibility({ layer: true })
     let commits = 0
