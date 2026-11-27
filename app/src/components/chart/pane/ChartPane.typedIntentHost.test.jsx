@@ -79,7 +79,7 @@ test('a host that throws never breaks the chart\'s own warm; a pane with no host
 
 // (review of #2934, B1) the typed warm asks the rows this chart's view will draw: its cover (paintLog viewNeed; COVER_ROWS
 // with no member view), which the store's D/W/M tail and the linked keys ask instead of the warms' default page
-test('the typed warm carries the view's cover (viewNeed)', async () => {
+test("the typed warm carries the view's cover (viewNeed)", async () => {
   const { COVER_ROWS } = await import('../../../data/barStore/coverRows')
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
   chartSearch().onTypedIntent('AMD')

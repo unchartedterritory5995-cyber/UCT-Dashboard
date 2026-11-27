@@ -102,6 +102,9 @@ export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'backgroun
  *  history job to take, and at most this many at once (each ~1-2 MB parsed). */
 export const DEEP_PRIME_TTL_MS = 120_000
 export const DEEP_PRIME_MAX = 4
+/** The newest rows the origin answers for a daily view's cover whose deep history the edge brings (`_tailJob`). */
+export const EDGE_TAIL_BARS = 30
+
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
 export const DEEP_WANT_MS = 5_000
@@ -311,7 +314,17 @@ export function createNetwork({
     const session = _session(r)
     const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover })
     const split = _splitFor(r, p)
-    const bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
+    let bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
+    // ⭐⭐ (2026-11-27, approved: the server-tail numbers) THE COVERING DAILY PAGE COMES FROM THE EDGE. A view's cover asked
+    // of the origin is a 2,000-row sqlite read and JSON build: 18-275 ms of server work on a cold name (bars-api
+    // Server-Timing, production), behind a 76-96 ms network floor. The deep sealed history is edge-cached (br, HIT in
+    // 95-152 ms, the floor) and is fetched BESIDE the tail (deepPrime) whenever its join is due. So where a view's cover
+    // is asked, the history is due and will be joined (more is wanted than the tail page), the origin answers only the
+    // newest EDGE_TAIL_BARS rows: a few ms of server work. The display waits for the join (the daily hold), which brings
+    // every covering row in the same frame. A history that fails turns the split off: the full depth from /api/bars.
+    if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && api.deepPending(r.key)) {
+      bars = Math.min(bars, EDGE_TAIL_BARS)
+    }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
     lastDelta.delete(r.key)

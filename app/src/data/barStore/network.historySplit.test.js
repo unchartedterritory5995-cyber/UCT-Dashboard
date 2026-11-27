@@ -74,10 +74,30 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     const member = {}
     noteMemberView(member, 1000)
     const w = world()
-    w.net.fetchOnce(w.key, { depth: w.depth, cover: viewNeed(member) })
+    w.net.fetchOnce(w.key, { cover: viewNeed(member) })   // (no deep ask: the origin page itself covers the view)
     await vi.advanceTimersByTimeAsync(50)
     expect(viewNeed(member)).toBe(1400)
     expect(tailBars(w)[0]).toBe(1400)
+  })
+
+  // ⭐⭐ (2026-11-27, the server-tail numbers) A DAILY VIEW'S COVER COMES FROM THE EDGE when the deep history is due and will
+  // be joined: the origin answers only the newest EDGE_TAIL_BARS (a few ms of server work instead of a 2,000-row read and
+  // JSON build), and the edge-cached history brings every covering row; the depth ends whole, once
+  it('a deep ask with a view cover: the origin answers EDGE_TAIL_BARS, the edge history brings the rest', async () => {
+    const { EDGE_TAIL_BARS } = await import('./network')
+    const w = world()
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    expect(histCalls(w)).toEqual([`/api/bars-history/SIM?tf=D&bars=${fullBarsFor('D')}&d=2026-11-09`])
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+  })
+
+  it('CONTROL: the edge failing turns the split off and the full depth comes from the origin, as before', async () => {
+    const w = world({ history: 'throw' })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(tailBars(w).at(-1)).toBe(fullBarsFor('D'))
   })
 
   // (review of #2934, B1) ...and only then: a warm (a neighbour, a dwell, a list) asks no cover and gets the default page
@@ -88,7 +108,7 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(50)
     expect(tailBars(w)[0]).toBe(FIRST_PAINT_BARS)
     const w2 = world()
-    w2.net.fetchOnce(w2.key, { depth: w2.depth, cover: 9000 })
+    w2.net.fetchOnce(w2.key, { cover: 9000 })
     await vi.advanceTimersByTimeAsync(50)
     expect(tailBars(w2)[0]).toBe(dateCoverMaxFor('D'))
   })
