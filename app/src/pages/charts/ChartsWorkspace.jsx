@@ -1,4 +1,6 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { BoardVisibilityContext, createBoardVisibility } from '../../components/chart/boardVisibility'
+import { boardKeepAliveEnabled, sameBoard } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -909,10 +911,49 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shows the new board arms the two frames (boardSwitchMark.js).
   const switchMarkRef = useRef(null)
   if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
-  const switchLayout = useCallback((next) => {
-    const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
-    if (grid && next !== layoutRef.current) switchMarkRef.current.mark(grid)
-    setLayout(next)
+  // ⭐ BOARD KEEP-ALIVE (2026-11-27, flag off by default; boardKeepAlive.js). The board a member's switch leaves stays
+  // mounted, hidden (<Activity mode="hidden">, every effect of it disconnected), and a switch back to the very same
+  // layout SHOWS it. Each board is a SLOT (its React key, stable across the prefs load and every non-member switch) with
+  // ONE visibility handle its charts read (boardVisibility.js); the handle's state is written HERE, before the commit
+  // that hides, shows or disposes the board. `key` is the board's dock id: what a switch back is matched on.
+  const keepAliveOn = useMemo(() => boardKeepAliveEnabled(), [])
+  const keepAliveOnRef = useRef(keepAliveOn)
+  const boardSlotSeqRef = useRef(0)
+  const currentBoardRef = useRef(null)   // { slot, key, vis } of the board in front
+  if (!currentBoardRef.current) currentBoardRef.current = { slot: 0, key: null, vis: createBoardVisibility() }
+  const [keptBoard, setKeptBoard] = useState(null)   // { slot, key, vis, layout } of the hidden board
+  const keptBoardRef = useRef(null)
+  keptBoardRef.current = keptBoard
+  // `user`: a member's switch to the board `key` names (a dock tab, Open Layout, the UCT Default, a failed switch put
+  // back). Every other switch (the prefs load, a version restore, the agent) replaces the board in front, in its slot.
+  const switchLayout = useCallback((next, { user = false, key } = {}) => {
+    const body = bodyRef.current
+    const grid = body?.querySelector?.('[data-board-current] .react-grid-layout') || body?.querySelector?.('.react-grid-layout')
+    let shown = next
+    if (keepAliveOnRef.current && user && key != null) {
+      const cur = currentBoardRef.current
+      const prevKey = cur.key ?? dockActiveIdRef.current
+      if (prevKey != null && String(prevKey) !== String(key)) {
+        const kept = keptBoardRef.current
+        const reuse = !!kept && String(kept.key) === String(key) && sameBoard(kept.layout, next, serializeLayout)
+        const leaving = { slot: cur.slot, key: prevKey, vis: cur.vis, layout: layoutRef.current }
+        leaving.vis.state = 'hidden'
+        if (reuse) {
+          kept.vis.state = 'visible'
+          currentBoardRef.current = { slot: kept.slot, key, vis: kept.vis }
+          shown = kept.layout
+        } else {
+          if (kept) kept.vis.state = 'disposed'
+          currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility() }
+        }
+        keptBoardRef.current = leaving
+        setKeptBoard(leaving)
+      } else {
+        cur.key = key
+      }
+    }
+    if (grid && shown !== layoutRef.current) switchMarkRef.current.mark(grid)
+    setLayout(shown)
   }, [])
   useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
 
@@ -1187,12 +1228,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // `mainBoardWidgetIds` mirrors visibleWidgets' filter (defined again, further
   // down, once poppedWidgetIds/floatingWidgetIds are in scope either way) —
   // computed from the same two state values so the two can never disagree.
-  const mainBoardWidgetIds = useMemo(
-    () => layout.widgets
+  const mainBoardWidgetIds = useMemo(() => {
+    const cur = layout.widgets
       .filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
-      .map(w => w.id),
-    [layout.widgets, poppedWidgetIds, floatingWidgetIds],
-  )
+      .map(w => w.id)
+    // the kept (hidden) board's widgets stay admitted: they are mounted, and its show must not gate them again
+    const extra = keptBoard ? keptBoard.layout.widgets.map(w => w.id).filter(id => !cur.includes(id)) : []
+    return extra.length ? [...cur, ...extra] : cur
+  }, [layout.widgets, poppedWidgetIds, floatingWidgetIds, keptBoard])
   // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
   // the widgets back in through the same cap instead of mounting them all at once.
   const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
@@ -2287,6 +2330,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
     const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
     const beforeLayout = layoutRef.current
+    // the board in front before this switch: a put-back is a switch back to it (the kept board, keep-alive on)
+    const back = { user: true, key: currentBoardRef.current.key ?? dockActiveIdRef.current }
     let beforeCols = null
     try { beforeCols = localStorage.getItem('uct.watchlist.cols') } catch { /* storage off */ }
     const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
@@ -2306,7 +2351,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const latest = seq === boardCommitSeqRef.current
     if (latest) boardCommitInFlightRef.current = false
     // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
-    if (op.stale()) { if (latest) { putColsBack(); switchLayout(beforeLayout) } return 'stale' }
+    if (op.stale()) { if (latest) { putColsBack(); switchLayout(beforeLayout, back) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       onCommitted?.()
@@ -2320,14 +2365,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
       putColsBack()
-      switchLayout(current || beforeLayout)
+      switchLayout(current || beforeLayout, back)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
     // failed: put back exactly what was on screen before the switch
     for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
     putColsBack()
-    switchLayout(beforeLayout)
+    switchLayout(beforeLayout, back)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
   }, [setPref, switchLayout])
@@ -2362,7 +2407,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => { switchLayout(boardLayout); setOpenMenuOpen(false) },
+      applyLocal: () => { switchLayout(boardLayout, { user: true, key: tpl.id }); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2518,7 +2563,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => { if (!keepBoard) switchLayout(normalized) },
+      applyLocal: () => { if (!keepBoard) switchLayout(normalized, { user: !quiet, key: UCT_DEFAULT_ID }) },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
@@ -3005,6 +3050,15 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('gridspike')
   const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
+  // Grid mode and a hidden workspace render no board: the kept one goes (its charts are destroyed with it).
+  useEffect(() => {
+    if (!(gridMode || boardHidden)) return
+    const kept = keptBoardRef.current
+    if (!kept) return
+    kept.vis.state = 'disposed'
+    keptBoardRef.current = null
+    setKeptBoard(null)
+  }, [gridMode, boardHidden])
 
   // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
   // demands an explicit owner — see the widget's own listener) and the press
@@ -3881,7 +3935,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // RGL configuration (viewport lock, 24 columns, computed row height) is
   // defined once here so a board on another monitor can't drift out of sync with
   // the workspace it came from.
-  const renderGrid = (widgets, h, rowHeightOverride, widthOverride) => {
+  const renderGrid = (widgets, h, rowHeightOverride, widthOverride, { hidden = false } = {}) => {
     // A popped-out board passes an explicit width (measured against its OWN
     // window); the main board leaves it undefined and uses WidthProvider's
     // auto-measurement.
@@ -3980,12 +4034,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         return (
           <div
             key={w.id}
-            data-widget-id={w.id}
+            // a kept (hidden) board carries neither: the board in front may hold a widget of the same id
+            data-widget-id={hidden ? undefined : w.id}
             // UCT Agent's product guide finds a board's watchlist / chart by its type (agent/guide/targets.js)
-            data-widget-type={w.type}
+            data-widget-type={hidden ? undefined : w.type}
             // main board charts only (a popped-out board's renderGrid passes no onPopOut): the
             // UCT Agent's "this chart". Capture phase, so a chart that stops propagation still counts.
-            onPointerDownCapture={w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
+            onPointerDownCapture={!hidden && w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
           >
             <WidgetHost
               widget={w}
@@ -4047,6 +4102,31 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const showPopupBlocked = () => {
     setPopoutNotice(POPUP_BLOCKED_MSG)
     if (boardHidden) announceDeskLaunchBlocked()
+  }
+
+  // A kept board's grid: nothing it does writes a board (it is hidden; this is the guard that holds if it were not).
+  const hiddenGridHandlers = {
+    onLayoutChange: () => {}, onDragStart: () => {}, onRemove: () => {}, onColorChange: () => {}, onOptsChange: () => {},
+    onReplaceWidget: () => {},
+  }
+  // The board in front and, keep-alive on, the kept one: each in its SLOT (a stable React key, ordered by slot so a
+  // switch back moves no DOM node), under its visibility handle, in an <Activity>. Keep-alive off: the board alone.
+  const renderMainBoards = () => {
+    const front = renderGrid(visibleWidgets, mainGridHandlers)
+    if (!keepAliveOn) return front
+    const cur = currentBoardRef.current
+    const boards = [{ slot: cur.slot, vis: cur.vis, front: true }]
+    if (keptBoard && keptBoard.slot !== cur.slot) boards.push({ slot: keptBoard.slot, vis: keptBoard.vis, front: false })
+    boards.sort((a, z) => a.slot - z.slot)
+    return boards.map((bd) => (
+      <BoardVisibilityContext.Provider key={`board-slot-${bd.slot}`} value={bd.vis}>
+        <Activity mode={bd.front ? 'visible' : 'hidden'}>
+          <div className={styles.boardSlot} data-board-current={bd.front ? '' : undefined}>
+            {bd.front ? front : renderGrid(keptBoard.layout.widgets, hiddenGridHandlers, undefined, undefined, { hidden: true })}
+          </div>
+        </Activity>
+      </BoardVisibilityContext.Provider>
+    ))
   }
 
   const mainGridHandlers = {
@@ -4397,7 +4477,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
-          ) : renderGrid(visibleWidgets, mainGridHandlers)}
+          ) : renderMainBoards()}
           {/* Owner 11-16: a blank workspace (new members start here) says what to do. */}
           {!gridMode && layout.widgets.length === 0 && !pendingAdd && (
             <div className={styles.emptyBoard} data-testid="empty-board">
