@@ -102,31 +102,47 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const mirrorRef = useRef({ timer: 0, idle: 0 })
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
+  // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
+  // click handler, which tells this handle's subscribers synchronously: the budget moves there (a Set, nothing else),
+  // and the widget's own state follows in a TRANSITION (never the click's commit); the hidden pane itself goes in idle
+  // time (below), so the switch's commit unmounts no chart and renders no pane (#2901: a hide or a show re-renders
+  // nothing).
   useLayoutEffect(() => {
     if (!eligible) return undefined
     const key = parentVis || scope
     let release = null
-    const sync = () => {
+    const sync = (initial = false) => {
       const shown = !parentVis || parentVis.state === 'visible'
+      let next = null
       if (shown && !release) {
         release = acquireShadow(key, owner)
-        setSlotOk(!!release)
+        next = !!release
       } else if (!shown && release) {
         release(); release = null
-        setSlotOk(false)
+        next = false
       }
+      if (next === null) return
+      if (initial) setSlotOk(next)
+      else startTransition(() => setSlotOk(next))
     }
-    sync()
-    const off = parentVis && typeof parentVis.subscribe === 'function' ? parentVis.subscribe(sync) : null
+    sync(true)
+    const off = parentVis && typeof parentVis.subscribe === 'function' ? parentVis.subscribe(() => sync(false)) : null
     return () => { if (off) off(); if (release) release() }
   }, [eligible, scope, owner, parentVis])
-  // a widget without a shadow holds no hidden pane (its canvases go)
-  useLayoutEffect(() => {
-    if (!eligible || slotOk) return
-    if (bufRef.current.syms[1 - bufRef.current.front] != null) {
-      setBuf((x) => { const syms = x.syms.slice(); syms[1 - x.front] = null; return { syms, front: x.front } })
-      reportsRef.current[1 - bufRef.current.front] = null
-    }
+  // a widget without a shadow holds no hidden pane (its canvases go): in idle time, as a transition
+  useEffect(() => {
+    if (!eligible || slotOk) return undefined
+    const idle = _ric(() => {
+      const b = bufRef.current
+      if (b.syms[1 - b.front] == null) return
+      reportsRef.current[1 - b.front] = null
+      startTransition(() => setBuf((x) => {
+        if (x.syms[1 - x.front] == null) return x
+        const syms = x.syms.slice(); syms[1 - x.front] = null
+        return { syms, front: x.front }
+      }))
+    })
+    return () => _cic(idle)
   }, [eligible, slotOk])
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
@@ -188,7 +204,10 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         if (!front || !shadow || !b.syms[1 - b.front]) return
         let frame = null
         try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.()) } catch { frame = null }
-        if (frame) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
+        // (N4) restoreView also writes the view lock under the pane's key, which both layers share
+        // (`uct.charts.viewLock.<chartId>`): a frame is only made for a front with NO lock (mirrorFrameFor), and it
+        // carries none, so the write removes a lock that the front does not hold either; read again here, at the write
+        if (frame && !front.getDateMeta?.()?.frame?.locked) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
       })
     }, MIRROR_DEBOUNCE_MS)
   }
