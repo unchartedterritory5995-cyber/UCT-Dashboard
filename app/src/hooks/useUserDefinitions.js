@@ -28,6 +28,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
 import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions, markDefinitionsServed, definitionsServedThisPage } from '../lib/userDefsCache'
+import { startBootRequestIfSignedIn, takeBootFor } from '../lib/bootFetch'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
 } from '../components/chart/engine/nativeRegistry'
@@ -66,6 +67,15 @@ const withGraph = (url) => `${url}${url.includes('?') ? '&' : '?'}${GRAPH_READ}`
  *  current row costs no byte and a stale one needs no second request. An old
  *  bundle never asks and is served exactly as before. */
 const withEngine = (url) => `${url}${url.includes('?') ? '&' : '?'}engine=${SCRIPT_ENGINE_VERSION}`
+/** The ONE request the list read sends (the capability flag and the engine): the boot request names it too. */
+const listRequestUrl = (url) => withEngine(withGraph(url))
+
+/** ⭐ (e101 S5) The list read, started as the chart chunk loads (`StockChart.jsx` module scope), before any render
+ *  asks for it (`lib/bootFetch.js::startBootRequestIfSignedIn`: the measured wait, and its rules). The fetcher takes
+ *  it for the member the boot /me named (`takeBootFor`), or fetches as before. */
+export function startUserDefinitionsBootRequest(opts) {
+  return startBootRequestIfSignedIn(listRequestUrl(USER_DEFINITIONS_KEY), opts)
+}
 
 /** ⚠️ THROWS on a non-ok response, deliberately.
  *
@@ -78,7 +88,11 @@ async function fetcher(url) {
   // file names it) while the REQUEST carries the capability flag. Folding the
   // flag into the key would silently orphan five revalidation call sites.
   const owner = _defsCacheOwner
-  const r = await fetch(withEngine(withGraph(url)), { credentials: 'include' })
+  const request = listRequestUrl(url)
+  // ⭐ (e101 S5) the boot request, only for the member the boot /me named; a failed or missing one: fetch as before
+  const boot = takeBootFor(request, _defsBootUser)
+  const bootRes = boot ? await boot : null
+  const r = bootRes || await fetch(request, { credentials: 'include' })
   if (!r.ok) {
     // ⭐ (2026-11-26) an authoritative refusal (signed out, plan lapsed, forbidden) forgets the kept list too: nothing
     // kept may draw for a member the store refuses (`useInstalledUserDefinitions` clears the registry on the same codes)
@@ -120,6 +134,8 @@ function hydrateRows(rows) {
 // (hydrated exactly as a fetched answer is), a list over its size cap is not kept, and a definitive sign-out
 // (`clearCachedDefinitions`, from AuthContext) forgets it (`lib/userDefsCache.js`).
 let _defsCacheOwner = null
+/** (e101 S5) the /me `user.id` of the member the hook reads for: the boot request is handed out only to them. */
+let _defsBootUser = null
 
 /** `owner`'s last served list, hydrated as a fetched answer is, or undefined (none, another member, another engine).
  *  Exported for its rail. */
@@ -184,6 +200,7 @@ export function useUserDefinitions() {
   // ⭐⭐ (2026-11-26, Fred RS load time) this member's last served list is SWR's first answer (`readCachedDefinitions`)
   const owner = ownerOf(user)
   _defsCacheOwner = owner
+  _defsBootUser = user ? (user.id ?? null) : null
   const fallback = useMemo(() => (definitionsServedThisPage() ? undefined : readCachedDefinitions(owner)), [owner])
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     fallbackData: fallback,

@@ -37,7 +37,8 @@ THE RATCHET. `tools/vendor_callsite_baseline.json` holds the counts. The rail
 or a new file is red by name, and a shrink is red as "slack" until written down.
 `--write-baseline` only ever lowers (it refuses to raise any count or add a
 file); raising means hand-editing the JSON, which `--ratchet-against <git-ref>`
-catches.
+catches. A hand-raise writes its one-line reason under `raised` ("provider:path"),
+which `--write-baseline` carries until that file leaves the queue.
 
 Scope: `api/` only (the served code), same as the per-vendor censuses.
 """
@@ -50,7 +51,7 @@ import os
 import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
 DEFAULT_ROOTS = ("api",)
 BASELINE_REL = "tools/vendor_callsite_baseline.json"
@@ -350,27 +351,35 @@ def load_baseline(base: str, path: str | None = None) -> dict:
         return json.load(fh)["counts"]
 
 
-def _dump(counts_: dict) -> str:
+def _dump(counts_: dict, raised: Optional[dict] = None) -> str:
     body = {"schema": 1,
             "about": "TERM-022 retirement-queue ratchet -- see tools/vendor_callsite_census.py. "
                      "Lower only: run `python tools/vendor_callsite_census.py --write-baseline`.",
             "counts": {p: dict(sorted(f.items())) for p, f in sorted(counts_.items()) if f}}
+    # `raised`: "provider:path" -> the one-line reason a hand-raise was accepted. Carried
+    # while that file is still in the queue; dropped with it when it leaves.
+    kept = {k: v for k, v in sorted((raised or {}).items())
+            if (body["counts"].get(k.partition(":")[0]) or {}).get(k.partition(":")[2])}
+    if kept:
+        body["raised"] = kept
     return json.dumps(body, indent=2, sort_keys=False) + "\n"
 
 
 def write_baseline(now: dict, path: str) -> tuple[bool, str]:
     """Write `now` as the baseline -- ONLY if nothing in it is above the current
     baseline. Returns (written, message). A first write (no file) is allowed."""
+    raised: dict = {}
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as fh:
-            old = json.load(fh)["counts"]
+            doc = json.load(fh)
+        old, raised = doc["counts"], doc.get("raised") or {}
         up = ratchet_regressions(old, now)
         if up:
             return False, ("refusing to RAISE the ratchet -- route these through the adapter "
                            f"instead (provider, file, baseline, now): {up}")
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as fh:
-        fh.write(_dump(now))
+        fh.write(_dump(now, raised))
     os.replace(tmp, path)
     return True, f"wrote {path}"
 

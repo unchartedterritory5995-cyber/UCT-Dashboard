@@ -252,6 +252,32 @@ def test_write_baseline_only_ever_lowers(tmp_path):
     assert not refused and "z.py" in msg
 
 
+def test_write_baseline_keeps_a_raise_reason_until_its_file_leaves(tmp_path):
+    """A hand-raise writes its reason under `raised`; lowering keeps it while the file is
+    still queued and drops it with the file (a stale reason must not outlive its site)."""
+    path = tmp_path / "baseline.json"
+    path.write_text(json.dumps({"schema": 1, "counts": {"massive": {"a.py": 3, "b.py": 2}},
+                                "raised": {"massive:a.py": "why a", "massive:b.py": "why b"}}),
+                    encoding="utf-8")
+    ok, msg = cen.write_baseline({"massive": {"a.py": 2}}, str(path))
+    assert ok, msg
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    assert doc["counts"] == {"massive": {"a.py": 2}}
+    assert doc["raised"] == {"massive:a.py": "why a"}
+    ok, msg = cen.write_baseline({}, str(path))
+    assert ok, msg
+    assert "raised" not in json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_the_real_baseline_gives_every_raise_a_reason_for_a_queued_file():
+    with open(os.path.join(BASE, cen.BASELINE_REL), encoding="utf-8") as fh:
+        doc = json.load(fh)
+    for key, why in (doc.get("raised") or {}).items():
+        prov, _, path = key.partition(":")
+        assert doc["counts"].get(prov, {}).get(path), f"reason for a file not in the queue: {key}"
+        assert isinstance(why, str) and why.strip(), key
+
+
 def test_ratchet_regressions_catch_a_hand_raised_baseline():
     """Raising the JSON by hand is the one way past `write_baseline`; the
     `--ratchet-against <ref>` check compares against an older baseline."""
