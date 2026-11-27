@@ -8,6 +8,11 @@
 //      changes (as quietly), and a parent change it does not see (it is hidden itself) tells it nothing
 //   N2 (red first) useNestedBoardVisibility under a board: a reader inside the slot re-renders when the board hides
 //   L1 (red first) boardLayerProps: the one definition of the hidden layer's wrapper
+// Review of #2918:
+//   C3 (red first, LOW 1) forwardWhileCurrent on a DISPOSED current layer (still mounted, about to go): a feed call
+//      schedules no idle re-render, and a call pending at the dispose never runs
+//   N3 (red first, LOW 2) a NESTED handle's dispose: its listeners and readers are told once, then dropped, and it
+//      stops following its parent (no subscription left on the parent, none made again by a late subscribe)
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, renderHook, act } from '@testing-library/react'
 import {
@@ -157,5 +162,59 @@ describe('the double-buffered row handle API', () => {
     expect(hidden.inert).toBe(true)
     expect(hidden['aria-hidden']).toBe(true)
     expect(boardLayerProps(false, 'front')).toEqual({ className: 'front', inert: false, 'aria-hidden': undefined })
+  })
+})
+
+describe('the double-buffered row handle API, disposal (review of #2918)', () => {
+  it('C3 (red first) a disposed current layer forwards nothing: no idle re-render scheduled, a pending one cancelled', async () => {
+    vi.useFakeTimers()
+    const cur = createBoardVisibility({ layer: true, current: true })
+    const notify = vi.fn()
+    const f = forwardWhileCurrent(cur, notify)
+    cur.set('hidden')
+    f.cb()                                         // pending in an idle task
+    cur.dispose()
+    await vi.advanceTimersByTimeAsync(600)
+    expect(notify, 'a call pending at the dispose re-rendered the disposed slot').not.toHaveBeenCalled()
+    f.cb()
+    await vi.advanceTimersByTimeAsync(600)
+    expect(notify, 'a disposed slot scheduled an idle re-render').not.toHaveBeenCalled()
+    f.stop()
+    // CONTROL: the same calls on a hidden current layer not disposed do re-render, once, in an idle task
+    const live = createBoardVisibility({ layer: true, current: true })
+    const n2 = vi.fn()
+    const g = forwardWhileCurrent(live, n2)
+    live.set('hidden')
+    g.cb(); g.cb()
+    await vi.advanceTimersByTimeAsync(600)
+    expect(n2).toHaveBeenCalledTimes(1)
+    g.stop()
+  })
+
+  it('N3 (red first) a nested handle disposed drops its listeners and readers and unfollows its parent', () => {
+    const board = createBoardVisibility({ layer: true })
+    let onParent = 0
+    const sub = board.subscribe
+    board.subscribe = (cb) => { onParent++; const un = sub(cb); return () => { onParent--; un() } }
+    const slot = createBoardVisibility({ layer: true, parent: board })
+    const listener = vi.fn()
+    const reader = vi.fn()
+    slot.subscribe(listener)
+    slot.subscribeReaders(reader)
+    expect(onParent, 'NON-VACUITY: the slot follows its board while listened to').toBe(1)
+    board.set('hidden')
+    expect(listener, 'NON-VACUITY: the slot is told of its board').toHaveBeenCalledTimes(1)
+    board.set('visible')
+    listener.mockClear(); reader.mockClear()
+    slot.dispose()
+    expect(listener, 'the dispose is told once').toHaveBeenCalledTimes(1)
+    expect(reader).toHaveBeenCalledTimes(1)
+    expect(onParent, 'the disposed slot still follows its board').toBe(0)
+    listener.mockClear(); reader.mockClear()
+    board.set('hidden'); board.set('visible')
+    expect(listener, 'a board change reached a disposed slot').not.toHaveBeenCalled()
+    expect(reader).not.toHaveBeenCalled()
+    slot.subscribe(vi.fn())                         // a late subscribe (a cleanup and an effect crossing)
+    expect(onParent, 'a late subscribe made the disposed slot follow its board again').toBe(0)
   })
 })
