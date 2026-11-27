@@ -1287,3 +1287,13 @@ lazy chunk would mean those shared hooks lazy-load their own pause, which costs 
 owner's directive of 2026-11-27 ("I dont want to hold anything ever... we need it all done"), relayed by the
 coordinator, who confirms this raise with the owner: max 2,264,065 -> 2,266,113 B (+2,048 B, headroom for #2911's
 default-on change), listed in `owner_raises`.
+
+## 2026-11-27: +2,048 B for the double-buffered next row's board visibility API (#2918), owner standing approval
+
+#2918 extends the board visibility handle (`components/chart/boardVisibility.js`) for the double-buffered next row: a
+CURRENT hidden handle whose bar feed is forwarded in an idle task, QUIET show and hide, NESTED handles for a chart slot,
+and the one layer primitive (`components/chart/boardLayer.js`). The handle is read by the shared bar-store hook
+(`useBarSnapshot`), so it sits in the main chunk, and the Notebook's first open grew: CI read 2,266,846 B at fb20844257
+against the 2,266,113 B line (+733 B). Raised by the owner's standing approval of budget raises, given 2026-11-27
+("just raise the budget and get it done", then "always"): max 2,266,113 -> 2,268,161 B (+2,048 B, headroom for the
+double-buffered row itself, #2922), listed in `owner_raises`.
