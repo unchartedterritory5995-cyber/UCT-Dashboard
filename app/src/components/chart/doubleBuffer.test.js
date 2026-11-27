@@ -11,6 +11,9 @@
 //      (a range, a pan or zoom), a replay view lock frame the switch, so the hidden chart is prepared in the SAME mode:
 //      the same cutoff, the same locks, at the frame they give it, its history covering that frame; it flips then, and
 //      refuses only what it cannot prove (another cutoff, another lock, a frame off, a lock past the newest bar, short rows)
+//   F6 (owner, 2026-11-27) THE DATE THE MEMBER WENT TO (the date box's anchor): both charts carry it as a prop and frame
+//      their own symbol at it; a flip needs the hidden chart drawn under the same anchor, at the frame it gives its own
+//      rows, those rows holding the date; it is never mirrored
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   flipDecision, viewParity, mirrorFrameFor, acquireShadow, shadowsHeld, MAX_SHADOWS, doubleBufferOn, __setDoubleBufferForTests, DOUBLE_BUFFER_KEY,
@@ -205,5 +208,34 @@ describe("F4 the shadow\'s row", () => {
     expect(nextShadowSym('AAA')).toBe('BBB')
     nf.publishScanNeighbors('AAA', ['ZZZ'], ['BBB'])   // moving up: ahead is the row above
     expect(nextShadowSym('aaa')).toBe('ZZZ')
+  })
+})
+
+describe('F6 the date the member went to (owner, 2026-11-27: scanning charts at 1/3/2006)', () => {
+  const anchor = { date: '2006-01-03', width: 120 }
+  const at = (fromRight, toRight, extra = {}) => ({ frame: { fromRight, toRight, locked: false, lock: null }, activeRange: null, priceAuto: true,
+    replay: { mode: false }, plotWidthPx: 1000, rows: 6000, replayLock: null, anchor, anchorFrame: { fromRight, toRight }, anchorEarliest: false, ...extra })
+  const D = { tf: 'D' }
+  it('flips when the hidden chart drew under the same anchor; another anchor, or none, refuses', () => {
+    const w = { ...want, anchor: '2006-01-03|120' }
+    expect(flipDecision(w, { ...report, anchor: '2006-01-03|120' }, now, ok)).toEqual({ flip: true, why: 'flip' })
+    expect(flipDecision(w, { ...report, anchor: '2006-01-04|120' }, now, ok)).toEqual({ flip: false, why: 'anchor' })
+    expect(flipDecision(w, report, now, ok)).toEqual({ flip: false, why: 'anchor' })
+    expect(flipDecision(want, { ...report, anchor: '2006-01-03|120' }, now, ok)).toEqual({ flip: false, why: 'anchor' })
+  })
+  it("alike when the hidden chart sits at the frame the anchor gives ITS rows (whatever the front's own frame)", () => {
+    expect(viewParity(at(4700, 4580), at(5200, 5080), D)).toBe('ok')
+  })
+  it.each([
+    ['view-anchor', at(4700, 4580), at(5200, 5080, { anchor: null, anchorFrame: null })],
+    ['view-anchor', at(4700, 4580), at(5200, 5080, { anchor: { date: '2006-01-04', width: 120 } })],
+    ['view-frame', at(4700, 4580), { ...at(5200, 5080), frame: { fromRight: 120, toRight: -6, locked: false, lock: null } }],
+    ['view-short', at(4700, 4580), at(5200, 5080, { anchorFrame: null })],          // the anchor names no bar of its rows yet
+    ['view-short', at(4700, 4580), at(5200, 5080, { anchorEarliest: true })],       // its rows start after the date
+    ['view-short', at(4700, 4580), at(5200, 5080, { rows: 5100 })],                 // its rows do not reach the frame's left edge
+  ])('refuses %s', (why, f, sh) => { expect(viewParity(f, sh, D)).toBe(why) })
+  it('never mirrored: each chart frames its own symbol at the anchor', () => {
+    expect(mirrorFrameFor(at(4700, 4580), { ...at(5200, 5080), frame: { fromRight: 120, toRight: -6, locked: false, lock: null } }, D)).toBe(null)
+    expect(mirrorFrameFor({ ...at(160, -8), anchor: null, anchorFrame: null }, at(5200, 5080), D)).toBe(null)
   })
 })

@@ -13,7 +13,10 @@
 //   W7 (review of #2932) a typed Enter that flips leaves the focus in the front layer, as a typed switch does
 //   W8 (owner, 2026-11-27) change-date mode at a 2006 date (the workspace's replay cutoff): a press to the row ahead flips
 //   W9 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock both layers hold, at the frame it gives): a press flips
-import { render, screen, act, fireEvent } from '@testing-library/react'
+//   W10 (owner, 2026-11-27) the date box: go to 1/3/2006, arrow through 10 symbols: every chart opens at that date with
+//      the same span (both layers carry the anchor), presses flip where the hidden chart is ready; "Latest" clears it
+//   W11 Enter on an empty date field clears it; entering replay clears it
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { Profiler, useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
@@ -49,16 +52,16 @@ vi.mock('../../../components/StockChart', async () => {
   const { LayerPaintContext } = await import('../../../components/chart/layerPaint')
   return {
     default: (props) => {
-      const { sym, tf, onDateNavApi, replayCutoff } = props
+      const { sym, tf, onDateNavApi, replayCutoff, anchorDate, anchorWidth } = props
       renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
       ;(renders.props[sym] = renders.props[sym] || []).push(props)
       const report = useContext(LayerPaintContext)
-      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym], cutoff: replayCutoff || null }) })
+      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym], cutoff: replayCutoff || null, anchor: anchorWidth ? `${anchorDate}|${anchorWidth}` : null }) })
       useLayoutEffect(() => { renders.mounts += 1; return () => { renders.unmounts += 1 } }, [])
       useEffect(() => {
         if (typeof onDateNavApi !== 'function') return undefined
         const m = { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } }
-        onDateNavApi({ getDateMeta: () => renders.meta || m, restoreView: () => {} })
+        onDateNavApi({ getDateMeta: () => (typeof renders.meta === 'function' ? renders.meta(props) : renders.meta) || m, restoreView: () => {}, stepBar: () => {}, goToDate: () => {}, goToYear: () => {} })
         return () => onDateNavApi(null)
       }, [onDateNavApi])
       return <span data-testid="chart-sym">{sym}</span>
@@ -355,4 +358,71 @@ test('W9 (owner) zoomed out 2014-2026: a view lock both layers hold, at the fram
   act(() => { setGroup('BBB') })
   await settle(200)
   expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBe(1)
+})
+
+// (owner, 2026-11-27) scanning charts AT a past date: the date box's anchor rides both layers' props
+const SYMS = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']
+const anchoredMeta = (p) => (p.anchorWidth
+  ? { frame: { fromRight: 4700, toRight: 4700 - p.anchorWidth, locked: false }, activeRange: null, priceAuto: true, replay: { mode: false },
+    rows: 6000, anchor: { date: p.anchorDate, width: p.anchorWidth }, anchorFrame: { fromRight: 4700, toRight: 4700 - p.anchorWidth }, anchorEarliest: false }
+  : { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } })
+function scanList() {
+  for (const s of SYMS) renders.storeBars[s] = Object.freeze([s, 1])
+  SYMS.forEach((s, i) => { nf.publishScanNeighbors(s, SYMS.slice(i + 1, i + 2), i ? [SYMS[i - 1]] : []) })
+  __setDoubleBufferBarsSourceForTests((key) => {
+    for (const sym of SYMS) if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: false, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[sym]
+    return null
+  })
+  renders.meta = anchoredMeta
+}
+const lastProps = (sym) => { const l = renders.props[sym] || []; return l[l.length - 1] }
+const dateField = () => layer('front').querySelector('input[placeholder="M/D/YYYY"]')
+const goTo = (text) => {
+  const f = dateField()
+  act(() => { f.focus() })
+  fireEvent.change(f, { target: { value: text } })
+  fireEvent.keyDown(f, { key: 'Enter' })
+}
+test('W10 (owner) go to 1/3/2006, arrow through 10 symbols: each opens at that date with the same span, flips where ready; Latest clears', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  goTo('1032006')
+  await settle()
+  const w = lastProps('S0').anchorWidth
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  expect(w).toBe(165)                                         // the member's span (the front's frame: 160 - -5)
+  for (const s of SYMS.slice(1)) {
+    act(() => { setGroup(s) })
+    await settle(400)
+    expect(symIn(layer('front'))).toBe(s)
+    expect(lastProps(s).anchorDate, `${s} opened at another date`).toBe('2006-01-03')
+    expect(lastProps(s).anchorWidth, `${s} opened at another span`).toBe(w)
+  }
+  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBeGreaterThanOrEqual(5)
+  const latest = within(layer('front')).getByRole('button', { name: 'Back to the latest bar' })
+  fireEvent.click(latest)
+  await settle()
+  expect(lastProps('S9').anchorDate ?? null).toBe(null)
+  expect(within(layer('front')).queryByRole('button', { name: 'Back to the latest bar' })).toBe(null)
+  act(() => { setGroup('S8') })
+  await settle(400)
+  expect(lastProps('S8').anchorDate ?? null).toBe(null)       // back to the present
+})
+test('W11 (owner) Enter on an empty date field clears the date; entering replay clears it', async () => {
+  scanList()
+  const view = render(<Wrap initial="S0" />)
+  await settle()
+  goTo('1032006')
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  goTo('')
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null).toBe(null)
+  goTo('1032006')
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  view.rerender(<Wrap initial="S0" cutoff="2006-06-30" />)
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null).toBe(null)
 })

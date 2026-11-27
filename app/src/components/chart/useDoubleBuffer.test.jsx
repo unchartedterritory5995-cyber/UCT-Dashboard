@@ -21,6 +21,8 @@
 //   H16 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock): the hidden chart is given the front's lock at the frame
 //      the lock gives it, and then a press flips
 //   H17 (N4) the mirror writes the pane's shared lock key only with the lock the front STILL holds at the write
+//   H18 (owner, 2026-11-27) at the date the member went to: a hidden chart drawn under that anchor flips; one drawn
+//      under another anchor refuses
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -56,7 +58,7 @@ function mount(over = {}) {
   return renderHook((p) => useDoubleBuffer(p), { initialProps: { ...base(), ...over } })
 }
 // a layer's chart commits a pass of `sym` (StockChart's report through LayerPaintContext)
-const report = (result, i, sym, cutoff = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff }) })
+const report = (result, i, sym, cutoff = null, anchor = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff, anchor }) })
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -322,6 +324,21 @@ describe('useDoubleBuffer', () => {
     await idle()
     expect(n).toBeGreaterThanOrEqual(2)
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('H18 (owner, 2026-11-27) at the date the member went to: the hidden chart of that anchor flips; one of another refuses', async () => {
+    const a = '2006-01-03|120'
+    const h = mount({ anchor: a })
+    report(h.result, 0, 'AAA', null, a)
+    await idle()
+    report(h.result, 1, 'BBB', null, a)
+    press(h, 'BBB', { anchor: a })
+    expect(h.result.current.front).toBe(1)
+    await idle()
+    report(h.result, 0, 'CCC', null, '2006-01-04|120')
+    press(h, 'CCC', { anchor: a })
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().why.anchor).toBe(1)
   })
 
   it('H16 (owner, 2026-11-27) zoomed out 2014-2026: the hidden chart is given the front lock at its frame; then a press flips', async () => {
