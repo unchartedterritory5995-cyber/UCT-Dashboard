@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import INDEX_HTML from '../../index.html?raw'
 import {
-  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_MAX_AGE_MS, SIGNED_IN_HINT,
+  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_ADOPT_WINDOW_MS, SIGNED_IN_HINT,
   takeBootSecondaryBars, noteSecondaryNeeds, forgetSecondaryNeeds, __resetBootSecondaryForTests,
 } from './bootSecondaryBars'
 import { ensureSecondaryBars, cachedBars, clearSecondaryBars, SOURCE_STATUS, BARS_PATH } from '../components/chart/engine/secondaryBars'
@@ -90,7 +90,7 @@ describe('boot: the windows this page needed last time leave as the document par
     vi.useFakeTimers({ toFake: ['performance', 'Date'] })
     startBootSecondaryBars({ fetchImpl: () => Promise.resolve(okResponse({ bars: rows })), path: '/charts',
       storage: memStorage({ 'uct.signedIn.v1': '1', [SECONDARY_NEEDS_KEY]: record() }) })
-    vi.advanceTimersByTime(BOOT_SECONDARY_MAX_AGE_MS + 1)
+    vi.advanceTimersByTime(BOOT_SECONDARY_ADOPT_WINDOW_MS + 1)
     expect(takeBootSecondaryBars(SPX)).toBe(null)
   })
 

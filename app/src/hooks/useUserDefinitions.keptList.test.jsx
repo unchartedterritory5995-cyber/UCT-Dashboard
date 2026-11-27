@@ -78,4 +78,18 @@ describe('useUserDefinitions: the kept list is the first answer', () => {
     expect(AUTH_SRC).toMatch(/^import \{ clearCachedDefinitions \} from '\.\.\/lib\/userDefsForget'$/m)
     expect(AUTH_SRC).toMatch(/setSignedInHint\(false\)\s*\n\s*clearCachedDefinitions\(\)/)
   })
+
+  it('K5 (2026-11-27) the kept list starts a page load only: once served, a remount reads the store, never the kept copy', async () => {
+    writeCachedDefinitionRows('m1', SCRIPT_ENGINE_VERSION, [KEPT])
+    const first = renderHook(() => useUserDefinitions(), { wrapper: wrapperFor({ id: 'm1' }) })
+    expect(first.result.current.rows.map((r) => r.def_id)).toEqual(['u_kept0000000'])
+    await act(async () => { await new Promise((r) => setTimeout(r, 60)) })
+    await act(async () => { answer(); for (let i = 0; i < 10; i++) await Promise.resolve() })
+    first.unmount()
+    // the store's answer is kept again (as it always is); a remount on this page must not draw it from the kept copy
+    writeCachedDefinitionRows('m1', SCRIPT_ENGINE_VERSION, [KEPT])
+    const again = renderHook(() => useUserDefinitions(), { wrapper: wrapperFor({ id: 'm1' }) })
+    expect(again.result.current.rows, 'a remount drew the kept copy').toEqual([])
+    expect(again.result.current.kept).toBe(false)
+  })
 })

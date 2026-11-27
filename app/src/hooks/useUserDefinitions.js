@@ -27,7 +27,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
-import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions } from '../lib/userDefsCache'
+import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions, markDefinitionsServed, definitionsServedThisPage } from '../lib/userDefsCache'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
 } from '../components/chart/engine/nativeRegistry'
@@ -97,6 +97,7 @@ async function fetcher(url) {
   // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
   // ⭐⭐ (2026-11-26, Fred RS load time) and the answer, as served, is this member's start for the next load
   if (owner != null && owner === _defsCacheOwner) writeCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION, body.definitions)
+  markDefinitionsServed()
   return hydrateRows(body.definitions)
 }
 
@@ -183,7 +184,7 @@ export function useUserDefinitions() {
   // ⭐⭐ (2026-11-26, Fred RS load time) this member's last served list is SWR's first answer (`readCachedDefinitions`)
   const owner = ownerOf(user)
   _defsCacheOwner = owner
-  const fallback = useMemo(() => readCachedDefinitions(owner), [owner])
+  const fallback = useMemo(() => (definitionsServedThisPage() ? undefined : readCachedDefinitions(owner)), [owner])
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     fallbackData: fallback,
     revalidateOnMount: true,

@@ -113,19 +113,52 @@ export function publishScanNeighbors(center, ahead = [], behind = [], depth = 2)
   for (const cb of [..._scanSubs]) { try { cb(c) } catch { /* a subscriber */ } }
 }
 
-/** The rows a list published around `sym` (nearest first), or [] when no list is centred on it. */
-export function scanNeighborsFor(sym) {
-  const e = _scan.get(String(sym || '').toUpperCase())
-  return e ? e.order.slice() : []
+// ─── the typed next symbol ────────────────────────────────────────────────────────────────────────────
+// ⭐ (2026-11-26, typed vs arrow on the owner's boards) A ticker typed into a chart's search is where the next Enter
+// lands, exactly as the next list row is where the next arrow lands. Measured (enter-vs-arrow-20261126, one 5m chart and
+// a list): the arrow's key task found its row's frame prepared, the typed Enter derived it inside the key task (the
+// chart's session filter, candles, closes, volume and its HVC set, the indicator columns and points: 2-8 ms per chart,
+// plus the GC it leaves). So the chart's pane, once its typed warm has the ticker's bars in (ChartPane
+// `handleTypedIntent`), names the typed ticker as the NEXT symbol of the symbol its chart shows, and every chart on that
+// symbol prepares it first (`scanNeighborsFor`: it leads the list's own rows), in idle time, by the same functions.
+// Content identity still decides: a frame prepared from other bars than the switch reads is simply not found.
+// center (upper case) -> { sym, at }; forgotten after TYPED_NEXT_MS (a search closed without Enter stops costing work).
+export const TYPED_NEXT_MS = 15_000
+const _typedNext = new Map()
+
+/** Name `typed` as the next symbol of the charts showing `center` (null / the centre itself clears it). */
+export function publishTypedNext(center, typed) {
+  if (!neighborFramesOn()) return
+  const c = String(center || '').toUpperCase()
+  if (!c) return
+  const t = String(typed || '').toUpperCase()
+  _typedNext.delete(c)
+  if (t && t !== c) {
+    _typedNext.set(c, { sym: t, at: Date.now() })
+    while (_typedNext.size > SCAN_KEEP) _typedNext.delete(_typedNext.keys().next().value)
+  }
+  _expose()
+  for (const cb of [..._scanSubs]) { try { cb(c) } catch { /* a subscriber */ } }
 }
 
-/** Called with the centre whenever a list publishes. Returns the unsubscribe. */
+/** The rows a list published around `sym` (nearest first), or [] when no list is centred on it; a typed next
+ *  symbol (publishTypedNext) first. */
+export function scanNeighborsFor(sym) {
+  const c = String(sym || '').toUpperCase()
+  const e = _scan.get(c)
+  const order = e ? e.order.slice() : []
+  const t = _typedNext.get(c)
+  if (!t || Date.now() - t.at > TYPED_NEXT_MS) return order
+  return [t.sym, ...order.filter((s) => s !== t.sym)]
+}
+
+/** Called with the centre whenever a list (or a typed next symbol) publishes. Returns the unsubscribe. */
 export function subscribeScanNeighbors(cb) {
   _scanSubs.add(cb)
   return () => { _scanSubs.delete(cb) }
 }
 
-export function __resetScanForTests() { _scan.clear(); _scanSubs.clear() }
+export function __resetScanForTests() { _scan.clear(); _typedNext.clear(); _scanSubs.clear() }
 
 // ─── a bounded set of source arrays ───────────────────────────────────────────────────────────────────
 // ⛔ BOUNDED BY RECENCY, NOT BY THE SOURCE'S LIFE. A source array (a row's bars) lives as long as the bar
