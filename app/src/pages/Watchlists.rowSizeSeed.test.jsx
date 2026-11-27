@@ -70,14 +70,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-function List({ cacheKey }) {
+// The scroller is mounted BEFORE the list, as in the widget (the list body exists, then a list is opened or loaded):
+// the virtualizer reads its scroll element in its layout effect, and a parent's ref is attached after a child's.
+function List({ cacheKey, show = true }) {
   const scrollRef = useRef(null)
   return (
     <div ref={scrollRef} data-scroller="" style={{ height: 400, overflowY: 'auto' }}>
-      <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => <span>{it.sym}</span>} emptyText="none"
-        sizeCacheKey={cacheKey} />
+      {show ? (
+        <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => <span>{it.sym}</span>} emptyText="none"
+          sizeCacheKey={cacheKey} />
+      ) : null}
     </div>
   )
+}
+/** Mount the scroller, then the list in it. */
+const mountList = (cacheKey) => {
+  const view = render(<List cacheKey={cacheKey} show={false} />)
+  view.rerender(<List cacheKey={cacheKey} />)
+  return view
 }
 const rowTop = (container, i) => {
   const el = container.querySelector(`[data-index="${i}"]`)
@@ -88,61 +98,70 @@ const frames = (n = 3) => act(async () => { for (let i = 0; i < n; i++) await ne
 
 describe('ScanRows: a remounted list starts from the row sizes it measured', () => {
   it('R1 (red first) a remount reads no row offsetHeight, and the rows sit at their remembered sizes', async () => {
-    const first = render(<List cacheKey="list:R1" />)
+    const view = mountList('list:R1')
     await frames()
     expect(T.rowReads, 'the first mount measures (nothing is remembered yet)').toBeGreaterThan(0)
-    expect(rowTop(first.container, 2)).toBe(2 * ROW_PX)
-    first.unmount()
+    expect(rowTop(view.container, 2)).toBe(2 * ROW_PX)
+    view.rerender(<List cacheKey="list:R1" show={false} />) // the list unmounts (a board switch away)
 
     T.rowReads = 0
-    const again = render(<List cacheKey="list:R1" />)
-    expect(T.rowReads, 'rows measured inside the remount commit').toBe(0)
-    expect(rowTop(again.container, 2), 'placed at the remembered size in the first render').toBe(2 * ROW_PX)
-    expect(rowTop(again.container, 5)).toBe(5 * ROW_PX)
+    view.rerender(<List cacheKey="list:R1" />)
+    await frames()
+    expect(rowTop(view.container, 2), 'the rows mounted').not.toBeNull()
+    expect(T.rowReads, 'rows measured again on the remount').toBe(0)
+    expect(rowTop(view.container, 2), 'placed at the remembered size').toBe(2 * ROW_PX)
+    expect(rowTop(view.container, 5)).toBe(5 * ROW_PX)
   })
 
   it('R2 a row that changed height since is corrected by the observer measurement', async () => {
+    // the virtualizer asks the scroller's own window for its observer (jsdom's window, not the test global)
+    const win = document.defaultView
+    const prevRO = win.ResizeObserver
     const observers = []
-    vi.stubGlobal('ResizeObserver', class {
+    win.ResizeObserver = class {
       constructor(cb) { this.cb = cb; this.els = new Set(); observers.push(this) }
       observe(el) { this.els.add(el) }
       unobserve(el) { this.els.delete(el) }
       disconnect() { this.els.clear() }
-    })
-    const first = render(<List cacheKey="list:R2" />)
-    await frames()
-    first.unmount()
-    const again = render(<List cacheKey="list:R2" />)
-    await frames()
-    expect(rowTop(again.container, 2)).toBe(2 * ROW_PX)
-    // row 1 grew (a note opened, a wrap): the observer delivers its border box, as the browser does after layout
-    const row1 = again.container.querySelector('[data-index="1"]')
-    const ro = observers.find((o) => o.els.has(row1))
-    expect(ro, 'the row is observed').toBeTruthy()
-    await act(async () => {
-      ro.cb([{ target: row1, borderBoxSize: [{ blockSize: 70, inlineSize: 300 }] }], ro)
-    })
-    await frames()
-    expect(rowTop(again.container, 2), 'the rows below moved by the change').toBe(ROW_PX + 70)
+    }
+    try {
+      const again = mountList('list:R2')
+      await frames()
+      again.rerender(<List cacheKey="list:R2" show={false} />)
+      again.rerender(<List cacheKey="list:R2" />)
+      await frames()
+      expect(rowTop(again.container, 2)).toBe(2 * ROW_PX)
+      // row 1 grew (a note opened, a wrap): the observer delivers its border box, as the browser does after layout
+      const row1 = again.container.querySelector('[data-index="1"]')
+      const ro = observers.find((o) => o.els.has(row1))
+      expect(ro, 'the row is observed').toBeTruthy()
+      await act(async () => {
+        ro.cb([{ target: row1, borderBoxSize: [{ blockSize: 70, inlineSize: 300 }] }], ro)
+      })
+      await frames()
+      expect(rowTop(again.container, 2), 'the rows below moved by the change').toBe(ROW_PX + 70)
+    } finally { win.ResizeObserver = prevRO }
   })
 
   it('R3 (red first) the scroller box is not read inside the commit, it is read in the frame', async () => {
     let queue = []
     vi.stubGlobal('requestAnimationFrame', (fn) => { queue.push(fn); return queue.length })
     vi.stubGlobal('cancelAnimationFrame', () => {})
-    render(<List cacheKey="list:R3" />)
+    mountList('list:R3')
     expect(T.scrollerReads, 'scroller box read inside the mount commit').toBe(0)
     await act(async () => { const due = queue; queue = []; for (const fn of due) fn(0) })
     expect(T.scrollerReads, 'read in the frame').toBeGreaterThan(0)
   })
 
   it('R4 no sizeCacheKey: the rows are measured on mount, as before', async () => {
-    const first = render(<List cacheKey={undefined} />)
+    const view = mountList(undefined)
     await frames()
-    first.unmount()
-    T.rowReads = 0
-    render(<List cacheKey={undefined} />)
     expect(T.rowReads).toBeGreaterThan(0)
+    view.rerender(<List cacheKey={undefined} show={false} />)
+    T.rowReads = 0
+    view.rerender(<List cacheKey={undefined} />)
+    await frames()
+    expect(T.rowReads, 'a list with no key measures its rows on every mount').toBeGreaterThan(0)
   })
 
   it('R5 both ScanRows call sites in Watchlists pass a sizeCacheKey', () => {
