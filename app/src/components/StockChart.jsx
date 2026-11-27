@@ -19585,7 +19585,11 @@ function StockChartBody({
   useEffect(() => {
     return () => {
       const keep = chartRef.current
-      if (keep && boardIsHiding(boardVisibilityRef.current)) {
+      // kept only while its element is still in the document: an <Activity> hide leaves it there (display:none);
+      // an unmount under a 'hidden' handle (the workspace leaving, grid mode) has removed it already
+      let attached = false
+      try { attached = !!keep?.chartElement?.()?.isConnected } catch { /* disposed */ }
+      if (keep && attached && boardIsHiding(boardVisibilityRef.current)) {
         try { keep.applyOptions({ autoSize: false }) } catch { /* disposed */ }
         keptThroughHideRef.current = { dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1 }
         dropOwnDebugHandle()
