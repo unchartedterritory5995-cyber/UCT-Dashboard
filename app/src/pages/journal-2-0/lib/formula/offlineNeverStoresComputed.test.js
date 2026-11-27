@@ -185,10 +185,11 @@ describe("the list's SWR cache stays in memory", () => {
   // production mount is listed here and read below. ⚰️ The Screener Focus chart pane used to nest a provider-less
   // <SWRConfig> too; 7f80af2a45 (2026-10-18) made the screener's chart the /charts Chart widget and it went.
   // 2026-11-27: the charts workspace's per-board slot config (the keep-alive's layer mode; `rec.swr`: isVisible and
-  // a middleware) is the second, and passes no provider.
-  const PRODUCTION_MOUNTS = ['App.jsx', 'pages/charts/ChartsWorkspace.jsx']
+  // a middleware) is the second, and passes no provider. 2026-11-27: the double-buffered chart widget's per-layer config
+  // (ChartWidget LayerSwrConfig: isVisible only, a useMemo object) is the third, and passes no provider.
+  const PRODUCTION_MOUNTS = ['App.jsx', 'pages/charts/ChartsWorkspace.jsx', 'pages/charts/widgets/ChartWidget.jsx']
 
-  it('the production <SWRConfig> mounts are App.jsx (the root) and the charts slot config, no other', () => {
+  it('the production <SWRConfig> mounts are App.jsx (the root), the charts slot config and the chart layer config, no other', () => {
     expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/')).sort()).toEqual(PRODUCTION_MOUNTS)
   })
 

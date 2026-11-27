@@ -66,6 +66,17 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 
+
+// A double-buffer layer's SWR config: a hidden layer's own polls and focus revalidation wait (isVisible, never
+// isPaused: review of #2901, H2), as a hidden layer board's do. ⛔ NO provider (nor cache): the layer shares App.jsx's
+// in-memory cache (journal-2-0/lib/formula/offlineNeverStoresComputed.test.js reads this mount's value).
+function LayerSwrConfig({ vis, children }) {
+  const value = useMemo(() => ({
+    isVisible: () => !boardHiddenNow(vis) && (typeof document === 'undefined' || document.visibilityState !== 'hidden'),
+  }), [vis])
+  return <SWRConfig value={value}>{children}</SWRConfig>
+}
+
 // A double-buffer layer's crosshair subscription (ChartWidget's own rule, on the LAYER's handle): skip the widget's own
 // broadcasts, take nothing while the layer is hidden, clear a drawn one at its hide. Re-made only when that layer's
 // symbol changes, so a flip (which changes neither layer's symbol) re-subscribes no chart.
@@ -834,9 +845,6 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[0], db.syms[0]),
     useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[1], db.syms[1]),
   ]
-  // each layer's SWR: a hidden layer's own polls and focus revalidation wait (isVisible, never isPaused: review of
-  // #2901, H2), as a hidden layer board's do
-  const [layerSwr] = useState(() => [0, 1].map((i) => ({ isVisible: () => !boardHiddenNow(db.handles[i]) && (typeof document === 'undefined' || document.visibilityState !== 'hidden') })))
 
   // ⭐ THE PANE, rendered once (one pane) or per layer (the double buffer, chart/useDoubleBuffer.js): every prop the
   // same for both layers except the symbol, the ref and the crosshair subscription (each layer's own handle gates it).
@@ -1039,11 +1047,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           {[0, 1].map((i) => (db.syms[i] ? (
             <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
-                <SWRConfig value={layerSwr[i]}>
+                <LayerSwrConfig vis={db.handles[i]}>
                   <LayerPaintContext.Provider value={db.reporters[i]}>
                     {renderPane(db.syms[i], layerRefFns[i], layerSubscribeCrosshair[i], i)}
                   </LayerPaintContext.Provider>
-                </SWRConfig>
+                </LayerSwrConfig>
               </BoardVisibilityContext.Provider>
             </div>
           ) : null))}
