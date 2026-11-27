@@ -19,7 +19,7 @@
 //   R5 both list call sites pass a key
 import { render, act, cleanup } from '@testing-library/react'
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { useRef } from 'react'
+import { useRef, Profiler } from 'react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -72,15 +72,17 @@ afterEach(() => {
 
 // The scroller is mounted BEFORE the list, as in the widget (the list body exists, then a list is opened or loaded):
 // the virtualizer reads its scroll element in its layout effect, and a parent's ref is attached after a child's.
-function List({ cacheKey, show = true }) {
+function List({ cacheKey, show = true, onCommit = null }) {
   const scrollRef = useRef(null)
   return (
-    <div ref={scrollRef} data-scroller="" style={{ height: 400, overflowY: 'auto' }}>
+    <Profiler id="list" onRender={onCommit || (() => {})}>
+    <div ref={scrollRef} data-scroller="" data-scan-scroller="" style={{ height: 400, overflowY: 'auto' }}>
       {show ? (
         <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
           sizeCacheKey={cacheKey} />
       ) : null}
     </div>
+    </Profiler>
   )
 }
 /** Mount the scroller, then the list in it. */
@@ -248,8 +250,9 @@ describe('ScanRows: the remembered sizes are keyed by everything that sets a row
       view.rerender(<List cacheKey="list:R9" />)
       await frames()
       expect(rowTop(view.container, 2)).toBe(2 * ROW_PX)
-      // NOT inside act: what the DOM holds when the callback returns is what the frame paints
+      // NOT inside act: the callback, then its microtask (both before the frame paints), and no task in between
       deliver(view.container, 1, 70)
+      await Promise.resolve()
       expect(rowTop(view.container, 2), 'rows still at the stale offsets when the frame paints').toBe(ROW_PX + 70)
       await act(async () => {})
     }))
@@ -309,5 +312,105 @@ describe('ScanRows: a remembered list has its rows in the switch\'s first commit
     expect(view.container.querySelector('[data-index="0"]')).toBeNull()
     const nokey = render(<List cacheKey={undefined} />)
     expect(nokey.container.querySelector('[data-index="0"]')).toBeNull()
+  })
+})
+
+// ⭐ Follow-ups (reviews of #2907 DELTA and #2913).
+describe('ScanRows: corrections in one commit; a remembered offset; the warm first render bounded', () => {
+  it('R15 (red first) D1: ten seeded rows wrong in ONE observer pass make exactly one commit, before paint, with every row placed', () =>
+    withRowObservers(async (deliver) => {
+      const view = mountList('list:R15')
+      await frames()
+      view.rerender(<List cacheKey="list:R15" show={false} />)
+      let commits = 0
+      const onCommit = () => { commits++ }
+      view.rerender(<List cacheKey="list:R15" onCommit={onCommit} />)
+      await frames()
+      commits = 0
+      // the browser hands every row of a pass to the observer in one callback; nothing (no task, no microtask) runs
+      // between these ten deliveries either, so they are the same pass
+      for (let i = 0; i < 10; i++) deliver(view.container, i, 42)
+      await Promise.resolve()
+      expect(commits, 'synchronous commits for one observer pass').toBe(1)
+      for (let i = 0; i <= 10; i++) expect(rowTop(view.container, i), `row ${i} placed before paint`).toBe(i * 42)
+      const placed = [...Array(11).keys()].map((i) => rowTop(view.container, i))
+      await act(async () => {})
+      await frames()
+      expect([...Array(11).keys()].map((i) => rowTop(view.container, i)), 'a later render moved a row').toEqual(placed)
+    }))
+
+  it('R16 (red first) D2: a measurement the virtualizer already holds schedules nothing and leaves nothing set', () => {
+    const el = {}
+    const onCorrection = vi.fn()
+    const mem = { sizes: new Map([['K1', 40]]), seeded: new Set(['K1']), corrections: 0, dropped: false, onCorrection }
+    // the memory is stale (40); the virtualizer already holds the real 70
+    const inst = { indexFromElement: () => 1, options: { getItemKey: () => 'K1' }, itemSizeCache: new Map([['K1', 70]]), measurementsCache: [] }
+    expect(measureRememberedRow(el, { borderBoxSize: [{ blockSize: 70 }] }, inst, mem)).toBe(70)
+    expect(onCorrection).not.toHaveBeenCalled()
+    expect(mem.correctedNow, 'a flag left set would force a flushSync on the next scroll').not.toBe(true)
+    // and a row seen once is not judged again: a later real resize takes the ordinary path
+    expect(mem.seeded.has('K1')).toBe(false)
+  })
+
+  it('R14 a remembered box twice the real height adds rows, never moves one: no row changes place between the first and second commit', async () => {
+    const first = mountList('list:R14')
+    await frames()
+    first.unmount()
+    // the widget is now half as tall: the real box is 200, the remembered one 400
+    const rowH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+      configurable: true,
+      get() { return this.hasAttribute('data-scroller') ? 200 : rowH.get.call(this) },
+    })
+    const view = render(<List cacheKey="list:R14" />)
+    const firstCommit = {}
+    view.container.querySelectorAll('[data-index]').forEach((el) => {
+      const i = Number(el.getAttribute('data-index'))
+      firstCommit[i] = rowTop(view.container, i)
+    })
+    expect(Object.keys(firstCommit).length).toBeGreaterThan(0)
+    await frames()
+    for (const [i, top] of Object.entries(firstCommit)) {
+      expect(top, `row ${i} vs the cold placement`).toBe(Number(i) * ROW_PX)
+      const now = rowTop(view.container, Number(i))
+      if (now !== null) expect(now, `row ${i} moved`).toBe(top)
+    }
+  })
+
+  it('R17 (red first) a list remembered scrolled starts at that offset in the first commit (no frame of its top rows)', async () => {
+    // jsdom scrolls nothing: a scroll position that holds what is written, and a scrollTo that writes it
+    const realScrollTo = HTMLElement.prototype.scrollTo
+    const realTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop')
+    Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
+    HTMLElement.prototype.scrollTo = function (opts) { this.scrollTop = typeof opts === 'object' ? (opts.top ?? this.scrollTop) : opts }
+    try {
+      const first = mountList('list:R17')
+      await frames()
+      const scroller = first.container.querySelector('[data-scroller]')
+      await act(async () => { scroller.scrollTop = 800; scroller.dispatchEvent(new Event('scroll')) })
+      await frames()
+      first.unmount()
+      vi.stubGlobal('requestAnimationFrame', () => 0)
+      vi.stubGlobal('cancelAnimationFrame', () => {})
+      const again = render(<List cacheKey="list:R17" />) // one commit, as the switch mounts it
+      expect(again.container.querySelector('[data-index="20"]'), 'the remembered window (rows 20-29) in the first commit').not.toBeNull()
+      expect(again.container.querySelector('[data-index="0"]'), 'the top rows instead').toBeNull()
+      expect(again.container.querySelector('[data-scroller]').scrollTop, 'the scroller restored in the same commit').toBe(800)
+    } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop; if (realTop) Object.defineProperty(Element.prototype, 'scrollTop', realTop) }
+  })
+
+  it("R18 (red first) M1: the warm first commit renders the window's rows only; the overscan follows after it", async () => {
+    const first = mountList('list:R18')
+    await frames()
+    first.unmount()
+    vi.stubGlobal('requestAnimationFrame', () => 0)
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    let firstCount = null
+    const view = render(<List cacheKey="list:R18" onCommit={() => { if (firstCount === null) firstCount = document.querySelectorAll('[data-index]').length }} />)
+    // the 400 px box holds 10 rows of 40 px (11 when the edge row counts)
+    expect(firstCount, 'rows in the first commit').toBeLessThanOrEqual(11)
+    expect(firstCount).toBeGreaterThanOrEqual(10)
+    await act(async () => {})
+    expect(view.container.querySelectorAll('[data-index]').length, 'the overscan joined after the first commit').toBeGreaterThan(firstCount)
   })
 })
