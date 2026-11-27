@@ -11,6 +11,8 @@
 //   H5 without a provider (the flag off) a hide destroys the chart exactly as before
 //   H6 (red first) the chart's window.__uctChartDebug handle is gone while hidden and back at show; a hide never removes
 //      a handle another chart (same widget id, the board in front) registered meanwhile
+//   H7 (red first) a subtree UNMOUNTED while its handle says 'hidden' (the workspace leaving, grid mode) still
+//      destroys the chart: only a chart whose element is still in the document is kept
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor } from '@testing-library/react'
 import { Activity } from 'react'
@@ -52,7 +54,13 @@ vi.mock('lightweight-charts', () => {
     resize: (w, h, f) => { lw.resize.push([w, h, f]) }, remove: () => { lw.removed++ }, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
-    createChart: () => { lw.created++; return chart },
+    createChart: (container) => {
+      lw.created++
+      const el = document.createElement('div')   // the library's own element, inside the container
+      container?.appendChild?.(el)
+      chart.chartElement = () => el
+      return chart
+    },
     ColorType: { Solid: 'solid', VerticalGradient: 'gradient' },
     CrosshairMode: { Normal: 0, Magnet: 1 }, LineStyle: { Solid: 0, Dotted: 1, Dashed: 2, LargeDashed: 3 },
     CandlestickSeries: {}, HistogramSeries: {}, LineSeries: {}, AreaSeries: {}, BarSeries: {}, createSeriesMarkers: () => ({ setMarkers: () => {} }),
@@ -186,5 +194,11 @@ describe('StockChart keeps its chart through a board hide', () => {
     expect(window.__uctChartDebug['hide-safe'], 'an unmount removed the handle of another chart').toBe(other)
     delete window.__uctChartDebug['hide-safe']
   })
-})
 
+  it('H7 (red first) an unmount while the handle says hidden still destroys the chart', async () => {
+    const vis = createBoardVisibility()
+    const view = await mounted(vis)
+    act(() => { vis.state = 'hidden'; view.unmount() })
+    expect(lw.removed, 'a chart unmounted under a hidden handle was kept (a leak)').toBe(1)
+  })
+})
