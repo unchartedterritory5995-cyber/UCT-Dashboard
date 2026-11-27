@@ -105,7 +105,7 @@ jobs:
     steps:
       # MASTER's copies. app/ is here because the protected list is derived from the vite / vitest configs and
       # every file they import; nothing of the merge group is ever checked out (its commits are fetched as objects).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.repository.default_branch }}
           sparse-checkout: |
@@ -115,12 +115,12 @@ jobs:
             /.github/workflows/agent-ci.yml
             /app/
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
       - name: Mint the App's token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ vars.AGENT_CI_VERDICT_APP_ID }}
           private-key: ${{ secrets.AGENT_CI_VERDICT_APP_PRIVATE_KEY }}
@@ -136,5 +136,6 @@ jobs:
           TARGET_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds the App's token
+          printf '%s\n' 'pyyaml==6.0.2 --hash=sha256:80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476' > "$RUNNER_TEMP/token-job-requirements.txt"
+          python -m pip install --quiet --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/token-job-requirements.txt"   # pinned by hash: this job holds the App's token
           python tools/agent_ci_required.py --event merge_group --stage follow --sha="$RUN_HEAD_SHA" --run-id="$RUN_ID" --head-ref="$RUN_HEAD_BRANCH" --run-event="$RUN_EVENT"

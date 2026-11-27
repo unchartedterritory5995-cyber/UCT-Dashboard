@@ -1047,8 +1047,23 @@ FOLLOW_ENV = {
     "RUN_EVENT": "${{ github.event.workflow_run.event }}",
     "TARGET_URL": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
 }
-#: @v1 is the major rehearsed with the real App (2026-11-22, `app-id` + `private-key`)
-FOLLOW_USES = ["actions/checkout@v4", "actions/setup-python@v5", "actions/create-github-app-token@v1"]
+#: Z5 (review of #2850, supply chain): the two jobs that hold the verdict App's token pin every action to a COMMIT SHA
+#: (a tag can be moved), the tag kept in a trailing comment. These are the commits the majors in use pointed at on
+#: 2026-11-26 (v1 of create-github-app-token is the major rehearsed with the real App, 2026-11-22). Moving one is an
+#: edit to this table AND the workflow: both self-protected.
+TOKEN_JOB_ACTIONS = {
+    "actions/checkout": ("11d5960a326750d5838078e36cf38b85af677262", "v4.4.0"),
+    "actions/setup-python": ("a26af69be951a213d495a4c3e4e4022e16d87065", "v5.6.0"),
+    "actions/create-github-app-token": ("d72941d797fd3113feb6b93fd0dec494b13a2547", "v1.12.0"),
+}
+FOLLOW_USES = [f"{a}@{TOKEN_JOB_ACTIONS[a][0]}" for a in ("actions/checkout", "actions/setup-python", "actions/create-github-app-token")]
+#: ... and install PyYAML by HASH, wheel only (site-packages code runs in the token process): the CPython 3.12
+#: manylinux x86_64 wheel of 6.0.2, the runner's platform (ubuntu-latest, setup-python 3.12).
+PYYAML_SHA256 = "80bab7bfc629882493af4aa31a4cfa43a4c57c83813253626916b8c7ada83476"
+TOKEN_JOB_INSTALL = (
+    f"printf '%s\\n' 'pyyaml==6.0.2 --hash=sha256:{PYYAML_SHA256}' > \"$RUNNER_TEMP/token-job-requirements.txt\"\n"
+    'python -m pip install --quiet --require-hashes --only-binary=:all: -r "$RUNNER_TEMP/token-job-requirements.txt"'
+    "   # pinned by hash: this job holds the App's token\n")
 
 
 def _follow_ctx(event="merge_group", pr=1700, sha=MERGE, run_id=991):
@@ -1096,7 +1111,7 @@ def follower_violations(doc) -> list[str]:
         bad.append(f"timeout-minutes is {t!r}")
     # ---- the steps: master's checkout, python, the App's token, the tool; nothing else, nothing optional
     if [s.get("uses") for s in steps if "uses" in s] != FOLLOW_USES:
-        bad.append(f"the actions used are exactly {FOLLOW_USES} (GitHub-owned, pinned to a major)")
+        bad.append(f"the actions used are exactly {FOLLOW_USES} (GitHub-owned, pinned to a commit)")
     co = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
     if len(co) != 1 or steps[0] is not co[0] or (co[0].get("with") or {}).get("ref") != DEFAULT_BRANCH \
             or "sparse-checkout" not in (co[0].get("with") or {}):
@@ -1560,7 +1575,7 @@ PR_STAGE_ENV = {
 }
 PR_STAGE_RUN = (
     'set -euo pipefail\n'
-    'python -m pip install --quiet pyyaml==6.0.2   # pinned: this job holds the App\'s token\n'
+    + TOKEN_JOB_INSTALL +
     'if [ "$EVENT" = "pull_request_target" ]; then\n'
     '  python tools/agent_ci_required.py --event pull_request --sha "$PR_SHA" --pr "$PR_NUMBER"\n'
     'else\n'
@@ -1595,8 +1610,8 @@ def pr_stage_violations(doc) -> list[str]:
     if not (isinstance(t, int) and 0 < t <= 10):
         bad.append(f"timeout-minutes is {t!r}")
     # ---- pull_request_target safety 1: nothing of the pull request is checked out or executed
-    if [s.get("uses") for s in steps if "uses" in s] != ["actions/checkout@v4", "actions/setup-python@v5", "actions/create-github-app-token@v1"]:
-        bad.append("the actions used are exactly checkout, setup-python and create-github-app-token (GitHub-owned, pinned to a major)")
+    if [s.get("uses") for s in steps if "uses" in s] != FOLLOW_USES:
+        bad.append("the actions used are exactly checkout, setup-python and create-github-app-token (GitHub-owned, pinned to a commit)")
     co = [s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@")]
     with_ = (co[0].get("with") or {}) if co else {}
     if len(co) != 1 or steps[0] is not co[0] or with_.get("ref") != DEFAULT_BRANCH \
@@ -1765,3 +1780,42 @@ def test_MQ_no_pull_request_target_job_anywhere_else():
         if "pull_request_target" in (on if isinstance(on, (dict, list)) else [on]):
             users.append(name)
     assert users == ["agent-ci-required.yml"], users
+
+
+
+# ---- Z5: the token jobs' supply chain (review of #2850, delta 3) -------------------------------------------------
+def test_Z5_the_token_jobs_pin_actions_by_sha_with_the_tag_in_a_comment_and_pyyaml_by_hash():
+    import re as _re
+    for wf in (VWF, RWF):
+        text = wf.read_text(encoding="utf-8")
+        uses = _re.findall(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", text, flags=_re.M)
+        assert len(uses) == 3, (wf.name, uses)
+        for ref, rest in uses:
+            action, _, pin = ref.partition("@")
+            sha, tag = TOKEN_JOB_ACTIONS[action]
+            assert pin == sha and _re.fullmatch(r"[0-9a-f]{40}", pin), (wf.name, ref)
+            assert rest.strip() == f"# {tag}", (wf.name, ref, rest)          # the tag stays readable
+        step = next(st for st in yaml.safe_load(text)["jobs"][next(iter(yaml.safe_load(text)["jobs"]))]["steps"]
+                    if "pip install" in (st.get("run") or ""))
+        assert TOKEN_JOB_INSTALL in step["run"], (wf.name, step["run"])
+        assert step["run"].count("pip install") == 1 and "pyyaml==6.0.2   #" not in step["run"]
+
+
+@pytest.mark.parametrize("weaken", ["no_require_hashes", "sdist_allowed", "tag_not_sha", "comment_dropped"])
+def test_Z5_each_weakening_is_caught(weaken):
+    good = VWF.read_text(encoding="utf-8")
+    bad = {"no_require_hashes": lambda t: t.replace("--require-hashes ", ""),
+           "sdist_allowed": lambda t: t.replace("--only-binary=:all: ", ""),
+           "tag_not_sha": lambda t: t.replace(f"actions/create-github-app-token@{TOKEN_JOB_ACTIONS['actions/create-github-app-token'][0]}",
+                                              "actions/create-github-app-token@v1"),
+           "comment_dropped": lambda t: t.replace(f"@{TOKEN_JOB_ACTIONS['actions/checkout'][0]} # v4.4.0",
+                                                  f"@{TOKEN_JOB_ACTIONS['actions/checkout'][0]}")}[weaken](good)
+    assert bad != good, weaken
+    doc = yaml.safe_load(bad)
+    step_runs = [st.get("run") or "" for st in doc["jobs"]["verdict"]["steps"]]
+    import re as _re
+    uses = _re.findall(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", bad, flags=_re.M)
+    caught = (not any(TOKEN_JOB_INSTALL in r for r in step_runs)) or any(
+        ref.partition("@")[2] != TOKEN_JOB_ACTIONS[ref.partition("@")[0]][0]
+        or rest.strip() != f"# {TOKEN_JOB_ACTIONS[ref.partition('@')[0]][1]}" for ref, rest in uses)
+    assert caught, weaken
