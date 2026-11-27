@@ -37,8 +37,10 @@ const RAIL_SIDE_MIN_W = 520
 // ⚡ (2026-11-26, the board switch) THE RAIL NEVER MOUNTS IN A PANE TOO NARROW FOR IT. `narrow` started false, so every
 // mount on a board rendered the side rail (175 elements on the owner's TEST board) and took it away again once the
 // pane's ResizeObserver reported it narrow: a wasted mount and removal on every board switch. Now the width is known
-// before the rail can mount: what THIS widget (its WidgetDoorContext id) measured last time, else a measure in a layout
-// effect before the first paint, with no side rail until then. Bounded; a forgotten widget measures once again.
+// before the side rail can mount: measured in a layout effect before the first paint, with no side rail until then.
+// ⛔ A SEED IS A HINT, ALWAYS VERIFIED (review of #2862): layouts saved from one another share widget ids, so one id can
+// sit in a wide pane on one board and a narrow one on the next. Only a NARROW seed is used (it shows no side rail, and
+// when right it saves the extra render); the layout effect measures every mount and corrects a wrong seed before paint.
 const _lastNarrow = new Map()
 const LAST_NARROW_MAX = 64
 function rememberNarrow(key, n) {
@@ -88,7 +90,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const [splitEl, setSplitEl] = useState(null)
   const doorKey = useContext(WidgetDoorContext)
   // null: not measured yet (no side rail until it is, see RAIL_SIDE_MIN_W)
-  const [narrow, setNarrow] = useState(() => (doorKey != null && _lastNarrow.has(doorKey) ? _lastNarrow.get(doorKey) : null))
+  const [narrow, setNarrow] = useState(() => (doorKey != null && _lastNarrow.get(doorKey) === true ? true : null))
   const narrowRef = useRef(narrow)
   narrowRef.current = narrow
   useEffect(() => { if (narrow !== null) rememberNarrow(doorKey, narrow) }, [doorKey, narrow])
@@ -100,8 +102,10 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   useLayoutEffect(() => {
     const view = splitEl?.ownerDocument?.defaultView
     if (!splitEl) return undefined
-    // not known yet: measured now, before the first paint (the ResizeObserver reports only after layout, a frame later)
-    if (narrowRef.current === null) setNarrow(splitEl.clientWidth < RAIL_SIDE_MIN_W)
+    // measured now, before the first paint (the ResizeObserver reports only after layout, a frame later); a right seed
+    // costs no render, a wrong one is corrected here
+    const n = splitEl.clientWidth < RAIL_SIDE_MIN_W
+    if (n !== narrowRef.current) setNarrow(n)
     if (!view?.ResizeObserver) return undefined
     const ro = new view.ResizeObserver(() => setNarrow(splitEl.clientWidth < RAIL_SIDE_MIN_W))
     ro.observe(splitEl)
