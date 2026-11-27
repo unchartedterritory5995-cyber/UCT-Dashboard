@@ -99,7 +99,7 @@ export const ROW_SIZE_CORRECTIONS_MAX = 3
 function rowSizesFor(key) {
   let record = ROW_SIZES.get(key)
   if (record) ROW_SIZES.delete(key)
-  else record = { sizes: new Map(), rect: null, offset: 0 }
+  else record = { sizes: new Map(), rect: null, offset: 0, margin: 0 }
   ROW_SIZES.set(key, record)
   if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
   return record
@@ -130,7 +130,13 @@ export function rememberedOffsetFor(record, items) {
     const it = items[i]
     total += record.sizes.get(it?.id || it?.sym || i) ?? 30
   }
-  return Math.min(offset, Math.max(0, total - (record.rect?.height || 0)))
+  // the offset is the SCROLLER's scrollTop, which includes what sits above the rows inside it (a list's description,
+  // the add row, the column header: `scrollMargin`), so its last screenful starts at margin + rows - view
+  return Math.min(offset, Math.max(0, (record.margin || 0) + total - (record.rect?.height || 0)))
+}
+/** A list's memory as it stands (no LRU bump): for rails and probes. */
+export function rowMemoryOf(key) {
+  return ROW_SIZES.get(key) || null
 }
 /**
  * The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
@@ -839,7 +845,10 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // per render, and with no ResizeObserver. A measurement that re-runs on every paint
   // is exactly the feedback loop `rafObserveElementRect` above exists to survive.
   const hostRef = useRef(null)
-  const [scrollMargin, setScrollMargin] = useState(0)
+  // a warm mount starts from the margin it had (its first render's window is chosen against the remembered scroll offset,
+  // which includes the margin); the effect below measures it again, as before
+  const [scrollMargin, setScrollMargin] = useState(() => (rowMem?.record.rect ? rowMem.record.margin || 0 : 0))
+  useEffect(() => { if (rowMem) rowMem.record.margin = scrollMargin }, [rowMem, scrollMargin])
   // ⭐ (review of #2834) THE STICKY BAND. The column header (`.gridHead`, `position: sticky; top: 0`) is a child of the
   // SAME scroller, so rows scroll under it: the clear view is [scrollTop + band, scrollTop + height]. Its height is the
   // virtualizer's `scrollPaddingStart` (an `align: 'auto'` scroll keeps the row clear of it) and the selection's
