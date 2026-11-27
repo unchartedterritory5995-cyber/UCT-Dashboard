@@ -3069,3 +3069,7 @@
 .chartMetaItem[data-stat-box] { line-height: 1; }
 .chartMetaItem[data-stat-box] > .chartMetaLabel,
 .chartMetaItem[data-stat-box] > .chartMetaVal { text-box: normal; line-height: 1.25; }
+
+/* ⭐ Board keep-alive (2026-11-27, boardKeepAlive.js): a board's slot adds no box of its own, so the grid inside lays
+   out against the workspace body exactly as without it. A kept board's slot is hidden by <Activity> (display: none). */
+.boardSlot { display: contents; }

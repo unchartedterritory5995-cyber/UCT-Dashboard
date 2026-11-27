@@ -1,301 +1,256 @@
-// The real board through ChartsDeskHost: a popped board keeps its window when the trader changes page,
-// the hidden board does no main-window work and answers no shortcut, and with nothing popped it all
-// behaves as it did. Same mock shape as ChartsWorkspace.deskRecovery.test.jsx.
-import { render, screen, act, fireEvent, cleanup, waitFor } from '@testing-library/react'
-import { vi, describe, test, expect, beforeEach, afterEach } from 'vitest'
+/* ⭐ (2026-11-27, board keep-alive Stage 2; boardKeepAlive.js) A RETURN TO THE BOARD A MEMBER JUST LEFT SHOWS IT.
+ * With `uct.boardKeepAlive` on, the board a member's switch leaves stays mounted, hidden in <Activity>, and a switch back
+ * to the very same layout shows it instead of mounting every widget again. One board is kept.
+ *   K1 (red first) MAIN -> TWO -> MAIN: MAIN's widget is the SAME instance (created once), hidden while TWO is in front
+ *   K2 with the keep-alive off the return mounts it again (today)
+ *   K3 the kept board is never written: a drag on its grid moves nothing on the board in front, even a widget of the
+ *      same id (boards saved from one another share widget ids)
+ *   K4 the attributes a widget is found by (data-widget-id) are only on the board in front
+ *   K5 one board is kept: MAIN -> TWO -> INTRA disposes MAIN, and the return mounts it again
+ *   K6 a board whose saved layout changed meanwhile is mounted fresh, never the stale kept copy
+ *   K7 the kept board's widgets stay admitted by the main board's stagger: a return to a four-widget board renders every
+ *      one mounted in its first commit (not paced back in)
+ *   K8 (red first, review of the stage) a dropped kept board's handle is DISPOSED (its charts' teardowns run): by a
+ *      third board, and by the workspace leaving; the board in front is never disposed through it
+ *   K9 a page hidden for ten minutes lets the kept board go
+ */
+import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
-import { MemoryRouter, Routes, Route, Outlet, Navigate, useNavigate } from 'react-router-dom'
+import { vi } from 'vitest'
+import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('./WidgetHost', () => ({
-  default: ({ widget, onRemove, onPopOut }) => (
-    <div data-testid={`body-${widget.id}`}>
-      {widget.type}
-      <button data-testid={`remove-${widget.id}`} onClick={onRemove}>x</button>
-      {onPopOut && <button data-testid={`pop-${widget.id}`} onClick={onPopOut}>pop</button>}
-    </div>
-  ),
-}))
+// every WidgetHost INSTANCE: a state initialiser runs once per mount, and not again at an <Activity> show
+const hosts = vi.hoisted(() => ({ created: {}, renders: [], disposed: {} }))
+vi.mock('./WidgetHost', async () => {
+  const { useState, useContext } = await import('react')
+  const { BoardVisibilityContext } = await import('../../components/chart/boardVisibility')
+  return {
+    default: ({ widget, mounted }) => {
+      const vis = useContext(BoardVisibilityContext)
+      useState(() => {
+        hosts.created[widget.id] = (hosts.created[widget.id] || 0) + 1
+        // like a kept chart: its teardown waits on the board's handle
+        vis?.onDispose?.(() => { hosts.disposed[widget.id] = (hosts.disposed[widget.id] || 0) + 1 })
+        return 0
+      })
+      hosts.renders.push({ id: widget.id, mounted: mounted !== false })
+      return <div data-testid={`host-${widget.id}`}>{widget.id}</div>
+    },
+  }
+})
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
 vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
-vi.mock('react-grid-layout', () => ({
-  Responsive: ({ children }) => <div data-testid="rgl-responsive">{children}</div>,
-  WidthProvider: (C) => C,
-}))
+// the grid (its node carries `react-grid-layout`, as the real one's does): every COMMIT records the node's classes and the
+// layout it was given; a button stands in for a member's drag
+const gridCommits = []
+vi.mock('react-grid-layout', async () => {
+  const { useLayoutEffect, useRef } = await import('react')
+  return {
+    Responsive: ({ children, onLayoutChange, className, layouts }) => {
+      const ref = useRef(null)
+      const lg = (layouts && layouts.lg) || []
+      useLayoutEffect(() => { gridCommits.push({ classes: String(ref.current?.className || ''), lg, el: ref.current }) })
+      return (
+        <div ref={ref} data-testid="rgl-responsive" className={`react-grid-layout ${className || ''}`}>
+          <button data-testid="rgl-drag" onClick={() => onLayoutChange && onLayoutChange([{ i: 'watchlist-1', x: 10, y: 2, w: 6, h: 8 }])}>drag</button>
+          {children}
+        </div>
+      )
+    },
+    WidthProvider: (C) => C,
+  }
+})
+vi.mock('../journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 
-const setPref = vi.fn()
-const setPrefMerged = vi.fn()
-let mockPrefs = {}
-let mockIsMobile = false
+const prefStore = (() => {
+  let prefs = {}
+  const subs = new Set()
+  return {
+    get: () => prefs,
+    set: (p) => { prefs = p; subs.forEach(f => f()) },
+    write: (k, v) => { prefs = { ...prefs, [k]: v }; subs.forEach(f => f()) },
+    subscribe: (f) => { subs.add(f); return () => subs.delete(f) },
+  }
+})()
+const setPref = vi.fn((k, v) => { prefStore.write(k, v); return Promise.resolve(true) })
 vi.mock('../../hooks/usePreferences', () => ({
-  default: () => ({ prefs: mockPrefs, setPref, setPrefMerged, loading: false, readFailed: false }),
+  default: function usePreferences() { return { prefs: useSyncExternalStore(prefStore.subscribe, prefStore.get), setPref, loading: false } },
   parsePref: (raw, fallback) => {
     if (raw == null) return fallback
     if (typeof raw !== 'string') return raw
     try { return JSON.parse(raw) } catch { return fallback }
   },
-  refreshPreferences: vi.fn(),
-  whenWritesSettle: () => Promise.resolve(),
 }))
-vi.mock('../../hooks/useMediaQuery', () => ({ default: () => mockIsMobile }))
-vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, role: 'user' } }) }))
+vi.mock('../../hooks/useMediaQuery', () => ({ default: () => false }))
+vi.mock('../../context/AuthContext', async () => {
+  const { createContext } = await import('react')
+  const value = { user: { id: 1, role: 'admin', plan: 'pro' }, addressSpaceEnabled: false }
+  return { AuthContext: createContext(value), useAuth: () => value }
+})
+
+
+let MAIN_LAYOUT = null
+const mainLayout = (x = 0) => ({ widgets: [{ id: 'watchlist-1', type: 'watchlist', color: 'A', x, y: 0, w: 6, h: 8, opts: {} }], cols: 24 })
+const MAIN = { id: 1, name: 'Main Trading', scope: 'user', groups: null, get layout() { return MAIN_LAYOUT } }
+const TWO = { id: 2, name: 'Two Charts', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'chart-1', type: 'chart', color: 'A', x: 0, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
+  { id: 'chart-2', type: 'chart', color: 'B', x: 8, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
+], cols: 24 } }
+const INTRA = { id: 3, name: 'Intraday Pair', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'chart-5a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: '5' } },
+], cols: 24 } }
+const DUP = { id: 4, name: 'Dup Board', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'watchlist-1', type: 'watchlist', color: 'A', x: 12, y: 0, w: 6, h: 8, opts: {} },
+], cols: 24 } }
+const QUAD = { id: 5, name: 'Quad Board', scope: 'user', groups: null, layout: { widgets: ['q1', 'q2', 'q3', 'q4'].map((id, i) => (
+  { id, type: 'watchlist', color: 'A', x: i * 6, y: 0, w: 6, h: 8, opts: {} })), cols: 24 } }
 vi.mock('../../hooks/useChartLayouts', () => ({
-  default: () => ({
-    global: [], mine: [], isLoading: false,
-    saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {},
-  }),
+  default: () => ({ global: [], mine: [MAIN, TWO, INTRA, DUP, QUAD], isLoading: false, saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {} }),
 }))
 
-import ChartsDeskHost, { ChartsRouteSlot } from './ChartsDeskHost'
-import { hasOpenPopouts } from '../../lib/popoutRegistry'
-import { publishPrefsUser, __resetPrefsSessionForTests } from '../../lib/prefsSession'
+import ChartsWorkspace from './ChartsWorkspace'
 
-const widget = (id, x = 0) => ({ id, type: 'scanner', color: 'C', x, y: 0, w: 6, h: 10, opts: {} })
-const board = (...widgets) => JSON.stringify({ widgets, cols: 24, version: 1 })
-const layoutWrites = () => setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout').map(([, v]) => JSON.parse(v))
-
-// Auth the way AuthGuard behaves: a signed-out member is sent to /login, out of the shell.
-const auth = { signedIn: true, listeners: new Set() }
-const useSignedIn = () => useSyncExternalStore((f) => { auth.listeners.add(f); return () => auth.listeners.delete(f) }, () => auth.signedIn)
-function Guard() { return useSignedIn() ? <Outlet /> : <Navigate to="/login" replace /> }
-function signOut() { act(() => { auth.signedIn = false; auth.listeners.forEach((f) => f()) }) }
-
-let navigate
-function Nav() { navigate = useNavigate(); return null }
-function Shell() { return (<><Nav /><ChartsDeskHost /><Outlet /></>) }
-
-function makeFakeWindow() {
-  const doc = document.implementation.createHTMLDocument('popup')
-  const listeners = {}
-  const fake = {
-    document: doc,
-    closed: false,
-    KeyboardEvent: window.KeyboardEvent,
-    addEventListener: (t, fn) => { (listeners[t] ||= []).push(fn) },
-    removeEventListener: (t, fn) => { listeners[t] = (listeners[t] || []).filter((f) => f !== fn) },
-    history: { replaceState: vi.fn() },
-    _fire: (t) => (listeners[t] || []).forEach((fn) => fn()),
-    close: vi.fn(() => { fake.closed = true; fake._fire('beforeunload') }),
-  }
-  return fake
-}
-
-const flush = () => act(async () => { for (let i = 0; i < 12; i += 1) await Promise.resolve() })
-const go = async (to) => { await act(async () => { navigate(to) }); await flush() }
-
-async function renderDesk() {
-  const view = render(
-    <MemoryRouter initialEntries={['/charts']}>
-      <Routes>
-        <Route element={<Guard />}>
-          <Route element={<Shell />}>
-            <Route path="/charts" element={<ChartsRouteSlot />} />
-            <Route path="/dashboard" element={<div data-testid="dash">dash</div>} />
-            <Route path="/journal" element={<div data-testid="journal">journal</div>} />
-          </Route>
-        </Route>
-        <Route path="/login" element={<div data-testid="login">login</div>} />
-      </Routes>
-    </MemoryRouter>,
-  )
-  await waitFor(() => expect(screen.getByTestId('rgl-responsive')).toBeTruthy(), { timeout: 10000 })
-  await flush()
-  return view
-}
-
-function popBoard() {
-  act(() => { fireEvent.click(document.querySelector('[data-guide="workspace.layoutsMenuBtn"]')) })
-  act(() => { fireEvent.click(screen.getByRole('button', { name: 'Pop out layout' })) })
-}
-
-let popups
-let lockRequests
 beforeEach(() => {
-  __resetPrefsSessionForTests()
-  act(() => { publishPrefsUser(1) })
-  setPref.mockReset()
-  setPref.mockImplementation(() => Promise.resolve(true))
-  setPrefMerged.mockReset()
-  auth.signedIn = true
-  mockIsMobile = false
-  mockPrefs = { charts_workspace_layout: board(widget('a', 0), widget('b', 6)) }
-  popups = []
-  window.open = vi.fn(() => { const w = makeFakeWindow(); popups.push(w); return w })
-  lockRequests = 0
-  Object.defineProperty(navigator, 'locks', {
-    configurable: true,
-    value: {
-      request: (_name, cb) => { lockRequests += 1; return Promise.resolve(cb()) },
-      query: async () => ({ held: [] }),
-    },
-  })
-  localStorage.clear()
-})
-afterEach(() => {
-  cleanup()
-  window.history.replaceState({}, '', '/')
-})
-
-describe('with a board popped', () => {
-  test('navigating keeps the window open and hides the board without unmounting it', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    expect(window.open).toHaveBeenCalledTimes(1)
-    const win = popups[0]
-    expect(hasOpenPopouts()).toBe(true)
-
-    await go('/dashboard')
-    expect(win.close).not.toHaveBeenCalled()
-    expect(hasOpenPopouts()).toBe(true)
-    expect(screen.getByTestId('dash')).toBeTruthy()
-    // the popped board's widgets are still being rendered into its own window
-    expect(win.document.querySelector('[data-testid="body-a"]'), 'the board in the window died').toBeTruthy()
-    // the hidden board does no main-window work: no grid, no widgets, its chrome hidden
-    expect(screen.queryByTestId('rgl-responsive'), 'the main grid keeps painting while hidden').toBeNull()
-    expect(document.querySelector('[data-charts-theme]').style.display).toBe('none')
-  })
-
-  test('returning to /charts does not open a second window or mount a second workspace', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    const win = popups[0]
-    const locksAfterMount = lockRequests
-
-    await go('/dashboard')
-    await go('/charts')
-    expect(window.open).toHaveBeenCalledTimes(1)
-    expect(win.close).not.toHaveBeenCalled()
-    expect(lockRequests, 'a second instance would have asked for the owner lock').toBe(locksAfterMount)
-    expect(document.querySelectorAll('[data-charts-theme]')).toHaveLength(1)
-    await waitFor(() => expect(screen.getByTestId('rgl-responsive')).toBeTruthy())
-    expect(document.querySelector('[data-charts-theme]').style.display).toBe('')
-  })
-
-  test('closing the last window while hidden docks it, saves it, and lets the workspace go', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    const win = popups[0]
-    await go('/dashboard')
-    setPref.mockClear()
-
-    act(() => { win.close() })   // the member's own close button
-    await flush()
-    await waitFor(() => expect(hasOpenPopouts()).toBe(false))
-    await flush()
-    expect(document.querySelector('[data-charts-theme]'), 'nothing popped: no hidden board left').toBeNull()
-    const saved = layoutWrites()
-    expect(saved.some((l) => l.widgets.some((w) => w.id === 'a')), 'the board came home in the save').toBe(true)
-  })
-
-  test('a member switch while hidden closes the windows and frees the board', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    const win = popups[0]
-    await go('/dashboard')
-    act(() => { publishPrefsUser(2) })
-    await flush()
-    expect(win.close).toHaveBeenCalled()
-    await flush()
-    expect(hasOpenPopouts()).toBe(false)
+  hosts.created = {}
+  hosts.renders = []
+  hosts.disposed = {}
+  gridCommits.length = 0
+  MAIN_LAYOUT = mainLayout(0)
+  try { localStorage.clear() } catch { /* */ }
+  globalThis.fetch = vi.fn(async (url) => {
+    const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+    if (String(url).startsWith('/api/watchlists')) return json([])
+    if (String(url).startsWith('/api/auth/preferences')) return new Response('', { status: 503 })
+    return json({})
   })
 })
+afterEach(() => { cleanup(); delete globalThis.fetch })
 
-describe('with a single widget popped', () => {
-  test('navigating keeps the window open too (poppedWidgetIds, not just poppedLayouts)', async () => {
-    await renderDesk()
-    act(() => { fireEvent.click(screen.getByTestId('pop-a')) })
-    await flush()
-    expect(window.open).toHaveBeenCalledTimes(1)
-    const win = popups[0]
-    await go('/dashboard')
-    expect(win.close).not.toHaveBeenCalled()
-    expect(win.document.querySelector('[data-testid="body-a"]')).toBeTruthy()
-    expect(screen.queryByTestId('rgl-responsive')).toBeNull()
+function mount({ keepAlive = true } = {}) {
+  if (keepAlive) localStorage.setItem('uct.boardKeepAlive', '1')
+  prefStore.set({
+    charts_workspace_layout: JSON.stringify(MAIN.layout),
+    charts_active_template: JSON.stringify({ id: MAIN.id, name: MAIN.name, scope: MAIN.scope }),
+    charts_workspace_groups: JSON.stringify({ A: 'AAPL', B: 'MSFT', C: null, D: null }),
   })
+  return render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
+}
+const dockButton = (name) => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button')].find(b => b.textContent.trim() === name) || null
+const settle = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+const go = async (name) => { await act(async () => { dockButton(name).click() }); await settle() }
+// shown: no ancestor hidden by <Activity> (it sets display: none on the board's slot)
+const shown = (el) => { for (let n = el; n; n = n.parentElement) if (n.style && n.style.display === 'none') return false; return true }
+const host = (id) => document.querySelector(`[data-testid="host-${id}"]`)
+
+test('K1 (red first) a return to the board just left shows the same instance', async () => {
+  mount()
+  await settle()
+  expect(hosts.created['watchlist-1']).toBe(1)
+  await go('Two Charts')
+  expect(host('watchlist-1'), 'MAIN was unmounted when TWO came in front').toBeTruthy()
+  expect(shown(host('watchlist-1')), 'the kept board is visible behind TWO').toBe(false)
+  expect(shown(host('chart-1'))).toBe(true)
+  await go('Main Trading')
+  expect(hosts.created['watchlist-1'], 'the return mounted MAIN again').toBe(1)
+  expect(shown(host('watchlist-1'))).toBe(true)
+  expect(shown(host('chart-1')), 'TWO, now kept, is visible').toBe(false)
 })
 
-describe('with nothing popped', () => {
-  test('navigating unmounts the workspace exactly as today, and returning mounts a fresh one', async () => {
-    await renderDesk()
-    const locksAfterMount = lockRequests
-    await go('/dashboard')
-    expect(document.querySelector('[data-charts-theme]'), 'still mounted on another route').toBeNull()
-    await go('/charts')
-    await waitFor(() => expect(screen.getByTestId('rgl-responsive')).toBeTruthy())
-    await flush()
-    expect(lockRequests, 'a fresh mount takes its own lock').toBeGreaterThan(locksAfterMount)
-    expect(window.open).not.toHaveBeenCalled()
-  })
-
-  test('the visible board renders into the page with no wrapper element around it', async () => {
-    await renderDesk()
-    const ws = document.querySelector('[data-charts-theme]')
-    expect(ws.style.display).toBe('')
-    expect(ws.parentElement.dataset.chartsDeskWrapper, 'no wrapper div in the DOM').toBeUndefined()
-  })
+test('K2 with the keep-alive off the return mounts the board again', async () => {
+  mount({ keepAlive: false })
+  await settle()
+  await go('Two Charts')
+  expect(host('watchlist-1')).toBeNull()
+  await go('Main Trading')
+  expect(hosts.created['watchlist-1']).toBe(2)
 })
 
-describe('sign-out', () => {
-  test('unmounts everything and closes the windows', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    const win = popups[0]
-    await go('/dashboard')
-    signOut()
-    await flush()
-    expect(screen.getByTestId('login')).toBeTruthy()
-    expect(win.close).toHaveBeenCalled()
-    expect(hasOpenPopouts()).toBe(false)
-    expect(document.querySelector('[data-charts-theme]')).toBeNull()
-  })
+test('K3 the kept board is never written: a drag on its grid moves nothing on the board in front', async () => {
+  mount()
+  await settle()
+  await go('Dup Board')                       // the board in front holds a watchlist-1 of its own, at x 12
+  const hiddenGrid = [...document.querySelectorAll('[data-testid="rgl-responsive"]')].find((g) => !shown(g))
+  expect(hiddenGrid, 'NON-VACUITY: the kept board has its grid').toBeTruthy()
+  const frontX = () => [...gridCommits].reverse().find((c) => c.el && c.el.isConnected && shown(c.el))?.lg.find((i) => i.i === 'watchlist-1')?.x
+  expect(frontX(), 'NON-VACUITY: the board in front shows its own watchlist-1').toBe(12)
+  await act(async () => { hiddenGrid.querySelector('[data-testid="rgl-drag"]').click() })   // the stand-in drag: watchlist-1 to x 10
+  await settle()
+  expect(frontX(), 'a drag on the kept board moved the board in front').toBe(12)
 })
 
-describe('a hidden board answers no shortcut and does no route-scoped work', () => {
-  const chord = () => fireEvent.keyDown(document.body, { key: 'j', ctrlKey: true, altKey: true })
+test('K4 data-widget-id is only on the board in front', async () => {
+  mount()
+  await settle()
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length).toBe(1)
+  // the board in front names its widget's type, rendered (what the guide rails' source grep stands for)
+  expect(document.querySelector('[data-widget-id="watchlist-1"]').getAttribute('data-widget-type')).toBe('watchlist')
+  await go('Two Charts')
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length, 'the kept board still names its widget').toBe(0)
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length).toBe(1)
+  await go('Main Trading')
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length).toBe(1)
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length).toBe(0)
+})
 
-  test('the visible board still answers its Ctrl+Alt+J hint (control)', async () => {
-    await renderDesk()
-    chord()
-    await flush()
-    expect(document.body.textContent).toContain('Hover a chart first')
-  })
+test('K5 one board is kept: a third board disposes the first', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  await go('Intraday Pair')
+  expect(host('watchlist-1'), 'MAIN still mounted behind two other boards').toBeNull()
+  expect(host('chart-1'), 'TWO is the kept board').toBeTruthy()
+  await go('Main Trading')
+  expect(hosts.created['watchlist-1']).toBe(2)
+})
 
-  test('hidden: Ctrl+Alt+J on another page is not the board\'s', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    await go('/dashboard')
-    chord()
-    await flush()
-    expect(document.body.textContent).not.toContain('Hover a chart first')
-  })
+test('K6 a board saved differently meanwhile is mounted fresh', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  MAIN_LAYOUT = mainLayout(2)
+  await go('Main Trading')
+  expect(hosts.created['watchlist-1'], 'the stale kept copy was shown').toBe(2)
+})
 
-  test('hidden: the phone branch does not mount while the viewport reads as phone', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    const win = popups[0]
-    await go('/dashboard')
-    mockIsMobile = true
-    await go('/journal')
-    expect(screen.queryByTestId('mobile-charts-app'), 'the hidden board must not paint the phone shell').toBeNull()
-    expect(document.documentElement.hasAttribute('data-mobile-chart-shell')).toBe(false)
-    expect(win.close, 'the window stays while hidden').not.toHaveBeenCalled()
-  })
+test('K7 a return to a four-widget board renders every widget mounted in its first commit', async () => {
+  mount()
+  await settle()
+  await go('Quad Board')
+  await act(async () => { await new Promise((r) => setTimeout(r, 2000)) })   // all four admitted
+  await go('Main Trading')
+  hosts.renders = []
+  await act(async () => { dockButton('Quad Board').click() })
+  const first = ['q1', 'q2', 'q3', 'q4'].map((id) => hosts.renders.find((r) => r.id === id)?.mounted)
+  expect(first, 'a widget of the kept board was paced back in').toEqual([true, true, true, true])
+})
 
-  test('a URL door arriving on return is applied (?ensure=)', async () => {
-    await renderDesk()
-    popBoard()
-    await flush()
-    await go('/dashboard')
-    // the door reads window.location.search; MemoryRouter does not write it
-    window.history.pushState({}, '', '/charts?ensure=chart')
-    await go('/charts')
-    await waitFor(() => expect(screen.getAllByText('chart').length).toBeGreaterThan(0))
-  })
+test('K8 (red first) a dropped kept board is disposed: by a third board and by the workspace leaving', async () => {
+  const view = mount()
+  await settle()
+  await go('Two Charts')
+  await go('Intraday Pair')
+  expect(hosts.disposed['watchlist-1'], 'MAIN dropped by a third board without its teardown').toBe(1)
+  expect(hosts.disposed['chart-1'] || 0, 'TWO (now kept) was disposed').toBe(0)
+  view.unmount()
+  expect(hosts.disposed['chart-1'], 'the kept board outlived the workspace').toBe(1)
+  expect(hosts.disposed['chart-5a'] || 0, 'the board in front was disposed through its handle').toBe(0)
+})
+
+test('K9 a page hidden for ten minutes lets the kept board go', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  vi.useFakeTimers()
+  try {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    act(() => { vi.advanceTimersByTime(9 * 60_000) })
+    expect(hosts.disposed['watchlist-1'] || 0).toBe(0)
+    act(() => { vi.advanceTimersByTime(60_000 + 1) })
+    expect(hosts.disposed['watchlist-1'], 'the kept board survived ten hidden minutes').toBe(1)
+  } finally {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false })
+    vi.useRealTimers()
+  }
 })
