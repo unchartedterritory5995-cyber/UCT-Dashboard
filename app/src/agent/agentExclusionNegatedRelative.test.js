@@ -107,7 +107,18 @@ for (const b of BOARDS) {
   }
 }
 
+// ⭐ 2026-11-27 — ONE it() PER 250 ROWS, NOT ONE FOR ALL OF THEM. The NET/APPLY gate over every row in a single it() took
+// ~30 s on a loaded runner and timed out in the merge queue (run 46005494473, shard 10/12), bouncing a PR that never
+// touched the agent. The checks and the rows are unchanged; each chunk is a few seconds, and the COVERED rail below
+// proves the chunks are every row exactly once.
+const CHUNK = 250
+const CHUNKS = []
+for (let s = 0; s < ROWS.length; s += CHUNK) CHUNKS.push([s, ROWS.slice(s, s + CHUNK)])
 describe('(b9) a NEGATED relative-clause exclusion is the exact COMPLEMENT, or UNPLACED — never the positive set', () => {
+  it('COVERED: the chunks are every row, once', () => {
+    expect(CHUNKS.reduce((n, [, rows]) => n + rows.length, 0)).toBe(ROWS.length)
+    expect(new Set(CHUNKS.flatMap(([, rows]) => rows)).size).toBe(ROWS.length)
+  })
   it('the class covers every board, cue, negation form and description class', () => {
     expect(ROWS.length).toBeGreaterThan(4000)
     for (const f of Object.keys(CUES)) expect(ROWS.some(r => r.f === f), f).toBe(true)
@@ -115,9 +126,9 @@ describe('(b9) a NEGATED relative-clause exclusion is the exact COMPLEMENT, or U
     for (const cls of ['timeframe', 'type', 'ticker']) expect(ROWS.some(r => r.cls === cls), cls).toBe(true)
     expect(ROWS.some(r => r.want.exact) && ROWS.some(r => r.want.unplaced)).toBe(true)
   })
-  it(`${ROWS.length} sentences — the READER: exact complement, or UNPLACED with every chart unoffered`, () => {
+  for (const [at, rows] of CHUNKS) it(`rows ${at}..${at + rows.length - 1} of ${ROWS.length} — the READER: exact complement, or UNPLACED with every chart unoffered`, () => {
     const miss = []
-    for (const { b, t, want } of ROWS) {
+    for (const { b, t, want } of rows) {
       const r = read(b, t)
       if (want.unplaced) {
         if (!r.unplaced) miss.push(`${b.name} · "${t}" → NOT UNPLACED ${JSON.stringify(r)}`)
@@ -126,11 +137,11 @@ describe('(b9) a NEGATED relative-clause exclusion is the exact COMPLEMENT, or U
       }
       if (r.unplaced || JSON.stringify(r.ex) !== JSON.stringify(want.exact)) miss.push(`${b.name} · "${t}" → ${JSON.stringify(r)} (want ${want.exact})`)
     }
-    expect(miss.slice(0, 40).join(NL), `${miss.length} misses of ${ROWS.length}`).toBe('')
+    expect(miss.slice(0, 40).join(NL), `${miss.length} misses of ${rows.length}`).toBe('')
   })
-  it('the NET and the APPLY gate: a plan on every chart, or a subset holding an excluded chart, is asked and never offers an excluded chart; the exact plan runs', () => {
+  for (const [at, rows] of CHUNKS) it(`rows ${at}..${at + rows.length - 1} — the NET and the APPLY gate: a plan on every chart, or a subset holding an excluded chart, is asked and never offers an excluded chart; the exact plan runs`, () => {
     const miss = []
-    for (const { b, t, want, pos } of ROWS) {
+    for (const { b, t, want, pos } of rows) {
       const excluded = want.exact || ALL(b)
       const plans = [ALL(b)]
       const one = want.exact ? want.exact[0] : ALL(b)[0]
@@ -224,9 +235,9 @@ describe('controls: the positive forms and the non-chart negations keep their re
 const STRIP = ["except the ones that aren't on daily", "apart from whatever isn't weekly", "except the non-daily ones", "except anything that's not a line chart",
   "but leave the ones that aren't QQQ alone", "except the ones that are anything but daily", "except whatever's other than daily", "excluding those not on weekly"]
 describe('STRIP: the negation reader off → the GUARD makes it UNPLACED (none offered); both off → the old inversion comes back', () => {
-  it('every generated sentence with the negation reader off: UNPLACED, every chart unoffered — never the positive set', () => {
+  for (const [at, rows] of CHUNKS) it(`rows ${at}..${at + rows.length - 1}, every third — the negation reader off: UNPLACED, every chart unoffered — never the positive set`, () => {
     const miss = []
-    for (const { b, t } of ROWS.filter((_, i) => i % 3 === 0)) {
+    for (const { b, t } of rows.filter((_, i) => (at + i) % 3 === 0)) {
       const r = read(b, t, { xoDisable: ['negation'] })
       if (!r.unplaced) { miss.push(`${b.name} · "${t}" → ${JSON.stringify(r)} (a silent run)`); continue }
       const offerable = ALL(b).filter(c => !r.ex.includes(c) && !r.unoffered.includes(c))
