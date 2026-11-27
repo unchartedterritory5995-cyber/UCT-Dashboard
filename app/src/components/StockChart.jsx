@@ -5734,6 +5734,21 @@ function StockChartBody({
     return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
   }, [chartReady, centerWatermarkOnPlot])
 
+  // ⚡ (2026-11-27, the board switch) `--price-axis-w` IS WRITTEN ON ITS TWO READERS, NOT ON THE WRAPPER. A custom
+  // property on the wrapper is inherited by the whole chart, so each new width (the first one lands as a chart mounts)
+  // restyled every element of it (trace: 311 elements, 1.9-3.8 ms, forced by the library's next canvas read). Its only
+  // readers are the price-scale toggle and the hub's lookback bar (StockChart.module.css), and each reads it on itself:
+  // the same value on the same element computes the same pixels, at the cost of restyling two small subtrees. A reader
+  // that mounts later takes the last width from its ref callback, inside the commit, as it inherited it before.
+  // Rail: StockChart.lookbackPlacement.test.jsx.
+  const priceAxisWRef = useRef('')          // the last published width ('' until the chart reports one)
+  const scaleToggleRef = useRef(null)
+  const applyPriceAxisW = useCallback((el) => {
+    const want = priceAxisWRef.current
+    if (el && want && el.style.getPropertyValue('--price-axis-w') !== want) el.style.setProperty('--price-axis-w', want)
+  }, [])
+  const scaleToggleRefCb = useCallback((el) => { scaleToggleRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
+
   // Reserve the right price-axis width for the HORIZONTAL legend so a long MA row
   // wraps to the next line before reaching the price scale (instead of the last
   // chip sliding UNDER it). timeScale().width() = plot width, so the axis width
@@ -5748,12 +5763,12 @@ function StockChartBody({
       let aw = 0
       try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
       setLegendAxisReserve((prev) => (Math.abs(prev - aw) > 1 ? aw : prev))
-      // …and the same width as a variable on the wrapper, so CSS that must stop short of the
-      // price scale (the hub's scrolling lookback bar, StockChart.module.css) reads the chart's
-      // own answer instead of guessing it.
-      const host = wrapperRef.current
-      const want = `${Math.round(aw)}px`
-      if (host && host.style.getPropertyValue('--price-axis-w') !== want) host.style.setProperty('--price-axis-w', want)
+      // …and the same width as a variable on the elements whose CSS must stop short of (or centre on) the price
+      // scale (the hub's scrolling lookback bar, the scale toggle), so they read the chart's own answer instead of
+      // guessing it. On those two, not on the wrapper: see `priceAxisWRef` above.
+      priceAxisWRef.current = `${Math.round(aw)}px`
+      applyPriceAxisW(rangeBarRef.current)
+      applyPriceAxisW(scaleToggleRef.current)
     }
     try { ts.subscribeSizeChange(onSize) } catch { return undefined }
     onSize()
@@ -17960,6 +17975,8 @@ function StockChartBody({
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
   const rangeBarRef = useRef(null)
+  // the lookback bar reads `--price-axis-w` on itself (the hub's cap): a bar that mounts after the width is known takes it here
+  const rangeBarRefCb = useCallback((el) => { rangeBarRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
 
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
@@ -21215,6 +21232,7 @@ function StockChartBody({
           26px allows for the time axis below the price-pane drawing area. */}
       {!showFatalError && chartReady && !hideScaleToggle && (
         <div
+          ref={scaleToggleRefCb}
           className={`${styles.scaleToggle}${compactAxes ? ' ' + styles.scaleToggleCompact : ''}`}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
              it just clear of the SE corner resize handle).
@@ -22150,7 +22168,7 @@ function StockChartBody({
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1
         && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
-        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
+        <div ref={rangeBarRefCb} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}

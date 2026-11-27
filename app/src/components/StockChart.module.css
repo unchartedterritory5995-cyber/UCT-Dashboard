@@ -1114,7 +1114,7 @@
    so it changes with the chosen chart canvas instead of the old fixed slate. */
 .scaleToggle {
   position: absolute;
-  /* Owner 11-16: centred in the price-axis column (StockChart publishes --price-axis-w on the wrapper). */
+  /* Owner 11-16: centred in the price-axis column (StockChart publishes --price-axis-w on this element). */
   right: calc(var(--price-axis-w, 56px) / 2);
   transform: translateX(50%);
   z-index: 45;
