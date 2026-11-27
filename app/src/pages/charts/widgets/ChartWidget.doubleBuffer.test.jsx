@@ -364,13 +364,15 @@ test('W9 (owner) zoomed out 2014-2026: a view lock both layers hold, at the fram
 
 // (owner, 2026-11-27) scanning charts AT a past date: the date box's anchor rides both layers' props
 const SYMS = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']
+// the list names the rows around the one it is centred on, as the member moves (neighborFrames keeps a few centres)
+const listAt = (c) => { const i = SYMS.indexOf(c); nf.publishScanNeighbors(c, SYMS.slice(i + 1, i + 2), i ? [SYMS[i - 1]] : []) }
 const anchoredMeta = (p) => (p.anchorWidth
   ? { frame: { fromRight: 4700, toRight: 4700 - p.anchorWidth, locked: false }, activeRange: null, priceAuto: true, replay: { mode: false },
     rows: 6000, anchor: { date: p.anchorDate, width: p.anchorWidth }, anchorFrame: { fromRight: 4700, toRight: 4700 - p.anchorWidth }, anchorEarliest: false }
   : { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } })
 function scanList() {
   for (const s of SYMS) renders.storeBars[s] = Object.freeze([s, 1])
-  SYMS.forEach((s, i) => { nf.publishScanNeighbors(s, SYMS.slice(i + 1, i + 2), i ? [SYMS[i - 1]] : []) })
+  listAt('S0')
   __setDoubleBufferBarsSourceForTests((key) => {
     for (const sym of SYMS) if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: false, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[sym]
     return null
@@ -400,6 +402,8 @@ test('W10 (owner) go to 1/3/2006, arrow through 10 symbols: each opens at that d
     expect(symIn(layer('front'))).toBe(s)
     expect(lastProps(s).anchorDate, `${s} opened at another date`).toBe('2006-01-03')
     expect(lastProps(s).anchorWidth, `${s} opened at another span`).toBe(w)
+    act(() => { listAt(s) })
+    await settle(400)
   }
   expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBeGreaterThanOrEqual(5)
   const latest = within(layer('front')).getByRole('button', { name: 'Back to the latest bar' })
