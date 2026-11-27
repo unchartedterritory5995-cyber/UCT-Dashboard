@@ -79,6 +79,7 @@ export function doubleBufferEligible({ scope, color, parentVis }) {
 const _ric = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 50))
 const _cic = (h) => { try { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(h); else clearTimeout(h) } catch { /* gone */ } }
 const MIRROR_DEBOUNCE_MS = 120
+const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /**
  * @param {object} o
@@ -112,7 +113,8 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const reportsRef = useRef([null, null])   // each layer's chart's last committed pass (F3)
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
-  const heldRef = useRef(false)             // the widget holds a shadow NOW (set in the board handle's own task)
+  const heldRef = useRef(false)
+  const timesRef = useRef({ set: [0, 0], report: [0, 0] })   // when each layer was last set to a row / last reported             // the widget holds a shadow NOW (set in the board handle's own task)
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
   // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
@@ -173,8 +175,18 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       const p = panes ? panes() : []
       return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.())
     }
-    const d = flipDecision(want, report, barsNowFor, view)
-    pendingRef.current = { d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1 }
+    let d = flipDecision(want, report, barsNowFor, view)
+    // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
+    // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
+    if (d.why === 'no-shadow') {
+      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row' : 'shadow-unreported' }
+    }
+    const now = _now()
+    const t = timesRef.current
+    pendingRef.current = {
+      d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1,
+      sinceSet: t.set[s] ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] ? Math.round(now - t.report[s]) : null,
+    }
     if (d.flip) {
       setBuf({ syms: buf.syms, front: s })
     } else {
@@ -194,7 +206,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     const p = pendingRef.current
     if (!p) return
     pendingRef.current = null
-    noteDecision(p.d, p.sym)
+    noteDecision(p.d, p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport })
     if (!p.d.flip) return
     recordPaint(p.sym, p.tf, p.bars, 'flip', member)
     try {
@@ -236,19 +248,23 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
     reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, settings: settingsRef.current }
+    timesRef.current.report[i] = _now()
     if (i !== bufRef.current.front) scheduleMirror()
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
   const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) scheduleMirror() })
 
   // ── the retarget: after the front's symbol changed (or the list publishes), the hidden pane takes the next row ──
+  // ⭐ (2026-11-27, the live dry run: 1 s presses found the hidden pane not on the row ahead yet) RIGHT AFTER THE FRAME,
+  // not in idle time: a page busy with streams and history landing gave `requestIdleCallback` no idle period for most of
+  // a second. The retarget is a transition (React yields to any press), scheduled after the paint of the frame that
+  // showed the press (utils/afterPaint), and at mount right after the first frame, so the FIRST press finds it too.
   const frontSym = buf.syms[buf.front]
   useEffect(() => {
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
-    let idle = 0
+    const cancels = []
     const run = () => {
-      idle = 0
       if (!alive) return
       const b = bufRef.current
       const f = b.syms[b.front]
@@ -256,6 +272,8 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       const s = 1 - b.front
       if (!next || next === f || b.syms[s] === next) return
       reportsRef.current[s] = null
+      timesRef.current.set[s] = _now()
+      timesRef.current.report[s] = 0
       noteRetarget()
       startTransition(() => {
         setBuf((x) => {
@@ -266,10 +284,10 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         })
       })
     }
-    const schedule = () => { if (alive && !idle) idle = _ric(run) }
-    const cancelPaint = afterPaint(schedule)
+    const schedule = () => { if (alive) cancels.push(afterPaint(run)) }
+    schedule()
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
-    return () => { alive = false; cancelPaint(); if (idle) _cic(idle); offScan() }
+    return () => { alive = false; for (const c of cancels) c(); offScan() }
   }, [eligible, slotOk, frontSym])
 
   return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged }),
