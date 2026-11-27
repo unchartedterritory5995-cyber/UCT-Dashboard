@@ -33,10 +33,6 @@ import { DEFAULT_LIMITS } from '../limits.js'
 import { resetRuntimeAsync } from '../runtimeAsync.js'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition.js'
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
-import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
-import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
-__e102BeforeAll(() => { __e102Curtain(true) })
-__e102AfterAll(() => { __e102Curtain(false) })
 
 const REPO = path.resolve(process.cwd(), '..')
 afterEach(() => { setOffListingCurtainEnabled(false); vi.restoreAllMocks(); vi.unstubAllGlobals(); resetRuntimeAsync(); setRuntimeRunner(null); resetRuntimeSessions(); resetRuntimeLedgers() })
