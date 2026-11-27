@@ -106,14 +106,14 @@ describe('ScanRows: a remounted list starts from the row sizes it measured', () 
     expect(rowTop(view.container, 2)).toBe(2 * ROW_PX)
     view.rerender(<List cacheKey="list:R1" show={false} />) // the list unmounts (a board switch away)
 
-    const firstMountRenders = T.renders.R2
     T.rowReads = 0
-    T.renders = {}
-    view.rerender(<List cacheKey="list:R1" />)
+    // the remembered sizes are the estimates: the rows are placed right in the remount's FIRST commit with rows, before
+    // any measurement could re-render the list (the first mount placed them at the 30 px estimate, then moved them)
+    let firstPlaced = null
+    const onCommit = () => { if (firstPlaced === null && rowTop(view.container, 2) !== null) firstPlaced = rowTop(view.container, 2) }
+    view.rerender(<List cacheKey="list:R1" onCommit={onCommit} />)
     await frames()
-    // the remembered sizes are the estimates: no row measures other than its estimate, so the list does not
-    // re-render for a measurement (the first mount did: 30 px estimated, 40 px measured)
-    expect(T.renders.R2, 'a row rendered again for a measurement on the remount').toBeLessThan(firstMountRenders)
+    expect(firstPlaced, 'row 2 in the first commit that holds it').toBe(2 * ROW_PX)
     expect(rowTop(view.container, 2), 'the rows mounted').not.toBeNull()
     expect(T.rowReads, 'rows measured again on the remount').toBe(0)
     expect(rowTop(view.container, 2), 'placed at the remembered size').toBe(2 * ROW_PX)
