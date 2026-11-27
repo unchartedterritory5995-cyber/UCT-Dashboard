@@ -101,6 +101,22 @@ export function renderDroppedCount(state) {
   return Object.values(d).reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0)
 }
 
+/** ⭐⭐ M-T1 (coordinator ruling 2026-11-27) — the drawing note's count of a table's "not computed" placeholders:
+ *  "Table: 8 of 22 cells computed." (one clause per table that holds any, in the render state's order), or null.
+ *  Computed = the cells the table draws as values; the total also holds its placeholders. */
+export function tableCellsComputedSentence(state) {
+  const parts = []
+  const tables = (state && state.tables) || []
+  tables.forEach((t, i) => {
+    const cells = (t && t.cells) || []
+    const held = cells.filter((c) => c && c.placeholder === true).length
+    if (!held) return
+    const label = tables.length > 1 ? `Table ${i + 1}` : 'Table'
+    parts.push(`${label}: ${cells.length - held} of ${cells.length} cells computed`)
+  })
+  return parts.length ? `${parts.join('; ')}.` : null
+}
+
 /** ⛔ TEST SEAM — module state that survives between cases is a test that passes
  *  because of the one before it. */
 export function resetObjectRenderDrops() { drops.clear(); listeners.clear() }

@@ -186,14 +186,17 @@ describe('E — through the object lane: the tie cell is held, not drawn, and na
     const r = runObjectLane(lane, { bars: N, series: SERIES, confirmed: true, readTime: (i) => BARS[i].t })
     expect(r.status, r.reason).toBe(OBJECT_STATUS.OK)
     const state = toRenderState(r.live, { bars: BARS.map((b) => ({ ...b })), tf: 'D' })
-    const drawn = (state.tables || []).flatMap((t) => (t.cells || []).map((c) => c.text))
+    // ⭐ M-T1 — the values drawn: a withheld text is a "not computed" placeholder, never one of them
+    const drawn = (state.tables || []).flatMap((t) => (t.cells || []).filter((c) => !c.placeholder).map((c) => c.text))
     return { r, state, drawn }
   }
 
   it('⛔⛔ close = 163.265: the str.format cell is NOT drawn and the run names why; str.tostring\'s cell draws "T 163.27"', () => {
     const { r, state, drawn } = run(163.265)
     expect(drawn).toEqual(['T 163.27'])
-    expect(state.unplaced.cell).toBe(1)
+    // ⭐ M-T1 — it holds its place as a placeholder (drawn "not computed"), so it is not counted unplaced
+    expect(state.placeholders.cell).toBe(1)
+    expect(state.unplaced.cell).toBe(0)
     expect(r.stats.textsWithheldWhy).toEqual({ [MESSAGE_DECIMAL_TIE]: 1 })
     expect(r.stats.textsWithheld).toBe(1)
   })

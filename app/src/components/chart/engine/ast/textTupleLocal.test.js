@@ -29,6 +29,9 @@
 // `TEXT_MAX_DEPTH` is now 64 and reaching it is a NAMED diagnostic.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
+// ⭐ M-T1 (2026-11-27) — a cell whose text this door refuses is kept as a "not computed" placeholder
+// (`{t:'refused'}`), never a value: the cells these rails count are the COMPUTED ones.
+const isRefusedCell = (o) => !!(o && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused')
 
 /** A helper returning a UNIT/DIVISOR tuple from a four-arm chain, and a
  *  formatter that reads both — `uncharted-volume-v2.pine`'s shape, shrunk.
@@ -67,9 +70,9 @@ const measure = (src) => {
   const ops = (t.objects && t.objects.ops) || []
   return {
     t,
-    cells: ops.filter((o) => o.k === 'cell').length,
+    cells: ops.filter((o) => o.k === 'cell' && !isRefusedCell(o)).length,
     cellText: (t.objectDiagnostics.dropReasons || {})['cell:text'] || 0,
-    cell: ops.find((o) => o.k === 'cell') || null,
+    cell: ops.find((o) => o.k === 'cell' && !isRefusedCell(o)) || null,
   }
 }
 
@@ -160,7 +163,7 @@ plot(close)
 `
     const t = translatePine(src, { strict: true })
     const ops = (t.objects && t.objects.ops) || []
-    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(1)
+    expect(ops.filter((o) => o.k === 'cell' && !isRefusedCell(o))).toHaveLength(1)
   })
 
   it('⛔ CONTROL — the DEPTH cap can still fire, alone, and names itself', () => {
@@ -183,7 +186,7 @@ plot(close)
 `
     const t = translatePine(src, { strict: true })
     const ops = (t.objects && t.objects.ops) || []
-    expect(ops.filter((o) => o.k === 'cell')).toHaveLength(0)
+    expect(ops.filter((o) => o.k === 'cell' && !isRefusedCell(o))).toHaveLength(0)
     // ⛔ NAMED, WITH ITS LINE, and by the DEPTH guard specifically — not by the
     // nested-helper one, which must stay silent here.
     expect(t.objectDiagnostics.textTooDeep).toEqual(['depth>64@5'])

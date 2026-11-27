@@ -34,7 +34,9 @@ describe('render gaps: the render state split by reason class', () => {
     expect(coordinate).toEqual({ label: 2, line: 1, linefill: 1 })
     expect(textWithheld).toEqual({ box: 1, cell: 1, label: 1 })
     for (const f of UNPLACED_FAMILIES) {
-      expect((coordinate[f] || 0) + (textWithheld[f] || 0), f).toBe(state.unplaced[f])
+      // ⭐ M-T1 — a withheld cell text is a "not computed" placeholder (`placeholders.cell`), not unplaced
+      const ph = f === 'cell' ? (state.placeholders.cell || 0) : 0
+      expect((coordinate[f] || 0) + (textWithheld[f] || 0), f).toBe(state.unplaced[f] + ph)
     }
     // the authority itself, untouched: the same state the harness builds
     expect(state).toEqual(toRenderState(live, frame))

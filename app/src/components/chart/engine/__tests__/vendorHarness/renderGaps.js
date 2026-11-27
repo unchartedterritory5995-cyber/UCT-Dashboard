@@ -54,6 +54,11 @@ export function unplacedByClass(live, frame) {
     if (n < 0) throw new Error(`render gaps: placing the withheld texts made ${f} drop MORE (${-n}): the render state is no longer monotone in its texts`)
     textWithheld[f] = n
   }
+  // ⭐ M-T1 (2026-11-27) — a table cell whose text was withheld is no longer dropped: the render state keeps it as a
+  // "not computed" PLACEHOLDER (`placeholders.cell`). It is still a value TradingView draws and this chart does not,
+  // so it stays in this class, counted from the render state's own number.
+  const ph = (state.placeholders && state.placeholders.cell) || 0
+  if (ph) textWithheld.cell = (textWithheld.cell || 0) + ph
   return { state, coordinate: nonZero(coordinate), textWithheld: nonZero(textWithheld) }
 }
 

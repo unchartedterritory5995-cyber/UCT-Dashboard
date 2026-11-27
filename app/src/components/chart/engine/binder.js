@@ -130,7 +130,7 @@ import { computeLaneOf, COMPUTE_LANE } from './computeLane'
 import { neighborFramesOn, chartTimesFor, nfCount, nfLogSwitch } from '../neighborFrames'
 import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
-import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
+import { setObjectRenderDrops, renderDroppedCount, renderHeldCount, tableCellsComputedSentence } from './objectRenderNotice'
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
 import { runtimeFormingIdsOf } from './runtimeKill'
 
@@ -1601,10 +1601,17 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // ⭐ `servedByRun` (2026-11-17): the drawings on this chart ARE the run half's. The pane reads THIS
   // (the binder's own decision) to leave out the host lane's withheld-drawings note, never a second
   // evaluation of the gates.
-  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null, servedByRun = false } = {}) => {
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why: whyIn = null, servedByRun = false } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
     const all = Array.isArray(familiesAll) ? familiesAll : []
+    // ⭐⭐ M-T1 — a table drawn with "not computed" placeholders names its count in the same note
+    // ("Table: 8 of 22 cells computed."), beside any sentence the run gave the table family
+    const cellsSaid = state ? tableCellsComputedSentence(state) : null
+    const why = cellsSaid
+      ? { ...(whyIn && typeof whyIn === 'object' ? whyIn : {}),
+        table: whyIn && typeof whyIn.table === 'string' && whyIn.table ? `${whyIn.table} ${cellsSaid}` : cellsSaid }
+      : whyIn
     const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
     if (!n && !fams.length && !all.length && !whyN && !servedByRun && !dropsPublished.has(instanceId)) return
     attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,

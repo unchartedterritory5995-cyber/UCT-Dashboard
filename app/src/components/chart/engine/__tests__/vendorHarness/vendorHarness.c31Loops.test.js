@@ -59,8 +59,11 @@ function run(capture, source = capture.source.text) {
     barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
   })
   const state = toRenderState(r.live, { bars, tf: 'D' })
-  const cells = new Map(state.tables.flatMap((t) => t.cells.map((c) => [`${t.position}|${c.col}|${c.row}`, c.text])))
-  return { d, bars, live: r.live, state, cells }
+  // ⭐ M-T1 (2026-11-27) — the cells drawn as VALUES; a withheld one is a "not computed" placeholder, listed apart
+  const key = (t, c) => `${t.position}|${c.col}|${c.row}`
+  const cells = new Map(state.tables.flatMap((t) => t.cells.filter((c) => !c.placeholder).map((c) => [key(t, c), c.text])))
+  const placeholders = new Set(state.tables.flatMap((t) => t.cells.filter((c) => c.placeholder).map((c) => key(t, c))))
+  return { d, bars, live: r.live, state, cells, placeholders }
 }
 
 /** TradingView's cell text at every table address. */

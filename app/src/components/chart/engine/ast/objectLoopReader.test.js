@@ -152,8 +152,15 @@ describe('⛔ the shapes the reader still refuses, BY NAME', () => {
     expect(d.unboundLocals || 0, 'the fixture refused for the WRONG reason — '
       + '`v` was unbound, so this case cannot see the counter check at all')
       .toBe(0)
-    expect(loopOf(t), 'the loop survived with a per-bar value standing in for a '
-      + 'per-row one, which is worse than not drawing it').toBeUndefined()
+    // ⭐ M-T1 — the loop now stands, its cells at their per-row addresses as "not computed" placeholders: a
+    // per-bar value must still never stand in for a per-row one, so EVERY cell it writes is a refused text
+    const lp = loopOf(t)
+    const cellsIn = (o) => (o && typeof o === 'object'
+      ? (o.k === 'cell' ? [o] : []).concat(...Object.values(o).filter((v) => v && typeof v === 'object').map(cellsIn)) : [])
+    const written = lp ? cellsIn(lp) : []
+    expect(written.length, 'the loop writes its row cells').toBeGreaterThan(0)
+    expect(written.every((c) => c.props.text.node.t === 'refused'), 'a per-bar value stood in for a per-row one')
+      .toBe(true)
   })
 
   it('⛔⛔ a COUNTER-DEPENDENT VALUE is refused, never served from a tree', () => {

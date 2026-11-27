@@ -21,6 +21,9 @@ import { DEFAULT_BUDGET } from '../ast/budget'
 import { translatePine, STRING_VAR_NA_SEED_WHY } from '../ast/pine'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
+// ⭐ M-T1 (2026-11-27) — a cell whose text this door refuses is kept as a "not computed" placeholder
+// (`{t:'refused'}`), never a value: the cells these rails count are the COMPUTED ones.
+const isRefusedCell = (o) => !!(o && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused')
 
 const DEF_ID = 'u_member-pane-door-robustness'
 const LF = String.fromCharCode(10)
@@ -108,7 +111,7 @@ describe('⛔ a document the install door refuses is refused by the member door,
 const HEAD = ['//@version=5', 'indicator("var string", overlay = true)']
 const TAIL = ['if barstate.islast', '    var table t = table.new(position.top_right, 1, 1)', '    table.cell(t, 0, 0, text = s)', 'plot(close)']
 const T = (...body) => translatePine([...HEAD, ...body, ...TAIL].join(LF), { strict: true, objects: true })
-const cellsOf = (t) => (((t.objects || {}).ops) || []).filter((o) => o.k === 'cell')
+const cellsOf = (t) => (((t.objects || {}).ops) || []).filter((o) => o.k === 'cell' && !isRefusedCell(o))
 const diagText = (t) => JSON.stringify(t.objectDiagnostics || {})
 const textOf = (t) => cellsOf(t)[0] || null
 

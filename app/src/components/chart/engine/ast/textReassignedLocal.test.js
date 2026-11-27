@@ -22,6 +22,9 @@
 // its own case below.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
+// ⭐ M-T1 (2026-11-27) — a cell whose text this door refuses is kept as a "not computed" placeholder
+// (`{t:'refused'}`), never a value: the cells these rails count are the COMPUTED ones.
+const isRefusedCell = (o) => !!(o && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused')
 
 const wrap = (lines) => `//@version=6
 indicator("t", overlay=true)
@@ -48,10 +51,10 @@ const shapeOf = (cell) => {
 const measure = (src) => {
   const t = translatePine(src, { strict: true })
   const ops = (t.objects && t.objects.ops) || []
-  const cell = ops.find((o) => o.k === 'cell') || null
+  const cell = ops.find((o) => o.k === 'cell' && !isRefusedCell(o)) || null
   return {
     t,
-    cells: ops.filter((o) => o.k === 'cell').length,
+    cells: ops.filter((o) => o.k === 'cell' && !isRefusedCell(o)).length,
     cellText: (t.objectDiagnostics.dropReasons || {})['cell:text'] || 0,
     shape: cell ? shapeOf(cell) : null,
   }

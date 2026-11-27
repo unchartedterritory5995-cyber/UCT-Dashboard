@@ -229,7 +229,9 @@ describe('C33 (3) — a text over the validator\'s nesting bound', () => {
       '    table.cell(tb, 1, 0, "kept")'))
     expect(t.ok).toBe(true)
     const cells = opsOf(t).filter((o) => o.k === 'cell')
-    expect(cells.map((c) => c.props.text.node)).toEqual([{ t: 'lit', s: 'kept' }])
+    // ⭐ M-T1 — the refused cell keeps its place as a REFUSED text (a "not computed" placeholder), never a value
+    expect(cells.map((c) => c.props.text.node.t)).toEqual(['refused', 'lit'])
+    expect(cells[1].props.text.node).toEqual({ t: 'lit', s: 'kept' })
     expect(diag(t).dropReasons['cell:text']).toBe(1)
     expect(diag(t).textTooDeep || []).toEqual([expect.stringMatching(/^nest>16@/)])
   })

@@ -28867,12 +28867,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const props = {}
       let badCell = false
       let neverRunText = false
+      // ⭐⭐ M-T1 — the refusal of THIS cell's text, when its text is the only thing this door cannot read
+      let textRefused = null
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
         const textRefusalBefore = lastTextRefusal
         enumNaDrop = false
         const v = valueRef(node, k)
+        // ⛔ M-T1 — a refused text AND another unreadable property: the cell's place or look is unknown too, so
+        // it keeps the outcome it always had (dropped as `cell:text`, no placeholder)
+        if (!v && textRefused) { badCell = true; break }
         if (!v && enumNaDrop) {
           // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
           // computed by a helper called with a named argument, is withheld by name.
@@ -28897,12 +28902,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
               : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
             noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: `
               + `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}`)
+            // ⛔⛔ THE TEXT IS STILL NEVER EMITTED BLANK: an empty cell in a dashboard reads as "the value is
+            // empty", a different and worse claim than "we could not compute this row".
+            // ⭐⭐ M-T1 (coordinator ruling 2026-11-27) — and the cell is no longer DROPPED either. Dropping it
+            // collapsed the table (Black-Scholes: 8 of TradingView's 22 rows, the rest gone, the geometry
+            // shifted). The cell keeps its place and its colours, and its text is a REFUSAL the renderer paints
+            // as a muted "not computed" with this reason (`{t:'refused'}`). It still counts as `cell:text` (the
+            // loss accounting and the door's partial verdict are unchanged).
+            textRefused = { guard: r.guard || null, why: refusedTextWhy(r) }
+            continue
           }
-          // ⛔⛔ THE TEXT *IS* THE CELL. A cell whose text this door cannot read
-          // is dropped, never emitted blank: an empty cell in a dashboard reads
-          // as "the value is empty", which is a different and worse claim than
-          // "we could not import this row".
-          if (k === 'text') { badCell = true; break }
           // ⛔⛔ ENGINE 52 — a cell's colour, tooltip or width this door cannot read
           // withholds the cell by name (`ENUM_DROPS.value`), never drawn at the default.
           withheldProp('cell', k, node)
@@ -28922,6 +28931,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
+      if (textRefused) {
+        dropped('cell:text')
+        ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly,
+          props: { ...props, text: { v: 'text', node: { t: 'refused', why: textRefused.why, ...(textRefused.guard ? { guard: textRefused.guard } : {}) } } } }))
+        continue
+      }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
     } else if (op.k === 'cellpatch') {
       const target = targetRef(op.target)
@@ -29638,7 +29653,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const count = (list) => {
       for (const o of list || []) {
         if (o.k === 'loop') { count(o.body); continue }
-        if (o.unknownGuard === true && o.k !== 'setnum' && o.k !== 'latch') dropped('guard:partial')
+        // ⭐ M-T1 — a refused cell's placeholder is already counted, once, as `cell:text`
+        const refusedCell = o.k === 'cell' && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused'
+        if (o.unknownGuard === true && o.k !== 'setnum' && o.k !== 'latch' && !refusedCell) dropped('guard:partial')
       }
     }
     count(keptOps)
@@ -36705,6 +36722,14 @@ export function declarationCalcBars(toks) {
  *  spelling this cannot read — is returned as text so the caller REFUSES it: this
  *  door computes every output on the chart's own bars, so a script declared on
  *  another timeframe would plot a different number under the same name. */
+/** ⭐ M-T1 — the plain words a refused table cell's placeholder gives on hover / long-press: the refusal's own
+ *  first clause (the guard's stock noun, before the ` — ` that adds the detail), never a guessed sentence. */
+function refusedTextWhy(r) {
+  const m = String((r && r.message) || '').trim()
+  const head = m.split(' — ')[0].trim()
+  return (head || 'this chart could not compute this value').slice(0, 200)
+}
+
 function declarationTimeframe(toks) {
   const found = callNamedArgToks(toks, 'timeframe') || callNamedArgToks(toks, 'resolution')
   if (!found || !found.value.length) return null

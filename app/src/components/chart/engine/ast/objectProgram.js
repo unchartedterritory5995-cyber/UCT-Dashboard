@@ -557,6 +557,13 @@ function assertTextNode(v, where, depth = 0, live = null) {
         throw new Error(`${where}: a text value must reference a tree or a graph node`)
       }
       return
+    // ⭐⭐ M-T1 (coordinator ruling 2026-11-27) — A TABLE CELL WHOSE TEXT THIS DOOR REFUSED: the cell keeps its
+    // place and its colours, and its text is NOT a value. The runtime answers it as a withheld text (`null`) with
+    // this reason, and the renderer paints a "not computed" placeholder (never blank, never a number).
+    case 'refused':
+      if (typeof v.why !== 'string' || !v.why || v.why.length > 400) throw new Error(`${where}: a refused text names its reason`)
+      if (v.guard !== undefined && typeof v.guard !== 'string') throw new Error(`${where}: a refused text's guard is a string`)
+      return
     // ⭐ A SYMBOL'S TEXT (`syminfo.ticker` …), settled per BINDING by
     // `bindObjectProgram`'s `symbolText` — see there. Unsettled, it is withheld.
     case 'sym':

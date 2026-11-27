@@ -45,9 +45,12 @@ function ourCells(cap) {
     barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
   })
   const state = toRenderState(run.live, { bars, tf: 'D' })
+  // ⭐ M-T1 (2026-11-27) — the cells drawn as VALUES; a withheld one is a "not computed" placeholder, listed apart
+  const at = (t, c) => ({ pos: t.position, col: c.col, row: c.row, text: c.text })
   return {
     d,
-    cells: state.tables.flatMap((t) => t.cells.map((c) => ({ pos: t.position, col: c.col, row: c.row, text: c.text }))),
+    cells: state.tables.flatMap((t) => t.cells.filter((c) => !c.placeholder).map((c) => at(t, c))),
+    placeholders: state.tables.flatMap((t) => t.cells.filter((c) => c.placeholder).map((c) => at(t, c))),
   }
 }
 
@@ -70,6 +73,8 @@ describe('C28 — artemis-oscillator-pro: no cell reads `knnVal` off its declara
     const cap = loadCapture(path.join(DIR, ARTEMIS)).capture
     const { d, cells } = ourCells(cap)
     const at = (pos, col, row) => cells.find((c) => c.pos === pos && c.col === col && c.row === row)
+    // (M-T1: these four are not placeholders either — their COLOUR reads the same value as their text, so the cell's
+    // look is unknown too and it keeps the outcome it always had, dropped by name)
     // the AOP score badge (middle_right) and the KNN panel (bottom_right)
     expect(at('middle_right', 1, 0)).toBeUndefined()
     expect(at('middle_right', 2, 0)).toBeUndefined()

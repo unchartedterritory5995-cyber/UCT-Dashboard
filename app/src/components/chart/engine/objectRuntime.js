@@ -598,6 +598,8 @@ export function beginObjects(program, ctx) {
    *  it, so a text that was withheld on some earlier bar and is drawn now is not named. */
   const fmtMarks = new Map()
   let fmtWhyNow = null
+  /** ⭐ M-T1 — the reason of the last text `textOf` answered as REFUSED (a `{t:'refused'}` cell text). */
+  let refusedNow = null
   let lastTextWrite = { written: false, fmt: null }
   const markFmt = (key, tw) => {
     if (!tw.written) return
@@ -1011,6 +1013,11 @@ export function beginObjects(program, ctx) {
         case 'sym':
           textsWithheld += 1
           return null
+        // ⭐⭐ M-T1 — a table cell whose text the translator REFUSED (`pine.js`, `{t:'refused'}`): withheld, with
+        // its reason for the placeholder (`resolveProps` → the cell's `refused`). Not a format: no format note.
+        case 'refused':
+          refusedNow = typeof t.why === 'string' ? t.why : null
+          return null
         // ⛔ ONE WITHHELD PART WITHHOLDS THE WHOLE TEXT — "+5x: " with its number
         // missing is a different text from the vendor's, not a shorter one.
         case 'cat': {
@@ -1360,10 +1367,14 @@ export function beginObjects(program, ctx) {
           const inst = resolveRef(v)
           out[k] = inst === null ? null : { __ref: inst }
         } else {
-          if (k === 'text') fmtWhyNow = null
+          if (k === 'text') { fmtWhyNow = null; refusedNow = null }
           const x = value(v)
           // ⭐ e95 — the text this write lands, and whether its format withheld it
           if (k === 'text') lastTextWrite = { written: true, fmt: x === null && fmtWhyNow ? fmtWhyNow : null }
+          // ⭐⭐ M-T1 — and, for a text the translator refused, why (the placeholder's reason)
+          if (k === 'text' && x === null && refusedNow) out.refused = refusedNow
+          // ⛔ a later write of a computed text (a `table.cell_set_text` patch onto the old props) clears it
+          else if (k === 'text' && Object.prototype.hasOwnProperty.call(out, 'refused')) delete out.refused
           // ⭐⭐ C48 — A BAR COORDINATE IS A WHOLE NUMBER: a float handed to an
           // `int` x has its fraction dropped, toward zero. Capture
           // `vw-int-array-avg-neg-spy-1d-2026-10-01`, rows Y01–Y03:
