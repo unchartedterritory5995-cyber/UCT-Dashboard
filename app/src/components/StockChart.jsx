@@ -131,7 +131,7 @@ import { createBinder } from './chart/engine/binder'
 import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
 import { makeRoomForLabels } from './chart/labelRoom'
-import { resolvePlacement, resolvePreset } from './chart/engine/placement'
+import { resolvePlacement, resolvePreset, objectPriceHost } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
 // dead — it keeps its own suite in `engine/instances.test.js` — but StockChart's
@@ -1863,7 +1863,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf, symbolsNeeded } from './chart/engine/sourceRef'
 import { readsVendorPrefix, setIndexHistoryNote } from './chart/engine/indexHistoryNotice'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
-import { healViewLocksOnce } from './chart/viewLockHeal'
+import { healViewLocksOnce, healViewLocksV2Once, axisDoubleClickLock } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { heldRowsFor, heldSpanOn } from './chart/heldSpanPlan'
@@ -5317,6 +5317,9 @@ function StockChartBody({
     cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
+  // the margins a double-click on the price axis restores (`onDbl`), current every render so the listener never reads stale props
+  const axisResetMarginsRef = useRef({ top: null, bottom: null })
+  axisResetMarginsRef.current = { top: priceScaleTopMargin, bottom: volumePaneExists ? priceScaleBottomMargin : null }
   // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
   // is also true when only a GUEST (an MA sent to the Volume pane) holds that pane open with no bars.
   // The lookback bar anchors on the volume SERIES' pane (`lookbackBottomFor`), so this is the question
@@ -6078,6 +6081,7 @@ function StockChartBody({
     try {
       const k = viewLockKeyRef.current; if (!k) return null
       healViewLocksOnce()   // ⭐ once per device, BEFORE the first read: compounded locks lose their vertical half (viewLockHeal.js)
+      healViewLocksV2Once() // ⭐ (2026-11-26) once per device: EVERY stored vertical half goes, the horizontal kept (viewLockHeal.js v2)
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
@@ -10585,7 +10589,24 @@ function StockChartBody({
         // Release the manual pin so the scale returns to auto-fit.
         priceManualRef.current = false
         priceManualRangeRef.current = null
-        try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
+        // ⭐ (2026-11-26, TradingView parity: a double-click on the price axis is a FULL price-scale reset) …and the
+        // VERTICAL half of the stored view lock, with the margins it put on the candles. It was left in force, so after
+        // "stretch, then double-click" the candles stayed in the band the drag authored, compressed, and every later
+        // ticker and reload inherited it (measured on /charts, AGL 1D: −40..180 for bars 10..165). The horizontal half
+        // (`anchorFrac` / `width`) is the member's time view and is kept (`viewLockHeal.healedViewLock`).
+        const lockAfter = axisDoubleClickLock(userViewLockedRef.current ? userLockedViewRef.current : null)
+        if (lockAfter.changed) {
+          userLockedViewRef.current = lockAfter.lock
+          userViewLockedRef.current = !!lockAfter.lock
+          persistViewLock()
+        }
+        vertMarginsRef.current = null
+        try {
+          mainPriceScale()?.applyOptions({
+            autoScale: true,
+            scaleMargins: _mainMargins(paneLayoutRef.current, axisResetMarginsRef.current.top, axisResetMarginsRef.current.bottom),
+          })
+        } catch { /* disposed */ }
       }
     }
     el.addEventListener('dblclick', onDbl)
@@ -14200,6 +14221,9 @@ function StockChartBody({
             // for its tables (a calculator's one-line pane).
             let pane = null
             let mainPane = null
+            // ⭐ PIN TO SCALE — an instance on a scale of its own ("No scale", or a 3-07 own scale)
+            // places its labels and dots on THAT scale's map (`placement.objectPriceHost`), not the candles'.
+            let priceHost = series
             try {
               const rectOf = (lwPane) => {
                 const pel = lwPane?.getHTMLElement?.()
@@ -14213,10 +14237,11 @@ function StockChartBody({
               const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
               mainPane = rectOf(series.getPane?.())
               pane = rectOf(shown?.series?.getPane?.()) || mainPane
-            } catch { pane = null; mainPane = null }
+              priceHost = objectPriceHost(mine, series)
+            } catch { pane = null; mainPane = null; priceHost = series }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
-              priceToY: (p) => series.priceToCoordinate(p),
+              priceToY: (p) => priceHost.priceToCoordinate(p),
               width: el ? el.clientWidth : 0,
               height: el ? el.clientHeight : 0,
               rightInset,
@@ -14242,6 +14267,10 @@ function StockChartBody({
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
+        // ⭐ PIN TO SCALE → "No scale" frames its own invisible scale in the candles' band
+        // (`placement.pinScaleOf`). The LAYOUT's band, never the member's dragged
+        // `vertMarginsRef`: "No scale" is independent of the price axis, as on TradingView.
+        mainScaleMargins: _mainMargins(paneLayout, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
         // FLIP C. `null` in `'bands'` mode, and `resolvePlacement` ignores it
         // there — asserted deep-equal to the pre-Flip-C answer for every pane
         // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.

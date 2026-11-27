@@ -1,0 +1,57 @@
+# promotion-gate: no — a timer that only re-dispatches `promote to production` for a PENDING SHA; it gates nothing.
+#
+# ⭐ THE HOURLY BACKUP RESUME (2026-11-27). Since the owner ruling of 2026-11-27 ("fuck the deploy freeze i dont ever
+# want to hold anything back from deploying ever") no time window holds a promotion, so the only thing that can leave a
+# gated SHA PENDING (deploy-gate-state/pending-promotion.json) is a gating poll that timed out, or a promote run that
+# failed past its capped re-dispatches. The old weekday crons resumed it at most four times a weekday and never at a
+# weekend; this runs every hour, every day.
+#
+# ⛔ WHY A SEPARATE WORKFLOW, NOT A CRON IN promote-production.yml. That workflow's runs share ONE concurrency group
+# with cancel-in-progress false, and GitHub keeps a single PENDING run per group: a newly queued run cancels the one
+# already pending. An hourly cron there would queue into the group every hour and could cancel a gated SHA's
+# workflow_run promotion waiting behind an in-progress one. So this job queues NOTHING unless a SHA is pending AND no
+# promote-production run is active or queued; then it dispatches one resume (resume=yes). With nothing pending it
+# ends in seconds and never touches the promotion queue. The resumed run re-checks everything at fire time
+# (tools/promote_decision.py), exactly like the resume job's own re-dispatch.
+#
+# CI COST. One job of a few seconds an hour on a public repository (standard runners bill 0 minutes): no checkout,
+# two or three API reads, at most one dispatch.
+name: promote resume (hourly)
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: promote-resume-hourly
+  cancel-in-progress: false
+
+permissions:
+  contents: read      # the pending record on deploy-gate-state
+  actions: write      # workflow_dispatch of promote-production.yml, nothing else
+
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Dispatch a resume only when a SHA is pending and the promotion queue is idle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          if ! gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .content > pending.b64 2>/dev/null; then
+            echo "nothing pending (no record): nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          SHA=$(base64 -d pending.b64 2>/dev/null | python3 -c 'import json,sys; p=json.load(sys.stdin); print((p or {}).get("sha") or "")' 2>/dev/null || true)
+          if [ -z "$SHA" ]; then
+            echo "nothing pending: nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          ACTIVE=$(gh run list -R "$GITHUB_REPOSITORY" --workflow promote-production.yml -L 30 --json status --jq '[.[] | select(.status != "completed")] | length' 2>/dev/null || echo unknown)
+          if [ "$ACTIVE" != "0" ]; then
+            echo "PENDING $SHA, but promote-production runs active or queued: $ACTIVE. Not dispatching (a queued run would cancel a pending one); the active run or the next hour resumes it." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh workflow run promote-production.yml -R "$GITHUB_REPOSITORY" --ref master -f resume=yes
+          echo "PENDING $SHA: dispatched one resume of promote-production" | tee -a "$GITHUB_STEP_SUMMARY"
