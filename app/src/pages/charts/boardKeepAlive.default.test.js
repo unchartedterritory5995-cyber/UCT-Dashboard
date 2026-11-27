@@ -22,7 +22,7 @@ describe('the board keep-alive default', () => {
     expect(deviceCanKeepBoard({}, mq(true)), 'the touch tier kept a board without a memory report').toBe(false)
     expect(deviceCanKeepBoard({}, mq(false, true)), 'a 1366 px coarse-pointer tablet (no memory report) kept a board').toBe(false)
     expect(deviceCanKeepBoard({ deviceMemory: 8 }, mq(false, true)), 'a tablet that reports its memory').toBe(true)
-    expect(deviceCanKeepBoard(undefined, undefined), 'no matchMedia and no memory report kept a board').toBe(false)
+    expect(deviceCanKeepBoard({}, null), 'no matchMedia and no memory report kept a board').toBe(false)   // (undefined would take the defaults)
   })
 
   it('KD2 storage over the build over the device; the device default is the layer mode', () => {
