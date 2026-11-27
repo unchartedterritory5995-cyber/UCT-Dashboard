@@ -141,6 +141,75 @@ test('CONTROL: the same pause with no Enter does report the text', async () => {
   } finally { raf.mockRestore() }
 })
 
+// ⭐ (2026-11-27) THE HIGHLIGHTED SUGGESTION IS INTENT TOO: the row Enter would open is warmed once it has stayed
+// highlighted for HIGHLIGHT_INTENT_MS, so "NV" + Enter on NVDA finds NVDA already fetching. Arrowing to another row
+// warms that one. The instant "Go to {text}" row never does (that is every prefix typed through).
+const searchFetch = (rows) => vi.fn(async (url) => ({
+  ok: true,
+  json: async () => (String(url).includes('/api/ticker-search') ? { results: rows } : { symbols: [] }),
+}))
+
+test('the highlighted suggestion is reported once it holds still, and the arrow keys move it', async () => {
+  global.fetch = searchFetch([{ ticker: 'NVDA', name: 'NVIDIA' }, { ticker: 'NVO', name: 'Novo' }])
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'nv' } })
+  await within(screen.getByRole('dialog')).findByRole('button', { name: /^NVDA/ })
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls.map((c) => c[0])).toContain('NVDA')
+  onTypedIntent.mockClear()
+  fireEvent.keyDown(input, { key: 'ArrowDown' })
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['NVO']])
+})
+
+// ⭐ (2026-11-27, owner: "close to 30MS for everything always") THE FIRST UNAMBIGUOUS MATCH: text that is a ticker the
+// search already answered with (CRBG, listed under CRB) is told at once, not after the typing pause. Each keystroke
+// replaces the list with the instant "Go to" row, so this is the only way the finished text is known before the pause.
+test('finishing a ticker the search already listed reports it at once, not after the pause', async () => {
+  global.fetch = searchFetch([{ ticker: 'CRBN', name: 'Carbon' }, { ticker: 'CRBG', name: 'Corebridge' }])
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'crb' } })
+  await within(screen.getByRole('dialog')).findByRole('button', { name: /^CRBG/ })
+  await wait(SETTLED)                                    // CRB's own reports (its highlight, its text) are done
+  onTypedIntent.mockClear()
+  fireEvent.change(input, { target: { value: 'crbg' } })
+  await wait(30)                                         // well inside TYPED_INTENT_SETTLE_MS
+  expect(onTypedIntent.mock.calls).toEqual([['CRBG']])
+})
+
+test('CONTROL: text the search never listed waits for the pause', async () => {
+  global.fetch = searchFetch([{ ticker: 'CRBN', name: 'Carbon' }, { ticker: 'CRBG', name: 'Corebridge' }])
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'crb' } })
+  await within(screen.getByRole('dialog')).findByRole('button', { name: /^CRBG/ })
+  await wait(SETTLED)                                    // CRB's own reports (its highlight, its text) are done
+  onTypedIntent.mockClear()
+  fireEvent.change(input, { target: { value: 'crbx' } })
+  await wait(30)
+  expect(onTypedIntent).not.toHaveBeenCalled()
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['CRBX']])
+})
+
+test('CONTROL: with no suggestions (only "Go to {text}") the highlight reports nothing of its own', async () => {
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'nv' } })
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['NV']])   // the settled text only
+})
+
 test('typing GOOGL at a typist pace (~70 ms/key) reports ONE intent, for GOOGL — no prefix', async () => {
   const onTypedIntent = vi.fn()
   render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
