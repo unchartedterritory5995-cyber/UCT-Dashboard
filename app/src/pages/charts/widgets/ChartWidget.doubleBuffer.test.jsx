@@ -223,11 +223,15 @@ test('W4 FALLBACK: a press to another row switches the front pane', async () => 
 })
 
 /** The workspace's board switch: a click that hides (or shows) the board in its own handler, beside a sync update. */
-function SwitchBoard({ board, log }) {
+function Switcher({ board }) {
   const [n, setN] = useState(0)
+  return <button type="button" data-testid="board-switch" onClick={() => { setN((x) => x + 1); board.set(board.state === 'visible' ? 'hidden' : 'visible') }}>{n}</button>
+}
+// the switch's own update re-renders only the switch (a sibling of the board, as in the workspace's chrome)
+function SwitchBoard({ board, log }) {
   return (
     <Profiler id="root" onRender={() => { log.push('root') }}>
-      <button type="button" data-testid="board-switch" onClick={() => { setN((x) => x + 1); board.set(board.state === 'visible' ? 'hidden' : 'visible') }}>{n}</button>
+      <Switcher board={board} />
       <Wrap board={board} log={log} />
     </Profiler>
   )
