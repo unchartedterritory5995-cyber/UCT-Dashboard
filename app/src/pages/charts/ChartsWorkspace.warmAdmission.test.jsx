@@ -4,6 +4,8 @@
  * every chart whose bars the store already holds is now mounted in the switch's own commit; cold charts keep the pacing.
  *   A1 (red first) a dock switch to a warm two-chart board: both chart bodies are mounted in the commit that shows it
  *   A2 the same switch with nothing held: the charts keep the paced admission (never both in that commit)
+ *   A3 (review: finding 4) an intraday chart that shows extended hours is asked about its EXTENDED key: its regular-hours
+ *      key held alone does not make it warm
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -66,13 +68,17 @@ vi.mock('../../context/AuthContext', async () => {
 
 
 const MAIN = { id: 1, name: 'Main Trading', scope: 'user', groups: null, layout: { widgets: [{ id: 'watchlist-1', type: 'watchlist', color: 'A', x: 0, y: 0, w: 6, h: 8, opts: {} }], cols: 24 } }
+const INTRA = { id: 3, name: 'Intraday Pair', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'chart-5a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: '5' } },
+  { id: 'chart-5b', type: 'chart', color: 'B', x: 12, y: 0, w: 12, h: 20, opts: { tf: '5' } },
+], cols: 24 } }
 const TWO = { id: 2, name: 'Two Charts', scope: 'user', groups: null, layout: { widgets: [
   { id: 'chart-1', type: 'chart', color: 'A', x: 0, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
   { id: 'chart-2', type: 'chart', color: 'B', x: 8, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
   { id: 'wl-2', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 20, opts: {} },
 ], cols: 24 } }
 vi.mock('../../hooks/useChartLayouts', () => ({
-  default: () => ({ global: [], mine: [MAIN, TWO], isLoading: false, saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {} }),
+  default: () => ({ global: [], mine: [MAIN, TWO, INTRA], isLoading: false, saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {} }),
 }))
 
 import ChartsWorkspace from './ChartsWorkspace'
@@ -113,8 +119,8 @@ test('A1 (red first) a switch to a warm two-chart board mounts both chart bodies
   await act(async () => { dockButton('Two Charts').click() })
   const first = firstCommitWithBoth()
   expect(first, 'a chart of the warm board waited for its paced turn').toEqual({ c1: true, c2: true })
-  expect(globalThis.__uctStoreHoldsBars).toHaveBeenCalledWith('AAPL', 'D')
-  expect(globalThis.__uctStoreHoldsBars).toHaveBeenCalledWith('MSFT', 'D')
+  expect(globalThis.__uctStoreHoldsBars).toHaveBeenCalledWith('AAPL', 'D', { showExtended: true })
+  expect(globalThis.__uctStoreHoldsBars).toHaveBeenCalledWith('MSFT', 'D', { showExtended: true })
 })
 
 test('A2 the same switch with nothing held keeps the paced admission', async () => {
@@ -124,4 +130,15 @@ test('A2 the same switch with nothing held keeps the paced admission', async () 
   await act(async () => { dockButton('Two Charts').click() })
   const first = firstCommitWithBoth()
   expect(first.c1 && first.c2, 'cold charts were mounted together, past the pacing').toBe(false)
+})
+
+test('A3 (red first) an intraday chart showing extended hours is warm only if its EXTENDED key is held', async () => {
+  // the store holds only the regular-hours key (the view the store assumes when no session is named)
+  globalThis.__uctStoreHoldsBars = vi.fn((sym, tf, o) => (o?.showExtended ?? false) === false)
+  mount()
+  await settle()
+  await act(async () => { dockButton('Intraday Pair').click() })
+  const a = hostRenders.find((r) => r.id === 'chart-5a')
+  const b = hostRenders.find((r) => r.id === 'chart-5b')
+  expect(a.mounted && b.mounted, 'charts were admitted at once on a key they do not show').toBe(false)
 })
