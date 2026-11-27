@@ -1400,6 +1400,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (!selectedSym) return
     const handler = (e) => {
       if (isHiddenDeskKey(e)) return
+      if (boardHiddenNow(layerBoard)) return   // a hidden layer keep-alive board flags nothing (review of #2901, H1)
       // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // ThemeTrackerPage.chordAdoption.test.jsx.
@@ -1414,7 +1415,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedSym, isFlagged, toggleFlag])
+  }, [selectedSym, isFlagged, toggleFlag, layerBoard])
 
   // Close / Open, the Today basis — drawn at the end of the period tabs on the board.
   const basisToggle = (
