@@ -1682,15 +1682,15 @@
    "name": "plotchar",
    "ok": true,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs fully"
+   "state": "runs-with-notes",
+   "headline": "Runs, with 1 note"
   },
   {
    "name": "plotshape",
    "ok": true,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs fully"
+   "state": "runs-with-notes",
+   "headline": "Runs, with 1 note"
   }
  ],
  "limits": {
@@ -1795,8 +1795,8 @@
    "source": "//@version=5\nindicator(\"EMA ribbon\", overlay=true)\nfast = input.int(10, \"Fast\")\nslow = input.int(21, \"Slow\")\ne1 = ta.ema(close, fast)\ne2 = ta.ema(close, slow)\np1 = plot(e1, \"Fast\", color=color.green, linewidth=2)\np2 = plot(e2, \"Slow\", color=color.red, linewidth=2)\nfill(p1, p2, color=e1 > e2 ? color.new(color.green, 80) : color.new(color.red, 80))\nplotshape(ta.crossover(e1, e2), \"Cross up\", shape.triangleup, location.belowbar, color.green)\nbgcolor(e1 > e2 and e1 > e1[1] ? color.new(color.green, 92) : na)\nbarcolor(close > e1 ? color.green : color.red)\n",
    "ok": true,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs fully"
+   "state": "runs-with-notes",
+   "headline": "Runs, with 1 note"
   },
   {
    "id": "loops-and-arrays",
