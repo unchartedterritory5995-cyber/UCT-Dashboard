@@ -49,6 +49,7 @@ import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
 import { nextTask } from '../historyLake/source'
+import { lakeCopyAddsNothing } from './reducer'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -721,6 +722,15 @@ export function createNetwork({
         .then((got) => {
           const cur = registry.peek(key)
           if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
+          // ⚡ (2026-11-27) A LOAD THAT PROVABLY ADDS NOTHING IS NOT INGESTED (reducer.lakeCopyAddsNothing): the chart's
+          // background warm re-reads the lake on every visit of a board, and the settled-depth skip above does not hold
+          // across a new key life or an entry no server answered (about 40-48 ms a board click, profiled). The dispatch
+          // stays, empty, for the registry's own bookkeeping (the entry marked used, the eviction check), as
+          // persist.hydrateMem does for a saved copy that adds nothing.
+          if (lakeCopyAddsNothing(cur, got.bars)) {
+            registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: [] } })
+            return false
+          }
           const before = cur.bars.length
           registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
           const after = registry.peek(key)
