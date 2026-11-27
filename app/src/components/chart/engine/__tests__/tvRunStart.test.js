@@ -165,10 +165,19 @@ describe('never called exact when it is not', () => {
     expect(r).toMatchObject({ ambiguous: true, proven: false })
     expect(tvRunStart('5', times, undefined, { cap: 10, capBounds: [10, 10], startsAtListing: true }).proven).toBe(true)
   })
-  it('the tolerance widens the range (a population mismatch can move the cap-th bar)', () => {
+  it('the tolerance widens the range DOWN (fewer bars: the cap-th bar moves a chunk later)', () => {
+    // weeks of 10, 10, 10 bars; cap 15 is in week 2; cap 10 (15 - 5) reaches week 3, cap 20 (15 + 5) stays in week 2
     const times = [...week('2026-06-08 14:00', 10), ...week('2026-06-15 14:00', 10), ...week('2026-06-22 14:00', 10)]
     expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15] })).toMatchObject({ index: 10, proven: true })
-    expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15], toleranceBars: 6 }))
+    expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15], toleranceBars: 4 })).toMatchObject({ index: 10, proven: true })
+    expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15], toleranceBars: 5 }))
+      .toMatchObject({ ambiguous: true, proven: false })
+  })
+  it('the tolerance widens the range UP (more bars: the cap-th bar moves a chunk earlier)', () => {
+    // weeks of 10, 10, 9 bars; cap 15 is in week 2; cap 10 stays in week 2, cap 20 reaches week 1
+    const times = [...week('2026-06-08 14:00', 10), ...week('2026-06-15 14:00', 10), ...week('2026-06-22 14:00', 9)]
+    expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15], toleranceBars: 4 })).toMatchObject({ index: 10, proven: true })
+    expect(tvRunStart('5', times, undefined, { cap: 15, capBounds: [15, 15], toleranceBars: 5 }))
       .toMatchObject({ ambiguous: true, proven: false })
   })
   it('a held history that begins inside TradingView\'s first chunk is not proven (the vendor may hold more of it)', () => {

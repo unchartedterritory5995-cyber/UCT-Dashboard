@@ -91,11 +91,19 @@
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
   },
   {
-   "id": "TOL",
-   "mutant": "the tolerance does not widen the cap range",
+   "id": "TOL-LO",
+   "mutant": "the tolerance does not widen the cap range downward",
    "file": "app/src/components/chart/engine/tvRunStart.js",
    "from": "const lo = Math.max(1, bounds[0] - tol)",
    "to": "const lo = Math.max(1, bounds[0])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TOL-HI",
+   "mutant": "the tolerance does not widen the cap range upward",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "const hi = bounds[1] + tol",
+   "to": "const hi = bounds[1]",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
   },
   {

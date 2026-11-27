@@ -72,7 +72,7 @@ Rails (`tvRunStart.test.js`) do four things:
    then its bars after it. The shape is checked with a separate chunk implementation before it is replayed.
 3. Pin the exact cap edge, the exchange timezone (winter 19:30 ET is the next day in UTC: month and year edges), the
    ambiguity and tolerance cases, the truncated chunk, the weekend case and the D/W/M claims.
-4. Run 18 mutants, one for each rounding rule and each refusal to claim. None tests the ISO week's Monday start: on
+4. Run 19 mutants, one for each rounding rule and each refusal to claim. None tests the ISO week's Monday start: on
    weekday-only sessions a Sunday start groups the same bars, and the weekend case is refused.
 
 ## 4. Data depth: what parity needs, and what it costs
@@ -117,6 +117,23 @@ start drifts by one bar a bar and is never chunk-aligned.
 - A chunk trim is fine and better than the rolling trim, with hysteresis: trim a whole chunk only when depth exceeds
   cap plus one chunk. The trim must never touch the visible range, the lake/deep "settled" bookkeeping (`lakeSettled`
   and `deepSettled` are lowered with the trim, or loads re-trigger), or any indicator warm-up window.
+
+**Measured, pure-code half (2026-11-27, `__tests__/tvRunStartDepth.measure.test.js`, GitHub runner, Node 20, synthetic
+1m ETH rows, median of 7 ms):**
+
+| rows | clamp | fold | reducer `rest-full` | reducer + trim 10k | structuredClone | tvRunStart | JSON MB |
+|---|---|---|---|---|---|---|---|
+| 20k | 0.19 | 0.18 | 9.5 | 10.3 | 11.5 | 0.33 | 2.29 |
+| 30k | 0.36 | 0.28 | 17.2 | 14.5 | 22.4 | 0.48 | 3.43 |
+| 40k | 0.38 | 0.37 | 15.7 | 17.8 | 26.7 | 0.63 | 4.58 |
+| 50k | 0.51 | 0.48 | 23.7 | 26.0 | 33.0 | 0.69 | 5.72 |
+| 60k | 1.32 | 0.56 | 34.6 | 35.0 | 44.0 | 0.77 | 6.87 |
+
+So +10k rows costs about +5 to +8 ms of reducer ingest and about +8 to +11 ms of structured clone (the IndexedDB persist)
+on a runner core, and +1.15 MB of JSON. The helper itself is under 1 ms at 60k. The synthetic rows are on-grid, so the
+fold takes its one-scan fast path. Real lake answers with off-grid rows cost more there (CHART SPEED: 44-92 ms per 60m
+re-ingest before #2892/#2867). **Not measured:** heap, paint, and a press on a board in the browser. That is the bench
+rig's half (`indicator-flip-proof` A/B, `heavy_lock --solo`), and it is still owed before phase 2 fixes numbers.
 
 **Proposal.** Use (a) for ETH charts, where the extra depth is small (+5k on 1m; 5m/15m only need the lake target
 raised to the cap they already have). Use (b) for RTH charts. A run series is fetched in the chart's session to
@@ -197,7 +214,8 @@ the start can land a chunk late. A 5m ETH week is 960 bars, so a 1,583-bar misma
 
 ## 9. Open measurements
 
-- The +10k step (CHART SPEED's condition): ingest, reducer trim, IDB persist and heap on the bench rig, under
-  `heavy_lock --solo` behind the owner and chart-speed tickets, never 13:55-15:05Z.
+- The +10k step (CHART SPEED's condition): the pure-code half is measured (section 4). The browser half (heap,
+  paint, press latency on a board with a deeper 1m entry) is owed on the bench rig, under `heavy_lock --solo` behind
+  the owner and chart-speed tickets, never 13:55-15:05Z.
 - FRED phase 2: scroll and reload do not move the study's first bar, and whether the forming bar counts.
 - 2m/3m/10m chunks, weekend-trading week chunks, and D/W/M beyond 16,333 bars.
