@@ -29,6 +29,9 @@ import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
+import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
+import dbStyles from '../../../components/chart/doubleBuffer.module.css'
+import { SWRConfig } from 'swr'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
 import {
@@ -60,6 +63,26 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // WORKSPACE: color groups, chart tabs, the crosshair bus, hotkey arbitration,
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
+
+// A double-buffer layer's crosshair subscription (ChartWidget's own rule, on the LAYER's handle): skip the widget's own
+// broadcasts, take nothing while the layer is hidden, clear a drawn one at its hide. Re-made only when that layer's
+// symbol changes, so a flip (which changes neither layer's symbol) re-subscribes no chart.
+function useLayerCrosshair(crosshairBus, widgetIdRef, vis, layerSym) {
+  return useCallback((cb) => {
+    if (!crosshairBus) return () => {}
+    let drawn = false
+    const off = crosshairBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId === widgetIdRef.current) return
+      if (boardHiddenNow(vis)) return
+      drawn = payload != null
+      cb(payload)
+    })
+    const offVis = vis.subscribe(() => { if (drawn && boardHiddenNow(vis)) { drawn = false; cb(null) } })
+    return () => { offVis(); off() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- layerSym: a symbol switch re-subscribes (StockChart clears)
+  }, [crosshairBus, widgetIdRef, vis, layerSym])
+}
+
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
   const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
@@ -768,193 +791,243 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     </>
   )
 
-  return (
-    <PaintMemberContext.Provider value={switchMember}>
-      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
-      <ChartPane
-        ref={paneRef}
-        sym={sym}
-        tf={tf}
-        onSymbolChange={handleSymbolChange}
-        onTypedIntent={handleTypedIntent}
-        typedIntentTfs={groupTfSets?.[activeColor] || null}
-        onTfChange={setTf}
-        allowEconomic
-        chartFeatures={chartFeatures}
-        stored={activeStoredSettings}
-        onStore={persistActiveSettings}
-        chartId={paneChartId}
-        chartsTheme={chartsTheme}
-        onApplyThemeAll={applyThemeToAllCharts}
-        onApplyThemeAllWidgets={applyThemeToAllWidgets}
-        applyToAllCharts={applyToAllCharts}
-        onActivate={markActive}
-        onAdjustWatermark={startWatermarkAdjust}
-        onResetWatermark={resetWatermark}
-        watermarkCustomized={!!wmPos}
-        stockChartProps={{
-          ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
-          onCrosshairMove: reportCrosshair,
-          subscribeCrosshair,
-          hotkeysActive: hotkeysIsActive,
-          onBarContextMenu: handleBarContextMenu,
-          // Adjustable watermark: per-chart position + explicit adjust mode.
-          // lockWatermark stays the pane's default (true); StockChart unlocks the
-          // drag itself while watermarkAdjusting is set.
-          watermarkX: wmPos?.x ?? null,
-          watermarkY: wmPos?.y ?? null,
-          watermarkAnchor: wmPos?.anchor ?? null,
-          watermarkAdjusting: wmAdjusting,
-          onWatermarkAdjustEnd: endWatermarkAdjust,
-          onWatermarkAnchor: adoptWatermarkAnchor,
-          // ⭐ UCT RS 3-09 — the workspace mounts a Compare Symbols panel (desktop
-          // only), so a readout row may offer "Open the rotation map". Any other
-          // host of this widget (breadth drill, screener focus) leaves it off.
-          canOpenCompare: canOpenCompare === true,
-          // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
-          // `stockChartProps` onto `StockChart`, which forwards it to
-          // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
-          chartId: paneChartId,
-          // The workspace's mount queue: this panel's bars are up, so the next queued one may
-          // start. Once per mount (StockChart's latch); null outside the main board.
-          onBarsReady: panelSlotReady || undefined,
-          // Custom-Period Sort: drag-to-highlight mode + the completed selection,
-          // tagged with THIS chart's symbol for the config popover's % readout.
-          periodSelect: !!periodSortMode,
-          onPeriodSelected: periodSortMode
-            ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
-            : undefined,
-          onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
-          // Replay Mode "Pick on chart": click/drag to choose the cutoff. Only the active
-          // chart is armed (replayArmPick is a single workspace flag; the active chart is
-          // the one the user is looking at when they hit "Pick on chart").
-          replayPick: !!replayArmPick,
-          onReplayCutoffPicked: replayArmPick ? wsOnReplayCutoffPicked : undefined,
-          onReplayPickCancel: replayArmPick ? wsOnReplayPickCancel : undefined,
-          // Replay mode: hide every bar after this ISO date (null = normal chart) + show
-          // the "Exit Replay Mode" pill centered in this chart's clear top area.
-          replayCutoff: replayCutoff || null,
-          // FULLY freeze live in replay: replay is static historical data, so kill the SSE
-          // subscription + the per-tick live-price re-render (was left on, which churned the
-          // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
-          // Book's static charts. null cutoff → undefined → StockChart's live default (true).
-          liveUpdates: replayCutoff ? false : undefined,
-          // A host whose own control turns replay off (the Breadth drill's header chip) sets
-          // `showReplayExit: false`: the chart then shows no pill. Absent = shown (/charts).
-          onExitReplay: ((replayCutoff || startMarker) && showReplayExit !== false) ? exitReplay : undefined,
-          // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
-          // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
-          startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
-          // …else the breadth drill's "Mark day" (workspace `markDay`): the scan day's candle
-          // (or session, intraday) in one high-contrast color, body + border + wick.
-          highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : (markDay || undefined),
-          highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : (markDay ? markDayColor : undefined),
-          // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
-          highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
-        }}
-        slots={{
-          // T3 integrated header (/charts board only): the identity row becomes this
-          // widget's title bar — link dot left, window controls right, drag handle.
-          headerLeft: widgetChrome?.left ?? null,
-          headerRight: widgetChrome?.right ?? null,
-          symbolActions: widgetChrome && (symHasLeverage || symIsFund) ? (
-            <>
-              {symHasLeverage && !isThemeIndex && (
-                <div className={styles.symActRow}>
-                  <span className={styles.symActLabel}>Leveraged ETFs</span>
-                  <LeverageInverseControl
-                    variant="tabs"
-                    sym={sym}
-                    onSelect={(s) => paneRef.current?.changeSymbol(s)}
-                    themeVars={menuVars}
-                    candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
-                  />
-                </div>
-              )}
-              {symIsFund && (
-                <div className={styles.symActRow}>
-                  <span className={styles.symActLabel}>Top holdings</span>
-                  <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
-                </div>
-              )}
-            </>
-          ) : null,
-          identityDragClass: widgetChrome?.dragHandleClass ?? null,
-          /* Chart tab strip — renders only once ≥1 extra tab exists, so a
-             single-chart widget is visually unchanged. Each tab is an
-             independent chart profile. */
-          top: extraTabs.length > 0 ? (
-            <ChartTabStrip
-              tabs={tabList}
-              activeIndex={activeTabIdx}
-              tabColors={tabColors}
-              onSelect={handleSelectTab}
-              onAdd={handleAddTab}
-              onClose={handleCloseTab}
-              onRename={handleRenameTab}
-              onCycleColor={handleCycleTabColor}
-            />
-          ) : null,
-          // Time Navigator — seated right after the timeframe buttons, before the
-          // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
-          tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
-          tfBarRight: (
-            <>
-              {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
-                  header (owner 2026-11-13). components/chart/AdjustmentLabel.jsx is kept
-                  intact so it can be re-seated here later. */}
-              {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
-                  ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
-              {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
-              {!widgetChrome && symbolActionsEl}
-              {/* Add-tab entry point — only when the strip isn't showing yet (0
-                  extra tabs). Once a tab exists, the strip's own + button takes over. */}
-              {/* Integrated /charts header (owner 11-11): no New-chart-tab button here. */}
-              {extraTabs.length === 0 && !widgetChrome && (
+  // ⭐⭐ THE DOUBLE-BUFFERED NEXT ROW (2026-11-27; components/chart/useDoubleBuffer.js, doubleBuffer.js). A list-linked
+  // chart keeps a second pane, hidden under this one, set to the row ahead; a press to that row shows it (a flip)
+  // instead of switching this one. Decided once per widget: a board with no group scope (the drill, the screener), the
+  // <Activity> keep-alive, the touch tier, the store off, or the board's shadows all taken -> one pane, as before.
+  const boardVisAny = useContext(BoardVisibilityContext)   // any board handle (the <Activity> one too): it must be a layer
+  const [dbEligible] = useState(() => isMainTab && doubleBufferEligible({ scope: groupScope, color: activeColor, parentVis: boardVisAny }))
+  const db = useDoubleBuffer({
+    eligible: dbEligible, sym, tf, extRef: paneExtRef, settings: activeStoredSettings,
+    scope: groupScope, member: switchMember, parentVis: layerBoard,
+  })
+  // each layer's pane instance; `paneRef` (the agent's, the date nav's, the symbol menu's door) is the FRONT one
+  const layerInstRef = useRef([null, null])
+  const dbFrontRef = useRef(0)
+  dbFrontRef.current = db.front
+  const [layerRefFns] = useState(() => [0, 1].map((i) => (inst) => {
+    layerInstRef.current[i] = inst
+    if (i === dbFrontRef.current) paneRef.current = inst
+  }))
+  useLayoutEffect(() => {
+    if (db.on) paneRef.current = layerInstRef.current[db.front] || null
+  }, [db.on, db.front])
+  // each layer's crosshair: the board's rule (skip our own, nothing while hidden, clear at a hide) on the LAYER's handle,
+  // re-made only when that layer's symbol changes (a flip changes neither layer's symbol: no chart re-subscribes)
+  const layerSubscribeCrosshair = [
+    useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[0], db.syms[0]),
+    useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[1], db.syms[1]),
+  ]
+  // each layer's SWR: a hidden layer's own polls and focus revalidation wait (isVisible, never isPaused: review of
+  // #2901, H2), as a hidden layer board's do
+  const [layerSwr] = useState(() => [0, 1].map((i) => ({ isVisible: () => !boardHiddenNow(db.handles[i]) && (typeof document === 'undefined' || document.visibilityState !== 'hidden') })))
+
+  // ⭐ THE PANE, rendered once (one pane) or per layer (the double buffer, chart/useDoubleBuffer.js): every prop the
+  // same for both layers except the symbol, the ref and the crosshair subscription (each layer's own handle gates it).
+  const renderPane = (paneSym, paneRefArg, paneSubscribeCrosshair) => (
+        <ChartPane
+          ref={paneRefArg}
+          sym={paneSym}
+          tf={tf}
+          onSymbolChange={handleSymbolChange}
+          onTypedIntent={handleTypedIntent}
+          typedIntentTfs={groupTfSets?.[activeColor] || null}
+          onTfChange={setTf}
+          allowEconomic
+          chartFeatures={chartFeatures}
+          stored={activeStoredSettings}
+          onStore={persistActiveSettings}
+          chartId={paneChartId}
+          chartsTheme={chartsTheme}
+          onApplyThemeAll={applyThemeToAllCharts}
+          onApplyThemeAllWidgets={applyThemeToAllWidgets}
+          applyToAllCharts={applyToAllCharts}
+          onActivate={markActive}
+          onAdjustWatermark={startWatermarkAdjust}
+          onResetWatermark={resetWatermark}
+          watermarkCustomized={!!wmPos}
+          stockChartProps={{
+            ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
+            onCrosshairMove: reportCrosshair,
+            subscribeCrosshair: paneSubscribeCrosshair,
+            hotkeysActive: hotkeysIsActive,
+            onBarContextMenu: handleBarContextMenu,
+            // Adjustable watermark: per-chart position + explicit adjust mode.
+            // lockWatermark stays the pane's default (true); StockChart unlocks the
+            // drag itself while watermarkAdjusting is set.
+            watermarkX: wmPos?.x ?? null,
+            watermarkY: wmPos?.y ?? null,
+            watermarkAnchor: wmPos?.anchor ?? null,
+            watermarkAdjusting: wmAdjusting,
+            onWatermarkAdjustEnd: endWatermarkAdjust,
+            onWatermarkAnchor: adoptWatermarkAnchor,
+            // ⭐ UCT RS 3-09 — the workspace mounts a Compare Symbols panel (desktop
+            // only), so a readout row may offer "Open the rotation map". Any other
+            // host of this widget (breadth drill, screener focus) leaves it off.
+            canOpenCompare: canOpenCompare === true,
+            // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
+            // `stockChartProps` onto `StockChart`, which forwards it to
+            // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
+            chartId: paneChartId,
+            // The workspace's mount queue: this panel's bars are up, so the next queued one may
+            // start. Once per mount (StockChart's latch); null outside the main board.
+            onBarsReady: panelSlotReady || undefined,
+            // Custom-Period Sort: drag-to-highlight mode + the completed selection,
+            // tagged with THIS chart's symbol for the config popover's % readout.
+            periodSelect: !!periodSortMode,
+            onPeriodSelected: periodSortMode
+              ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
+              : undefined,
+            onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
+            // Replay Mode "Pick on chart": click/drag to choose the cutoff. Only the active
+            // chart is armed (replayArmPick is a single workspace flag; the active chart is
+            // the one the user is looking at when they hit "Pick on chart").
+            replayPick: !!replayArmPick,
+            onReplayCutoffPicked: replayArmPick ? wsOnReplayCutoffPicked : undefined,
+            onReplayPickCancel: replayArmPick ? wsOnReplayPickCancel : undefined,
+            // Replay mode: hide every bar after this ISO date (null = normal chart) + show
+            // the "Exit Replay Mode" pill centered in this chart's clear top area.
+            replayCutoff: replayCutoff || null,
+            // FULLY freeze live in replay: replay is static historical data, so kill the SSE
+            // subscription + the per-tick live-price re-render (was left on, which churned the
+            // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
+            // Book's static charts. null cutoff → undefined → StockChart's live default (true).
+            liveUpdates: replayCutoff ? false : undefined,
+            // A host whose own control turns replay off (the Breadth drill's header chip) sets
+            // `showReplayExit: false`: the chart then shows no pill. Absent = shown (/charts).
+            onExitReplay: ((replayCutoff || startMarker) && showReplayExit !== false) ? exitReplay : undefined,
+            // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
+            // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
+            startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
+            // …else the breadth drill's "Mark day" (workspace `markDay`): the scan day's candle
+            // (or session, intraday) in one high-contrast color, body + border + wick.
+            highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : (markDay || undefined),
+            highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : (markDay ? markDayColor : undefined),
+            // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
+            highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
+          }}
+          slots={{
+            // T3 integrated header (/charts board only): the identity row becomes this
+            // widget's title bar — link dot left, window controls right, drag handle.
+            headerLeft: widgetChrome?.left ?? null,
+            headerRight: widgetChrome?.right ?? null,
+            symbolActions: widgetChrome && (symHasLeverage || symIsFund) ? (
+              <>
+                {symHasLeverage && !isThemeIndex && (
+                  <div className={styles.symActRow}>
+                    <span className={styles.symActLabel}>Leveraged ETFs</span>
+                    <LeverageInverseControl
+                      variant="tabs"
+                      sym={sym}
+                      onSelect={(s) => paneRef.current?.changeSymbol(s)}
+                      themeVars={menuVars}
+                      candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
+                    />
+                  </div>
+                )}
+                {symIsFund && (
+                  <div className={styles.symActRow}>
+                    <span className={styles.symActLabel}>Top holdings</span>
+                    <ViewHoldingsControl sym={sym} doorRef={holdingsRef} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />
+                  </div>
+                )}
+              </>
+            ) : null,
+            identityDragClass: widgetChrome?.dragHandleClass ?? null,
+            /* Chart tab strip — renders only once ≥1 extra tab exists, so a
+               single-chart widget is visually unchanged. Each tab is an
+               independent chart profile. */
+            top: extraTabs.length > 0 ? (
+              <ChartTabStrip
+                tabs={tabList}
+                activeIndex={activeTabIdx}
+                tabColors={tabColors}
+                onSelect={handleSelectTab}
+                onAdd={handleAddTab}
+                onClose={handleCloseTab}
+                onRename={handleRenameTab}
+                onCycleColor={handleCycleTabColor}
+              />
+            ) : null,
+            // Time Navigator — seated right after the timeframe buttons, before the
+            // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
+            tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
+            tfBarRight: (
+              <>
+                {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
+                    header (owner 2026-11-13). components/chart/AdjustmentLabel.jsx is kept
+                    intact so it can be re-seated here later. */}
+                {/* /charts integrated header (owner 11-11): no leveraged-ETF switcher; the
+                    ETF holdings button keeps its seat. Elsewhere: both, unchanged. */}
+                {/* /charts chart widget: leverage + holdings live in the symbol menu (▾). */}
+                {!widgetChrome && symbolActionsEl}
+                {/* Add-tab entry point — only when the strip isn't showing yet (0
+                    extra tabs). Once a tab exists, the strip's own + button takes over. */}
+                {/* Integrated /charts header (owner 11-11): no New-chart-tab button here. */}
+                {extraTabs.length === 0 && !widgetChrome && (
+                  <button
+                    type="button"
+                    className={styles.chartSettingsBtn}
+                    onClick={handleAddTab}
+                    title="New chart tab (independent settings, loads as UCT Default)"
+                    data-guide="chart.addTab"
+                    aria-label="New chart tab"
+                  >
+                    <UIcon name="plus" size={15} />
+                  </button>
+                )}
+              </>
+            ),
+            /* The slot after the gear (Share-to-Floor's, then the Company and
+               Earnings toggles'). It holds the one Add to Chart door now. */
+            // Integrated /charts header (owner 11-11): no Add-to-chart button — the same
+            // surface stays one click away through the settings gear.
+            tfBarEnd: widgetChrome ? null : (
+              <>
+                {/* ⭐ ADD TO CHART — the ONE door to everything a chart can carry
+                    (indicators, symbols, breadth, fundamentals, Research). Opens
+                    Chart settings straight into Indicators' add surface. Beside
+                    the gear because it opens the gear's own modal; deliberately
+                    NOT the `+` above, which is New chart tab. */}
                 <button
                   type="button"
                   className={styles.chartSettingsBtn}
-                  onClick={handleAddTab}
-                  title="New chart tab (independent settings, loads as UCT Default)"
-                  data-guide="chart.addTab"
-                  aria-label="New chart tab"
+                  onClick={() => paneRef.current?.openSettings('add')}
+                  title="Add to Chart"
+                  aria-label="Add to Chart"
+                  data-testid="add-to-chart"
                 >
-                  <UIcon name="plus" size={15} />
+                  <UIcon name="ind-series" size={15} />
                 </button>
-              )}
-            </>
-          ),
-          /* The slot after the gear (Share-to-Floor's, then the Company and
-             Earnings toggles'). It holds the one Add to Chart door now. */
-          // Integrated /charts header (owner 11-11): no Add-to-chart button — the same
-          // surface stays one click away through the settings gear.
-          tfBarEnd: widgetChrome ? null : (
-            <>
-              {/* ⭐ ADD TO CHART — the ONE door to everything a chart can carry
-                  (indicators, symbols, breadth, fundamentals, Research). Opens
-                  Chart settings straight into Indicators' add surface. Beside
-                  the gear because it opens the gear's own modal; deliberately
-                  NOT the `+` above, which is New chart tab. */}
-              <button
-                type="button"
-                className={styles.chartSettingsBtn}
-                onClick={() => paneRef.current?.openSettings('add')}
-                title="Add to Chart"
-                aria-label="Add to Chart"
-                data-testid="add-to-chart"
-              >
-                <UIcon name="ind-series" size={15} />
-              </button>
-              {/* ⚰️ THE EARNINGS-STRIP AND COMPANY-INFO TOGGLES STOOD HERE —
-                  two permanent header icons for two features. Both are
-                  Indicators → Add to Chart → Research rows now; Company Info's
-                  temporary collapse lives on the panel itself (chevron + edge
-                  rail), so nothing about either needed header space. */}
-            </>
-          ),
-          overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
-        }}
-      />
+                {/* ⚰️ THE EARNINGS-STRIP AND COMPANY-INFO TOGGLES STOOD HERE —
+                    two permanent header icons for two features. Both are
+                    Indicators → Add to Chart → Research rows now; Company Info's
+                    temporary collapse lives on the panel itself (chevron + edge
+                    rail), so nothing about either needed header space. */}
+              </>
+            ),
+            overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
+          }}
+        />
+  )
+
+  return (
+    <PaintMemberContext.Provider value={switchMember}>
+      <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
+      {db.on ? (
+        <div className={dbStyles.slot} data-double-buffer="">
+          {[0, 1].map((i) => (db.syms[i] ? (
+            <div key={i} className={i === db.front ? dbStyles.layer : dbStyles.layerHidden} inert={i !== db.front}
+              aria-hidden={i === db.front ? undefined : true} data-db-layer={i === db.front ? 'front' : 'shadow'}>
+              <BoardVisibilityContext.Provider value={db.handles[i]}>
+                <SWRConfig value={layerSwr[i]}>
+                  {renderPane(db.syms[i], layerRefFns[i], layerSubscribeCrosshair[i])}
+                </SWRConfig>
+              </BoardVisibilityContext.Provider>
+            </div>
+          ) : null))}
+        </div>
+      ) : renderPane(sym, paneRef, subscribeCrosshair)}
       </ChartDetailDock>
       {/* ── Chart right-click menu ── */}
       {ctxMenu && (
