@@ -3,6 +3,7 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext } from './chart/paintLog'
+import { BoardVisibilityContext, boardIsHiding } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 // (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
@@ -12445,10 +12446,12 @@ function StockChartBody({
       // CALL time; keyed by chartId so multi-chart pages don't collide.
       if (typeof window !== 'undefined') {
         window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+        const _dbg = chartDebugHandle({
           chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
           userLockedViewRef, userViewLockedRef, vertMarginsRef,
         })
+        chartDebugHandleRef.current = _dbg
+        window.__uctChartDebug[chartId || 'main'] = _dbg
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
@@ -19561,69 +19564,135 @@ function StockChartBody({
     return () => window.removeEventListener('resize', apply)
   }, [chartReady])
 
+  // ⭐ A HIDDEN BOARD KEEPS ITS CHART (2026-11-27, board keep-alive Stage 1; boardVisibility.js). The keep-alive hides
+  // the previous board with <Activity mode="hidden">, which runs every effect cleanup, the one below included: it removed
+  // the chart, and a return re-created it (creation, series, setData, framing). When the board's handle says 'hidden'
+  // the cleanup keeps the instance and every latch describing it, and turns autoSize off (a hidden box is 0 x 0, which
+  // must not resize the chart); the layout effect after it turns autoSize back on at the show, after one forced resize
+  // when the device-pixel ratio changed while hidden. No provider (the flag off): exactly as before.
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
+  const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
+  const keptDisposerRef = useRef(null)      // the handle's unregister of this chart's teardown, while kept
+  // This chart's own `window.__uctChartDebug` handle: a kept (hidden) board's chart may share its widget id with one on
+  // the board in front, so a handle is removed only while it is still THIS chart's, and re-registered at the show.
+  const chartDebugHandleRef = useRef(null)
+  const dropOwnDebugHandle = () => {
+    try {
+      const d = typeof window !== 'undefined' ? window.__uctChartDebug : null
+      const id = chartId || 'main'
+      if (d && chartDebugHandleRef.current && d[id] === chartDebugHandleRef.current) delete d[id]
+    } catch { /* SSR/teardown */ }
+  }
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
-      try { markersControllerRef.current?.detach?.() } catch {}
-      markersControllerRef.current = null
-      // The manifest registry holds ONE slot. Releasing it here — beside
-      // `chart.remove()` — is what stops `currentPaneManifest()` calling `panes()`
-      // on a disposed chart after an unmount. The unregister is identity-scoped, so
-      // a chart that has already been superseded by another mount is a no-op rather
-      // than erasing its successor's registration.
-      try { unregisterManifestRef.current?.() } catch {}
-      unregisterManifestRef.current = null
-      // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
-      // releases its series and clears every bind-time note it published under this
-      // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
-      // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
-      // Safe unconditionally (zero calls when it holds nothing); no render follows.
-      try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
-      engineRef.current = null
-      if (chartRef.current) {
-        try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
-        chartRef.current.remove()
-        chartRef.current = null
-        candleSeriesRef.current = null
-        volumeSeriesRef.current = null
-        overlaySeriesRefs.current = []
-        futureWsSeriesRef.current = null   // removed with the chart; the effect re-adds it on the new one
-        priceLineRefs.current = []
-        sessionTagRefs.current = []
-        sessionTagSeriesRef.current = null
-        lastShadeBandsRef.current = undefined   // primitive goes with the chart; bands must re-apply
-        lastMarkersSrcRef.current = undefined
-        // Reset every paint/framing latch alongside the chart they describe.
-        // These survive a destroy→recreate cycle otherwise (StrictMode's
-        // simulated remount, or any future remount path with warm caches):
-        // chart #2 then comes up under an armed 'noop' render plan and an
-        // already-consumed zoom key — created but never painted, never framed
-        // (the blank multi-chart grid cells after a mode roundtrip).
-        volMaSeriesRef.current = null
-        volMaTailSeriesRef.current = null
-        volumeSeparatePaneRef.current = false
-        prevChartTypeRef.current = null
-        wmAttachedRef.current = false
-        sessionShadeAttachedRef.current = false
-        sessionShadeVolAttachedRef.current = false
-        sessionBreaksAttachedRef.current = false  // the session-breaks primitive goes with the chart
-        pmLineRefs.current = []                   // …and so do the PM high/low price lines
-        pmLinesKeyRef.current = ''
-        lastShadeBandsVolRef.current = null
-        zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
-        lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
-        lastCfgSigRef.current = null
-        prevBarsRef.current = null
-        prevBarsSymRef.current = null           // the stamp goes with the bars it names
-        prevBarsTfRef.current = null
-        prevPaintBarsRef.current = null
-        lastBarCountRef.current = 0
-        zoomKeyRef.current = null
-        lastTfRef.current = null
-        pendingTfReframeRef.current = null
+      // the whole teardown, run here at an unmount, or later by the board's handle for a chart kept through a hide
+      const destroyChart = () => {
+        keptDisposerRef.current = null
+        keptThroughHideRef.current = null
+        try { markersControllerRef.current?.detach?.() } catch {}
+        markersControllerRef.current = null
+        // The manifest registry holds ONE slot. Releasing it here — beside
+        // `chart.remove()` — is what stops `currentPaneManifest()` calling `panes()`
+        // on a disposed chart after an unmount. The unregister is identity-scoped, so
+        // a chart that has already been superseded by another mount is a no-op rather
+        // than erasing its successor's registration.
+        try { unregisterManifestRef.current?.() } catch {}
+        unregisterManifestRef.current = null
+        // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
+        // releases its series and clears every bind-time note it published under this
+        // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
+        // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
+        // Safe unconditionally (zero calls when it holds nothing); no render follows.
+        try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
+        engineRef.current = null
+        if (chartRef.current) {
+          dropOwnDebugHandle()
+          chartRef.current.remove()
+          chartRef.current = null
+          candleSeriesRef.current = null
+          volumeSeriesRef.current = null
+          overlaySeriesRefs.current = []
+          futureWsSeriesRef.current = null   // removed with the chart; the effect re-adds it on the new one
+          priceLineRefs.current = []
+          sessionTagRefs.current = []
+          sessionTagSeriesRef.current = null
+          lastShadeBandsRef.current = undefined   // primitive goes with the chart; bands must re-apply
+          lastMarkersSrcRef.current = undefined
+          // Reset every paint/framing latch alongside the chart they describe.
+          // These survive a destroy→recreate cycle otherwise (StrictMode's
+          // simulated remount, or any future remount path with warm caches):
+          // chart #2 then comes up under an armed 'noop' render plan and an
+          // already-consumed zoom key — created but never painted, never framed
+          // (the blank multi-chart grid cells after a mode roundtrip).
+          volMaSeriesRef.current = null
+          volMaTailSeriesRef.current = null
+          volumeSeparatePaneRef.current = false
+          prevChartTypeRef.current = null
+          wmAttachedRef.current = false
+          sessionShadeAttachedRef.current = false
+          sessionShadeVolAttachedRef.current = false
+          sessionBreaksAttachedRef.current = false  // the session-breaks primitive goes with the chart
+          pmLineRefs.current = []                   // …and so do the PM high/low price lines
+          pmLinesKeyRef.current = ''
+          lastShadeBandsVolRef.current = null
+          zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
+          lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
+          lastCfgSigRef.current = null
+          prevBarsRef.current = null
+          prevBarsSymRef.current = null           // the stamp goes with the bars it names
+          prevBarsTfRef.current = null
+          prevPaintBarsRef.current = null
+          lastBarCountRef.current = 0
+          zoomKeyRef.current = null
+          lastTfRef.current = null
+          pendingTfReframeRef.current = null
+        }
       }
+      const keep = chartRef.current
+      // kept only while its element is still in the document: an <Activity> hide leaves it there (display:none);
+      // an unmount under a 'hidden' handle (the workspace leaving, grid mode) has removed it already
+      let attached = false
+      try { attached = !!keep?.chartElement?.()?.isConnected } catch { /* disposed */ }
+      if (keep && attached && boardIsHiding(boardVisibilityRef.current)) {
+        try { keep.applyOptions({ autoSize: false }) } catch { /* disposed */ }
+        keptThroughHideRef.current = { dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1 }
+        dropOwnDebugHandle()
+        // the manifest's one slot goes with the hide (the show takes it back)
+        try { unregisterManifestRef.current?.() } catch { /* disposed */ }
+        unregisterManifestRef.current = null
+        // ⛔ the full teardown waits on the handle: a board deleted while hidden runs no cleanup again
+        const vis = boardVisibilityRef.current
+        keptDisposerRef.current = typeof vis?.onDispose === 'function' ? vis.onDispose(destroyChart) : null
+        return
+      }
+      destroyChart()
     }
   }, [])
+  // The show of a board that kept this chart through a hide (above): autoSize back on; one forced resize first when the
+  // device-pixel ratio moved while hidden (the canvases' bitmaps were sized for the old ratio).
+  useLayoutEffect(() => {
+    const kept = keptThroughHideRef.current
+    const chart = chartRef.current
+    if (!kept || !chart) return
+    keptThroughHideRef.current = null
+    keptDisposerRef.current?.()
+    keptDisposerRef.current = null
+    unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
+    if (dpr !== kept.dpr) {
+      const el = containerRef.current
+      try { chart.resize(el?.clientWidth || 0, el?.clientHeight || 0, true) } catch { /* disposed */ }
+    }
+    try { chart.applyOptions({ autoSize: true }) } catch { /* disposed */ }
+    if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+      window.__uctChartDebug = window.__uctChartDebug || {}
+      window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+    }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- a show only: the refs and chartId are read at that moment
 
   // ── Clear drawing selection on symbol/tf change ──
   useEffect(() => {
