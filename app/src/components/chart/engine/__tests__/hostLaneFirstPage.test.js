@@ -200,13 +200,16 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     const tree = (ast) => ({ id: 'u_x', plots: [{ key: 'v' }], compute: { kind: 'ast', ast } })
     const close = { type: 'series', name: 'close' }
     const sma = (n) => ({ type: 'call', name: 'sma', args: [close, { type: 'num', value: n }] })
-    expect(pageReachProvable(tree(close), 'v')).toBe(true)
-    expect(pageReachProvable(tree(sma(20)), 'v')).toBe(true)
-    expect(pageReachProvable(tree(sma(FIRST_PAGE_PROBE)), 'v')).toBe(true)
-    expect(pageReachProvable(tree(sma(FIRST_PAGE_PROBE + 2)), 'v')).toBe(false)
-    expect(pageReachProvable(tree({ type: 'op', name: '+', args: [close, { type: 'series', name: 'barindex' }] }), 'v')).toBe(false)
-    expect(pageReachProvable(tree({ type: 'call', name: 'cum', args: [close] }), 'v')).toBe(false)
-    expect(pageReachProvable(tree(null), 'v')).toBe(false)
+    const got = {
+      close: pageReachProvable(tree(close), 'v'),
+      sma20: pageReachProvable(tree(sma(20)), 'v'),
+      smaAtProbe: pageReachProvable(tree(sma(FIRST_PAGE_PROBE)), 'v'),
+      smaPastProbe: pageReachProvable(tree(sma(FIRST_PAGE_PROBE + 2)), 'v'),
+      barindex: pageReachProvable(tree({ type: 'op', name: '+', args: [close, { type: 'series', name: 'barindex' }] }), 'v'),
+      cum: pageReachProvable(tree({ type: 'call', name: 'cum', args: [close] }), 'v'),
+      none: pageReachProvable(tree(null), 'v'),
+    }
+    expect(got).toEqual({ close: true, sma20: true, smaAtProbe: true, smaPastProbe: false, barindex: false, cum: false, none: false })
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {
