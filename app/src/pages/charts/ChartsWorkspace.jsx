@@ -6,7 +6,7 @@ import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache, settlePreferenceWrites } from '../../hooks/usePreferences'
 import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { markDeskHidden } from './deskKeyGate'
@@ -1046,7 +1046,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   keptBoardRef.current = keptBoard
   // `user`: a member's switch to the board `key` names (a dock tab, Open Layout, the UCT Default, a failed switch put
   // back). Every other switch (the prefs load, a version restore, the agent) replaces the board in front, in its slot.
+  // (review of #2926, F-D) every board replacement, counted: a Save As that awaited the server adopts the copy it made
+  // only when the board it saved is still the one on screen
+  const boardSwitchSeqRef = useRef(0)
   const switchLayout = useCallback((next, { user = false, key } = {}) => {
+    boardSwitchSeqRef.current += 1
     const body = bodyRef.current
     const grid = body?.querySelector?.('[data-board-current] .react-grid-layout') || body?.querySelector?.('.react-grid-layout')
     let shown = next
@@ -1118,8 +1122,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom, boardCount])
 
   // ⛔ (2026-11-27, the live sweep's S3b) THE LAYOUT THE BOARD ON SCREEN WAS OPENED FROM, as THIS tab set it, and the
-  // only layout the named save may write the board into. `undefined`: the board was taken from the stored preferences
-  // (the first load, a version restore, a re-read after a conflict), so the stored pointer is its origin.
+  // only layout the named save may write the board into. A board taken from the stored preferences (the first load, a
+  // version restore, a re-read after a conflict) takes the pointer of THE SAME preferences (review of #2926, F-C);
+  // `undefined` only before the board is seeded.
   // Measured on production: a preferences read that began before a dock switch answered after it and put the OLD
   // `charts_active_template` back into the cache, under the NEW board. The auto-save 400 ms later wrote the new board
   // into the old layout's row by name (flip-tab-B's row took flip-tab-A's three widgets), and every later switch
@@ -1131,11 +1136,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (loadedFromPrefsRef.current) return
     const parsed = parseLayout(prefs?.charts_workspace_layout)
     if (parsed) {
-      boardOriginRef.current = undefined
+      boardOriginRef.current = parsePref(prefs?.charts_active_template, null)?.id ?? null
       switchLayout(parsed)
       loadedFromPrefsRef.current = true
     }
-  }, [prefs?.charts_workspace_layout, switchLayout])
+  }, [prefs?.charts_workspace_layout, prefs?.charts_active_template, switchLayout])
 
   // Hydration gate: don't persist until server prefs have settled, so RGL's
   // on-mount onLayoutChange can't clobber a returning user's saved layout with the
@@ -2519,7 +2524,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
     const seq = ++boardCommitSeqRef.current
     boardCommitInFlightRef.current = true
-    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op)
+    // pending: the document write below carries them; until it answers no read may put the old values back
+    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op, { pending: true })
     applyColumnsSteps(steps)
     applyLocal()
     loadedFromPrefsRef.current = true
@@ -2530,6 +2536,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const run = prior.then(() => commitBoardDocument(boardDocumentPatch(steps))).then((x) => { r = x }, () => { r = { status: 'failed' } })
     boardCommitChainRef.current = run
     await run
+    settlePreferenceWrites(keys)   // answered (any outcome): a read that begins now holds the server's values
     const latest = seq === boardCommitSeqRef.current
     if (latest) boardCommitInFlightRef.current = false
     // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
@@ -2548,7 +2555,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
       putColsBack()
       // the board is re-seeded from the preferences just read: their pointer is its origin (or the one before)
-      boardOriginRef.current = current ? undefined : beforeOrigin
+      boardOriginRef.current = current ? (parsePref(fresh?.charts_active_template, null)?.id ?? null) : beforeOrigin
       switchLayout(current || beforeLayout, back)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
@@ -2892,6 +2899,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // the member this save is for, begun before the save's await (usePreferences `beginPrefsOp`):
     // the active-template pointer below is never written into a member who signed in meanwhile
     const op = beginPrefsOp()
+    const switchAt = boardSwitchSeqRef.current
     const saved = await saveLayout({
       name: nm,
       layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -2901,7 +2909,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     })
     // The just-saved template becomes the active one, so "Save current
     // arrangement" updates it going forward.
-    if (saved?.id != null) {
+    // (review of #2926, F-D) the copy is adopted (origin and pointer) only when the board it was made from is still the
+    // one on screen: a switch while the save awaited keeps the board that is on screen now pointed where it is
+    if (saved?.id != null && boardSwitchSeqRef.current === switchAt) {
       if (!op.stale()) boardOriginRef.current = saved.id   // the board on screen now belongs to the copy just saved
       setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }), op)
     }
@@ -2929,7 +2939,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // the user can write (their own, or a global one when admin); a stale/deleted
   // active ref is ignored (just saves the working board).
   const crossWriteWarnedRef = useRef(false)
-  const handleSaveLayout = useCallback(async () => {
+  // `{ auto: true }`: the dock's auto-save (silent when it saves nothing); anything else is a member's Save (the
+  // button, the menu row, UCT Agent's layout.saveCurrent), which is told when the named layout was not written
+  const handleSaveLayout = useCallback(async ({ auto = false } = {}) => {
     // the origin of THIS render's board, read before the first await: the flush a switch runs (applyTemplate) calls
     // this before the switch replaces the board and its origin, and its `layout` and pointer are the leaving board's
     const origin = boardOriginRef.current
@@ -2953,12 +2965,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         crossWriteWarnedRef.current = true
         console.warn('[layout-dock] named save skipped: the open-layout pointer names a different layout than the board on screen was opened from. Neither layout was written.')
       }
-      flashSaved()
-      return { ok: true, named: 'none' }
+      // (review of #2926, F-B) the auto-save stays silent; a member's Save is told, and nothing says "Saved"
+      if (auto) return { ok: true, named: 'none' }
+      workspaceNoticeRef.current?.('Your layout was not saved: the board changed while it was being saved. Try Save again.')
+      return { ok: false, named: 'skipped' }
     }
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
-      if (list.some(t => t.id === active.id)) {
+      // (review of #2926, F-A) the row is found BY ID and written under ITS name: the pointer's name can be stale (a
+      // rename elsewhere), and the save upserts by name, so another layout that now has the old name would take it
+      const row = list.find(t => t.id === active.id)
+      if (row) {
         const chartSettings = parsePref(prefs?.chart_settings, null)
         const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
         const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
@@ -2966,7 +2983,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
         const watchlistColumns = readWatchlistColumns()
         try {
-          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
+          await saveLayout({ name: row.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
           named = 'saved'
         } catch { named = 'failed' /* surfaced by SWR revalidate */ }
       }
@@ -3233,7 +3250,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     const restoredLayout = parseLayout(fresh.charts_workspace_layout)
     if (restoredLayout) {
-      boardOriginRef.current = undefined
+      boardOriginRef.current = parsePref(fresh.charts_active_template, null)?.id ?? null
       switchLayout(restoredLayout)
       loadedFromPrefsRef.current = true
     }
@@ -3578,7 +3595,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const runNamedSave = useCallback(() => {
     const sig = arrangementSig(layoutRef.current)
     setAutoSaveInFlight(true)
-    Promise.resolve(namedSaveRef.current?.())
+    Promise.resolve(namedSaveRef.current?.({ auto: true }))
       .then((r) => setAutoSaveFailSig(r && r.ok === false ? sig : null), () => setAutoSaveFailSig(sig))
       .finally(() => setAutoSaveInFlight(false))
     userRemovedRef.current = false

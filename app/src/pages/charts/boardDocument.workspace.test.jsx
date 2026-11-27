@@ -30,6 +30,7 @@ const setPrefMerged = vi.fn()
 let mockPrefs = {}
 const refreshPreferences = vi.fn()
 const mergeIntoPreferenceCache = vi.fn()
+const settlePreferenceWrites = vi.fn()
 vi.mock('../../hooks/usePreferences', () => ({
   default: () => ({ prefs: mockPrefs, setPref, setPrefMerged, loading: false }),
   parsePref: (raw, fallback) => {
@@ -39,6 +40,8 @@ vi.mock('../../hooks/usePreferences', () => ({
   },
   refreshPreferences: (...a) => refreshPreferences(...a),
   mergeIntoPreferenceCache: (...a) => mergeIntoPreferenceCache(...a),
+  // the board apply's writes are merged as pending and settled when the document write answers (read ordering)
+  settlePreferenceWrites: (...a) => settlePreferenceWrites(...a),
 }))
 vi.mock('../../hooks/useMediaQuery', () => ({ default: () => false }))
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 1, role: 'user' } }) }))
