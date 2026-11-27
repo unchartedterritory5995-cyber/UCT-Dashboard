@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { mergeLiveQuote } from '../lib/liveQuoteMerge'
 import useLivePrices from './useLivePrices'
+import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
@@ -38,17 +39,30 @@ function usePooledRealtimePrices(tickers = []) {
 
   const sorted = [...new Set(tickers)].sort().join(',')
 
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board keeps its tickers in the ONE
+  // shared stream (no rebuild of the stream at a switch, and a current price at the show) but is not re-rendered by
+  // it: while hidden it reads the snapshot it held; the show catches up in its own task, re-rendering only when the
+  // stream moved meanwhile.
+  const layer = useLayerBoard()
+  const heldSnapRef = useRef(null)
   const subscribeStore = useCallback(
     (onStoreChange) => {
       if (!sorted) return () => {}   // idle consumer: never registers, never notified
-      return priceStreamManager.subscribe(sorted.split(','), onStoreChange)
+      const f = forwardWhileShown(layer, onStoreChange)
+      const off = priceStreamManager.subscribe(sorted.split(','), f.cb)
+      return () => { f.stop(); off() }
     },
-    [sorted],
+    [sorted, layer],
   )
   // Idle consumers read a frozen empty snapshot so unrelated app-wide publishes
   // can never re-render them (the manager's snapshot is one shared object).
-  const getSnap = sorted ? priceStreamManager.getSnapshot : getEmptySnapshot
+  const liveSnap = sorted ? priceStreamManager.getSnapshot : getEmptySnapshot
+  const getSnap = useCallback(
+    () => (layer && heldSnapRef.current && boardHiddenNow(layer) ? heldSnapRef.current : liveSnap()),
+    [layer, liveSnap],
+  )
   const snap = useSyncExternalStore(subscribeStore, getSnap, getSnap)
+  if (!layer || !boardHiddenNow(layer)) heldSnapRef.current = snap
 
   // Per-field merge: REST fields are preserved, stream fields overlay.
   // CRITICAL: only merge for tickers in the CURRENT subscription set — the
@@ -211,9 +225,11 @@ function useLegacyRealtimePrices(tickers = []) {
     }, STREAM_WATCHDOG_TICK_MS)
   }, [sorted])
 
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board closes its stream; it opens
+  // again after the show's first paint. Everywhere else: connected while mounted, exactly as before.
+  const layer = useLayerBoard()
   useEffect(() => {
-    if (sorted) connect()
-    return () => {
+    const close = () => {
       if (esRef.current) {
         esRef.current.close()
         esRef.current = null
@@ -227,7 +243,9 @@ function useLegacyRealtimePrices(tickers = []) {
       }
       setConnected(false)
     }
-  }, [sorted, connect])
+    if (!sorted) return close
+    return whileBoardShown(layer, () => { connect(); return close })
+  }, [sorted, connect, layer])
 
   // Per-field merge: REST fields (day_open, day_high, day_low, volume, prev_close)
   // are preserved, stream fields (price, change_pct, updated_at, timestamp) overlay.

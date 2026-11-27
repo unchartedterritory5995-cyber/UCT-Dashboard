@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { BoardVisibilityContext, boardHiddenNow, useLayerBoard, whileBoardShown } from '../../../components/chart/boardVisibility'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -156,12 +157,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // tell when every chart of the group has drawn a new symbol. One opaque token per mounted widget; nothing
   // is stored in it and no rendering decision reads it.
   const [switchMember] = useState(() => ({}))
+  // The board whose setGroupSym DECIDES a group switch: its store (a layer keep-alive slot reads the groups through a
+  // view whose `scope` is that store, groupSymsStore.js). A hidden layer board's chart leaves the decisions through
+  // its board handle inside useSymbolHandoff (no re-render here: review of #2901, M1).
+  const groupScope = groupSymsStore?.scope ?? groupSymsStore ?? null
+  // the layer keep-alive's handle of this widget's board, or null (boardVisibility.js); stable for the widget's life
+  const layerBoard = useLayerBoard()
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
   const sym = useSymbolHandoff(requestedSym, tf, {
     // ⭐ scope: the board whose setGroupSym decides the group's switch in the key handler (/charts only;
     // a host without a store, the drill or the screener, takes the round as before)
-    showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupSymsStore || null,
+    showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupScope,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
     member: switchMember,
   })
@@ -213,13 +220,21 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // `sym` is in the deps purely so a ticker switch re-subscribes, which makes
   // StockChart's teardown clear any crosshair still drawn for the old symbol
   // (the state-based path did that with a null push on [sym]).
+  // ⭐ (review of #2901, H3) a hidden layer board's chart takes no crosshair: the bus is workspace-wide, and every
+  // pointer move over a chart in front would move and redraw it. The hide clears the one it may still draw.
   const subscribeCrosshair = useCallback((cb) => {
     if (!crosshairBus) return () => {}
-    return crosshairBus.subscribe(({ sourceId, payload }) => {
-      if (sourceId !== widgetIdRef.current) cb(payload)
+    let drawn = false   // (D5) a crosshair was applied since the last clear: only then does the hide clear one
+    const off = crosshairBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId === widgetIdRef.current) return
+      if (boardHiddenNow(layerBoard)) return
+      drawn = payload != null
+      cb(payload)
     })
+    const offVis = layerBoard ? layerBoard.subscribe(() => { if (drawn && boardHiddenNow(layerBoard)) { drawn = false; cb(null) } }) : null
+    return () => { offVis?.(); off() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [crosshairBus, sym])
+  }, [crosshairBus, sym, layerBoard])
 
   // ── Hotkey dedupe: only the last-hovered chart widget handles keydowns ──
   // null-means-all preserves the legacy behavior until the first hover; after
@@ -345,9 +360,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     opts, isMainTab, activeExtra, onOptsChange, setGroupSym, activeColor,
     symbol: groupSym, tf, cs: chartCs, stored: activeStoredSettings, chartsTheme,
   }
+  // (review of #2901, H1) a hidden layer board's chart is not in the registry the agent's and indicator doors read
   useEffect(() => {
     if (!chartApiById) return undefined
     const id = widgetIdRef.current
+    return whileBoardShown(layerBoard, () => {
     chartApiById.current.set(id, {
       getComparison: () => (Array.isArray(chartCsRef.current?.comparisonSymbols) ? chartCsRef.current.comparisonSymbols : []),
       setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
@@ -443,7 +460,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       },
     })
     return () => { chartApiById.current.delete(id) }
-  }, [chartApiById, persistActiveSettings])
+    })
+  }, [chartApiById, persistActiveSettings, layerBoard])
 
   // Every ticker change routes through here; the pane adds the refocus so the
   // user can type the next ticker without re-clicking the chart.
@@ -458,7 +476,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   }, [activeColor, setGroupSym, persistActiveSettings])
   // ⭐ (2026-11-23, the typed ticker) the settled typed text starts the linked group's device reads (the same ones the
   // Enter's setGroupSym starts: handoffGroups.primeGroup), so Enter can show it in its own task (typedIntentPrime.js)
-  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupSymsStore, activeColor, s) }, [groupSymsStore, activeColor])
+  const handleTypedIntent = useCallback((s) => { primeTypedIntent(groupScope, activeColor, s) }, [groupScope, activeColor])
 
   // ── Detail Dock (Profile / News / Fundamentals as inline chart panels) ──────
   // The three stock-specific widgets, docked into THIS chart instead of floating
@@ -673,10 +691,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
   // every other chart key uses: only the last-hovered chart answers, so one
   // press banks ONE chart into the inbox even with six on the board.
+  // a hidden layer board (board keep-alive) captures nothing: the board in front may hold a chart of the same id
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
       if (isHiddenDeskKey(e)) return
+      if (boardHiddenNow(boardVisibilityRef.current)) return
       // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
       // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
       // on EVERY mounted chart — N inbox rows per press. Capture demands an

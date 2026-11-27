@@ -202,7 +202,8 @@ test('UNSAVED edits on the board being left: proposed (never applied silently); 
   await act(async () => { dockButton('Firm Board').click() })
   await waitFor(() => expect(activeId()).toBe(9))
   // a prebuilt never auto-saves: the member moves its widget, so a switch would discard that
-  await act(async () => { screen.getByTestId('rgl-drag').click() })
+  // the grid in front (a kept board's grid stays mounted under the keep-alive)
+  await act(async () => { within(document.querySelector('[data-board-current]') || document.body).getByTestId('rgl-drag').click() })
   await say(BACK)
   expect(await screen.findByTestId('agent-proposal', {}, { timeout: 15000 })).toBeTruthy()
   expect(screen.getByTestId('agent-proposal').textContent).toMatch(/Open “Main Trading” — unsaved changes on “Firm Board” are discarded/)

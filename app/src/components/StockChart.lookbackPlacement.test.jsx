@@ -9,10 +9,10 @@
 //    or `LOOKBACK_REVEAL_MAX_MS` passes. After: one position, first paint, at every one of those.
 // 2. ITS WIDTH CAP COMES FROM THE MEASURED PRICE SCALE. The hub's scrolling bar was capped at a
 //    guessed `100% - 96px`; StockChart now publishes `priceScale('right').width()` as
-//    `--price-axis-w` on its wrapper, and the cap reads that (StockChart.module.css).
+//    `--price-axis-w` on the bar itself, and the cap reads that (StockChart.module.css).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const S = vi.hoisted(() => ({ paneHeights: [300], volPane: null, axisH: 28, axisW: 76, sizeSubs: [] }))
@@ -178,15 +178,141 @@ describe('the lookback bar appears only at the anchor it keeps', () => {
   })
 })
 
+// ⚡ (2026-11-27, the board switch) THE CHROME SAMPLER'S FIRST PASS RUNS IN THE FRAME, NOT IN THE COMMIT. It ran inside
+// the mount's passive effects: its first layout read (`container.clientHeight`) forced the freshly committed board's
+// style and layout in the middle of the click task, and its writes (`--price-pane-top`, `--lookback-bottom` on the
+// wrapper, inherited by the whole chart) made the next effect's read restyle the chart again (trace: 238 elements,
+// 1.6-3.2 ms, twice per chart per switch). It now waits for the next animation frame (before that frame paints), so
+// it measures the layout the frame computes anyway. These rails drive the frames by hand.
+describe('the chrome sampler measures in the frame, not inside the commit', () => {
+  let queue = []
+  const flushFrame = () => act(() => { const due = queue; queue = []; for (const fn of due) fn(performance.now()) })
+  beforeEach(() => {
+    queue = []
+    vi.stubGlobal('requestAnimationFrame', (fn) => { queue.push(fn); return queue.length })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+  })
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  // The chart is ready (the chartReady effects subscribed) with NO frame run yet.
+  const mountReady = async () => {
+    const r = mount()
+    await vi.waitFor(() => expect(S.sizeSubs.length).toBeGreaterThan(0), { timeout: 5000 })
+    await act(async () => {})
+    return r.container.firstElementChild
+  }
+
+  it('nothing is placed until the frame runs; the first frame places it', async () => {
+    const wrapper = await mountReady()
+    expect(wrapper.style.getPropertyValue('--lookback-bottom'), 'measured inside the commit').toBe('')
+    expect(queue.length, 'the first pass waits for a frame').toBeGreaterThan(0)
+    await flushFrame()
+    expect(wrapper.style.getPropertyValue('--lookback-bottom')).toMatch(/^\d+px$/)
+  })
+
+  it('a ResizeObserver delivery before that frame takes the first pass there (the effect ran inside a frame callback)', async () => {
+    // The browser delivers an observer's first notification after the frame's layout, before its paint. An effect run
+    // inside an animation-frame callback asked for the NEXT frame; the delivery is what keeps the first paint placed.
+    const observers = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb) { this.cb = cb; this.els = []; observers.push(this) }
+      observe(el) { this.els.push(el) }
+      unobserve() {}
+      disconnect() { this.els = [] }
+    })
+    const wrapper = await mountReady()
+    expect(wrapper.style.getPropertyValue('--lookback-bottom')).toBe('')
+    act(() => {
+      for (const o of observers) {
+        for (const el of o.els) {
+          if (!wrapper.contains(el)) continue
+          try { o.cb([{ target: el, contentRect: { width: 600, height: 400 } }], o) } catch { /* another observer's shape */ }
+        }
+      }
+    })
+    expect(wrapper.style.getPropertyValue('--lookback-bottom'), 'placed by the delivery, no frame run').toMatch(/^\d+px$/)
+  })
+
+  it('an unarranged chart (Price on top) leaves --price-pane-top unset: every reader falls back to 0px', async () => {
+    const wrapper = await mountReady()
+    for (let i = 0; i < 4; i++) await flushFrame()
+    expect(wrapper.style.getPropertyValue('--lookback-bottom')).toMatch(/^\d+px$/) // the sampler did run
+    expect(wrapper.style.getPropertyValue('--price-pane-top')).toBe('')
+  })
+
+  it('every reader of --price-pane-top falls back to 0px (what makes leaving it unset identical)', () => {
+    const walk = (dir) => readdirSync(dir).flatMap((n) => {
+      const p = join(dir, n)
+      return statSync(p).isDirectory() ? walk(p) : [p]
+    })
+    const files = walk(join(process.cwd(), 'src')).filter((p) => /\.(css|jsx?)$/.test(p) && !/\.test\./.test(p))
+    let readers = 0
+    for (const f of files) {
+      // comments mention the variable (`var(--price-pane-top)` in prose); only code reads it
+      const src = readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+      for (const m of src.matchAll(/var\(--price-pane-top([^)]*)\)/g)) {
+        readers++
+        expect(m[1].trim(), `${f}: ${m[0]}`).toBe(', 0px')
+      }
+    }
+    expect(readers).toBeGreaterThan(3)
+  })
+
+  it('the sampler writes --lookback-bottom AFTER its layout reads (a changed value is not flushed mid-pass)', () => {
+    const src = readFileSync(join(process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    const start = src.indexOf('const revealRangeBar = (rb) =>')
+    // the chrome loop's line, with or without the board keep-alive's pause gate (#2901)
+    const loopAt = src.slice(start).search(/const loop = createAdaptiveFrameLoop\(\{ tick(, gate: boardLoopGate\(boardVisibilityRef\.current\))? \}\)/)
+    expect(loopAt, 'the chrome loop line after revealRangeBar').toBeGreaterThan(0)
+    const end = start + loopAt
+    const body = src.slice(start, end)
+    const write = body.indexOf("setProperty('--lookback-bottom'")
+    expect(write).toBeGreaterThan(0)
+    for (const read of ['stack.getBoundingClientRect()', 'leg.getBoundingClientRect()', 'pinPriceTable(priceTableRef.current)', 'paneLegendRefs.current.forEach(pinPaneLegend)']) {
+      const at = body.indexOf(read)
+      expect(at, read).toBeGreaterThan(0)
+      expect(write, `--lookback-bottom is written before ${read}`).toBeGreaterThan(at)
+    }
+  })
+})
+
 describe('the price-scale width is published for the hub range bar cap', () => {
-  it('the wrapper carries --price-axis-w = priceScale("right").width(), and follows it', async () => {
+  // ⚡ (2026-11-27) ON ITS TWO READERS, NOT THE WRAPPER: a custom property on the wrapper is inherited by the whole chart,
+  // so every new width restyled all of it (trace: 311 elements, 1.9-3.8 ms a switch). Same value, same element, same pixels.
+  it('the lookback bar and the scale toggle carry --price-axis-w = priceScale("right").width(), and follow it', async () => {
     const { container } = mount()
     await vi.waitFor(() => expect(S.sizeSubs.length).toBeGreaterThan(0), { timeout: 5000 })
-    const wrapper = container.firstElementChild
-    await vi.waitFor(() => expect(wrapper.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    const toggle = () => container.querySelector('[aria-label="Price scale"]')
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    expect(toggle(), 'the scale toggle is drawn').not.toBeNull()
+    expect(toggle().style.getPropertyValue('--price-axis-w')).toBe('76px')
     S.axisW = 93 // a four-digit price widens the scale
     act(() => { S.sizeSubs.forEach((fn) => fn()) })
-    expect(wrapper.style.getPropertyValue('--price-axis-w')).toBe('93px')
+    expect(rangeBar().style.getPropertyValue('--price-axis-w')).toBe('93px')
+    expect(toggle().style.getPropertyValue('--price-axis-w')).toBe('93px')
+  })
+
+  it('(red first) the wrapper does not carry it: a new width restyles two small subtrees, not the whole chart', async () => {
+    const { container } = mount()
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    expect(container.firstElementChild.style.getPropertyValue('--price-axis-w')).toBe('')
+  })
+
+  it('every reader of --price-axis-w is one of the two elements that carry it (nothing else inherited it)', () => {
+    const css = readFileSync(join(process.cwd(), 'src/components/StockChart.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => m[2].includes('var(--price-axis-w')).map((m) => m[1].trim())
+    expect(rules.length).toBeGreaterThan(0)
+    for (const sel of rules) expect(sel, sel).toMatch(/\.(rangeBar|scaleToggle)$/)
+  })
+
+  it('a bar that mounts after the width is known takes it at mount (its ref), as it inherited it before', async () => {
+    const { container, rerender } = mount()
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    rerender(<StockChart sym="ENPH" tf="D" barsOverride={bars} showRangeSelector={false} volumeSeparatePane />)
+    expect(rangeBar()).toBeNull()
+    rerender(<StockChart sym="ENPH" tf="D" barsOverride={bars} showRangeSelector volumeSeparatePane />)
+    expect(rangeBar().style.getPropertyValue('--price-axis-w')).toBe('76px')
+    expect(container).toBeTruthy()
   })
 
   it('the hub cap reads that variable, not a guessed width', () => {

@@ -25,6 +25,7 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
+import { forwardWhileShown, useLayerBoard } from './boardVisibility'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
@@ -416,9 +417,12 @@ export function useBarSnapshotBars({
     }
   }
   const _heldDevRev = _devHeldRef.current.devRev
+  // (layer keep-alive, boardVisibility.js) a hidden layer board paints no developing bar: the subscription stays, its
+  // flushes are only noted, and the show paints the store's newest in its own task (no re-render at either end)
+  const _layerBoard = useLayerBoard()
   useEffect(() => {
     if (!key || !_storeDevRef) return undefined
-    return store.subscribeDeveloping(key, (s) => {
+    const onDev = (s) => {
       const base = _baseSnapRef.current
       // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
       if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
@@ -427,8 +431,11 @@ export function useBarSnapshotBars({
       _devHeldRef.current = { key, devRev: s.devRev }
       _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
-    })
-  }, [key, store])  // eslint-disable-line react-hooks/exhaustive-deps
+    }
+    const f = forwardWhileShown(_layerBoard, onDev, () => { const s = store.getSnapshot(key); if (s) onDev(s) })
+    const off = store.subscribeDeveloping(key, f.cb)
+    return () => { f.stop(); off() }
+  }, [key, store, _layerBoard])  // eslint-disable-line react-hooks/exhaustive-deps
   // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
   // (the paint refuses a stale / foreign series and an older frame by itself).
   useEffect(() => {

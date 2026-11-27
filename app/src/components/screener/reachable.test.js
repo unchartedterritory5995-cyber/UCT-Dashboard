@@ -861,6 +861,14 @@ const AWAITING_A_DECISION = {
     'Reference in-memory sink of the rollup contract; data/deviceStore/live.js is the sink the app runs.',
   'app/src/lib/minuteFrames/index.js':
     'Main-thread lazy loader of the consumer; the device store runs the consumer in its worker instead.',
+  // ── START-TAINT PART 1 — A PURE MODULE THE VM'S TAGS READ NEXT (2026-11-27) ──
+  //
+  // `docs/pine/START-TAINT.md` (approved 2026-11-27) is built in small PRs, each on master. Part 1 is the
+  // static CFG / write-set pass alone, railed on its own (`runtime/__tests__/taintCfg.test.js`); part 2, the
+  // VM's taint tags, imports it and makes it reachable. Expiry: part 2 lands (drop this block in that change)
+  // or the design is abandoned (delete the module).
+  'app/src/components/chart/engine/runtime/taintCfg.js':
+    'START-TAINT part 1: the branch join / write-set pass. Wired by part 2 (the VM tags); same expiry.',
   }
 
 /**
@@ -915,6 +923,7 @@ const PARKING_EXPIRES = {
   // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   'BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11)': '2026-12-31',
+  "START-TAINT PART 1 — A PURE MODULE THE VM'S TAGS READ NEXT (2026-11-27)": '2026-12-31',
   // Short on purpose: three of the four were removed by the owner, so the decision is one line each.
   'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
   'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
