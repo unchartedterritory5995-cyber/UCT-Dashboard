@@ -33,7 +33,7 @@ import { legacyBars } from '../../data/barStore/adapter'
 import { keyOf } from '../../data/barStore/types'
 import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { BARSTORE } from './barStoreSwitch'
-import { chartKeyFor } from './useBarSnapshotBars'
+import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint } from './paintLog'
 import { afterPaint } from '../../utils/afterPaint'
@@ -49,7 +49,9 @@ import {
 export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
   // (owner, 2026-11-27) under the cutoff the chart drew at: an intraday replay reads its own window (chartKeyFor)
-  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false })
+  // (owner, 2026-11-27) and under the date box's anchor (`date|width`): an intraday chart's window at that date
+  const viewWindow = report.anchor && !report.cutoff ? viewWindowOfDate(String(report.anchor).split('|')[0], report.tf) : null
+  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false, viewWindow })
   if (!key) return null
   return _barsOf(key, report)
 }

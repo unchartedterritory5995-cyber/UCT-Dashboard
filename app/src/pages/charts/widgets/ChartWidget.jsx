@@ -245,8 +245,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const clearViewDate = useCallback(() => { setViewDate(null) }, [])
   useEffect(() => { if (replayCutoff) setViewDate(null) }, [replayCutoff])
   useEffect(() => {
-    noteMemberDate(switchMember, viewDate ? { rightMs: Date.parse(`${viewDate.date}T00:00:00Z`), offset: 0.5, width: viewDate.width, tf } : null)
-  }, [switchMember, viewDate, tf])
+    // rightMs: NOON UTC of the date, which is that ET date (the window formula: etDate(rightMs))
+    noteMemberDate(switchMember, viewDate && !replayCutoff ? { rightMs: Date.parse(`${viewDate.date}T12:00:00Z`), offset: 0.5, width: viewDate.width, tf } : null)
+  }, [switchMember, viewDate, tf, replayCutoff])
   const dateNav = useMemo(() => {
     const isoOf = (ms) => new Date(ms).toISOString().slice(0, 10)
     const meta = () => { try { return paneRef.current?.getDateMeta?.() || null } catch { return null } }

@@ -57,7 +57,7 @@ export const DEEP_RETRIES = 3
 /** The store key a chart reads, or null when it reads none (override, economic, no symbol).
  *  The key itself is the facade's ONE view-key function (prefetch.viewKeyFor), so a handoff
  *  prepare for this pane (same showExtended) names exactly this key. */
-export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride }) {
+export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride, viewWindow = null }) {
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
   // Replay, INTRADAY: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date) —
@@ -70,7 +70,20 @@ export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOv
   // the plain view.
   const to = (replayCutoff && !custom && !isDateTf(resolvedTf))
     ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
-  return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
+  // ⭐ (owner, 2026-11-27: the date the member went to) an INTRADAY chart anchored at a past date reads the window ending
+  // there (`viewWindow`: viewWindowOfDate / chart/viewDate.js viewWindowFor, the switch's range-at-date request), as a
+  // replay does: the newest-N rows of the plain key reach ~3 years back. A replay's own window wins; D/W/M keep the
+  // plain key (their full depth holds every bar back to the listing).
+  const vw = !Number.isFinite(to) && viewWindow && Number.isFinite(viewWindow.to) && !custom && !isDateTf(resolvedTf) ? { to: viewWindow.to } : null
+  return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : vw })
+}
+
+/** The window an INTRADAY chart anchored at `dateIso` ('YYYY-MM-DD') reads: the one ending at that ET date (noon UTC is
+ *  that ET date, as the replay window's); null on D/W/M, a custom timeframe, or no date. */
+export function viewWindowOfDate(dateIso, resolvedTf) {
+  if (!dateIso || !resolvedTf || isDateTf(resolvedTf) || !isNativeTf(resolvedTf)) return null
+  const to = dateLabelToUnix(String(dateIso).slice(0, 10)) + 43200
+  return Number.isFinite(to) ? { to } : null
 }
 
 /**
@@ -111,7 +124,7 @@ function lastDailyBarInsane(arr) {
 }
 
 export function useBarSnapshotBars({
-  sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, breadthSeries, replayCutoff,
+  sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, breadthSeries, replayCutoff, viewWindow = null,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
   // (`_intradayDeepArmed` / `_setIntradayDeepArmed` are the legacy source's; this one arms by deadline, below)
   _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount,
@@ -136,7 +149,7 @@ export function useBarSnapshotBars({
   const _session = showExtended ? 'eth' : 'rth'
 
   // ── THE ONE SUBSCRIPTION ──────────────────────────────────────────────────────
-  const key = chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride: _hasOverride })
+  const key = chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride: _hasOverride, viewWindow })
   // The first request's depth is the depth wanted when the key was first read; a deeper ask
   // later (a daily pan, Origin) is an `ensure` below — never a re-subscription, which would
   // restart the key's whole life cycle.

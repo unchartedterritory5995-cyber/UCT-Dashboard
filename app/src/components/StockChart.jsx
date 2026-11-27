@@ -1901,7 +1901,7 @@ import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
-import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
+import { useBarSnapshotBars, viewWindowOfDate } from './chart/useBarSnapshotBars'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
 // functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
 // so the rows a member is about to reach are derived in idle time and found on the switch.
@@ -9499,6 +9499,9 @@ function StockChartBody({
     _histPrependOn, _loadOlder, _symU, _idbBasisMismatch, _staleContext, _tfSwitchHold,
   } = useChartBars({
     sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
+    // (owner, 2026-11-27) the date box's anchor: an intraday chart reads the window ending at the date (the key the
+    // switch's range-at-date request prepared: chart/viewDate.js)
+    viewWindow: anchorWidth > 0 && anchorDate && !replayCutoff ? viewWindowOfDate(anchorDate, resolvedTf) : null,
     compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
     _overlayActive, barCount, _depthKey, _fpDwellReady, _setFpDwellReady, _intradayDeepArmed,

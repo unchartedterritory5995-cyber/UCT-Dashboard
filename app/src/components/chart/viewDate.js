@@ -12,8 +12,9 @@ const _dates = new WeakMap()
 /**
  * The chart painting under `member` is anchored at a date, or no longer is (`null`).
  * @param {object} member  the member identity (PaintMemberContext)
- * @param {{rightMs: number, offset: number, width: number, tf: string}|null} view  the anchor bar's day (UTC ms of its
- *   date), where it sits (`offset` bars right of it: the right edge), the bars across, the timeframe they are counted in
+ * @param {{rightMs: number, offset: number, width: number, tf: string}|null} view  the anchor bar's day (NOON UTC of
+ *   its date, so `etDate(rightMs)` is that date), where it sits (`offset` bars right of it: the right edge), the bars
+ *   across, the timeframe they are counted in
  */
 export function noteMemberDate(member, view) {
   if (!member || typeof member !== 'object') return
