@@ -159,7 +159,9 @@ describe('useDoubleBuffer', () => {
     act(() => { board.set('hidden') })
     expect(h.result.current.handles[h.result.current.front].state).toBe('hidden')   // nested: the board hides it
     expect(db.shadowsHeld(board)).toBe(0)
-    expect(h.result.current.syms[1]).toBe(null)
+    expect(h.result.current.syms[1]).toBe('BBB')          // (N1) not in the hide's commit…
+    await idle()
+    expect(h.result.current.syms[1]).toBe(null)            // …in idle time
     act(() => { board.set('visible') })
     await idle()
     expect(db.shadowsHeld(board)).toBe(1)
