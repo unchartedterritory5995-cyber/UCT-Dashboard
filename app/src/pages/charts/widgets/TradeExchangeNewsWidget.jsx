@@ -34,6 +34,7 @@
  */
 import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
@@ -409,10 +410,13 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const onBoard = !!uctCtrls && !!uctRow
   const rootRef = useRef(null)
   const [, tick] = useState(0)
+  // (review of #2901, H3) on a hidden layer keep-alive board the tick renders nothing; the show runs it once
+  const layerBoard = useLayerBoard()
   useEffect(() => {                         // keep "last headline 2m ago" honest
-    const t = setInterval(() => tick((n) => n + 1), 30000)
-    return () => clearInterval(t)
-  }, [])
+    const f = forwardWhileShown(layerBoard, () => tick((n) => n + 1))
+    const t = setInterval(f.cb, 30000)
+    return () => { clearInterval(t); f.stop() }
+  }, [layerBoard])
   const status = liveStatus(feed)
   const toneCls = status.tone === 'live' ? styles.toneLive : status.tone === 'warn' ? styles.toneWarn : styles.toneOff
   const gap = coverageNotice(feed.coverage)

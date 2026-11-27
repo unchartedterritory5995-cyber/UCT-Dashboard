@@ -12,7 +12,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { runtimeColumnsFor, setRuntimeRunner, onRuntimeColumnsLanded, resetRuntimeSessions } from '../runtimeColumns'
-import { runtimeBudgetStoppedFor, retryRuntimeBudgetStops, rememberRuntimeBudgetStop, resetRuntimeBudgetStops } from '../../runtimeBudgetStops'
+import { runtimeBudgetStoppedFor, retryRuntimeBudgetStops, rememberRuntimeBudgetStop, resetRuntimeBudgetStops,
+  RUNTIME_BUDGET_STOP_HOLD_MS, RUNTIME_BUDGET_STOP_REASKS, setRuntimeBudgetStopClock, runtimeBudgetStopClock } from '../../runtimeBudgetStops'
+import { ensureRuntimeLane, resetRuntimeAsync } from '../runtimeAsync'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../../runtimeErrorNotice'
 import AttachedPineDisclosures from '../../../pane/AttachedPineDisclosures'
 
@@ -35,6 +37,7 @@ afterEach(() => {
   resetRuntimeSessions()
   resetRuntimeBudgetStops()
   resetRuntimeErrorNotices()
+  setRuntimeBudgetStopClock(null)
   vi.restoreAllMocks()
 })
 
@@ -103,6 +106,116 @@ describe('the lane remembers a time-budget stop for the page', () => {
     ask(def(), rows(), ctx())
     expect(runtimeBudgetStoppedFor('u_budget')).toBe(true)
     expect(set).not.toHaveBeenCalled()
+  })
+})
+
+// ⭐⭐ (e102, coordinator ruling 2026-11-27, option B) — A REMEMBERED STOP IS NOT FINAL: honoured for 20 s of live
+// ticks of the same picture; after that, or when the pane comes back to the picture from another, asked again, at
+// most twice per key per page. Wall-clock policy only.
+describe('a remembered stop is asked again: after its hold, or on a return, at most twice', () => {
+  const clockAt = (t0 = 1_000_000) => {
+    const c = { t: t0 }
+    vi.spyOn(Date, 'now').mockImplementation(() => c.t)
+    // the page's host injects this clock (`runtimeAsync.js::ensureRuntimeLane`); the compute closure reads none (H5)
+    setRuntimeBudgetStopClock(() => Date.now())
+    return c
+  }
+  const STOP = () => ({ err: named('runtime:time-budget', 'this script took more than 1000 ms to draw bar by bar.') })
+
+  it('the numbers: 20 s, twice', () => {
+    expect(RUNTIME_BUDGET_STOP_HOLD_MS).toBe(20000)
+    expect(RUNTIME_BUDGET_STOP_REASKS).toBe(2)
+  })
+
+  it('⭐ HONOURED WITHIN THE HOLD: live ticks of the same picture for 20 s are not run again', () => {
+    const clock = clockAt()
+    const calls = runner(STOP)
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    expect(calls.length).toBe(1)
+    for (const dt of [1, 5000, 19999]) {
+      clock.t = 1_000_000 + dt
+      expect(ask(def(), rows(30), ctx({ tf: 'W' })).err.guard, `tick at +${dt} ms`).toBe('runtime:time-budget')
+    }
+    expect(calls.length, 'no tick inside the hold ran it').toBe(1)
+  })
+
+  it('⭐ ASKED AGAIN AFTER THE HOLD: the next tick past 20 s runs the picture again', () => {
+    const clock = clockAt()
+    let slow = true
+    const calls = runner(() => (slow ? STOP() : { cols: { v: [1, 2, 3] } }))
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    clock.t += RUNTIME_BUDGET_STOP_HOLD_MS
+    slow = false
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).cols, 'a new run is posted').toEqual({})
+    expect(calls.length).toBe(2)
+    expect(runtimeBudgetStoppedFor('u_budget')).toBe(false)
+  })
+
+  it('⭐ ASKED AGAIN ON A RETURN: 1W -> 1D -> 1W runs 1W again at once, inside the hold', () => {
+    const clock = clockAt()
+    const calls = runner(() => STOP())
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    clock.t += 1000
+    ask(def(), rows(30), ctx({ tf: 'D' }))          // another picture: its own run
+    expect(calls.length).toBe(2)
+    clock.t += 1000
+    const back = rows(30)
+    expect(ask(def(), back, ctx({ tf: 'W' })).cols, 'back on 1W: a new run is posted').toEqual({})
+    expect(calls.length).toBe(3)
+    expect(calls[2].c.tf).toBe('W')
+    // the SAME bars array asked again (a repaint without a tick) answers the new run's own stop, not a fourth run
+    expect(ask(def(), back, ctx({ tf: 'W' })).err.guard).toBe('runtime:time-budget')
+    expect(calls.length).toBe(3)
+  })
+
+  it('⛔ CAPPED AT 2 per key per page: past the cap the stop is honoured after the hold and on a return; Retry still runs', () => {
+    const clock = clockAt()
+    const calls = runner(() => STOP())
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    clock.t += RUNTIME_BUDGET_STOP_HOLD_MS
+    ask(def(), rows(30), ctx({ tf: 'W' }))          // re-ask 1 (after the hold): stopped again
+    ask(def(), rows(30), ctx({ tf: 'D' }))          // another picture
+    ask(def(), rows(30), ctx({ tf: 'W' }))          // re-ask 2 (a return): stopped again
+    expect(calls.filter((c) => c.c.tf === 'W').length).toBe(3)
+    clock.t += 10 * RUNTIME_BUDGET_STOP_HOLD_MS
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).err.guard, 'past the hold, capped').toBe('runtime:time-budget')
+    ask(def(), rows(30), ctx({ tf: 'D' }))
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).err.guard, 'a return, capped').toBe('runtime:time-budget')
+    expect(calls.filter((c) => c.c.tf === 'W').length, 'no third re-ask of 1W').toBe(3)
+    expect(runtimeBudgetStoppedFor('u_budget')).toBe(true)
+    // the member's Retry is never capped
+    expect(retryRuntimeBudgetStops('u_budget')).toBe(true)
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    expect(calls.filter((c) => c.c.tf === 'W').length).toBe(4)
+  })
+})
+
+// ⛔ (e103, the closure fix) the compute closure reads no wall clock of its own (design 2.2 H5,
+// `hostNeutralClosure.rail.test.js`): the page's host injects the hold's clock. Without one, the hold never releases a
+// stop by itself (the engine 86 rule); a return still asks it again.
+describe("the hold's clock is the page host's", () => {
+  it("⭐ the page's host injects it: ensureRuntimeLane hands the store Date.now", () => {
+    expect(runtimeBudgetStopClock()).toBeNull()
+    try {
+      ensureRuntimeLane({ factory: () => ({ postMessage() {}, terminate() {} }) })
+      const clock = runtimeBudgetStopClock()
+      expect(typeof clock).toBe('function')
+      vi.spyOn(Date, 'now').mockImplementation(() => 1234567)
+      expect(clock()).toBe(1234567)
+    } finally { resetRuntimeAsync() }
+  })
+
+  it('⛔ no clock injected: past any wait the stop is honoured; a return asks it again', () => {
+    const calls = runner(() => ({ err: named('runtime:time-budget', 'slow') }))
+    const t = { v: 1_000_000 }
+    vi.spyOn(Date, 'now').mockImplementation(() => t.v)
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    t.v += 100 * RUNTIME_BUDGET_STOP_HOLD_MS
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).err.guard, 'no clock: the hold never releases it').toBe('runtime:time-budget')
+    expect(calls.length).toBe(1)
+    ask(def(), rows(30), ctx({ tf: 'D' }))
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).cols, 'a return: asked again').toEqual({})
+    expect(calls.filter((c) => c.c.tf === 'W').length).toBe(2)
   })
 })
 

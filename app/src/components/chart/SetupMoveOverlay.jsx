@@ -1,4 +1,5 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react'
+import { useRef, useEffect, useMemo, useCallback, useContext } from 'react'
+import { BoardVisibilityContext, boardLoopGate } from './boardVisibility'
 import { watchChartView } from './chartViewWatcher'
 
 // Renders a small "+X%" label above each setup candle showing the price advance
@@ -16,6 +17,10 @@ export default function SetupMoveOverlay({
   chartRef, seriesRef, bars, setups,
   color = '#ffffff',
 }) {
+  // the board this chart sits on (board keep-alive): the view watcher parks on a hidden layer board
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   const canvasRef = useRef(null)
   const sizeRef = useRef({ w: 0, h: 0 })
   const redrawRef = useRef(null)
@@ -126,6 +131,7 @@ export default function SetupMoveOverlay({
     const watcher = watchChartView({
       chartRef,
       seriesRef,
+      gate: boardLoopGate(boardVisibilityRef.current),
       onRange: () => redrawRef.current?.(),
       sample: ({ key }) => {
         if (key !== lastKey) { lastKey = key; redrawRef.current?.() }

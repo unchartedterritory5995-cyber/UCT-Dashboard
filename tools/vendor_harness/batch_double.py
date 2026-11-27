@@ -520,7 +520,8 @@ class RecordingTVPage:
         self.next_id += 1
         self.studies.append({"id": f"st{self.next_id}", "name": declared_title(src) or "Untitled",
                              "sha": sha, "source": src, "reads": 0,
-                             "inputs": {iid: dv for iid, dv in PASTED_INPUTS.values()}})
+                             "inputs": {iid: dv for iid, dv in PASTED_INPUTS.values()},
+                             "inputInfo": {iid: (label, dv) for label, (iid, dv) in PASTED_INPUTS.items()}})
         self.bound = "update"        # every add binds the editor (capture-procedure.md, S5)
         if self.autosave == "tradingview":
             self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
@@ -549,6 +550,7 @@ class RecordingTVPage:
         self.studies.append({"id": f"st{self.next_id}", "name": hits[0]["title"], "sha": None, "source": None,
                              "title": MEASURED_CENSUS_TITLE.get(a["id"], hits[0]["title"]),
                              "reads": 0, "builtin": a["id"], "inputs": inputs,
+                             "inputInfo": {iid: (label, dv) for label, (iid, dv) in (MEASURED_INPUTS.get(a["id"]) or {}).items()},
                              "metaInfoId": self.lands_on.get(a["id"], bc.builtin_identity(a["id"]))})
         if self.autosave == "tradingview":
             # ⚠️ UNMEASURED whether a dialog add autosaves the layout as an editor add does; the double assumes the
@@ -684,7 +686,11 @@ class RecordingTVPage:
                       "plots": [{"id": "plot_0", "type": "line", "title": "Plot"}],
                       "styles": {"plot_0": {"title": "Plot"}}, "styleState": None, "palettes": {},
                       "paletteState": None,
-                      "inputs": [{"id": k, "value": v} for k, v in (s.get("inputs") or {}).items()]},
+                      # a real capture records each input's `name` and `defval` beside its `value` (`getInputsInfo`);
+                      # without `defval` the grader reads every input as moved off its default (`nonDefaultInputs`)
+                      "inputs": [{"id": k, "name": (s.get("inputInfo") or {}).get(k, (k, None))[0],
+                                  "defval": (s.get("inputInfo") or {}).get(k, (None, None))[1], "value": v}
+                                 for k, v in (s.get("inputs") or {}).items()]},
             "window": {"chartBarsLoaded": BARS, "studyBarsLoaded": BARS,
                        "firstBarTime": bars[0][0], "lastBarTime": bars[-1][0]},
             "bars": {"fields": ["time", "open", "high", "low", "close", "volume"], "timeUnit": "unix-s",

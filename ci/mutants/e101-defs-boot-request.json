@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "D1",
+   "mutant": "the boot list is handed to any member",
+   "file": "app/src/lib/bootFetch.js",
+   "from": "  if (bootUser === undefined || bootUser === null || forUser == null || forUser !== bootUser) return null\n  return p\n}\n\n/** ⭐ (e101 S5",
+   "to": "  return p\n}\n\n/** ⭐ (e101 S5",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/hooks/useUserDefinitions.bootRequest.test.jsx",
+   "expectRed": "B3"
+  },
+  {
+   "id": "D2",
+   "mutant": "the fetcher never takes the boot request",
+   "file": "app/src/hooks/useUserDefinitions.js",
+   "from": "  const boot = takeBootFor(request, _defsBootUser)\n",
+   "to": "  const boot = null\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/hooks/useUserDefinitions.bootRequest.test.jsx",
+   "expectRed": "B2"
+  },
+  {
+   "id": "D3",
+   "mutant": "started without the signed-in hint",
+   "file": "app/src/lib/bootFetch.js",
+   "from": "  if (!signedInLastTime) return false\n  entries.set(url, {",
+   "to": "  entries.set(url, {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/hooks/useUserDefinitions.bootRequest.test.jsx",
+   "expectRed": "B1"
+  },
+  {
+   "id": "D4",
+   "mutant": "StockChart no longer starts it",
+   "file": "app/src/components/StockChart.jsx",
+   "from": "if (import.meta.env.MODE !== 'test') startUserDefinitionsBootRequest()\n",
+   "to": "\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/hooks/useUserDefinitions.bootRequest.test.jsx",
+   "expectRed": "B6"
+  }
+ ]
+}

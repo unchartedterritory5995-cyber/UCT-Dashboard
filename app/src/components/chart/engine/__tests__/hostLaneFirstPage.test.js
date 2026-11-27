@@ -18,6 +18,7 @@ import { FIRST_PAGE_NOTE } from '../firstPage'
 import { withheldBarsReport } from '../astColumns'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { OWN_DAILY_KEY } from '../otherSymbols'
+import { __setHostLaneCostClockForTests } from '../hostLaneRoute'
 import { asMember } from '../../../../testing/runtimeGate'
 
 vi.setConfig({ testTimeout: 300000 })
@@ -171,6 +172,14 @@ describe('the first page: drawn at once, byte-equal to the full history where it
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {
+    // pinned: every call below goes to the worker. ⚰️ Left to the learned route this case was a function of the
+    // runner's speed: the short chart's worker pass TEACHES the route Fred's cost (`learnCost`, the worker's `ms`), and
+    // when 4,224 rows were then predicted at LONG_TASK_MS or under (a fast or idle runner), the switched-off call
+    // computed the full answer on the main thread and drew 5 plots ("expected 5 to be +0", pine heavy engine-tests-2,
+    // 2026-11-27), green again on a slower rerun. The route is not what this case tests; and the clock below makes
+    // every measurement cheap (the fastest runner there is), so unpinning the route reds this case on every run
+    __routeEveryHostDocumentForTests(true)
+    __setHostLaneCostClockForTests(() => 0)
     const def = fredDef()
     const fc = fredCtx(fiveMinute(22).spx)
     const short = fiveMinute(8).chart                 // 1,536 rows: under 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
@@ -180,6 +189,8 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     setFirstPageEnabled(false)
     const { chart } = fiveMinute(22)
     const off = registry.computeFor(def, chart, {}, { ...fc, hostPane: 'fp\u0001d' })
+    expect(isHostLanePending(off), 'switched off: the full job is in the worker').toBe(true)
+    expect(workers.made.flatMap((w) => w.inbox).map((m) => m.kind), 'switched off: no page job, the full job alone').toEqual(['values'])
     expect(hostLaneStats().firstPages).toBe(0)
     expect(Object.keys(off).length, 'switched off: the cold pane is blank, as before').toBe(0)
     setFirstPageEnabled(true)

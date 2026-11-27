@@ -1,0 +1,23 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "C1",
+   "mutant": "the off-listing curtain is switched back on by default",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "let _offListingCurtainOn = false\n",
+   "to": "let _offListingCurtainOn = true\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeCurtainOff.rail.test.js",
+   "expectRed": "TWO STARTS THAT AGREE ARE NOT A PROOF"
+  },
+  {
+   "id": "C2",
+   "mutant": "the switch no longer gates the curtain (two-start agreement releases values again)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)\n",
+   "to": "    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeCurtainOff.rail.test.js",
+   "expectRed": "TWO STARTS THAT AGREE ARE NOT A PROOF"
+  }
+ ]
+}

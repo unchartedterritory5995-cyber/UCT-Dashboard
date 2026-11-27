@@ -25,7 +25,20 @@ import { sessionState } from '../lib/marketClock/marketClock'
 // 20:00 ET; ET is a whole number of hours from UTC), so the state read in one minute IS that minute's state: read once,
 // frozen, shared by every hook that asks in that minute (useMarketOpen.minuteCache.test.js).
 let _minuteState = { minute: NaN, state: null }
+// ⭐ (2026-11-27) THE SNAPSHOT IS THE MINUTE THE STORE ANNOUNCED, NOT THE MINUTE THE CALL LANDS IN. While the store has
+// subscribers, every read returns the state as of its last tick (or wake): React reads a store's snapshot several
+// times for one render and again at commit, and a snapshot that follows Date.now itself can differ between two of
+// those reads. Under a clock that moves between calls (a test's Date.now that jumps per call) every render then saw a
+// "new" snapshot, forced another, and the chain ended in "Maximum update depth exceeded" inside ChartMarketClock: the
+// agent's replay-plan rail lost its whole chart that way (agentChartReplayPlan, CI shard 4, 2026-11-27). The tick and
+// the wake read the clock and announce; a read with no subscriber reads it as before.
+let _current = null
 function getMarketState() {
+  if (_current && _listeners.size) return _current
+  _current = readMarketState()
+  return _current
+}
+function readMarketState() {
   const now = Date.now()
   const minute = Math.floor(now / 60_000)
   if (_minuteState.minute === minute && _minuteState.state) return _minuteState.state
@@ -40,7 +53,7 @@ function getMarketState() {
   return state
 }
 /** Tests: forget the minute's state (a test that mocks the calendar twice within one faked minute gets a fresh read). */
-export function _resetMarketStateCacheForTests() { _minuteState = { minute: NaN, state: null } }
+export function _resetMarketStateCacheForTests() { _minuteState = { minute: NaN, state: null }; _current = null }
 
 // ⚡ (2026-11-27, chart speed; ruling 4c) ONE TIMER, ON THE MINUTE BOUNDARY. Every consumer mounted its own 60 s
 // setInterval (about 1.5 ms of each chart mount on the owner's board), each on the phase of its own mount, so after 09:30
@@ -60,6 +73,7 @@ function _arm() {
 function _onMinute() {
   _timer = null
   if (!_listeners.size) return
+  _current = readMarketState()
   // a wake before the boundary notifies with the same minute's state, which useSyncExternalStore drops (no render);
   // the re-arm below waits out the rest of the minute
   for (const cb of [..._listeners]) cb()
@@ -71,6 +85,7 @@ function _onMinute() {
 function _onWake() {
   if (!_listeners.size || Math.floor(Date.now() / 60_000) === _armedMinute) return
   if (_timer != null) { clearTimeout(_timer); _timer = null }
+  _current = readMarketState()
   for (const cb of [..._listeners]) cb()
   _arm()
 }
@@ -84,6 +99,14 @@ function _wakeListeners(on) {
 function _subscribe(cb) {
   if (!_listeners.size) _wakeListeners(true)
   _listeners.add(cb)
+  // (review of the announced-snapshot fix, LOW) a first reader whose render and subscribe straddle a minute: the state
+  // announced at its render may already be the old minute, and the timer arms for the NEXT one. Read the clock now and
+  // announce a change at once (every reader: they all read the announced state).
+  const fresh = readMarketState()
+  if (fresh !== _current) {
+    _current = fresh
+    for (const l of [..._listeners]) l()
+  }
   _arm()
   return () => {
     _listeners.delete(cb)

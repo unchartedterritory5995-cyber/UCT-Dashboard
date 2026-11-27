@@ -62,7 +62,7 @@ export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
 // ⭐⭐ CBC-FMT — `calc_bars_count`: ONE window for both lanes (`engine/calcBarsWindow.js`), read
 // off the document's own stamp (`meta.calcBarsCount`, `pine.js::declarationCalcBars`).
-import { rememberRuntimeBudgetStop, runtimeBudgetStopAt, runtimeBudgetGeneration, onRuntimeBudgetStopsChange, resetRuntimeBudgetStops } from '../runtimeBudgetStops.js'
+import { rememberRuntimeBudgetStop, askRuntimeBudgetStop, runtimeBudgetGeneration, onRuntimeBudgetStopsChange, resetRuntimeBudgetStops } from '../runtimeBudgetStops.js'
 import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
   CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
@@ -321,6 +321,8 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
  *    budget(n) = min(12,000, 1,000 + 1.0 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the
  *  depth cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 4,000 at
  *  8,000, 7,520 at 11,520, 12,000 from 16,000 bars.
+ *    ⭐⭐ (e102, 2026-11-27 amendment) the off-listing curtain's `n` is the bars BOTH its runs cover, `n + (n - shift)`
+ *  (`computeOffListing`): it runs the script twice inside one budget.
  *    ⭐⭐ (engine 86, coordinator ruling: option A2) THE SLOPE IS 1.0 MS A BAR AND THE CEILING 12,000 ms (engine 84 shipped
  *  0.35 and 4,000), AND IN THE WORKER THE VM'S `WALL_TIME` FOLLOWS THIS BUDGET (`runLimitsOf`). Measured: Fred RS's run
  *  half on 5m (11,520 bars covered) costs about 2 s on the desktop (0.17 ms a bar), 7.5-8.2 s in-process on a CI runner
@@ -1085,9 +1087,13 @@ function computeOffListing(def, rows, ctx, opts) {
   if (shift < 2) throw never()
   const clock = clockOf(opts)
   const t0 = clock()
-  // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled by the bars the chart's run covers
-  // (`budgetFor`), then handed to each as a fixed number: A's whole run, then B's VM within what A left
-  const budgetMs = budgetFor(opts, n)
+  // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled (`budgetFor`), then handed to each
+  // as a fixed number: A's whole run, then B's VM within what A left.
+  // ⭐⭐ (e102, coordinator ruling 2026-11-27, option A, amending 2026-11-19) SCALED BY THE BARS BOTH RUNS COVER:
+  // A covers `n` and B `n - shift`. ⚰️ Scaled by `n` alone, the curtain did ~1.4-2x one run's work inside one run's
+  // budget, and every off-listing kernel-channel-backquant run on W 1,453-3,400 rows and D 3,497-7,000 rows was
+  // stopped while every on-listing run of the same charts fit (`paneBudgetPerBar.test.js` 7).
+  const budgetMs = budgetFor(opts, n + (n - shift))
   const inner = { ...opts, warmupCurtain: false, budgetScales: false, ...(Number.isFinite(budgetMs) ? { budgetMs } : {}),
     // ⭐⭐ (engine 86) the worker's `WALL_TIME` follows each run's budget (`runLimitsOf`)
     ...(opts.budgetScales === true || opts.wallFollowsBudget === true ? { wallFollowsBudget: true } : {}) }
@@ -1950,6 +1956,20 @@ export function runtimeIrOptions(def, rows, ctx, { sessionKey = null, slides = f
   }
 }
 
+// ⛔⛔ (e102, coordinator ruling 2026-11-27) THE OFF-LISTING CURTAIN RELEASES NOTHING, until it is PROVED exact.
+// MEASURED (`vendorHarness/curtainCensus.*.measure.test.js`, every corpus script the member door puts on the runtime lane,
+// its off-listing run held to a run from an earlier start on SPY 1D, AAPL 1D, JPM 1D, SPY 60, SPY 1W and NVDA 1W): two
+// starts agreeing is not a proof. order-block-finder's `var latest_bull_high = 0.0`, written only when an order block
+// forms, held its INITIAL value in both runs and was released as 0 where a run from an earlier start holds 5.7; the census
+// found such releases on every daily chart (plots, colours and drawings). So a listing document on a chart whose history
+// does not start at the listing is refused by name again (R-W, as before UIE phase 2), never drawn from two starts.
+// The curtain's code is kept for its re-enable (a provable reach/state bound, wrong == 0 on every census series); the
+// rails that test it turn it on themselves (`setOffListingCurtainEnabled(true)`); `runtimeCurtainOff.rail.test.js`
+// holds this switch off.
+let _offListingCurtainOn = false
+/** Tests, and the re-enable once proved: does an off-listing listing document run the curtain (`computeOffListing`)? */
+export function setOffListingCurtainEnabled(on) { _offListingCurtainOn = on !== false }
+
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
   const outputs = compute.outputs || {}
@@ -1962,7 +1982,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
     // the bars whose values do not depend on where the chart starts are drawn; the
     // ones before them are withheld; a script that never forgets its start is refused.
-    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    // ⛔⛔ (e102) OFF until proved exact: refused by name below (`_offListingCurtainOn`)
+    if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
     throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
       + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
@@ -2510,12 +2531,19 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
   // ⭐ UIE PHASE 2 (M4) — the instance's settings ride the context the run reads
   const values = runtimeInputValues(def, inputs)
   if (Object.keys(values).length) ctx = { ...(ctx || {}), runtimeInputs: values }
-  const key = runKey(def, ctx)
+  // the budget stop's key (`runKey` WITHOUT the other-symbol supply, which moves every tick), and the memo's: the same
+  // string with the supply after it, built once
+  const stopKey = runKey(def, ctx, false)
+  const key = `${stopKey}${requestSupplyKey((def && def.compute) || {}, ctx)}`
+  // ⭐⭐ (e102, option B) the lane asks the page's store on EVERY call, so it sees the pane move to another picture and
+  // back (`askRuntimeBudgetStop`): a stop past its hold, or on a return, is released (at most twice per key per page)
+  const remembered = askRuntimeBudgetStop(stopKey, def && def.id)
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
-  // ⭐ (engine 86) a budget stop remembered before a Retry is dropped here, and the bars run again
+  // ⭐ (engine 86) a budget stop remembered before a Retry is dropped here, and the bars run again; ⭐⭐ (e102) and so is
+  // one the store has just released
   if (perBars.has(key) && perBars.get(key) && perBars.get(key).budgetGen !== undefined
-      && perBars.get(key).budgetGen !== runtimeBudgetGeneration()) {
+      && (perBars.get(key).budgetGen !== runtimeBudgetGeneration() || !remembered)) {
     perBars.delete(key)
   }
   if (perBars.has(key)) {
@@ -2531,8 +2559,8 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
   // run cold again only to be stopped again (they were, on every update, each burning the whole budget and drawing
   // nothing). ⛔ Never persisted: a reload, another setting or symbol, or Retry on the strip
   // (`retryRuntimeBudgetStops`) runs it again, so a stop that came from a busy machine is never permanent.
-  const stopKey = runKey(def, ctx, false)
-  const remembered = runtimeBudgetStopAt(stopKey)
+  // ⭐⭐ (e102, coordinator ruling 2026-11-27, option B) and the page itself asks it again: after 20 s, or when the pane
+  // comes back to this picture from another, at most twice per key (`runtimeBudgetStops.js::askRuntimeBudgetStop`)
   if (remembered) {
     perBars.set(key, { stoppedBy: remembered.err, budgetGen: runtimeBudgetGeneration() })
     throw remembered.err
@@ -2579,7 +2607,7 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
 /** The stop as the strip says it: the run's own sentence, and that it is not run again until a retry. */
 function budgetStopOf(err) {
   const kept = new Error(`${String((err && err.message) || '').trim()} It is not run again on this chart's next bars `
-    + '(each would be stopped the same way); Retry runs it again.')
+    + 'for a while (each would be stopped the same way); Retry runs it again now.')
   for (const [k, v] of Object.entries(err || {})) if (k !== 'message' && k !== 'stack') kept[k] = v
   kept.guard = RUNTIME_TIME_BUDGET_GUARD
   kept.retryable = true
