@@ -1908,7 +1908,7 @@ import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, compute
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
-  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes,
+  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes, neighborPlainOf,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
@@ -5410,7 +5410,11 @@ function StockChartBody({
       }
     } catch { top = 0 }
     const want = `${Math.round(top)}px`
-    if (host.style.getPropertyValue('--price-pane-top') !== want) {
+    const cur = host.style.getPropertyValue('--price-pane-top')
+    // ⚡ Unset already reads as `0px`: every reader is `var(--price-pane-top, 0px)` (rail:
+    // StockChart.lookbackPlacement.test.jsx). Writing `0px` over unset changed nothing on screen but, inherited by the
+    // whole chart, restyled every element of it on each mount (the price pane is on top on almost every chart).
+    if (cur !== want && !(cur === '' && want === '0px')) {
       host.style.setProperty('--price-pane-top', want)
     }
   }, [])
@@ -5739,6 +5743,21 @@ function StockChartBody({
     return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
   }, [chartReady, centerWatermarkOnPlot])
 
+  // ⚡ (2026-11-27, the board switch) `--price-axis-w` IS WRITTEN ON ITS TWO READERS, NOT ON THE WRAPPER. A custom
+  // property on the wrapper is inherited by the whole chart, so each new width (the first one lands as a chart mounts)
+  // restyled every element of it (trace: 311 elements, 1.9-3.8 ms, forced by the library's next canvas read). Its only
+  // readers are the price-scale toggle and the hub's lookback bar (StockChart.module.css), and each reads it on itself:
+  // the same value on the same element computes the same pixels, at the cost of restyling two small subtrees. A reader
+  // that mounts later takes the last width from its ref callback, inside the commit, as it inherited it before.
+  // Rail: StockChart.lookbackPlacement.test.jsx.
+  const priceAxisWRef = useRef('')          // the last published width ('' until the chart reports one)
+  const scaleToggleRef = useRef(null)
+  const applyPriceAxisW = useCallback((el) => {
+    const want = priceAxisWRef.current
+    if (el && want && el.style.getPropertyValue('--price-axis-w') !== want) el.style.setProperty('--price-axis-w', want)
+  }, [])
+  const scaleToggleRefCb = useCallback((el) => { scaleToggleRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
+
   // Reserve the right price-axis width for the HORIZONTAL legend so a long MA row
   // wraps to the next line before reaching the price scale (instead of the last
   // chip sliding UNDER it). timeScale().width() = plot width, so the axis width
@@ -5753,12 +5772,12 @@ function StockChartBody({
       let aw = 0
       try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
       setLegendAxisReserve((prev) => (Math.abs(prev - aw) > 1 ? aw : prev))
-      // …and the same width as a variable on the wrapper, so CSS that must stop short of the
-      // price scale (the hub's scrolling lookback bar, StockChart.module.css) reads the chart's
-      // own answer instead of guessing it.
-      const host = wrapperRef.current
-      const want = `${Math.round(aw)}px`
-      if (host && host.style.getPropertyValue('--price-axis-w') !== want) host.style.setProperty('--price-axis-w', want)
+      // …and the same width as a variable on the elements whose CSS must stop short of (or centre on) the price
+      // scale (the hub's scrolling lookback bar, the scale toggle), so they read the chart's own answer instead of
+      // guessing it. On those two, not on the wrapper: see `priceAxisWRef` above.
+      priceAxisWRef.current = `${Math.round(aw)}px`
+      applyPriceAxisW(rangeBarRef.current)
+      applyPriceAxisW(scaleToggleRef.current)
     }
     try { ts.subscribeSizeChange(onSize) } catch { return undefined }
     onSize()
@@ -11291,11 +11310,14 @@ function StockChartBody({
     return _nfRecipes ? deriveVolMa(__heavy.sessionAppliedBars, _nfRecipes) : volMaDataOf(__heavy.sessionAppliedBars, volMaPeriodEff, adjustTime)
   }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])  // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐⭐ NEIGHBOR FRAMES — the rows a linked list names around this symbol, prepared after each paint. Only
-  // on the plain path (no replay, override, custom timeframe, framed range or session candle), where the
-  // chain above is bars → session → the very arrays the binder and the series are handed.
+  // on the plain path (no replay, override, framed range or session candle; a custom timeframe is plain since
+  // 2026-11-27, chart/customTfRows.js), where the chain above is bars → session → the very arrays the binder and
+  // the series are handed.
   if (_nfRecipes) {
-    _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
-      && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
+    _nfRecipes.plain = neighborPlainOf({
+      hasOverride: _hasOverride, replayMode, replayIndex, replayCutoff, exactDateRange,
+      sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
+    })
   }
   useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
   const overlayData = useMemo(() => {
@@ -17972,6 +17994,8 @@ function StockChartBody({
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
   const rangeBarRef = useRef(null)
+  // the lookback bar reads `--price-axis-w` on itself (the hub's cap): a bar that mounts after the width is known takes it here
+  const rangeBarRefCb = useCallback((el) => { rangeBarRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
 
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
@@ -18494,6 +18518,7 @@ function StockChartBody({
     const tick = () => {
       let settled = true
       let sig = ''
+      let lookbackVar = null
       try {
         const rbNow = rangeBarRef.current
         if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
@@ -18582,11 +18607,12 @@ function StockChartBody({
           // stack on the lookback band (PatternOverlay's deal-status notice) reads
           // the one measurement instead of guessing it. Written even when the bar
           // itself is absent: the band is still where the notice belongs.
-          const host = wrapperRef.current
-          if (host) {
-            const want = `${plan.lookbackBottom}px`
-            if (host.style.getPropertyValue('--lookback-bottom') !== want) host.style.setProperty('--lookback-bottom', want)
-          }
+          // ⚡ Written at the END of the pass (`finally` below), after every layout read in it: a custom property on
+          // the wrapper is inherited by the whole chart, so a changed value written here made this pass's next read
+          // restyle every element of it (trace, 2026-11-26: 311 elements, 2-4.5 ms, a frame after each switch). Its
+          // one reader is the deal notice, which none of those reads measure; the frame restyles once instead.
+          const want = `${plan.lookbackBottom}px`
+          lookbackVar = want
           const vl = volLegendRef.current
           if (vl) {
             // The VOLUME pane's own top — asked of the volume series, for the same
@@ -18672,18 +18698,31 @@ function StockChartBody({
             if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
-      } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
+      } catch { return null /* pane API missing → CSS fallback; keep measuring */ } finally {
+        const host = wrapperRef.current
+        const want = lookbackVar
+        if (host && want !== null && host.style.getPropertyValue('--lookback-bottom') !== want) {
+          host.style.setProperty('--lookback-bottom', want)
+        }
+      }
       return settled ? sig : null
     }
     const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
-    loop.start()
+    // ⚡ (2026-11-27, the board switch) THE FIRST PASS RUNS IN THE NEXT FRAME, before it paints, not here. This effect
+    // runs inside the mount's commit: a pass here forced the freshly committed board's style and layout mid-task
+    // (`container.clientHeight`, 4.6 ms in a trace), and its wrapper writes made the next effect's read restyle the
+    // whole chart again. In the frame it reads the layout that frame computes anyway, and the placement still lands in
+    // the first painted frame (rAF callbacks run before the paint). Rail: StockChart.lookbackPlacement.test.jsx.
+    loop.start({ inFrame: true })
     const wake = () => loop.wake()
     // Anything that can move a surface wakes the loop back to every frame.
     const pointerEvents = ['pointerdown', 'pointermove', 'pointerup', 'wheel']
     for (const ev of pointerEvents) container.addEventListener(ev, wake, { passive: true })
     window.addEventListener('resize', wake)
     let ro = null
-    try { ro = new ResizeObserver(wake); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
+    // Its first delivery comes after this frame's layout and before its paint: a first pass still waiting (this effect
+    // ran inside an animation-frame callback, so the start above asked for the NEXT frame) runs there instead.
+    try { ro = new ResizeObserver(() => { if (!loop.runPendingStart()) wake() }); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
     const unsub = []
     const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
     // ⛔ NO crosshair subscription here: the chart has exactly TWO crosshair subscribers (the
@@ -21253,6 +21292,7 @@ function StockChartBody({
           26px allows for the time axis below the price-pane drawing area. */}
       {!showFatalError && chartReady && !hideScaleToggle && (
         <div
+          ref={scaleToggleRefCb}
           className={`${styles.scaleToggle}${compactAxes ? ' ' + styles.scaleToggleCompact : ''}`}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
              it just clear of the SE corner resize handle).
@@ -22188,7 +22228,7 @@ function StockChartBody({
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1
         && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
-        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
+        <div ref={rangeBarRefCb} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}
