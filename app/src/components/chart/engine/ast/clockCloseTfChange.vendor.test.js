@@ -370,7 +370,10 @@ describe('the door — CONTROLS that were refusals before C8', () => {
       ['plot(time_close("60"))', /only "D"/],
       ['plot(time_close("D", "0930-1600"))', /exactly one argument/],
       ['plot(time_close(timeframe.period))', /does not fold to a literal/],
-      ['plot(time_close(timeframe = "D", bars_back = 1))', /only argument read here is `timeframe`/],
+      // ⚰️ `time_close(timeframe = "D", bars_back = 1)` stood here. COV-TIME u2 serves `bars_back` as the served call N
+      // chart bars back: capmatrix C9 (`vw-cap-c9-time-close-bars-back-spy-1d-2026-11-26`, C904) reads exactly this
+      // form on every bar (`covTimeU2.test.js`). A NEGATIVE one (a bar that has not opened) is the form still refused.
+      ['plot(time_close(timeframe = "D", bars_back = -1))', /has not opened yet/],
     ]) {
       const t = tr(body)
       expect(t.ok, body).toBe(false)
