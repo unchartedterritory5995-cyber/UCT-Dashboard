@@ -1,0 +1,197 @@
+{
+ "_about": "e99 FY option A's stored fiscal-year series (local branch feat/e99-financial-fy-optionA, commit 4cd11b335f, never pushed), built with warmup=0 on the committed NVDA / AAPL fixtures (NVDA with the 2024-06-10 10:1 split ledger) and on the synthetic company of test_financial_fy_view.py. Rows are [t_eff, v, period_end, method]; a GAP has v null. The serving-side view (option B, pine_financial.fy_view_rows) must equal these but for the named limitation (AAPL FY2009 10-K/A).",
+ "series": {
+  "nvda": {
+   "revenue_fy": [
+    [
+     1677277423,
+     26974000000.0,
+     "2023-01-29",
+     "fiscal_year"
+    ],
+    [
+     1708551417,
+     60922000000.0,
+     "2024-01-28",
+     "fiscal_year"
+    ],
+    [
+     1740606513,
+     130497000000.0,
+     "2025-01-26",
+     "fiscal_year"
+    ]
+   ],
+   "eps_diluted_fy": [
+    [
+     1677277423,
+     0.174,
+     "2023-01-29",
+     "fiscal_year"
+    ],
+    [
+     1708551417,
+     1.193,
+     "2024-01-28",
+     "fiscal_year"
+    ],
+    [
+     1740606513,
+     2.94,
+     "2025-01-26",
+     "fiscal_year"
+    ]
+   ],
+   "fcf_fy": [],
+   "equity_fy": [],
+   "shares_outstanding_fy": [
+    [
+     1677277423,
+     24700000000.0,
+     "2023-01-29",
+     "fiscal_year_cover"
+    ],
+    [
+     1708551417,
+     25000000000.0,
+     "2024-01-28",
+     "fiscal_year_cover"
+    ],
+    [
+     1740606513,
+     24400000000.0,
+     "2025-01-26",
+     "fiscal_year_cover"
+    ]
+   ]
+  },
+  "aapl": {
+   "revenue_fy": [
+    [
+     1256674709,
+     36537000000.0,
+     "2009-09-26",
+     "fiscal_year"
+    ],
+    [
+     1264454758,
+     42905000000.0,
+     "2009-09-26",
+     "fiscal_year"
+    ],
+    [
+     1288211781,
+     65225000000.0,
+     "2010-09-25",
+     "fiscal_year"
+    ]
+   ],
+   "eps_diluted_fy": [],
+   "fcf_fy": [],
+   "equity_fy": [],
+   "shares_outstanding_fy": []
+  },
+  "synthetic": {
+   "revenue_fy": [
+    [
+     1708027200,
+     460.0,
+     "2023-12-31",
+     "fiscal_year"
+    ],
+    [
+     1739649600,
+     552.0,
+     "2024-12-31",
+     "fiscal_year"
+    ],
+    [
+     1771185600,
+     690.0,
+     "2025-12-31",
+     "fiscal_year"
+    ]
+   ],
+   "eps_diluted_fy": [
+    [
+     1708027200,
+     4.6,
+     "2023-12-31",
+     "fiscal_year"
+    ],
+    [
+     1739649600,
+     5.52,
+     "2024-12-31",
+     "fiscal_year"
+    ],
+    [
+     1771185600,
+     null,
+     "2025-12-31",
+     "gap"
+    ]
+   ],
+   "fcf_fy": [
+    [
+     1708027200,
+     75.0,
+     "2023-12-31",
+     "fiscal_year"
+    ],
+    [
+     1739649600,
+     90.0,
+     "2024-12-31",
+     "fiscal_year"
+    ],
+    [
+     1771185600,
+     112.5,
+     "2025-12-31",
+     "fiscal_year"
+    ]
+   ],
+   "equity_fy": [
+    [
+     1708027200,
+     1000.0,
+     "2023-12-31",
+     "fiscal_year_instant"
+    ],
+    [
+     1739649600,
+     1200.0,
+     "2024-12-31",
+     "fiscal_year_instant"
+    ],
+    [
+     1771185600,
+     1500.0,
+     "2025-12-31",
+     "fiscal_year_instant"
+    ]
+   ],
+   "shares_outstanding_fy": [
+    [
+     1708027200,
+     50.0,
+     "2023-12-31",
+     "fiscal_year_cover"
+    ],
+    [
+     1739649600,
+     51.0,
+     "2024-12-31",
+     "fiscal_year_cover"
+    ],
+    [
+     1771185600,
+     52.0,
+     "2025-12-31",
+     "fiscal_year_cover"
+    ]
+   ]
+  }
+ }
+}

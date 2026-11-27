@@ -31,6 +31,11 @@ from .filings import ET
 
 CLOSE_ET = time(16, 0)
 MAX_PERIOD_AGE = timedelta(days=200)
+# ⭐ e99 FY — A FISCAL-YEAR VALUE IS IN FORCE UNTIL THE NEXT 10-K: its period is a year long, the next one ends a year
+# later and a 10-K may follow its year end by up to 90 days, so it ages to about 455 days before the next can replace it.
+# Capped at 470 (a fortnight of slack for a late filer); the quarterly 200 would blank every FY value for months a year.
+# Read by the serving-side fiscal-year view (`pine_financial.py`); no stored series uses it (the V5 methodology is frozen).
+MAX_FY_PERIOD_AGE = timedelta(days=470)
 
 
 def close_utc(d: date) -> datetime:

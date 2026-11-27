@@ -409,17 +409,18 @@ STRICT_PIVOT_RULE = (
 #: which the engine refused then. ⭐ TRAIN e98 (E4 x master rule 16, coordinator ruling 2026-11-26): engine 98's E4
 #: (#2770) serves that direct form as the member's setting, one read per option (`pineFinancial.js::financialPeriodArms`),
 #: so the rule now teaches it, EXACTLY that wide: a constant period, or an `input.string` whose options are only the
-#: periods the engine serves (FQ, TTM; it holds no fiscal-year series). A period computed on each bar, or read from any
-#: other variable, is still refused. Pinned against the engine itself
+#: periods the engine serves. ⭐ TRAIN e99 (#2787 FY x E4 rule 16): FY is served now (a view of the published series),
+#: so the served periods are FQ, TTM and FY; the half year (FH) is still refused. A period computed on each bar, or
+#: read from any other variable, is still refused. Pinned against the engine itself
 #: (`app/src/components/chart/engine/requestFinancial.periodSetting.test.js`).
 FINANCIAL_PERIOD_RULE = (
     "A `request.financial` PERIOD IS A CONSTANT STRING, OR A SETTING THAT OFFERS ONLY PERIODS THE ENGINE SERVES; never "
-    "anything wider. Write the period in the call itself (\"FQ\", \"TTM\"), or read it from an `input.string` whose "
-    "`options` are only those periods: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, "
+    "anything wider. Write the period in the call itself (\"FQ\", \"TTM\", \"FY\"), or read it from an `input.string` "
+    "whose `options` are only those periods: `period = input.string(\"FQ\", \"Period\", options = [\"FQ\", \"TTM\"])`, "
     "`plot(request.financial(syminfo.tickerid, \"EARNINGS_PER_SHARE_DILUTED\", period))`. A period computed on each bar, "
     "or read from any other variable, is refused, because which figure is read must be known before the script runs. "
-    "Offer only periods the engine serves for that figure: when it refuses one (a fiscal-year series it does not hold), "
-    "leave that option out and say so in `reply`.")
+    "Offer only periods the engine serves for that figure: when it refuses one (a fiscal half-year, or a period that "
+    "figure is not served for), leave that option out and say so in `reply`.")
 
 #: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
 #: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A

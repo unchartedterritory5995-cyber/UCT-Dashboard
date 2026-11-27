@@ -189,21 +189,28 @@ def test_the_live_catalog_passes_financial_and_says_uct_data():
     assert "dated when its filing became public" in said
 
 
-def test_the_map_is_the_catalogs_seven_pairs_each_a_stored_series():
+def test_the_map_is_the_catalogs_twelve_pairs_each_a_stored_series_or_a_fiscal_year_view_of_one():
     from api.services.fundamentals_pit import catalog as C
     got = pf.field_map()
     assert {k: v["series"] for k, v in got.items()} == {
         "TOTAL_REVENUE:FQ": "revenue_q", "TOTAL_REVENUE:TTM": "revenue_ttm",
         "EARNINGS_PER_SHARE_DILUTED:FQ": "eps_diluted_q", "EARNINGS_PER_SHARE_DILUTED:TTM": "eps_diluted_ttm",
         "TOTAL_EQUITY:FQ": "equity", "TOTAL_SHARES_OUTSTANDING:FQ": "shares_outstanding",
-        "FREE_CASH_FLOW:TTM": "fcf_ttm"}
+        "FREE_CASH_FLOW:TTM": "fcf_ttm",
+        # e99 FY — a fiscal-year VIEW of a stored series (pine_financial.fy_view_rows; the V5 methodology is frozen)
+        "TOTAL_REVENUE:FY": "revenue_ttm@fy", "EARNINGS_PER_SHARE_DILUTED:FY": "eps_diluted_ttm@fy",
+        "TOTAL_EQUITY:FY": "equity@fy", "TOTAL_SHARES_OUTSTANDING:FY": "shares_outstanding@fy",
+        "FREE_CASH_FLOW:FY": "fcf_ttm@fy"}
     stored = C.stored_series_ids()
     for key, spec in got.items():
-        assert spec["series"] in stored, f"{key} names {spec['series']}, which the store does not derive"
-    # the unit is the store catalogue's own for that series
+        base = pf.fy_base(spec["series"]) or spec["series"]
+        assert base in stored, f"{key} names {spec['series']}, which the store does not derive"
+        # a view is the fiscal year only, and of the field's own stored figure
+        assert (pf.fy_base(spec["series"]) is not None) == (spec["period"] == "FY"), key
+    # the unit is the store catalogue's own for that series (a view's: its stored series')
     unit_of = {m.series: m.unit for m in C.V1 if m.series}
     for key, spec in got.items():
-        assert spec["unit"] == unit_of[spec["series"]], key
+        assert spec["unit"] == unit_of[pf.fy_base(spec["series"]) or spec["series"]], key
 
 
 def test_the_real_store_read_through_serving(tmp_path, monkeypatch):

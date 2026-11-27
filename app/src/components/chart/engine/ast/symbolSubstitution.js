@@ -16,7 +16,7 @@ import { CLASSIFICATION_FIELD_NAMES, symbolSubstitutions } from './bind.js'
 // ⭐⭐ T4 E2 — a corporate-events read is disclosed by its family, never by the engine's internal name
 import { EVENT_VENUE, eventReadOf } from '../pineEvents.js'
 // ⭐⭐ T4 F1b — a financial read is disclosed as UCT data from company filings, never TradingView's figures
-import { FINANCIAL_SOURCE_NOTE } from '../pineFinancial.js'
+import { FINANCIAL_SOURCE_NOTE, FINANCIAL_FY_SOURCE_NOTE } from '../pineFinancial.js'
 // ⭐⭐ T4 B2 — a `USI:` breadth read is disclosed as UCT breadth data (our own counts), never as TradingView's series
 import { BREADTH_VENUE, isBreadthTicker, breadthSourceNote } from '../pineBreadth.js'
 
@@ -73,13 +73,17 @@ export const EVENT_SOURCE_NOTE = (family) => `This script reads \`request.${fami
 export function otherSymbolSourceNotesFor(otherSymbols) {
   const out = []
   const seen = new Set()
+  // ⭐ e99 FY — any fiscal-year financial read names the FY limitation in the ONE `request.financial` note, in any order
+  const readsFy = (Array.isArray(otherSymbols) ? otherSymbols : []).some((r) => r && Array.isArray(r.spellings)
+    && r.spellings.includes(EVENT_VENUE) && (eventReadOf(r.ticker) || {}).family === 'financial' && eventReadOf(r.ticker).period === 'FY')
   for (const r of Array.isArray(otherSymbols) ? otherSymbols : []) {
     if (!r || typeof r.ticker !== 'string' || !r.ticker.trim()) continue
     // ⭐⭐ T4 E2 — an event read: one note per family it reads, in the member's words
     if (Array.isArray(r.spellings) && r.spellings.includes(EVENT_VENUE)) {
       const read = eventReadOf(r.ticker)
       const name = read ? `request.${read.family}` : null
-      const note = read && read.family === 'financial' ? FINANCIAL_SOURCE_NOTE : read ? EVENT_SOURCE_NOTE(read.family) : null
+      const note = read && read.family === 'financial' ? (readsFy ? FINANCIAL_FY_SOURCE_NOTE : FINANCIAL_SOURCE_NOTE)
+        : read ? EVENT_SOURCE_NOTE(read.family) : null
       if (name && !seen.has(name)) { seen.add(name); out.push({ name, note }) }
       continue
     }
