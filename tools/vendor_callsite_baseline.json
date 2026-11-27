@@ -56,12 +56,16 @@
       "api/routers/provenance_quote.py": 1,
       "api/services/audit.py": 2,
       "api/services/bar_stream.py": 2,
-      "api/services/bars_fetch.py": 11,
+      "api/services/bars_fetch.py": 18,
       "api/services/breadth_dividends.py": 3,
+      "api/services/breadth_v2_producer.py": 3,
       "api/services/breadth_wick_recon.py": 3,
       "api/services/build_intraday_cache.py": 3,
       "api/services/etf_holdings.py": 2,
+      "api/services/halfday_gap.py": 3,
+      "api/services/marketcap/acquire.py": 2,
       "api/services/massive.py": 16,
+      "api/services/options_universe_log.py": 2,
       "api/services/polygon_extras.py": 2,
       "api/services/polygon_news.py": 2,
       "api/services/polygon_options.py": 2,
@@ -73,7 +77,8 @@
       "api/worker_main.py": 1
     },
     "polygon_direct": {
-      "api/daily_tracker.py": 2
+      "api/daily_tracker.py": 2,
+      "api/services/marketcap/acquire.py": 4
     },
     "yfinance": {
       "api/index_bars.py": 2,
@@ -97,5 +102,13 @@
       "api/services/ticker_meta.py": 1,
       "api/services/yfinance_pool.py": 1
     }
+  },
+  "raised": {
+    "massive:api/services/bars_fetch.py": "11 -> 18, 2026-11-23..25 (8674c32b86, 78d0758c3a, b372996540; bars/stream-ingest): the switch-minute /v3/trades rebuild and the newest-published 1m reference probe, built like the existing aggs fetches on massive._get_client()._get; the adapter would add the local token bucket, the 24h cached-forbidden state and typed errors, so routing is not behaviour-preserving.",
+    "massive:api/services/breadth_v2_producer.py": "2026-09-29 (21d4b0351f), never written down: Massive S3 flat files via boto3 (files.massive.com + S3 keys); the adapter is REST-only, there is no S3 path to route through.",
+    "massive:api/services/halfday_gap.py": "2026-11-26 (14c1591c88, #2798): /v3/trades pages via massive._get_client()._get under the settle's own vendor budget; the adapter's _typed_get adds the local token bucket, the 24h cached-forbidden state and typed errors, so routing is not behaviour-preserving.",
+    "massive:api/services/marketcap/acquire.py": "2026-10-06 (fc2d8f8848, #280), never written down: offline Market Cap PIT acquisition with its own key argument, injectable base, pacing and worker pool; routing changes its budget and error model.",
+    "massive:api/services/options_universe_log.py": "2026-09-30 (f974dd65e2), never written down: the forward options-universe log with its own paging, retries, time budget and injectable get; routing changes its budget and error model.",
+    "polygon_direct:api/services/marketcap/acquire.py": "2026-10-06 (fc2d8f8848, #280), never written down: same acquisition, api.polygon.io default base and the POLYGON_API_KEY fallback for the key."
   }
 }

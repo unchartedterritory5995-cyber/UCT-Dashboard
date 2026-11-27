@@ -88,11 +88,35 @@ export function setSignedInHint(signedIn, storage = safeStorage()) {
 }
 
 /** usePreferences' fetcher: the boot preferences Response, only for the member the boot /me named. */
-export function takeBootPreferences(forUser) {
-  const p = take(PREFS_URL)
+export function takeBootPreferences(forUser) { return takeBootFor(PREFS_URL, forUser) }
+
+/** A member's boot request (`url`): its Response promise, only for the member the boot /me named and only when that
+ *  member is still the one the caller reads for (`forUser`, the /me `user.id`). Taken either way: another member's
+ *  answer is dropped unread. */
+export function takeBootFor(url, forUser) {
+  const p = take(url)
   if (!p) return null
   if (bootUser === undefined || bootUser === null || forUser == null || forUser !== bootUser) return null
   return p
+}
+
+/** ⭐ (e101 S5, 2026-11-27, chart speed) A MEMBER REQUEST STARTED BY THE CHUNK THAT NEEDS IT, AS IT LOADS. The chart's
+ *  definitions list (`hooks/useUserDefinitions.js`) left only when StockChart's first render ran its SWR hook: on
+ *  production (608bd20bf1, AGL 1D, cold) the chunk was in at 751 ms and the list asked at 1797, answered at 2303, 370 ms
+ *  after the candles. Started when the chunk evaluates, it is in flight beside /api/auth/me. The rules above hold: only
+ *  when this browser was signed in last time, one use, fresh only, handed out only for the member the boot /me named
+ *  (`takeBootFor`). Returns whether it was started. */
+export function startBootRequestIfSignedIn(url, { fetchImpl = (typeof fetch === 'function' ? fetch : null), storage = safeStorage() } = {}) {
+  if (!fetchImpl || entries.has(url)) return false
+  let signedInLastTime = false
+  try { signedInLastTime = storage?.getItem(SIGNED_IN_HINT) === '1' } catch { /* storage blocked */ }
+  if (!signedInLastTime) return false
+  entries.set(url, {
+    at: now(),
+    p: Promise.resolve().then(() => fetchImpl(url, { credentials: 'include' }))
+      .then((response) => ({ response }), (error) => ({ failed: error })),
+  })
+  return true
 }
 
 function safeStorage() {

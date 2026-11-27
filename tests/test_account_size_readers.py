@@ -53,9 +53,10 @@ def _member(conn, uid, *, typed=None, **guards):
 
 
 def _trade(conn, uid, aid, *, pnl, shares=10.0, entry=100.0, stop=50.0, exit_iso=None):
-    if exit_iso is None:   # the ET session day, never the wall clock's UTC date (see the parity rail)
-        from api.services.journal_two.calendar import et_today
-        exit_iso = f"{et_today()}T16:00:00+00:00"
+    if exit_iso is None:   # the ET session day, never the wall clock's UTC date, never in the future
+        from api.services.journal_two.calendar import et_today          # (see the parity rail)
+        noon = datetime.fromisoformat(f"{et_today()}T16:00:00+00:00")
+        exit_iso = min(noon, datetime.now(timezone.utc).replace(microsecond=0)).isoformat()
     now = exit_iso
     conn.execute(
         "INSERT INTO j2_trades (id, user_id, position_id, symbol, side, shares, entry_price,"

@@ -1268,3 +1268,11 @@ and `tests/test_notebook_perf_budgets.py` allows exactly the rule plus those rai
 
 Not done here, and still worth doing: move wave 11's capability module off the Notebook's first open (a lazy import
 in the Agent's registry), then withdraw this raise. Bracco's team was asked (#2651).
+
+## 2026-11-27: +1,024 B by owner approval (#2874, one minute-aligned market-open timer)
+
+#2874 moved `useMarketOpen` (every chart pane, header clock and session badge) from one 60 s interval per consumer to
+one timer on the wall-clock minute boundary shared by all of them, plus a wake on `visibilitychange` / `pageshow` /
+`focus` so a laptop opened in the morning reads the current session at once. The hook is in the main chunk, so the
+Notebook's first open grew: CI read 2,263,406 B at baf6e4ffe7 against the 2,263,041 B line (+365 B). The owner approved
+a raise ("I approve", 2026-11-27): max 2,263,041 -> 2,264,065 B (+1,024 B, headroom), listed in `owner_raises`.

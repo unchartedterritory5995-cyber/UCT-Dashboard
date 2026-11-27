@@ -70,8 +70,9 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined } from '../../../data/barStore/prefetch'
 import { BARSTORE } from '../barStoreSwitch'
+import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -108,16 +109,61 @@ function ladderFitAt(chartId, width) {
   const f = chartId ? _ladderFits.get(chartId) : null
   return f && f.width === width ? f.level : 0
 }
+/** ⚡ (2026-11-27, chart 2's paced mount) The one-row ladder's clip ANSWER per chart and row signature. `isClipped`
+ *  reads layout only when the signature moved since its last read, but that memory was the pane instance's: every
+ *  remount (a board return, a paced chart) forced a layout on a row identical in every part of the signature, about
+ *  6 ms of each pane mount (profiled on the owner's board). The same signature on the same chart gives the same answer,
+ *  as within one pane (the signature is the row's content and the page's layout generation: `rowFitSig`). The newest
+ *  LADDER_CLIPS_MAX. */
+const LADDER_CLIPS_MAX = 512
+const _ladderClips = new Map()
+const _ladderClipKey = (chartId, sig) => `${chartId}|${sig}`
+function ladderClipAt(chartId, sig) {
+  return chartId ? _ladderClips.get(_ladderClipKey(chartId, sig)) : undefined
+}
+function rememberLadderClip(chartId, sig, clipped) {
+  if (!chartId) return
+  const k = _ladderClipKey(chartId, sig)
+  _ladderClips.delete(k)
+  _ladderClips.set(k, clipped)
+  if (_ladderClips.size > LADDER_CLIPS_MAX) _ladderClips.delete(_ladderClips.keys().next().value)
+}
 
-function rowFitSig(el) {
-  if (!el) return '-'
-  const all = el.getElementsByTagName('*')
-  let cls = 0
-  for (let i = 0; i < all.length; i++) {
-    const c = all[i].className
-    cls += typeof c === 'string' ? c.length : (c && typeof c.baseVal === 'string' ? c.baseVal.length : 0)
+// ⚡ (2026-11-27, review of #2873) THE PAGE'S LAYOUT GENERATION: what can change a row's width with its content the same.
+// A font that finished loading (document.fonts 'loadingdone'), and a style change of the page: an attribute on <html>
+// (the theme, `data-theme`) or a stylesheet added or changed in <head> (a density or font-size rule). Each starts a new
+// generation, so no fit measured before it is reused.
+let _fontGen = 0
+let _styleGen = 0
+try { globalThis.document?.fonts?.addEventListener?.('loadingdone', () => { _fontGen++ }) } catch { /* no font events */ }
+try {
+  const doc = globalThis.document
+  if (typeof globalThis.MutationObserver === 'function' && doc?.documentElement) {
+    const mo = new globalThis.MutationObserver(() => { _styleGen++ })
+    mo.observe(doc.documentElement, { attributes: true })
+    if (doc.head) mo.observe(doc.head, { childList: true, subtree: true, characterData: true })
   }
-  return `${el.textContent.length}:${all.length}:${cls}`
+} catch { /* no observer: generation 0 */ }
+
+/** FNV-1a, 32 bits, base 36. */
+function _hash32(s) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return (h >>> 0).toString(36)
+}
+/** What can change a header row's width WITHOUT asking for a layout: its CONTENT (the row's markup: text, classes,
+ *  inline styles, icons; serialised, not laid out) and the page's layout generation. ⚰️ It recorded sizes (text length,
+ *  element count, class-name lengths) until the review of #2873: an equal-length change (NVDA -> MSFT, an equal-length
+ *  class swap, another icon) reused a "fits" measured on other content and could leave the header clipped.
+ *  ⭐ EVERY DIGIT READS AS 0 (delta review of #2873): the row holds live text (the day gain, the clock's seconds and its
+ *  `data-beat`, one-row meta values) and ChartPane renders on every price tick; every live digit is tabular-nums, so a
+ *  digit never changes a width, and a raw hash would force a layout per chart per tick. A sign, a separator or another
+ *  length still changes the signature; the digits of a symbol or company label (not tabular) are covered by the raw
+ *  `sym` and header label beside this in both signatures. */
+export function rowFitSig(el) {
+  if (!el) return '-'
+  const html = el.innerHTML.replace(/[0-9]/g, '0')
+  return `${_fontGen}.${_styleGen}:${html.length}:${_hash32(html)}`
 }
 
 // S2 CP3 — this pane is the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx,
@@ -742,7 +788,7 @@ function ChartPane({
     if (mini || oneRowMode) return
     const el = identityRef.current
     if (!el) return
-    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${rowFitSig(el)}`
+    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${sym}|${effHeaderLabel}|${rowFitSig(el)}`
     if (identityFitRef.current === sig) return
     identityFitRef.current = sig
     if (el.scrollWidth <= el.clientWidth + 1) return
@@ -775,12 +821,16 @@ function ChartPane({
       // very row). This ran on every ChartPane render: 62-78 forced layouts over 8 switches on the owner's board.
       const row = identityRef.current
       const tf = tfBarRef.current
-      const sig = `${paneWidth}|${rowLevel}|${rowFitSig(row)}|${rowFitSig(tf)}`
+      const sig = `${paneWidth}|${rowLevel}|${sym}|${effHeaderLabel}|${rowFitSig(row)}|${rowFitSig(tf)}`
       const last = ladderFitRef.current
       if (last && last.sig === sig) return last.clipped
+      // the same row on this chart before this pane mounted (`_ladderClips`): the answer it read stands
+      const known = ladderClipAt(chartId, sig)
+      if (known !== undefined) { ladderFitRef.current = { sig, clipped: known }; return known }
       const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
       const out = clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tf)
       ladderFitRef.current = { sig, clipped: out }
+      rememberLadderClip(chartId, sig, out)
       return out
     },
   })
@@ -1092,9 +1142,29 @@ function ChartPane({
   // them too, at the moment it knows the text is a ticker (data/barStore/prefetch _tellTyped)
   const typedTfsRef = useRef(typedIntentTfs)
   typedTfsRef.current = typedIntentTfs
+  // ⭐ (2026-11-26, typed vs arrow) ...and once that warm has settled (the ticker's bars are in the store, or were already),
+  // the typed ticker is named the NEXT symbol of the one this chart shows (neighborFrames.publishTypedNext): the charts on
+  // it prepare its frame in idle time, as they prepare a list's next row, and Enter finds it instead of deriving it in the
+  // key task. Only the newest text names anything; a prefix ('unknown') clears it. Store charts only (the preparer reads it).
+  // (review of #2868) ...and only once the warm's LAKE JOIN has landed (storeLakeJoined): the join replaces the key's rows
+  // with a new array 30-400 ms after the warm settles, and a frame prepared on the rows before it is filed under an array
+  // Enter no longer reads. Nothing is named for a chart that has moved to another symbol meanwhile.
+  const symRef = useRef(sym)
+  symRef.current = sym
+  const typedNextRef = useRef(null)
   const handleTypedIntent = useCallback((s) => {
-    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
+    const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
+    if (!BARSTORE) return
+    const center = symRef.current
+    const mine = {}
+    typedNextRef.current = mine
+    const live = () => typedNextRef.current === mine && symRef.current === center   // no newer text; same chart symbol
+    Promise.resolve(warm).then((r) => {
+      if (!live()) return
+      if (r === 'unknown' || r === 'superseded') { publishTypedNext(center, null); return }
+      return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
+    }).catch(() => {})
   }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {

@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "DT1",
+   "mutant": "M1b off: a duplicated title stays UNMAPPED",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (!t || DEFAULT_TITLE.test(t) || !(vendorTitleCount.get(t) > 1)) continue",
+   "to": "    if (true) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.dupTitles.test.js",
+   "expectRed": "equal counts"
+  },
+  {
+   "id": "DT2",
+   "mutant": "paired against declaration order (the swap control would read MATCH)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    vs.forEach((v, i) => { pairs.push({ vendor: v, ours: os[i], rule: 'M1b-title-order' }); usedOurs.add(os[i]); m1b.add(v) })",
+   "to": "    vs.forEach((v, i) => { const o = os[os.length - 1 - i]; pairs.push({ vendor: v, ours: o, rule: 'M1b-title-order' }); usedOurs.add(o); m1b.add(v) })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.dupTitles.test.js",
+   "expectRed": "SWAPPED"
+  },
+  {
+   "id": "DT3",
+   "mutant": "pairing on unequal counts",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (vs.length !== vendorTitleCount.get(t) || os.length !== (byTitle.get(t) || 0) || vs.length !== os.length) continue",
+   "to": "    if (!os.length) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.dupTitles.test.js",
+   "expectRed": "counts that differ"
+  }
+ ]
+}

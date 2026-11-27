@@ -124,7 +124,8 @@ def test_an_answer_in_the_vendors_order_builds_in_one_call_as_the_right_indicato
     assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r
     assert conv.MEND_BAR_FIELDS in str(r["usage"]["mended"])
     k, d = (o["tree"] for o in r["envelope"]["ops"][0]["outputs"])
-    assert k == call("sma", ENGINE_ORDER, num(3)) and d == call("sma", call("sma", ENGINE_ORDER, num(3)), num(3))
+    assert k == conv.pine_twin_tree(call("sma", ENGINE_ORDER, num(3)))  # as the door builds it (TradingView's twin): test_words_door_builds_pine_twins
+    assert d == conv.pine_twin_tree(call("sma", call("sma", ENGINE_ORDER, num(3)), num(3)))
     # an answer already in the engine's order is not touched, and nothing is recorded
     client = model([emits(build(call("sma", ENGINE_ORDER, num(3))))])
     r = conv.converse("Add a slow stochastic", user_id="u1", view=empty_view(0), chart=CHART)
