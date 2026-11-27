@@ -1,10 +1,10 @@
 {
  "populations": {
   "capture": {
-   "scripts": 1039,
-   "admitted": 838,
-   "runtimeLane": 231,
-   "hostLane": 318,
+   "scripts": 1046,
+   "admitted": 845,
+   "runtimeLane": 233,
+   "hostLane": 323,
    "refused": 289,
    "coreOnly": 51
   },
@@ -34,7 +34,7 @@
   }
  },
  "populationSizes": {
-  "capture": 1039,
+  "capture": 1046,
   "committed": 266,
   "reference": 271,
   "builtin": 142
@@ -761,7 +761,7 @@
   {
    "capture": "cc-yata-rddt-1d-2026-09-27",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -2453,6 +2453,40 @@
    ]
   },
   {
+   "capture": "kernel-channel-backquant-regime-rddt-1d-2026-11-26",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "kernel-channel-backquant-regime-spy-1d-2026-11-26",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "compound-assign",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
    "capture": "linear-regression-channel-200-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -3921,8 +3955,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3936,8 +3970,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-rddt-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3951,8 +3985,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -3966,8 +4000,8 @@
   {
    "capture": "opening-range-initial-balance-opening-price-spy-1d-2026-11-15",
    "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "fn-multi",
@@ -7100,8 +7134,8 @@
   {
    "capture": "support-and-resistance-5f95e90f-rddt-1d-2026-11-13",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "if-block",
@@ -10628,6 +10662,67 @@
     "fn-single",
     "if-block",
     "obj:label",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-plotshape-abovebar-spy-1d-2026-11-26",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "max_bars_back",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-plotshape-absolute-spy-1d-2026-11-26",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "max_bars_back",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "vw-plotshape-belowbar-spy-1d-2026-11-26",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "max_bars_back",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-plotshape-bottom-spy-1d-2026-11-26",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "max_bars_back",
+    "realtime-state"
+   ]
+  },
+  {
+   "capture": "vw-plotshape-top-spy-1d-2026-11-26",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-single",
+    "max_bars_back",
     "realtime-state"
    ]
   },
