@@ -932,7 +932,8 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     // to match.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    const CORE = ['Source', 'Period', 'Type', 'Pane', 'Timeframe', 'Timeframes']
+    // "Pin to scale" (2026-11-26): an average on price has TradingView's Same as price / No scale choice.
+    const CORE = ['Source', 'Period', 'Type', 'Pane', 'Pin to scale', 'Timeframe', 'Timeframes']
 
     select(/^EMA 9$/)
     expect(coreOf().map((r) => r.split(' = ')[0])).toEqual(CORE)

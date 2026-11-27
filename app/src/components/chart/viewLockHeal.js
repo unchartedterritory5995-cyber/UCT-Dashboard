@@ -64,6 +64,16 @@ export function healedViewLock(lock) {
   return { ...lock, top: null, bottom: null, vLocked: false }
 }
 
+/**
+ * ⭐ (2026-11-26) What a DOUBLE-CLICK ON THE PRICE AXIS does to the stored view lock: TradingView's full price-scale
+ * reset, so the vertical half goes (and with it the candles' authored band), the horizontal half (the member's time
+ * view) stays. `{ changed, lock }`: `changed` false when there was no vertical half to drop (nothing is written).
+ */
+export function axisDoubleClickLock(lock) {
+  if (!lock || typeof lock !== 'object' || (lock.top == null && lock.bottom == null)) return { changed: false, lock: lock || null }
+  return { changed: true, lock: healedViewLock(lock) }
+}
+
 let settledThisPage = false
 
 /** Heal every compounded view lock on this device, once. Never throws. Returns the done record it
@@ -98,5 +108,57 @@ export function healViewLocksOnce(storage = globalThis.localStorage, now = () =>
   }
 }
 
+// ─── ⭐⭐ v2 (2026-11-26, coordinator ruling): EVERY VERTICAL HALF GOES, ONCE ─────────────────────────────────
+//
+// Fred RS now draws on its own scale ("Pin to scale → No scale", #2828), so it no longer joins the candles'
+// autoscale. A vertical half authored while it did (or by any earlier axis drag) puts the candles in a band that no
+// longer matches what the autoscale fits, and v1's rule spares a SYMMETRIC one (measured on a UCT test slot,
+// 2026-11-26: { top 0.3223, bottom 0.3057 }, AGL 1D read −40..180 for bars 10..165 with Fred on "No scale"). A
+// double-click on the price axis now drops it (`axisDoubleClickLock`), but nobody knows to do that, so every stored
+// lock loses its vertical half ONCE per device.
+// ⛔ ONLY THAT FIELD: `top` / `bottom` are nulled (and `vLocked` false); the horizontal half and every other key are
+// kept, and NO key is removed, even one left with no horizontal half (it then restores nothing, as before).
+// ⛔ ONCE: `uct.charts.viewLockHeal.v2` = { healed, at }. Present → never runs again. A corrupt or vertical-less lock
+// is left exactly as it is.
+export const VIEW_LOCK_HEAL_FLAG_V2 = 'uct.charts.viewLockHeal.v2'
+
+let settledV2ThisPage = false
+
+/** The lock with its vertical half dropped, or null when it has none to drop (write nothing). */
+export function withoutVerticalHalf(lock) {
+  if (!lock || typeof lock !== 'object' || Array.isArray(lock)) return null
+  if (lock.top == null && lock.bottom == null) return null
+  return { ...lock, top: null, bottom: null, vLocked: false }
+}
+
+/** Drop the vertical half of every stored view lock on this device, once. Never throws. Returns { healed, at } when it
+ *  ran, null when it did not (already done on this device, already checked on this page, or storage unavailable). */
+export function healViewLocksV2Once(storage = globalThis.localStorage, now = () => new Date().toISOString()) {
+  if (settledV2ThisPage) return null
+  settledV2ThisPage = true
+  try {
+    if (!storage || storage.getItem(VIEW_LOCK_HEAL_FLAG_V2) != null) return null
+    const found = []
+    for (let i = 0; i < storage.length; i += 1) {
+      const k = storage.key(i)
+      if (k === VIEW_LOCK_KEY || (typeof k === 'string' && k.startsWith(VIEW_LOCK_KEY_PREFIX))) found.push(k)
+    }
+    let healed = 0
+    for (const k of found) {
+      let lock = null
+      try { lock = JSON.parse(storage.getItem(k)) } catch { continue }
+      const next = withoutVerticalHalf(lock)
+      if (!next) continue
+      storage.setItem(k, JSON.stringify(next))
+      healed += 1
+    }
+    const done = { healed, at: now() }
+    storage.setItem(VIEW_LOCK_HEAL_FLAG_V2, JSON.stringify(done))
+    return done
+  } catch {
+    return null
+  }
+}
+
 /** Tests only: forget that this page already checked (a new page load). */
-export function _resetViewLockHealForTests() { settledThisPage = false }
+export function _resetViewLockHealForTests() { settledThisPage = false; settledV2ThisPage = false }
