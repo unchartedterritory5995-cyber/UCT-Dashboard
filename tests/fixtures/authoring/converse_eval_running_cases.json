@@ -128,7 +128,7 @@
                 },
                 {
                  "type": "call",
-                 "name": "atr",
+                 "name": "atrPine",
                  "args": [
                   {
                    "type": "series",

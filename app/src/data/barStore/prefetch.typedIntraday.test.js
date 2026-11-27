@@ -80,14 +80,74 @@ describe('typed intraday warm', () => {
     expect(w.server.calls.length).toBe(before)
   })
 
-  it('a local copy that paints answers "cache" with no request', async () => {
+  it('a local copy that paints AND covers the view (COVER_ROWS) answers "cache" with no request', async () => {
     const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
     await w.known('LOC')
-    await w.idb.idbPutMonotonic('LOC', '5', intradayRows(5, Math.floor(NOW / 1000) - 300))
+    const { isRthBar } = await import('../../components/chart/barTime')
+    const rows = intradayRows(5, Math.floor(NOW / 1000) - 300, { from: OPEN - 14 * 86400 })
+    expect(rows.filter((r) => isRthBar(r.t)).length).toBeGreaterThanOrEqual(COVER_ROWS)   // covers the regular-hours view
+    await w.idb.idbPutMonotonic('LOC', '5', rows)
     const typed = w.pf.warmTypedSymbol('LOC', '5')
     await w.server.drain()
     await expect(typed).resolves.toBe('cache')
     expect(ofTf(w.server.calls, '5')).toEqual([])
+  })
+
+  // (review of #2871, MEDIUM) the switch's `covers` (useSymbolHandoff) reads heldRows: for a regular-hours view of a shared
+  // key it counts the rows that view draws (barTime.isRthBar, the chart's own test), for an extended view every row
+  it('heldRows counts the VIEW’s rows: regular-session rows for a regular-hours view of a shared key', async () => {
+    const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
+    const { isRthBar } = await import('../../components/chart/barTime')
+    await w.known('HR')
+    const rows = intradayRows(5, Math.floor(NOW / 1000) - 300, { from: OPEN - 8 * 86400 }).slice(-COVER_ROWS - 50)
+    const rth = rows.filter((r) => isRthBar(r.t)).length
+    w.store.registry.acquire(w.k('HR', '5'))
+    await w.idb.idbPutMonotonic('HR', '5', rows)
+    await w.store.persist.hydrate(w.k('HR', '5'))
+    const held = w.store.peek(w.k('HR', '5'))
+    const n = held.bars.length + (held.developing ? 1 : 0)
+    expect(n).toBeGreaterThanOrEqual(COVER_ROWS)
+    expect(w.pf.heldRows('HR', '5', { showExtended: true })).toBe(n)
+    const v = w.pf.heldRows('HR', '5', { showExtended: false })
+    expect(v).toBeLessThan(COVER_ROWS)
+    expect(v).toBe(Math.min(rth + (held.developing && isRthBar(held.developing.t) ? 1 : 0), v))
+  })
+
+  // (review of #2871, MEDIUM) a REGULAR-HOURS view of a key both sessions share draws only its regular-session rows
+  // (~40% of the raw rows): COVER_ROWS raw rows with extended hours do not cover it, so that copy is asked too
+  it('a regular-hours view: COVER_ROWS raw rows that hold fewer regular-session rows are asked from the server', async () => {
+    const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
+    const { isRthBar } = await import('../../components/chart/barTime')
+    await w.known('LOC')
+    const all = intradayRows(5, Math.floor(NOW / 1000) - 300, { from: OPEN - 8 * 86400 })
+    const rows = all.slice(-COVER_ROWS - 50)
+    expect(rows.length).toBeGreaterThanOrEqual(COVER_ROWS)
+    expect(rows.filter((r) => isRthBar(r.t)).length).toBeLessThan(COVER_ROWS)
+    await w.idb.idbPutMonotonic('LOC', '5', rows)
+    const typed = w.pf.warmTypedSymbol('LOC', '5')
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+    expect(ofTf(w.server.calls, '5')).toEqual(['LOC'])
+  })
+
+  // ⭐ (2026-11-26, the owner's cold typed Enter) the device's copy of a never-opened ticker holds ~300 newest 5m rows:
+  // it paints, but it does not cover the view, so the switch waited for the lake's join AFTER Enter (51-110 ms on the
+  // owner's board). Asked before Enter, its answer covers the view and the switch paints it in the Enter task.
+  it('a local copy that paints but is SHORT of COVER_ROWS is asked from the server before Enter', async () => {
+    const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
+    await w.known('LOC')
+    const rows = intradayRows(5, Math.floor(NOW / 1000) - 300)
+    expect(rows.length).toBeLessThan(COVER_ROWS)
+    await w.idb.idbPutMonotonic('LOC', '5', rows)
+    const typed = w.pf.warmTypedSymbol('LOC', '5')
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+    expect(ofTf(w.server.calls, '5')).toEqual(['LOC'])
+    expect(w.store.peek(w.k('LOC', '5')).restSeen).toBe(true)
   })
 
   it('new text aborts the previous typed warm that nothing joined', async () => {

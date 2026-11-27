@@ -27,6 +27,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
+import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions, markDefinitionsServed, definitionsServedThisPage } from '../lib/userDefsCache'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
 } from '../components/chart/engine/nativeRegistry'
@@ -76,8 +77,12 @@ async function fetcher(url) {
   // ⭐ C2D.7 — the SWR key stays `USER_DEFINITIONS_KEY` (every `mutate` in this
   // file names it) while the REQUEST carries the capability flag. Folding the
   // flag into the key would silently orphan five revalidation call sites.
+  const owner = _defsCacheOwner
   const r = await fetch(withEngine(withGraph(url)), { credentials: 'include' })
   if (!r.ok) {
+    // ⭐ (2026-11-26) an authoritative refusal (signed out, plan lapsed, forbidden) forgets the kept list too: nothing
+    // kept may draw for a member the store refuses (`useInstalledUserDefinitions` clears the registry on the same codes)
+    if (r.status === 401 || r.status === 402 || r.status === 403) clearCachedDefinitions()
     const err = new Error(`user-definitions ${r.status}`)
     err.status = r.status
     throw err
@@ -90,9 +95,44 @@ async function fetcher(url) {
   // ⭐ LINE IDENTITY — the store serves each definition as stored and its lines'
   // identities BESIDE it (`plot_identities`); the copy this browser holds wears them
   // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
-  return body.definitions.map((row) => (row && row.definition
+  // ⭐⭐ (2026-11-26, Fred RS load time) and the answer, as served, is this member's start for the next load
+  if (owner != null && owner === _defsCacheOwner) writeCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION, body.definitions)
+  markDefinitionsServed()
+  return hydrateRows(body.definitions)
+}
+
+function hydrateRows(rows) {
+  return rows.map((row) => (row && row.definition
     ? withServedRowIdentities({ ...row, definition: hydrateGraphDocument(row.definition) })
     : row))
+}
+
+// ─── ⭐⭐ (2026-11-26, Fred RS load time) THE LIST THIS MEMBER WAS LAST SERVED STARTS THE NEXT LOAD ─────────────────────
+// ⚰️ Measured on production (ecc0bb94, AGL 1D, Fred RS on the layout, a reload): the candles were drawn at ~1.2 s and Fred
+// RS at ~1.9 s (warm) / ~3.2 s (cold). Between them the chart waited for `GET /api/user-definitions` (started ~0.97 s,
+// answered 0.6 s later warm, 1.9 s later cold): until it lands the registry has no Fred RS, so the chart cannot know the
+// script reads SP:SPX, cannot ask for it, and cannot compute.
+// So the list this member was last served is kept (`localStorage`, keyed by member and by `SCRIPT_ENGINE_VERSION`) and
+// handed to SWR as its first answer (`fallbackData`): the registry installs Fred RS on the chart's first render, while the
+// list is read again as before (SWR revalidates on mount) and replaces it when it lands.
+// Rules: the SAME member only (a row of another member is never installed), the SAME script engine only (a deploy that
+// bumps it starts from the server, as before, so a saved-script upgrade never runs on a kept row), the raw rows as served
+// (hydrated exactly as a fetched answer is), a list over its size cap is not kept, and a definitive sign-out
+// (`clearCachedDefinitions`, from AuthContext) forgets it (`lib/userDefsCache.js`).
+let _defsCacheOwner = null
+
+/** `owner`'s last served list, hydrated as a fetched answer is, or undefined (none, another member, another engine).
+ *  Exported for its rail. */
+export function readCachedDefinitions(owner) {
+  const rows = readCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION)
+  if (!rows) return undefined
+  try { return hydrateRows(rows) } catch { return undefined }
+}
+
+function ownerOf(user) {
+  if (!user || typeof user !== 'object') return null
+  const id = user.id ?? user.user_id ?? user.email
+  return id == null || id === '' ? null : String(id)
 }
 
 /** ⛔ ONE empty list, the SAME object on every render until data arrives. A fresh `[]`
@@ -141,7 +181,13 @@ export function useUserDefinitions() {
   // polling effect lists as a dependency: 0 -> 15000 starts the poll, 15000 -> 0 stops it.
   // Rail: useUserDefinitions.pendingPoll.test.jsx (a cold mount whose rows are pending reads again).
   const [pollMs, setPollMs] = useState(0)
+  // ⭐⭐ (2026-11-26, Fred RS load time) this member's last served list is SWR's first answer (`readCachedDefinitions`)
+  const owner = ownerOf(user)
+  _defsCacheOwner = owner
+  const fallback = useMemo(() => (definitionsServedThisPage() ? undefined : readCachedDefinitions(owner)), [owner])
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
+    fallbackData: fallback,
+    revalidateOnMount: true,
     revalidateOnFocus: false,
     dedupingInterval: 10000,
     refreshInterval: pollMs,
@@ -150,6 +196,11 @@ export function useUserDefinitions() {
   useEffect(() => { setPollMs(wantPollMs) }, [wantPollMs])
   return {
     rows: Array.isArray(data) ? data : NO_ROWS,
+    // ⭐ (2026-11-26) the rows are the KEPT list (SWR's first answer), not yet the store's: drawn, never authoritative
+    // (`useInstalledUserDefinitions` uninstalls nothing and writes nothing back on them)
+    kept: fallback !== undefined && data === fallback,
+    // the member these rows are for (`useInstalledUserDefinitions` clears the registry when it changes)
+    owner,
     // A signed-out user is LOADING, not an error: SWR is handed a null key then
     // and reports neither, and "offer nothing" is the safe reading of that.
     isLoading: !user || (isLoading && !data && !error),
@@ -458,6 +509,8 @@ export async function recordEngineStatus(defId, { version, engine, status, reaso
  *  definitions `?userdefs=` had just installed and put the gate straight back to
  *  the zero it exists to move. */
 const AUTHORITATIVE_EMPTY = new Set([401, 402, 403])
+/** (2026-11-26) the member the registry's user definitions were installed for (null/undefined: nobody yet). */
+let _installedFor
 
 /**
  * 🔴 THE PRODUCT CALLER — read the user's stored definitions and INSTALL them
@@ -517,7 +570,7 @@ function announceDefinitionsChanged() {
 }
 
 export function useInstalledUserDefinitions() {
-  const { rows, isLoading, error, refresh } = useUserDefinitions()
+  const { rows, kept, owner, isLoading, error, refresh } = useUserDefinitions()
   // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — a stale script document's new translation
   // lands asynchronously (`savedScriptUpgrade.js`); this tick re-runs the install
   // when it does. Zero for a member whose documents are all current: nothing
@@ -536,9 +589,10 @@ export function useInstalledUserDefinitions() {
   // versions on and `rev` is what a maths change bumps, so two lists with the
   // same key are the same claim.
   const status = error && typeof error.status === 'number' ? error.status : 0
+  // (a KEPT list is its own key: the store's answer with the very same rows is still read as the authoritative one)
   const key = AUTHORITATIVE_EMPTY.has(status)
     ? '<refused>'
-    : rows.map(r => `${r && r.def_id}@${r && r.version}#${r && r.rev}`).join('|')
+    : `${owner}|${kept ? 'kept:' : ''}${rows.map(r => `${r && r.def_id}@${r && r.version}#${r && r.rev}`).join('|')}`
 
   // ⚠️ `useMemo`, AND IT REPLACED A PAIR OF REFS BECAUSE THE LINTER WAS RIGHT.
   // The first shape of this hook kept `lastKeyRef` / `resultRef` and read
@@ -555,6 +609,13 @@ export function useInstalledUserDefinitions() {
   // `clearUserDefinitions` returns early on an empty index, so a second run
   // costs a loop and changes nothing a consumer can observe.
   const { installedIds, errors, writeBacks, records, pending } = useMemo(() => {
+    // ⛔ (2026-11-26) ANOTHER MEMBER: nothing installed for the previous one stays in the registry (a kept list, or a
+    // fetched one, never draws for the next member on a shared browser)
+    if (_installedFor != null && _installedFor !== owner) {
+      clearUserDefinitions()
+      _fromStore.clear()
+    }
+    _installedFor = owner
     if (key === '<refused>') {
       clearUserDefinitions()
       return { installedIds: [], errors: [], writeBacks: NO_ROWS, records: NO_ROWS, pending: 0 }
@@ -581,12 +642,18 @@ export function useInstalledUserDefinitions() {
         continue
       }
       docs.push(res.definition)
-      if (res.writeBack) plans.push(res.writeBack)
+      // ⛔ (2026-11-26) never a write-back from a KEPT row: only the store's own answer may be written back to it
+      if (res.writeBack && !kept) plans.push(res.writeBack)
     }
     const { installed, errors: installErrors } = installUserDefinitions(docs)
     // ⭐ A1.4 — uninstall ONLY on an authoritative, successful response, and only ids a
     // previous response installed. Never on a transport error, a 5xx or while loading.
-    if (!isLoading && !error) {
+    if (kept) {
+      // ⭐ (2026-11-26) a KEPT list uninstalls nothing; what it installed is owed to the store's answer, which uninstalls
+      // every id it no longer holds (a definition deleted elsewhere disappears when the answer lands)
+      for (const d of installed) _fromStore.add(d.id)
+      for (const id of held) _fromStore.add(id)
+    } else if (!isLoading && !error) {
       const present = new Set(rows.map(r => r && r.def_id).filter(Boolean))
       for (const id of [..._fromStore]) if (!present.has(id)) uninstallUserDefinition(id)
       _fromStore.clear()
@@ -604,7 +671,7 @@ export function useInstalledUserDefinitions() {
       pending: held.length,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- upgradeTick: re-run when a held script's new translation lands (`resolveRow` reads it from the upgrade module, not from React)
-  }, [key, rows, isLoading, error, upgradeTick])
+  }, [key, rows, kept, owner, isLoading, error, upgradeTick])
   // The write-back is a NETWORK effect, so it runs after commit — once per stored
   // version per tab (`writeBackOnce` dedupes across every chart that mounts this).
   useEffect(() => {
