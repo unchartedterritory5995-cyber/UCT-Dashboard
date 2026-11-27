@@ -6,6 +6,7 @@
 //   P2 an answered key whose deep history (D/W/M) or lake depth (intraday) is still due is not warm
 //   P3 an answered key with nothing due is warm; a developing bar alone never is
 //   P4 it never hydrates (the board asks during its render): an unseen key is simply not warm
+//   P5 (red first, review H3) a store without the answered / deep / lake accessors reads every key as cold, never warm
 import { describe, it, expect } from 'vitest'
 import { createPrefetch } from './prefetch'
 
@@ -68,5 +69,18 @@ describe('prefetch.peekSealedBars', () => {
     const pf = createPrefetch({ store })
     expect(pf.peekSealedBars('ZZZ', 'D')).toBe(false)
     expect(store.hydrations()).toBe(0)
+  })
+
+  it('P5 (red first) a store missing the answered, deep or lake accessor reads as cold', () => {
+    for (const drop of ['deepPending', 'lakePending', 'answered']) {
+      const store = stubStore()
+      if (drop === 'answered') delete store.network.answered
+      else delete store[drop]
+      const pf = createPrefetch({ store })
+      const key = pf.keyFor('AAA', 'D')
+      store.held.set(key, { bars: rows(3000), developing: null, restSeen: true })
+      store.answered.add(key)
+      expect(pf.peekSealedBars('AAA', 'D'), `no ${drop} accessor read as warm`).toBe(false)
+    }
   })
 })

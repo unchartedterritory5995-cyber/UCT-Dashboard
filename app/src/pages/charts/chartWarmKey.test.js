@@ -5,8 +5,10 @@
 //   K3 unlinked ('N'), a suspended extra group, a group with no symbol, a non-chart: null (cold)
 //   K4 extended hours: stored false wins over the account; the account decides when the tab says nothing; default on
 //   K5 a bailed-out switch never turns the lane on (boardSwitchMark.userSwitchRenders)
+//   K6 (red first, review H2) a switch made in replay mode keeps the paced admission: the charts show a WINDOWED key (the
+//      replay cutoff, a session state no saved layout carries) that the warm check does not name
 import { describe, it, expect } from 'vitest'
-import { chartWarmKey } from './chartWarmKey'
+import { chartWarmKey, warmAdmissionOn } from './chartWarmKey'
 import { userSwitchRenders } from './boardSwitchMark'
 
 const syms = { A: 'AAPL', B: 'MSFT', E: 'NVDA' }
@@ -37,6 +39,12 @@ describe('chartWarmKey', () => {
     expect(chartWarmKey(chart({ tf: '5', settings: { extendedHoursShading: false } }), syms, { extendedHoursShading: true }).showExtended).toBe(false)
     expect(chartWarmKey(chart({ tf: '5' }), syms, { extendedHoursShading: false }).showExtended).toBe(false)
     expect(chartWarmKey(chart({ tf: '5' }), syms, {}).showExtended).toBe(true)
+  })
+
+  it('K6 (red first) replay mode: the warm lane stays off; a member switch outside it turns it on', () => {
+    expect(warmAdmissionOn({ userSwitch: true, replayCutoff: null })).toBe(true)
+    expect(warmAdmissionOn({ userSwitch: true, replayCutoff: '2026-03-02' }), 'warm lane on in replay mode').toBe(false)
+    expect(warmAdmissionOn({ userSwitch: false, replayCutoff: null })).toBe(false)
   })
 
   it('K5 the lane is on only while the rendered layout IS the switch target', () => {
