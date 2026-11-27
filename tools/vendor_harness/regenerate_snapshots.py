@@ -17,7 +17,9 @@ WHAT IT DOES, in order, and it stops at the first refusal:
   3. The licence-held captures under tests/fixtures/vendor (`licence-held.json`) are graded from the local capture
      store in a short hold of their own and spliced in under their canonical path (`splice_held.mjs`), as every
      regeneration since 53b3a790cb has done: a machine without that store refuses rather than drop their rows.
-  4. The written snapshot's `libraryStore` equals the promote rows (`store_held.snapshot_store_problems`).
+  4. The snapshot's `sourceHeldStore` keeps only the pins its rows cite (`prune_source_held.mjs`, #2848 ruling (b)):
+     this machine's other licence-held built-in pins never reach the public repo.
+  5. The written snapshot's `libraryStore` equals the promote rows (`store_held.snapshot_store_problems`).
 The lock is `$UCT_HEAVY_LOCK_PY` (default: this PC's `uct-clips/tools/heavy_lock.py`), `--priority normal`.
 (Never `$UCT_HEAVY_LOCK`: since 2026-11-18 heavy_lock sets THAT to "<label>|<lock>|<pid>" for every `run` child,
 so read as a path it broke this tool inside any heavy-lock run. Same name as uct-growth uses.)
@@ -91,6 +93,12 @@ def splice_held(lane, store):
                             os.path.join(out, "verdicts.json"), *[c for c, _p in held]], cwd=ROOT)
 
 
+def prune_source_held(lane):
+    """#2848 ruling (b): the snapshot keeps only the sourceHeldStore pins its own rows were graded on. The harness
+    lists this machine's whole licence-held built-in store; a pin no row cites is machine-local, never committed."""
+    return subprocess.call(["node", os.path.join(HERE, "prune_source_held.mjs"), SH.SNAPSHOTS[lane]], cwd=ROOT)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--store", required=True, help="a scratch store holding exactly the allowlist's promote rows")
@@ -118,6 +126,10 @@ def main(argv=None):
                 return 1
         rc = splice_held(lane, a.store)
         if rc != 0:
+            return rc
+        rc = prune_source_held(lane)
+        if rc != 0:
+            print("REFUSED: the %s snapshot's sourceHeldStore could not be pruned (exit %d)" % (lane, rc))
             return rc
         doc = json.load(open(SH.SNAPSHOTS[lane], encoding="utf-8"))
         bad = SH.snapshot_store_problems(doc, SH.promoted_store())
