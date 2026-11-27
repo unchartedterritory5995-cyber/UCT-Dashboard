@@ -44,12 +44,12 @@ const ROW_PX = 40
 
 // jsdom lays nothing out: rows are ROW_PX tall (or what `T.rowPx` says for one key), the scroller 300 x 400.
 // Every read is counted, by kind, so "read inside the commit" is a number.
-const T = { rowReads: 0, scrollerReads: 0, rowPx: {} }
+const T = { rowReads: 0, scrollerReads: 0, rowPx: {}, renders: {} }
 const realH = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')
 const realW = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth')
 const keyOf = (el) => ITEMS[Number(el.getAttribute('data-index'))]?.id
 beforeEach(() => {
-  T.rowReads = 0; T.scrollerReads = 0; T.rowPx = {}
+  T.rowReads = 0; T.scrollerReads = 0; T.rowPx = {}; T.renders = {}
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
     get() {
@@ -77,7 +77,7 @@ function List({ cacheKey, show = true }) {
   return (
     <div ref={scrollRef} data-scroller="" style={{ height: 400, overflowY: 'auto' }}>
       {show ? (
-        <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => <span>{it.sym}</span>} emptyText="none"
+        <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
           sizeCacheKey={cacheKey} />
       ) : null}
     </div>
@@ -104,9 +104,14 @@ describe('ScanRows: a remounted list starts from the row sizes it measured', () 
     expect(rowTop(view.container, 2)).toBe(2 * ROW_PX)
     view.rerender(<List cacheKey="list:R1" show={false} />) // the list unmounts (a board switch away)
 
+    const firstMountRenders = T.renders.R2
     T.rowReads = 0
+    T.renders = {}
     view.rerender(<List cacheKey="list:R1" />)
     await frames()
+    // the remembered sizes are the estimates: no row measures other than its estimate, so the list does not
+    // re-render for a measurement (the first mount did: 30 px estimated, 40 px measured)
+    expect(T.renders.R2, 'a row rendered again for a measurement on the remount').toBeLessThan(firstMountRenders)
     expect(rowTop(view.container, 2), 'the rows mounted').not.toBeNull()
     expect(T.rowReads, 'rows measured again on the remount').toBe(0)
     expect(rowTop(view.container, 2), 'placed at the remembered size').toBe(2 * ROW_PX)
