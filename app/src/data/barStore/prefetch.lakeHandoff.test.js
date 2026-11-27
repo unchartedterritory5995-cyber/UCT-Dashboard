@@ -197,6 +197,21 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)
     await vi.advanceTimersByTimeAsync(20)
     expect(lake.olderBars.mock.calls.length).toBe(loads)
+  // (review of #2868) the pane names the typed ticker for preparation only once its lake join has landed
+  it('lakeJoined resolves only after the typed warm lake load has joined (and at once when none runs)', async () => {
+    const w = await boot({ lake: slowLake(likeServer(OPEN - 300 * 60, OPEN + 600), 300) })
+    const key = w.k('REAL', '5')
+    await expect(w.pf.lakeJoined('REAL', '5')).resolves.toBe(false)          // nothing in flight
+    const typed = w.pf.warmTypedSymbol('REAL', '5')
+    await vi.advanceTimersByTimeAsync(40)
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+    const joined = settled(w.pf.lakeJoined('REAL', '5'))
+    await vi.advanceTimersByTimeAsync(100)
+    expect(joined()).toBe('PENDING')                                          // the warm settled; its join has not
+    await vi.advanceTimersByTimeAsync(300)
+    expect(joined()).toBe(true)
+    expect(w.store.peek(key).bars[0].t).toBe(OPEN - 300 * 60)                // named on the joined rows
   })
 
   // ⭐ Measured 2026-11-17 at 00:36 ET (flip proof, server at normal speed): first paints ended at

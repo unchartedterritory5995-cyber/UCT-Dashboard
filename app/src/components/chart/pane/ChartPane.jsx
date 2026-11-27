@@ -70,8 +70,9 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined } from '../../../data/barStore/prefetch'
 import { BARSTORE } from '../barStoreSwitch'
+import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -1092,9 +1093,29 @@ function ChartPane({
   // them too, at the moment it knows the text is a ticker (data/barStore/prefetch _tellTyped)
   const typedTfsRef = useRef(typedIntentTfs)
   typedTfsRef.current = typedIntentTfs
+  // ⭐ (2026-11-26, typed vs arrow) ...and once that warm has settled (the ticker's bars are in the store, or were already),
+  // the typed ticker is named the NEXT symbol of the one this chart shows (neighborFrames.publishTypedNext): the charts on
+  // it prepare its frame in idle time, as they prepare a list's next row, and Enter finds it instead of deriving it in the
+  // key task. Only the newest text names anything; a prefix ('unknown') clears it. Store charts only (the preparer reads it).
+  // (review of #2868) ...and only once the warm's LAKE JOIN has landed (storeLakeJoined): the join replaces the key's rows
+  // with a new array 30-400 ms after the warm settles, and a frame prepared on the rows before it is filed under an array
+  // Enter no longer reads. Nothing is named for a chart that has moved to another symbol meanwhile.
+  const symRef = useRef(sym)
+  symRef.current = sym
+  const typedNextRef = useRef(null)
   const handleTypedIntent = useCallback((s) => {
-    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
+    const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
+    if (!BARSTORE) return
+    const center = symRef.current
+    const mine = {}
+    typedNextRef.current = mine
+    const live = () => typedNextRef.current === mine && symRef.current === center   // no newer text; same chart symbol
+    Promise.resolve(warm).then((r) => {
+      if (!live()) return
+      if (r === 'unknown' || r === 'superseded') { publishTypedNext(center, null); return }
+      return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
+    }).catch(() => {})
   }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
