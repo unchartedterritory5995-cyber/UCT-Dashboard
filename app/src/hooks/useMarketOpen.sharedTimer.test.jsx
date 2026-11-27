@@ -8,6 +8,10 @@
 //   T3 the 16:00:00 close and the half-day 13:00:00 close flip at the boundary too
 //   T4 every consumer still renders once per minute (a clock reading the time in its render keeps ticking)
 //   T5 when the last consumer unmounts no timer is left
+//   T6 (review of #2874) a timer that wakes at :59.998 notifies nobody until :00.000
+//   T7 (red first) a wake (visibilitychange, pageshow, focus) after a skipped minute notifies at once: a laptop opened
+//      in the morning must not show last night's session until the next boundary
+//   T8 (red first) the wake listeners go with the last consumer
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, act } from '@testing-library/react'
 
@@ -100,4 +104,58 @@ describe('useMarketOpen: one timer on the minute boundary', () => {
     r2.unmount()
     expect(vi.getTimerCount(), 'a timer outlived every consumer').toBe(0)
   })
+
+  it('T6 a timer that wakes at :59.998 notifies nobody until :00.000', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(et('2026-01-15T14:29:30Z'))   // 09:29:30 ET, pre-market
+    const log = []
+    const r = render(<Consumer name="e" log={log} />)
+    vi.setSystemTime(Date.now() - 2)               // the clock the timer was armed on runs 2 ms ahead of the wall
+    const n0 = log.length
+    act(() => { vi.advanceTimersByTime(30_000) })   // it fires; the wall reads 09:29:59.998
+    expect(log.length, 'a consumer was notified before the boundary').toBe(n0)
+    act(() => { vi.advanceTimersByTime(2) })        // 09:30:00.000
+    expect(lastOf(log, 'e').open).toBe(true)
+    r.unmount()
+  })
+
+  for (const [what, fire] of [
+    ['visibilitychange', () => document.dispatchEvent(new Event('visibilitychange'))],
+    ['pageshow', () => window.dispatchEvent(new Event('pageshow'))],
+    ['focus', () => window.dispatchEvent(new Event('focus'))],
+  ]) {
+    it(`T7 (red first) a ${what} after a skipped minute notifies at once`, () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(et('2026-01-15T14:29:30Z'))   // 09:29:30 ET, pre-market
+      const log = []
+      const r = render(<Consumer name="w" log={log} />)
+      vi.setSystemTime(et('2026-01-15T14:35:10Z'))   // the machine slept: the wall jumped to 09:35:10, no timer ran
+      act(() => { fire() })
+      expect(lastOf(log, 'w').open, `a ${what} at 09:35:10 left the consumer on pre-market`).toBe(true)
+      r.unmount()
+    })
+  }
+
+  it('T8 (red first) the wake listeners go with the last consumer', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(et('2026-01-15T15:00:05Z'))
+    const added = []
+    const removed = []
+    for (const target of [document, window]) {
+      const add = target.addEventListener.bind(target)
+      const rem = target.removeEventListener.bind(target)
+      vi.spyOn(target, 'addEventListener').mockImplementation((t, f, o) => { added.push(t); return add(t, f, o) })
+      vi.spyOn(target, 'removeEventListener').mockImplementation((t, f, o) => { removed.push(t); return rem(t, f, o) })
+    }
+    const log = []
+    const r1 = render(<Consumer name="l1" log={log} />)
+    const r2 = render(<Consumer name="l2" log={log} />)
+    const wake = ['visibilitychange', 'pageshow', 'focus']
+    for (const t of wake) expect(added.filter((x) => x === t).length, `${t} listeners for two consumers`).toBe(1)
+    r1.unmount()
+    for (const t of wake) expect(removed.includes(t), `${t} removed while a consumer remains`).toBe(false)
+    r2.unmount()
+    for (const t of wake) expect(removed.filter((x) => x === t).length, `${t} left behind by the last consumer`).toBe(1)
+  })
 })
+
