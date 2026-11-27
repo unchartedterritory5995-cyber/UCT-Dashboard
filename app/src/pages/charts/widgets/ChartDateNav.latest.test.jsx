@@ -19,7 +19,7 @@ describe('ChartDateNav in the date mode', () => {
   it('the jumps go to the host nav, not the pane', () => {
     const { pane, nav } = setup()
     fireEvent.focus(field())
-    fireEvent.change(field(), { target: { value: '1032006' } })
+    fireEvent.change(field(), { target: { value: '01032006' } })
     fireEvent.keyDown(field(), { key: 'Enter' })
     expect(nav.goToDate).toHaveBeenCalledWith(Date.UTC(2006, 0, 3))
     fireEvent.click(screen.getByRole('button', { name: 'Step back one bar' }))
