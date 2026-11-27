@@ -3,6 +3,7 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext } from './chart/paintLog'
+import { BoardVisibilityContext, boardIsHiding } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 // (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
@@ -19557,9 +19558,26 @@ function StockChartBody({
     return () => window.removeEventListener('resize', apply)
   }, [chartReady])
 
+  // ⭐ A HIDDEN BOARD KEEPS ITS CHART (2026-11-27, board keep-alive Stage 1; boardVisibility.js). The keep-alive hides
+  // the previous board with <Activity mode="hidden">, which runs every effect cleanup, the one below included: it removed
+  // the chart, and a return re-created it (creation, series, setData, framing). When the board's handle says 'hidden'
+  // the cleanup keeps the instance and every latch describing it, and turns autoSize off (a hidden box is 0 x 0, which
+  // must not resize the chart); the layout effect after it turns autoSize back on at the show, after one forced resize
+  // when the device-pixel ratio changed while hidden. No provider (the flag off): exactly as before.
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
+  const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
+      const keep = chartRef.current
+      if (keep && boardIsHiding(boardVisibilityRef.current)) {
+        try { keep.applyOptions({ autoSize: false }) } catch { /* disposed */ }
+        keptThroughHideRef.current = { dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1 }
+        return
+      }
       try { markersControllerRef.current?.detach?.() } catch {}
       markersControllerRef.current = null
       // The manifest registry holds ONE slot. Releasing it here — beside
@@ -19619,6 +19637,20 @@ function StockChartBody({
         pendingTfReframeRef.current = null
       }
     }
+  }, [])
+  // The show of a board that kept this chart through a hide (above): autoSize back on; one forced resize first when the
+  // device-pixel ratio moved while hidden (the canvases' bitmaps were sized for the old ratio).
+  useLayoutEffect(() => {
+    const kept = keptThroughHideRef.current
+    const chart = chartRef.current
+    if (!kept || !chart) return
+    keptThroughHideRef.current = null
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
+    if (dpr !== kept.dpr) {
+      const el = containerRef.current
+      try { chart.resize(el?.clientWidth || 0, el?.clientHeight || 0, true) } catch { /* disposed */ }
+    }
+    try { chart.applyOptions({ autoSize: true }) } catch { /* disposed */ }
   }, [])
 
   // ── Clear drawing selection on symbol/tf change ──
