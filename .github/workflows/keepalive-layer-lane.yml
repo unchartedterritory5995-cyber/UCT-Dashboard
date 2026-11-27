@@ -28,6 +28,15 @@ on:
       - 'app/src/hooks/useRealtimePrices*'
       - 'app/src/hooks/useRealtimeBarPrices*'
       - 'app/src/hooks/useSymbolHandoff*'
+      # the layer-gated chart files (review of #2911)
+      - 'app/src/components/chart/useBarSnapshotBars*'
+      - 'app/src/components/chart/adaptiveFrameLoop*'
+      - 'app/src/components/chart/chartViewWatcher*'
+      - 'app/src/components/chart/ChartDrawingOverlay*'
+      - 'app/src/components/chart/ChartCalloutOverlay*'
+      - 'app/src/components/chart/SetupMoveOverlay*'
+      - 'app/src/pages/charts/widgets/**'
+      - 'app/src/hooks/useMarketOpen*'
       # this job's own definition and environment
       - '.github/workflows/keepalive-layer-lane.yml'
       - '.github/actions/pine-heavy-setup/**'
