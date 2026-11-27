@@ -44,11 +44,15 @@ const _storeSnap = (key) => {
   return store.registry.has(key) ? store.getBaseSnapshot(key) : null
 }
 let _snapOf = _storeSnap
+let _registryOf = () => getBarStore().registry
 let _storeOn = () => !!BARSTORE
 /** Tests: the bar store's switch as this module reads it (null restores BARSTORE). */
 export function __setDoubleBufferStoreForTests(v) { _storeOn = v === null || v === undefined ? () => !!BARSTORE : () => !!v }
 /** Tests: where a key's base snapshot is read (null restores the bar store). */
-export function __setDoubleBufferSnapSourceForTests(fn) { _snapOf = typeof fn === 'function' ? fn : _storeSnap }
+export function __setDoubleBufferSnapSourceForTests(fn, registry = null) {
+  _snapOf = typeof fn === 'function' ? fn : _storeSnap
+  _registryOf = registry ? () => registry : () => getBarStore().registry
+}
 
 /** Can this widget be double-buffered at all (the page's switch, the store, a deciding board, a layer or no parent)? */
 export function doubleBufferEligible({ scope, color, parentVis }) {
@@ -196,11 +200,11 @@ export function useDoubleBuffer({ eligible, sym, tf, extRef, settings, scope, me
     if (!eligible || !slotOk || !_storeOn() || !info || info.sym !== shadowSym || !handles[info.idx].current) return undefined
     const key = chartKeyFor({ sym: info.sym, resolvedTf: info.tf, showExtended: !!info.showExtended, replayCutoff: null, hasOverride: false })
     if (!key) return undefined
-    const store = getBarStore()
-    if (!store.registry.has(key) || typeof store.registry.subscribe !== 'function') return undefined
+    const registry = _registryOf()
+    if (!registry.has(key) || typeof registry.subscribe !== 'function') return undefined
     let alive = true
     let idle = 0
-    const off = store.registry.subscribe(key, () => {
+    const off = registry.subscribe(key, () => {
       const cur = infoRef.current
       if (!alive || !cur || cur.sym !== info.sym) return
       cur.set = false

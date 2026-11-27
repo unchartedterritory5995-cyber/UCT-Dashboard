@@ -112,7 +112,7 @@ beforeEach(() => {
       }
     }
     return null
-  })
+  }, { has: () => false, subscribe: () => () => {} })
   nf.__setNeighborFramesForTests(true); nf.__resetScanForTests()
   nf.publishScanNeighbors('AAA', ['BBB', 'CCC'], [])
   nf.publishScanNeighbors('BBB', ['CCC'], ['AAA'])
