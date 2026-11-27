@@ -36,6 +36,9 @@ export const GUARD_NAMESPACES = Object.freeze([
   // scheme, so `data:image` / `data:text` literals read as guard codes): `pine-data:licence`, `pine-data:unknown-family`, `pine-data:field-unserved`,
   // `pine-data:owner-hold` (engine/pineDataCatalog.js), a data family refused by name before any supply exists
   'pine-data',
+  // STRATEGY GATE (2026-11-26): `door:not-installed` / `door:threw:...`, the walls of the census predicate, now in
+  // the product (`builder/authoring/strategyGate.js`); never a member's sentence, stripped like every other id
+  'door',
 ])
 
 const GUARD_NS_ALT = GUARD_NAMESPACES.join('|')

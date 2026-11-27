@@ -136,10 +136,11 @@ export function sameRefusals(a, b) {
  * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules; `capClock` the wall clock the
  *                         main-thread cap is read on
  */
-export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false,
+  loadGate = loadStrategyGate } = {}) {
   try {
     const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason,
-      judgeOffThread, strategyGate } = await load()
+      judgeOffThread } = await load()
     // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
     const withReason = (v) => {
       if (!isChecking(v)) return v
@@ -190,6 +191,7 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     // says the broker would refuse it -- a refusal that, with its plots standing in, lives only in the strategy record
     // and never reached this verdict. A strategy the broker refuses is never offered as built.
     const strategy = STRATEGY_SOURCE.test(pine)
+    const strategyGate = strategy ? await loadGate() : null
     const onChart = strategy ? await strategyGate.withStrategyWindow(chart) : chart
     const run = await runHereWhenLanded(pane, onChart, { timeoutMs: RUN_WAIT_MS })
     const ran = verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS)
@@ -250,16 +252,21 @@ export function latchAnswerAdmission(kill, pine, admission) {
 /** The definition id a script is checked under (never stored, never installed). */
 export const SCRIPT_CHECK_ID = 'u_script_check'
 
+/** ⭐ 2026-11-26 -- the gate a written STRATEGY passes (`strategyGate.js`), loaded ONLY when a script declares one: it
+ *  brings the strategy runtime (the broker, the runtime columns), which an indicator's check never needs and which made
+ *  the first check of a page measurably slower when it rode `loadEngine` (`pendingReason.rail.test.jsx`, 120 s). */
+function loadStrategyGate() {
+  return import('./strategyGate')
+}
+
 /** The engine modules, loaded on first use, and what must be read before a script is judged. */
 async function loadEngine() {
-  const [pineBox, paneDef, status, kill, gate, here, offThread, strategyGate] = await Promise.all([
+  const [pineBox, paneDef, status, kill, gate, here, offThread] = await Promise.all([
     import('../PineBox'), import('../memberPane/memberPaneDefinition'), import('../editorStatus'),
     import('../../engine/runtimeKill'), import('../../engine/runtimePaneGate'), import('../runsHere'),
-    import('./scriptCheckOffThread'), import('./strategyGate'),
+    import('./scriptCheckOffThread'),
   ])
   return {
-    // ⭐ 2026-11-26 -- the gate a written STRATEGY passes (`strategyGate.js`): read directly, no guard
-    strategyGate,
     // the check in the member door's workers (null where there are none: the three below run it on this thread)
     judgeOffThread: offThread.judgeOffThread,
     runHereWhenLanded: here.runHereWhenLanded,

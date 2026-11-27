@@ -45,7 +45,8 @@ async function primeWindow() {
   return w
 }
 /** The paste check passes and the run on the chart draws (`runHere` RAN): only the gate can take "runs" away. */
-function passingLoad(engine = { strategyGate: gate }) {
+const GATE = async () => gate
+function passingLoad(engine = {}) {
   return async () => ({
     inspectSource: () => ({}), memberPaneDefinition: () => ({ ok: true, definition: {} }),
     editorStatus: () => ({ state: 'runs', headline: 'Runs on the chart', items: [] }),
@@ -80,7 +81,7 @@ describe('the gate a written strategy passes', () => {
     const armed = gate.armedStrategyVerdict({ source: SUPERTREND, door: gate.PASTE_CHECK_PASSED, bars: chart.bars, ctx: chart.ctx })
     expect(armed.transfers, JSON.stringify(armed)).toBe(false)
     expect(armed.wall).toMatch(/^run:runtime:strategy-/)
-    const v = await checkScript(SUPERTREND, { load: passingLoad(), chart: chartOf(SPY) })
+    const v = await checkScript(SUPERTREND, { load: passingLoad(), loadGate: GATE, chart: chartOf(SPY) })
     expect(v.runs).toBe(false)
     expect(v.headline).toBe(gate.STRATEGY_REFUSED_HEADLINE)
     expect(v.strategyWall).toBe(armed.wall)
@@ -94,7 +95,7 @@ describe('the gate a written strategy passes', () => {
     const chart = await gate.withStrategyWindow(chartOf(RDDT))
     const armed = gate.armedStrategyVerdict({ source: SUPERTREND, door: gate.PASTE_CHECK_PASSED, bars: chart.bars, ctx: chart.ctx })
     expect(armed.transfers, JSON.stringify(armed)).toBe(true)
-    const v = await checkScript(SUPERTREND, { load: passingLoad(), chart: chartOf(RDDT) })
+    const v = await checkScript(SUPERTREND, { load: passingLoad(), loadGate: GATE, chart: chartOf(RDDT) })
     expect(v.runs).toBe(true)
     expect(v.strategyWall).toBeUndefined()
   })
@@ -108,8 +109,9 @@ describe('the gate a written strategy passes', () => {
     expect(none.ctx.historyWindowBars).toBeUndefined()                 // unknown: unchanged, the run says so by name
   })
 
-  it('CONTROL: an indicator never reaches the gate (an engine with no gate is never asked)', async () => {
-    const v = await checkScript(INDICATOR, { load: passingLoad({}), chart: chartOf(RDDT) })
+  it('CONTROL: an indicator never loads the gate (the strategy runtime is not brought in for it)', async () => {
+    const v = await checkScript(INDICATOR, { load: passingLoad(), chart: chartOf(RDDT),
+      loadGate: async () => { throw new Error('the gate was loaded for an indicator') } })
     expect(v.runs).toBe(true)
   })
 })
