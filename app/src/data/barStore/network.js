@@ -723,6 +723,8 @@ export function createNetwork({
       lakeSeeds.set(key, p)
       return p
     },
+    /** The lake load of `key` in flight (lakeSeed's shared promise), or null. Starts nothing. */
+    lakeLoading(key) { return lakeSeeds.get(key) || null },
     /** Is the lake's whole depth still DUE for `key`: the lake carries it, it holds less than that
      *  depth, and its lake load has not finished on this page (in flight, or never asked)? The
      *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */

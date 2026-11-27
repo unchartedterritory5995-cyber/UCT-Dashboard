@@ -15,7 +15,8 @@ vi.mock('../SymbolSearch', async () => {
 })
 const storeWarm = vi.fn()
 const legacyWarm = vi.fn()
-vi.mock('../../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => storeWarm(...a) }))
+const lakeJoined = vi.fn(() => Promise.resolve(false))
+vi.mock('../../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => storeWarm(...a), lakeJoined: (...a) => lakeJoined(...a) }))
 vi.mock('../../../utils/prefetchBars', async (orig) => ({ ...(await orig()), warmTypedSymbol: (...a) => legacyWarm(...a) }))
 vi.mock('../barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../StockChart', () => ({ default: () => <div data-testid="chart" /> }))
@@ -136,5 +137,45 @@ test('a held ticker (the warm has nothing to do: null) is named at once; a prefi
   await new Promise((r) => setTimeout(r, 0))
   expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMZN'])
   storeWarm.mockReset()
+  nf.__setNeighborFramesForTests(null)
+})
+
+// (review of #2868) ...ONLY AFTER THE WARM'S LAKE JOIN: the join lands a new rows array, and a frame prepared on the array
+// before it is filed under rows Enter no longer reads. And never for a chart that moved to another symbol meanwhile.
+test('the typed ticker is named only once its lake join has landed', async () => {
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  let joined
+  lakeJoined.mockImplementation(() => new Promise((r) => { joined = r }))
+  storeWarm.mockImplementation(() => Promise.resolve('cache'))
+  render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(lakeJoined).toHaveBeenCalledWith('AMD', '5')
+  expect(nf.scanNeighborsFor('NVDA')).toEqual([])                   // the warm settled, its join has not
+  joined(true)
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMD'])
+  storeWarm.mockReset(); lakeJoined.mockReset(); lakeJoined.mockImplementation(() => Promise.resolve(false))
+  nf.__setNeighborFramesForTests(null)
+})
+
+test('nothing is named for a chart that moved to another symbol before the join landed', async () => {
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  let joined
+  lakeJoined.mockImplementation(() => new Promise((r) => { joined = r }))
+  storeWarm.mockImplementation(() => Promise.resolve('cache'))
+  const view = render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  await new Promise((r) => setTimeout(r, 0))
+  view.rerender(<ChartPane sym="TSLA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  joined(true)
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual([])
+  expect(nf.scanNeighborsFor('TSLA')).toEqual([])
+  storeWarm.mockReset(); lakeJoined.mockReset(); lakeJoined.mockImplementation(() => Promise.resolve(false))
   nf.__setNeighborFramesForTests(null)
 })

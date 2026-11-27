@@ -1303,6 +1303,16 @@ export function createPrefetch(o = {}) {
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
    *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
    *  prepare waits for the join (bounded) so the first paint is the whole chart. */
+  /** ⭐ (2026-11-26, review of #2868) Resolves once no lake load of the key `sym` / `tf` is in flight (true when one was
+   *  waited for, false when none was running). Starts nothing; never rejects. The typed ticker's frame is prepared on
+   *  the bars Enter will read, so the pane names it only after the typed warm's lake join has landed (a frame prepared on
+   *  the rows before the join is filed under an array the switch no longer reads). */
+  function lakeJoined(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? S().lakeLoading?.(key) : null
+    return p ? Promise.resolve(p).then(() => true, () => true) : Promise.resolve(false)
+  }
+
   function lakePending(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     return !!key && !!S().lakePending?.(key)
@@ -2133,7 +2143,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
@@ -2157,6 +2167,7 @@ export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, o
 export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
+export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
