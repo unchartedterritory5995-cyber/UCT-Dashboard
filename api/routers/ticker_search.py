@@ -256,6 +256,35 @@ def _fallback_symbol_scan(qq: str, limit: int):
     return out
 
 
+# ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") THE UNIVERSE, FOR THE CLIENT'S KEYSTROKE. The chart's
+# symbol search learns that typed text IS a ticker only from an answer of this module, and at a typist's pace (150-250 ms
+# a key) the debounced, aborted search answer never lands before the next key: the chart could only start fetching the
+# typed ticker 140 ms after the last key (the typing pause), 10 ms before an Enter. With the list in the browser, the
+# exact ticker is known on its last key and a unique completion on its prefix (app/src/lib/tickerUniverse.js). The same
+# list `/api/ticker-search` scans (`services.cap_universe`: public listed symbols, no UCT breadth rows), open like that
+# route (test_bars_data_auth: ordinary symbol lookup works for everyone). `v` names the list, so a client cache of an
+# older one is replaced; the edge and the browser may keep an answer for an hour.
+_UNIVERSE_VERSION = None
+
+
+def _universe_version() -> str:
+    global _UNIVERSE_VERSION
+    if _UNIVERSE_VERSION is None:
+        import hashlib
+        _UNIVERSE_VERSION = hashlib.sha1(",".join(_UNIVERSE).encode()).hexdigest()[:12]
+    return _UNIVERSE_VERSION
+
+
+@router.get("/api/ticker-universe")
+def ticker_universe():
+    """`{"v": <list id>, "symbols": [sorted upper-case tickers]}`: the cap universe the symbol search ranks."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        {"v": _universe_version(), "symbols": list(_UNIVERSE)},
+        headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"},
+    )
+
+
 @router.get("/api/ticker-search")
 def ticker_search(
     q: str = Query("", max_length=48),
