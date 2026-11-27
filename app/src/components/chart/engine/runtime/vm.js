@@ -2051,3 +2051,9 @@ export function execute(program, ctx, limits, opts) {
     ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}),
     ...(broker ? { broker: broker.summary() } : {}) }
 }
+
+// ⭐ START-TAINT: for vmTaint.js — the module-level names `execute` reads, for its generated twin
+// (`app/scripts/gen-vm-taint.mjs` refuses to generate while one is missing here). Nothing else imports them.
+export { ADD, SUB, MUL, DIV, LT, GT, LE, GE, EQ, NE, AND, OR, NOT, NEG, PW, CLOCK_GETTER, DISARMED_NO_OPS, runNow, runRequest, NO_OUTPUT, _regionScopeOff, countsOf, chargedSince, OP_HALT }
+// ⭐⭐ START-TAINT PART 2 — the off-listing taint run (`docs/pine/START-TAINT.md`), chosen once per run by its caller
+export { executeTainted } from './vmTaint.js'

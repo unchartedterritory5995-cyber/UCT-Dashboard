@@ -44,7 +44,7 @@ import {
   tailRetriesExhausted,
 } from '../../utils/intradayTailPoll'
 import { classifyIntradayTail } from '../../utils/marketSession'
-import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/barsBackfill'
+import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS, dateFirstPageFor } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
@@ -113,7 +113,7 @@ export function barsCountFor(key, { depth = 0, session = 'rth' } = {}) {
   const p = parseKey(key)
   if (!p) return FIRST_PAINT_BARS
   const eth = p.session ? p.session === 'eth' : session === 'eth'
-  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : FIRST_PAINT_BARS
+  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : dateFirstPageFor(p.tf)   // (D/W/M: a covering first page)
   const want = Math.max(base, Math.floor(Number(depth) || 0))
   return Math.min(want, fullBarsFor(p.tf) || want)
 }
@@ -315,7 +315,7 @@ export function createNetwork({
     const session = _session(r)
     const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
     const split = _splitFor(r, p)
-    const bars = split ? Math.min(wanted, FIRST_PAINT_BARS) : wanted
+    const bars = split ? Math.min(wanted, dateFirstPageFor(p.tf)) : wanted
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
     lastDelta.delete(r.key)
@@ -349,7 +349,7 @@ export function createNetwork({
       // record goes when the last chart leaves the key, and every return re-asked the history to join nothing older.
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
-      const joinedHere = heldNow > FIRST_PAINT_BARS && _deepJoinedAt(r.key, heldNow)
+      const joinedHere = heldNow > dateFirstPageFor(p.tf) && _deepJoinedAt(r.key, heldNow)
       if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
@@ -871,7 +871,7 @@ export function createNetwork({
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
       if (keys.get(key)?.splitOff) return false
       const held = registry.peek(key)?.bars.length ?? 0
-      if (held > FIRST_PAINT_BARS) return false
+      if (held > dateFirstPageFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
     },
     /**

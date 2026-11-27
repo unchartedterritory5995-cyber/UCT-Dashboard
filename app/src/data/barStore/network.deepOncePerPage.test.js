@@ -18,7 +18,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork } from './network'
 import { keyOf, ACTION } from './types'
-import { fullBarsFor } from '../../utils/barsBackfill'
+import { fullBarsFor, dateFirstPageFor } from '../../utils/barsBackfill'
+// (2026-11-27, #2934) the D tail's first page is a covering page (DATE_FIRST_PAGE): a saved copy DEEPER than it is the
+// case these rails are about, and the full-read recovery is any ask past it
+const FIRST = dateFirstPageFor('D')
+const SAVED = FIRST + 400
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); localStorage.removeItem('uct.barsHistory.enabled'); localStorage.setItem('uct.barsHistory.bucket', '5') })
@@ -45,7 +49,7 @@ function world({ history = 'ok', full = 'ok' } = {}) {
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
     }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
-    if (full === 'throw' && n > 600) throw Object.assign(new Error('origin down'), { status: 502 })
+    if (full === 'throw' && n > FIRST) throw Object.assign(new Error('origin down'), { status: 502 })
     return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), '2026-11-10').map((t) => bar(t)) }
   })
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
@@ -89,9 +93,9 @@ describe('BarStore deep daily history: once per page while held', () => {
     const w = world()
     await visit(w)
     w.registry.invalidate(w.key, 'test-reset')
-    w.registry.dispatch(w.key, { type: ACTION.IDB_HIT, key: w.key, payload: { bars: weekdays(1000, '2026-11-09').map((t) => bar(t)) } })
+    w.registry.dispatch(w.key, { type: ACTION.IDB_HIT, key: w.key, payload: { bars: weekdays(SAVED, '2026-11-09').map((t) => bar(t)) } })
     await visit(w)
-    expect(histCalls(w).length, 'a 1000-bar copy under a 3000-bar join was read as joined').toBe(2)
+    expect(histCalls(w).length, 'a copy deeper than the first page, under a 3000-bar join, was read as joined').toBe(2)
     expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
   })
 
@@ -115,10 +119,10 @@ describe('BarStore deep daily history: once per page while held', () => {
 
   it('D6 (red first) a join that ended in an error records no depth: the next key life asks again', async () => {
     const w = world({ history: 'throw', full: 'throw' })
-    w.registry.dispatch(w.key, { type: ACTION.IDB_HIT, key: w.key, payload: { bars: weekdays(1000, '2026-11-09').map((t) => bar(t)) } })
+    w.registry.dispatch(w.key, { type: ACTION.IDB_HIT, key: w.key, payload: { bars: weekdays(SAVED, '2026-11-09').map((t) => bar(t)) } })
     await visit(w, w.net, 200)
     expect(histCalls(w).length).toBe(1)
-    expect(w.registry.getSnapshot(w.key).depth).toBe(1000)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(SAVED)
     await visit(w, w.net, 200)
     expect(histCalls(w).length, 'the depth of a failed join read as joined in the next key life').toBe(2)
   })

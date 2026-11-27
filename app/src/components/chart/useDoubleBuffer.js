@@ -33,7 +33,8 @@ import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
-import { recordPaint } from './paintLog'
+import { recordPaint, viewNeed } from './paintLog'
+import { heldRows } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
   doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, noteDecision, noteRetarget,
@@ -79,6 +80,7 @@ export function doubleBufferEligible({ scope, color, parentVis }) {
 const _ric = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 50))
 const _cic = (h) => { try { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(h); else clearTimeout(h) } catch { /* gone */ } }
 const MIRROR_DEBOUNCE_MS = 120
+const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /**
  * @param {object} o
@@ -91,7 +93,7 @@ const MIRROR_DEBOUNCE_MS = 120
  * @param {object|null} o.parentVis   the board's layer handle, or null
  * @param {() => object[]} o.panes    each layer's pane instance (ChartPane's imperative handle: getDateMeta, viewDo, focus)
  * @param {() => Element[]} o.layerEls each layer's wrapper element
- * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function}}
+ * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
 export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
@@ -113,6 +115,9 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
   const heldRef = useRef(false)             // the widget holds a shadow NOW (set in the board handle's own task)
+  const timesRef = useRef({ set: [null, null], report: [null, null] })   // when each layer was last set to a row / last reported
+  const waitFrontRef = useRef(null)         // the mount's retarget, waiting for the front chart's first report (LOW-2)
+  const firstRetargetRef = useRef(false)    // the widget's first retarget has been scheduled
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
   // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
@@ -173,8 +178,28 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       const p = panes ? panes() : []
       return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.())
     }
-    const d = flipDecision(want, report, barsNowFor, view)
-    pendingRef.current = { d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1 }
+    let d = flipDecision(want, report, barsNowFor, view)
+    // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
+    // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
+    // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
+    // press takes the normal switch, which holds for a covering page.
+    if (d.flip && BARSTORE && report) {
+      const need = viewNeed(member)
+      let rows = 0
+      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, upTo: need }) || 0 } catch { rows = 0 }
+      if (rows && rows < need) d = { flip: false, why: 'shadow-short' }
+    }
+    // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
+    // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
+    if (d.why === 'no-shadow') {
+      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row' : 'shadow-unreported' }
+    }
+    const now = _now()
+    const t = timesRef.current
+    pendingRef.current = {
+      d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1,
+      sinceSet: t.set[s] != null ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] != null ? Math.round(now - t.report[s]) : null,
+    }
     if (d.flip) {
       setBuf({ syms: buf.syms, front: s })
     } else {
@@ -194,7 +219,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     const p = pendingRef.current
     if (!p) return
     pendingRef.current = null
-    noteDecision(p.d, p.sym)
+    noteDecision(p.d, p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport })
     if (!p.d.flip) return
     recordPaint(p.sym, p.tf, p.bars, 'flip', member)
     try {
@@ -236,19 +261,34 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
     reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, settings: settingsRef.current }
+    timesRef.current.report[i] = _now()
+    // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
+    // the board's first paint, and is still set long before the first press
+    if (i === bufRef.current.front && waitFrontRef.current) { const w = waitFrontRef.current; waitFrontRef.current = null; w() }
     if (i !== bufRef.current.front) scheduleMirror()
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
   const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) scheduleMirror() })
+  // (review of #2932) the pane shown NOW takes the focus: ChartPane's refocus after a typed Enter calls this when its own
+  // pane is the inert old front (the Enter FLIPPED), so the keys go on reaching the chart (chart/layerPaint.js)
+  const panesRef = useRef(panes)
+  panesRef.current = panes
+  const [focusFront] = useState(() => () => {
+    try { panesRef.current?.()?.[bufRef.current.front]?.focus?.() } catch { /* a pane mid-unmount: nothing to focus */ }
+  })
 
   // ── the retarget: after the front's symbol changed (or the list publishes), the hidden pane takes the next row ──
+  // ⭐ (2026-11-27, the live dry run: 1 s presses found the hidden pane not on the row ahead yet) RIGHT AFTER THE FRAME,
+  // not in idle time: a page busy with streams and history landing gave `requestIdleCallback` no idle period for most of
+  // a second. The retarget is a transition (React yields to any press), scheduled after the paint of the frame that
+  // showed the press (utils/afterPaint); at mount after the FRONT chart's first pass (review of #2930, LOW-2), so the
+  // FIRST press finds it too. ONE pending schedule at a time (LOW-1): a live-sorted list republishes its neighbours often.
   const frontSym = buf.syms[buf.front]
   useEffect(() => {
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
-    let idle = 0
+    let pending = null
     const run = () => {
-      idle = 0
       if (!alive) return
       const b = bufRef.current
       const f = b.syms[b.front]
@@ -256,6 +296,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
       const s = 1 - b.front
       if (!next || next === f || b.syms[s] === next) return
       reportsRef.current[s] = null
+      timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
       noteRetarget()
       startTransition(() => {
         setBuf((x) => {
@@ -266,12 +307,29 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         })
       })
     }
-    const schedule = () => { if (alive && !idle) idle = _ric(run) }
-    const cancelPaint = afterPaint(schedule)
+    const schedule = () => {
+      if (!alive) return
+      if (pending) pending()
+      pending = afterPaint(() => { pending = null; run() })
+    }
+    if (!firstRetargetRef.current && !reportsRef.current[bufRef.current.front]) waitFrontRef.current = schedule
+    else schedule()
+    firstRetargetRef.current = true
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
-    return () => { alive = false; cancelPaint(); if (idle) _cic(idle); offScan() }
+    return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
   }, [eligible, slotOk, frontSym])
 
-  return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged }),
-    [eligible, buf, handles, reporters, viewChanged])
+  // (review of #2930, LOW-4) a layer's `set` time is when its new row COMMITS (the retarget's transition), not when the
+  // retarget asked for it
+  const prevSymsRef = useRef(buf.syms)
+  useLayoutEffect(() => {
+    const was = prevSymsRef.current
+    prevSymsRef.current = buf.syms
+    for (const i of [0, 1]) {
+      if (i !== buf.front && buf.syms[i] != null && buf.syms[i] !== was[i]) timesRef.current.set[i] = _now()
+    }
+  }, [buf])
+
+  return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged, focusFront }),
+    [eligible, buf, handles, reporters, viewChanged, focusFront])
 }

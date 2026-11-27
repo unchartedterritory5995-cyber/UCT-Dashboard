@@ -26,7 +26,9 @@ describe('e98 — a paint our run did not draw because it stopped', () => {
     expect(runStopOf({ a: { guard: 'runtime:limit', message: 'the VM limit' } })).toEqual({ code: 'runtime:limit', reason: 'the VM limit' })
     expect(runStopOf({ a: { guard: 'other-symbol:not-held' } })).toBe(null)
     expect(runStopOf({})).toBe(null)
-    expect([...RUN_STOP_GUARDS].sort()).toEqual(['runtime:failed', 'runtime:limit', 'runtime:time-budget'])
+    expect(runStopOf({ a: { guard: 'runtime:history-start', message: 'bars do not start at the listing' } }))
+      .toEqual({ code: 'runtime:history-start', reason: 'bars do not start at the listing' })
+    expect([...RUN_STOP_GUARDS].sort()).toEqual(['runtime:failed', 'runtime:history-start', 'runtime:limit', 'runtime:time-budget'])
   })
 
   it('a stopped run\'s missing paint is INCONCLUSIVE, by the run\'s name', () => {
@@ -38,6 +40,17 @@ describe('e98 — a paint our run did not draw because it stopped', () => {
     expect(v.reason).toContain('our run stopped (runtime:limit)')
   })
 
+  // ⭐ e102 follow-up (coordinator ruling 2026-11-27): a run REFUSED BY NAME as `runtime:history-start` (the curtain off,
+  // #2893) withholds plots, paints and drawings together; ⚰️ master cae9fb8ac7's regen graded four SPY 1D captures
+  // DIVERGE for its unrun paint alone (fvg-trend, trend-targets-algoalpha, inside-bar-boxes, ML-MA backquant)
+  it("a run withheld as runtime:history-start: its missing paint is INCONCLUSIVE, by the run's name", () => {
+    const g = gradePaints(capture(), ours({ paintRunStop: { code: 'runtime:history-start' } }))
+    expect(g.rows[0]).toMatchObject({ state: 'withheld', by: 'run', code: 'runtime:history-start' })
+    const v = comparePaints(g)
+    expect(v.verdict).toBe('INCONCLUSIVE')
+    expect(v.reason).toContain('our run was withheld by name (runtime:history-start)')
+  })
+
   it('CONTROL: a paint missing with NO run stop is still DIVERGE', () => {
     const v = comparePaints(gradePaints(capture(), ours()))
     expect(v.verdict).toBe('DIVERGE')
@@ -46,6 +59,7 @@ describe('e98 — a paint our run did not draw because it stopped', () => {
   it('CONTROL: a paint DRAWN in the wrong colour is still DIVERGE, run stop or not', () => {
     const drawnWrong = { paints: [{ kind: 'bgcolor', line: 7, title: null, colors: T.map(() => '#00ff00ff') }] }
     expect(comparePaints(gradePaints(capture(), ours({ ...drawnWrong, paintRunStop: { code: 'runtime:limit' } }))).verdict).toBe('DIVERGE')
+    expect(comparePaints(gradePaints(capture(), ours({ ...drawnWrong, paintRunStop: { code: 'runtime:history-start' } }))).verdict).toBe('DIVERGE')
     expect(comparePaints(gradePaints(capture(), ours(drawnWrong))).verdict).toBe('DIVERGE')
   })
 })
