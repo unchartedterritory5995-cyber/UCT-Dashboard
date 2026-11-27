@@ -1297,3 +1297,14 @@ and the one layer primitive (`components/chart/boardLayer.js`). The handle is re
 against the 2,266,113 B line (+733 B). Raised by the owner's standing approval of budget raises, given 2026-11-27
 ("just raise the budget and get it done", then "always"): max 2,266,113 -> 2,268,161 B (+2,048 B, headroom for the
 double-buffered row itself, #2922), listed in `owner_raises`.
+
+## 2026-11-27: +4,096 B for a first paint that holds the rows its view will draw (#2934), owner standing approval
+
+#2934 makes a symbol's first paint wait for the rows its view will draw: the chart records its view width on its paint
+token (`components/chart/paintLog.js`), the handoff and the double buffer read it (`useSymbolHandoff`, `useDoubleBuffer`),
+the daily first page is a covering page (`utils/barsBackfill.js`), the header follows the symbol the chart last painted,
+and the typed warm fetches every linked chart's key (`data/barStore/prefetch.js`). The handoff and bar-store hooks are
+shared, so this sits in the main chunk, and the Notebook's first open grew: CI read 2,268,832 B at 14e9a22bd6 against
+the 2,268,161 B line (+671 B). Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just raise
+the budget and get it done", then "always"): max 2,268,161 -> 2,272,257 B (+4,096 B, headroom for the stacked
+typed-universe / prefetch PR), listed in `owner_raises`.
