@@ -49,6 +49,7 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import useStaggeredMount from './grid/useStaggeredMount'
+import { createBoardSwitchMark } from './boardSwitchMark'
 import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
@@ -893,6 +894,27 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+  // ⚡ (2026-11-26, the board switch; owner: "jumpy") A LAYOUT SWITCH NEVER ANIMATES THE WIDGETS. react-grid-layout's item
+  // transition (`all 200ms`) belongs to drag and resize gestures. A switch to a layout that keeps a widget's id (a layout
+  // saved from another keeps them) kept its grid item and ANIMATED the new size and place over 200 ms: the chart resized
+  // and its header re-fitted at every step (bench: 463 -> 529 -> 670 -> 846 -> 1124 -> ... -> 1400 px over ~230 ms).
+  // `switchLayout` marks the grid `charts-switching` (transition none, ChartsWorkspace.module.css, as `.charts-resizing`
+  // does during a resize) BEFORE the commit that shows the new board, and clears it once the next frame has drawn, so a
+  // later drag or resize animates exactly as before. Every whole-board replacement goes through it.
+  // ⛔ ON THE GRID'S DOM NODE, NOT IN STATE: a state flag would re-render the whole board once more two frames after every
+  // switch just to drop a class. React leaves the node's class alone while the grid's className prop is unchanged.
+  // ⛔ THE TWO FRAMES COUNT FROM THE COMMIT, NOT THE CALL (review of #2860): a switch made after an await or from an
+  // effect (the first prefs load, the default resolve, a version restore, a revert) commits in a later task, and frames
+  // counted from the call could be spent on the OLD board. The call marks the node; the layout effect of the commit that
+  // shows the new board arms the two frames (boardSwitchMark.js).
+  const switchMarkRef = useRef(null)
+  if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
+  const switchLayout = useCallback((next) => {
+    const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
+    if (grid && next !== layoutRef.current) switchMarkRef.current.mark(grid)
+    setLayout(next)
+  }, [])
+  useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
@@ -917,10 +939,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (loadedFromPrefsRef.current) return
     const parsed = parseLayout(prefs?.charts_workspace_layout)
     if (parsed) {
-      setLayout(parsed)
+      switchLayout(parsed)
       loadedFromPrefsRef.current = true
     }
-  }, [prefs?.charts_workspace_layout])
+  }, [prefs?.charts_workspace_layout, switchLayout])
 
   // Hydration gate: don't persist until server prefs have settled, so RGL's
   // on-mount onLayoutChange can't clobber a returning user's saved layout with the
@@ -2284,7 +2306,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const latest = seq === boardCommitSeqRef.current
     if (latest) boardCommitInFlightRef.current = false
     // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
-    if (op.stale()) { if (latest) { putColsBack(); setLayout(beforeLayout) } return 'stale' }
+    if (op.stale()) { if (latest) { putColsBack(); switchLayout(beforeLayout) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       onCommitted?.()
@@ -2298,17 +2320,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
       putColsBack()
-      setLayout(current || beforeLayout)
+      switchLayout(current || beforeLayout)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
     // failed: put back exactly what was on screen before the switch
     for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
     putColsBack()
-    setLayout(beforeLayout)
+    switchLayout(beforeLayout)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
-  }, [setPref])
+  }, [setPref, switchLayout])
 
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
@@ -2340,7 +2362,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => { setLayout(boardLayout); setOpenMenuOpen(false) },
+      applyLocal: () => { switchLayout(boardLayout); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2388,7 +2410,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
       },
     })
-  }, [commitBoard, flashSaved, suppressAutoSave])
+  }, [commitBoard, flashSaved, suppressAutoSave, switchLayout])
 
   // Terminal-grade property 3, "saved things become names, and names are
   // addresses" — opens a specific saved board directly from a URL, the same
@@ -2496,7 +2518,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => { if (!keepBoard) setLayout(normalized) },
+      applyLocal: () => { if (!keepBoard) switchLayout(normalized) },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
@@ -2524,7 +2546,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           : 'null')
       },
     })
-  }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave])
+  }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave, switchLayout])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -2572,9 +2594,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       return
     }
     // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
-    if (UCT_DEFAULT_OFFERED || d.fromTemplate) setLayout(d.layout)
+    if (UCT_DEFAULT_OFFERED || d.fromTemplate) switchLayout(d.layout)
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState, switchLayout])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
@@ -2591,7 +2613,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const blank = { widgets: [], cols: GRID_COLS }
     const g = { A: null, B: null, C: null, D: null }
     commitBoard({
-      applyLocal: () => { setLayout(blank); setGroupSymsState(g) },
+      applyLocal: () => { switchLayout(blank); setGroupSymsState(g) },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(blank))
         setPref('charts_workspace_groups', JSON.stringify(g))
@@ -2611,7 +2633,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         setPref('charts_active_template', activeTemplate ? JSON.stringify(activeTemplate) : 'null')
       },
     })
-  }, [commitBoard, suppressAutoSave, setGroupSymsState])
+  }, [commitBoard, suppressAutoSave, setGroupSymsState, switchLayout])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2950,7 +2972,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     const restoredLayout = parseLayout(fresh.charts_workspace_layout)
     if (restoredLayout) {
-      setLayout(restoredLayout)
+      switchLayout(restoredLayout)
       loadedFromPrefsRef.current = true
     }
     const g = parsePref(fresh.charts_workspace_groups, null)
@@ -2974,7 +2996,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     } else {
       showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
     }
-  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState])
+  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState, switchLayout])
   const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded

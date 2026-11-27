@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Mapping, Optional
 from api.services.catalyst import cost_guard
 from api.services import definition_concierge as dc
 from api.services import code_paste
-from api.services import pine_authoring
+from api.services import pine_authoring, strategy_authoring
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +49,8 @@ MAX_SCRIPT_CALLS = 2
 MAX_REPAIR_ROUNDS = 2
 REFUSAL_MAX_ERRORS, REFUSAL_MAX_CHARS = 6, 300
 DECLINED_GATE = "script:unsupported"
+#: ⭐ 2026-11-26 -- the browser's strategy gate refused a written strategy: answered by name, never repaired.
+STRATEGY_WALL_GATE = "script:strategy-wall"
 SHAPE_GATE = "script:shape"
 ROUNDS_GATE = "script:rounds"
 REFUSED_TOOL_USE_ID = "toolu_engine_refusal"
@@ -162,7 +164,7 @@ def pasted_pine_turn(message: str, *, revision: int, contract: str,
     script turn rewrites it. It is the member's own code, so no "built from your description" line is added."""
     from api.services import runtime_definitions
     pine = code_paste.pine_of(message)
-    if pine_authoring.script_problem(pine) is not None:
+    if pine_authoring.script_problem(pine, strategy=True) is not None:     # the member's own strategy goes to the gate too
         return None
     trace = trace if trace is not None else {}
     title = _PINE_TITLE.search(pine)
@@ -187,6 +189,18 @@ def wants_script(message: Any) -> bool:
     return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message) or _SCRIPT_ONLY_ASKS.search(message))
 
 
+def wall_reason(walled: Any, errors: Any) -> str:
+    """What a member is told when the broker refuses a written strategy: the rule by name when it is an unpinned one,
+    else the broker's own sentence."""
+    wall, rule = walled
+    if rule:
+        return strategy_authoring.unpinned_reply(rule)
+    said = next((e.split(": ", 1)[1] for e in errors or [] if isinstance(e, str)
+                 and e.startswith(strategy_authoring.STRATEGY_WALL_MARK + " ") and ": " in e), "")
+    return ("This strategy's backtest doesn't run on this chart" + (f": {said.rstrip('.')}." if said else ".") +
+            " Ask for the entry and exit rules as an indicator and the assistant will mark each signal on your chart.")
+
+
 def script_refusal(raw: Any) -> Optional[Dict[str, Any]]:
     """The browser engine's refusal of a script this door offered for this same request:
     ``{pine, errors, round}`` bounded, or None when it is not usable (then the turn is ordinary).
@@ -195,7 +209,7 @@ def script_refusal(raw: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(raw, Mapping):
         return None
     pine = raw.get("pine")
-    if pine_authoring.script_problem(pine) is not None:
+    if pine_authoring.script_problem(pine, strategy=True) is not None:     # a refused script of ours may be a strategy
         return None
     errors = [re.sub(r"\s+", " ", e).strip()[:REFUSAL_MAX_CHARS] for e in (raw.get("errors") or [])
               if isinstance(e, str) and e.strip()] if isinstance(raw.get("errors"), list) else []
@@ -212,7 +226,7 @@ def system_blocks() -> List[Dict[str, Any]]:
     return [{"type": "text", "text": pine_authoring.document(), "cache_control": {"type": "ephemeral"}}]
 
 
-def _request_text(message: str, chart: Any) -> str:
+def _request_text(message: str, chart: Any, strategy: bool = False) -> str:
     sym = chart.get("sym") if isinstance(chart, Mapping) else None
     tf = chart.get("tf") if isinstance(chart, Mapping) else None
     on = f" The member's chart shows {sym}" + (f" on the {tf} timeframe." if tf else ".") if sym else ""
@@ -223,8 +237,11 @@ def _request_text(message: str, chart: Any) -> str:
     # ⭐ the recipes this request NAMES (`pine_authoring.recipes_for`): whole scripts the engine is known
     # to run, as data beside the request. Our own text, never the member's.
     found = pine_authoring.recipes_text(pine_authoring.recipes_for(message))
+    # ⭐ 2026-11-26 -- A STRATEGY REQUEST CARRIES ITS BRIEF (`strategy_authoring.strategy_brief`: the order calls and the
+    # broker behaviours confirmed / not confirmed, read from the engine). In the REQUEST, never the cached document.
+    brief = f"\n\n{strategy_authoring.strategy_brief()}" if strategy else ""
     return (f"<member_request>{dc.escape_json(message)}</member_request>{on} "
-            "Write the script with the emit_script tool." + (f"\n\n{found}" if found else ""))
+            "Write the script with the emit_script tool." + (f"\n\n{found}" if found else "") + brief)
 
 
 #: ⭐ A REFUSED SCRIPT GOES BACK TO ITS RECIPE (found live 2026-11-19). Two requests that each have a proven
@@ -258,8 +275,8 @@ def _recipe_line(message: str, refused: Mapping[str, Any]) -> str:
     return RECIPE_BACK_LINE.replace("{recipes}", " / ".join(f"`{r['title']}`" for r in handed))
 
 
-def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) -> List[dict]:
-    out: List[dict] = [{"role": "user", "content": _request_text(message, chart)}]
+def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]], strategy: bool = False) -> List[dict]:
+    out: List[dict] = [{"role": "user", "content": _request_text(message, chart, strategy)}]
     if refused:
         words = " ".join(f"({i + 1}) {e}" for i, e in enumerate(refused["errors"]))
         out += [
@@ -301,7 +318,8 @@ def _refused(gate: str, reason: Optional[str] = None, **extra: Any) -> Dict[str,
 
 def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls: List[Dict[str, Any]],
                 revision: int, contract: str, trace: Optional[Dict[str, Any]] = None,
-                refused: Optional[Mapping[str, Any]] = None, cancelled: Any = None) -> Dict[str, Any]:
+                refused: Optional[Mapping[str, Any]] = None, cancelled: Any = None,
+                strategy: bool = False) -> Dict[str, Any]:
     """One script turn. NEVER raises. Returns the door's result dict: on success
     ``{ok, disposition: "answer", turn: "script", reply, script: {name, pine, round}, envelope, ...}``;
     the envelope is an answer that changes nothing (the script is not a patch: the browser's engine
@@ -311,8 +329,13 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
     trace["script"] = {"round": rnd}
     if refused and rnd > MAX_REPAIR_ROUNDS:
         return _refused(ROUNDS_GATE)
+    # ⭐ 2026-11-26 -- THE BROKER REFUSED A WRITTEN STRATEGY (the browser's gate, `strategyGate.js`): answered BY NAME,
+    # with no repair round and no call. A rule UCT has not confirmed is what the request needs, not a slip to fix.
+    walled = strategy_authoring.strategy_wall(refused.get("errors")) if refused else None
+    if walled is not None:
+        return _refused(STRATEGY_WALL_GATE, wall_reason(walled, refused.get("errors")))
     market_date = dc._market_date()
-    messages = _messages(message, chart, refused)
+    messages = _messages(message, chart, refused, strategy)
     tokens = {"input": 0, "output": 0}
     cost_usd, attempts = 0.0, 0
     other_read_repaired = False
@@ -365,7 +388,7 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             trace["script"]["declined"] = True
             return _refused(DECLINED_GATE, reply or None, disposition="unsupported", **extra())
         pine = answer.get("pine") if isinstance(answer, dict) and answer.get("disposition") == "script" else None
-        problem = pine_authoring.script_problem(pine)
+        problem = pine_authoring.script_problem(pine, strategy=strategy)
         # ⭐ A READ OF ANOTHER SYMBOL OR TIMEFRAME NOBODY ASKED FOR GETS ONE REPAIR (2026-11-22, the rule and its
         # reasons at `pine_authoring.other_read_asked`). Decided by reading THIS script's own requests against the
         # member's words and the chart. ONE repair, inside this turn's own call limit; a second answer that still

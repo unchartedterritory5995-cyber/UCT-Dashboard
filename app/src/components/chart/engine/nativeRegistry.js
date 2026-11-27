@@ -3796,6 +3796,57 @@ function heldDivergenceRefused(def, errors, killedIds) {
   return true
 }
 
+// ─── ⭐⭐ (e101 S4, coordinator GO 2026-11-27) — AN UNCHANGED LIST IS NOT VALIDATED TWICE ─────────────────────────────
+//
+// ⚰️ MEASURED (node, a remote runner, 27 member documents: 18 `ast`, 9 runtime): `validateUserDefinitions` 125-178 ms,
+// and installing the SAME list again 153 ms, because nothing was kept. Since #2865 every load validates the member's
+// kept list on the chart's first render, and validates it again in full when the store's answer lands, which is
+// almost always the same list.
+// So the PURE stage is kept for the last lists seen, keyed on their content: the whole list's JSON, compared as text (no
+// hash, so no collision can hand one list another's verdicts). The key is the LIST, not each document: a definition may
+// source another's columns (`registerDefinitions`).
+//   * the projection (`projectMemberDocument`) and the schema's three passes (`registerDefinitions`);
+//   * each `ast` document's gates (`validateAstLane`: the linter, the budget, the freshness), computed when first asked.
+// Both are functions of the documents' content and of this bundle (`closedTable.json`, the schema) alone.
+// ⛔ EVERY LIVE GATE IS ASKED AGAIN ON EVERY CALL (`validateUserDefinitions`'s loop): the runtime pane's permission,
+// the kill list (`runtimeKillOf`), the held-divergence and known-divergence stamps. A stamp is content, so a changed
+// stamp is a changed key as well. ⛔ The kept stage holds no live answer and is never written back into a document.
+const VALIDATION_MEMO_CAP = 2
+const _validationMemo = new Map()   // list content key -> { base, laneErrorsOf }
+const _validationMemoStats = { hits: 0, misses: 0, pureRuns: 0 }
+let _validationMemoOff = false
+/** Tests: validate every list in full (the identity rails compare both ways). */
+export function __validationMemoOffForTests(off) { _validationMemoOff = !!off; _validationMemo.clear() }
+/** ⭐ What the memo did (diagnostics and its rails). */
+export function validationMemoStats() { return { ..._validationMemoStats, kept: _validationMemo.size } }
+function pureValidationOf(rawDefs) {
+  const compute = () => {
+    _validationMemoStats.pureRuns += 1
+    const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
+    const lane = new Map()
+    return { base, laneErrorsOf: (def) => {
+      if (!lane.has(def)) lane.set(def, validateAstLane(def))
+      return lane.get(def)
+    } }
+  }
+  if (_validationMemoOff || !Array.isArray(rawDefs)) return compute()
+  let key
+  try { key = JSON.stringify(rawDefs) } catch { return compute() }
+  if (typeof key !== 'string') return compute()
+  const kept = _validationMemo.get(key)
+  if (kept) {
+    _validationMemoStats.hits += 1
+    _validationMemo.delete(key)
+    _validationMemo.set(key, kept)
+    return kept
+  }
+  _validationMemoStats.misses += 1
+  const fresh = compute()
+  _validationMemo.set(key, fresh)
+  while (_validationMemo.size > VALIDATION_MEMO_CAP) _validationMemo.delete(_validationMemo.keys().next().value)
+  return fresh
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3839,7 +3890,10 @@ export function validateUserDefinitions(rawDefs) {
   // idempotent (`memberDocumentMigration.js`): a condition column its parameter
   // manifest never placed, and a handle an old parameter edit left stale. Never a
   // server-side write: the stored row is untouched; only what this tab installs moves.
-  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
+  // ⭐⭐ (e101 S4) the pure stage (projection, schema, the `ast` gates) is read from the memo for a list it has seen;
+  // every LIVE gate below (the runtime pane's permission, the kill list, the stamps) is asked again on every call
+  const pure = pureValidationOf(rawDefs)
+  const base = pure.base
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or
@@ -3908,7 +3962,7 @@ export function validateUserDefinitions(rawDefs) {
       }
       // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
       if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
-      const laneErrors = validateAstLane(def)
+      const laneErrors = pure.laneErrorsOf(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
         continue
@@ -6154,7 +6208,8 @@ export function installUserDefinitions(rawDefs) {
       continue
     }
     const prev = _userById.get(def.id)
-    if (prev && installKey(prev) === installKey(def)) { installed.push(prev); continue }
+    // ⭐ (e101 S4) the SAME object (an unchanged list read from the validation memo): the same claim, nothing to print
+    if (prev && (prev === def || installKey(prev) === installKey(def))) { installed.push(prev); continue }
     _userById.set(def.id, def)
     _generation += 1
     installed.push(def)

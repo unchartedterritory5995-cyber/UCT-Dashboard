@@ -147,14 +147,15 @@ def test_a_formula_turn_that_declines_is_followed_by_a_script(conv, clean_env, m
     assert r["ok"] is True and r["turn"] == "script" and r["script"]["pine"] == GOOD
 
 
-def test_when_the_script_cannot_be_written_either_the_formula_turns_answer_stands(conv, clean_env, model, lane):
+def test_when_the_script_declines_too_its_own_reason_is_the_answer(conv, clean_env, model, lane):
     client = model([emits(env(0, [], disposition="unsupported", reply="A formula cannot hold that.")),
                     writes(disposition="unsupported", reply="The engine has no earnings data.")])
     r = ask(conv, "Show the five largest volume days of the year")
     assert len(client.calls) == 2
-    # the formula turn's own answer, word for word: its decline is an answer within the contract
+    # (2026-11-26, coordinator's ruling: the script turn's reason, the most specific truthful one --
+    # test_both_declined_says_the_script_reason.py)
     assert r.get("disposition") == "unsupported" and "script" not in r and r.get("turn") != "script"
-    assert r.get("gate") != sc.DECLINED_GATE and r["reply"] == "A formula cannot hold that."
+    assert r.get("gate") == sc.DECLINED_GATE and r["reason"] == "The engine has no earnings data."
 
 
 def test_a_script_the_assistant_declines_is_said_in_its_words(conv, clean_env, model, lane):

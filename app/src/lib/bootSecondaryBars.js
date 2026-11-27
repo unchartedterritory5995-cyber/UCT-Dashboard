@@ -21,7 +21,7 @@
 //    no longer needs a window stops remembering it on its next needed-set change (the record is the CURRENT set, never a
 //    history), so a removed indicator costs at most one extra request on the next load.
 //  * One use. A taken answer is gone; a later ask of the same URL fetches as it always did.
-//  * Fresh only. An answer older than BOOT_SECONDARY_MAX_AGE_MS is never handed out: the caller fetches.
+//  * One window. A boot answer not adopted within BOOT_SECONDARY_ADOPT_WINDOW_MS is never handed out: the caller fetches.
 //  * A failed or non-ok boot request is "no answer" (TERM-033's idiom), never an empty series: the caller fetches, and that
 //    request reports its own error. The bars route's own status rules (a 403 is a denial) therefore stay where they are.
 //  * Market data only: a bars window is the same for every member, and the request carries the session cookie exactly as
@@ -33,7 +33,9 @@ import { BARS_PATH } from '../components/chart/engine/secondaryBars'
 export const SECONDARY_NEEDS_KEY = 'uct.secondaryNeeds.v1'
 export const SECONDARY_NEEDS_MAX = 4
 export const SECONDARY_NEEDS_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000
-export const BOOT_SECONDARY_MAX_AGE_MS = 60_000
+// (how long a boot REQUEST may be adopted by the chart's own fetch of the same URL: a window on our own request, never an
+// age of the data, whose freshness has one authority, `provenance/freshnessAge.js`, TERM-006)
+export const BOOT_SECONDARY_ADOPT_WINDOW_MS = 60_000
 export const SIGNED_IN_HINT = 'uct.signedIn.v1'
 
 const needsByChart = new Map()   // chart slot -> urls (this page's charts, right now)
@@ -55,7 +57,7 @@ export function takeBootSecondaryBars(url) {
   const e = reg && typeof reg === 'object' ? reg[url] : null
   if (!e || typeof e !== 'object' || !e.p || typeof e.p.then !== 'function') return null
   delete reg[url]
-  if (!Number.isFinite(e.at) || now() - e.at > BOOT_SECONDARY_MAX_AGE_MS) return null
+  if (!Number.isFinite(e.at) || now() - e.at > BOOT_SECONDARY_ADOPT_WINDOW_MS) return null
   return e.p
 }
 

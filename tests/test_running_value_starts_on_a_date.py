@@ -214,7 +214,7 @@ def test_the_door_accepts_the_shape_as_built(conv, clean_env, model):
     r = conv.converse("plot a trailing stop that starts on 2 June 2026 at 2 times the 14 day ATR below the close and only ever moves up",
                       user_id="u1", view=empty_view(0), chart={"sym": "NVDA", "tf": "D"})
     assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1, (r.get("gate"), r.get("reason"))
-    assert [o["tree"] for o in r["envelope"]["ops"][0]["outputs"]] == [tree]
+    assert [o["tree"] for o in r["envelope"]["ops"][0]["outputs"]] == [conv.pine_twin_tree(tree)]  # as the door builds it (TradingView's twin): test_words_door_builds_pine_twins
 
 
 def test_the_instructions_give_the_shape_and_forbid_self_on_the_first_bar(conv):

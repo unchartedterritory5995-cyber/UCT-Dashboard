@@ -1,0 +1,41 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "G1",
+   "mutant": "the kill list is read from the memo (a live gate kept)",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "        || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })",
+   "to": "        || ((pure.k ||= new Map()).has(def.id) ? pure.k.get(def.id) : (pure.k.set(def.id, runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })), pure.k.get(def.id)))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/validationMemo.test.js",
+   "expectRed": "V3"
+  },
+  {
+   "id": "G2",
+   "mutant": "the runtime pane's permission is read from the memo (a live gate kept)",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "    if (kind === 'runtime' && runtimePaneEnabled()) {",
+   "to": "    if (kind === 'runtime' && (pure.p ??= runtimePaneEnabled())) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/validationMemo.test.js",
+   "expectRed": "V5"
+  },
+  {
+   "id": "G3",
+   "mutant": "the memo key ignores the list's content",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "  try { key = JSON.stringify(rawDefs) } catch { return compute() }",
+   "to": "  try { key = 'one list' } catch { return compute() }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/validationMemo.test.js",
+   "expectRed": "V2"
+  },
+  {
+   "id": "G4",
+   "mutant": "the install shortcut treats any document under a known id as the same claim",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "    if (prev && (prev === def || installKey(prev) === installKey(def))) { installed.push(prev); continue }",
+   "to": "    if (prev && (true || installKey(prev) === installKey(def))) { installed.push(prev); continue }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/validationMemo.test.js",
+   "expectRed": "V7"
+  }
+ ]
+}
