@@ -153,10 +153,15 @@ function _hash32(s) {
 /** What can change a header row's width WITHOUT asking for a layout: its CONTENT (the row's markup: text, classes,
  *  inline styles, icons; serialised, not laid out) and the page's layout generation. ⚰️ It recorded sizes (text length,
  *  element count, class-name lengths) until the review of #2873: an equal-length change (NVDA -> MSFT, an equal-length
- *  class swap, another icon) reused a "fits" measured on other content and could leave the header clipped. */
+ *  class swap, another icon) reused a "fits" measured on other content and could leave the header clipped.
+ *  ⭐ EVERY DIGIT READS AS 0 (delta review of #2873): the row holds live text (the day gain, the clock's seconds and its
+ *  `data-beat`, one-row meta values) and ChartPane renders on every price tick; every live digit is tabular-nums, so a
+ *  digit never changes a width, and a raw hash would force a layout per chart per tick. A sign, a separator or another
+ *  length still changes the signature; the digits of a symbol or company label (not tabular) are covered by the raw
+ *  `sym` and header label beside this in both signatures. */
 export function rowFitSig(el) {
   if (!el) return '-'
-  const html = el.innerHTML
+  const html = el.innerHTML.replace(/[0-9]/g, '0')
   return `${_fontGen}.${_styleGen}:${html.length}:${_hash32(html)}`
 }
 
@@ -782,7 +787,7 @@ function ChartPane({
     if (mini || oneRowMode) return
     const el = identityRef.current
     if (!el) return
-    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${rowFitSig(el)}`
+    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${sym}|${effHeaderLabel}|${rowFitSig(el)}`
     if (identityFitRef.current === sig) return
     identityFitRef.current = sig
     if (el.scrollWidth <= el.clientWidth + 1) return
@@ -815,7 +820,7 @@ function ChartPane({
       // very row). This ran on every ChartPane render: 62-78 forced layouts over 8 switches on the owner's board.
       const row = identityRef.current
       const tf = tfBarRef.current
-      const sig = `${paneWidth}|${rowLevel}|${rowFitSig(row)}|${rowFitSig(tf)}`
+      const sig = `${paneWidth}|${rowLevel}|${sym}|${effHeaderLabel}|${rowFitSig(row)}|${rowFitSig(tf)}`
       const last = ladderFitRef.current
       if (last && last.sig === sig) return last.clipped
       // the same row on this chart before this pane mounted (`_ladderClips`): the answer it read stands
