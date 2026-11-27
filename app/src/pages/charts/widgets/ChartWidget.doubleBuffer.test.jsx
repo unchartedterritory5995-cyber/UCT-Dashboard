@@ -301,27 +301,33 @@ test('W6 the two layers are mounted once: flips and retargets re-use the same tw
   expect(renders.unmounts - u0).toBe(0)
 })
 
-// (review of #2932) a typed Enter refocuses the chart (ChartPane handleSymbolChange) so the next keys reach it. On a FLIP the
-// pane that ran the search is the OLD front, inert by the time its refocus runs: the focus must land in the pane now shown
-const typeEnter = (paneSym, text) => {
+// (review of #2932) a typed Enter refocuses the chart (ChartPane handleSymbolChange, in the next frame) so the next keys
+// reach it. On a FLIP the pane that ran the search is the OLD front, inert by the time that frame runs: the focus must land
+// in the pane now shown. The frames the Enter asks for are held until its switch has committed: the order when the handoff
+// shows a warm row at once (here the handoff's own wait would otherwise let the frame run first, and F5 carry the focus).
+const typeEnter = async (paneSym, text) => {
   const input = screen.getByLabelText(`search ${paneSym}`)
   act(() => { input.focus() })
   fireEvent.change(input, { target: { value: text } })
-  fireEvent.submit(screen.getByTestId(`search-${paneSym}`))
+  const frames = []
+  const raf = globalThis.requestAnimationFrame
+  globalThis.requestAnimationFrame = (cb) => { frames.push(cb); return frames.length }
+  try { fireEvent.submit(screen.getByTestId(`search-${paneSym}`)) } finally { globalThis.requestAnimationFrame = raf }
+  await settle(200)                                         // the switch commits
+  act(() => { for (const cb of frames.splice(0)) cb(performance.now()) })   // then the Enter's frame
+  await settle(50)
 }
 test('W7 (review of #2932) a typed Enter that flips leaves the focus in the front layer, as a typed switch does', async () => {
   render(<Wrap />)
   await settle()
   expect(symIn(layer('shadow'))).toBe('BBB')
-  typeEnter('AAA', 'bbb')
-  await settle(200)
+  await typeEnter('AAA', 'bbb')
   expect(dbm.doubleBufferStats().flips).toBe(1)
   expect(symIn(layer('front'))).toBe('BBB')
   expect(layer('front').contains(document.activeElement), `focus is on ${document.activeElement?.tagName} ${document.activeElement?.getAttribute?.('aria-label') ?? ''}`).toBe(true)
   await settle()
   expect(symIn(layer('shadow'))).toBe('CCC')
-  typeEnter('BBB', 'aaa')                                   // not the hidden pane's row: the normal switch (the control)
-  await settle(200)
+  await typeEnter('BBB', 'aaa')                             // not the hidden pane's row: the normal switch (the control)
   expect(dbm.doubleBufferStats().flips).toBe(1)
   expect(symIn(layer('front'))).toBe('AAA')
   expect(layer('front').contains(document.activeElement)).toBe(true)
