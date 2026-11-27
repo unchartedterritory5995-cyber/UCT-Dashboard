@@ -40,6 +40,33 @@ const clock = pinWallClock('2026-11-14T16:00:00Z')
 afterAll(() => clock.restore())
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
 
+// ⭐ (2026-11-26) EACH PICTURE WAITS FOR ITS OWN LANDMARKS, NOT ONLY A FIXED SLEEP (the review of #2706, libraryWork's
+// rule). Under a loaded runner the first run's first picture (AAA) was taken while that run's chart was still
+// loading (the first run also pays the cold import), and the drawings differed at call 1 (#2811's queue run, chart
+// rails shard 3/3; green alone). After the step's own sleep, a picture now also waits until the chart has handed the
+// library its candles since the step began, then until the library has been handed nothing for QUIET_SLICES slices
+// in a row. A wait that never ends throws, naming the step.
+const SLICE_MS = 25
+const QUIET_SLICES = 8          // 200 ms in which the library is handed nothing
+const LIBRARY_WORK = new Set(['add', 'setData', 'update', 'remove'])
+const libraryCalls = () => S.calls.reduce((n, c) => n + (LIBRARY_WORK.has(c.m) ? 1 : 0), 0)
+async function untilSettled(what, from, deadlineMs = 30_000) {
+  const t0 = performance.now()
+  while (!S.calls.slice(from).some((c) => c.m === 'setData' && c.from != null)) {   // a candle series handed rows
+    if (performance.now() - t0 > deadlineMs) throw new Error(`${what}: the chart never handed the library its candles`)
+    await wait(SLICE_MS)
+  }
+  let n = libraryCalls()
+  let quiet = 0
+  while (quiet < QUIET_SLICES) {
+    await wait(SLICE_MS)
+    const now = libraryCalls()
+    if (now === n) quiet += 1
+    else { n = now; quiet = 0 }
+    if (performance.now() - t0 > deadlineMs) throw new Error(`${what}: the library was still being handed calls after ${deadlineMs} ms`)
+  }
+}
+
 const DAY = 86_400_000
 function dailyRows(n, k) {
   const out = []
@@ -98,13 +125,16 @@ async function run(anchor) {
   S.calls.push({ m: 'mark', label: 'AAA' })
   const view = render(chartOf('AAA'))
   await wait(1500)
+  await untilSettled('AAA', 0)
   picture('AAA')
   for (const sym of STEPS) {
     await hold(sym)
     await wait(200)
+    const mark = S.calls.length
     S.calls.push({ m: 'mark', label: sym })
     view.rerender(chartOf(sym))
     await wait(1000)
+    await untilSettled(sym, mark)
     picture(sym)
   }
   S.calls.push({ m: 'mark', label: 'unmount' })

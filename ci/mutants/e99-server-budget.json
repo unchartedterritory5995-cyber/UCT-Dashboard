@@ -1,0 +1,59 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "SB1",
+   "mutant": "the service stops passing the worker's budgetScales (back to the per-run 1,000 ms)",
+   "file": "services/pine_runtime/job.mjs",
+   "from": "budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true, incremental: false",
+   "to": "budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false",
+   "rail": "node --test services/pine_runtime/test/adapter.test.mjs",
+   "expectRed": "HP-7"
+  },
+  {
+   "id": "SB2",
+   "mutant": "the hard kill is a retyped 10 s, under the 12 s budget ceiling",
+   "file": "services/pine_runtime/server.mjs",
+   "from": "  return door.budget.ceilingMs + KILL_MARGIN_MS\n",
+   "to": "  return 10_000\n",
+   "rail": "node --test services/pine_runtime/test/budget.test.mjs",
+   "expectRed": "KILL"
+  },
+  {
+   "id": "SB3",
+   "mutant": "the boot does not hand the pool the derived kill",
+   "file": "services/pine_runtime/server.mjs",
+   "from": "workers: workersOf(env), killMs: serviceKillMs(door), ...poolOpts",
+   "to": "workers: workersOf(env), ...poolOpts",
+   "rail": "node --test services/pine_runtime/test/budget.test.mjs",
+   "expectRed": "KILL"
+  },
+  {
+   "id": "SB4",
+   "mutant": "a sweep job above the floor's bars is admitted",
+   "file": "services/pine_runtime/protocol.mjs",
+   "from": "  if (profile === 'sweep' && Number.isSafeInteger(sweepMaxBars) && bars.n > sweepMaxBars) {",
+   "to": "  if (false) {",
+   "rail": "node --test services/pine_runtime/test/budget.test.mjs",
+   "expectRed": "SWEEP"
+  },
+  {
+   "id": "SB5",
+   "mutant": "no per-request cap: every job runs whatever its request asks",
+   "file": "services/pine_runtime/server.mjs",
+   "from": "      if (extra + add > REQUEST_EXTRA_BUDGET_MS) { over.add(i); return }\n",
+   "to": "",
+   "rail": "node --test services/pine_runtime/test/budget.test.mjs",
+   "expectRed": "CAP"
+  },
+  {
+   "id": "SB6",
+   "mutant": "the result lane path bypasses the cap",
+   "file": "services/pine_runtime/server.mjs",
+   "from": "resultLane.answer(checked.request, runJobs, seal)",
+   "to": "resultLane.answer(checked.request, runner, seal)",
+   "rail": "node --test services/pine_runtime/test/budget.test.mjs",
+   "expectRed": "CAP"
+  }
+ ]
+}

@@ -1,0 +1,249 @@
+"""The extended-session rule on the LIVE path, and the one-off purge (2026-11-25, the follow-up to #2781).
+
+#2781 clamped the serve path. A print at 20:00:05 ET still opened a live 20:00 minute (and a 20:00 60m eth bar) through
+`bar_broadcaster._accept_minute`, the REST developing row (`bar_contract._live_partial`) passed it on, and a client kept
+it, because a delta answer never deletes a bar. The store also still held the old SPY 60m rows stamped 20:00. Here:
+the live gate, the developing row, the one-off purge (one history_rev bump per series), and the case list the client
+mirror (`app/src/data/barStore/extendedSession.js`) is pinned to.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from api.services import bars_fetch
+
+_ET = ZoneInfo("America/New_York")
+_CASES = json.loads((Path(__file__).parent / "fixtures" / "session_clamp_cases.json").read_text(encoding="utf-8"))
+
+
+def _s(y, mo, d, h, mi, sec=0) -> int:
+    return int(datetime(y, mo, d, h, mi, sec, tzinfo=_ET).timestamp())
+
+
+def _iso(s: str) -> int:
+    return int(datetime.fromisoformat(s).replace(tzinfo=_ET).timestamp())
+
+
+def test_the_case_list_the_client_mirror_shares():
+    for sym in _CASES["clamped"]:
+        assert bars_fetch.session_clamp_applies(sym), sym
+    for sym in _CASES["exempt"]:
+        assert not bars_fetch.session_clamp_applies(sym), sym
+    for t in _CASES["inside"]:
+        assert bars_fetch.in_extended_session(_iso(t)), t
+    for t in _CASES["outside"]:
+        assert not bars_fetch.in_extended_session(_iso(t)), t
+
+
+# ── the live gate ────────────────────────────────────────────────────────────────────────────────────────────────
+
+def _drain(q) -> list:
+    out = []
+    while not q.empty():
+        out.append(q.get_nowait())
+    return out
+
+
+@pytest.mark.asyncio
+async def test_a_trade_at_20_00_05_opens_no_live_bar_and_19_59_still_does():
+    from api.services.bar_broadcaster import BarBroadcaster
+    bb = BarBroadcaster()
+    q1, q60 = bb.subscribe("SPY", "1"), bb.subscribe("SPY", "60", "eth")
+    bb.push_aggregate("SPY", {"t": _s(2026, 11, 11, 19, 59, 30) * 1000, "p": 600.0, "s": 100, "c": []}, "T")
+    await asyncio.sleep(0.05)
+    got = _drain(q1)
+    assert got and got[-1]["bar"]["t"] == _s(2026, 11, 11, 19, 59) * 1000
+    _drain(q60)
+    bb.push_aggregate("SPY", {"t": _s(2026, 11, 11, 20, 0, 5) * 1000, "p": 613.77, "s": 300, "c": []}, "T")
+    bb.push_minute_bar("SPY", {"t": _s(2026, 11, 11, 20, 0) * 1000, "o": 613.77, "h": 613.77, "l": 613.77,
+                               "c": 613.77, "v": 300})
+    await asyncio.sleep(0.05)
+    late = _drain(q1) + _drain(q60)
+    assert not [m for m in late if m["bar"]["t"] >= _s(2026, 11, 11, 20, 0) * 1000], late
+    assert bb.get_partial("SPY", "60", "eth") is None or bb.get_partial("SPY", "60", "eth")["t"] < _s(2026, 11, 11, 20, 0) * 1000
+
+
+@pytest.mark.asyncio
+async def test_the_gate_opens_at_04_00_and_a_24_hour_name_is_not_gated():
+    from api.services.bar_broadcaster import BarBroadcaster
+    bb = BarBroadcaster()
+    q = bb.subscribe("SPY", "1")
+    bb.push_minute_bar("SPY", {"t": _s(2026, 11, 11, 3, 59) * 1000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1})
+    bb.push_minute_bar("SPY", {"t": _s(2026, 11, 11, 4, 0) * 1000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1})
+    await asyncio.sleep(0.05)
+    assert [m["bar"]["t"] for m in _drain(q)] == [_s(2026, 11, 11, 4, 0) * 1000]
+    qb = bb.subscribe("BTC-USD", "1")
+    bb.push_minute_bar("BTC-USD", {"t": _s(2026, 11, 14, 21, 0) * 1000, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1})
+    await asyncio.sleep(0.05)
+    assert [m["bar"]["t"] for m in _drain(qb)] == [_s(2026, 11, 14, 21, 0) * 1000], "a Saturday night crypto minute"
+
+
+# ── the REST developing row ──────────────────────────────────────────────────────────────────────────────────────
+
+def test_the_rest_developing_row_is_never_a_20_00_bar(monkeypatch):
+    from api.services import bar_broadcaster, bar_contract
+
+    class _B:
+        def __init__(self, t):
+            self.t = t
+
+        def get_partial(self, sym, tf, session="rth"):
+            return {"t": self.t * 1000, "o": 1, "h": 2, "l": 1, "c": 2, "v": 9, "final": False, "trade_ts": self.t * 1000}
+
+    late = _s(2026, 11, 11, 20, 0)
+    monkeypatch.setattr(bar_broadcaster, "get_broadcaster", lambda: _B(late))
+    assert bar_contract._live_partial("SPY", "5", "eth", "eth-clock", late + 30) is None
+    ok = _s(2026, 11, 11, 19, 55)
+    monkeypatch.setattr(bar_broadcaster, "get_broadcaster", lambda: _B(ok))
+    assert bar_contract._live_partial("SPY", "5", "eth", "eth-clock", ok + 30) is not None
+    monkeypatch.setattr(bar_broadcaster, "get_broadcaster", lambda: _B(late))
+    assert bar_contract._live_partial("BTC-USD", "5", "eth", "eth-clock", late + 30) is not None
+
+
+# ── the one-off purge ────────────────────────────────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def store(tmp_path, monkeypatch):
+    from api.services import bars_sqlite as sq
+    monkeypatch.setattr(sq, "_DB_PATH", str(tmp_path / "bars.db"))
+    sq.bump_db_epoch()
+    sq.init_db()
+    yield sq
+    sq.bump_db_epoch()
+
+
+def _bar(t, p=10.0):
+    return {"t": t, "o": p, "h": p + 0.1, "l": p - 0.1, "c": p, "v": 100}
+
+
+def test_the_purge_deletes_the_rows_outside_the_session_and_bumps_history_once(store):
+    sq = store
+    keep60 = [_s(2026, 11, 11, 4, 0), _s(2026, 11, 11, 19, 0)]
+    drop60 = [_s(2026, 11, 11, 20, 0)]                              # the SPY 60m row stamped 20:00 ET
+    keep5 = [_s(2026, 11, 11, 19, 55)]
+    drop5 = [_s(2026, 11, 11, 20, 0), _s(2026, 11, 14, 10, 0)]      # 20:00, and a Saturday
+    sq.put_bars("SPY", "60", [_bar(t) for t in keep60 + drop60])
+    sq.put_bars("SPY", "5", [_bar(t) for t in keep5 + drop5])
+    sq.put_bars("BTC-USD", "60", [_bar(t) for t in drop60])
+    before = {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")}
+    assert sq.purge_off_session_intraday("SPY") == {"5": 2, "60": 1}
+    assert [int(r[0]) for r in sq.get_bars_since("SPY", "60", 0)] == keep60
+    assert [int(r[0]) for r in sq.get_bars_since("SPY", "5", 0)] == keep5
+    after = {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")}
+    assert all(after[tf] != before[tf] for tf in after), (before, after)
+    assert sq.purge_off_session_intraday("SPY") == {}, "idempotent"
+    assert {tf: sq.series_meta("SPY", tf)["history_rev"] for tf in ("60", "5")} == after, "bumped once"
+    assert sq.purge_off_session_intraday("BTC-USD") == {}
+    assert [int(r[0]) for r in sq.get_bars_since("BTC-USD", "60", 0)] == drop60
+
+
+def test_the_pass_counts_by_default_and_deletes_only_in_apply_mode(store, caplog, monkeypatch):
+    sq = store
+    monkeypatch.delenv("BARS_OFF_SESSION_PURGE", raising=False)
+    sq.put_bars("SPY", "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
+    sq.put_bars("QQQ", "5", [_bar(_s(2026, 11, 14, 10, 0)), _bar(_s(2026, 11, 11, 10, 0))])
+    import logging
+    with caplog.at_level(logging.WARNING):
+        got = sq.purge_off_session_pass()
+    assert (got["mode"], got["rows"], got["series"], got["complete"]) == ("count", 2, 2, True)
+    assert "2 row(s) in 2 series" in caplog.text, "the first boot states the history_rev blast radius"
+    assert len(sq.get_bars_since("SPY", "60", 0)) == 2, "count mode deletes nothing"
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+    got = sq.purge_off_session_pass(mode="apply")
+    assert (got["rows"], got["series"], got["complete"]) == (2, 2, True)
+    assert [int(r[0]) for r in sq.get_bars_since("SPY", "60", 0)] == [_s(2026, 11, 11, 19, 0)]
+    assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_the_pass_is_resumable_within_a_budget(store, monkeypatch):
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0                  # every read of the clock costs a second of budget
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+    first = sq.purge_off_session_pass(budget_s=2.5, mode="apply")
+    assert not first["complete"] and 0 < first["tickers"] < 3
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+    rest = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert rest["complete"] and first["tickers"] + rest["tickers"] == 3, (first, rest)
+    for sym in ("AAA", "BBB", "CCC"):
+        assert [int(r[0]) for r in sq.get_bars_since(sym, "60", 0)] == [_s(2026, 11, 11, 19, 0)], sym
+    assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_a_missing_hours_table_is_rebuilt_never_an_empty_silent_pass(store):
+    sq = store
+    sq.put_bars("SPY", "60", [_bar(_s(2026, 11, 11, 20, 0))])
+    c = sq._conn()
+    sq._off_session_hours_table(c)
+    c.execute("DROP TABLE temp.off_session_hours")          # a fresh connection / a temp table gone
+    assert sq.purge_off_session_intraday("SPY", c) == {"60": 1}
+
+
+def test_the_worker_starts_the_uploader_before_the_off_session_pass():
+    import inspect
+    from api import worker_main
+    src = inspect.getsource(worker_main)
+    up = src.index("        _start_uploader()" + chr(10))
+    assert 0 < up < src.index("purge_off_session_pass", up), "the R2 uploader must never wait for the scan"
+    weekly = inspect.getsource(__import__("api.services.bars_sqlite", fromlist=["x"]).purge_mis_keyed_weekly_rows)
+    assert "purge_off_session" not in weekly, "the synchronous weekly purge (which the uploader waits for) never runs it"
+
+
+def test_a_partial_count_pass_never_lets_an_apply_pass_skip_tickers(store, monkeypatch):
+    """Review of #2793 (delta): a count pass stopped part-way, then apply: every ticker is purged before the store is
+    called clean, and an earlier boot's failure in the same apply pass still blocks the marker."""
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0)), _bar(_s(2026, 11, 11, 19, 0))])
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+    part = sq.purge_off_session_pass(budget_s=2.5, mode="count")
+    assert not part["complete"] and part["tickers"] >= 1
+    done = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert done["complete"] and done["tickers"] == 3, "the apply pass resumed after the count pass's cursor"
+    for sym in ("AAA", "BBB", "CCC"):
+        assert [int(r[0]) for r in sq.get_bars_since(sym, "60", 0)] == [_s(2026, 11, 11, 19, 0)], sym
+    assert sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER)
+
+
+def test_an_earlier_boots_failure_in_the_same_apply_pass_blocks_the_marker(store, monkeypatch):
+    sq = store
+    for sym in ("AAA", "BBB", "CCC"):
+        sq.put_bars(sym, "60", [_bar(_s(2026, 11, 11, 20, 0))])
+    real = sq.purge_off_session_intraday
+    clock = {"t": 0.0}
+
+    def _mono():
+        clock["t"] += 1.0
+        return clock["t"]
+    import types, time as _time
+    monkeypatch.setattr(sq, "time", types.SimpleNamespace(monotonic=_mono, time=_time.time, sleep=_time.sleep))
+
+    def _flaky(tkr, *a, **k):
+        if tkr == "AAA":
+            raise RuntimeError("database is locked")
+        return real(tkr, *a, **k)
+    monkeypatch.setattr(sq, "purge_off_session_intraday", _flaky)
+    first = sq.purge_off_session_pass(budget_s=2.5, mode="apply")
+    assert first["errors"] == 1 and not first["complete"]
+    monkeypatch.setattr(sq, "purge_off_session_intraday", real)
+    rest = sq.purge_off_session_pass(budget_s=None, mode="apply")
+    assert rest["complete"]
+    assert not sq._marker_set(sq._conn(), sq.OFF_SESSION_CLEAN_MARKER), "AAA failed on an earlier boot of this pass"

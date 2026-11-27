@@ -120,7 +120,8 @@ def test_a_longer_name_holding_a_library_name_is_another_indicator(conv):
 def test_a_catalogued_name_in_title_case_is_no_longer_called_unknown(conv):
     for words in ("Plot the Volatility Stop", "Plot the True Range", "Plot the Relative Vigor Index"):
         u = conv.understand_turn(words, CHART)
-        assert u["refusal"] is None and u["withheld"], words
+        # (builtin4, 2026-11-26: True Range is now the library's; a catalogued name is library OR withheld, never refused)
+        assert u["refusal"] is None and (u["withheld"] or u["named"]), words
 
 
 @pytest.mark.parametrize("words", ["Plot the Elliott Wave", "plot the elliott wave", "Show the Renko bricks of this stock"])

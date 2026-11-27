@@ -119,10 +119,17 @@ export const LOWER_TF_REFUSAL = Object.freeze({
   // ⭐ the rule is witnessed and the DATA is not (`lowerTfGate.js`): every read
   // that would otherwise be served is refused under this name while the gate is off.
   STORE_UNMEASURED: 'lower-tf:store-unmeasured',
+  // ⭐ e98 (owner ruling 2026-11-26) — a child reading `volume` once the gate is on: a definition difference
+  // (`LOWER_TF_VOLUME_DEFINITION`), withheld by name, never served
+  VOLUME_DEFINITION: 'lower-tf:volume-definition',
   // decided per BINDING (`resolveLowerTf`), never at the translate door:
   FRAMED: 'lower-tf:framed',
   NO_BARS: 'lower-tf:no-bars',
 })
+
+/** ⭐ e98 (owner ruling 2026-11-26) — WHY OUR INTRADAY VOLUME IS NOT TRADINGVIEW'S: the one sentence, read by the
+ *  translator's refusal (`pine.js::lowerTfChildRefusal`) and the store witness's known definition differences. */
+export const LOWER_TF_VOLUME_DEFINITION = "our volume includes odd lots; TradingView's excludes them"
 
 /** ⭐ THE CAPTURE EACH RULE RESTS ON, or null where none does. A lower-timeframe
  *  read is served only when EVERY row names one (`lowerTfWitnessed`). */

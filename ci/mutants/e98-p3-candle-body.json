@@ -1,0 +1,86 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "P3-H1",
+   "mutant": "the body colorer named not compared again (phase A)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if (CANDLE_COLOUR_TYPES[p.type] === 'body') {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "keeps its body colorer"
+  },
+  {
+   "id": "P3-H2",
+   "mutant": "the body colour graded on every part, not once on the close",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      ? (v.candlePart === 'close' && pair.candle && pair.candle.bodyColorer",
+   "to": "      ? (pair.candle && pair.candle.bodyColorer",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "graded once, on the close"
+  },
+  {
+   "id": "P3-H3",
+   "mutant": "a candle our side hides at these settings graded on its colour",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    const candleHiddenOurs = !!(vc.body && o.drawnHidden === true)",
+   "to": "    const candleHiddenOurs = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "hides at these settings"
+  },
+  {
+   "id": "P3-H4",
+   "mutant": "a withheld candle's close graded MATCH on prices alone (phase A's over-claim)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleBody.test.js",
+   "expectRed": "its close is INCONCLUSIVE"
+  },
+  {
+   "id": "P3-H5",
+   "mutant": "ourSide drops the door's withheld-candle reason",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+   "from": "      const candleWithheld = listedCandle && listedCandle.by === 'withheld' ? listedCandle.sentence : null",
+   "to": "      const candleWithheld = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleBody.test.js",
+   "expectRed": "its close is INCONCLUSIVE"
+  },
+  {
+   "id": "P3-H6",
+   "mutant": "the host door stops recording the candle it withholds",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        hostCandlesNotDrawn.push({ outputs: [at - 3, at - 2, at - 1, at].filter((x) => x >= 0), by: 'withheld', label: name, why: rule.why })\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleBody.test.js",
+   "expectRed": "the door records it"
+  },
+  {
+   "id": "P3-H7",
+   "mutant": "ourSide reads a drawn candle's colour through the value path (none)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+   "from": "    if (isCandleStyle(plot)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candleBody.test.js",
+   "expectRed": "compared bar for bar"
+  },
+  {
+   "id": "P3-H8",
+   "mutant": "the body colorer decoded without the colorer (no palette path)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  return vendorColorsFor(capture, { id: bodyColorer.target }, [bodyColorer], rowsByTime, times)",
+   "to": "  return vendorColorsFor(capture, { id: bodyColorer.target }, [], rowsByTime, times)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "decoded by its palette"
+  },
+  {
+   "id": "P3-H9",
+   "mutant": "a withheld candle TradingView draws on no bar read as a different picture",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (candleWithheldOurs && r.valued > 0 && pv.verdict === 'MATCH') {",
+   "to": "    if (candleWithheldOurs && pv.verdict === 'MATCH') {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.candles.test.js",
+   "expectRed": "the same picture"
+  }
+ ]
+}

@@ -57,6 +57,16 @@ it('jumpStride is the signed shorter-way stride of a jump, 0 for no jump', () =>
   expect(jumpStride(['A', 'B'], 1, 0)).toBe(0)
 })
 
+// (review of #2768, LOW) strideTarget carries jumpTarget's came-from guard: a stride of half an even-length list lands
+// on the row the jump came from, which is no target
+it('strideTarget never lands on the row the stride came from (half an even-length list)', () => {
+  const flat = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+  expect(strideTarget(flat, 2, 5)).toBe(null)     // 2 + 5 and 2 - 5 are both row 7
+  expect(strideTarget(flat, 2, -5)).toBe(null)
+  expect(strideTarget(flat, 2, 4)).toBe('G')      // control: any other stride still has its target
+  expect(strideTarget(['A', 'B', 'C', 'D', 'E'], 1, 2)).toBe('D')   // odd length: no half stride
+})
+
 it('strideTarget is the row one stride on (wrap-aware), null for no stride or the row itself', () => {
   const flat = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
   expect(strideTarget(flat, 5, 3)).toBe('I')

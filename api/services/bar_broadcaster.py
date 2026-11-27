@@ -64,6 +64,7 @@ from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, tv_bucket_bounds  # noqa: F401 (TF_TO_SECONDS re-export)
 from api.services import trade_conditions
+from api.services import extended_session
 
 _logger = logging.getLogger(__name__)
 
@@ -104,6 +105,23 @@ _MINUTE_MS = 60_000
 # How far back (trade time) a minute stays correctable. 3h covers the developing
 # 60m bucket plus the one before it (a 60m bucket starts <= 60 min before now).
 _RETAIN_MS = 3 * 60 * _MINUTE_MS
+
+# ⭐ THE EXTENDED SESSION, AT THE LIVE GATE (2026-11-25, the follow-up to #2781). A print at 20:00:05 ET used to open a
+# live 20:00 minute (and a 20:00 60m eth bar) that the store's serve path now refuses; the client kept it, because a
+# delta answer never deletes a bar. `_accept_minute` therefore refuses a minute outside its ET trading day's extended
+# session for every name the session governs (`extended_session.applies` / `inside`, the one rule; both cached, so
+# this costs a dict lookup per trade).
+_session_applies: dict[str, bool] = {}
+
+
+def _session_minute_ok(sym: str, m_ms: int) -> bool:
+    try:
+        ap = _session_applies.get(sym)
+        if ap is None:
+            ap = _session_applies[sym] = bool(extended_session.applies(sym))
+        return (not ap) or extended_session.inside(int(m_ms) // 1000)
+    except Exception:                      # noqa: BLE001 - the gate must never stop the tape
+        return True
 
 
 def _key_for(tf: str, session: str = "rth") -> str:
@@ -805,7 +823,7 @@ class BarBroadcaster:
 
     def _accept_minute(self, sym: str, m: int) -> bool:
         hwm = self._hwm.get(sym)
-        return hwm is None or m >= hwm - _RETAIN_MS
+        return (hwm is None or m >= hwm - _RETAIN_MS) and _session_minute_ok(sym, m)
 
     def _bump_hwm(self, sym: str, ts: int) -> None:
         cur = self._hwm.get(sym)
@@ -1135,3 +1153,10 @@ def reset_broadcaster_for_tests() -> None:
     """Test-only: clear the singleton so init_broadcaster can be called again."""
     global _singleton
     _singleton = None
+
+
+# The live last-price source for readers that must not import this module (`live_price_source`): looked up
+# at call time, so `get_broadcaster`'s own contract (and any stub of it) is what a reader sees.
+from api.services import live_price_source as _live_price_source  # noqa: E402
+
+_live_price_source.register(lambda: get_broadcaster())

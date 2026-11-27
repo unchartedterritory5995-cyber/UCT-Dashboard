@@ -34,6 +34,10 @@ import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinit
  */
 
 const src = (body) => `//@version=5\nindicator("t")\n${body}\n`
+// ⭐ e98 E3 — THESE RAILS PIN THE FOLD, which an offset's input keeps when anything ELSE reads it too (`KEEP`: a second
+// plot of the input). An input ONLY a plot's `offset` reads is the member's own setting since E3, drawn at draw time
+// with the series unshifted (`engine/plotOffsetSetting.test.js`), so it no longer reaches the fold these rails pin.
+const KEEP = (name) => `\nplot(${name}, "keep")`
 const DECLARE = { strict: true, declareInputs: 'all' }
 
 const only = (out) => {
@@ -48,13 +52,13 @@ const barsOf = (closes) => closes.map((c, i) => ({ t: 20260801 + i, o: c, h: c, 
 
 describe('a displacement written as an INPUT, under declareInputs', () => {
   it('⭐⭐ a NEGATIVE input displacement folds to the default and is recorded as presentation', () => {
-    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)'), DECLARE))
+    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)' + KEEP('prd')), DECLARE))
     expect(row.displace).toBe(-10)
     expect(row.ast).toEqual({ type: 'series', name: 'close' })
   })
 
   it('⭐⭐ a POSITIVE input displacement becomes the offset node, at the default', () => {
-    const row = only(translatePine(src('len = input.int(3)\nplot(close, offset = len)'), DECLARE))
+    const row = only(translatePine(src('len = input.int(3)\nplot(close, offset = len)' + KEEP('len')), DECLARE))
     expect(row.ast).toEqual({ type: 'offset', value: 3, args: [{ type: 'series', name: 'close' }] })
     expect(row.displace).toBe(0)
     // ⛔ THE VALUE, NOT THE SHAPE: three bars right means bar i draws bar i-3.
@@ -64,12 +68,12 @@ describe('a displacement written as an INPUT, under declareInputs', () => {
   it('⭐ arithmetic on an input folds the way Pine computes it — `displacement - 1` is 25', () => {
     // `multicator-table` line 414, verbatim shape.
     const row = only(translatePine(
-      src('displacement = input.int(26, minval = 1)\nplot(close, offset = displacement - 1)'), DECLARE))
+      src('displacement = input.int(26, minval = 1)\nplot(close, offset = displacement - 1)' + KEEP('displacement')), DECLARE))
     expect(row.ast).toEqual({ type: 'offset', value: 25, args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⭐ the input that fed it is stamped displacementBound on the row', () => {
-    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)'), DECLARE))
+    const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)' + KEEP('prd')), DECLARE))
     const e = row.inputsFolded.find((x) => x.name === 'prd')
     expect(e, JSON.stringify(row.inputsFolded)).toBeTruthy()
     expect(e.displacementBound).toBe(true)
@@ -82,14 +86,14 @@ describe('a displacement written as an INPUT, under declareInputs', () => {
 describe("the member's own value moves the displacement", () => {
   for (const [mode, opts] of [['declare', DECLARE], ['plain', { strict: true }]]) {
     it(`⭐⭐ positive, ${mode} mode: inputValues {len: 5} draws five bars right, not three`, () => {
-      const row = only(translatePine(src('len = input.int(3)\nplot(close, offset = len)'),
+      const row = only(translatePine(src('len = input.int(3)\nplot(close, offset = len)' + KEEP('len')),
         { ...opts, inputValues: { len: 5 } }))
       expect(row.ast.value).toBe(5)
       expect(interpret(row.ast, barsOf([10, 11, 12, 13, 14, 15, 16]))[6]).toBe(11)
     })
 
     it(`⭐⭐ negative, ${mode} mode: inputValues {prd: 7} records -7, not -10`, () => {
-      const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)'),
+      const row = only(translatePine(src('prd = input.int(10)\nplot(close, offset = -prd)' + KEEP('prd')),
         { ...opts, inputValues: { prd: 7 } }))
       expect(row.displace).toBe(-7)
     })
@@ -122,7 +126,7 @@ describe('what still refuses', () => {
 
 describe('at the member door', () => {
   const SCRIPT = src('prd = input.int(10, "Pivot")\nlen = input.int(14, "Length")\n'
-    + 'plot(ta.sma(close, 3) * len / len, offset = -prd)')
+    + 'plot(ta.sma(close, 3) * len / len, offset = -prd)' + KEEP('prd'))
 
   it('⭐⭐ the script translates, and the displacement input is NOT handed out as a knob', () => {
     const t = memberInputTranslation(translatePine, SCRIPT, { strict: true })
@@ -161,14 +165,14 @@ function realDefinition(body) {
 
 describe('a positive displacement is a definition parameter too', () => {
   it("⭐⭐ `offset = len` is located at the offset node's own `value`", () => {
-    const def = realDefinition('len = input.int(3, "Shift", minval = 1)\nplot(close, offset = len)')
+    const def = realDefinition('len = input.int(3, "Shift", minval = 1)\nplot(close, offset = len)' + KEEP('len'))
     const entries = Object.values(def.compute.paramManifest)
     expect(entries).toHaveLength(1)
     expect(entries[0].locators).toEqual([{ treeIndex: null, astPath: ['value'] }])
   })
 
   it('⭐⭐ editing it moves the displacement — 3 → 6 — and the column with it', () => {
-    const def = realDefinition('len = input.int(3, "Shift", minval = 1)\nplot(close, offset = len)')
+    const def = realDefinition('len = input.int(3, "Shift", minval = 1)\nplot(close, offset = len)' + KEEP('len'))
     const id = Object.keys(def.compute.paramManifest)[0]
     const r = applyParamEdit(def, id, 6)
     expect(r.ok, r.error).toBe(true)
@@ -177,7 +181,7 @@ describe('a positive displacement is a definition parameter too', () => {
   })
 
   it('⛔ an edit to zero or below is refused whole, never half-written', () => {
-    const def = realDefinition('len = input.int(3, "Shift", minval = -5)\nplot(close, offset = len)')
+    const def = realDefinition('len = input.int(3, "Shift", minval = -5)\nplot(close, offset = len)' + KEEP('len'))
     const id = Object.keys(def.compute.paramManifest)[0]
     const r = applyParamEdit(def, id, 0)
     expect(r.ok).toBe(false)
@@ -185,7 +189,7 @@ describe('a positive displacement is a definition parameter too', () => {
   })
 
   it('⛔ a COMPUTED displacement (`len - 1`) is not advertised as that input', () => {
-    const def = realDefinition('len = input.int(4, "Shift")\nplot(close, offset = len - 1)')
+    const def = realDefinition('len = input.int(4, "Shift")\nplot(close, offset = len - 1)' + KEEP('len'))
     expect(def.compute.ast.value).toBe(3)
     expect(Object.keys(def.compute.paramManifest)).toHaveLength(0)
   })

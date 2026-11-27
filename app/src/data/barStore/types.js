@@ -227,7 +227,20 @@ export function dateLabelToUnix(iso) {
   return Date.UTC(y, m - 1, d) / 1000
 }
 
-/** The D/W/M label of a store `t`. */
+/** The D/W/M label of a store `t`.
+ *  ⭐ PERF (smoothness trace 2026-11-26, D+30 board: `adapter.legacySealed` 5.2 ms a flip, a Date and an ISO string per
+ *  daily bar for every new bars array): a store D/W/M `t` is 00:00 UTC of its date (a whole multiple of 86400), and its
+ *  label never changes, so each is built once and kept (bounded: emptied, never trimmed, past `LABEL_CACHE_MAX`). Any
+ *  other `t` is labelled as before; a `t` that cannot be labelled throws as before (nothing is kept for it). */
+const LABEL_CACHE_MAX = 40000
+const _labelOf = new Map()
 export function unixToDateLabel(t) {
-  return new Date(t * 1000).toISOString().slice(0, 10)
+  if (typeof t !== 'number' || t % 86400 !== 0) return new Date(t * 1000).toISOString().slice(0, 10)
+  let s = _labelOf.get(t)
+  if (s === undefined) {
+    s = new Date(t * 1000).toISOString().slice(0, 10)
+    if (_labelOf.size >= LABEL_CACHE_MAX) _labelOf.clear()
+    _labelOf.set(t, s)
+  }
+  return s
 }

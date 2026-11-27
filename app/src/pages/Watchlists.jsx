@@ -411,6 +411,8 @@ const WatchRow = React.memo(function WatchRow({
   entityNote = null, entityTitle = null, entityTone = null,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
+  // a row the list mounts OFF screen (ScanRows' overscan): its logo asks for its image after paint (CompanyLogo deferSrc)
+  deferLogo = false,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   rsExitLast = null, rsExitAgo = null,
@@ -481,7 +483,7 @@ const WatchRow = React.memo(function WatchRow({
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {flagBadge}
-          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
+          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} deferSrc={deferLogo} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {entityNote && (
             <span className={`${styles.entityMark}${entityTone === 'danger' ? ' ' + styles.entityMarkDanger : ''}`}
@@ -671,6 +673,23 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
+/** Where row `idx` sits against the list's CLEAR view, from the virtualizer's measurements: 'visible' (wholly in it),
+ *  'near' (in it in part, or within one row of an edge) or 'far' (beyond that, or nothing measured yet).
+ *  `scrollTop`: the scroller's LIVE position (the virtualizer's own `scrollOffset` follows the scroll EVENT, which can
+ *  lag a fast repeat under a busy main thread: a near row would then read far and be centred). `padStart`: the sticky
+ *  band at the scroller's top (the column header): a row under it is not in view (review of #2834). */
+export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
+  const m = virt?.measurementsCache?.[idx]
+  const offset = Number.isFinite(scrollTop) ? scrollTop : virt?.scrollOffset
+  const h = virt?.scrollRect?.height
+  if (!m || !Number.isFinite(offset) || !(h > 0)) return 'far'
+  const top = offset + padStart
+  const bottom = offset + h
+  if (m.start >= top && m.end <= bottom) return 'visible'
+  const size = m.end - m.start
+  return m.end > top - size && m.start < bottom + size ? 'near' : 'far'
+}
+
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
@@ -684,15 +703,34 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // is exactly the feedback loop `rafObserveElementRect` above exists to survive.
   const hostRef = useRef(null)
   const [scrollMargin, setScrollMargin] = useState(0)
-  useLayoutEffect(() => {
-    if (!measureOffset) return
+  // ⭐ (review of #2834) THE STICKY BAND. The column header (`.gridHead`, `position: sticky; top: 0`) is a child of the
+  // SAME scroller, so rows scroll under it: the clear view is [scrollTop + band, scrollTop + height]. Its height is the
+  // virtualizer's `scrollPaddingStart` (an `align: 'auto'` scroll keeps the row clear of it) and the selection's
+  // placement test reads it. Measured with the offset, by the same rule (mount, a row-count change).
+  const [stickyTop, setStickyTop] = useState(0)
+  // ⛔ A PASSIVE effect, not a layout one (review of #2834): the scroller is this list's PARENT, and a parent's ref is
+  // attached AFTER its children's layout effects run, so on a mount in the same commit (a widget opening on a list
+  // already loaded) a layout effect found no scroller and measured nothing until the row count changed. The rows'
+  // positions do not depend on it (`vi.start - scrollMargin`); only the virtualizer's range and the scroll decisions do.
+  useEffect(() => {
     const host = hostRef.current
     const scroller = scrollRef?.current
     if (!host || !scroller) return
-    const top = host.getBoundingClientRect().top
-      - scroller.getBoundingClientRect().top
-      + scroller.scrollTop
-    setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    let band = 0
+    for (const el of scroller.children) {
+      if (el === host || el.contains(host)) continue
+      // the column header says so (`data-sticky-head`); any other sticky child counts too
+      if (el.hasAttribute('data-sticky-head') || getComputedStyle(el).position === 'sticky') { band = el.getBoundingClientRect().height || 0; break }
+    }
+    setStickyTop(prev => (Math.abs(prev - band) > 0.5 ? band : prev))
+    // the offset when asked, AND whenever a sticky band sits above the rows: a scan's rows (no `measureOffset`) start
+    // below the column header, so its positions were the band's height off the scroller's
+    if (measureOffset || band > 0) {
+      const top = host.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top
+        + scroller.scrollTop
+      setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    }
   }, [measureOffset, scrollRef, items.length])
 
   const virt = useVirtualizer({
@@ -705,6 +743,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     getItemKey: (i) => items[i]?.id || items[i]?.sym || i,
     overscan: 12,
     scrollMargin,
+    scrollPaddingStart: stickyTop,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
     observeElementRect: rafObserveElementRect,
     // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
@@ -716,6 +755,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     useFlushSync: false,
   })
   const vItems = virt.getVirtualItems()
+  // ⚡ (2026-11-26, the board switch) which mounted rows lie OFF screen (the overscan): their logos ask for their images
+  // after paint (CompanyLogo `deferSrc`). Judged on the virtualizer's own view with one row of margin on each side;
+  // nothing measured yet counts as on screen, as does everything inside that margin.
+  const viewTop = virt.scrollOffset
+  const viewH = virt.scrollRect?.height
+  const rowOffscreen = (vi) => {
+    if (!Number.isFinite(viewTop) || !(viewH > 0)) return false
+    const size = vi.end - vi.start
+    return vi.end <= viewTop - size || vi.start >= viewTop + viewH + size
+  }
   const first = vItems.length ? vItems[0].index : 0
   const last = vItems.length ? vItems[vItems.length - 1].index : -1
   // ⛔ REPORT A CHANGED WINDOW, NEVER A RE-RENDER (React #185, /breadth drill board,
@@ -758,7 +807,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+    // ⭐ (2026-11-26, owner: "jumpy") THE LEAST SCROLL. This re-centred the list on EVERY selection change, so each arrow
+    // press moved the whole list under the member's eye. Now (TradingView-like): a row already in view does not move the
+    // list; a row in view in part, or one row past an edge (the arrow press at the bottom), scrolls the least
+    // (`align: 'auto'`: one row); a selection landing far off-screen (a typed ticker, a jump, a list opening on a
+    // symbol) is centred, once. Rail: Watchlists.scanRowsScroll.test.jsx.
+    const where = rowPlacement(virt, idx, { scrollTop: scrollRef?.current?.scrollTop, padStart: stickyTop })
+    try {
+      if (where === 'far') virt.scrollToIndex(idx, { align: 'center' })
+      else if (where === 'near') virt.scrollToIndex(idx, { align: 'auto' })
+    } catch { /* mid-mount */ }
     scrolledForRef.current = scrollToSym
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
@@ -780,7 +838,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
             // `scrollMargin: 0` (every pre-existing caller) this is `vi.start`.
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - scrollMargin}px)` }}
           >
-            {renderRow(item)}
+            {renderRow(item, { offscreen: rowOffscreen(vi) })}
           </div>
         )
       })}
@@ -2053,12 +2111,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // which the first run had just set to the selection itself, so it saw no jump and moved "down", and its urgent call (the
     // latest one, the only one that keeps its rows) aborts the jump target's ask if it has not started. Direction and stride
     // are kept.
-    const rerun = prev.sym === selectedSym
+    // (review of #2768, LOW) ...in the SAME list: a list switch with the same symbol selected is a fresh press there.
+    const listKey = pickList ?? `${activeTab}:${[...expandedLists].map(String).sort().join(',')}`
+    const rerun = prev.sym === selectedSym && prev.list === listKey
     // Moving up when the previous row sits just below (wrap-aware); down otherwise.
     const dir = rerun ? (prev.dir || 1) : ((prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1)
     const prevIdx = !rerun && prev.sym ? flat.indexOf(prev.sym) : -1
     const stride = rerun ? (prev.stride || 0) : jumpStride(flat, idx, prevIdx)
-    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride }
+    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride, list: listKey }
     const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
     // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
@@ -2980,7 +3040,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     )
   }
   const columnHeader = (
-    <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+    <div className={styles.gridHead} data-sticky-head="" onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       {orderedKeys.map(renderHeaderCell)}
       {/* Column library (owner 11-14): the + opens it under itself; right-click opens it at the cursor. */}
       {!isAllIdxList && (
@@ -3042,7 +3102,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
-  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null }) {
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null, deferLogo = false }) {
     // Thematic-index row: no market feed — pull its live daily % from the batch
     // quotes map (keyed by lowercase slug), and show the theme's name instead of
     // the raw "$IDX:CYBERSECURITY" pseudo-ticker.
@@ -3058,7 +3118,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           price={q.price} changePct={q.change_pct} volume={null}
           coName={idxq?.name ?? null}
           flagged={isFlagged(sym)} selected={selectedSym === sym} orderedKeys={orderedKeys}
-          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize}
+          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize} deferLogo={deferLogo}
           isOwner={isOwner} wlId={wlId} isMember={isMember}
           onSelect={onRowSelect} onToggleFlag={onRowFlag} onIntent={onRowIntent} onCtx={onRowCtx}
         />
@@ -3126,6 +3186,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         showLogos={wlSettings.showLogos}
         tintEnabled={wlSettings.tintEnabled}
         logoSize={rowLogoSize}
+        deferLogo={deferLogo}
         mcap={metaData[sym]?.market_cap ?? null}
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
@@ -3280,9 +3341,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
           // ONE renderer for both paths — a virtualized row and a plain row must never
           // be able to drift apart.
-          const renderListItem = (item) => (
+          const renderListItem = (item, meta) => (
             <>
-              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item })}
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item, deferLogo: !!meta?.offscreen })}
               {/* Note editor, opened from the row menu's "Notes" entry (and closed by
                   picking it again). Editable on YOUR lists only — a shared list's
                   notes are read-only. */}
@@ -3709,7 +3770,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <ScanRows
               scrollRef={listBodyRef}
               items={scanSortedItems}
-              renderRow={(item) => {
+              renderRow={(item, meta) => {
                 // A host may draw its own group header (the breadth drill's sections).
                 if (item.isGroup && renderGroupRow) {
                   const open = expandedGroups.has(item.sym)
@@ -3719,6 +3780,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   sym: item.sym, name: item.name, isOwner: false, wlId: null,
                   isGroup: !!item.isGroup, isMember: !!item.isMember,
                   expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
+                  deferLogo: !!meta?.offscreen,
                 })
                 const accent = item.isMember && groupAccent ? groupAccent(String(item.id).split('::')[0]) : null
                 return accent

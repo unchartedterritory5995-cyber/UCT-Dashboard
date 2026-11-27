@@ -22,7 +22,7 @@ import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
 import { validateDefinition } from '../../engine/defSchema.js'
 import { installUserDefinitions, uninstallUserDefinition } from '../../engine/nativeRegistry.js'
-import { PINE_CALL_SHAPES, printFormula, __v6BoolHistoryForTests } from '../../engine/ast/pine.js'
+import { PINE_CALL_SHAPES, printFormula, __v6BoolHistoryForTests, __offsetSettingsForTests } from '../../engine/ast/pine.js'
 import { CALL_EXPANSIONS } from '../../engine/ast/callExpansions.js'
 import { supertrendTreesEngine56 } from '../../engine/ast/__fixtures__/supertrendTreesEngine56.js'
 
@@ -43,7 +43,25 @@ const valuesOf = (definition) => {
   const state = reconcileParams(definition)
   return Object.fromEntries(Object.keys(state).map((id) => [id, state[id].value]))
 }
-const build = (script) => {
+/** ⭐⭐ e98 E3 — THE SAVED DOCUMENTS E3 MOVED ON PURPOSE, by name: an int input only a plot's `offset` reads is a draw-time
+ *  setting (`plots[].displaceInput`, TradingView's semantics: the drawing moves, the series does not), so an offset node
+ *  around a tree is gone and an offset PARAMETER becomes that setting. Every rail below builds these documents with
+ *  the E3 rule OFF (`withE3Undone`), so it holds them to everything ELSE exactly as before; the E3 describe at the end
+ *  proves the rule-on document differs by E3 alone. A member's saved edit on such a parameter is carried
+ *  (`offsetParamCarry.test.js`, coordinator ruling: no member edit is lost). */
+const E3_MOVED = Object.freeze({
+  'corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine':
+    'OP_pos / OR_pos / IB_pos (`__uct_param_2/4/5`, tree-folded offset parameters) are draw-time settings keyed param2 / param4 / param5',
+  'corpus/committed/multicator-table__486858895c.pine':
+    'the BB `offset` and the ichimoku `displacement` are draw-time settings, so the `x[N]` around the cloud trees is gone and the parameters inside (conversionPeriods, basePeriods, laggingSpan2Periods) sit one level up: same ids, same inputs',
+})
+const withE3Undone = (fn) => {
+  __offsetSettingsForTests(false)
+  try { return fn() } finally { __offsetSettingsForTests(true) }
+}
+
+const build = (script, { e3 = false } = {}) => {
+  if (!e3 && Object.prototype.hasOwnProperty.call(E3_MOVED, script)) return withE3Undone(() => build(script, { e3: true }))
   // ⭐ WITHOUT the enum knobs (`enumInputs: false`): an `input.string(…, options)`
   // the door now carries LIVE (`pine.js::enumCompare`) is a capability this document
   // never had — like a minted id, an append — and its trees read `kind == 1` where
@@ -546,4 +564,25 @@ describe('C46 — documents saved under the walk-order ids', () => {
     const manifest = applied.definition.compute.paramManifest
     expect(manifest.__uct_param_2.sourceName).toBe('lenDaily')
   }, 120000)
+})
+
+describe('e98 E3 — the saved documents E3 moved, and the move is E3 alone', () => {
+  it.each(Object.keys(E3_MOVED))('%s', (script) => {
+    expect(SAVED[script], `${script} is not in the saved fixture — drop it from E3_MOVED`).toBeTruthy()
+    const on = build(script, { e3: true })
+    const off = build(script)
+    expect(on.ok && off.ok).toBe(true)
+    // the rule on: plots drawn at a setting, and a different computation (the offset nodes are gone)
+    expect(on.definition.plots.some((p) => p.displaceInput)).toBe(true)
+    expect(off.definition.plots.some((p) => p.displaceInput)).toBe(false)
+    expect(JSON.stringify(on.definition.compute)).not.toBe(JSON.stringify(off.definition.compute))
+    // …and every parameter id the rule-off document holds that the rule-on one does not became a setting under its key
+    const onIds = Object.keys(on.definition.compute.paramManifest || {})
+    for (const id of Object.keys(off.definition.compute.paramManifest || {}).filter((x) => !onIds.includes(x))) {
+      const key = `param${id.slice('__uct_param_'.length)}`
+      expect(on.definition.plots.some((p) => p.displaceInput && p.displaceInput.key === key), `${script}: ${id}`).toBe(true)
+    }
+    // and the rule is back on afterwards: a plain e3 build is today's document again
+    expect(JSON.stringify(build(script, { e3: true }).definition.compute)).toBe(JSON.stringify(on.definition.compute))
+  })
 })

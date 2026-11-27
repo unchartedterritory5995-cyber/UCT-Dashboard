@@ -762,8 +762,55 @@ def ichimoku_span_b(bars, span_b=52, ahead=25, **_periods_it_does_not_read):
     return _ahead(_midpoint(bars, span_b), ahead)
 
 
+
+# ── builtin4 (2026-11-26): six of Pine's own `ta.*` indicators, each from TradingView's reference body ──────────
+
+def tr_reference(bars):
+    """ta.tr (handle_na = false): no value where the prior close is missing."""
+    return true_range(bars)
+
+
+def wvad_reference(bars):
+    return [(b["c"] - b["o"]) / (b["h"] - b["l"]) * b["v"] if b["h"] != b["l"] else NAN for b in bars]
+
+
+def swma_reference(bars):
+    c = col(bars, "c")
+    return [c[i - 3] * 1 / 6 + c[i - 2] * 2 / 6 + c[i - 1] * 2 / 6 + c[i] * 1 / 6 if i >= 3 else NAN for i in range(len(c))]
+
+
+def lsma_reference(bars, length=25):
+    return linreg_end(col(bars, "c"), length)
+
+
+def iii_reference(bars):
+    """ta.iii as TradingView computes it (captured 2026-11-26) and Bostian published it: the volume MULTIPLIES."""
+    return [(2 * b["c"] - b["h"] - b["l"]) / (b["h"] - b["l"]) * b["v"] if b["h"] != b["l"] else NAN for b in bars]
+
+
+def cog_reference(bars, length=10):
+    """TradingView's pine_cog, as its loop reads: -sum(source[i] * (i + 1)) / sum(source), i = 0 .. length - 1."""
+    c = col(bars, "c")
+    out = []
+    for i in range(len(c)):
+        if i < length - 1:
+            out.append(NAN)
+            continue
+        num = 0.0
+        for k in range(length):
+            num = num + c[i - k] * (k + 1)
+        out.append(-num / sum(c[i - length + 1:i + 1]))
+    return out
+
+
 REFERENCES = {
     "pocket_pivot": {"pocket_pivot": pocket_pivot},
+    "true_range": {"tr": tr_reference},
+    "williams_variable_accumulation_distribution": {"wvad": wvad_reference},
+    "symmetrically_weighted_moving_average": {"swma": swma_reference},
+    "least_squares_moving_average": {"lsma": lsma_reference},
+    "center_of_gravity": {"cog": cog_reference},
+    "intraday_intensity_index": {"iii": iii_reference},
     "ichimoku_cloud": {"conversion": ichimoku_conversion, "base": ichimoku_base, "span_a": ichimoku_span_a, "span_b": ichimoku_span_b},
     "double_exponential_moving_average": {"dema": dema},
     "triple_exponential_moving_average": {"tema": tema},
@@ -807,6 +854,10 @@ REFERENCES = {
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
 OTHER = {
     "pocket_pivot": {},                                   # its numbers are the detector's: none is a setting
+    "true_range": {}, "williams_variable_accumulation_distribution": {}, "symmetrically_weighted_moving_average": {},
+    "least_squares_moving_average": {"length": 14},
+    "intraday_intensity_index": {},
+    "center_of_gravity": {"length": 7},
     "ichimoku_cloud": {"conversion": 7, "base": 22, "span_b": 44, "ahead": 26},     # 26: the published shift
     "double_exponential_moving_average": {"length": 21},
     "triple_exponential_moving_average": {"length": 14},

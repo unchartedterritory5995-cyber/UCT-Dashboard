@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 631, host refusals 680) · objects-only pane ARMED · runtime drew 283, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **97**.
+Graded at script engine **98**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -971,10 +971,10 @@ machine-learning-moving-average-backquant-rd NYSE:RDDT 1D     1      MATCH      
     ML MA                                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      DIVERGE           1 of 3 compared items diverge
+machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      INCONCLUSIVE      3 of 3 items could not be compared
     ML MA                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:limit)
     objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 4,254,500 for 8,509 bars, it reached 4,254,644) on bar 5,602 of 8,509, so it is stopped and nothing is drawn rather than part of it.)
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_6 "Bar Color" notDrawn)
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_6 "Bar Color" — our run stopped (runtime:limit), so nothing is drawn for it)
 machine-learning-rsi-bullvision-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:conditional-history]: this Pine call answers with several values at once and a column carries one — `knnRsi` — `knnEnhancedRsi` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `knnEnhancedRsi`)
 madrid-moving-average-ribbon-rddt-1d-2026-09 NYSE:RDDT 1D     18     MATCH             all 19 items agree
     MMA05                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 4.49e-16
@@ -1137,10 +1137,10 @@ multicator-table-rddt-1d-2026-10-02          NYSE:RDDT 1D     28     DIVERGE    
     Conversion Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Base Line                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1167,10 +1167,10 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     Conversion Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Base Line                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -2023,7 +2023,7 @@ smart-money-interest-index-algoalpha-rddt-1d NYSE:RDDT 1D     4      MATCH      
     paints                                   MATCH         1 paint agree bar for bar
 smart-money-volume-activity-algoalpha-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
 smart-money-volume-activity-algoalpha-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
-smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      1 of 25 items could not be compared
+smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      2 of 25 items could not be compared
     Zero Line                                INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     Top Limit                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Bottom Limit                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2047,7 +2047,7 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIV
     open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    close                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — 666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         neither side draws an object
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
@@ -7319,11 +7319,11 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 MATCH_SUBSTITUTED 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 MATCH_SUBSTITUTED 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 INCONCLUSIVE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 MATCH_SUBSTITUTED 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 371 · DIVERGE 39 · INCONCLUSIVE 605 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 372 · DIVERGE 39 · INCONCLUSIVE 604
+TOTAL 1038 captures — MATCH 371 · DIVERGE 38 · INCONCLUSIVE 606 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 372 · DIVERGE 38 · INCONCLUSIVE 605
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
 WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 374 · DIVERGE 33 · INCONCLUSIVE 608
-CHANGED BY PAINTS (9): machine-learning-moving-average-backquant-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+CHANGED BY PAINTS (8): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
 ## Runtime declines by code (348)

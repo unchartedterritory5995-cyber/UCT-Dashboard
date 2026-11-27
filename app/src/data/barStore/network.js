@@ -48,6 +48,7 @@ import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS } from '../../utils/ba
 import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
+import { nextTask } from '../historyLake/source'
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -187,6 +188,8 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
+  // keys whose lake load a display is WAITING on to paint (lakeSeed `awaited`): their pieces never yield (below)
+  const lakeAwaited = new Set()
   /** key -> was its last tail request a `since=` delta (bounded, oldest out): `askedDelta` */
   const lastDelta = new Map()
   // key -> bars its entry held when its lake load finished on this page (whatever it added). A copy
@@ -678,14 +681,20 @@ export function createNetwork({
     // and only where the shared bars prove the held basis. Resolves 'seed' (rows added before any
     // server answer), 'join' (deeper rows added to an answer) or false; one load per key at a time
     // (the handoff and the chart's subscribe share it), none once the key is that deep.
-    lakeSeed(key) {
+    // ⭐ ONE PIECE PER TASK, UNLESS A PAINT WAITS (smoothness 2b, 2026-11-26): the load's pieces decode in tasks of their
+    // own (historyLake/source `yieldTask`), so a join landing after the chart painted leaves room for frames. A caller that
+    // WAITS on the load to paint (`awaited`: the handoff, prefetch._lakeLoad) marks the key, and from then on every piece
+    // of that load decodes at once, as before: a first frame is never later for it. Unmarked when the load settles.
+    lakeSeed(key, { awaited = false } = {}) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
       const target = lakeTargetBars(parseKey(key)?.tf)
       if ((registry.peek(key)?.bars.length ?? 0) >= target) return Promise.resolve(false)
+      if (awaited) lakeAwaited.add(key)
       const running = lakeSeeds.get(key)
       if (running) return running
+      const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
       const p = Promise.resolve()
-        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target }))
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
           const cur = registry.peek(key)
           if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
@@ -697,7 +706,7 @@ export function createNetwork({
         })
         .catch(() => false)
         .finally(() => {
-          if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
+          if (lakeSeeds.get(key) === p) { lakeSeeds.delete(key); lakeAwaited.delete(key) }
           const cur = registry.peek(key)
           const held = cur?.bars.length
           if (held == null) return          // nothing to join into: still due when the key is built

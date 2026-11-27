@@ -219,6 +219,14 @@ def test_sym_rule_is_the_repo_ticker_rule():
             fp.decode(orjson.dumps(o))
 
 
+def test_the_quote_stream_takes_the_protocols_ticker_rule():
+    """/api/stream/quotes (api/routers/quote_stream.py) drops any symbol the feed could not carry: the SAME rule as
+    SYM_PATTERN, pinned here because that router deliberately does not import this module (see
+    test_no_runtime_module_imports_feed_protocol)."""
+    from api.routers import quote_stream
+    assert fp.SYM_PATTERN == quote_stream._SYM_RE.pattern
+
+
 @pytest.mark.parametrize("val", [2 ** 63, -(2 ** 63) - 1, 2 ** 64 - 1, 10 ** 30])
 def test_ints_outside_int64_rejected_by_decode_and_encode(val):
     # orjson parses 2**63..2**64-1 as int (rejected by the int64 rule); literals

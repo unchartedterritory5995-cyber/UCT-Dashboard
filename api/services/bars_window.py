@@ -20,9 +20,11 @@ HISTORY_WINDOW_BARS = 5000
 #: ⭐⭐ (coordinator ruling 2026-11-19, D9 strategy-only; the owner may veto) THE STRATEGY WINDOW: the most recent
 #: daily bars a strategy run on a MEMBER'S CHART may take, so that a daily chart holding a stock's whole history
 #: (the chart loads `barsBackfill.js::fullBarsFor('D')` bars: the two are pinned EQUAL by
-#: `tests/test_history_window_one_authority.py`) runs from the listing. Read by ONE consumer, the chart lane's
-#: window endpoint (`api/routers/pine_history_window.py`); the scan sweep, the screener backtest, the alert lanes and
-#: the server strategy route keep HISTORY_WINDOW_BARS. A run covering more than HISTORY_WINDOW_BARS bars from the
+#: `tests/test_history_window_one_authority.py`) runs from the listing. Read by TWO consumers: the chart lane's
+#: window endpoint (`api/routers/pine_history_window.py`) and (e100, coordinator ruling 2026-11-26: the single-symbol
+#: backtest runs on the chart's history) the server strategy route (`api/routers/pine_strategy_backtest.py`), which
+#: takes it ONLY on a run from the listing and otherwise keeps HISTORY_WINDOW_BARS. The scan sweep, the screener
+#: backtest and the alert lanes never read it. A run covering more than HISTORY_WINDOW_BARS bars from the
 #: listing is a DEEP start, served only once a TradingView capture witnesses where its backtest starts there (the
 #: broker rule B-START-DEEP, capture rows Q-SU-7 / Q-SU-8); until then it refuses by name.
 STRATEGY_HISTORY_WINDOW_BARS = 12500

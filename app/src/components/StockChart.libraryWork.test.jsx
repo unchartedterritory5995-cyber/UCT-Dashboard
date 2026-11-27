@@ -30,6 +30,8 @@ import { render, act, cleanup } from '@testing-library/react'
 import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 import { loadChartLibraryBuilds, stubCanvasForChartLibrary, libraryWorkCounter } from '../testing/chartLibraryBuilds'
+import { closeTime } from '../lib/marketClock/sessionCalendar.js'
+import { etDateOf } from './chart/barTime'
 
 const S = vi.hoisted(() => ({ calls: [], n: 0, ids: new Map() }))
 vi.mock('../lib/realtimeBarsGate', () => ({ realtimeBarsEnabled: () => false }))
@@ -163,12 +165,16 @@ function dailyRows(n, k) {
   }
   return out.reverse().map((t, i) => bar(t, i, k))
 }
+// ⭐ (2026-11-26) TRADING DAYS ONLY, as every real intraday answer. Since #2793 the store's ingest drops a bar on a day
+// the exchange is closed (barStore/extendedSession.js, the server's own rule): this fixture's weekdays included the
+// NYSE holidays, 130 of BBB's 3,900 rows on ten of them (182 of AAA's), which no member's data ever holds, and the
+// switch's pinned counts moved with those dropped rows, not with any change in what a real switch does.
 function rth30Rows(n, k) {
   const out = []
   for (let t = Date.UTC(2026, 10, 13, 20, 30) / 1000; out.length < n; t -= 1800) {
     const d = new Date(t * 1000)
     const m = d.getUTCHours() * 60 + d.getUTCMinutes()
-    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && m >= 14 * 60 + 30 && m <= 20 * 60 + 30) out.push(t)
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && m >= 14 * 60 + 30 && m <= 20 * 60 + 30 && closeTime(etDateOf(t)) !== null) out.push(t)
   }
   return out.reverse().map((t, i) => bar(t, i, k))
 }

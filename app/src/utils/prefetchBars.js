@@ -567,6 +567,24 @@ const _chartLaneInflight = new Map()
 // caller (the symbol handoff joins `_chartLaneInflight`) can ever hold one; a lane caller
 // that joins a legacy / warm request only detaches on abort, never cancels it.
 export const LANE_RANK = Object.freeze({ visible: -1, urgent: 0, grid: 1, background: 2 })
+
+// ⭐ THE OPT-IN SCAN-WARM TRACE (2026-11-26, the store-off jumps replay: a lap-2 press asked for its own row although the
+// page's urgent warm had named it a press earlier, and nothing recorded what became of that warm). A harness, or a member's
+// console to trace production, that sets `window.__uctScanWarmTrace = []` reads, next to the page's sends (Watchlists) and
+// the store's urgent decisions (data/barStore/prefetch.js), what this lane did with each URGENT request: queued (behind how
+// many, under the shed backoff or not), started, joined, raised to `visible` by the chart's own request, or aborted while it
+// waited. Only urgent waiters are written (a few per press). ⛔ NOTHING IS COMPUTED OR WRITTEN WHILE THE ARRAY IS ABSENT, and
+// the trace never changes what is fetched or when (prefetch.scanWarmTrace.test.js).
+export const SCAN_TRACE_MAX = 200
+/** Is the opt-in scan-warm trace on (`globalThis.__uctScanWarmTrace` is an array)? */
+export function scanTracing() { return Array.isArray(globalThis.__uctScanWarmTrace) }
+/** Append `ev` to the opt-in scan-warm trace, stamped `at` (performance.now, ms); a no-op while it is off. */
+export function scanTrace(ev) {
+  const t = globalThis.__uctScanWarmTrace
+  if (!Array.isArray(t)) return
+  t.push({ at: Math.round(typeof performance !== 'undefined' ? performance.now() : Date.now()), ...ev })
+  if (t.length > SCAN_TRACE_MAX) t.splice(0, t.length - SCAN_TRACE_MAX)
+}
 const _laneWaiters = []   // [{ rank, seq, url, signal, resolve, reject }]
 const _laneInflight = new Map()   // url -> { req, ic, refs }
 let _laneSeq = 0
@@ -628,6 +646,7 @@ function _drainLane(maxRank) {
     if (!joined && _active >= _MAX_CONCURRENT) break
     _laneWaiters.splice(i, 1)
     w.signal?.removeEventListener?.('abort', w.onAbort)
+    if (w.traced) scanTrace({ ev: 'lane-start', url: w.url, joined: !!joined })
     _laneAttach(joined || _laneFetch(w.url, true), w.signal).then(w.resolve, w.reject)
   }
   if (_laneWaiters.length && !_laneTimer) {
@@ -644,16 +663,28 @@ export function barsLaneRequest(url, { priority = 'visible', signal = null, fron
   if (signal?.aborted) return Promise.reject(_laneAbortError())
   const rank = LANE_RANK[priority] ?? LANE_RANK.background
   const joined = _laneJoin(u, rank)
-  if (joined) return _laneAttach(joined, signal)
+  const traced = rank === LANE_RANK.urgent && scanTracing()
+  if (joined) {
+    if (traced) scanTrace({ ev: 'lane-join', url: u, own: !!joined.entry })
+    return _laneAttach(joined, signal)
+  }
   if (rank < 0) return _laneAttach(_laneFetch(u, false), signal)
   return new Promise((resolve, reject) => {
-    const w = { rank, seq: front ? ++_laneSeq - 1e15 : ++_laneSeq, url: u, signal, resolve, reject, onAbort: null }
+    const w = { rank, seq: front ? ++_laneSeq - 1e15 : ++_laneSeq, url: u, signal, resolve, reject, onAbort: null, traced }
     w.onAbort = () => {
       const i = _laneWaiters.indexOf(w)
-      if (i >= 0) { _laneWaiters.splice(i, 1); reject(_laneAbortError()) }
+      if (i >= 0) {
+        _laneWaiters.splice(i, 1)
+        if (w.traced) scanTrace({ ev: 'lane-abort', url: w.url })
+        reject(_laneAbortError())
+      }
     }
     signal?.addEventListener?.('abort', w.onAbort, { once: true })
     _laneWaiters.push(w)
+    if (traced) {
+      const ahead = _laneWaiters.filter((x) => x !== w && (x.rank < w.rank || (x.rank === w.rank && x.seq < w.seq))).length
+      scanTrace({ ev: 'lane-queue', url: u, ahead, active: _active, backoff: _laneHeld(rank) })
+    }
     _pump()
   })
 }
@@ -678,6 +709,7 @@ export function promoteLaneRequest(url, priority, { to = null } = {}) {
     if (r < 0) {
       _laneWaiters.splice(i, 1)
       w.signal?.removeEventListener?.('abort', w.onAbort)
+      if (w.traced) scanTrace({ ev: 'lane-promote', url: w.url, to: priority })
       _laneAttach(_laneJoin(w.url, r) || _laneFetch(w.url, false), w.signal).then(w.resolve, w.reject)
       continue
     }

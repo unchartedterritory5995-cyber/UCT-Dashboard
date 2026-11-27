@@ -10,6 +10,9 @@
   "awesome_oscillator": {
    "1": "sha256:d3a7d34f7f6af22a37b9a5ced32cad2821a39c200724441650ed80636c57b15a"
   },
+  "center_of_gravity": {
+   "1": "sha256:f57997d592330f95c7c37a41b9b4b07feebbd641a6467a47daa61b9697c64209"
+  },
   "chaikin_money_flow": {
    "1": "sha256:eaa3d5d0a33d84eaa50c77cba749ff94a02207660ed5af85d468b69f0dc9430e"
   },
@@ -53,6 +56,9 @@
   "ichimoku_cloud": {
    "1": "sha256:22559c8e951c703fc0117057d4c594bdbdaf507f746540e6dc3ad648a4416806"
   },
+  "intraday_intensity_index": {
+   "1": "sha256:2853e2a00904a63e11b6522f3de5231c0df670d750211f561a7372125889cca1"
+  },
   "kaufman_adaptive_moving_average": {
    "1": "sha256:3438275e44468d8e2a2cca9417be7459712f1bd686eeaf4f27ce56c7a373e426"
   },
@@ -64,6 +70,9 @@
   },
   "laguerre_rsi": {
    "1": "sha256:766d1ab76b4e17f1c86692e01cf43789c3497e0a3f65fdd0421400eb4c9c5c52"
+  },
+  "least_squares_moving_average": {
+   "1": "sha256:cd2b6db9b46ecb619ae6f1e8c31794ef788a10f7cf7a9d0a9c46bb91df74a2d1"
   },
   "mass_index": {
    "1": "sha256:fc7dae0155197a50974582ffd9774ab0f9ef50080792e5ec3d9c5d54c17b0734"
@@ -99,11 +108,17 @@
   "stochastic_rsi": {
    "1": "sha256:1f81be2d9aa61bd1d5d98f7b80e95d8ffd7275e7472d4e4b62daa4f0d20d47ab"
   },
+  "symmetrically_weighted_moving_average": {
+   "1": "sha256:4ae050a112c43dda40d43295ab1f6bf08ad32f9081f447a3c4076eb42900aec7"
+  },
   "triple_exponential_moving_average": {
    "1": "sha256:1932845b10f0ceca3ee8dab050f55506f64d6edf4ec143ee598b8701d9605a67"
   },
   "trix": {
    "1": "sha256:00256a019dff7ebc5825474cc604b52fec27336257782b8c9e5478b18002955e"
+  },
+  "true_range": {
+   "1": "sha256:5331acd458221d9b0007dcce7ced77b42ebffbfe8b1a6870be032c32c21d354a"
   },
   "true_strength_index": {
    "1": "sha256:7cf1973b640a18b1f752299ff7e714f9acd10d60df476b4239ed482a1432c22e"
@@ -116,6 +131,9 @@
   },
   "vortex_indicator": {
    "1": "sha256:c0b7229f3ed3f9b37a55ef9d0b9506c64817bb1e8b8fa0ce148a77244d7225de"
+  },
+  "williams_variable_accumulation_distribution": {
+   "1": "sha256:d57dfd4f4bb9726e761eacdc3149b7609bb4dedacbd8521bd60ce87561d4cee9"
   }
  }
 }

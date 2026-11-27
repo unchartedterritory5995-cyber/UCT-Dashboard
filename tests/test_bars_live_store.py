@@ -109,6 +109,8 @@ def test_end_to_end_a_pushed_bucket_lands_and_a_covered_read_is_served_from_sqli
     answered from SQLite without touching any provider."""
     import time as _t
     monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
+    # wall-clock rows can lie outside any session; the serve-time session clamp has its own rails
+    monkeypatch.setattr(bars_fetch, "_clamp_exempt", lambda _t: True)
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
     bars_sqlite._drop_local_conn()
     bars_sqlite.init_db()

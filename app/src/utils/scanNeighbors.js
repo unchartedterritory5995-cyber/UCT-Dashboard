@@ -40,12 +40,14 @@ export function jumpStride(flat, idx, prevIdx) {
   return Math.abs(d) < 2 ? 0 : d
 }
 
-/** The row `stride` rows on from `idx` (wrap-aware), or null for no stride, an index outside the list, or the row itself. */
+/** The row `stride` rows on from `idx` (wrap-aware), or null for no stride, an index outside the list, the row itself,
+ *  or the row the stride came from (a stride of half an even-length list lands where it started: jumpTarget's guard). */
 export function strideTarget(flat, idx, stride) {
   const len = Array.isArray(flat) ? flat.length : 0
   if (!stride || len < 3 || idx < 0 || idx >= len) return null
   const s = flat[(((idx + stride) % len) + len) % len]
-  return s && s !== flat[idx] ? s : null
+  const from = flat[(((idx - stride) % len) + len) % len]
+  return s && s !== flat[idx] && s !== from ? s : null
 }
 
 export function jumpTarget(flat, idx, prevIdx) {

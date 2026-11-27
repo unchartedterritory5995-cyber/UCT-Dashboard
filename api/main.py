@@ -12121,7 +12121,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/api/maintenance")
 def get_maintenance():
-    return {"maintenance": _MAINTENANCE_MODE}
+    # ⛔ never stored: every signed-in page asks it at boot and AuthGuard holds the shell on it, so a cached
+    # `false` replayed during a maintenance window would let members past the gate (tests/test_maintenance_no_store.py)
+    return StarletteJSONResponse({"maintenance": _MAINTENANCE_MODE}, headers={"Cache-Control": "no-store"})
 
 def _process_rss_mb():
     """Current resident-set memory in MB, or None if unavailable (non-Linux).
@@ -12535,6 +12537,8 @@ rs_discord_router.configure(leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence
                             session_fn=_rs_discord_session)
 app.include_router(rs_discord_router.router)
 app.include_router(bars_router.router, dependencies=_OPEN_READS)
+from api.routers import bars_stream_status as _bars_stream_status_router  # noqa: E402 (moved out of bars.py)
+app.include_router(_bars_stream_status_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
 # Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.

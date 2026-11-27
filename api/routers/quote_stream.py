@@ -59,7 +59,8 @@ STREAM = "quotes"
 WIRE_VERSION = 2
 #: One connection carries a member's whole list: the REST cap (api/routers/live_prices.py _MAX_TICKERS).
 MAX_QUOTE_SYMBOLS = 250
-#: A ticker the ingest feed protocol can carry (feed_protocol.SYM_PATTERN); anything else is dropped here.
+#: A ticker the ingest feed can carry (the protocol's SYM_PATTERN, restated so this router does not import the
+#: protocol module; the protocol's own test pins the two together); anything else is dropped here.
 _SYM_RE = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
 HEARTBEAT_S = 15.0
 WAIT_S = 1.0
