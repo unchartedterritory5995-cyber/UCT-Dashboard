@@ -179,6 +179,8 @@ import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfR
 import { runHalfRunInputs, runHalfOnlySettingMoved } from './runHalfInputs.js'
 import { runtimeInputSpecsOf } from './runtime/runtimeInputs.js'
 import { noteRunHalfAnswer } from './runHalfTelemetry.js'
+// ⭐⭐ (Fred RS, 2026-11-27) a SERVED run half's drawings, kept for the same chart's next open (`runHalfKept.js`)
+import { runHalfFingerprint, keptRunHalfPayload, keepRunHalfPayload } from './runHalfKept.js'
 import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
 // ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
 // never imported by the compute closure.
@@ -3046,12 +3048,24 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   const asked = askRunHalf(def, bars, inputs, ctx, out)
   if (asked.refused) return refused(asked.refused)
-  if (asked.pending) return answered('pending', asked.pending, asked.waitingFor || null)
+  // ⭐⭐ (Fred RS, 2026-11-27) THE RUN IS IN FLIGHT, AND THIS EXACT CHART WAS SERVED BEFORE (`runHalfKept.js`): its
+  // drawings are drawn now, in the frame the candles land in, from the answer kept under a fingerprint of everything
+  // the run and both rails read. The gates above were asked live; the run is still asked, and its own answer replaces
+  // this one when it lands (the same inputs, the same drawings).
+  const keptNow = () => {
+    const fp = runHalfFingerprint(def, bars, inputs, ctx, out, ro.outputs)
+    const kept = fp ? keptRunHalfPayload(fp) : null
+    if (!kept) return null
+    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: kept, enumerable: false, configurable: true })
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state: 'served', code: null, kept: true })
+  }
+  if (asked.pending) return keptNow() || answered('pending', asked.pending, asked.waitingFor || null)
   const { cols } = asked
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
-  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  if (!payload || typeof payload !== 'object') return keptNow() || answered('pending', 'runtime:in-flight')
   // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
   if (payload.status === 'WITHHELD' && payload.pending === true) {
     return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
@@ -3083,8 +3097,11 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
   // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
   // graded against TradingView), beside the column rail, which still held.
+  // ⭐⭐ (Fred RS, 2026-11-27) a SERVED answer is kept for the same chart's next open (`runHalfKept.js`)
+  const keep = () => { const fp = runHalfFingerprint(def, bars, inputs, ctx, out, ro.outputs); if (fp) keepRunHalfPayload(fp, payload) }
   if (runHalfOnlySettingMoved(def, inputs)) {
     Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+    keep()
     return answered('served', null)
   }
   const rail = registeredRunHalfObjectRail()
@@ -3097,6 +3114,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   }
   if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
   Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+  keep()
   return answered('served', null)
 }
 

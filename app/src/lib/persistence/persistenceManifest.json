@@ -2920,6 +2920,17 @@
       ]
     },
     {
+      "key": "uct.runHalfKept.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "cache",
+      "label": "Script drawings kept for the same chart's next open",
+      "files": [
+        "app/src/components/chart/engine/runHalfKept.js"
+      ]
+    },
+    {
       "key": "uct.screener.density",
       "store": "localStorage",
       "scope": "device-local",
