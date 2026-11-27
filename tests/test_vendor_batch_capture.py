@@ -1072,7 +1072,7 @@ def test_a_builtin_is_added_from_the_dialog_by_its_measured_search_and_its_ident
     assert page.searches == ["VWAP"]                       # the measured term, from the table: the row named none
     cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
     assert cap["study"]["id"] == "Script$STD;VWAP@tv-scripting"
-    assert {"id": "in_1", "value": "Earnings"} in cap["study"]["inputs"]
+    assert {"id": "in_1", "name": "Anchor Period", "defval": "Session", "value": "Earnings"} in cap["study"]["inputs"]
     assert cap["source"]["text"] == bc.builtin_label(VWAP_ROW)                  # the GENERATED label, verbatim
     assert cap["source"]["sha256"] == manifest["scripts"][0]["sha256"] == hashlib.sha256(
         bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
@@ -1336,7 +1336,7 @@ def test_a_pasted_script_input_is_set_confirmed_and_captured(tmp_path, key):
     pos = [steps.index(w) for w in want]
     assert pos == sorted(pos), steps
     cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
-    assert {"id": "in_7", "value": True} in cap["study"]["inputs"]
+    assert {"id": "in_7", "name": "Color Bars By Regime", "defval": False, "value": True} in cap["study"]["inputs"]
     assert cap["source"]["text"] == 'indicator("X")\nplot(close)\n'          # the source untouched: byte for byte
 
 
