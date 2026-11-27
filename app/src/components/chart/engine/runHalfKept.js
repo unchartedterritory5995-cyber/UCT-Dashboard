@@ -30,6 +30,8 @@
 // ⛔ THIS MODULE IMPORTS NOTHING (it rides the registry's bundle, which every chart loads).
 
 const STORE_KEY = 'uct.runHalfKept.v1'
+/** The device key (the test setup clears it between cases). */
+export const RUN_HALF_KEPT_STORE_KEY = STORE_KEY
 /** How many charts' drawings are kept, newest first. */
 export const RUN_HALF_KEPT_MAX = 8
 /** The largest one encoded entry kept, and the whole store, in UTF-16 code units (localStorage's own measure). */
