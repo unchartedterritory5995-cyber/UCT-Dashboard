@@ -14,7 +14,7 @@ import {
   __routeEveryHostDocumentForTests,
   FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE,
 } from '../hostLaneAsync'
-import { FIRST_PAGE_NOTE } from '../firstPage'
+import { FIRST_PAGE_NOTE, pageReachProvable } from '../firstPage'
 import { withheldBarsReport } from '../astColumns'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { OWN_DAILY_KEY } from '../otherSymbols'
@@ -168,6 +168,49 @@ describe('the first page: drawn at once, byte-equal to the full history where it
     expect(finite(full[cumKey]), 'non-vacuity: the full history draws the mean').toBeGreaterThan(3000)
     expect(finite(first[cumKey]), 'the start-dependent plot is not drawn from a page').toBe(0)
     expect(withheldBarsReport(first)[cumKey][FIRST_PAGE_CODE].every((x) => x === 1)).toBe(true)
+  })
+
+  it('⛔⛔ (e101) TWO STARTS THAT AGREE ARE NOT ENOUGH: a plot whose reach is not proved within the probe is withheld', () => {
+    // `bar_index >= 2000`: the page (1,500 rows) and the probe (1,751) both read 0 on every page bar and AGREE, while the
+    // full history reads 1 there. Before e101 the page drew 0: a WRONG value until the full answer landed.
+    const src = '//@version=5
+indicator("fp-reach")
+plot(close * 2, "exact")
+plot(bar_index >= 2000 ? 1 : 0, "late")
+'
+    const stored = JSON.parse(JSON.stringify(memberPaneDefinition({ source: src, name: 'fp-reach', id: 'u_fp-reach' }).definition))
+    const { installed } = registry.installUserDefinitions([stored])
+    const def = installed[0]; fredId = def.id
+    const { chart } = fiveMinute(22)
+    const ctx = { sym: 'RDDT', tf: '5', newestBarIsForming: false, symbol: RDDT }
+    const full = registry.computeFor(def, chart, {}, { ...ctx })
+    __routeEveryHostDocumentForTests(true)
+    expect(isHostLanePending(registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fpr' })), 'routed to the worker').toBe(true)
+    expect(workers.answerOne()).toBe(true)                                          // the page job
+    const first = registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fpr' })
+    const [exactKey, lateKey] = Object.keys(full)
+    // non-vacuity: the full history reads 1 on every page bar
+    expect(Array.from(full[lateKey]).slice(-FIRST_PAGE_ROWS).every((v) => v === 1)).toBe(true)
+    expect(finite(first[exactKey]), 'a plot whose reach is proved is still drawn on the page').toBe(FIRST_PAGE_ROWS)
+    expect(finite(first[lateKey]), 'the start-counted plot is not drawn from a page').toBe(0)
+    expect(withheldBarsReport(first)[lateKey][FIRST_PAGE_CODE].every((x) => x === 1)).toBe(true)
+    // every value drawn on the page equals the full history
+    for (const k of Object.keys(first)) {
+      for (let i = 0; i < chart.length; i += 1) if (Number.isFinite(first[k][i])) expect(Object.is(first[k][i], full[k][i]), `${k}[${i}]`).toBe(true)
+    }
+  })
+
+  it('⭐ (e101) the reach rule: finite and within the probe, no start-counted clock leaf', () => {
+    const tree = (ast) => ({ id: 'u_x', plots: [{ key: 'v' }], compute: { kind: 'ast', ast } })
+    const close = { type: 'series', name: 'close' }
+    const sma = (n) => ({ type: 'call', name: 'sma', args: [close, { type: 'num', value: n }] })
+    expect(pageReachProvable(tree(close), 'v')).toBe(true)
+    expect(pageReachProvable(tree(sma(20)), 'v')).toBe(true)
+    expect(pageReachProvable(tree(sma(FIRST_PAGE_PROBE)), 'v')).toBe(true)
+    expect(pageReachProvable(tree(sma(FIRST_PAGE_PROBE + 2)), 'v')).toBe(false)
+    expect(pageReachProvable(tree({ type: 'op', name: '+', args: [close, { type: 'series', name: 'barindex' }] }), 'v')).toBe(false)
+    expect(pageReachProvable(tree({ type: 'call', name: 'cum', args: [close] }), 'v')).toBe(false)
+    expect(pageReachProvable(tree(null), 'v')).toBe(false)
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {

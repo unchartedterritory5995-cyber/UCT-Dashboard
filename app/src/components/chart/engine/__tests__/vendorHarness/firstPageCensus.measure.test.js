@@ -9,7 +9,8 @@
 // full answer lands. This census measures how often that happens on what members are served: every committed corpus
 // script the member door puts on the HOST lane, on real long series, its first page held to the full-history run of the
 // same plan on the page's bars.
-// ⛔ OPT-IN (`RUNTIME_PERF_CENSUS=digest`). It asserts nothing about the count (that is the finding); it asserts reach.
+// ⛔ OPT-IN (`RUNTIME_PERF_CENSUS=digest`). It asserts reach, and (since the reach rule, `firstPage.js::pageReachProvable`)
+// that no first page differs from the full history.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -87,5 +88,8 @@ describe.skipIf(!RUN)('the host lane\'s first page against the full history (opt
       + tally.wrong.map((w) => `  WRONG ${w}`).join('\n'))
     expect(tally.hostScripts).toBeGreaterThan(50) // non-vacuity: the host corpus was reached
     expect(tally.exactOnPage).toBeGreaterThan(0)  // non-vacuity: some plot is drawn on a first page
+    // ⛔⛔ (e101) the rule: no value drawn on a first page differs from the full history (before the reach rule, on
+    // 2026-11-27: 571 plots drawn on a page, 3 of them WRONG)
+    expect(tally.wrong).toEqual([])
   }, 3600000)
 })
