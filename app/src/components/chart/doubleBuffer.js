@@ -143,17 +143,21 @@ export function mirrorFrameFor(front, shadow) {
 }
 
 // ─── what happened (diagnostics: window.__uctDoubleBuffer, the flip proof's peek) ────────────────────────────────
-const _stats = { flips: 0, switches: 0, why: {}, retargets: 0, last: [] }
+const _stats = { flips: 0, switches: 0, why: {}, retargets: 0, last: [], log: [] }
 export function doubleBufferStats() { return _stats }
-export function noteDecision(d, sym) {
+/** One press's decision: `extra.sinceSet` / `extra.sinceReport`: ms since the hidden pane was set to its row / since its
+ *  chart last reported (null: never), so a live A/B can tell a slow retarget from a slow chart. */
+export function noteDecision(d, sym, extra = {}) {
   if (d.flip) _stats.flips += 1
   else _stats.switches += 1
   _stats.why[d.why] = (_stats.why[d.why] || 0) + 1
   _stats.last.push(`${sym}:${d.why}`)
   if (_stats.last.length > 32) _stats.last.splice(0, _stats.last.length - 32)
+  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null })
+  if (_stats.log.length > 64) _stats.log.splice(0, _stats.log.length - 64)
   try { if (typeof window !== 'undefined') window.__uctDoubleBuffer = _stats } catch { /* no window */ }
 }
 export function noteRetarget() { _stats.retargets += 1 }
 export function __resetDoubleBufferStatsForTests() {
-  _stats.flips = 0; _stats.switches = 0; _stats.why = {}; _stats.retargets = 0; _stats.last.length = 0
+  _stats.flips = 0; _stats.switches = 0; _stats.why = {}; _stats.retargets = 0; _stats.last.length = 0; _stats.log.length = 0
 }

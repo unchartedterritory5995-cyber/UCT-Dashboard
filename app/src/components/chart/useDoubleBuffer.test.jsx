@@ -11,6 +11,8 @@
 //   H7 (F1) the views: a zoomed front refuses the flip; the shadow mirrors the front's span in idle time, then a press flips
 //   H8 (F5) focus inside the old front moves to the new front at the flip
 //   H9 (F6) no flip while a replay cutoff is set
+//   H10 (live dry run) right after a flip, and at mount, the hidden pane takes the row ahead with no idle time
+//   H11 each decision is logged with the time since the hidden pane was set and since its chart reported
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -81,10 +83,11 @@ async function ready(over = {}) {
 const press = (h, sym, over = {}) => h.rerender({ ...base(), ...over, sym })
 
 describe('useDoubleBuffer', () => {
-  it('H1 the hidden layer takes the row ahead in idle time', async () => {
+  it('H1 the hidden layer takes the row ahead once the front has drawn, with no idle time (the first press flips)', async () => {
     const { result } = mount()
-    expect(result.current.syms).toEqual(['AAA', null])
-    await idle()
+    expect(result.current.syms).toEqual(['AAA', null])    // (LOW-2) the mount's retarget waits for the front's first pass…
+    report(result, 0, 'AAA')
+    expect(result.current.syms).toEqual(['AAA', 'BBB'])   // …then the frame (afterPaint is immediate here; no timer has run)
     expect(result.current.front).toBe(0)
     expect(result.current.syms).toEqual(['AAA', 'BBB'])
     expect(result.current.handles[0].state).toBe('visible')
@@ -96,7 +99,7 @@ describe('useDoubleBuffer', () => {
     const handles = h.result.current.handles
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
-    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
+    expect(h.result.current.syms[1]).toBe('BBB')           // the flip changed no layer's symbol (the retarget then moves layer 0: H10)
     expect(handles[1].state).toBe('visible')
     expect(handles[0].state).toBe('hidden')
     expect(db.doubleBufferStats().flips).toBe(1)
@@ -111,7 +114,24 @@ describe('useDoubleBuffer', () => {
     await idle()
     press(h, 'BBB')
     expect(h.result.current.front).toBe(0)
-    expect(db.doubleBufferStats().why['no-shadow']).toBe(1)
+    expect(db.doubleBufferStats().why['shadow-unreported']).toBe(1)   // on the row, its chart has not committed it yet
+  })
+
+  it('H10 right after a flip the old front takes the next row ahead, with no idle time', async () => {
+    const h = await ready()
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(h.result.current.syms).toEqual(['CCC', 'BBB'])   // no timer advanced since the press
+  })
+
+  it('H11 each decision is logged with how long the hidden pane had been on its row and since its chart reported', async () => {
+    const h = await ready()
+    press(h, 'BBB')
+    const last = db.doubleBufferStats().log.at(-1)
+    expect(last).toMatchObject({ sym: 'BBB', why: 'flip' })
+    expect(typeof last.sinceSet).toBe('number')
+    expect(typeof last.sinceReport).toBe('number')
+    expect(last.sinceSet).toBeGreaterThanOrEqual(0)
   })
 
   it('H3 the store moved on since the shadow reported: refused; the shadow reports the new bars: a press flips', async () => {
@@ -133,7 +153,7 @@ describe('useDoubleBuffer', () => {
     press(h, 'CCC')
     expect(h.result.current.front).toBe(0)
     expect(h.result.current.syms[0]).toBe('CCC')
-    expect(db.doubleBufferStats().why['no-shadow']).toBe(1)   // the shadow holds another row
+    expect(db.doubleBufferStats().why['shadow-other-row']).toBe(1)   // the shadow holds another row
     expect(painted.some((a) => a[3] === 'flip')).toBe(false)
   })
 
