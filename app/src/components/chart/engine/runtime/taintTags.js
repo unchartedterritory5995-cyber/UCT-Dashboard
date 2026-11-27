@@ -4,8 +4,10 @@
 //
 // `docs/pine/START-TAINT.md` (approved 2026-11-27). An off-listing run serves a value only where it cannot depend on
 // the run's first bar. The taint run (`vmTaint.js::executeTainted`, GENERATED from `vm.js::execute`) carries one tag
-// per value beside it, and these are the rules it combines them by. They live here, hand-written and railed, so the
-// generated loop holds only calls into them and the table of which opcode calls which (`app/scripts/gen-vm-taint.mjs`).
+// per value beside it, and these are the rules it combines them by. They live here, hand-written and railed, and the
+// generated loop holds the table of which opcode applies which (`app/scripts/gen-vm-taint.mjs`). ⛔ The one-line joins
+// below (`tStrict` ... `tVal`) are INLINED into the loop from this file's TEXT (`gen-vm-taint.mjs::INLINED`, a perf
+// rule): keep each one line of one-letter parameters, numbers and operators, and regenerate after changing one.
 //
 //   C (0) clean    the same on every earlier first bar
 //   O (1) offset   clean up to ONE additive constant, the number of bars before our first bar (`bar_index`)

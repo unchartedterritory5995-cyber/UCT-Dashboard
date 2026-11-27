@@ -29,13 +29,13 @@ import { workPulse } from '../workPulse.js'
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
-import { TAG, tStrict as tStrict$, tAdd as tAdd$, tSub as tSub$, tCmp as tCmp$, tVal as tVal$, tRange as tRange$, branchTableOf as branchTableOf$, taintBranch as taintBranch$ } from './taintTags.js'
+import { TAG, tRange as tRange$, branchTableOf as branchTableOf$, taintBranch as taintBranch$ } from './taintTags.js'
 import { ADD as ADD$, AND as AND$, CLOCK_GETTER as CLOCK_GETTER$, CUMULATIVE_LIMITS as CUMULATIVE_LIMITS$, DISARMED_NO_OPS as DISARMED_NO_OPS$, DIV as DIV$, DisarmedBrokerRead as DisarmedBrokerRead$, EQ as EQ$, GE as GE$, GT as GT$, LE as LE$, LT as LT$, MUL as MUL$, NE as NE$, NEG as NEG$, NOT as NOT$, NO_OUTPUT as NO_OUTPUT$, OP_HALT as OP_HALT$, OR as OR$, PW as PW$, SUB as SUB$, VmError as VmError$, chargedSince as chargedSince$, countsOf as countsOf$, requestRegionScopeOf as requestRegionScopeOf$, runNow as runNow$, runRequest as runRequest$, _regionScopeOff } from './vm.js'
 
 export { TAG }
 
 export function executeTainted(program, ctx, limits, opts) {
-  const ADD = ADD$, AND = AND$, CLOCK_GETTER = CLOCK_GETTER$, CUMULATIVE_LIMITS = CUMULATIVE_LIMITS$, DISARMED_NO_OPS = DISARMED_NO_OPS$, DIV = DIV$, DisarmedBrokerRead = DisarmedBrokerRead$, EQ = EQ$, GE = GE$, GT = GT$, LE = LE$, LT = LT$, MUL = MUL$, NE = NE$, NEG = NEG$, NOT = NOT$, NO_OUTPUT = NO_OUTPUT$, OP_HALT = OP_HALT$, OR = OR$, PW = PW$, SUB = SUB$, VmError = VmError$, chargedSince = chargedSince$, countsOf = countsOf$, requestRegionScopeOf = requestRegionScopeOf$, runNow = runNow$, runRequest = runRequest$, tStrict = tStrict$, tAdd = tAdd$, tSub = tSub$, tCmp = tCmp$, tVal = tVal$, tRange = tRange$, branchTableOf = branchTableOf$, taintBranch = taintBranch$
+  const ADD = ADD$, AND = AND$, CLOCK_GETTER = CLOCK_GETTER$, CUMULATIVE_LIMITS = CUMULATIVE_LIMITS$, DISARMED_NO_OPS = DISARMED_NO_OPS$, DIV = DIV$, DisarmedBrokerRead = DisarmedBrokerRead$, EQ = EQ$, GE = GE$, GT = GT$, LE = LE$, LT = LT$, MUL = MUL$, NE = NE$, NEG = NEG$, NOT = NOT$, NO_OUTPUT = NO_OUTPUT$, OP_HALT = OP_HALT$, OR = OR$, PW = PW$, SUB = SUB$, VmError = VmError$, chargedSince = chargedSince$, countsOf = countsOf$, requestRegionScopeOf = requestRegionScopeOf$, runNow = runNow$, runRequest = runRequest$, tRange = tRange$, branchTableOf = branchTableOf$, taintBranch = taintBranch$
   // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
   if (opts && (opts.resume || opts.probe || opts.realtime || Number.isInteger(opts.checkpointAt) || opts.entry !== undefined)) {
     throw new VmError('runtime:taint — a taint run is a whole top-level run (no resume, probe, checkpoint, realtime or request entry)')
@@ -491,12 +491,12 @@ export function executeTainted(program, ctx, limits, opts) {
           stack[sp++] = idx >= 0 ? series[a][idx] : NaN
           break
         }
-        case 10 /* OP.ADD */: ts[sp - 2] = tAdd(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
-        case 11 /* OP.SUB */: ts[sp - 2] = tSub(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
-        case 12 /* OP.MUL */: ts[sp - 2] = tStrict(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
-        case 13 /* OP.DIV */: ts[sp - 2] = tStrict(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
-        case 14 /* OP.NEG */: ts[sp - 1] = tVal(ts[sp - 1]); stack[sp - 1] = NEG(stack[sp - 1]); break
-        case 75 /* OP.CONCAT */: ts[sp - 2] = tStrict(ts[sp - 2], ts[sp - 1]); {
+        case 10 /* OP.ADD */: ts[sp - 2] = ((ts[sp - 2] === 0 ? (ts[sp - 1] === 2 ? 2 : ts[sp - 1]) : (ts[sp - 2] === 1 && ts[sp - 1] === 0 ? 1 : 2))); { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
+        case 11 /* OP.SUB */: ts[sp - 2] = ((ts[sp - 1] === 0 ? ts[sp - 2] : (ts[sp - 2] === 1 && ts[sp - 1] === 1 ? 0 : 2))); { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
+        case 12 /* OP.MUL */: ts[sp - 2] = (((ts[sp - 2] | ts[sp - 1]) === 0 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
+        case 13 /* OP.DIV */: ts[sp - 2] = (((ts[sp - 2] | ts[sp - 1]) === 0 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
+        case 14 /* OP.NEG */: ts[sp - 1] = ((ts[sp - 1] === 0 ? 0 : 2)); stack[sp - 1] = NEG(stack[sp - 1]); break
+        case 75 /* OP.CONCAT */: ts[sp - 2] = (((ts[sp - 2] | ts[sp - 1]) === 0 ? 0 : 2)); {
           const y = stack[--sp]
           const x = stack[sp - 1]
           if (typeof x !== 'string' || typeof y !== 'string') {
@@ -509,15 +509,15 @@ export function executeTainted(program, ctx, limits, opts) {
           stack[sp - 1] = x + y
           break
         }
-        case 20 /* OP.LT */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
-        case 21 /* OP.GT */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
-        case 22 /* OP.LE */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }
-        case 23 /* OP.GE */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = GE(stack[sp - 1], y); break }
-        case 24 /* OP.EQ */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = EQ(stack[sp - 1], y); break }
-        case 25 /* OP.NE */: ts[sp - 2] = tCmp(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = NE(stack[sp - 1], y); break }
-        case 30 /* OP.AND */: ts[sp - 2] = tStrict(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = AND(stack[sp - 1], y); break }
-        case 31 /* OP.OR */: ts[sp - 2] = tStrict(ts[sp - 2], ts[sp - 1]); { const y = stack[--sp]; stack[sp - 1] = OR(stack[sp - 1], y); break }
-        case 32 /* OP.NOT */: ts[sp - 1] = tVal(ts[sp - 1]); stack[sp - 1] = NOT(stack[sp - 1]); break
+        case 20 /* OP.LT */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
+        case 21 /* OP.GT */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
+        case 22 /* OP.LE */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }
+        case 23 /* OP.GE */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = GE(stack[sp - 1], y); break }
+        case 24 /* OP.EQ */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = EQ(stack[sp - 1], y); break }
+        case 25 /* OP.NE */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = NE(stack[sp - 1], y); break }
+        case 30 /* OP.AND */: ts[sp - 2] = (((ts[sp - 2] | ts[sp - 1]) === 0 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = AND(stack[sp - 1], y); break }
+        case 31 /* OP.OR */: ts[sp - 2] = (((ts[sp - 2] | ts[sp - 1]) === 0 ? 0 : 2)); { const y = stack[--sp]; stack[sp - 1] = OR(stack[sp - 1], y); break }
+        case 32 /* OP.NOT */: ts[sp - 1] = ((ts[sp - 1] === 0 ? 0 : 2)); stack[sp - 1] = NOT(stack[sp - 1]); break
         case 33 /* OP.SELECT */: { const _p = TERNARY(stack[sp - 3], 1, 2); ts[sp - 3] = ts[sp - 3] !== 0 ? 2 : _p === 1 ? ts[sp - 2] : _p === 2 ? ts[sp - 1] : 0 } {
           const bb = stack[--sp]; const aa = stack[--sp]
           stack[sp - 1] = TERNARY(stack[sp - 1], aa, bb)
@@ -828,7 +828,7 @@ export function executeTainted(program, ctx, limits, opts) {
           windowBase = frWindowBase[depth]
           break
         }
-        case 40 /* OP.EMIT */: outT[a][bar] = rTop > 0 ? 2 : tVal(ts[sp - 1]); {
+        case 40 /* OP.EMIT */: outT[a][bar] = rTop > 0 ? 2 : ((ts[sp - 1] === 0 ? 0 : 2)); {
           const v = stack[--sp]
           if (typeof v !== 'number') {
             throw new VmError(

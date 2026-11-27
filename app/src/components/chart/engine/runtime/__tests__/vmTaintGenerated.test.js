@@ -50,6 +50,24 @@ describe('the generator stops by name', () => {
   })
 })
 
+describe('the joins are INLINED from taintTags.js, its one author (e105 perf)', () => {
+  const TAGS = read('taintTags.js')
+  it('the generated loop carries taintTags.js's own tSub, operands substituted (an algebra change lands regenerated)', () => {
+    const tags = once(TAGS, 'export const tSub = (x, y) => (y === 0 ? x : (x === 1 && y === 1 ? 0 : 2))',
+      'export const tSub = (x, y) => (y === 0 ? x : 2)')
+    const out = generateVmTaint(VM, tags)
+    expect(out).toContain('case 11 /* OP.SUB */: ts[sp - 2] = ((ts[sp - 1] === 0 ? ts[sp - 2] : 2));')
+    expect(out === read('vmTaint.js'), 'the committed loop must differ from one generated over another algebra').toBe(false)
+  })
+  it('stops by name on an algebra function it cannot inline (not one line of one-letter parameters and operators)', () => {
+    const tags = once(TAGS, 'export const tCmp = (x, y) => (x === y && x !== 2 ? 0 : 2)', 'export const tCmp = (x, y) => (cmpOf(x, y))')
+    expect(() => generateVmTaint(VM, tags)).toThrow(/tCmp is not an arrow of one-letter parameters/)
+  })
+  it('no call of an inlined function is left in the generated loop', () => {
+    expect(read('vmTaint.js')).not.toMatch(/(tStrict|tAdd|tSub|tCmp|tVal)(/)
+  })
+})
+
 describe('zero cost on the listing path: `execute` is untouched', () => {
   // the tag state's names: none may appear in the listing run's own function
   const TAG_NAMES = ['ts[sp', 'tl[localsBase', 'tp[persistBase', 'theld', 'outT', 'iterT', 'colTag', 'rTop', 'taintBranch', 'branchTableOf']
