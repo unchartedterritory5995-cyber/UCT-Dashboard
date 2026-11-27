@@ -1,8 +1,8 @@
 // The developing-bar channel on a hidden LAYER board (2026-11-27, the board keep-alive's layer mode;
 // boardVisibility.js). A kept board stays mounted; another board on the same key keeps the key's feed alive, so without
 // the board's pause every developing tick would paint the hidden chart.
-//   DV1 (red first) a hidden layer board's chart is handed no developing bar; after the show's first paint the
-//       subscription is back (never in the show's own task) and the next tick is painted
+//   DV1 (red first) a hidden layer board's chart is handed no developing bar (the subscription stays, muted); the show
+//       paints the store's newest IN ITS OWN TASK, and the next tick is painted
 //   DV2 the <Activity> mode's handle changes nothing
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -87,8 +87,8 @@ describe('the developing-bar channel on a hidden layer board', () => {
     expect(painted.length - before, 'a hidden board painted a developing tick').toBe(0)
     expect(devRef.current.c).toBe(11.1)
     act(() => { vis.set('visible') })
+    expect(devRef.current.c, 'the show did not paint the newest developing bar in its own task').toBe(11.3)
     push(et(13, 20), { h: 11.5, l: 9, c: 11.45, v: 150 }, t0 + 3)
-    expect(devRef.current.c, 'the show resubscribed in its own task').toBe(11.1)
     await frame()
     push(et(13, 20), { h: 11.6, l: 9, c: 11.55, v: 160 }, t0 + 4)
     await frame()

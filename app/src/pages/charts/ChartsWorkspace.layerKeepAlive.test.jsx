@@ -10,6 +10,16 @@
  *   LK4 (red first) the kept board's SWR polls are paused (its slot's SWRConfig), the front board's are not
  *   LK5 a third board disposes the kept one with a plain unmount (its effects' cleanups run)
  *   LK6 '1' is still the <Activity> mode (no layer slot)
+ * Review of #2901:
+ *   LK7 (red first, H2) a key both boards read: mutate() from the board in front fetches once and the front board shows
+ *       it, though the kept board's hook was mounted first (a paused first hook swallowed it)
+ *   LK8 (red first, M3) a board hidden 2 s or more revalidates its SWR reads after its show's first paint; a quick
+ *       back-and-forth does not
+ *   LK9 (red first, M4) a group TIMEFRAME changed on the board in front waits for the kept board's show, like a symbol
+ *   LK10 (red first, H1) a layer hide leaves no chart or watchlist "active" (the key handlers follow those refs)
+ *   LK11 (red first, M5) a menu the hidden board opened into document.body (a portal) is closed by the hide
+ *   LK12 every way a kept layer board is dropped (a third board, grid mode, the desk hiding the workspace, ten hidden
+ *        minutes, the workspace leaving) unmounts it with its handle disposed
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -17,12 +27,23 @@ import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 // every WidgetHost INSTANCE: its mount (a state initialiser), its effect runs and cleanups, and what each render read
-const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {} }))
+const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null }))
 vi.mock('./WidgetHost', async () => {
-  const { useState, useEffect } = await import('react')
-  const { useSWRConfig } = await import('swr')
-  const { useBoardHidden } = await import('../../components/chart/boardVisibility')
+  const { useState, useEffect, useContext } = await import('react')
+  const { createPortal } = await import('react-dom')
+  const { default: useSWR, useSWRConfig } = await import('swr')
+  const { useBoardHidden, BoardVisibilityContext } = await import('../../components/chart/boardVisibility')
   const { useWorkspace } = await import('./WorkspaceContext')
+  // a menu in document.body that closes on a press elsewhere, as the product's menus do
+  function Menu({ id }) {
+    const [open, setOpen] = useState(true)
+    useEffect(() => {
+      const close = () => setOpen(false)
+      document.addEventListener('mousedown', close)
+      return () => document.removeEventListener('mousedown', close)
+    }, [])
+    return open ? createPortal(<div data-testid={`menu-${id}`}>menu</div>, document.body) : null
+  }
   return {
     default: ({ widget }) => {
       useState(() => { hosts.created[widget.id] = (hosts.created[widget.id] || 0) + 1; return 0 })
@@ -34,10 +55,12 @@ vi.mock('./WidgetHost', async () => {
       const ws = useWorkspace()
       const sym = ws.groupSyms?.[widget.color] ?? null
       const cfg = useSWRConfig()
+      const { data } = useSWR(hosts.swrKey, async () => { hosts.fetches++; return hosts.fetches })
       hosts.ws[widget.id] = ws
       hosts.swr[widget.id] = cfg
-      hosts.renders.push({ id: widget.id, hidden, sym })
-      return <div data-testid={`host-${widget.id}`}>{widget.id}</div>
+      hosts.vis[widget.id] = useContext(BoardVisibilityContext)
+      hosts.renders.push({ id: widget.id, hidden, sym, tf: ws.groupTfs?.[widget.color] ?? null, data })
+      return <div data-testid={`host-${widget.id}`}>{widget.id}{hosts.menuFor === widget.id ? <Menu id={widget.id} /> : null}</div>
     },
   }
 })
@@ -92,8 +115,9 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 import ChartsWorkspace from './ChartsWorkspace'
 
+let swrSeq = 0
 beforeEach(() => {
-  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {} })
+  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null })
   try { localStorage.clear() } catch { /* */ }
   globalThis.fetch = vi.fn(async (url) => {
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -168,15 +192,16 @@ test('LK3 (red first) a group switch on the board in front waits for the show of
   expect(lastRender('watchlist-1').sym, 'the show did not apply the switch').toBe('NVDA')
 })
 
-test('LK4 (red first) the kept board\'s SWR polls are paused, the front board\'s are not', async () => {
+test('LK4 (red first) the kept board\'s SWR polls are off (isVisible), the front board\'s are not', async () => {
   mount()
   await settle()
   await go('Two Charts')
-  expect(hosts.swr['watchlist-1'].isPaused(), 'the kept board polls').toBe(true)
-  expect(hosts.swr['chart-1'].isPaused()).toBe(false)
+  expect(hosts.swr['watchlist-1'].isVisible(), 'the kept board polls').toBe(false)
+  expect(hosts.swr['chart-1'].isVisible()).toBe(true)
+  expect(hosts.swr['watchlist-1'].isPaused(), 'H2: a paused hook swallows mutate() and retries for the board in front').toBe(false)
   await go('Main Trading')
-  expect(hosts.swr['watchlist-1'].isPaused()).toBe(false)
-  expect(hosts.swr['chart-1'].isPaused()).toBe(true)
+  expect(hosts.swr['watchlist-1'].isVisible()).toBe(true)
+  expect(hosts.swr['chart-1'].isVisible()).toBe(false)
 })
 
 test('LK5 a third board disposes the kept board with a plain unmount', async () => {
@@ -196,4 +221,119 @@ test('LK6 \'1\' is still the <Activity> mode', async () => {
   expect(displayNone(host('watchlist-1'))).toBe(true)
   expect(document.querySelector('[inert]')).toBeNull()
   expect(lastRender('watchlist-1').hidden).toBe(false)
+})
+
+test('LK7 (red first, H2) mutate() of a key both boards read fetches once and reaches the board in front', async () => {
+  hosts.swrKey = `/api/shared-${++swrSeq}`
+  mount()
+  await settle()
+  await go('Two Charts')              // the kept board's hook for the key was mounted first
+  await settle()
+  const before = hosts.fetches
+  await act(async () => { await hosts.swr['chart-1'].mutate(hosts.swrKey) })
+  await settle()
+  expect(hosts.fetches - before, 'a mutate() from the board in front fetched nothing').toBe(1)
+  const last = [...hosts.renders].reverse().find((r) => r.id === 'chart-1')
+  expect(last.data, 'the board in front does not show the refetch').toBe(hosts.fetches)
+})
+
+test('LK8 (red first, M3) a board hidden 2 s or more revalidates its reads after its show; a quick return does not', async () => {
+  hosts.swrKey = `/api/kept-${++swrSeq}`
+  mount()
+  await settle()
+  await go('Two Charts')
+  await go('Main Trading')            // back at once
+  await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
+  const quick = hosts.fetches
+  await go('Two Charts')
+  await act(async () => { await new Promise((r) => setTimeout(r, 2100)) })
+  const before = hosts.fetches
+  expect(before, 'NON-VACUITY: no revalidation after a quick return').toBe(quick)
+  await go('Main Trading')
+  await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
+  expect(hosts.fetches - before, 'a board hidden 2 s was not revalidated at its show').toBeGreaterThan(0)
+}, 10000)
+
+test('LK9 (red first, M4) a group timeframe change waits for the kept board\'s show', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  const tfBefore = lastRender('watchlist-1').tf
+  await act(async () => { hosts.ws['chart-1'].setGroupTf('A', '5') })
+  await settle()
+  expect(lastRender('chart-1').tf, 'NON-VACUITY: the board in front took the timeframe').toBe('5')
+  expect(hosts.renders.filter((r) => r.id === 'watchlist-1' && r.tf === '5').length,
+    'the kept board followed a timeframe change made on the board in front').toBe(0)
+  expect(tfBefore).not.toBe('5')
+  await go('Main Trading')
+  expect(lastRender('watchlist-1').tf, 'the show did not apply the timeframe').toBe('5')
+})
+
+test('LK10 (red first, H1) a layer hide leaves no chart or watchlist active', async () => {
+  mount()
+  await settle()
+  hosts.ws['watchlist-1'].activeChartRef.current = 'w-main'
+  hosts.ws['watchlist-1'].activeWatchlistRef.current = 'watchlist-1'
+  await go('Two Charts')
+  expect(hosts.ws['chart-1'].activeChartRef.current, 'a chart of the hidden board is still active').toBeNull()
+  expect(hosts.ws['chart-1'].activeWatchlistRef.current, 'a watchlist of the hidden board is still active').toBeNull()
+})
+
+test('LK11 (red first, M5) a menu the hidden board opened into document.body closes at the hide', async () => {
+  hosts.menuFor = 'watchlist-1'
+  mount()
+  await settle()
+  expect(document.querySelector('[data-testid="menu-watchlist-1"]'), 'NON-VACUITY: the menu is open').toBeTruthy()
+  await go('Two Charts')               // a click() on the dock: no press reached the document
+  expect(document.querySelector('[data-testid="menu-watchlist-1"]'), 'the hidden board left its menu over the board in front').toBeNull()
+})
+
+describe('LK12 every way a kept layer board is dropped unmounts it with its handle disposed', () => {
+  const kept = async () => {
+    const view = mount()
+    await settle()
+    await go('Two Charts')
+    const vis = hosts.vis['watchlist-1']
+    expect(vis?.state, 'NON-VACUITY: MAIN is kept').toBe('hidden')
+    return { view, vis }
+  }
+  const dropped = (vis) => {
+    expect(hosts.cleanups['watchlist-1'], 'the kept board was not unmounted').toBe(1)
+    expect(vis.state).toBe('disposed')
+    expect(hosts.cleanups['chart-1'] || 0, 'the board in front was unmounted').toBe(0)
+  }
+  test('a third board', async () => { const { vis } = await kept(); await go('Intraday Pair'); dropped(vis) })
+  test('grid mode', async () => {
+    const { vis } = await kept()
+    await act(async () => { prefStore.write('multichart_state', JSON.stringify({ mode: 'grid', layout: '1x2', cells: [] })) })
+    await settle()
+    expect(hosts.cleanups['watchlist-1']).toBe(1)
+    expect(vis.state).toBe('disposed')
+  })
+  test('the desk hiding the workspace', async () => {
+    const { view, vis } = await kept()
+    view.rerender(<MemoryRouter><ChartsWorkspace hidden /></MemoryRouter>)
+    await settle()
+    expect(hosts.cleanups['watchlist-1']).toBe(1)
+    expect(vis.state).toBe('disposed')
+  })
+  test('ten hidden minutes', async () => {
+    const { vis } = await kept()
+    vi.useFakeTimers()
+    try {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
+      act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+      act(() => { vi.advanceTimersByTime(10 * 60_000 + 1) })
+      dropped(vis)
+    } finally {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false })
+      vi.useRealTimers()
+    }
+  })
+  test('the workspace leaving', async () => {
+    const { view, vis } = await kept()
+    view.unmount()
+    expect(hosts.cleanups['watchlist-1']).toBe(1)
+    expect(vis.state).toBe('disposed')
+  })
 })

@@ -1,8 +1,7 @@
 // The LEGACY price stream (the `uct.ssePool.disabled` kill switch: one EventSource per hook) on a hidden LAYER board
 // (2026-11-27, the board keep-alive's layer mode; boardVisibility.js). A kept board stays mounted; without the board's
 // pause every hidden chart would hold its own stream open.
-//   LS1 (red first) a hidden layer board closes its stream; after the show's first paint (never in its own task) it
-//       opens it again
+//   LS1 (red first) a hidden layer board closes its stream; the show opens it again in its own task
 //   LS2 the <Activity> mode's handle changes nothing
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -37,9 +36,7 @@ describe('the legacy price stream on a hidden layer board', () => {
     act(() => { vis.set('hidden') })
     expect(es.open.size, 'a hidden board kept its stream open').toBe(0)
     act(() => { vis.set('visible') })
-    expect(es.open.size, 'the show opened the stream in its own task').toBe(0)
-    await afterPaint()
-    expect(es.open.size).toBe(1)
+    expect(es.open.size, 'the show did not open the stream in its own task').toBe(1)
     view.unmount()
     expect(es.open.size).toBe(0)
   })
