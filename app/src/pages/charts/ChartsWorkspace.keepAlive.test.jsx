@@ -183,6 +183,8 @@ test('K4 data-widget-id is only on the board in front', async () => {
   mount()
   await settle()
   expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length).toBe(1)
+  // the board in front names its widget's type, rendered (what the guide rails' source grep stands for)
+  expect(document.querySelector('[data-widget-id="watchlist-1"]').getAttribute('data-widget-type')).toBe('watchlist')
   await go('Two Charts')
   expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length, 'the kept board still names its widget').toBe(0)
   expect(document.querySelectorAll('[data-widget-id="chart-1"]').length).toBe(1)
