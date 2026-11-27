@@ -31,14 +31,16 @@ export const KEEPALIVE_DEFAULT_MODE = 'layer'
 /** Below this much device memory (navigator.deviceMemory, GB, Chromium only) no board is kept. ⚠️ PROVISIONAL until the
  *  per-board memory is measured on a clean machine (the 2026-11-27 measurements ran under a paging disk). */
 export const KEEPALIVE_MIN_DEVICE_GB = 4
-/** The touch tier (<= 1024 px: tablets; phones use the mobile shell, which keeps no board) keeps one only when the
- *  device REPORTS enough memory: Safari reports none, and an iPad's tab is the first thing memory pressure reloads. */
+/** The touch tier keeps one only when the device REPORTS enough memory: Safari reports none, and an iPad's tab is the
+ *  first thing memory pressure reloads. The touch tier is a window of 1024 px or less OR a coarse pointer (review of
+ *  #2911, M1: a landscape iPad is 1180-1366 px wide), the same test the neighbour frames use. Phones use the mobile
+ *  shell, which keeps no board. With no way to ask (no matchMedia) and no memory report: no board. */
+export const KEEPALIVE_TOUCH_TIER_QUERY = '(max-width: 1024px), (pointer: coarse)'
 export function deviceCanKeepBoard(nav = globalThis.navigator, matchMedia = globalThis.matchMedia) {
   const gb = typeof nav?.deviceMemory === 'number' ? nav.deviceMemory : null
   if (gb != null) return gb >= KEEPALIVE_MIN_DEVICE_GB
-  let narrow = false
-  try { narrow = !!(typeof matchMedia === 'function' && matchMedia('(max-width: 1024px)').matches) } catch { narrow = false }
-  return !narrow
+  if (typeof matchMedia !== 'function') return false
+  try { return !matchMedia(KEEPALIVE_TOUCH_TIER_QUERY).matches } catch { return false }
 }
 
 /** 'off' | 'activity' ('1') | 'layer' ('2'): storage first, then the build's default, then the device's default. */
