@@ -15,6 +15,8 @@
 //   H11 each decision is logged with the time since the hidden pane was set and since its chart reported
 //   H12 / H13 (typed-Enter dry run) only the width must match (each chart pins its own symbol's right edge); a typed ticker
 //      named next by the pane (publishTypedNext) is the hidden pane's row, and Enter flips
+//   H14 (review of #2932) focusFront() focuses the pane shown NOW (a typed Enter's refocus, from the old front, lands there)
+//   H15 (review of #2932) a hidden chart of the same width, more than half a bar off its own pin, is re-pinned
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -242,6 +244,28 @@ describe('useDoubleBuffer', () => {
     press(h, 'NVDA')
     expect(h.result.current.front).toBe(1)
     expect(db.doubleBufferStats().log.at(-1)).toMatchObject({ sym: 'NVDA', why: 'flip' })
+  })
+
+  it('H14 (review of #2932) focusFront() focuses the pane shown now, before and after a flip', async () => {
+    const h = await ready()
+    act(() => { h.result.current.focusFront() })
+    expect(panes[0].focus).toHaveBeenCalledTimes(1)
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    act(() => { h.result.current.focusFront() })
+    expect(panes[1].focus).toHaveBeenCalledTimes(1)
+    expect(panes[0].focus).toHaveBeenCalledTimes(1)
+  })
+
+  it("H15 (review of #2932) a hidden chart of the front's width, more than half a bar off its own pin, is re-pinned; then a press flips", async () => {
+    const h = await ready()
+    await idle()
+    panes[1].m = { ...meta(160, 1), pinReserve: 0 }      // today's first bar landed while the hidden chart was pinned
+    report(h.result, 1, 'BBB')
+    await idle()
+    expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(152, 6), toRight: expect.closeTo(-8, 6), locked: false })
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
   })
 
   it('H8 (F5) focus inside the old front moves into the new front', async () => {

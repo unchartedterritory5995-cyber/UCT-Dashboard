@@ -84,6 +84,22 @@ describe('F1b the views (review of #2922, F1; the typed-Enter dry run)', () => {
     expect(mirrorFrameFor(pinned(80, 0, { activeRange: '1Y' }), pinned(160))).toBe(null)
     expect(mirrorFrameFor({ ...pinned(80), frame: { ...pinned(80).frame, locked: true } }, pinned(160))).toBe(null)
   })
+  // (review of #2932) the same width, but the hidden chart is no longer where the switch would pin its symbol NOW: the
+  // chart's own `pinReserve` (StockChart getDateMeta) says what that pin is
+  const frameOf = (fromRight, toRight) => ({ fromRight: expect.closeTo(fromRight, 6), toRight: expect.closeTo(toRight, 6), activeRange: null, locked: false, lock: null })
+  it("re-pins a hidden chart more than half a bar off its own pin: today's first bar landed while pinned, or the widget was resized", () => {
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160, 1), pinReserve: 0 })).toEqual(frameOf(152, -8))
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160), plotWidthPx: 400, pinReserve: 0 })).toEqual(frameOf(146.4, -13.6))   // gap 34/400
+    expect(mirrorFrameFor(pinned(80), { ...pinned(160, 1), pinReserve: 0 })).toEqual(frameOf(76, -4))   // a new width: the chart's reserve, not the read-back
+  })
+  it('on its own pin, within half a bar of it, no pin to read, or nothing that may be moved: null', () => {
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160, 1), pinReserve: 1 })).toBe(null)
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160), pinReserve: 0, frame: { fromRight: 151.6, toRight: -8.4, locked: false } })).toBe(null)
+    expect(mirrorFrameFor(pinned(160), pinned(160, 1))).toBe(null)
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160, 1), pinReserve: 0, plotWidthPx: null })).toBe(null)
+    expect(mirrorFrameFor(pinned(160), { ...pinned(160, 1), pinReserve: 0, priceAuto: false })).toBe(null)
+    expect(mirrorFrameFor(pinned(160, 0, { activeRange: '1Y' }), { ...pinned(160, 1), pinReserve: 0 })).toBe(null)
+  })
 })
 
 describe("F2 the board\'s shadow budget", () => {
