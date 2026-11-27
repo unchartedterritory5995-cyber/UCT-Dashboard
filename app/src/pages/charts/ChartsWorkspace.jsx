@@ -1,5 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
+import { boardLayerProps } from '../../components/chart/boardLayer'
 import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
@@ -1022,6 +1023,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shows the new board arms the two frames (boardSwitchMark.js).
   const switchMarkRef = useRef(null)
   if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
+  // (review of #2911, F2) a layer switch to a board that is NOT kept: its fresh grid is marked in the commit that shows it
+  const markShownGridRef = useRef(false)
   // ⭐ BOARD KEEP-ALIVE (2026-11-27, flag off by default; boardKeepAlive.js). The board a member's switch leaves stays
   // mounted, hidden (<Activity mode="hidden">, every effect of it disconnected), and a switch back to the very same
   // layout SHOWS it. Each board is a SLOT (its React key, stable across the prefs load and every non-member switch) with
@@ -1074,6 +1077,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           shown = kept.layout
         } else {
           if (kept) kept.vis.dispose()   // its charts' teardowns run (a hidden board runs no cleanup when deleted)
+          markShownGridRef.current = !!leaving.vis.layer
           currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility({ layer: cur.vis.layer }) }
         }
         keptBoardRef.current = leaving
@@ -1087,7 +1091,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (grid && shown !== layoutRef.current && !layerSwitch) switchMarkRef.current.mark(grid)
     setLayout(shown)
   }, [])
-  useLayoutEffect(() => { switchMarkRef.current.committed() }, [layout])
+  useLayoutEffect(() => {
+    if (markShownGridRef.current) {
+      markShownGridRef.current = false
+      const grid = bodyRef.current?.querySelector?.('[data-board-current] .react-grid-layout')
+      if (grid) switchMarkRef.current.mark(grid)
+    }
+    switchMarkRef.current.committed()
+  }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
@@ -2964,6 +2975,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     return { ok: named !== 'failed', named }
   }, [layout, groupSymsStore, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
+  // The keep-alive keeps no board of a layout that no longer exists (nothing can switch back to it): every door that
+  // deletes a layout (the menu's delete, the Agent's remove) drops a kept board of it.
+  const dropKeptBoardOf = useCallback((id) => {
+    const kept = keptBoardRef.current
+    if (!kept || String(kept.key) !== String(id)) return
+    kept.vis.dispose()
+    keptBoardRef.current = null
+    setKeptBoard(null)
+  }, [])
+
   const handleDeleteTemplate = useCallback(async (id) => {
     // Fall back BEFORE awaiting the delete: if the layout you just deleted was
     // the one open on screen, waiting for the round-trip left you staring at a
@@ -2971,16 +2992,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // the bar optimistically, so both halves of the click land together.
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id === id) applyUctDefault()
-    // the keep-alive keeps no board of a layout that no longer exists (nothing can switch back to it): the switch above
-    // kept the open one, and a layout deleted from the list may be the kept one
-    const kept = keptBoardRef.current
-    if (kept && String(kept.key) === String(id)) {
-      kept.vis.dispose()
-      keptBoardRef.current = null
-      setKeptBoard(null)
-    }
+    // the switch above kept the open one; a layout deleted from the list may be the kept one
+    dropKeptBoardOf(id)
     try { await deleteLayout(id) } catch { /* restored by the optimistic rollback */ }
-  }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
+  }, [deleteLayout, prefs?.charts_active_template, applyUctDefault, dropKeptBoardOf])
 
   const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
 
@@ -3893,7 +3908,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       create: (name) => saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user', createOnly: true }),
       // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
       // deletes the OPEN layout (the dock would first switch the board to UCT Default).
-      remove: (id) => deleteLayout(id),
+      remove: (id) => { dropKeptBoardOf(id); return deleteLayout(id) },
       // "Save current arrangement" — the Layouts ▾ menu's own handler (board first, then the
       // open layout's row, only after the board was accepted). {ok, named: saved|none|failed}.
       saveCurrent: () => handleSaveLayout(),
@@ -4385,10 +4400,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             <BoardSlotWorkspace base={workspaceValue} view={rec.groupView} vis={rec.vis}>
               <SWRConfig value={rec.swr}>
                 <div
-                  className={isFront ? styles.boardSlot : styles.boardSlotLayer}
+                  {...boardLayerProps(!isFront, styles.boardSlot)}
                   data-board-current={isFront ? '' : undefined}
-                  inert={!isFront}
-                  aria-hidden={isFront ? undefined : true}
                 >
                   <SlotBoard el={content} hidden={!isFront} />
                 </div>

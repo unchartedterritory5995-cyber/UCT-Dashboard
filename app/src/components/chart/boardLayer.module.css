@@ -1,0 +1,13 @@
+/* The keep-alive's LAYER primitive (boardLayer.js): a hidden layer is laid out exactly where the shown one is (the
+   positioned parent's padding box, its own padding the parent's), never painted, never hit; its canvases keep their
+   size. One definition for a kept board's slot and a chart slot. */
+.boardSlotLayer {
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  box-sizing: border-box;
+  visibility: hidden;
+  pointer-events: none;
+  /* nothing inside affects the layout or paint of anything outside */
+  contain: strict;
+}

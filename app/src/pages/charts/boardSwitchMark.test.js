@@ -6,6 +6,8 @@
 //      out, no layout effect runs) still comes off: a fallback after SWITCH_MARK_FALLBACK_MS arms the frames, so a later
 //      drag keeps react-grid-layout's transition
 //   B4 the fallback of an older switch never arms the frames for a newer one still waiting on its commit
+//   B5 (red first, review of #2923, F2-a) a mark on another grid takes the older grid's mark off at once (the older
+//      switch's frames are skipped once a newer one marks); the same grid marked twice keeps it
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createBoardSwitchMark, SWITCH_MARK_CLASS, SWITCH_MARK_FALLBACK_MS } from './boardSwitchMark'
 
@@ -68,5 +70,25 @@ describe('board switch mark', () => {
     m.committed()
     flushFrame(); flushFrame()
     expect(marked(g)).toBe(false)
+  })
+})
+
+describe('board switch mark, two grids (F2-a)', () => {
+  it('B5 a mark on another grid takes the older mark off at once; the same grid keeps it', () => {
+    const m = createBoardSwitchMark({ raf })
+    const a = grid()
+    const b = grid()
+    m.mark(a)
+    m.committed()
+    m.mark(b)                          // before the frames of a's switch ran
+    expect(marked(a), 'the older grid kept its mark when another grid was marked').toBe(false)
+    expect(marked(b)).toBe(true)
+    m.committed()
+    flushFrame(); flushFrame()
+    expect(marked(a)).toBe(false)
+    expect(marked(b)).toBe(false)
+    m.mark(b)
+    m.mark(b)
+    expect(marked(b), 'the same grid marked twice lost its mark').toBe(true)
   })
 })
