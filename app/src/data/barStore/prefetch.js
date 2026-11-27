@@ -2042,7 +2042,17 @@ export function createPrefetch(o = {}) {
     const closedBehind = (s) => _behindClock(key, s)
     const held = S().peek(key)
     // the flip paints it as it is; or, behind, it was answered a moment ago (Enter asks for itself: prepareForDisplay)
-    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) return null
+    // ⭐ ...WITH ITS WHOLE DEPTH (2026-11-26, typed vs arrow on a board with a list). A typed LIST member is held this way
+    // (the list's warm answered it, ~500-1,100 bars) and nothing joined its lake depth before Enter: the first frame drew
+    // the answer's rows and the chart's own subscribe loaded the lake after it (pieces asked +31 ms, the whole chart drawn
+    // a second time +85-400 ms), where an arrow onto the next row paints the whole depth at once (the neighbour hold's
+    // join). So a held key whose lake depth is still due (store.lakePending: never loaded on this page, or loaded at a
+    // smaller depth) has it joined now, the same load the chart's subscribe makes after Enter (store.lakeSeed: the same
+    // rows, the same reducer rule), while the member is still typing. No bar request; nothing for a key already whole.
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) {
+      if (S().lakePending?.(key)) _joinLake(key)
+      return null
+    }
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }
