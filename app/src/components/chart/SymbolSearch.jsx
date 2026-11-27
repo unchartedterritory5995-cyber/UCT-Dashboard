@@ -276,7 +276,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // member arrowing down the list starts at most one fetch per pause. Once per symbol per open search, shared with the
   // settled text (lastIntentRef): the same ticker is never told twice.
   const hlRow = open ? results?.[activeIdx] : null
-  const highlightedTicker = hlRow && !hlRow.econ && typeof hlRow.ticker === 'string' ? hlRow.ticker.toUpperCase() : null
+  // ⛔ Never the instant "Go to {text}" row: it is set on EVERY keystroke and IS the typed text, so warming it here would
+  // report each prefix typed through (G, GO, GOO...). The settled-text effect above owns that text.
+  const highlightedTicker = hlRow && !hlRow.econ && !hlRow._typed && typeof hlRow.ticker === 'string' ? hlRow.ticker.toUpperCase() : null
   useEffect(() => {
     // (only once the member has typed: the empty search's popular list is no intent)
     if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth' || !highlightedTicker || !query.trim()) return undefined
