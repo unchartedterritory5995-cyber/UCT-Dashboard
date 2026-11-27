@@ -26,7 +26,7 @@ import path from 'node:path'
 import process from 'node:process'
 import {
   computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeColumnsFor, setRuntimeRunner,
-  runtimePaneBudgetFor, runLimitsOf, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD,
+  runtimePaneBudgetFor, runLimitsOf, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, setOffListingCurtainEnabled,
 } from '../runtimeColumns.js'
 import { runtimeWarmupOf } from '../runtimeObjects.js'
 import { DEFAULT_LIMITS } from '../limits.js'
@@ -35,7 +35,7 @@ import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefi
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
 
 const REPO = path.resolve(process.cwd(), '..')
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); resetRuntimeAsync(); setRuntimeRunner(null); resetRuntimeSessions(); resetRuntimeLedgers() })
+afterEach(() => { setOffListingCurtainEnabled(false); vi.restoreAllMocks(); vi.unstubAllGlobals(); resetRuntimeAsync(); setRuntimeRunner(null); resetRuntimeSessions(); resetRuntimeLedgers() })
 
 /** The host clock every run reads by default, stubbed: each read advances `step` ms. Returns the read count. */
 function steppingClock(step) {
@@ -110,6 +110,8 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
   })
 
   it("2. Fred RS's run half over 11,520 5m bars: drawn on a device where it costs 70% of its scaled budget; refused there under the fixed 1,000", () => {
+    // ⛔ (e102) the off-listing curtain is off in production (`runtimeCurtainOff.rail.test.js`): this rail holds its budget
+    setOffListingCurtainEnabled(true)
     const { half, chart, ctx } = fredRs(60)
     expect(chart.length).toBe(11520)
     // the array-operation ceiling is its own unit (#2002); lifted here so the time budget is what decides
@@ -132,6 +134,8 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
   })
 
   it("2b. Fred RS over 15,360 bars, its first run alone past 5,000 ms, where the whole costs 95% of its budget: drawn (the worker's WALL_TIME follows the budget)", () => {
+    // ⛔ (e102) the off-listing curtain is off in production (`runtimeCurtainOff.rail.test.js`): this rail holds its budget
+    setOffListingCurtainEnabled(true)
     // (engine 86 train, the final slope 1.0) 80 sessions: at 1.0 the 70 sessions this case used (13,440 bars, 9,440 ms)
     // put the first run alone at ~4,530 ms, short of the VM's 5,000, and the precondition below said so
     const { half, chart, ctx } = fredRs(80)
@@ -193,6 +197,8 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
   })
 
   it('5. the bars a run COVERS: cut at its depth to 3,900 bars, a 20,000-bar chart is held to the bars its curtain covers', () => {
+    // ⛔ (e102) the off-listing curtain is off in production (`runtimeCurtainOff.rail.test.js`): this rail holds its budget
+    setOffListingCurtainEnabled(true)
     // a 5m chart of 20,000 regular-session bars whose SP:SPX bars our store holds only for the last 50 sessions
     // (trading sessions only: a session on an NYSE holiday reads as a HOLE, not a depth; each day's own DST offset)
     const HOLIDAYS = new Set(['2025-01-01', '2025-01-09', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26', '2025-06-19',
@@ -292,6 +298,8 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
   })
 
   it("7. (e102, option A) kernel-channel-backquant on 3,000 weekly rows: drawn on AND off the listing under the worker's options, where the on-listing run costs 80% of its budget", () => {
+    // ⛔ (e102) the off-listing curtain is off in production (`runtimeCurtainOff.rail.test.js`): this rail holds its budget
+    setOffListingCurtainEnabled(true)
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1'); vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
     const src = fs.readFileSync(path.join(REPO, 'corpus/committed/kernel-channel-backquant__d8c4b7f75c.pine'), 'utf8')
     const built = memberPaneDefinition({ source: src, name: 'Kernel Channel', id: 'u_pb_kernel' })
