@@ -40,7 +40,8 @@ test('every worker runs under the resourceLimits, and a job is answered once, in
     }
     const r = await pool.run(parsedRequest({ jobs: ['A', 'B', 'C'] }))
     assert.deepEqual(r.map((x) => [x.job, x.status]), [['A', 'ok'], ['B', 'ok'], ['C', 'ok']])
-    assert.deepEqual(decodeColumn(r[0].columns.opts), [2, 2, 2], 'the adapter passed two opts')
+    // e99 server budget (2026-11-26): budgetMs, budgetScales and incremental
+    assert.deepEqual(decodeColumn(r[0].columns.opts), [3, 3, 3], 'the adapter passed three opts')
   })
   await withPool({}, async (pool) => {
     for (const l of pool.limits()) assert.equal(l.maxOldGenerationSizeMb, POOL_DEFAULTS.resourceLimits.maxOldGenerationSizeMb)

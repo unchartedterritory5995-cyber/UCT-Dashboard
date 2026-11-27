@@ -40,6 +40,9 @@
   "realtime-state",
   "request-other"
  ],
+ "capabilityWords": {
+  "conditional-ta": "a `ta.*` call inside a block (an `if`, a `switch` arm, a `?:` arm) only where that block runs on every bar from the chart's first bar until, at most, it stops for good: the arms of a `switch` (or an `if`) over a setting, where the chosen arm runs on every bar and the others on none (for example `ma = switch kind` with `\"EMA\" => ta.ema(close, len)` and `=> ta.sma(close, len)` arms, `kind` an `input.string`). A block that skips a bar and runs again later, as an `if` on a price condition such as `if close > close[1]` does, is refused by name (`pine:block`): its call would see only the bars its block ran on"
+ },
  "families": [
   "line",
   "label",
@@ -1658,8 +1661,8 @@
    "name": "hline",
    "ok": true,
    "lane": "host",
-   "state": "runs-withheld",
-   "headline": "Runs on the chart and in alerts, 1 value withheld (not guessed)"
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold"
   },
   {
    "name": "plot",
@@ -1710,8 +1713,8 @@
  "pitfalls": [
   {
    "id": "candle-one-colour",
-   "state": "runs",
-   "standing": false
+   "state": "runs-elsewhere",
+   "standing": true
   },
   {
    "id": "drawings-beside-plain-plots",
@@ -1725,8 +1728,8 @@
   },
   {
    "id": "hline",
-   "state": "runs-withheld",
-   "standing": true
+   "state": "runs",
+   "standing": false
   },
   {
    "id": "input-time",
@@ -1850,6 +1853,16 @@
    "title": "Heikin Ashi candles",
    "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
    "source": "//@version=5\nindicator(\"Heikin Ashi\", overlay=false)\nhaClose = (open + high + low + close) / 4\nvar float haOpen = na\nhaOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2\nhaHigh = math.max(high, haOpen, haClose)\nhaLow = math.min(low, haOpen, haClose)\nc = haClose >= haOpen ? color.green : color.red\nplotcandle(haOpen, haHigh, haLow, haClose, \"Heikin Ashi\", color=c, wickcolor=c, bordercolor=c)\n",
+   "ok": true,
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart and in alerts, with 1 note"
+  },
+  {
+   "id": "average-by-type",
+   "title": "A moving average whose type is a setting",
+   "shows": "ta.* calls in the arms of a switch over an input.string: the chosen arm runs on every bar, so each call sees every bar (a block that skips bars and runs again, such as an if on a price condition, is refused)",
+   "source": "//@version=5\nindicator(\"Moving average, by type\", overlay=true)\nkind = input.string(\"SMA\", \"Type\", options=[\"SMA\", \"EMA\", \"WMA\"])\nlen = input.int(20, \"Length\", minval=1)\nma = switch kind\n    \"EMA\" => ta.ema(close, len)\n    \"WMA\" => ta.wma(close, len)\n    => ta.sma(close, len)\nplot(ma, \"Moving average\")\n",
    "ok": true,
    "lane": "host",
    "state": "runs",

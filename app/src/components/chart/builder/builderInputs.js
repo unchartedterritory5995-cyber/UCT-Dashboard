@@ -491,6 +491,10 @@ function positionVerdict(source, candidates) {
     if (literalOnly.has(key)) {
       return windowRefusal(key, entry)
     }
+    // ⭐⭐ e98 E3 — an input only a plot's `offset` reads (`pine.js::offsetSettingInputs`) is never in the formula: the
+    // drawing moves, the series does not. It IS the member's setting (TradingView's Offset), drawn at draw time
+    // (`plots[].displaceInput`, `binder.drawShiftOf`), so it is admitted here and not read as "never read".
+    if (entry && entry.displaceSetting) return null
     if (!namesRead.has(key)) {
       return { reason: `the formula never reads \`${key}\` — this translation folded it to its default `
         + `(\`${entry.folded}\`), so declaring it would hand the member a knob that changes `
@@ -814,10 +818,14 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // ⛔⛔ `memberInputKey`, NOT `e.name`. A name that can never be a member-input
   // KEY must never be DECLARED into a formula — see `memberInputKey`'s own note
   // for the two OOS scripts this silently broke.
+  // ⭐ e97 U8 — an enum setting the translator WITHHELD for its size (`pine.js::enumSwitch`, a `switch` reached through
+  // a helper's parameter whose arms are more than it expands yet) is never declared, by any lane below: the script
+  // folds to its default, and the member is told why (`withheldKnobs`, carried on the result)
+  const withheldKnobs = new Set(((first.withheldKnobs) || []).map((w) => w && w.name).filter(Boolean))
   const declarable = [...new Set(probed.flatMap(
     (o) => (o.inputsFolded || [])
       .filter((e) => memberInputKey(e.name) && !windowBound.has(e.name)
-        && !displacementBound.has(e.name))
+        && !displacementBound.has(e.name) && !withheldKnobs.has(e.name))
       .map((e) => e.name)))]
 
   // ⭐⭐ AND THEN THE CLOSURE IS *MEASURED*, NOT ARGUED.
@@ -941,6 +949,8 @@ export function memberInputTranslation(translate, source, opts = {}) {
     const guarded = withGuardInputs(first, out, final, withDeclarations, { windowBound, displacementBound })
     if (guarded) out = guarded
   }
+  // ⭐ e97 U8 — the settings withheld for their size, for the door to say (`memberPaneDefinition`)
+  if (first.withheldKnobs && first.withheldKnobs.length) out = { ...out, withheldKnobs: first.withheldKnobs.map((w) => ({ ...w })) }
   return out
 }
 
@@ -1004,6 +1014,10 @@ function withGuardInputs(first, base, final, withDeclarations, { windowBound, di
   for (const o of (first.outputs || [])) if (o) { note(o.inputsFolded); note(o._colourInputs) }
   note(((first.presentation || {}).fills || {})._colourInputs)
   note(((first.presentation || {}).paints || {})._colourInputs)
+  note(((first.presentation || {}).levels || {})._colourInputs)
+  note(((first.presentation || {}).levelFills || {})._colourInputs)
+  // ⭐ e98 E2 — and the settings an input's `active =` reads (`pine.js::resolveInputActives`)
+  note(((first.presentation || {}).inputActive || {})._colourInputs)
   const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
   const entryByName = new Map()
   const windowed = new Set()
@@ -1082,8 +1096,24 @@ function colourRulesOf(t) {
     }
   }
   for (const o of (t.outputs || [])) if (o && !o.refusal) take(o.presentation)
+  // ⭐ e97 U6 — a row's display chosen by a setting (`hiddenWhen`, `pine.js::outputDisplayOf`) is a presentation rule
+  // too: an input only it reads is the member's control, declared by the same proof (`withColourInputs`)
+  for (const o of (t.outputs || [])) if (o && !o.refusal && o.hiddenWhen) rules.push({ ast: o.hiddenWhen, formula: [...seriesNamesOf(o.hiddenWhen)].join(' + ') || 'display' })
+  // ⭐ e98 E1 — and a row's line style chosen by a setting (`lineStyleWhen`, `pine.js::outputLineStyleOf`), the same way
+  for (const o of (t.outputs || [])) {
+    if (!o || o.refusal || !Array.isArray(o.lineStyleWhen)) continue
+    for (const a of o.lineStyleWhen) if (a && a.when) rules.push({ ast: a.when, formula: [...seriesNamesOf(a.when)].join(' + ') || 'linestyle' })
+  }
   for (const f of (((t.presentation || {}).fills) || [])) take(f)
   for (const p of (((t.presentation || {}).paints) || [])) take(p)
+  // ⭐ e97 U7 — and a band's, a paint's or a level's display a setting decides (`hiddenWhen`, the same ONE reader)
+  const pres = t.presentation || {}
+  for (const h of [...(pres.fills || []), ...(pres.levelFills || []), ...(pres.paints || []), ...(pres.levels || [])]) {
+    if (h && !h.withheld && h.hiddenWhen) rules.push({ ast: h.hiddenWhen, formula: [...seriesNamesOf(h.hiddenWhen)].join(' + ') || 'display' })
+  }
+  // ⭐ e98 E2 — and an input's `active =` test (`pine.js::resolveInputActives`): a setting only it reads is the member's
+  // control too (it is TradingView's own), declared by the same proof; the door keeps it only where it greys a setting
+  for (const a of (pres.inputActive || [])) if (a && a.when) rules.push({ ast: a.when, formula: [...seriesNamesOf(a.when)].join(' + ') || 'active' })
   return rules
 }
 
@@ -1141,11 +1171,16 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   for (const o of (first.outputs || [])) if (o) note(o._colourInputs)
   note(((first.presentation || {}).fills || {})._colourInputs)
   note(((first.presentation || {}).paints || {})._colourInputs)
+  note(((first.presentation || {}).levels || {})._colourInputs)
+  note(((first.presentation || {}).levelFills || {})._colourInputs)
+  // ⭐ e98 E2 — and the settings an input's `active =` reads (`pine.js::resolveInputActives`)
+  note(((first.presentation || {}).inputActive || {})._colourInputs)
   const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
   const already = new Set(final.declaredNames || [])
   // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:
   // a window takes a literal only, so declaring it would decline the colour rule.
-  const names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
+  const withheld = new Set(((first.withheldKnobs) || []).map((w) => w && w.name).filter(Boolean))
+  const names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n) && !withheld.has(n)
     && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
     && !windowed.has(n) && !already.has(n))
   // (`sameParamIds` … `samePresentationShape` — module level since C43, shared

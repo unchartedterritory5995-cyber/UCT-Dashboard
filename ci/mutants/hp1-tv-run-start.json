@@ -1,0 +1,158 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "History parity phase 1 (docs/pine/HISTORY-PARITY.md): every rounding rule of tvRunStart (week / month / year chunk, exchange timezone, the cap-th newest bar, the cap range derived from TradingView's captures) and every refusal to call a start exact is broken once; each must turn tvRunStart.test.js red. Not tested by a mutant: the ISO week's Monday start, because on weekday-only sessions a Sunday start groups the same bars (the weekend case is refused as unmeasured, WEEKEND).",
+ "mutants": [
+  {
+   "id": "RW",
+   "mutant": "the 1m/5m chunk is a calendar month, not an ISO week",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  '1': 'week', '5': 'week',\n",
+   "to": "  '1': 'month', '5': 'month',\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "RM-W",
+   "mutant": "the 15m chunk is an ISO week, not a calendar month",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  '15': 'month',\n",
+   "to": "  '15': 'week',\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "RM-Y",
+   "mutant": "the 15m chunk is a calendar year, not a calendar month",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  '15': 'month',\n",
+   "to": "  '15': 'year',\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "RY",
+   "mutant": "the 30m-240m chunk is a calendar month, not a calendar year",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  '30': 'year', '45': 'year', '60': 'year', '65': 'year', '120': 'year', '195': 'year', '240': 'year',\n",
+   "to": "  '30': 'month', '45': 'month', '60': 'month', '65': 'month', '120': 'month', '195': 'month', '240': 'month',\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TZ-UTC",
+   "mutant": "chunks are cut in UTC, not in the exchange's timezone",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  const ld = localDateOf(tSec, tz)\n",
+   "to": "  const ld = localDateOf(tSec, 'Etc/UTC')\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TZ-NY",
+   "mutant": "chunks are always cut in New York, whatever the exchange",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  const ld = localDateOf(tSec, tz)\n",
+   "to": "  const ld = localDateOf(tSec, DEFAULT_TZ)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "NOROUND",
+   "mutant": "no chunk rounding: the run starts on the cap-th newest bar itself",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "  return lo\n}\n",
+   "to": "  return k\n}\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "OFF1",
+   "mutant": "the start counts one bar too many (the cap+1-th newest bar)",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "const k = n - cap // the cap-th newest bar",
+   "to": "const k = n - cap - 1 // the cap-th newest bar",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "SHORT",
+   "mutant": "a series of exactly the cap is treated as below it",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (n < cap) return null",
+   "to": "if (n <= cap) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "BOUNDS",
+   "mutant": "the cap range is restated rather than derived (low edge moved)",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "export const TV_INTRADAY_CAP_BOUNDS = Object.freeze([19963, 20024])",
+   "to": "export const TV_INTRADAY_CAP_BOUNDS = Object.freeze([19900, 20024])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "AMBIG",
+   "mutant": "a cap range that straddles a chunk boundary is called exact",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "const ambiguous = atLo !== atHi",
+   "to": "const ambiguous = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TOL-LO",
+   "mutant": "the tolerance does not widen the cap range downward",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "const lo = Math.max(1, bounds[0] - tol)",
+   "to": "const lo = Math.max(1, bounds[0])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TOL-HI",
+   "mutant": "the tolerance does not widen the cap range upward",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "const hi = bounds[1] + tol",
+   "to": "const hi = bounds[1]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "TRUNC",
+   "mutant": "a held history that begins inside TradingView's first chunk is called exact",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (index === 0 && !listing) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "WEEKEND",
+   "mutant": "a week chunk on a weekend-trading symbol is called exact",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (before === 0 || before === 6 || first === 0 || first === 6) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "WHOLE",
+   "mutant": "a series below the cap is called exact without the listing statement",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (!listing) return out(0, 'whole-history'",
+   "to": "if (false) return out(0, 'whole-history'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "DLIST",
+   "mutant": "a D/W/M series is called exact without the listing statement",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (!listing) return out(0, 'date-full-history'",
+   "to": "if (false) return out(0, 'date-full-history'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "DDEPTH",
+   "mutant": "a D/W/M series deeper than any capture witnessed is called exact",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "if (n > DATE_TF_MAX_WITNESSED_BARS) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  },
+  {
+   "id": "DMAX",
+   "mutant": "the witnessed D/W/M depth is restated rather than derived",
+   "file": "app/src/components/chart/engine/tvRunStart.js",
+   "from": "export const DATE_TF_MAX_WITNESSED_BARS = 16333",
+   "to": "export const DATE_TF_MAX_WITNESSED_BARS = 20000",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/tvRunStart.test.js"
+  }
+ ]
+}

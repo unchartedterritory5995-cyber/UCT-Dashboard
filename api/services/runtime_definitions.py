@@ -90,6 +90,8 @@ variables, both read per call:
 from __future__ import annotations
 
 import contextlib
+import contextvars
+import functools
 import hashlib
 import json
 import logging
@@ -200,6 +202,47 @@ def save_enabled() -> bool:
 KILLLIST_PATH = str(pathlib.Path(__file__).resolve().parents[1] / "data" / "pine_runtime_killlist.json")
 
 
+# ⭐⭐ READ ONCE PER REQUEST (chart speed, 2026-11-26). The committed lists are read PER CALL so an edit needs no
+# deploy, and that stays true BETWEEN requests. But one multi-row request (the definitions list) asked them per row
+# per server lane: on production smoke@ (26 runtime rows) ~180 kill-list reads, ~256 allowlist reads and as many
+# capability-registry policy passes per list, 205-220 ms of server time (replayed locally: 219 ms, ~89% of it here).
+# Inside `read_once()` each reader decorated `_once_per_request` answers from the first read of THIS request; outside
+# it, every call reads exactly as before. The readers' answers are only ever read, never mutated, by their callers.
+# Rails: tests/test_user_definitions_list_reads_once.py.
+_REQUEST_READS: "contextvars.ContextVar[Optional[dict]]" = contextvars.ContextVar("runtime_lists_read_once",
+                                                                                default=None)
+
+
+@contextlib.contextmanager
+def read_once():
+    """Within the block, each committed list (and the policy passes over it) is read once. Nests: an inner block
+    shares the outer one's reads."""
+    if _REQUEST_READS.get() is not None:
+        yield
+        return
+    token = _REQUEST_READS.set({})
+    try:
+        yield
+    finally:
+        _REQUEST_READS.reset(token)
+
+
+def _once_per_request(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        memo = _REQUEST_READS.get()
+        if memo is None:
+            return fn(*args, **kwargs)
+        # the paths are in the key: a test (or a tool) that points a reader at another file reads that file
+        key = (fn.__name__, args, tuple(sorted(kwargs.items())), KILLLIST_PATH, ALLOWLIST_PATH)
+        if key not in memo:
+            memo[key] = fn(*args, **kwargs)
+        return memo[key]
+    return wrapper
+
+
+
+@_once_per_request
 def committed_kills() -> dict[str, str]:
     """The committed kill list: ``{sha256: reason}``. ⛔ An unreadable or malformed file kills
     NOTHING extra (the variable still does): a kill is a refusal, and a broken file must not
@@ -544,6 +587,7 @@ def _allow_entries_from(raw: Any) -> list[str]:
     return out
 
 
+@_once_per_request
 def _allowlist_doc() -> Optional[dict]:
     try:
         with open(ALLOWLIST_PATH, encoding="utf-8") as fh:
@@ -553,6 +597,7 @@ def _allowlist_doc() -> Optional[dict]:
     return doc if isinstance(doc, dict) else None
 
 
+@_once_per_request
 def allow_report(*, with_capabilities: bool = True) -> dict:
     """WS-I (R1) — what the committed allowlist SERVES and what it WITHHOLDS, and
     why, plus the variable's entries (which carry no evidence: an operator
@@ -876,6 +921,7 @@ def capability_deny() -> list[str]:
     return out
 
 
+@_once_per_request
 def admitted_capabilities() -> dict:
     """WS-I Part 2 -- the capabilities admitted for capability admission, read per call:
     ``{"admitted": [...], "withheld": {name: [reasons]}, "denied": [...], "historyOnly": [...]}``.
@@ -1157,7 +1203,7 @@ def _store_get(key: str) -> Optional[frozenset]:
     from api.services import pine_capabilities
     from api.services import user_definitions as svc
     try:
-        with contextlib.closing(svc._connect()) as c:
+        with svc._reading() as c:          # the request's shared read connection, when there is one
             r = c.execute(f"SELECT capabilities FROM {CAPS_TABLE} WHERE source_sha256 = ? "
                           "AND detector_version = ?", (key, pine_capabilities.DETECTOR_VERSION)).fetchone()
     except Exception:  # noqa: BLE001 - an unreadable store (or no table yet) is a miss, never an admission
@@ -1196,7 +1242,7 @@ def prefetch_capabilities(rows: Any, budget: "Optional[DetectorBudget]" = None) 
     if budget is not None:
         budget.store_checked.update(keys)       # a miss here is not looked up again per row
     try:
-        with contextlib.closing(svc._connect()) as c:
+        with svc._reading() as c:          # the request's shared read connection, when there is one
             for i in range(0, len(keys), 500):
                 part = keys[i:i + 500]
                 for key, raw in c.execute(

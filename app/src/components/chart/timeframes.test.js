@@ -39,13 +39,13 @@ describe('timeframes model', () => {
 
   it('resampleSpec picks the coarsest dividing base + right kind', () => {
     expect(resampleSpec('D')).toBeNull()          // native
-    expect(resampleSpec('2')).toEqual({ base: '1', kind: 'intradaySession', minutes: 2 })
-    expect(resampleSpec('10')).toEqual({ base: '5', kind: 'intradaySession', minutes: 10 })
-    expect(resampleSpec('45')).toEqual({ base: '15', kind: 'intradaySession', minutes: 45 })
-    expect(resampleSpec('65')).toEqual({ base: '5', kind: 'intradaySession', minutes: 65 })   // 65=13×5
-    expect(resampleSpec('195')).toEqual({ base: '15', kind: 'intradaySession', minutes: 195 }) // 195=13×15
-    expect(resampleSpec('120')).toEqual({ base: '60', kind: 'intradaySession', minutes: 120 }) // 2h from 60m
-    expect(resampleSpec('240')).toEqual({ base: '60', kind: 'intradaySession', minutes: 240 }) // 4h from 60m
+    expect(resampleSpec('2')).toEqual({ base: '1', kind: 'intradaySession', minutes: 2, anchorMin: 570 })
+    expect(resampleSpec('10')).toEqual({ base: '5', kind: 'intradaySession', minutes: 10, anchorMin: 570 })
+    expect(resampleSpec('45')).toEqual({ base: '15', kind: 'intradaySession', minutes: 45, anchorMin: 570 })
+    expect(resampleSpec('65')).toEqual({ base: '5', kind: 'intradaySession', minutes: 65, anchorMin: 570 })   // 65=13×5
+    expect(resampleSpec('195')).toEqual({ base: '15', kind: 'intradaySession', minutes: 195, anchorMin: 570 }) // 195=13×15
+    expect(resampleSpec('120')).toEqual({ base: '60', kind: 'intradaySession', minutes: 120, anchorMin: 570 }) // 2h from 60m
+    expect(resampleSpec('240')).toEqual({ base: '60', kind: 'intradaySession', minutes: 240, anchorMin: 570 }) // 4h from 60m
     expect(resampleSpec('2D')).toEqual({ base: 'D', kind: 'nDaily', n: 2 })
     expect(resampleSpec('2W')).toEqual({ base: 'W', kind: 'nWeekly', n: 2 })
     expect(resampleSpec('3M')).toEqual({ base: 'M', kind: 'nMonthly', n: 3 })

@@ -28,10 +28,42 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { serverNow } from './serverClock'
+import { rebuildLeft } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
+// ⭐ THE ROWS AHEAD (2026-11-25). A watchlist puts the next 1-2 rows the member is moving towards on this stream
+// (`subscribe(..., { ahead: true })`, data/barStore/prefetch.createNeighborHold `live`), so the first press after a minute
+// roll finds that row's copy as current as the chart on screen. They are SPECULATIVE pairs:
+//   * on the wire as `ahead=` beside `bars=`, so the server can admit them within its own budget and shed them first under
+//     load (api/routers/stream.py, STREAM_MAX_AHEAD_PAIRS); a server that does not know `ahead=` subscribes none of them;
+//   * they ride the connections the charts already open and only fill the room those leave (the 50-pair cap counts both):
+//     ahead pairs alone open NO connection, and never a second one;
+//   * at most AHEAD_MAX_PAIRS per page, the oldest subscriptions first;
+//   * a pair any ordinary subscriber (a chart) holds is an ordinary pair.
+export const AHEAD_MAX_PAIRS = 4
+// (review of #2721, the +6-8% bars requests) A rebuilt connection's open no longer asks a pair it CARRIED (one that had
+// delivered) to gap-backfill at once: its first frame decides. The same bucket as its last one before the rebuild proves
+// the stream covered the gap (no ask); a later bucket asks at that frame, from that last bar; no frame within
+// REJOIN_KICK_MS asks then. Every other open (a pair new on the connection, a reconnect after an error) asks as before.
+export const REJOIN_KICK_MS = 1000
+const _rejoinKick = new Map()   // pair key -> { t: its last bar before the rebuild, timer }
+
+function _askGapBackfill(key, lastBarT) {
+  for (const sub of _subscribers.values()) {
+    if (sub.key !== key || !sub.onReconnect) continue
+    try { sub.onReconnect(lastBarT) } catch { /* ignore */ }
+  }
+}
+
+function _settleRejoinKick(key, ask) {
+  const p = _rejoinKick.get(key)
+  if (!p) return
+  _rejoinKick.delete(key)
+  clearTimeout(p.timer)
+  if (ask) _askGapBackfill(key, p.t)
+}
 // Stream protocol opt-in. v2 = the server may send a `final: true` correction whose `t`
 // is OLDER than the pair's developing bar (a late AM correction of the just-closed
 // bucket). Every consumer of this pool handles that: the chart's push writer replaces
@@ -57,9 +89,19 @@ export const BARS_LIVE_STALE_MS = 120000       // engage: a bar within 2min = pu
 export const BARS_LIVE_DISENGAGE_MS = 150000
 
 let _nextId = 1
-const _subscribers = new Map()  // id -> { sym, tf, key, onBar, onReconnect, onStatus }
-let _buckets = []               // [{ key, pairs:Set<string>, es, connected, retryDelay, reconnectTimer, lastMsg, lastEventId }]
-const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
+const _subscribers = new Map()  // id -> { sym, tf, key, ahead, onBar, onReconnect, onStatus }
+let _buckets = []               // [{ key, pairs:Set<string>, ahead:Set<string>, es, connected, retryDelay, reconnectTimer, lastMsg, lastEventId }]
+// 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number, lastBarT:number, liveSince:number|null, rejoin?:boolean, rejoinT?:number }
+// `liveSince`: when the pair started delivering WITHOUT A BREAK (its first developing frame since the last break). A break
+// is an error or a silent death of its connection, the server's vendor-down word, a recovery reconnect, the delivery going
+// stale, the pair dropping off every connection, or its last subscriber leaving.
+// ⛔ A REBUILD IS A BREAK UNLESS IT FELL INSIDE ONE BUCKET (review of #2721, 1-A). A browser's new connection gets ONE frame
+// per pair, the bucket of the symbol's newest trade (api/services/bar_broadcaster.py `subscribe`); the recent-finals replay
+// (`snapshot_bars`) is the ingest feed's, never a browser's. So when a roll falls inside the gap, the closed bucket's final
+// (and its last trades) never arrive on this connection. At the teardown each pair notes the bucket of its last frame
+// (`rejoinT`); the new connection's first frame for the pair keeps `liveSince` only when it is that SAME bucket, and a
+// later bucket breaks it (getStatus reports null until that first frame decides).
+const _keyState = new Map()
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
 let _lastActivityAt = -Infinity   // the last subscription change or reconnect (streamRebuildDelay.js)
@@ -77,27 +119,128 @@ function _edgeRefresh() {
   try { fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' }).catch(() => {}) } catch { /* no fetch */ }
 }
 
-// Coalesce developing-bar dispatch to the live CANDLE cadence (LIVE_CANDLE_CADENCE_MS: 250 ms since
-// 2026-11-17, was 500), the same hold realtimeCandle uses, so the candle and its price label move
-// together instead of repainting on every sub-second update. A bucket BOUNDARY (a new bar time for a
-// key) flushes that key's prior-bucket final bar IMMEDIATELY, so a bar's closing value is never
-// coalesced away.
-const BAR_THROTTLE_MS = LIVE_CANDLE_CADENCE_MS
-const _pendingBar = new Map()   // key -> latest bar event awaiting the heartbeat flush
-let _barThrottleTimer = null
-
 function _dispatchBar(key, data) {
   for (const sub of _subscribers.values()) {
     if (sub.key === key && sub.onBar) { try { sub.onBar(data) } catch { /* never break on a bad listener */ } }
   }
 }
 
-function _flushPendingBars() {
-  _barThrottleTimer = null
+// ⭐ LEADING EDGE, THEN ONE ANIMATION FRAME (2026-11-25, objective 2: a trade on screen in ~150 ms).
+// A developing bar used to wait for ONE global trailing setTimeout of LIVE_CANDLE_CADENCE_MS (250 ms):
+// an isolated trade always waited the full 250 ms, ~125 ms on average under flow, the largest designed
+// delay between the vendor and the chart. Now, per pair:
+//   - the FIRST developing frame of a burst is dispatched at once (the pair has nothing pending and its
+//     last dispatch is at least the current gap ago);
+//   - frames that arrive inside the gap are coalesced (latest wins) and flushed on the next animation
+//     frame once the gap has passed: at most one dispatch per pair per frame;
+//   - THE DRAW-COST GUARD: the gap starts at LIVE_CANDLE_MIN_GAP_MS and DOUBLES on every main-thread
+//     long task (>= 50 ms, the PerformanceObserver 'longtask' entry), up to the cap
+//     (liveCandleCadenceMs(LIVE_CANDLE_CADENCE_MS): 250 ms, or the per-browser `uct.liveCadenceMs`); it
+//     halves after LONG_TASK_RECOVER_MS without one. Measured 2026-11-16: a fixed 100 ms cadence on 4
+//     charts dropped fps 45 -> 27 and doubled long frames; a busy page now falls back to today's 250 ms
+//     by itself, a calm one updates as fast as frames arrive (the server sends at most 10 per pair a second).
+//   - a hidden page has no animation frames: what is pending flushes on a timer at the cap.
+// A final bar and a bucket boundary still dispatch at once (below), exactly as before.
+export const LIVE_CANDLE_MIN_GAP_MS = 16
+export const LONG_TASK_RECOVER_MS = 2000
+const _pendingBar = new Map()   // key -> latest developing frame waiting for its gap
+const _lastDevAt = new Map()    // key -> clock of its last developing dispatch
+let _gapMs = LIVE_CANDLE_MIN_GAP_MS
+let _lastLongTaskAt = -Infinity
+let _flush = null               // { raf } | { timer }: the one scheduled flush
+let _longTaskObserver = null
+
+const _clock = () => (typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now())
+const _capMs = () => liveCandleCadenceMs(LIVE_CANDLE_CADENCE_MS)
+const _floorMs = () => Math.min(LIVE_CANDLE_MIN_GAP_MS, _capMs())
+function _pageHidden() {
+  try { return typeof document !== 'undefined' && document.hidden === true } catch { return false }
+}
+
+/** The gap in force now (the guard's state), recovering lazily: halved once per quiet LONG_TASK_RECOVER_MS. */
+function _currentGap(now) {
+  const floor = _floorMs(); const cap = _capMs()
+  if (_gapMs > cap) _gapMs = cap
+  if (!Number.isFinite(_lastLongTaskAt)) _gapMs = floor
+  while (_gapMs > floor && now - _lastLongTaskAt >= LONG_TASK_RECOVER_MS) {
+    _gapMs = Math.max(floor, _gapMs / 2)
+    _lastLongTaskAt += LONG_TASK_RECOVER_MS
+  }
+  if (_gapMs < floor) _gapMs = floor
+  return _gapMs
+}
+
+/** A main-thread long task of `durationMs` ended at `at` (the observer's entry): back off. */
+export function _noteLongTask(durationMs, at = _clock()) {
+  if (!(durationMs >= 50)) return
+  _gapMs = Math.min(_capMs(), Math.max(_floorMs(), _gapMs) * 2)
+  _lastLongTaskAt = at
+}
+
+function _watchLongTasks() {
+  if (_longTaskObserver || typeof PerformanceObserver === 'undefined') return
+  try {
+    const supported = PerformanceObserver.supportedEntryTypes
+    if (Array.isArray(supported) && !supported.includes('longtask')) return
+    _longTaskObserver = new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) _noteLongTask(e.duration, e.startTime + e.duration)
+    })
+    _longTaskObserver.observe({ type: 'longtask', buffered: false })
+  } catch { _longTaskObserver = null }
+}
+
+function _dispatchDeveloping(key, data, now) {
+  _lastDevAt.set(key, now)
+  _dispatchBar(key, data)
+}
+
+function _flushDue(all) {
   if (_pendingBar.size === 0) return
-  const pending = [..._pendingBar.entries()]
-  _pendingBar.clear()
-  for (const [key, data] of pending) _dispatchBar(key, data)
+  const now = _clock()
+  const gap = _currentGap(now)
+  for (const [key, data] of [..._pendingBar.entries()]) {
+    const last = _lastDevAt.get(key)
+    if (all || last == null || now - last >= gap) {
+      _pendingBar.delete(key)
+      _dispatchDeveloping(key, data, now)
+    }
+  }
+}
+
+function _scheduleFlush() {
+  if (_flush || _pendingBar.size === 0) return
+  if (!_pageHidden() && typeof requestAnimationFrame === 'function') {
+    _flush = { raf: requestAnimationFrame(() => { _flush = null; _flushDue(false); _scheduleFlush() }) }
+  } else {
+    _flush = { timer: setTimeout(() => { _flush = null; _flushDue(true) }, _capMs()) }
+  }
+}
+
+function _cancelFlush() {
+  if (!_flush) return
+  try {
+    if (_flush.raf != null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(_flush.raf)
+    if (_flush.timer != null) clearTimeout(_flush.timer)
+  } catch { /* nothing scheduled */ }
+  _flush = null
+}
+
+/** A developing (non-final) frame for `key`: at once when its gap has passed, else the next frame. */
+function _offerDeveloping(key, data) {
+  _watchLongTasks()
+  const now = _clock()
+  const last = _lastDevAt.get(key)
+  if (!_pendingBar.has(key) && (last == null || now - last >= _currentGap(now))) {
+    _dispatchDeveloping(key, data, now)
+    return
+  }
+  _pendingBar.set(key, data)
+  _scheduleFlush()
+}
+
+function _flushPendingBars() {
+  _cancelFlush()
+  _flushDue(true)
 }
 
 function _killed() {
@@ -143,9 +286,9 @@ function _notifyAllStatus() {
  *   session — the chart's session mode; only affects 60m (see _normSession)
  * @returns {() => void} unsubscribe
  */
-export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session } = {}) {
+export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session, ahead = false } = {}) {
   const id = _nextId++
-  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf, session), onBar, onReconnect, onStatus })
+  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf, session), ahead: ahead === true, onBar, onReconnect, onStatus })
   _scheduleRebuild()
   return () => {
     const wasKey = _subscribers.get(id)?.key
@@ -167,7 +310,7 @@ export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session } = {
  */
 export function getStatus(sym, tf, session) {
   const key = _pairKey(sym, tf, session)
-  if (_killed()) return { connected: false, healthy: false, delivering: false }
+  if (_killed()) return { connected: false, healthy: false, delivering: false, liveSince: null }
   const bucket = _buckets.find(b => b.pairs.has(key))
   const connected = !!(bucket && bucket.connected)
   const healthy = connected && (Date.now() - bucket.lastMsg < BARS_WATCHDOG_MS)
@@ -189,10 +332,20 @@ export function getStatus(sym, tf, session) {
   // hysteresis: not delivering NOW, and the Finnhub tick writers move the candle meanwhile.
   const recent = ks ? Date.now() - ks.lastBarAt : Infinity
   const wasDelivering = !!(ks && ks.delivering)
-  const delivering = connected && !bucket.vendorDown && !!(ks && ks.everDelivered) &&
-    recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
+  const fresh = recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
+  const delivering = connected && !bucket.vendorDown && !!(ks && ks.everDelivered) && fresh
   if (ks) ks.delivering = delivering   // persist for next call's hysteresis
-  return { connected, healthy, delivering }
+  if (ks && !fresh) ks.liveSince = null   // gone stale: a break
+  // `liveSince` (2026-11-25): when this pair started delivering without a break (see _keyState); null while not delivering
+  // and while a rebuilt connection's first frame for it has not decided whether delivery continued (`rejoin`).
+  // `lastBarT`: the bucket start (ms) of the newest frame the stream delivered for it (prefetch: a bucket with no frame).
+  const live = delivering && ks && !ks.rejoin && Number.isFinite(ks.liveSince)
+  return { connected, healthy, delivering, liveSince: live ? ks.liveSince : null, lastBarT: live && Number.isFinite(ks.lastBarT) ? ks.lastBarT : null }
+}
+
+/** A break in the pairs' delivery: their `liveSince` starts again at their next developing frame. */
+function _breakLive(pairs) {
+  for (const k of pairs) { const ks = _keyState.get(k); if (ks) { ks.liveSince = null; ks.rejoin = false } }
 }
 
 /** The newest resume declaration the server sent (or null): what it said, which
@@ -201,11 +354,16 @@ export function getLastResume() {
   return _lastResume
 }
 
+/** The pairs to stream: { pairs: the ordinary ones, sorted; ahead: the rows ahead no chart holds, oldest first, capped }. */
 function _union() {
-  if (_killed()) return []
+  if (_killed()) return { pairs: [], ahead: [] }
   const set = new Set()
-  for (const sub of _subscribers.values()) set.add(sub.key)
-  return [...set].sort()
+  for (const sub of _subscribers.values()) if (!sub.ahead) set.add(sub.key)
+  const ahead = []
+  for (const sub of _subscribers.values()) {
+    if (sub.ahead && !set.has(sub.key) && !ahead.includes(sub.key) && ahead.length < AHEAD_MAX_PAIRS) ahead.push(sub.key)
+  }
+  return { pairs: [...set].sort(), ahead }
 }
 
 function _scheduleRebuild() {
@@ -213,8 +371,13 @@ function _scheduleRebuild() {
   // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
   _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
   _lastActivityAt = t
-  if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
+  // ⚡ one timer per burst: a later change moves the deadline, not the timer (streamRebuildDelay.rebuildLeft)
+  if (!_rebuildTimer) _rebuildTimer = setTimeout(_rebuildDue, rebuildLeft(_gathering, t, REBUILD_DEBOUNCE_MS))
+}
+function _rebuildDue() {
+  const left = rebuildLeft(_gathering, _lastActivityAt, REBUILD_DEBOUNCE_MS)
+  if (left > 0) _rebuildTimer = setTimeout(_rebuildDue, left)
+  else _rebuild()
 }
 
 function _rebuild() {
@@ -224,18 +387,23 @@ function _rebuild() {
   const union = _union()
   const chunks = []
   for (const sess of ['rth', 'eth']) {
-    const part = union.filter(k => _keySession(k) === sess)
-    for (let i = 0; i < part.length; i += MAX_BARS_PAIRS) chunks.push(part.slice(i, i + MAX_BARS_PAIRS))
+    const part = union.pairs.filter(k => _keySession(k) === sess)
+    const mine = []
+    for (let i = 0; i < part.length; i += MAX_BARS_PAIRS) mine.push({ pairs: part.slice(i, i + MAX_BARS_PAIRS), ahead: [] })
+    // the rows ahead fill the room the charts' connections leave, never a connection of their own
+    const ahead = union.ahead.filter(k => _keySession(k) === sess)
+    for (const c of mine) while (ahead.length && c.pairs.length + c.ahead.length < MAX_BARS_PAIRS) c.ahead.push(ahead.shift())
+    chunks.push(...mine)
   }
 
   const existingByKey = new Map(_buckets.map(b => [b.key, b]))
   const next = []
   for (const chunk of chunks) {
-    const key = chunk.join(',')
+    const key = chunk.ahead.length ? `${chunk.pairs.join(',')}|${chunk.ahead.join(',')}` : chunk.pairs.join(',')
     const existing = existingByKey.get(key)
     if (existing) { existingByKey.delete(key); next.push(existing); continue }
     const bucket = {
-      key, pairs: new Set(chunk), session: _keySession(chunk[0]), es: null, connected: false,
+      key, pairs: new Set([...chunk.pairs, ...chunk.ahead]), ahead: new Set(chunk.ahead), session: _keySession(chunk.pairs[0]), es: null, connected: false,
       vendorDown: false,   // the server's `event: status` {live:false}; see getStatus
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
       lastEventId: null,   // a NEW subscription presents no id — it is not a resume
@@ -243,7 +411,18 @@ function _rebuild() {
     next.push(bucket)
     _connectBucket(bucket)
   }
-  for (const stale of existingByKey.values()) _teardownBucket(stale)
+  // (review of #2721, 1-A) a pair whose connection is torn down: carried on by a new connection, it notes the bucket of its
+  // last frame (decided by its first frame there: see _keyState); carried by none (it dropped off), its delivery breaks
+  const carried = new Set()
+  for (const b of next) for (const k of b.pairs) carried.add(k)
+  for (const stale of existingByKey.values()) {
+    for (const k of stale.pairs) {
+      const ks = _keyState.get(k)
+      if (!ks) continue
+      if (carried.has(k)) { ks.rejoin = true; ks.rejoinT = Number.isFinite(ks.lastBarT) ? ks.lastBarT : null } else { ks.liveSince = null; ks.rejoin = false }
+    }
+    _teardownBucket(stale)
+  }
   _buckets = next
 
   if (_buckets.length > 0 && !_watchdogTimer) {
@@ -269,9 +448,11 @@ function _connectBucket(bucket) {
   if (typeof EventSource === 'undefined') return  // SSR / non-browser safety
   const resumeParam = bucket.lastEventId
     ? `&last_event_id=${encodeURIComponent(bucket.lastEventId)}` : ''
-  const wire = [...bucket.pairs].map(_wirePair).join(',')
+  const aheadSet = bucket.ahead || new Set()
+  const wire = [...bucket.pairs].filter(k => !aheadSet.has(k)).map(_wirePair).join(',')
+  const aheadParam = aheadSet.size ? `&ahead=${[...aheadSet].map(_wirePair).join(',')}` : ''
   const sessionParam = bucket.session === 'eth' ? '&session=eth' : ''
-  const es = new EventSource(`/api/stream/bars?bars=${wire}&v=${BARS_STREAM_PROTOCOL}${sessionParam}${resumeParam}`)
+  const es = new EventSource(`/api/stream/bars?bars=${wire}${aheadParam}&v=${BARS_STREAM_PROTOCOL}${sessionParam}${resumeParam}`)
   bucket.es = es
   bucket.lastMsg = Date.now()
   bucket.vendorDown = false   // a new connection hears the server's word again at its start
@@ -295,11 +476,17 @@ function _connectBucket(bucket) {
     bucket.connected = true
     bucket.retryDelay = INITIAL_RETRY_MS
     touch()
-    // On (re)connect, ask each subscriber in this bucket to gap-backfill.
+    // On (re)connect, ask each subscriber in this bucket to gap-backfill; a pair the rebuild carried waits for its
+    // first frame (REJOIN_KICK_MS).
     for (const sub of _subscribers.values()) {
       if (!bucket.pairs.has(sub.key)) continue
       const ks = _keyState.get(sub.key)
-      if (sub.onReconnect) { try { sub.onReconnect(ks ? ks.lastBarT : null) } catch { /* ignore */ } }
+      if (ks && ks.rejoin && Number.isFinite(ks.rejoinT)) {
+        if (!_rejoinKick.has(sub.key)) {
+          const key = sub.key
+          _rejoinKick.set(key, { t: ks.rejoinT, timer: setTimeout(() => _settleRejoinKick(key, true), REJOIN_KICK_MS) })
+        }
+      } else if (sub.onReconnect) { try { sub.onReconnect(ks ? ks.lastBarT : null) } catch { /* ignore */ } }
       _notifyStatus(sub)
     }
   }
@@ -333,13 +520,26 @@ function _connectBucket(bucket) {
         if (!wasDelivering) _notifyStatusForKey(key)
         return
       }
+      // (review of #2721, 1-A) the first frame after a rebuild decides: the same bucket as the last one before it keeps
+      // the pair's delivery unbroken; a later bucket means a roll fell inside the gap (an older final waits for the next)
+      let _rejoinAsk = null
+      if (ks.rejoin && !(_t != null && Number.isFinite(ks.rejoinT) && _t < ks.rejoinT)) {
+        ks.rejoin = false
+        const _same = _t != null && Number.isFinite(ks.rejoinT) && _t === ks.rejoinT
+        if (!_same) ks.liveSince = null
+        _rejoinAsk = !_same    // the gap-backfill this open deferred: none when the stream covered the gap
+      }
       if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
       if (_developingFrame) ks.everDelivered = true
+      // (on the SERVER's clock, lib/serverClock: prefetch compares it with the roll, which is the server's; the member's
+      // clock 6 s slow would read a stream that started after the roll as live since before it)
+      if (_developingFrame && !Number.isFinite(ks.liveSince)) ks.liveSince = serverNow()
       _keyState.set(key, ks)
-      // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
-      // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
-      // final bar immediately on a boundary so no close is coalesced away. Only
-      // subscribers for this exact (sym,tf), never a global fan-out.
+      if (_rejoinAsk != null) _settleRejoinKick(key, _rejoinAsk)
+      // KEYED dispatch (see _offerDeveloping): the first developing frame of a burst at once, the rest
+      // coalesced to one per animation frame, backed off by long tasks. A bucket BOUNDARY flushes the
+      // PRIOR bucket's pending bar immediately so no close is coalesced away. Only subscribers for
+      // this exact (sym,tf), never a global fan-out.
       const _pend = _pendingBar.get(key)
       if (_pend && _pend.bar && data.bar && _pend.bar.t !== data.bar.t) {
         _pendingBar.delete(key)
@@ -347,15 +547,14 @@ function _connectBucket(bucket) {
       }
       // A server FINAL bar (optional `final: true`) is the closed bucket's truth — dispatch
       // it at once instead of letting a following developing frame for the next bucket (or
-      // a straggler for the same one) coalesce it away inside the 500ms window.
+      // a straggler for the same one) coalesce it away before the next frame.
       if (data.bar && data.bar.final === true) {
         _pendingBar.delete(key)
         _dispatchBar(key, data)
         if (!wasDelivering) _notifyStatusForKey(key)
         return
       }
-      _pendingBar.set(key, data)
-      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, liveCandleCadenceMs(BAR_THROTTLE_MS))
+      _offerDeveloping(key, data)
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip
     } catch { /* malformed frame */ }
   })
@@ -373,6 +572,7 @@ function _connectBucket(bucket) {
     try { down = JSON.parse(event.data)?.live === false } catch { return }
     if (down === bucket.vendorDown) return
     bucket.vendorDown = down
+    if (down) _breakLive(bucket.pairs)
     for (const sub of _subscribers.values()) if (bucket.pairs.has(sub.key)) _notifyStatus(sub)
   })
 
@@ -381,6 +581,7 @@ function _connectBucket(bucket) {
     try { es.close() } catch { /* ignore */ }
     bucket.es = null
     bucket.connected = false
+    _breakLive(bucket.pairs)
     const delay = bucket.retryDelay
     bucket.retryDelay = Math.min(delay * 2, STREAM_RECONNECT_CAP_MS)
     bucket.reconnectTimer = setTimeout(() => {
@@ -398,6 +599,7 @@ function _watchdogSweep() {
     if (bucket.es && now - bucket.lastMsg > BARS_WATCHDOG_MS) {
       // Silent death: not even the 15s heartbeat arrived — force reconnect.
       _teardownBucket(bucket)
+      _breakLive(bucket.pairs)
       bucket.retryDelay = INITIAL_RETRY_MS
       _connectBucket(bucket)
     }
@@ -430,6 +632,7 @@ if (typeof document !== 'undefined') {
 export function reconnectNow() {
   for (const bucket of _buckets) {
     _teardownBucket(bucket)
+    _breakLive(bucket.pairs)   // a wake or a network return: whatever the pairs carried meanwhile is lost
     bucket.retryDelay = INITIAL_RETRY_MS
     _connectBucket(bucket)
   }
@@ -451,8 +654,13 @@ export function _resetForTests() {
   _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
-  if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
+  _cancelFlush()
   _pendingBar.clear()
+  _lastDevAt.clear()
+  _gapMs = LIVE_CANDLE_MIN_GAP_MS
+  _lastLongTaskAt = -Infinity
+  for (const p of _rejoinKick.values()) clearTimeout(p.timer)
+  _rejoinKick.clear()
   for (const b of _buckets) _teardownBucket(b)
   _buckets = []
   _subscribers.clear()
@@ -463,5 +671,5 @@ export function _resetForTests() {
 
 export function _getBuckets() { return _buckets }
 export function _flushRebuild() { if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null } _rebuild() }
-// Test hook: dispatch any bars buffered by the 500ms throttle right now.
-export function _flushBars() { if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null } _flushPendingBars() }
+// Test hook: dispatch every developing bar still waiting for its frame right now.
+export function _flushBars() { _flushPendingBars() }

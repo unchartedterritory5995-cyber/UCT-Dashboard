@@ -1,6 +1,7 @@
 import {
-  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useContext, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
+import { LayerFrontFocusContext } from '../layerPaint'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
 import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
@@ -11,6 +12,15 @@ import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import useRowLadder from './useRowLadder'
 import ChartIdentityRow from './ChartIdentityRow'
+// ⛔ (#2641, first-open bytes) The switch-speed instrument (lib/switchSpeed.js) is told a picked search result is TYPED
+// through its global, never imported: a static import here made the entry chunk 3 B heavier, and the Notebook's first
+// open is a budget (tools/notebook_perf_budgets.py). ChartPane.switchSpeedDoor.test pins both literals to the instrument's.
+// No instrument on the page (no handoff loaded it): nothing to tell, nothing is timed.
+const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
+const TRIGGER_TYPED = 2
+function hintSwitchTrigger(code) {
+  try { if (typeof window !== 'undefined') window[SWITCH_SPEED_GLOBAL]?.hint?.(code) } catch { /* a measurement only */ }
+}
 import SymbolActionsMenu from './SymbolActionsMenu'
 // /charts integrated header: at or above this pane width the timeframe row joins the
 // title row (one header row); below it, two rows. Measured pane width, px.
@@ -61,8 +71,10 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
+import { PaintMemberContext, viewNeed } from '../paintLog'
 import { BARSTORE } from '../barStoreSwitch'
+import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -83,15 +95,77 @@ const DWM = ['D', 'W', 'M']
 /** What can change a header row's width WITHOUT asking for a layout: its text, how many elements it holds and their
  *  classes (an abbreviated label, a shed button, a bolded active timeframe). The fit checks below read layout
  *  (`scrollWidth`) only when this, the pane width or their own steps moved (2026-11-21, the switch-task trace). */
-function rowFitSig(el) {
-  if (!el) return '-'
-  const all = el.getElementsByTagName('*')
-  let cls = 0
-  for (let i = 0; i < all.length; i++) {
-    const c = all[i].className
-    cls += typeof c === 'string' ? c.length : (c && typeof c.baseVal === 'string' ? c.baseVal.length : 0)
+/** ⚡ (2026-11-26, the board switch) The level each chart's header last FITTED at, and at which pane width: a board switch
+ *  remounts every pane, and one that has fitted at this width before starts its ladder there (useRowLadder
+ *  `startLevelFor`: checked one step down, so it lands where the climb from the full row lands). Per chart id, the
+ *  newest LADDER_FITS_MAX charts. */
+const LADDER_FITS_MAX = 64
+const _ladderFits = new Map()
+function rememberLadderFit(chartId, width, level) {
+  if (!chartId || !Number.isFinite(width)) return
+  _ladderFits.delete(chartId)
+  _ladderFits.set(chartId, { width, level })
+  if (_ladderFits.size > LADDER_FITS_MAX) _ladderFits.delete(_ladderFits.keys().next().value)
+}
+function ladderFitAt(chartId, width) {
+  const f = chartId ? _ladderFits.get(chartId) : null
+  return f && f.width === width ? f.level : 0
+}
+/** ⚡ (2026-11-27, chart 2's paced mount) The one-row ladder's clip ANSWER per chart and row signature. `isClipped`
+ *  reads layout only when the signature moved since its last read, but that memory was the pane instance's: every
+ *  remount (a board return, a paced chart) forced a layout on a row identical in every part of the signature, about
+ *  6 ms of each pane mount (profiled on the owner's board). The same signature on the same chart gives the same answer,
+ *  as within one pane (the signature is the row's content and the page's layout generation: `rowFitSig`). The newest
+ *  LADDER_CLIPS_MAX. */
+const LADDER_CLIPS_MAX = 512
+const _ladderClips = new Map()
+const _ladderClipKey = (chartId, sig) => `${chartId}|${sig}`
+function ladderClipAt(chartId, sig) {
+  return chartId ? _ladderClips.get(_ladderClipKey(chartId, sig)) : undefined
+}
+function rememberLadderClip(chartId, sig, clipped) {
+  if (!chartId) return
+  const k = _ladderClipKey(chartId, sig)
+  _ladderClips.delete(k)
+  _ladderClips.set(k, clipped)
+  if (_ladderClips.size > LADDER_CLIPS_MAX) _ladderClips.delete(_ladderClips.keys().next().value)
+}
+
+// ⚡ (2026-11-27, review of #2873) THE PAGE'S LAYOUT GENERATION: what can change a row's width with its content the same.
+// A font that finished loading (document.fonts 'loadingdone'), and a style change of the page: an attribute on <html>
+// (the theme, `data-theme`) or a stylesheet added or changed in <head> (a density or font-size rule). Each starts a new
+// generation, so no fit measured before it is reused.
+let _fontGen = 0
+let _styleGen = 0
+try { globalThis.document?.fonts?.addEventListener?.('loadingdone', () => { _fontGen++ }) } catch { /* no font events */ }
+try {
+  const doc = globalThis.document
+  if (typeof globalThis.MutationObserver === 'function' && doc?.documentElement) {
+    const mo = new globalThis.MutationObserver(() => { _styleGen++ })
+    mo.observe(doc.documentElement, { attributes: true })
+    if (doc.head) mo.observe(doc.head, { childList: true, subtree: true, characterData: true })
   }
-  return `${el.textContent.length}:${all.length}:${cls}`
+} catch { /* no observer: generation 0 */ }
+
+/** FNV-1a, 32 bits, base 36. */
+function _hash32(s) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return (h >>> 0).toString(36)
+}
+/** What can change a header row's width WITHOUT asking for a layout: its CONTENT (the row's markup: text, classes,
+ *  inline styles, icons; serialised, not laid out) and the page's layout generation. ⚰️ It recorded sizes (text length,
+ *  element count, class-name lengths) until the review of #2873: an equal-length change (NVDA -> MSFT, an equal-length
+ *  class swap, another icon) reused a "fits" measured on other content and could leave the header clipped.
+ *  ⭐ EVERY DIGIT READS AS 0 (delta review of #2873): the row holds live text (the day gain, the clock's seconds and its
+ *  `data-beat`, one-row meta values) and ChartPane renders on every price tick; every live digit is tabular-nums, so a
+ *  digit never changes a width, and a raw hash would force a layout per chart per tick. A sign, a separator or another
+ *  length still changes the signature; the digits of a symbol or company label (not tabular) are covered by the raw
+ *  `sym` and header label beside this in both signatures. */
+export function rowFitSig(el) {
+  if (!el) return '-'
+  const html = el.innerHTML.replace(/[0-9]/g, '0')
+  return `${_fontGen}.${_styleGen}:${html.length}:${_hash32(html)}`
 }
 
 // S2 CP3 — this pane is the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx,
@@ -161,8 +235,11 @@ const SHIFT_F = chordById('SHIFT_F')
  *
  * ref → { openSettings(), focus(), changeSymbol(sym) }
  */
+/** How long the header may keep the last DRAWN symbol after a new one is committed and not yet drawn (ChartPane). */
+export const SHOWN_FALLBACK_MS = 1500
+
 function ChartPane({
-  sym,
+  sym: chartSym,
   tf,
   onSymbolChange = null,
   onTypedIntent = null,
@@ -214,6 +291,27 @@ function ChartPane({
   // passes onStore (even before its first edit, when stored is still null),
   // so this must key off both, not `stored` alone.
   const isOwnChartSurface = stored === null && !onStore
+
+  // ⭐⭐ THE HEADER FOLLOWS THE CANDLES (2026-11-27, owner on production: typing BL over REZI, the first frame showed the
+  // header "BL" over REZI's chart and watermark). Everything this pane DISPLAYS about the symbol (the identity row, its
+  // logo, company, day change, flags, the region's name) reads `sym`, the symbol the chart last DREW (StockChart
+  // `onSymbolPainted`, called inside the paint pass, so the header's re-render lands in the same frame as the candles).
+  // The chart itself, its search and every action read `chartSym`, the symbol committed to it. A plain ticker only: a
+  // series that never paints through a pass (economic, pair, theme index) shows `chartSym` at once; and a chart that has
+  // not drawn the committed symbol within SHOWN_FALLBACK_MS (an error, an empty answer) shows it anyway, with its own state.
+  const [paintedSym, setPaintedSym] = useState(chartSym)
+  const onSymbolPainted = useCallback((s) => {
+    const u = String(s || '')
+    setPaintedSym((prev) => (String(prev || '').toUpperCase() === u.toUpperCase() ? prev : u))
+  }, [])
+  const _plain = (x) => /^[A-Z0-9.^-]{1,12}$/i.test(String(x || ''))
+  const _sameSym = String(paintedSym || '').toUpperCase() === String(chartSym || '').toUpperCase()
+  useEffect(() => {
+    if (_sameSym) return undefined
+    const t = setTimeout(() => setPaintedSym(chartSym), SHOWN_FALLBACK_MS)
+    return () => clearTimeout(t)
+  }, [_sameSym, chartSym])
+  const sym = (_sameSym || !_plain(chartSym) || !_plain(paintedSym)) ? chartSym : paintedSym
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   // Fundamentals feed ONLY ChartMetaRow, which `compact`/`mini` density drops
@@ -343,6 +441,8 @@ function ChartPane({
   })
   // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
   const extHoursOn = resolveShowExtended(canvasCs)
+  const extOnRef = useRef(false)   // the typed warm's cover check reads the session the chart shows
+  extOnRef.current = !!extHoursOn
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -716,7 +816,7 @@ function ChartPane({
     if (mini || oneRowMode) return
     const el = identityRef.current
     if (!el) return
-    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${rowFitSig(el)}`
+    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${sym}|${effHeaderLabel}|${rowFitSig(el)}`
     if (identityFitRef.current === sig) return
     identityFitRef.current = sig
     if (el.scrollWidth <= el.clientWidth + 1) return
@@ -741,18 +841,24 @@ function ChartPane({
     level: rowLevel,
     setLevel: setRowLevel,
     max: ROW_LEVEL_MAX,
+    startLevelFor: (w) => ladderFitAt(chartId, w),
+    onSettled: (l) => rememberLadderFit(chartId, paneWidth, l),
     isClipped: () => {
       // ⭐ (2026-11-21, the switch-task trace) the layout read only when the row's text, the timeframe strip's,
       // the width or the level moved since the last read; otherwise the last answer stands (it was taken on this
       // very row). This ran on every ChartPane render: 62-78 forced layouts over 8 switches on the owner's board.
       const row = identityRef.current
       const tf = tfBarRef.current
-      const sig = `${paneWidth}|${rowLevel}|${rowFitSig(row)}|${rowFitSig(tf)}`
+      const sig = `${paneWidth}|${rowLevel}|${sym}|${effHeaderLabel}|${rowFitSig(row)}|${rowFitSig(tf)}`
       const last = ladderFitRef.current
       if (last && last.sig === sig) return last.clipped
+      // the same row on this chart before this pane mounted (`_ladderClips`): the answer it read stands
+      const known = ladderClipAt(chartId, sig)
+      if (known !== undefined) { ladderFitRef.current = { sig, clipped: known }; return known }
       const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
       const out = clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tf)
       ladderFitRef.current = { sig, clipped: out }
+      rememberLadderClip(chartId, sig, out)
       return out
     },
   })
@@ -976,6 +1082,7 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  const focusFront = useContext(LayerFrontFocusContext)
   // ⭐ 2026-11-18 — WHEN THE STAT MENU CLOSES, FOCUS RETURNS TO THE CHART, the rule this pane keeps for
   // every chart menu ("so type-to-search works immediately — else the first keypress hits a global
   // drawing-tool hotkey, not the search"). A stat is a focusable button since 11-17, and the menu
@@ -1038,13 +1145,25 @@ function ChartPane({
   // ref.changeSymbol) goes through this. After the sym updates we refocus the
   // chart container so the user can immediately start typing again for the next
   // ticker without re-clicking the chart.
+  // ⭐ (review of #2932) IN A DOUBLE-BUFFERED WIDGET THE CHANGE CAN FLIP THE LAYERS: this pane is then the hidden,
+  // INERT old front by the time the frame runs, its focus() a no-op, and the keys would reach nothing until a click.
+  // The pane shown now takes the focus instead (chart/useDoubleBuffer.js focusFront, through chart/layerPaint.js).
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
     onSymbolChange?.(s)
     requestAnimationFrame(() => {
-      focusableRef.current?.focus({ preventScroll: true })
+      const el = focusableRef.current
+      if (focusFront && el?.closest?.('[inert]')) focusFront()
+      else el?.focus({ preventScroll: true })
     })
-  }, [onSymbolChange])
+  }, [onSymbolChange, focusFront])
+  // The header's search (a ticker typed and entered, or one of its results picked): the same handler, with the
+  // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a pointer event, and
+  // the event alone would file it under `click`). Set, switch, cleared: one task.
+  const handleSearchedSymbol = useCallback((s) => {
+    hintSwitchTrigger(TRIGGER_TYPED)
+    try { handleSymbolChange(s) } finally { hintSwitchTrigger(-1) }
+  }, [handleSymbolChange])
   // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
   // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
   // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
@@ -1057,9 +1176,45 @@ function ChartPane({
   // them too, at the moment it knows the text is a ticker (data/barStore/prefetch _tellTyped)
   const typedTfsRef = useRef(typedIntentTfs)
   typedTfsRef.current = typedIntentTfs
+  // ⭐ (2026-11-26, typed vs arrow) ...and once that warm has settled (the ticker's bars are in the store, or were already),
+  // the typed ticker is named the NEXT symbol of the one this chart shows (neighborFrames.publishTypedNext): the charts on
+  // it prepare its frame in idle time, as they prepare a list's next row, and Enter finds it instead of deriving it in the
+  // key task. Only the newest text names anything; a prefix ('unknown') clears it. Store charts only (the preparer reads it).
+  // (review of #2868) ...and only once the warm's LAKE JOIN has landed (storeLakeJoined): the join replaces the key's rows
+  // with a new array 30-400 ms after the warm settles, and a frame prepared on the rows before it is filed under an array
+  // Enter no longer reads. Nothing is named for a chart that has moved to another symbol meanwhile.
+  const symRef = useRef(chartSym)
+  symRef.current = chartSym
+  const typedNextRef = useRef(null)
+  // ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...OR AT ONCE, when the warm's rows already COVER the
+  // view (paintLog viewNeed, the switch's own rule). The double buffer's shadow takes the typed next symbol from here
+  // (useDoubleBuffer retargets on publishTypedNext) and Enter flips to it in the key's task; waiting for the lake join
+  // (30-400 ms more) left Enter before the shadow had even mounted. A short copy still waits for the join; the join that
+  // lands later behind the left edge re-renders the shadow in idle time, and the flip proves its bars are the store's NOW.
+  const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
   const handleTypedIntent = useCallback((s) => {
-    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
+    const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
+    if (!BARSTORE) return
+    const center = symRef.current
+    const mine = {}
+    typedNextRef.current = mine
+    const live = () => typedNextRef.current === mine && symRef.current === center   // no newer text; same chart symbol
+    Promise.resolve(warm).then((r) => {
+      if (!live()) return
+      if (r === 'unknown' || r === 'superseded') { publishTypedNext(center, null); return }
+      if (r) {
+        let covers = false
+        try {
+          const need = viewNeed(paintMemberRef.current)
+          covers = (storeHeldRows(s, effectiveTf, { showExtended: extOnRef.current, upTo: need }) || 0) >= need
+        } catch { covers = false }
+        if (covers) publishTypedNext(center, s)
+      }
+      return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
+    }).catch(() => {})
   }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {
@@ -1316,7 +1471,7 @@ function ChartPane({
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
-          onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onSymbolChange={onSymbolChange ? handleSearchedSymbol : null}
           onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
@@ -1377,7 +1532,8 @@ function ChartPane({
         onKeyDown={handleChartKeyDown}
       >
         <StableStockChart
-          sym={sym}
+          sym={chartSym}
+          onSymbolPainted={onSymbolPainted}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
           onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}

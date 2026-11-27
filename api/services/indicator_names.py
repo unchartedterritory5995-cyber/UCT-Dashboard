@@ -56,10 +56,25 @@ def _library_spellings() -> frozenset:
     return frozenset(norm(alias) for alias, _ in named_indicators.phrases())
 
 
+#: Words that may stand beside a library spelling and leave it the same indicator ("aroon up", "kst oscillator").
+SAME_INDICATOR_WORDS = frozenset({"up", "down", "line", "lines", "oscillator", "indicator", "index", "histogram"})
+
+
 def _answered(spelling: str, known: frozenset) -> bool:
-    """Does the library answer this spelling: is one of its own spellings written in it, as whole words?"""
+    """Does the library answer this spelling: is one of its own spellings written in it, as whole words, with
+    nothing else beside it but words that leave it the same indicator?
+    ⭐ 2026-11-25 -- A LONGER NAME HOLDING A LIBRARY NAME IS ANOTHER INDICATOR. "williams accumulation distribution"
+    holds the library's "accumulation distribution" (Chaikin's line), and was counted as answered by it: the door
+    then handed a request for Larry Williams' A/D the Chaikin entry as the indicator the member named (pp12 was
+    right only because the model knew better). A word left over that names something ("williams", "variable") makes
+    it a different name; "aroon up" and "kst oscillator" stay the library's."""
     padded = f" {spelling} "
-    return any(f" {k} " in padded for k in known)
+    for k in known:
+        if f" {k} " in padded:
+            rest = padded.replace(f" {k} ", " ", 1).split()
+            if all(w in SAME_INDICATOR_WORDS for w in rest):
+                return True
+    return False
 
 
 @functools.lru_cache(maxsize=1)

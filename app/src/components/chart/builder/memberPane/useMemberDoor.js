@@ -10,13 +10,16 @@
 // with, with a `seq` that grows per answer) and `pending`: no answer for the current args has landed yet, or a newer
 // computation of them runs. ⛔ A consumer reading `landed` while `pending` reads an answer to what it asked BEFORE
 // (`key` says which; while it is another's, it is no answer for these args).
+// ⭐ e96: `since`, while `pending`: when the check of the current args began, on the page's clock (the service's
+// `sinceOf`: one start for every reader of one build), or null; what "Checking your script... 0:42" counts from
+// (`useElapsedSince.js`).
 import { useEffect, useRef, useState } from 'react'
 import { memberDoorService } from './memberDoorAsync'
 
 export function useWorkerJob(service, args, refresh) {
   const key = args ? service.keyOf(args) : null
   const [state, setState] = useState({ key: null, args: null, landed: null, seq: 0 })
-  const [waiting, setWaiting] = useState(null)
+  const [waiting, setWaiting] = useState(null)   // { key, since } while this component waits for `key`
   const seqRef = useRef(0)
   useEffect(() => {
     if (!key) return undefined
@@ -25,14 +28,16 @@ export function useWorkerJob(service, args, refresh) {
       delivered = true
       seqRef.current += 1
       setState({ key, args, landed, seq: seqRef.current })
-      setWaiting((w) => (w === key ? null : w))
+      setWaiting((w) => (w && w.key === key ? null : w))
     })
-    if (!delivered) setWaiting(key)
+    if (!delivered) setWaiting({ key, since: typeof service.sinceOf === 'function' ? service.sinceOf(key) : null })
     return release
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `args` is read through its key; `refresh` asks again
   }, [service, key, refresh])
-  return { key: state.key, args: state.args, landed: state.landed, seq: state.seq,
-    pending: !!key && (waiting === key || state.key !== key) }
+  const waitingHere = !!waiting && waiting.key === key
+  const pending = !!key && (waitingHere || state.key !== key)
+  return { key: state.key, args: state.args, landed: state.landed, seq: state.seq, pending,
+    since: pending && waitingHere ? waiting.since : null }
 }
 
 /** The chart door's shared build of `args` (`{source, id?, name?}`). */

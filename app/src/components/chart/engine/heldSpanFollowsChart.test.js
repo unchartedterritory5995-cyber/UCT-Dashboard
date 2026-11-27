@@ -87,7 +87,9 @@ describe('the chart feeds the hook the held span (StockChart.jsx), code, not pro
     expect(code).toMatch(/const loaded = heldRowsFor\(resolvedTf, barCountRef\.current, heldNewestTRef\.current\)/)
     // CONTROL: the matcher sees the real call (a reverted line, `barCount` 4th, would read here); the 9th argument is
     // the chart's symbol binding (`ownDailyFollowsChartSymbol.test.js`, the e83 live capture)
-    expect(args).toHaveLength(10)
+    // (the 11th, 2026-11-25 review of #2753: the chart's own session, for a custom intraday timeframe's other-symbol bars)
+    expect(args).toHaveLength(11)
+    expect(args[10]).toBe('!!showExtended')
     expect(args[8]).toBe('symbolMeta')
     // ⭐⭐ (e91) the 10th is the chart's span of sessions on a rung (`ownDailyDepth.test.js`), counted where the rows are bound
     expect(args[9]).toBe('_heldSessions')

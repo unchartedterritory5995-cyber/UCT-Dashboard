@@ -1,0 +1,59 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "F1",
+   "mutant": "the static gate removed: a script that names syminfo / request. / ticker. / import also keeps its run on a fact change",
+   "file": "app/src/components/chart/engine/runtime/runtimeAsync.js",
+   "from": "  if (!_factsKeepOff && run.factsFree === newer.factsFree && namesNoSymbolFact(newer.def)) {",
+   "to": "  if (!_factsKeepOff && run.factsFree === newer.factsFree) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "names a symbol fact keeps today"
+  },
+  {
+   "id": "F3",
+   "mutant": "request sites admitted to the facts resume",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  const factsSession = !prevSession && !opts.probe && !reqSupply\n",
+   "to": "  const factsSession = !prevSession && !opts.probe\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "request sites is never served"
+  },
+  {
+   "id": "F4",
+   "mutant": "a run that keeps a realtime ledger admitted to the facts resume",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (keepsLedger(varipSlotsOf(ir), source)) return null\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "realtime ledger"
+  },
+  {
+   "id": "F5",
+   "mutant": "the facts key ignores the timeframe",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  return { ...ctx, symbol: { ticker: ctx.symbol.ticker } }",
+   "to": "  return { ...ctx, tf: undefined, symbol: { ticker: ctx.symbol.ticker } }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "another timeframe, forming state"
+  },
+  {
+   "id": "F6",
+   "mutant": "the facts key ignores the forming state",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  return { ...ctx, symbol: { ticker: ctx.symbol.ticker } }",
+   "to": "  return { ...ctx, newestBarIsForming: false, symbol: { ticker: ctx.symbol.ticker } }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "another timeframe, forming state"
+  },
+  {
+   "id": "F7",
+   "mutant": "the facts key keeps the exchange: the measured switch is a full run again",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  return { ...ctx, symbol: { ticker: ctx.symbol.ticker } }",
+   "to": "  return { ...ctx, symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
+   "expectRed": "PENDING -> DATED -> SETTLED"
+  }
+ ]
+}

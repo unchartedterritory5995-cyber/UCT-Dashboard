@@ -154,6 +154,7 @@ unbounded with nobody watching them.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import logging
@@ -164,6 +165,7 @@ import secrets
 import sqlite3
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, Mapping, Optional
 
 from api.services import compute_graph
@@ -450,11 +452,95 @@ def _init_db() -> None:
         c.executescript(_SCHEMA)
         _migrate(c)
         c.commit()
+    _remember_ensured(_db_identity())
 
 
 def _ensure(c: sqlite3.Connection) -> None:
+    """The schema and its migrations, run ONCE per database file per process (`_ENSURED`).
+
+    ⭐ (chart speed, 2026-11-27) This ran on EVERY connection: about twenty `CREATE ... IF NOT EXISTS`
+    statements and four `PRAGMA table_info` reads, each a round trip that releases and re-takes the
+    interpreter lock, so a definitions list made ~60 of them, and on a busy pod each was one more wait.
+    Once a file has been ensured by this build's schema, a later connection skips it. The key is the
+    file's identity (path, device, inode, creation time), so a file replaced or recreated at the same path is
+    ensured again, and the schema's own text, so a schema change is ensured again."""
+    ident = _db_identity()
+    if ident is not None and _ENSURED.get(ident[0]) == ident:
+        return
     c.executescript(_SCHEMA)
     _migrate(c)
+    _remember_ensured(ident)
+
+
+#: The database files this process has ensured (`_ensure`): ONE identity per path, the newest (review of #2896:
+#: on Linux the change time moves with every write to the file, a WAL checkpoint or an ALTER; each move costs one
+#: more ensure and REPLACES the remembered identity, so this never grows with the writes).
+_ENSURED: dict = {}
+_ENSURED_LOCK = threading.Lock()
+
+
+def _remember_ensured(ident: Optional[tuple]) -> None:
+    if ident is not None:
+        with _ENSURED_LOCK:
+            _ENSURED[ident[0]] = ident
+
+
+def _db_identity() -> Optional[tuple]:
+    """``(path, device, inode, change time, schema)`` of the file `_connect` opens, or None (then nothing is
+    skipped) when it cannot be read or has NO INODE NUMBER (``st_ino == 0``: FAT / exFAT / some network shares,
+    where a file recreated within one coarse clock tick could pass for the old one; review of #2896).
+    ⚠️ The change time stays in the key on purpose: Linux reuses a freed inode number at once, so
+    ``(device, inode)`` alone can match a file deleted and recreated at the same path."""
+    try:
+        st = os.stat(_DB_PATH)
+    except (OSError, TypeError, ValueError):
+        return None
+    if not st.st_ino:
+        return None
+    return (os.path.abspath(_DB_PATH), st.st_dev, st.st_ino, st.st_ctime_ns,
+            hash((_SCHEMA, _ADDED_COLUMNS)))
+
+
+def _reset_ensured() -> None:
+    """Tests only: forget which files were ensured."""
+    with _ENSURED_LOCK:
+        _ENSURED.clear()
+
+
+# ⭐ ONE CONNECTION FOR A WHOLE READ (chart speed, 2026-11-27). The definitions list opened two or three
+# connections (the rows, the line identities, the capability prefetch), each with its own pragmas. Inside
+# `one_connection()` the read helpers below share one; outside it, each opens and closes its own, as before.
+# Reads only: every write keeps its own connection and transaction.
+_SHARED_CONN: "contextvars.ContextVar[Optional[sqlite3.Connection]]" = contextvars.ContextVar(
+    "user_definitions_shared_connection", default=None)
+
+
+@contextlib.contextmanager
+def one_connection():
+    """Within the block, `_reading()` hands every reader the same connection. Nests."""
+    if _SHARED_CONN.get() is not None:
+        yield _SHARED_CONN.get()
+        return
+    conn = _connect()
+    token = _SHARED_CONN.set(conn)
+    try:
+        _ensure(conn)
+        yield conn
+    finally:
+        _SHARED_CONN.reset(token)
+        conn.close()
+
+
+@contextlib.contextmanager
+def _reading():
+    """A connection to READ with: the request's shared one (`one_connection`) or a fresh one, ensured."""
+    shared = _SHARED_CONN.get()
+    if shared is not None:
+        yield shared
+        return
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        yield c
 
 
 # ─── the hash that decides a rev bump ────────────────────────────────────────
@@ -1087,11 +1173,19 @@ def line_identities_many(user_id: Any, refs: Any) -> dict:
     """``{(def_id, version): {plotKey: identity}}`` for many stored versions on ONE
     connection -- the list route serves every definition of a member at once."""
     out: dict = {}
-    with contextlib.closing(_connect()) as c:
-        _ensure(c)
-        for def_id, version in refs:
-            if not isinstance(def_id, str) or version is None:
-                continue
+    todo = []
+    for def_id, version in refs:
+        if not isinstance(def_id, str) or version is None:
+            continue
+        hit = _line_identity_cached((str(user_id), def_id, int(version)))
+        if hit is not None:
+            out[(def_id, int(version))] = hit
+        else:
+            todo.append((def_id, version))
+    if not todo:
+        return out
+    with _reading() as c:
+        for def_id, version in todo:
             row = c.execute(
                 "SELECT definition FROM user_definitions WHERE user_id=? AND def_id=? "
                 "AND version=?", (str(user_id), def_id, int(version))).fetchone()
@@ -1102,8 +1196,45 @@ def line_identities_many(user_id: Any, refs: Any) -> dict:
             except (TypeError, ValueError):
                 continue
             ids = _effective_line_ids(c, user_id, def_id, int(version))
-            out[(def_id, int(version))] = {k: line_identity(k, ids) for k in keys}
+            got = {k: line_identity(k, ids) for k in keys}
+            _line_identity_store((str(user_id), def_id, int(version)), got)
+            out[(def_id, int(version))] = dict(got)
     return out
+
+
+# ⭐ ONE STORED VERSION'S LINE IDENTITIES, ONCE PER PROCESS (chart speed, 2026-11-26). They are a function of that
+# version and the versions before it (`_effective_line_ids`), and the store only ever APPENDS versions, so a
+# version's answer never moves; the list asked it again on every request (two document reads and two parses per
+# row). Keyed with the database path; bounded; a hit hands out a copy. Rails:
+# tests/test_user_definitions_list_verdict_cache.py.
+_LINE_IDS_MAX = 4096
+_LINE_IDS: "OrderedDict[tuple, dict]" = OrderedDict()
+_LINE_IDS_LOCK = threading.Lock()
+
+
+def _line_identity_cached(ref: tuple) -> Optional[dict]:
+    key = (_DB_PATH,) + ref
+    with _LINE_IDS_LOCK:
+        hit = _LINE_IDS.get(key)
+        if hit is None:
+            return None
+        _LINE_IDS.move_to_end(key)
+        return dict(hit)
+
+
+def _line_identity_store(ref: tuple, ids: dict) -> None:
+    key = (_DB_PATH,) + ref
+    with _LINE_IDS_LOCK:
+        _LINE_IDS[key] = dict(ids)
+        _LINE_IDS.move_to_end(key)
+        while len(_LINE_IDS) > _LINE_IDS_MAX:
+            _LINE_IDS.popitem(last=False)
+
+
+def _reset_line_identity_cache() -> None:
+    """Tests only."""
+    with _LINE_IDS_LOCK:
+        _LINE_IDS.clear()
 
 
 def history_line_identities(user_id: Any, def_id: str) -> dict:
@@ -2918,6 +3049,12 @@ def _engine_status_of(c: sqlite3.Connection, user_id: Any, def_id: str,
         "SELECT engine, status, reason, refused_maths FROM definition_engine_status "
         "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC",
         (str(user_id), def_id, int(version))).fetchall()
+    return _engine_status_from(rows)
+
+
+def _engine_status_from(rows: Any) -> Optional[dict]:
+    """`_engine_status_of`'s rule over one version's status rows, newest first (one rule for the
+    single read and the list's one query, `_engine_statuses_of`)."""
     if not rows:
         return None
     at = next((i for i, r in enumerate(rows) if r["status"] == "refused"), None)
@@ -2962,11 +3099,28 @@ def _carry_refusal(c: sqlite3.Connection, user_id: Any, def_id: str,
          to_version, held["engine"], "refused", held["reason"], now, held.get("maths")))
 
 
-def _with_engine_status(c: sqlite3.Connection, out: dict) -> dict:
+def _engine_statuses_of(c: sqlite3.Connection, user_id: Any) -> dict:
+    """``{(def_id, version): [rows newest first]}`` for every status row of one member, in ONE query
+    (the list's; `_engine_status_of` asked once per row)."""
+    out: dict = {}
+    for r in c.execute(
+            "SELECT def_id, version, engine, status, reason, refused_maths FROM definition_engine_status "
+            "WHERE user_id=? ORDER BY id DESC", (str(user_id),)):
+        out.setdefault((r["def_id"], r["version"]), []).append(r)
+    return out
+
+
+_NOT_READ = object()
+
+
+def _with_engine_status(c: sqlite3.Connection, out: dict, rows: Any = _NOT_READ) -> dict:
     """Attach the engine status that binds THIS version (or nothing). A refusal also
     says whether this version's maths IS the refused maths (`same_maths`, F3) — the
-    one fact `engine_withheld_reason` and the browser's `upgradeKindOf` both read."""
-    st = _engine_status_of(c, out.get("user_id"), out.get("def_id"), out.get("version"))
+    one fact `engine_withheld_reason` and the browser's `upgradeKindOf` both read.
+    ``rows``: this version's status rows newest first, when the caller already read them
+    (`_engine_statuses_of`); otherwise they are read here."""
+    st = (_engine_status_of(c, out.get("user_id"), out.get("def_id"), out.get("version"))
+          if rows is _NOT_READ else _engine_status_from(rows))
     if st is not None:
         maths = st.pop("maths", None)
         if st["status"] == "refused":
@@ -4138,18 +4292,27 @@ def list_for_user(user_id: Any, *, source_below: Optional[int] = None) -> list[d
     ⭐ SAVED-SCRIPT AUTO-UPGRADE — ``source_below``: the asking browser's script
     engine version. A row whose document is stamped below it (or unstamped) AND
     that holds its script is served WITH ``pine_source``, so the browser can
-    re-translate it without a second request; every other row costs nothing."""
-    with contextlib.closing(_connect()) as c:
-        _ensure(c)
+    re-translate it without a second request; every other row costs nothing.
+
+    ⭐ THE TOMBSTONES STAY IN THE DATABASE (`deleted_at IS NULL` in the SQL, not in Python). A
+    tombstone carries the whole document and the script (`soft_delete`), and every indicator a
+    member ever deleted is one, so filtering them here read each one's ~90 KB into the process on
+    every list, then threw it away (`tests/test_user_definitions_list_live_only.py`)."""
+    with _reading() as c:
         rows = c.execute(
             "SELECT * FROM user_definitions u WHERE user_id=? AND version = ("
             "  SELECT MAX(version) FROM user_definitions v"
             "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+            " AND u.deleted_at IS NULL"
             " ORDER BY u.id",
             (str(user_id),),
         ).fetchall()
-        return [_with_source_if_stale(r, _with_engine_status(c, _row_to_dict(r)), source_below)
-                for r in rows if r["deleted_at"] is None]
+        # ⭐ every row's engine status in ONE query (it was one per row)
+        statuses = _engine_statuses_of(c, user_id) if rows else {}
+        return [_with_source_if_stale(
+                    r, _with_engine_status(c, _row_to_dict(r), statuses.get((r["def_id"], r["version"]), [])),
+                    source_below)
+                for r in rows]
 
 
 def live_definitions() -> list[dict]:
@@ -4173,14 +4336,19 @@ def live_definitions() -> list[dict]:
 
 def _live_newest_rows(c: sqlite3.Connection) -> list:
     """The stored rows behind `live_definitions`: every definition's newest version that is not a tombstone, across
-    every member, oldest first (one spelling of "live" for both of its readers)."""
-    rows = c.execute(
+    every member, oldest first (one spelling of "live" for both of its readers).
+
+    ⭐ THE TOMBSTONES STAY IN THE DATABASE (`deleted_at IS NULL` on the OUTER row, as `list_for_user` does): a
+    tombstone carries the whole document and the script, and this read spans every member. ⛔ The MAX still runs
+    over ALL versions, so a newer tombstone keeps hiding an older live version
+    (`tests/test_user_definitions_live_newest_rows.py`)."""
+    return c.execute(
         "SELECT * FROM user_definitions u WHERE version = ("
         "  SELECT MAX(version) FROM user_definitions v"
         "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+        " AND u.deleted_at IS NULL"
         " ORDER BY u.id",
     ).fetchall()
-    return [r for r in rows if r["deleted_at"] is None]
 
 
 def held_withholds_census() -> dict:

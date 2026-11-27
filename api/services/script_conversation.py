@@ -32,7 +32,8 @@ from typing import Any, Dict, List, Mapping, Optional
 
 from api.services.catalyst import cost_guard
 from api.services import definition_concierge as dc
-from api.services import pine_authoring
+from api.services import code_paste
+from api.services import pine_authoring, strategy_authoring
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ MAX_SCRIPT_CALLS = 2
 MAX_REPAIR_ROUNDS = 2
 REFUSAL_MAX_ERRORS, REFUSAL_MAX_CHARS = 6, 300
 DECLINED_GATE = "script:unsupported"
+#: ⭐ 2026-11-26 -- the browser's strategy gate refused a written strategy: answered by name, never repaired.
+STRATEGY_WALL_GATE = "script:strategy-wall"
 SHAPE_GATE = "script:shape"
 ROUNDS_GATE = "script:rounds"
 REFUSED_TOOL_USE_ID = "toolu_engine_refusal"
@@ -65,6 +68,24 @@ REASONS = {
 _SCRIPT_WORDS = re.compile(
     r"\b(?:tables?|dashboards?|labels?|text|trend ?lines?|draw(?:s|n|ing)?|box(?:es)?|rectangles?|zones?|"
     r"fib(?:s|onacci)?|zig ?zags?|pivot points?|pine|scripts?)\b", re.I)
+
+#: ⭐ 2026-11-25 -- WHAT A FORMULA CAN DRAW, BUT NOT THE WAY THE MEMBER ASKED. Measured by the Deepvue parity probe
+#: (live, admin measurement): "Plot the Parabolic SAR as dots", "show its value in the status line with 2 decimals" and
+#: "the close of another symbol that I choose in the settings" were each BUILT as a formula, and each reply said what
+#: it could not do (a thin dotted line "reads much like the classic dots"; "I can't set a fixed 2-decimal format";
+#: "the symbol is fixed in the formula"). A script holds all three (plot.style_circles / style_cross, `precision=`,
+#: input.symbol) and a built formula is never followed by one (`_with_script_lane`), so the member was handed the near
+#: thing. Matched over the 641 distinct requests on record: exactly the five that ask for one of them. A dotted LINE
+#: is a formula's line style, and "a dot above the bar" is a formula's marker: neither is here.
+_SCRIPT_ONLY_ASKS = re.compile(
+    # a series drawn AS dots, circles or crosses (plot.style_circles / plot.style_cross)
+    r"\b(?:as|with|in|using)\s+(?:(?:small|little|tiny|big|large|colou?red|green|red|blue|white|yellow|orange)\s+){0,2}(?:dots|circles|crosses)\b"
+    r"|\b(?:dots?|circles?|cross(?:es)?)\s+style\b"
+    # a value shown to a fixed number of decimals (indicator(precision=))
+    r"|\b(?:\d|one|two|three|four|five|six)\s+decimals?\b|\bdecimal\s+places?\b"
+    # a symbol the member chooses in the settings (input.symbol)
+    r"|\b(?:symbol|ticker)s?\b[^.;!?]{0,60}\b(?:settings?|inputs?|i\s+(?:can\s+)?(?:choose|pick|select|type|enter))\b"
+    r"|\b(?:choose|pick|select|change|enter|type)\w*\b[^.;!?]{0,40}\b(?:symbol|ticker)\b", re.I)
 
 TOOL = {
     "name": TOOL_NAME,
@@ -101,9 +122,83 @@ def lane_open(accepts: Any, admin: Any) -> bool:
     return pine_authoring.available()
 
 
+def names_a_method(message: Any) -> Optional[str]:
+    """⭐ 2026-11-25 (coordinator ruling B) -- the catalogue id of a METHOD, drawing, chart type or data series the
+    request names (a catalogue row that is neither distinctive nor in the library: Elliott Wave, Renko, Fibonacci
+    retracement, the put/call ratio), in any capitals. None when it names none.
+    Measured before: such a name in lower case was BUILT FROM MEMORY as a formula with no word that UCT had not
+    checked it, and in Title Case was refused as "not an indicator UCT knows by name", which the catalogue says is
+    false. No single formula is any of these, so it goes to the script turn, where every script no value-checked
+    recipe stands behind carries UCT's own line saying so (`pine_authoring.said_with_disclosure`). A bare short
+    acronym is never matched (`indicator_names.is_short_acronym`, the same rule as the withheld names)."""
+    from api.services import indicator_names
+    if not isinstance(message, str):
+        return None
+    words = " " + indicator_names.norm(message) + " "
+    in_library = indicator_names.now_in_library()
+    for row in indicator_names.catalogue():
+        if row["distinctive"] or row["id"] in in_library:
+            continue
+        for alias in row["aliases"]:
+            if not indicator_names.is_short_acronym(alias) and " " + alias + " " in words:
+                return row["id"]
+    return None
+
+
+def said_with_line(said: Any, line: str) -> str:
+    """The assistant's words with UCT's own line after them: never cut, never said twice."""
+    text = str(said or "").strip()
+    if line in text:
+        return text[:pine_authoring.REPLY_MAX_CHARS]
+    return (pine_authoring._fit(text, pine_authoring.REPLY_MAX_CHARS - len(line) - 1) + " " + line).strip()
+
+
+_PINE_TITLE = re.compile(r"""(?m)^\s*(?:indicator|study|strategy)\s*\(\s*(?:title\s*=\s*)?["']([^"'\n]{1,80})["']""")
+
+
+def pasted_pine_turn(message: str, *, revision: int, contract: str,
+                     trace: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """⭐ C (2026-11-25): a member who pasted a PINE script is answered with THEIR script, as written, and NO model
+    call, when it passes the first look (`pine_authoring.script_problem`). The chart's own engine then checks it like
+    any script answer, and a refusal comes back for a repair in the ordinary way. None when it does not pass: then the
+    script turn rewrites it. It is the member's own code, so no "built from your description" line is added."""
+    from api.services import runtime_definitions
+    pine = code_paste.pine_of(message)
+    if pine_authoring.script_problem(pine, strategy=True) is not None:     # the member's own strategy goes to the gate too
+        return None
+    trace = trace if trace is not None else {}
+    title = _PINE_TITLE.search(pine)
+    name = re.sub(r"\s+", " ", title.group(1)).strip()[:pine_authoring.NAME_MAX_CHARS] if title else "Pasted script"
+    caps = pine_authoring.script_capabilities(pine)
+    waits = pine_authoring.waits_for_the_bar(pine, caps=caps)
+    trace["script"] = {"round": 0, "pasted": True, "chars": len(pine), "reference": None, "waits_for_the_bar": waits}
+    script_out = {"name": name, "pine": pine, "round": 0, "reference": None, "waits_for_the_bar": waits}
+    admission = runtime_definitions.script_answer_admission(pine, caps)
+    if admission is not None:
+        script_out["admission"] = admission
+    said = code_paste.PINE_PASTE_REPLY
+    return {"ok": True, "disposition": "answer", "turn": "script", "reply": said, "script": script_out,
+            "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
+                         "reply": said},
+            "answered_by": "door", "not_understood": [], "unavailable": [],
+            "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
+
+
 def wants_script(message: Any) -> bool:
     """Does the request name something only a script can hold?"""
-    return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message))
+    return isinstance(message, str) and bool(_SCRIPT_WORDS.search(message) or _SCRIPT_ONLY_ASKS.search(message))
+
+
+def wall_reason(walled: Any, errors: Any) -> str:
+    """What a member is told when the broker refuses a written strategy: the rule by name when it is an unpinned one,
+    else the broker's own sentence."""
+    wall, rule = walled
+    if rule:
+        return strategy_authoring.unpinned_reply(rule)
+    said = next((e.split(": ", 1)[1] for e in errors or [] if isinstance(e, str)
+                 and e.startswith(strategy_authoring.STRATEGY_WALL_MARK + " ") and ": " in e), "")
+    return ("This strategy's backtest doesn't run on this chart" + (f": {said.rstrip('.')}." if said else ".") +
+            " Ask for the entry and exit rules as an indicator and the assistant will mark each signal on your chart.")
 
 
 def script_refusal(raw: Any) -> Optional[Dict[str, Any]]:
@@ -114,7 +209,7 @@ def script_refusal(raw: Any) -> Optional[Dict[str, Any]]:
     if not isinstance(raw, Mapping):
         return None
     pine = raw.get("pine")
-    if pine_authoring.script_problem(pine) is not None:
+    if pine_authoring.script_problem(pine, strategy=True) is not None:     # a refused script of ours may be a strategy
         return None
     errors = [re.sub(r"\s+", " ", e).strip()[:REFUSAL_MAX_CHARS] for e in (raw.get("errors") or [])
               if isinstance(e, str) and e.strip()] if isinstance(raw.get("errors"), list) else []
@@ -131,15 +226,22 @@ def system_blocks() -> List[Dict[str, Any]]:
     return [{"type": "text", "text": pine_authoring.document(), "cache_control": {"type": "ephemeral"}}]
 
 
-def _request_text(message: str, chart: Any) -> str:
+def _request_text(message: str, chart: Any, strategy: bool = False) -> str:
     sym = chart.get("sym") if isinstance(chart, Mapping) else None
     tf = chart.get("tf") if isinstance(chart, Mapping) else None
     on = f" The member's chart shows {sym}" + (f" on the {tf} timeframe." if tf else ".") if sym else ""
+    # ⭐ C (2026-11-25): a pasted Deepvue indicator is TRANSLATED, its code carried as DATA (`code_paste.IMPORT_TASK`)
+    if code_paste.kind_of(message) == code_paste.DEEPVUE:
+        return (f"<uct_import_source>{dc.escape_json(message)}</uct_import_source>{on} {code_paste.IMPORT_TASK} "
+                "Write the script with the emit_script tool.")
     # ⭐ the recipes this request NAMES (`pine_authoring.recipes_for`): whole scripts the engine is known
     # to run, as data beside the request. Our own text, never the member's.
     found = pine_authoring.recipes_text(pine_authoring.recipes_for(message))
+    # ⭐ 2026-11-26 -- A STRATEGY REQUEST CARRIES ITS BRIEF (`strategy_authoring.strategy_brief`: the order calls and the
+    # broker behaviours confirmed / not confirmed, read from the engine). In the REQUEST, never the cached document.
+    brief = f"\n\n{strategy_authoring.strategy_brief()}" if strategy else ""
     return (f"<member_request>{dc.escape_json(message)}</member_request>{on} "
-            "Write the script with the emit_script tool." + (f"\n\n{found}" if found else ""))
+            "Write the script with the emit_script tool." + (f"\n\n{found}" if found else "") + brief)
 
 
 #: ⭐ A REFUSED SCRIPT GOES BACK TO ITS RECIPE (found live 2026-11-19). Two requests that each have a proven
@@ -173,8 +275,8 @@ def _recipe_line(message: str, refused: Mapping[str, Any]) -> str:
     return RECIPE_BACK_LINE.replace("{recipes}", " / ".join(f"`{r['title']}`" for r in handed))
 
 
-def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) -> List[dict]:
-    out: List[dict] = [{"role": "user", "content": _request_text(message, chart)}]
+def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]], strategy: bool = False) -> List[dict]:
+    out: List[dict] = [{"role": "user", "content": _request_text(message, chart, strategy)}]
     if refused:
         words = " ".join(f"({i + 1}) {e}" for i, e in enumerate(refused["errors"]))
         out += [
@@ -216,7 +318,8 @@ def _refused(gate: str, reason: Optional[str] = None, **extra: Any) -> Dict[str,
 
 def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls: List[Dict[str, Any]],
                 revision: int, contract: str, trace: Optional[Dict[str, Any]] = None,
-                refused: Optional[Mapping[str, Any]] = None, cancelled: Any = None) -> Dict[str, Any]:
+                refused: Optional[Mapping[str, Any]] = None, cancelled: Any = None,
+                strategy: bool = False) -> Dict[str, Any]:
     """One script turn. NEVER raises. Returns the door's result dict: on success
     ``{ok, disposition: "answer", turn: "script", reply, script: {name, pine, round}, envelope, ...}``;
     the envelope is an answer that changes nothing (the script is not a patch: the browser's engine
@@ -226,8 +329,13 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
     trace["script"] = {"round": rnd}
     if refused and rnd > MAX_REPAIR_ROUNDS:
         return _refused(ROUNDS_GATE)
+    # ⭐ 2026-11-26 -- THE BROKER REFUSED A WRITTEN STRATEGY (the browser's gate, `strategyGate.js`): answered BY NAME,
+    # with no repair round and no call. A rule UCT has not confirmed is what the request needs, not a slip to fix.
+    walled = strategy_authoring.strategy_wall(refused.get("errors")) if refused else None
+    if walled is not None:
+        return _refused(STRATEGY_WALL_GATE, wall_reason(walled, refused.get("errors")))
     market_date = dc._market_date()
-    messages = _messages(message, chart, refused)
+    messages = _messages(message, chart, refused, strategy)
     tokens = {"input": 0, "output": 0}
     cost_usd, attempts = 0.0, 0
     other_read_repaired = False
@@ -280,7 +388,7 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             trace["script"]["declined"] = True
             return _refused(DECLINED_GATE, reply or None, disposition="unsupported", **extra())
         pine = answer.get("pine") if isinstance(answer, dict) and answer.get("disposition") == "script" else None
-        problem = pine_authoring.script_problem(pine)
+        problem = pine_authoring.script_problem(pine, strategy=strategy)
         # ⭐ A READ OF ANOTHER SYMBOL OR TIMEFRAME NOBODY ASKED FOR GETS ONE REPAIR (2026-11-22, the rule and its
         # reasons at `pine_authoring.other_read_asked`). Decided by reading THIS script's own requests against the
         # member's words and the chart. ONE repair, inside this turn's own call limit; a second answer that still
@@ -317,7 +425,12 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # so, in UCT's own words, whatever the assistant wrote. Decided by counting
             # (`pine_authoring.backed_by`), on THIS script: a repair is judged again.
             reference = pine_authoring.backed_by(message, pine)
-            said = pine_authoring.said_with_disclosure(said, reference)
+            # ⭐ C: a translated Deepvue indicator says what it is (`code_paste.IMPORT_LINE`) in place of the
+            # unchecked line: nobody graded its values against Deepvue's, and that is the honest sentence for it
+            if reference is None and code_paste.kind_of(message) == code_paste.DEEPVUE:
+                said = said_with_line(said, code_paste.IMPORT_LINE)
+            else:
+                said = pine_authoring.said_with_disclosure(said, reference)
             # ⭐ AND WHETHER IT READS WHERE THE CHART ENDS (found live 2026-11-19): such a script is drawn
             # only on a finished bar WHEN THE BAR-BY-BAR LANE DRAWS IT. The server's own detector decides the
             # fact, on THIS script, and sends it (`waits_for_the_bar`). ⛔ The SENTENCE is the window's to say

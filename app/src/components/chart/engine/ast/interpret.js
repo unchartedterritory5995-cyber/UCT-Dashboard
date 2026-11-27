@@ -224,6 +224,31 @@ export const TF_LADDER = Object.freeze(['1', '5', '15', '30', '60', 'D', 'W', 'M
  *  step-back form refuses, kept verbatim, and the identity assertion beside it. */
 export const TF_RESAMPLABLE = Object.freeze(['W', 'M'])
 
+/** ⭐⭐ U-DAILY (e96, part A) — THE ONE CODE A `tf` NODE MAY NAME THAT IS NOT A RESAMPLE: `'D'`, ON A CHART BELOW A
+ *  DAY. It is what the ruling above asked for ("give the translator the base … and `D` becomes `tf` above it"): on a
+ *  stated chart below a day, `tf(x, 'D')` is `x` computed on the symbol's DAILY bars (handed beside the chart's, never
+ *  built from them) and placed on each chart bar as THE LAST FINISHED DAY, by the chart's own projection
+ *  (`mtfProjection.projectFrameColumns`, the rule a whole-indicator daily calculation already draws by). On a daily
+ *  or higher chart it is refused by name (that is the one-bar step-back the 2026-09-01 ruling refused); with no
+ *  daily bars in hand it is withheld by name. `interpretDailyReads` is the one place it is evaluated.
+ *  Python twin: `ast_interpret.DAILY_READ`. */
+export const DAILY_READ = 'D'
+/** The bars a daily read withholds by name: the finished day it reads is not in the daily bars in hand (before
+ *  their first day, a day they skip, or their newest day not yet proven finished). */
+export const DAILY_READ_DAY_NOT_HELD = 'daily-read:day-not-held'
+/** …and the whole column, where no daily bars were handed at all (a server lane, an unstated chart). */
+export const DAILY_READ_NO_DAILY_BARS = 'daily-read:no-daily-bars'
+
+/** Is this node a daily read (`tf` of D)? */
+export function isDailyRead(node) {
+  return !!node && typeof node === 'object' && node.type === 'tf' && String(node.value) === DAILY_READ
+}
+
+/** A chart timeframe below a day: a whole number of minutes. */
+export function isBelowADay(code) {
+  return code !== undefined && code !== null && /^[1-9][0-9]*$/.test(String(code))
+}
+
 /** ⭐⭐ THE BARS THIS ENGINE IS ACTUALLY HANDED — the "base" the ruling above says
  *  would unblock `D`, and it is DERIVED rather than typed: the base is the ladder
  *  rung immediately BELOW the lowest thing `tf` can resample, because `tf` may only
@@ -372,10 +397,25 @@ export const TF_LIVE_BASE_BARS = Object.freeze({ ...TF_BASE_BARS, '3M': 63 })
  *  once per tree, so the gate that runs before a sweep and the gate that answers
  *  inside it cannot disagree. Mirrors `ast_interpret._assert_sym_placement`. */
 function assertSymPlacement(root, refuse) {
-  const stack = [[root, false, false, false]]
+  const stack = [[root, false, false, false, false]]
   while (stack.length) {
-    const [node, underTf, underRequest, underLtf] = stack.pop()
+    const [node, underTf, underRequest, underLtf, underDaily] = stack.pop()
     if (!node || typeof node !== 'object') continue
+    // ⭐⭐ U-DAILY (e96) — A DAILY READ SITS AT THE CHART'S OWN LEVEL, AND HOLDS NO OTHER TIMEFRAME. `tf(x, 'D')` on a
+    // chart below a day computes `x` on the symbol's DAILY bars and places each day on this chart's bars
+    // (`interpretDailyReads`): under another read those are not the bars it would be placed on, and a timeframe read
+    // inside it would be a second placement nobody measured. A `sym` inside it IS served (that symbol's daily bars,
+    // aligned by date with the chart symbol's): `tf(sym('SPY', close), 'D')`.
+    if (isDailyRead(node) && underRequest) {
+      refuse('interpret:timeframe',
+        '— a daily read (`tf` of D) cannot sit inside another read (`sym`, `tf`, `tf_live` or `ltf`): it is placed on '
+        + 'the chart\'s own bars, day by day. Put the other symbol inside it instead: tf(sym(\'SPY\', close), \'D\').')
+    }
+    if (underDaily && (node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF)) {
+      refuse('interpret:timeframe',
+        `— a \`${node.type}\` read cannot sit inside a daily read (\`tf\` of D): the daily read is computed on daily bars `
+        + 'and placed on this chart day by day, and a second timeframe inside it is not one this engine places.')
+    }
     // ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE. `ltf` hands its child the
     // chart symbol's INTRADAY bars and maps the answer back onto the chart's own
     // bars: under another request (`tf` / `tf_live` / `sym` / `ltf`) those are
@@ -402,10 +442,13 @@ function assertSymPlacement(root, refuse) {
         + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
     }
     if (Array.isArray(node.args)) {
-      const isTf = node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
+      // ⭐ U-DAILY — a daily read's child runs on DAILY bars handed beside the chart's, with each symbol's own daily
+      // bars, so a `sym` there is not the resample mix the rule above refuses (it is not "under tf" for that rule)
+      const daily = isDailyRead(node)
+      const isTf = !daily && (node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE)
       for (const a of node.args) {
-        stack.push([a, underTf || isTf, underRequest || isTf || node.type === 'sym' || node.type === LTF,
-          underLtf || node.type === LTF])
+        stack.push([a, underTf || isTf, underRequest || isTf || daily || node.type === 'sym' || node.type === LTF,
+          underLtf || node.type === LTF, underDaily || daily])
       }
     }
   }
@@ -5330,6 +5373,15 @@ export function maxLookback(ast) {
       // engine cannot resample is refused here rather than defaulting to span 1
       // and letting an up-front gate accept a tree every row will refuse.
       const code = String(node.value)
+      // ⭐⭐ U-DAILY (e96) — A DAILY READ COUNTS ITS CHILD'S REACH IN DAILY BARS, PLUS THE FINISHED DAY IT STEPS BACK
+      // TO. Its child runs on the daily bars handed beside the chart's (`interpretDailyReads`), so no chart bar is read
+      // for it; the count is the daily reach, kept as an upper bound ("rounding up is the safe direction"), and it is
+      // what the daily supply is sized from. `D` stays OUT of `TF_RESAMPLABLE` (the 2026-09-01 ruling): nothing here
+      // resamples, and the evaluator refuses a daily read it is not handed the days for.
+      if (node.type === 'tf' && code === DAILY_READ) {
+        seen.set(node, seen.get(node.args[0]) + 1)
+        continue
+      }
       assertResamplable(code, refuse)
       const span = TF_BASE_BARS[code]
       seen.set(node, (seen.get(node.args[0]) + 1) * span)
@@ -5807,9 +5859,187 @@ const noOwnKeys = (o) => {
 }
 /** Tests: every tree takes the whole pipeline, as before (the identity rails compare both). */
 export function __constantColumnFastPathOffForTests(off) { _constantFastPathOff = !!off }
+
+// ─── ⭐⭐ U-DAILY (e96, part A) — A DAILY READ ON A CHART BELOW A DAY ──────────────────────────────────────────────
+//
+// `tf(x, 'D')` on a chart below a day is `x` computed on the symbol's DAILY bars and placed on each chart bar as THE
+// LAST FINISHED DAY (yesterday's value on every bar of today). "As it stands, with today so far" is not this read: it
+// is written with today's own primitives (`sessionLow()`, `close`), so a member's line never moves inside the day
+// under the name of a daily one.
+//
+// HOW, in one place (this function), so no mask or walker below learns a new node:
+//   1. each daily read's child is evaluated by `interpret` itself on the daily bars the caller HANDS
+//      (`opts.frames.D = {bars, symbols, newestFinal, place}`): every rule, refusal and mask of this engine runs there,
+//      on the bars the child reads, as it does for a whole indicator calculated on daily bars;
+//   2. the column is placed on the chart's bars by the caller's `place` — the chart's own projection
+//      (`mtfProjection.projectFrameColumns`, the one authority over which day a chart bar shows; this module stays
+//      pure and imports nothing for it);
+//   3. the read is replaced by a leaf holding that placed column, and the tree is evaluated as any other tree on the
+//      chart's bars (`DAILY_READ_COLUMNS`), its masks seeing a plain column;
+//   4. a chart bar where a daily read has no value (the day it reads is not in the bars handed, or is not yet proven
+//      finished) is WITHHELD BY NAME (`DAILY_READ_DAY_NOT_HELD`), and so is every root bar within the tree's reach of
+//      it: a `NaN` read downstream as Pine's `na` (`nz` → 0) would draw a confident number where no day was read.
+// ⛔ NOT ON A DAILY OR HIGHER CHART: refused by name (the bars there ARE days; `D` stays out of `TF_RESAMPLABLE`).
+// ⛔ NO DAILY BARS HANDED (a server lane, a chart that never said its timeframe): the tree is still evaluated (so its
+//   own refusals fire, which is what the authoring gate asks), and every bar is withheld by name
+//   (`DAILY_READ_NO_DAILY_BARS`). Python twin: `ast_interpret._interpret_daily_reads`.
+/** The `opts` key a daily read's placed columns ride under, by leaf name (see step 3). */
+export const DAILY_READ_COLUMNS = 'dailyReadColumns'
+/** The leaf names step 3 writes: a prefix no formula can spell (a member's name is `[a-z][A-Za-z0-9]*`). */
+const DAILY_LEAF_PREFIX = '\u0001daily-read:'
+
+/** Does this tree read a daily value (`tf` of D) anywhere? Iterative (asked on every `interpret` call: one walk,
+ *  no memo, since a module-level memo of tree objects would outlive the pass). */
+export function treeReadsDaily(tree) {
+  if (!tree || typeof tree !== 'object') return false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (isDailyRead(n)) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** Every `sym` ticker a daily read's child reads: the other symbols whose DAILY bars the caller must hand. */
+export function dailyReadSymbols(tree) {
+  const out = new Set()
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [n, under] = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (under && n.type === 'sym' && typeof n.value === 'string') out.add(n.value.toUpperCase())
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push([a, under || isDailyRead(n)])
+  }
+  return [...out].sort()
+}
+
+/** The daily supply the caller handed, or null: `{bars, symbols, newestFinal, place}`. */
+function dailySupplyOf(opts) {
+  const all = opts && opts.frames
+  const f = all && typeof all === 'object' && Object.prototype.hasOwnProperty.call(all, DAILY_READ) ? all[DAILY_READ] : null
+  return f && Array.isArray(f.bars) && f.bars.length && typeof f.place === 'function' ? f : null
+}
+
+/** A tree's structural key (keys sorted at every level): two daily reads with the same key are the same read. */
+function canonicalOf(n) {
+  if (Array.isArray(n)) return `[${n.map(canonicalOf).join(',')}]`
+  if (n && typeof n === 'object') return `{${Object.keys(n).sort().map((k) => `${JSON.stringify(k)}:${canonicalOf(n[k])}`).join(',')}}`
+  return JSON.stringify(n)
+}
+/** ⭐ U-DAILY — a daily read's identity: the same read written twice is ONE read, one column, and one series of the
+ *  budget's count (`budget.js::seriesRefs`), whichever occurrence is walked first. Python twin: `daily_read_key`. */
+export function dailyReadKey(node) {
+  return `${DAILY_LEAF_PREFIX}${canonicalOf(node)}`
+}
+
+/** The tree with each top-level daily read replaced by a leaf (path copy: every other node keeps its identity, so the
+ *  pass's memo still shares them). The same read written twice is one leaf and one column. `reads`: [{node, name}],
+ *  one per distinct read, in walk order. */
+function withDailyLeaves(tree, reads) {
+  const named = new Map()
+  const visit = (n) => {
+    if (!n || typeof n !== 'object') return n
+    if (isDailyRead(n)) {
+      const key = dailyReadKey(n)
+      let name = named.get(key)
+      if (name === undefined) {
+        name = `${DAILY_LEAF_PREFIX}${reads.length}`
+        named.set(key, name)
+        reads.push({ node: n, name })
+      }
+      return { type: 'series', name }
+    }
+    if (!Array.isArray(n.args) || !treeReadsDaily(n)) return n
+    return { ...n, args: n.args.map(visit) }
+  }
+  return visit(tree)
+}
+
+function interpretDailyReads(ast, bars, inputs, budget, scalars, opts) {
+  // the shape rule first (a daily read at the chart's own level, holding no other timeframe), by the gate the budget runs
+  assertSymPlacement(ast, refuse)
+  const n = Array.isArray(bars) ? bars.length : 0
+  const base = opts ? opts.tf : undefined
+  const stated = base !== undefined && base !== null && String(base) !== ''
+  if (stated && !isBelowADay(base)) {
+    refuse('interpret:timeframe',
+      `'${DAILY_READ}' is not above '${String(base)}' — a daily read (\`tf\` of D) is made on a chart below a day, where `
+      + 'each bar shows the last finished day. On this chart every bar is a day or longer, so it is not drawn; read the '
+      + 'value itself here (`close` is the day\'s own close on a daily chart).')
+  }
+  const supply = stated ? dailySupplyOf(opts) : null
+  const reads = []
+  const leafTree = withDailyLeaves(ast, reads)
+  const columns = Object.create(null)
+  const memo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  let dailyMemo
+  if (memo) {
+    dailyMemo = memo.get(`tf\u0001${DAILY_READ}\u0001days`)
+    if (!(dailyMemo instanceof Map)) { dailyMemo = new Map(); memo.set(`tf\u0001${DAILY_READ}\u0001days`, dailyMemo) }
+  }
+  const clockSink = opts && opts.chartClockSink && typeof opts.chartClockSink.set === 'function' ? opts.chartClockSink : null
+  for (const { node, name } of reads) {
+    const childBars = supply ? supply.bars : (Array.isArray(bars) ? bars : [])
+    const childClock = new Map()
+    // ⭐ the child on the DAILY bars, with each other symbol's DAILY bars: every rule of this engine runs there
+    const child = toColumn(interpret(node.args[0], childBars, inputs, budget, scalars, {
+      ...(opts || {}),
+      tf: DAILY_READ,
+      symbols: supply ? (supply.symbols || undefined) : undefined,
+      frames: undefined,
+      [DAILY_READ_COLUMNS]: undefined,
+      // the newest daily bar's state is the SUPPLY's (its payload), never the chart's
+      newestBarIsForming: supply ? (supply.newestFinal === true ? false : null) : null,
+      // the daily bars are not the series the chart's caller described (`astColumns.listingOptsFor`)
+      historyFromListing: undefined, listingStart: undefined, barIndexAbsolute: undefined,
+      lowerTf: undefined, prefixProbe: undefined, probeBase: undefined,
+      crossMemo: dailyMemo, chartClockSink: childClock, withheldBarsSink: undefined,
+    }), childBars.length)
+    let placed = null
+    if (supply) {
+      const p = supply.place(child, bars, String(base))
+      placed = p && p.length === n ? Float64Array.from(p, (v) => (typeof v === 'number' ? v : NaN)) : null
+    }
+    columns[name] = placed || nan(n)
+    // what the child's own masks named on the daily bars is the member's reason too
+    if (clockSink) for (const [code, sentence] of childClock) if (!clockSink.has(code)) clockSink.set(code, sentence)
+  }
+  const out = interpret(leafTree, bars, inputs, budget, scalars,
+    { ...(opts || {}), [DAILY_READ_COLUMNS]: { bars: Array.isArray(bars) ? bars : [], columns } })
+  const col = isColumn(out) ? Float64Array.from(out) : toColumn(out, n)
+  // ⛔ STEP 4 — a bar whose daily read has no value is withheld by name, and so is every root bar within the tree's
+  // reach of it (`maxLookback` of the tree as evaluated: the leaf reads no history of its own)
+  const reach = maxLookback(leafTree)
+  const mask = new Float64Array(n)
+  let any = false
+  for (const name of Object.keys(columns)) {
+    const c = columns[name]
+    let last = -Infinity                       // the newest bar at or before `i` whose daily read has no value
+    for (let i = 0; i < n; i++) {
+      if (!Number.isFinite(c[i])) last = i
+      if (i - last <= reach) { mask[i] = 1; any = true }   // a daily read within the tree's reach had no value
+    }
+  }
+  if (any) {
+    const code = supply ? DAILY_READ_DAY_NOT_HELD : DAILY_READ_NO_DAILY_BARS
+    for (let i = 0; i < n; i++) if (mask[i]) col[i] = NaN
+    nameChartClock(opts, [code], base)
+    sinkPerBar(opts, code, mask)
+  }
+  return col
+}
+
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
   if (!_constantFastPathOff && ast && ast.type === 'num' && typeof ast.value === 'number' && Number.isFinite(ast.value)
     && Array.isArray(bars) && noOwnKeys(inputs)) return toColumn(ast.value, bars.length)
+  // ⭐⭐ U-DAILY — a tree that reads a daily value is evaluated by the one function that places it (see above)
+  if (treeReadsDaily(ast)) return interpretDailyReads(ast, bars, inputs, budget, scalars, opts)
   // ⭐ C36 — a tree whose `time(<timeframe>)` / `time_close(<timeframe>)` cannot
   // be answered on THIS chart at all (it is not daily, its daily bars include one
   // weekend day but not the other, …) is withheld whole and NAMED before it is
@@ -6586,6 +6816,16 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + '00:00 UTC; FX:EURUSD 1D: Friday 17:00 New York), which this chart\'s daily clock does not hold, so '
     + 'everything this indicator draws from them is withheld on this chart rather than drawn wrong. What '
     + 'would settle it: this chart reading such a symbol\'s daily bar at its session\'s own open.',
+  // ⭐⭐ U-DAILY (e96) — a daily read (`tf` of D) on a chart below a day (`interpretDailyReads`)
+  [DAILY_READ_DAY_NOT_HELD]: (tf) => 'This indicator reads a daily value on a chart below a day: each bar shows the '
+    + `last finished day. On this ${tfSpelled(tf)} chart some bars read a day the daily bars in hand do not hold (before `
+    + 'the first of them, a day they skip, or their newest day not yet proven finished), so what it draws from that '
+    + 'read is withheld on those bars rather than guessed; every other bar is drawn. What would settle it: the daily '
+    + 'bars of that day, which the chart asks for again.',
+  [DAILY_READ_NO_DAILY_BARS]: (tf) => 'This indicator reads a daily value the way a chart below a day shows it (the last '
+    + `finished day on each bar), and here (timeframe ${tfSpelled(tf)}) it is not handed the symbol's daily bars beside `
+    + 'its own, so everything it draws from that read is withheld rather than guessed. On a chart below a day it draws. '
+    + 'What would settle it: the symbol\'s daily bars handed beside this view\'s own.',
   'request:other-timeframe': (tf) => 'This indicator reads another timeframe of its own symbol with '
     + '`request.security`. Here that read is built for a 1D chart: a daily request is the chart\'s own bars, '
     + `and a weekly or monthly one is made from them. This chart's timeframe is ${tfSpelled(tf)}, where the `
@@ -10000,6 +10240,24 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       col[i] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
     }
     scope[name] = col
+  }
+  // ⭐⭐ U-DAILY — the placed columns of a tree's daily reads (`interpretDailyReads`, step 3), under leaf names no
+  // formula can spell. ⛔ Each is a column of the CHART's bars: a pass over other bars (another symbol's, a resampled
+  // period's) is not handed it, so a tree there that reached one would stop at `resolve:name`, never read another bar
+  // set's days.
+  // ⭐ A PREFIX of the chart's bars (a recurrence's plan reads its first bar: `prunedUpdate`) is handed the same prefix.
+  const daily = opts && opts[DAILY_READ_COLUMNS]
+  if (daily && typeof daily === 'object' && daily.columns && typeof daily.columns === 'object') {
+    const chart = Array.isArray(daily.bars) ? daily.bars : []
+    const prefix = length <= chart.length && (length === 0 || (bars[0] === chart[0] && bars[length - 1] === chart[length - 1]))
+    for (const name of Object.keys(daily.columns)) {
+      const c = daily.columns[name]
+      if (!name.startsWith(DAILY_LEAF_PREFIX) || !isColumn(c) || c.length !== chart.length) {
+        refuse('interpret:node', `— ${JSON.stringify(name)} is not a daily read's placed column`)
+      }
+      if (bars === chart) scope[name] = c
+      else if (prefix) scope[name] = c.subarray(0, length)
+    }
   }
 
   // ⭐ THE CLOCK (tableVersion 2). Seeded from `computeClock` exactly the way

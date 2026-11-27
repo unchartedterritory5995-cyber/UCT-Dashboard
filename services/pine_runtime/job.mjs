@@ -24,7 +24,9 @@
 //                    W5-INT: the bytes are the T3 codec's (`rt.encodeColumn` + `rt.bytesToB64`,
 //                    the bundle's own runtime/columnDigest.js); this file holds no second encoder.
 //   time budget      W5-INT: EXPLICIT. Every run gets `budgetMs` = the bundle's
-//                    RUNTIME_PANE_TIME_BUDGET_MS (1,000 ms), which must be a positive finite number
+//                    RUNTIME_PANE_TIME_BUDGET_MS (1,000 ms) with `budgetScales` (e99, 2026-11-26): the run is
+//                    held to runtimePaneBudgetFor(bars.n), the browser worker's rule (1,000 ms up to
+//                    5,000 bars, then 1 ms a bar, at most 12,000 ms). The floor must be a positive finite number
 //                    or the worker refuses to boot (`budgetOf`, sandbox.mjs; a module namespace
 //                    cannot change after its import, so one check at boot covers every run). With
 //                    a budget, the run names EVERY
@@ -100,10 +102,13 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
-  // (coordinator ruling 2026-11-19) the BROWSER WORKER's budget scales with the bars a run covers
-  // (runtimeColumns.js::runtimePaneBudgetFor, `budgetScales`); this host keeps the per-run 1,000 ms:
-  // a shared process, where a longer run is every queued job's wait, not one member's labels arriving later.
-  optsBrowserOnly: Object.freeze(['budgetScales']),
+  // e99 server budget (coordinator ruling 2026-11-26): NONE. This host now passes the browser worker's `budgetScales`
+  // too, so a server run gets runtimePaneBudgetFor(its bars), the member's own budget, and an alert or a backtest
+  // agrees with the chart (it kept the per-run 1,000 ms before, ruling 2026-11-19). At 5,000 bars or fewer the budget
+  // is the 1,000 ms floor, as before. A longer run cannot hold the shared pool unbounded: the hard kill sits past the
+  // ceiling (server.mjs::serviceKillMs), a sweep carries at most the floor's bars (protocol.mjs), and one request's
+  // scaled time above the floor is capped (server.mjs::withRequestBudget).
+  optsBrowserOnly: Object.freeze([]),
 })
 
 /** The bundle's per-run wall budget, or a throw: a run with no budget could have a wall-clock stop
@@ -321,7 +326,7 @@ export function runJob(rt, doc, job, clock = () => performance.now(), libraries 
       out = runWide(job.job, held.guard, held.sentence)
     } else {
       const { def, rows, ctx } = runArgs(doc, job)
-      const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false })
+      const cols = rt.computeRuntimeColumns(def, rows, ctx, { budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true, incremental: false })
       out = encodeResult(rt, job, cols)
     }
   } catch (err) {

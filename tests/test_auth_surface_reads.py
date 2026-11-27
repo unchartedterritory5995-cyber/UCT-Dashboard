@@ -93,6 +93,39 @@ def test_a_GATED_GET_is_not_reported():
     assert res["ok"] is True
 
 
+def test_the_chart_gate_run_on_its_own_limiter_is_GATED_by_identity_and_a_look_alike_name_is_not():
+    """(2026-11-25) `/api/bars-history` (#2741) runs `require_bars_access` in a thread on its own limiter, so
+    the gate is called, not `Depends`-ed. Its dependency is a `bars_auth.require_bars_access_on(...)` product,
+    and the census counts it as `require_bars_access` by IDENTITY. A hand-built async dependency with the same
+    NAME and no gate stays an open read: a name rule would have turned master green and hidden it."""
+    from fastapi import Cookie, Header
+    from api import bars_auth
+
+    import anyio
+
+    real = bars_auth.require_bars_access_on(lambda request: anyio.CapacityLimiter(1), "require_bars_access_history")
+
+    # (no `request: Request` parameter: this module's annotations are strings and `Request` is not one of its
+    # globals; the census reads the dependency object and its name, never its signature)
+    async def require_bars_access_history(uct_session: str | None = Cookie(None),
+                                          authorization: str = Header(default="")) -> dict:
+        return {"id": "anyone"}
+
+    assert real.__name__ == require_bars_access_history.__name__
+    app = _bare()
+    r = APIRouter()
+    r.get("/api/bars-history/{ticker}", dependencies=[Depends(real)])(lambda ticker: {"ok": True})
+    r.get("/api/look-alike/{ticker}", dependencies=[Depends(require_bars_access_history)])(
+        lambda ticker: {"ok": True})
+    app.include_router(r)
+    res = asc.audit_surface(app, baseline={})
+    assert ("GET", "/api/bars-history/{ticker}") not in res["reads"]["ungated"], res["reads"]
+    assert ("GET", "/api/look-alike/{ticker}") in res["reads"]["ungated"], (
+        "a dependency that merely carries the product's NAME counts as a gate: the census reads names, and any "
+        "function called require_bars_access_* opens a route", res["reads"])
+    assert "require_bars_access" in asc._guard_names_for(app.routes[0])
+
+
 def test_HEAD_is_a_read_and_is_examined():
     res = asc.audit_surface(_app(method="head"), baseline={})
     assert ("HEAD", FIXTURE_PATH) in res["reads"]["ungated"]

@@ -1,0 +1,140 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "E1-L1",
+   "mutant": "the reader never asked: a plot's linestyle is not read (the defect: drawn solid in silence)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      const lineStyle = out.kind === 'plot' ? resolver.outputLineStyleOf(args) : {}",
+   "to": "      const lineStyle = {}",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "dashed, dotted and solid"
+  },
+  {
+   "id": "E1-L2",
+   "mutant": "the wrong arm: a setting's two line styles swapped",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        arms[s] = knobOr(knobAnd(test, yes.arms[s] || zero), knobAnd(notTest, no.arms[s] || zero))",
+   "to": "        arms[s] = knobOr(knobAnd(test, no.arms[s] || zero), knobAnd(notTest, yes.arms[s] || zero))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "an input.bool"
+  },
+  {
+   "id": "E1-L3",
+   "mutant": "the host lane's rows drop the line style",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      // ⭐⭐ e98 E1 — the plot's `linestyle` (`pine.js::outputLineStyleOf`), on a style that draws a line\n      ...lineStyleRowOf(o, typeof p.style === 'string' ? p.style : 'line', lineStyleNotes),",
+   "to": "      // ⭐⭐ e98 E1 — the plot's `linestyle` (`pine.js::outputLineStyleOf`), on a style that draws a line",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "dashed, dotted and solid"
+  },
+  {
+   "id": "E1-L4",
+   "mutant": "the runtime lane's rows drop the line style",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      // ⭐⭐ e98 E1 — the plot's `linestyle`, read from the host row (`pine.js::outputLineStyleOf`), as the host lane's rows\n      ...lineStyleRowOf(o, typeof p.style === 'string' ? p.style : 'line', lineStyleNotes),",
+   "to": "      // ⭐⭐ e98 E1 — the plot's `linestyle`, read from the host row (`pine.js::outputLineStyleOf`), as the host lane's rows",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.runtime.test.js",
+   "expectRed": "a literal dashed / dotted line"
+  },
+  {
+   "id": "E1-L5",
+   "mutant": "an unreadable linestyle drawn solid in silence (no note)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (o.lineStyleUnread) { say(o.lineStyleUnread); return {} }",
+   "to": "  if (o.lineStyleUnread) { return {} }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "cannot read is drawn solid AND said"
+  },
+  {
+   "id": "E1-L6",
+   "mutant": "an area's dashed edge drawn solid in silence",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "const LINE_STYLE_UNREPRODUCED = new Set(['area'])",
+   "to": "const LINE_STYLE_UNREPRODUCED = new Set([])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "an area's edge is drawn solid and said"
+  },
+  {
+   "id": "E1-L7",
+   "mutant": "a line style carried onto a style that plots no line (histogram, circles)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (LINE_STYLE_DRAWN.has(style)) {",
+   "to": "  if (true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "an area's edge is drawn solid and said"
+  },
+  {
+   "id": "E1-L8",
+   "mutant": "the instance's setting ignored: always the defaults' style",
+   "file": "app/src/components/chart/engine/knobBind.js",
+   "from": "  const hit = plot.lineStyleWhen.find((a) => a && typeof a.lineStyle === 'string' && !!knobTestAt(a.when, def, inputs))",
+   "to": "  const hit = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "an input.bool"
+  },
+  {
+   "id": "E1-L9",
+   "mutant": "the pool's plan ignores the per-instance line style",
+   "file": "app/src/components/chart/engine/pool.js",
+   "from": "        plotLineStyle ? plotLineStyle(rawPlot, def, inst.inputs) : rawPlot, inst.inputs,",
+   "to": "        rawPlot, inst.inputs,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "the pool's plan draws the instance's style"
+  },
+  {
+   "id": "E1-L10",
+   "mutant": "the binder never hands the plan the per-instance line style",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "      plotLineStyle: plotLineStyleAt,\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "binder.js passes plotLineStyleAt to planBindings"
+  },
+  {
+   "id": "E1-L11",
+   "mutant": "the browser schema accepts any tree as a line style's setting test",
+   "file": "app/src/components/chart/engine/defSchema.js",
+   "from": "    const why = hiddenWhenProblem(a.when)\n    if (why) return `[${i}].when: ${why}`",
+   "to": "    const why = null\n    if (why) return `[${i}].when: ${why}`",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__truth__/p2.policy.truth.test.js",
+   "expectRed": "lineStyleWhen holds arithmetic"
+  },
+  {
+   "id": "E1-L12",
+   "mutant": "the server schema accepts any tree as a line style's setting test (never stricter, never looser)",
+   "file": "api/services/presentation_schema.py",
+   "from": "        why = hidden_when_problem(a.get(\"when\"))",
+   "to": "        why = None",
+   "rail": "python -m pytest -q tests/test_p2_truth_policy.py -k presentation_server_agrees",
+   "expectRed": "lineStyleWhen holds arithmetic"
+  },
+  {
+   "id": "E1-L13",
+   "mutant": "a lineStyleWhen naming a setting the document does not declare is kept",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if ([...names].every((n) => declaredKeys.has(n))) continue\n    delete r.lineStyleWhen",
+   "to": "    continue\n    delete r.lineStyleWhen",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "a setting that does not come across"
+  },
+  {
+   "id": "E1-L14",
+   "mutant": "a setting only the line style reads is not declared as the member's control",
+   "file": "app/src/components/chart/builder/builderInputs.js",
+   "from": "    for (const a of o.lineStyleWhen) if (a && a.when) rules.push({ ast: a.when, formula: [...seriesNamesOf(a.when)].join(' + ') || 'linestyle' })",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "an input.bool"
+  },
+  {
+   "id": "E1-L15",
+   "mutant": "the shared knob evaluator reads a bare number as unevaluable (U6's hiddenWhen and E1's arms both ask it)",
+   "file": "app/src/components/chart/engine/knobBind.js",
+   "from": "  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null\n  return knobTestValue(tree, displayConstsFor(def, inputs))",
+   "to": "  if (tree.type === 'num') return null\n  return knobTestValue(tree, displayConstsFor(def, inputs))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/plotLineStyle.test.js",
+   "expectRed": "a knob test is evaluated by the ONE helper"
+  }
+ ]
+}

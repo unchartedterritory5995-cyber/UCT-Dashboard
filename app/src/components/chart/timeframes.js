@@ -88,12 +88,21 @@ export function tfSortKey(code) {
   return Number.MAX_SAFE_INTEGER
 }
 
+/** Where a CUSTOM intraday timeframe's buckets start, in minutes after ET midnight: the session start, as TradingView
+ *  builds intraday bars. Regular hours 09:30; extended hours 04:00 (witnessed for 4h 2026-11-25: TradingView's
+ *  extended 4h bars start 04:00 / 08:00 / 12:00 / 16:00 ET, Fred RS captures SPY, RDDT, ADT).
+ *  ⚠️ The REGULAR-session 4h grid (09:30-13:30, 13:30-16:00 expected) is not captured yet: unchanged. */
+export const INTRADAY_ANCHOR_MIN = Object.freeze({ rth: 570, extended: 240 })
+
 // The resample recipe for a CUSTOM code: which native base to fetch, and how to
 // bucket it. Returns null for native codes (fetch the code directly, no resample).
-//   { base, kind, minutes?, n? }
-//   kind: 'intradaySession' (minutes buckets anchored to the 9:30 ET open)
+//   { base, kind, minutes?, anchorMin?, n? }
+//   kind: 'intradaySession' (minutes buckets anchored at the view's session start:
+//         `anchorMin`, 09:30 ET regular, 04:00 ET with `extended`)
 //       | 'nDaily' | 'nWeekly' | 'nMonthly' (count-based / calendar buckets)
-export function resampleSpec(code) {
+// ⛔ The extended view's base must be on the extended grid too (60m: the clock grid, `&session=eth`; 1/5/15/30m are
+// one grid): every caller that fetches the base for an extended spec asks it with the session.
+export function resampleSpec(code, { extended = false } = {}) {
   if (isNativeTf(code)) return null
   const { unit, count, minutes } = parseTf(code)
   if (Number.isNaN(count)) return null
@@ -101,7 +110,7 @@ export function resampleSpec(code) {
     // Coarsest native intraday base that divides the target minutes evenly (so the
     // hours resample from 60m, 45m from 15m, 65m from 5m — fewest base bars).
     const base = [60, 30, 15, 5, 1].find(b => minutes % b === 0 && minutes > b)
-    return { base: String(base ?? 1), kind: 'intradaySession', minutes }
+    return { base: String(base ?? 1), kind: 'intradaySession', minutes, anchorMin: INTRADAY_ANCHOR_MIN[extended ? 'extended' : 'rth'] }
   }
   if (unit === 'days') return { base: 'D', kind: 'nDaily', n: count }
   if (unit === 'weeks') return { base: 'W', kind: 'nWeekly', n: count }

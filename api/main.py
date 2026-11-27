@@ -5128,6 +5128,19 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] background lane failed to activate (non-fatal, sweeps run unpaced): {e}")
 
+    # The real-user beacon keeps nothing derived from an IP past its use (2026-11-24): one daemon thread deletes quota
+    # and sender rows on time whether or not a report arrives and, ONCE, blanks the keys older builds stored and rebuilds
+    # that store. ⛔ BELOW THE LANE'S ACTIVATION, NEVER ABOVE: the rebuild waits for the boot to settle on the lane's
+    # clock, and before `activate` the lane is a plain pass-through (it would run in the reload spike). It logs counts
+    # and nothing else. See api/services/perf_beacon.py "What is deleted, and when" and `migrate`.
+    try:
+        from api.services import perf_beacon as _perf_beacon
+        print(f"[startup] perf beacon housekeeping: "
+              f"{'started' if _perf_beacon.startup() else 'not started (running already, switched off, or off Railway without PERF_BEACON_HOUSEKEEPING_ENABLED=1)'} "
+              f"(every {_perf_beacon.HOUSEKEEP_EVERY_S} s)")
+    except Exception as e:
+        print(f"[startup] perf beacon housekeeping failed to start (non-fatal): {e}")
+
     # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
     # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
     # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
@@ -11868,6 +11881,12 @@ async def lifespan(app: FastAPI):
         _pcw_stop.shutdown()
     except Exception as e:
         print(f"[shutdown] capability detector stop failed (non-fatal): {type(e).__name__}")
+    # the beacon's housekeeping thread (started above): a thread this lifespan started is stopped by this lifespan
+    try:
+        from api.services import perf_beacon as _perf_beacon_stop
+        _perf_beacon_stop.shutdown()
+    except Exception as e:
+        print(f"[shutdown] perf beacon housekeeping stop failed (non-fatal): {type(e).__name__}")
     try:
         trade_exchange_news_router.stop_background()
     except Exception as e:
@@ -12102,7 +12121,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/api/maintenance")
 def get_maintenance():
-    return {"maintenance": _MAINTENANCE_MODE}
+    # ⛔ never stored: every signed-in page asks it at boot and AuthGuard holds the shell on it, so a cached
+    # `false` replayed during a maintenance window would let members past the gate (tests/test_maintenance_no_store.py)
+    return StarletteJSONResponse({"maintenance": _MAINTENANCE_MODE}, headers={"Cache-Control": "no-store"})
 
 def _process_rss_mb():
     """Current resident-set memory in MB, or None if unavailable (non-Linux).
@@ -12516,6 +12537,8 @@ rs_discord_router.configure(leaders_fn=_rs_leaders_for, evidence_fn=_rs_evidence
                             session_fn=_rs_discord_session)
 app.include_router(rs_discord_router.router)
 app.include_router(bars_router.router, dependencies=_OPEN_READS)
+from api.routers import bars_stream_status as _bars_stream_status_router  # noqa: E402 (moved out of bars.py)
+app.include_router(_bars_stream_status_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
 app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
 # Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.
@@ -12685,6 +12708,9 @@ app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
 app.include_router(stream_router.router, dependencies=_OPEN_READS)
+# Pushed real-time list prices (/api/stream/quotes), dark behind QUOTE_STREAM_ENABLED. Also served by stream-edge.
+from api.routers import quote_stream as quote_stream_router  # noqa: E402
+app.include_router(quote_stream_router.router, dependencies=_OPEN_READS)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)

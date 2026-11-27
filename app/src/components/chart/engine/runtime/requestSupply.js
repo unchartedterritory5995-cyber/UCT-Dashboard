@@ -212,6 +212,12 @@ function lagMessage(site, other, lastHeld, rows, live = true) {
  *  `interpret:bind-time-text` on `syminfo.tickerid`, blaming the symbol. */
 function unreadOwnSentence(target, chartTf, where = '') {
   const on = chartTf ? ` on a \`${chartTf}\` chart` : ''
+  // ⭐⭐ U-DAILY (e96, part B) — a daily read of an EXPRESSION above an intraday chart says its own reason (the frontend's
+  // `dailyExpressionDeclineOf`: the capability is not admitted, or the expression is outside the served set)
+  if (typeof target.unreadWhy === 'string' && target.unreadWhy) {
+    return `a \`request.security\`${where} reads this chart's own symbol at the \`${target.code}\` timeframe${on}: `
+      + `${target.unreadWhy}, so nothing is drawn bar by bar rather than a guess`
+  }
   return `a \`request.security\`${where} reads this chart's own symbol at the \`${target.code}\` timeframe${on}, `
     + 'in a form the host lane does not read either (a timeframe below or beside the chart\'s own, or an argument '
     + 'such as `gaps` it does not honour), so nothing is drawn bar by bar rather than a guess'
@@ -354,6 +360,8 @@ function aboveChartRead(target, rows, ctx) {
     daily = sessionKeyedRowsOf(e.bars)
     ownRead = true
   }
+  // ⭐⭐ U-DAILY (e96, part B) — the previous-day idiom reads each session's own row (`pine.js::dailyExpressionShapeOf`)
+  const lookaheadOn = ownRead && target.lookaheadOn === true
   const at = new Map(daily.map((r, j) => [r.t, j]))
   const days = daily.map((r) => r.t)
   // the newest held row's index whose session is strictly before `day` (binary search over ISO days)
@@ -419,7 +427,10 @@ function aboveChartRead(target, rows, ctx) {
     let j = -1
     if (ownRead) {
       const lastOfDay = i === n - 1 || dayOf[i + 1] !== d
-      if (lastOfDay) {
+      // ⭐⭐ U-DAILY (e96, part B) — the previous-day idiom (`high[1]`, look-ahead on): every bar of a session reads that
+      // session's own row, as TradingView's look-ahead read does (the day's own close on every bar,
+      // `request-realtime-alignment-spy-5-2026-10-01`), and its `[1]` is the day before
+      if (lookaheadOn || lastOfDay) {
         j = rowOf(d)
       } else {
         const want = [chartPrev, onCalendar ? calendarPrev(d) : null].filter(Boolean).sort().pop() || null
@@ -443,6 +454,21 @@ function aboveChartRead(target, rows, ctx) {
   if (days.length) {
     depthEnd = dayOf.findIndex((d) => !!d && d > days[0])
     if (depthEnd < 0) depthEnd = n
+  }
+  // ⭐⭐ U-DAILY (e96, part B) — A DAILY EXPRESSION READS `reach` ROWS BEFORE ITS OWN (a 50 day average 49): a bar whose row
+  // has fewer held rows before it reads history the rows do not hold, so it is DEPTH too (withheld, the run starting
+  // where every read is known), never a short window read as `na`. ⛔ Except on a chart whose own rows start at the
+  // symbol's FIRST TRADE (`firstSessionNa`'s fact): there TradingView has no earlier day either, and `na` is the answer.
+  const reach = ownRead && Number.isInteger(target.dailyReach) && target.dailyReach > 0 ? target.dailyReach : 0
+  const fromListing = ownRead && firstTrade !== null && days.length > 0 && days[0] === firstTrade
+  if (reach > 0 && !fromListing) {
+    let known = n
+    for (let i = 0; i < n; i += 1) {
+      if (index[i] >= reach) { known = i; break }
+      if (index[i] >= 0) { index[i] = -1; withheld[i] = 1 }
+    }
+    for (let i = known; i < n; i += 1) if (index[i] >= 0 && index[i] < reach) { index[i] = -1; withheld[i] = 1 }
+    depthEnd = Math.max(depthEnd, known)
   }
   return { runBars: daily, index, withheld, other, heldFrom: days.length ? days[0] : null, depthEnd }
 }

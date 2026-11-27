@@ -98,8 +98,20 @@ function _dayKey(day) {
   return _etParts(_toDate(day)).isoDate
 }
 
+// ⭐ (2026-11-23, next-row key task helpers, item 1b) ONCE PER DATE. A day walk (`otherSymbols.sessionsSpanned` counts
+// the trading days an intraday chart spans, one `isTradingDay` per calendar day) parsed a Date per day on every pass:
+// 0.63 ms a next-row press, profiled. The weekday of a date string never changes, so each is parsed once and kept
+// (bounded: the map is emptied, never trimmed, past `WEEKDAY_CACHE_MAX` dates). Same function, same answer.
+const WEEKDAY_CACHE_MAX = 40_000
+const _weekdayOf = new Map()
 function _weekday(isoDate) {
-  return new Date(`${isoDate}T00:00:00Z`).getUTCDay() // 0=Sun..6=Sat, zone-free
+  let wd = _weekdayOf.get(isoDate)
+  if (wd === undefined) {
+    wd = new Date(`${isoDate}T00:00:00Z`).getUTCDay() // 0=Sun..6=Sat, zone-free
+    if (_weekdayOf.size >= WEEKDAY_CACHE_MAX) _weekdayOf.clear()
+    _weekdayOf.set(isoDate, wd)
+  }
+  return wd
 }
 
 /** The last date the dataset covers, 'YYYY-MM-DD'. */
@@ -145,11 +157,25 @@ function _etWallToInstant(isoDate, minutes) {
   return new Date(guess)
 }
 
+// ⭐ (2026-11-27, chart speed) ONCE PER DATE. inExtendedSession (data/barStore/extendedSession.js) asks for a date's
+// close once per new UTC HOUR, about 24 times per trading date, when a deep intraday copy is first ingested, and every
+// answer cost two Intl formatToParts: about 250 ms of a 357-419 ms task once per page life, profiled on the owner's
+// board. A date's close never changes (the calendar is the bundle's compiled copy), so each is computed once and kept as
+// epoch ms; every call still returns a fresh Date, because a caller may change the one it gets. Bounded like
+// `_weekdayOf` (emptied, never trimmed). Same function, same answer.
+const CLOSE_CACHE_MAX = 40_000
+const _closeMsOf = new Map()
+
 /** The regular-session close of `day` (13:00 ET on a half-day), or null. */
 export function closeTime(day) {
   const k = _dayKey(day)
-  if (!isTradingDay(k)) return null
-  return _etWallToInstant(k, _closeMin(k))
+  let ms = _closeMsOf.get(k)
+  if (ms === undefined) {
+    ms = isTradingDay(k) ? _etWallToInstant(k, _closeMin(k)).getTime() : null
+    if (_closeMsOf.size >= CLOSE_CACHE_MAX) _closeMsOf.clear()
+    _closeMsOf.set(k, ms)
+  }
+  return ms === null ? null : new Date(ms)
 }
 
 /** 'pre' | 'rth' | 'post' | 'closed' at instant `ts` (Date, epoch ms or ISO string). */

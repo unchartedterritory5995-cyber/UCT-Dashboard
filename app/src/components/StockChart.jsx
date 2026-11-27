@@ -2,13 +2,15 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { recordPaint } from './chart/paintLog'
+import { recordPaint, PaintMemberContext, noteMemberView } from './chart/paintLog'
+import { LayerPaintContext } from './chart/layerPaint'
+import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 // (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
-import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
+import { Fragment, useContext, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
@@ -73,7 +75,7 @@ import { servedFromListingOf, listingReferenceDate, listingStartOf } from './cha
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-import { legendInkVars, readLegendContext, legibleInk, legendValueBandVars } from './chart/legendInk'
+import { legendInkVars, readLegendContextCached, legibleInk, legendValueBandVars } from './chart/legendInk'
 import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
@@ -129,7 +131,8 @@ import { detectSwingPivots, sensitivityToParams } from './chart/swingPivots'
 import { createBinder } from './chart/engine/binder'
 import { wrapSeriesForBarColours, reapplyBarColours } from './chart/engine/barColours'
 import { createObjectLayer } from './chart/engine/objectLayer'
-import { resolvePlacement, resolvePreset } from './chart/engine/placement'
+import { makeRoomForLabels } from './chart/labelRoom'
+import { resolvePlacement, resolvePreset, objectPriceHost } from './chart/engine/placement'
 import { registerManifestChart } from './chart/engine/paneLayout'
 // ⚠️ `engineOwnedDefIds` is NOT imported here any more (B5 Task 4). It is not
 // dead — it keeps its own suite in `engine/instances.test.js` — but StockChart's
@@ -225,13 +228,14 @@ import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
 // ⭐ UCT RS split, U2 — the line-end tag (`plots[].endLabel`) and the ranks strip's
 // price-pane host (`engine/endLabel.js`, `chart/pane/PlotEndLabel.jsx`).
 import PlotEndLabel from './chart/pane/PlotEndLabel'
+import { createEndLabelSizer } from './chart/pane/endLabelSize'
 import { lastFinitePoint, endLabelText, endLabelPlacement } from './chart/engine/endLabel'
 import { plotWindowDisabled, plotWindowRows, plotWindowStart, plotWindowTooNarrow } from './chart/engine/plotWindow'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems, paneMenuItems, presetLabelOf, CHIP_MENU_GROUPS } from './chart/legend/chipMenu'
 // ⭐ Owner 11-16 (Option C) — Volume's legend row is managed like an indicator's: its menu is
 // `chipMenuItems` for a synthetic Volume chip, through this adapter (kept out of chipMenu.js).
-import { volumeMenuItems, volumeMenuCaps, withVolumeDisplay, withVolumePaneHeightReset, VOLUME_ABOUT } from './chart/legend/volumeChip'
+import { volumeMenuItems, volumeMenuCaps, withVolumeDisplay, withVolumePaneHeightReset, VOLUME_ABOUT, VOLUME_SOURCE_NOTE } from './chart/legend/volumeChip'
 // ⭐ UCT RS Phase 4 (unit 4-05) — the teaching surfaces on the chip menu: the
 // first-add Tour page, the About page's Glossary link and "Ask Compass about this".
 import useIndicatorTours from './chart/useIndicatorTours'
@@ -267,7 +271,7 @@ import {
 } from './chart/uctIntelligence'
 import UctIntelligencePanel, { useChartSetups } from './chart/UctIntelligencePanel'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
-import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
+import { useInstalledUserDefinitions, startUserDefinitionsBootRequest } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
 import useHistoryUserId from './chart/useHistoryUserId'
 import IndicatorUndoToast from './chart/IndicatorUndoToast'
@@ -362,6 +366,15 @@ const NO_PANE_KEYS = Object.freeze([])
  * the refresh below writes state only when a tag's identity, ink or text moved
  * (the chips are rebuilt on every call, so object identity says nothing).
  */
+/** ⚡ (2026-11-26, review of #2831) THE END TAGS' COMMIT HOOK. The readout island is a render-prop and has no effects of
+ *  its own; this renders after its tags, so its layout effect runs after every commit of the island, once the tags'
+ *  refs are attached and before the frame paints, in every render mode (a transition or a time-sliced render included:
+ *  nothing is recorded or queued by a render that never commits). It hands StockChart the committed tags. */
+function EndLabelsCommitted({ ends, onCommit }) {
+  useLayoutEffect(() => { onCommit(ends) })
+  return null
+}
+
 function sameEndTagChips(a, b) {
   if (a === b) return true
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
@@ -1571,6 +1584,39 @@ function chartDebugHandle({
     priceToY: (price) => {
       try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
     },
+    /** ⭐ (2026-11-27, the CRBG 15m rescale ~240 ms after a deep join that changed neither the range nor the candles)
+     *  WHAT THE PRICE SCALE FITS, BY SERIES: every series in the candles' pane on their scale, with its extent over the
+     *  visible time range and whether it joins the autoscale. A rig that sees the scale move reads which series moved
+     *  it, instead of inferring it from pixels. Diagnostic only: copies each series' rows (`data()`), so a probe calls it
+     *  on a change it saw, never per frame. */
+    autoscaleSources: () => {
+      try {
+        const chart = chartRef.current
+        const candles = candleSeriesRef.current
+        const vr = chart?.timeScale?.().getVisibleRange?.()
+        const pane = candles?.getPane?.()
+        if (!vr || !pane) return null
+        const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+        const inView = (t) => t != null && typeof t !== 'object' && cmp(t, vr.from) >= 0 && cmp(t, vr.to) <= 0
+        const scaleId = candles.options?.()?.priceScaleId ?? 'right'
+        return (pane.getSeries?.() || []).filter((s) => (s.options?.()?.priceScaleId ?? 'right') === scaleId).map((s) => {
+          const o = s.options?.() || {}
+          let lo = Infinity, hi = -Infinity, n = 0
+          for (const r of (s.data?.() || [])) {
+            if (!inView(r.time)) continue
+            const a = Number.isFinite(r.low) ? r.low : r.value
+            const b = Number.isFinite(r.high) ? r.high : r.value
+            if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+            n++; if (a < lo) lo = a; if (b > hi) hi = b
+          }
+          let joins = o.visible !== false
+          if (joins && typeof o.autoscaleInfoProvider === 'function') {
+            try { joins = o.autoscaleInfoProvider(() => ({ priceRange: { minValue: 0, maxValue: 1 } })) != null } catch { /* unknown: as drawn */ }
+          }
+          return { type: s.seriesType?.() || '?', title: o.title || null, candles: s === candles, joins, n, lo: n ? lo : null, hi: n ? hi : null }
+        })
+      } catch { return null }
+    },
   }
 }
 
@@ -1807,6 +1853,7 @@ import { parseTf } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
+import { settleBoardReady } from './chart/metaSettleGuard'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
 import CompanyLogo from './CompanyLogo'
@@ -1850,7 +1897,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf, symbolsNeeded } from './chart/engine/sourceRef'
 import { readsVendorPrefix, setIndexHistoryNote } from './chart/engine/indexHistoryNotice'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
-import { healViewLocksOnce } from './chart/viewLockHeal'
+import { healViewLocksOnce, healViewLocksV2Once, axisDoubleClickLock } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
 import { heldRowsFor, heldSpanOn } from './chart/heldSpanPlan'
@@ -1895,7 +1942,7 @@ import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, compute
 import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
 import {
   useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
-  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes,
+  volRecipeOf, volExtremesRecipeOf, deriveVolExtremes, neighborPlainOf,
 } from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
@@ -1903,6 +1950,10 @@ import {
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
   useLegacyCustomTfF, useLegacyDailyTickE, useLegacyRegistryWriterC,
 } from './chart/legacyLiveWriters'
+
+// ⭐ (e101 S5) the definitions list leaves as this chunk loads, not at the first render (`useUserDefinitions.js::
+// startUserDefinitionsBootRequest`, `lib/bootFetch.js`). Not under test: a suite asks for nothing it did not stub.
+if (import.meta.env.MODE !== 'test') startUserDefinitionsBootRequest()
 
 // ⭐ P3-S1: THE chart's bar source, chosen ONCE at module load (chart/barStoreSwitch.js) — a
 // module constant, so the hook order of every StockChart render is fixed. Off → the legacy
@@ -3837,6 +3888,13 @@ function settleOnMetaLanded(s, inp) {
   const pt = s.pendingRef.current
   if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
   const bars = inp.filteredBars
+  // ⛔ (2026-11-24) ONLY ON THE BOARD THESE BARS ARE PAINTED ON (`chart/metaSettleGuard.js` says what identifies it).
+  // An answer can land in the commit that brings NEW bars, before that commit's own pass has painted them: on a list
+  // switch the metadata feed publishes in its layout effect, ahead of the switch's `updateChart`. Re-asserted then, the
+  // new name's frame (its newest bar, index 3,899) landed on the OLD name's board, where 3,899 is 1,300 bars back: the
+  // render window reached left for it and re-set the whole old board (2,200 rows on every series) a moment before the
+  // switch replaced it (StockChart.metaSettle.test.jsx). The coming pass for these bars re-asserts the frame itself.
+  if (s.paintedRef && !settleBoardReady(s.paintedRef.current, bars)) return
   const chart = s.chartRef.current
   if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
   if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
@@ -4091,6 +4149,7 @@ function StockChartBody({
   backgroundWarm: backgroundWarmProp = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
   deepWarm: deepWarmProp = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
+  onSymbolPainted = null,   // optional (sym) => void: the symbol each paint pass drew (ChartPane's header follows it)
   onDrawnBarCount = null,   // optional (n) => void — the number of candles currently handed to the chart, fired whenever it changes. `onBarsReady` says the bars question SETTLED (it fires on a fatal error too, deliberately, so a dead ticker never starves the grid mount queue); this says whether the answer had any DATA in it. The export page publishes it as `window.__chartBarCount` and the Discord renderer probes it, because a screenshot of an empty chart is indistinguishable from a drawn one by pixel variance alone (2026-08-31: three candle-less charts posted publicly).
   onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
@@ -4269,12 +4328,24 @@ function StockChartBody({
   // The shell's per-chart metadata store (`chart/chartMetaStore.js`): READ in render, never subscribed.
   metaStore,
 }) {
+  // The board this chart sits on (board keep-alive, boardVisibility.js): its handle, or null (no keep-alive). Read at the
+  // top: the frame loops, intervals and key shortcuts below pause on a hidden layer board.
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   // ⛔⛔ Heavy locals are read through `__heavy` by every closure below (StockChart.closureChains.test.jsx):
   // a closure that captured them kept them on this render's context, and chained renders kept them all.
   // Render-time code (memo factories, the body) reads `__heavy.x`; code that runs after a commit (handlers,
   // subscriptions, timers, the paint functions, updateChart) reads `__heavy.committed.x`, so a render React
   // abandoned (an interrupted transition) is never what the chart on screen indexes (chart/latestCallback.js).
   const __heavy = useRenderBox()
+  // The identity this chart paints under when it is a member of a linked group (chart/paintLog.js: the switch-speed
+  // instrument reads its paint record). Null everywhere else; a stable token, read by no rendering decision.
+  const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
+  // the double buffer's proof (chart/layerPaint.js): each pass reports what it committed; null outside a buffered widget
+  const layerPaint = useContext(LayerPaintContext)
   const ownNoticeScope = useId()
   const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
@@ -4686,7 +4757,8 @@ function StockChartBody({
   useLayoutEffect(() => {
     const el = wrapperRef.current
     if (!el) return
-    const { tokens, under } = readLegendContext(el)
+    // read once per element chain (legendInk.readLegendContextCached): a board switch mounts every chart in the same chain
+    const { tokens, under } = readLegendContextCached(el)
     const next = legendInkVars({ tokens, top: canvasSample.top, low: canvasSample.low, under, legendColor })
     setLegendInks((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
   }, [canvasSample.top, canvasSample.low, legendColor, appThemeTick])
@@ -5284,6 +5356,9 @@ function StockChartBody({
     cs, instances: _volPresenceInstances, shown: showVolume, blankVolume, volumeSeparatePane, volumePaneByDefault,
   }
   const volumePaneExists = volumePaneRequired(_volPresenceOpts)
+  // the margins a double-click on the price axis restores (`onDbl`), current every render so the listener never reads stale props
+  const axisResetMarginsRef = useRef({ top: null, bottom: null })
+  axisResetMarginsRef.current = { top: priceScaleTopMargin, bottom: volumePaneExists ? priceScaleBottomMargin : null }
   // Will a NATIVE volume series (and so its own pane) exist? Narrower than `volumePaneExists`, which
   // is also true when only a GUEST (an MA sent to the Volume pane) holds that pane open with no bars.
   // The lookback bar anchors on the volume SERIES' pane (`lookbackBottomFor`), so this is the question
@@ -5377,7 +5452,11 @@ function StockChartBody({
       }
     } catch { top = 0 }
     const want = `${Math.round(top)}px`
-    if (host.style.getPropertyValue('--price-pane-top') !== want) {
+    const cur = host.style.getPropertyValue('--price-pane-top')
+    // ⚡ Unset already reads as `0px`: every reader is `var(--price-pane-top, 0px)` (rail:
+    // StockChart.lookbackPlacement.test.jsx). Writing `0px` over unset changed nothing on screen but, inherited by the
+    // whole chart, restyled every element of it on each mount (the price pane is on top on almost every chart).
+    if (cur !== want && !(cur === '' && want === '0px')) {
       host.style.setProperty('--price-pane-top', want)
     }
   }, [])
@@ -5706,6 +5785,21 @@ function StockChartBody({
     return () => { try { ts.unsubscribeSizeChange(onSize) } catch { /* noop */ } }
   }, [chartReady, centerWatermarkOnPlot])
 
+  // ⚡ (2026-11-27, the board switch) `--price-axis-w` IS WRITTEN ON ITS TWO READERS, NOT ON THE WRAPPER. A custom
+  // property on the wrapper is inherited by the whole chart, so each new width (the first one lands as a chart mounts)
+  // restyled every element of it (trace: 311 elements, 1.9-3.8 ms, forced by the library's next canvas read). Its only
+  // readers are the price-scale toggle and the hub's lookback bar (StockChart.module.css), and each reads it on itself:
+  // the same value on the same element computes the same pixels, at the cost of restyling two small subtrees. A reader
+  // that mounts later takes the last width from its ref callback, inside the commit, as it inherited it before.
+  // Rail: StockChart.lookbackPlacement.test.jsx.
+  const priceAxisWRef = useRef('')          // the last published width ('' until the chart reports one)
+  const scaleToggleRef = useRef(null)
+  const applyPriceAxisW = useCallback((el) => {
+    const want = priceAxisWRef.current
+    if (el && want && el.style.getPropertyValue('--price-axis-w') !== want) el.style.setProperty('--price-axis-w', want)
+  }, [])
+  const scaleToggleRefCb = useCallback((el) => { scaleToggleRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
+
   // Reserve the right price-axis width for the HORIZONTAL legend so a long MA row
   // wraps to the next line before reaching the price scale (instead of the last
   // chip sliding UNDER it). timeScale().width() = plot width, so the axis width
@@ -5720,12 +5814,12 @@ function StockChartBody({
       let aw = 0
       try { aw = chart.priceScale('right').width() || 0 } catch { /* no right axis */ }
       setLegendAxisReserve((prev) => (Math.abs(prev - aw) > 1 ? aw : prev))
-      // …and the same width as a variable on the wrapper, so CSS that must stop short of the
-      // price scale (the hub's scrolling lookback bar, StockChart.module.css) reads the chart's
-      // own answer instead of guessing it.
-      const host = wrapperRef.current
-      const want = `${Math.round(aw)}px`
-      if (host && host.style.getPropertyValue('--price-axis-w') !== want) host.style.setProperty('--price-axis-w', want)
+      // …and the same width as a variable on the elements whose CSS must stop short of (or centre on) the price
+      // scale (the hub's scrolling lookback bar, the scale toggle), so they read the chart's own answer instead of
+      // guessing it. On those two, not on the wrapper: see `priceAxisWRef` above.
+      priceAxisWRef.current = `${Math.round(aw)}px`
+      applyPriceAxisW(rangeBarRef.current)
+      applyPriceAxisW(scaleToggleRef.current)
     }
     try { ts.subscribeSizeChange(onSize) } catch { return undefined }
     onSize()
@@ -5763,6 +5857,13 @@ function StockChartBody({
   // rebuilds its bindings on every sync, so a stale entry cannot outlive the data
   // it describes.
   const endLabelLastRef = useRef(new WeakMap())
+  // ⚡ (2026-11-26) each tag's box, read once per text (chart/pane/endLabelSize.js); each tag's latest model, written as
+  // the readout island renders it; the tags' refs, one function per key (`endLabelRefOf`); the queued re-pin pass.
+  const endLabelSizeRef = useRef(null)
+  if (!endLabelSizeRef.current) endLabelSizeRef.current = createEndLabelSizer()
+  const endLabelModelsRef = useRef(new Map())
+  const endLabelRefCbs = useRef({ pin: null, byKey: new Map() })
+  const endLabelPinQueued = useRef(false)
   // What the price chrome looks like this render, for the `[]`-deps pin below.
   const priceChromeRef = useRef({ legendFlush: false, toolbarCollapsed: false })
   /** Which indicator panes exist, in order — published by the layout effect.
@@ -6019,6 +6120,7 @@ function StockChartBody({
     try {
       const k = viewLockKeyRef.current; if (!k) return null
       healViewLocksOnce()   // ⭐ once per device, BEFORE the first read: compounded locks lose their vertical half (viewLockHeal.js)
+      healViewLocksV2Once() // ⭐ (2026-11-26) once per device: EVERY stored vertical half goes, the horizontal kept (viewLockHeal.js v2)
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
@@ -8109,6 +8211,7 @@ function StockChartBody({
     }
     const cancelAfterPaint = (h) => { if (!h) return; if (h.f) cancelAnimationFrame(h.f); if (h.t) clearTimeout(h.t) }
     const fl = createAdaptiveFrameLoop({
+      gate: boardLoopGate(boardVisibilityRef.current),
       tick: () => { if (!alive) return null; position(); const el = presentBtnElRef.current; return el ? `${el.style.left}|${el.style.top}` : null },
       raf: afterPaint, caf: cancelAfterPaint,
     })
@@ -9335,7 +9438,7 @@ function StockChartBody({
   // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
     _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,
-    _heldSessions)
+    _heldSessions, !!showExtended)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -10006,7 +10109,7 @@ function StockChartBody({
   // of `updateChart` for the same reason `secondarySources` is: frames land
   // asynchronously and must repaint when they do. See `engine/useCalcFrames.js`.
   const { frames: calcFrames, refreshFrame: refreshCalcFrame } = useCalcFrames(
-    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, csView)
+    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, csView, !!showExtended)
   const refreshCalcFrameRef = useRef(refreshCalcFrame)
   refreshCalcFrameRef.current = refreshCalcFrame
 
@@ -10259,6 +10362,8 @@ function StockChartBody({
       // the ACTIVE cell handles a keypress (otherwise 'D' retimes all N cells
       // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
       // so the callback form costs zero re-subscribes and zero re-renders.
+      // a hidden layer board (board keep-alive) answers no key: the board in front may hold a chart of the same id
+      if (boardHiddenNow(boardVisibilityRef.current)) return
       const ha = hotkeysActiveRef.current
       if (typeof ha === 'function' ? !ha(e) : ha === false) return
       // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
@@ -10523,7 +10628,24 @@ function StockChartBody({
         // Release the manual pin so the scale returns to auto-fit.
         priceManualRef.current = false
         priceManualRangeRef.current = null
-        try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
+        // ⭐ (2026-11-26, TradingView parity: a double-click on the price axis is a FULL price-scale reset) …and the
+        // VERTICAL half of the stored view lock, with the margins it put on the candles. It was left in force, so after
+        // "stretch, then double-click" the candles stayed in the band the drag authored, compressed, and every later
+        // ticker and reload inherited it (measured on /charts, AGL 1D: −40..180 for bars 10..165). The horizontal half
+        // (`anchorFrac` / `width`) is the member's time view and is kept (`viewLockHeal.healedViewLock`).
+        const lockAfter = axisDoubleClickLock(userViewLockedRef.current ? userLockedViewRef.current : null)
+        if (lockAfter.changed) {
+          userLockedViewRef.current = lockAfter.lock
+          userViewLockedRef.current = !!lockAfter.lock
+          persistViewLock()
+        }
+        vertMarginsRef.current = null
+        try {
+          mainPriceScale()?.applyOptions({
+            autoScale: true,
+            scaleMargins: _mainMargins(paneLayoutRef.current, axisResetMarginsRef.current.top, axisResetMarginsRef.current.bottom),
+          })
+        } catch { /* disposed */ }
       }
     }
     el.addEventListener('dblclick', onDbl)
@@ -10629,6 +10751,7 @@ function StockChartBody({
     if (!replayPlaying || !replayMode) return
     const intervalMs = replaySpeed === 20 ? 50 : replaySpeed === 5 ? 100 : 500
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       setReplayIndex(idx => {
         const maxIdx = (__heavy.committed.sessionBars?.length || 1) - 1
         if (idx >= maxIdx) { setReplayPlaying(false); return idx }
@@ -10739,6 +10862,8 @@ function StockChartBody({
     const apply = () => {
       let lr = null
       try { lr = ts.getVisibleLogicalRange() } catch { return }
+      // the view this member shows, for its next switch (chart/paintLog noteMemberView: a first paint holds this many bars)
+      if (lr) noteMemberView(paintMemberRef.current, lr.to - lr.from)
       const N = barCountRef.current
       if (!lr || N < 1) return
       const lastIdx = N - 1
@@ -11034,6 +11159,8 @@ function StockChartBody({
   // 0 forever and reject a chart that is, by then, perfectly drawn.
   const onDrawnBarCountRef = useRef(onDrawnBarCount)
   onDrawnBarCountRef.current = onDrawnBarCount
+  const onSymbolPaintedRef = useRef(onSymbolPainted)
+  onSymbolPaintedRef.current = onSymbolPainted
   useEffect(() => {
     // Count only REAL drawn candles. The load-anchor whitespace seed appends a
     // trailing whitespace point (the developing-bar slot that makes today's bar a
@@ -11247,13 +11374,16 @@ function StockChartBody({
     return _nfRecipes ? deriveVolMa(__heavy.sessionAppliedBars, _nfRecipes) : volMaDataOf(__heavy.sessionAppliedBars, volMaPeriodEff, adjustTime)
   }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])  // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐⭐ NEIGHBOR FRAMES — the rows a linked list names around this symbol, prepared after each paint. Only
-  // on the plain path (no replay, override, custom timeframe, framed range or session candle), where the
-  // chain above is bars → session → the very arrays the binder and the series are handed.
+  // on the plain path (no replay, override, framed range or session candle; a custom timeframe is plain since
+  // 2026-11-27, chart/customTfRows.js), where the chain above is bars → session → the very arrays the binder and
+  // the series are handed.
   if (_nfRecipes) {
-    _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
-      && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
+    _nfRecipes.plain = neighborPlainOf({
+      hasOverride: _hasOverride, replayMode, replayIndex, replayCutoff, exactDateRange,
+      sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
+    })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -11728,7 +11858,7 @@ function StockChartBody({
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
   // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
   _metaSettleRef.current = {
-    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    chartRef, containerRef, candleRef: candleSeriesRef, paintedRef: prevBarsRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
     anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
     sessionCandleActive, sessionExtReady,
   }
@@ -12153,7 +12283,15 @@ function StockChartBody({
     // re-apply below.
     const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
-    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full')
+    // (2026-11-27) a pass on a hidden layer (the double buffer's shadow pane) is no group member's paint: the member is
+    // the chart on screen, and a flip records its own (chart/useDoubleBuffer.js)
+    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full',
+      boardHiddenNow(boardVisibilityRef.current) ? null : paintMember)
+    // ⭐⭐ (2026-11-27, owner on production: a new header over the OLD chart for a frame) the host learns the symbol this
+    // pass DREW, so its header, logo and day change follow the candles, never run ahead of them (ChartPane `shownSym`).
+    // Called inside this pass: from the layout effect on a switch, so the header's re-render lands in the same frame.
+    if (typeof onSymbolPaintedRef.current === 'function') { try { onSymbolPaintedRef.current(sym) } catch { /* the host's */ } }
+    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -12411,10 +12549,15 @@ function StockChartBody({
       // CALL time; keyed by chartId so multi-chart pages don't collide.
       if (typeof window !== 'undefined') {
         window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+        const _dbg = chartDebugHandle({
           chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
           userLockedViewRef, userViewLockedRef, vertMarginsRef,
         })
+        chartDebugHandleRef.current = _dbg
+        // ⭐ (2026-11-27, the double-buffered next row) a chart CREATED on a hidden layer (a shadow pane, a board laid
+        // out hidden) takes no handle: the chart of the same id in front holds it. Its show takes it (the layer follow
+        // effect below, `_layerRegisteredRef`).
+        if (!boardHiddenNow(boardVisibilityRef.current)) window.__uctChartDebug[chartId || 'main'] = _dbg
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
@@ -12436,10 +12579,12 @@ function StockChartBody({
       // treats a non-array as "no bindings" and would report every series' `key` as
       // null, which reads identically to a chart whose engine drew nothing.
       // Un-registering is the cleanup effect's job, beside `chart.remove()`.
-      unregisterManifestRef.current = registerManifestChart(
+      // (2026-11-27) …and no manifest slot while it is created on a hidden layer: the one slot is the shown chart's
+      _layerRegisteredRef.current = !boardHiddenNow(boardVisibilityRef.current)
+      unregisterManifestRef.current = _layerRegisteredRef.current ? registerManifestChart(
         chart,
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
-      )
+      ) : null
       setChartGen((g) => g + 1)
       setChartReady(true)
       // The page's first chart exists (it is created only once its bars are in): the background
@@ -14021,6 +14166,8 @@ function StockChartBody({
         // fetch; `symbol` is what the bind-time fold reads. See `symbolMeta`.
         symbol: symbolMeta,
         tf: resolvedTf,
+        // (review of #2753) the chart's own session: a custom intraday timeframe's benchmark tail is built on its grid
+        extended: !!showExtended,
         // ⭐⭐ THE BAR-CLOSE TRI-STATE, PRODUCED IN PYTHON. `/api/bars` computes it
         // from `bar_close_state` because that is the side the NYSE calendar lives
         // on; the browser is handed one tri-state and never a date set. Without it
@@ -14090,6 +14237,12 @@ function StockChartBody({
           // freedom from `getBoundingClientRect` is what makes a pane resize cost
           // nothing, and one `insets` argument is the price of keeping it.
           insets: { top: CHART_TOOLBAR_FOOTPRINT_PX },
+          // ⭐ (owner ruling 2026-11-24) a label at the newest bar that runs under the price scale gets room
+          // (`chart/labelRoom.js`): the newest bar moves left by the bars it needs, bar spacing unchanged.
+          onLabelOverflow: (px) => {
+            if (!(px > 0)) return
+            try { makeRoomForLabels(chart.timeScale ? chart.timeScale() : null, px) } catch { /* chart mid-teardown */ }
+          },
           mapping: () => {
             const series = candleSeriesRef.current
             const ts = chart.timeScale ? chart.timeScale() : null
@@ -14124,6 +14277,9 @@ function StockChartBody({
             // for its tables (a calculator's one-line pane).
             let pane = null
             let mainPane = null
+            // ⭐ PIN TO SCALE — an instance on a scale of its own ("No scale", or a 3-07 own scale)
+            // places its labels and dots on THAT scale's map (`placement.objectPriceHost`), not the candles'.
+            let priceHost = series
             try {
               const rectOf = (lwPane) => {
                 const pel = lwPane?.getHTMLElement?.()
@@ -14137,10 +14293,11 @@ function StockChartBody({
               const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
               mainPane = rectOf(series.getPane?.())
               pane = rectOf(shown?.series?.getPane?.()) || mainPane
-            } catch { pane = null; mainPane = null }
+              priceHost = objectPriceHost(mine, series)
+            } catch { pane = null; mainPane = null; priceHost = series }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
-              priceToY: (p) => series.priceToCoordinate(p),
+              priceToY: (p) => priceHost.priceToCoordinate(p),
               width: el ? el.clientWidth : 0,
               height: el ? el.clientHeight : 0,
               rightInset,
@@ -14166,6 +14323,10 @@ function StockChartBody({
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
+        // ⭐ PIN TO SCALE → "No scale" frames its own invisible scale in the candles' band
+        // (`placement.pinScaleOf`). The LAYOUT's band, never the member's dragged
+        // `vertMarginsRef`: "No scale" is independent of the price axis, as on TradingView.
+        mainScaleMargins: _mainMargins(paneLayout, priceScaleTopMargin, volumePaneExists ? priceScaleBottomMargin : null),
         // FLIP C. `null` in `'bands'` mode, and `resolvePlacement` ignores it
         // there — asserted deep-equal to the pre-Flip-C answer for every pane
         // oscillator in `engine/__tests__/flipCGeometry.test.jsx`.
@@ -15120,7 +15281,7 @@ function StockChartBody({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, paintMember, layerPaint])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
@@ -15423,7 +15584,7 @@ function StockChartBody({
       }
       return String(px)
     }
-    const loop = createAdaptiveFrameLoop({ tick })
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
     loop.start()
     const wake = () => loop.wake()
     const s = candleSeriesRef.current
@@ -15522,7 +15683,7 @@ function StockChartBody({
       el.style.lineHeight = `${style.height}px`
       return key
     }
-    const loop = createAdaptiveFrameLoop({ tick })
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
     loop.start()
     const wake = () => loop.wake()
     const chart = chartRef.current
@@ -16827,6 +16988,7 @@ function StockChartBody({
   useEffect(() => {
     if (!effAlwaysShow || !chartReady) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       // Hover, a synced crosshair — or a bar PINNED by 'on click' mode — owns the
       // readout; don't fight it. ⛔ The pin clause is load-bearing: this fires
       // twice a second, so without it a user's clicked bar is replaced by the
@@ -16863,6 +17025,7 @@ function StockChartBody({
   useEffect(() => {
     if (!chartReady || !liveUpdates) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       if (replayMode || replayCutoffRef.current || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
@@ -17844,6 +18007,7 @@ function StockChartBody({
     const chart = chartRef.current
     if (!chart) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       try {
         const mainPane = candleSeriesRef.current?.getPane?.()
         const volPane = volumeSeriesRef.current?.getPane?.()
@@ -17915,6 +18079,8 @@ function StockChartBody({
   // time. Shown only with dragMeasure. Position tracks the price-axis width +
   // time-axis height so it sits just left of the axis, at the date row.
   const rangeBarRef = useRef(null)
+  // the lookback bar reads `--price-axis-w` on itself (the hub's cap): a bar that mounts after the width is known takes it here
+  const rangeBarRefCb = useCallback((el) => { rangeBarRef.current = el; applyPriceAxisW(el) }, [applyPriceAxisW])
 
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
@@ -17993,6 +18159,8 @@ function StockChartBody({
         // ⛔ NAMED "Volume", NOT "Vol". This is what a screen reader and the
         // tooltip get; an unnamed trigger announces a button called " options".
         controlLabel: 'Volume',
+        // ⭐ What the count IS (owner 2026-11-25, "keep the full volume with the note"): static tooltip text.
+        note: VOLUME_SOURCE_NOTE,
         value: volHidden ? '' : formatVolume(crosshairData.volume),
         color: opaqueColor(cs.volume?.upColor),
         hidden: volHidden,
@@ -18346,9 +18514,10 @@ function StockChartBody({
       try { leftW = chart.priceScale('left').width() || 0 } catch { leftW = 0 }
       let plotW = 0
       try { plotW = chart.timeScale().width() || 0 } catch { plotW = 0 }
+      const box = endLabelSizeRef.current(el, text)   // its box for this text, read once (endLabelSize.js)
       const place = endLabelPlacement({
         x, y, plotLeft: leftW, plotWidth: plotW, paneTop: band.top, paneHeight: band.height,
-        width: el.offsetWidth, height: el.offsetHeight,
+        width: box.w, height: box.h,
       })
       if (place.hidden) { hide(); return }
       const left = `${place.left}px`, top = `${place.top}px`
@@ -18357,6 +18526,48 @@ function StockChartBody({
       if (el.hasAttribute('data-hidden')) el.removeAttribute('data-hidden')
     } catch { hide() }
   }, [paneBandOf])
+  // ⚡ (2026-11-26, the 4h board's switch) THE TAGS' REFS ARE ONE FUNCTION PER KEY, AND THEIR RE-PIN ONE PASS PER TASK. An
+  // inline ref is a new function every render, so React detached and re-attached every tag on EVERY commit of the
+  // readout island, and each re-attach pinned it (a switch commits that island several times). Now a tag's ref pins
+  // it once, at mount; each island render queues ONE pass over every tag after its commit (a microtask: the same task,
+  // before the frame paints), so a model or a data change still moves the tag in the frame it lands, as the re-attach
+  // did; the price-chrome frame loop keeps pinning them every frame while something moves, as before.
+  const endLabelRefOf = useCallback((key) => {
+    const cbs = endLabelRefCbs.current
+    if (cbs.pin !== pinEndLabel) { cbs.pin = pinEndLabel; cbs.byKey = new Map() }
+    let cb = cbs.byKey.get(key)
+    if (!cb) {
+      cb = (el) => {
+        const m = endLabelRefs.current
+        if (!el) { m.delete(key); return }
+        const entry = { el, model: endLabelModelsRef.current.get(key) }
+        m.set(key, entry)
+        // a tag the island has committed before pins here; a NEW tag is pinned by its commit's pass (below)
+        if (entry.model) pinEndLabel(el, key, entry.model)
+      }
+      cbs.byKey.set(key, cb)
+    }
+    return cb
+  }, [pinEndLabel])
+  const queueEndLabelPins = useCallback(() => {
+    if (endLabelPinQueued.current) return
+    endLabelPinQueued.current = true
+    queueMicrotask(() => {
+      endLabelPinQueued.current = false
+      endLabelRefs.current.forEach((entry, key) => pinEndLabel(entry.el, key, entry.model))
+    })
+  }, [pinEndLabel])
+  // After each commit of the island (`EndLabelsCommitted`): the committed models, then ONE queued pass for every commit
+  // of the task (several commits in a task queue one pass).
+  const commitEndLabels = useCallback((ends) => {
+    for (const c of ends) {
+      const key = `${c.instanceId}::${c.plotKey}`
+      endLabelModelsRef.current.set(key, c.endLabel)
+      const entry = endLabelRefs.current.get(key)
+      if (entry) entry.model = c.endLabel
+    }
+    queueEndLabelPins()
+  }, [queueEndLabelPins])
 
   useEffect(() => {
     if ((!showRangeSelector && !showVolLegend && !verticalLegend && !paneLegendKeys.length) || !chartReady) return
@@ -18392,6 +18603,7 @@ function StockChartBody({
     const tick = () => {
       let settled = true
       let sig = ''
+      let lookbackVar = null
       try {
         const rbNow = rangeBarRef.current
         if (rbNow && rbNow !== rbSeenNode) { rbSeenNode = rbNow; rbSeenAt = performance.now() }
@@ -18480,11 +18692,12 @@ function StockChartBody({
           // stack on the lookback band (PatternOverlay's deal-status notice) reads
           // the one measurement instead of guessing it. Written even when the bar
           // itself is absent: the band is still where the notice belongs.
-          const host = wrapperRef.current
-          if (host) {
-            const want = `${plan.lookbackBottom}px`
-            if (host.style.getPropertyValue('--lookback-bottom') !== want) host.style.setProperty('--lookback-bottom', want)
-          }
+          // ⚡ Written at the END of the pass (`finally` below), after every layout read in it: a custom property on
+          // the wrapper is inherited by the whole chart, so a changed value written here made this pass's next read
+          // restyle every element of it (trace, 2026-11-26: 311 elements, 2-4.5 ms, a frame after each switch). Its
+          // one reader is the deal notice, which none of those reads measure; the frame restyles once instead.
+          const want = `${plan.lookbackBottom}px`
+          lookbackVar = want
           const vl = volLegendRef.current
           if (vl) {
             // The VOLUME pane's own top — asked of the volume series, for the same
@@ -18570,18 +18783,31 @@ function StockChartBody({
             if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
-      } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
+      } catch { return null /* pane API missing → CSS fallback; keep measuring */ } finally {
+        const host = wrapperRef.current
+        const want = lookbackVar
+        if (host && want !== null && host.style.getPropertyValue('--lookback-bottom') !== want) {
+          host.style.setProperty('--lookback-bottom', want)
+        }
+      }
       return settled ? sig : null
     }
-    const loop = createAdaptiveFrameLoop({ tick })
-    loop.start()
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
+    // ⚡ (2026-11-27, the board switch) THE FIRST PASS RUNS IN THE NEXT FRAME, before it paints, not here. This effect
+    // runs inside the mount's commit: a pass here forced the freshly committed board's style and layout mid-task
+    // (`container.clientHeight`, 4.6 ms in a trace), and its wrapper writes made the next effect's read restyle the
+    // whole chart again. In the frame it reads the layout that frame computes anyway, and the placement still lands in
+    // the first painted frame (rAF callbacks run before the paint). Rail: StockChart.lookbackPlacement.test.jsx.
+    loop.start({ inFrame: true })
     const wake = () => loop.wake()
     // Anything that can move a surface wakes the loop back to every frame.
     const pointerEvents = ['pointerdown', 'pointermove', 'pointerup', 'wheel']
     for (const ev of pointerEvents) container.addEventListener(ev, wake, { passive: true })
     window.addEventListener('resize', wake)
     let ro = null
-    try { ro = new ResizeObserver(wake); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
+    // Its first delivery comes after this frame's layout and before its paint: a first pass still waiting (this effect
+    // ran inside an animation-frame callback, so the start above asked for the NEXT frame) runs there instead.
+    try { ro = new ResizeObserver(() => { if (!loop.runPendingStart()) wake() }); ro.observe(container) } catch { /* no ResizeObserver: the safety pass covers it */ }
     const unsub = []
     const sub = (fn) => { try { fn() } catch { /* API missing: the safety pass covers it */ } }
     // ⛔ NO crosshair subscription here: the chart has exactly TWO crosshair subscribers (the
@@ -19474,69 +19700,166 @@ function StockChartBody({
     return () => window.removeEventListener('resize', apply)
   }, [chartReady])
 
+  // ⭐ A HIDDEN BOARD KEEPS ITS CHART (2026-11-27, board keep-alive Stage 1; boardVisibility.js). The keep-alive hides
+  // the previous board with <Activity mode="hidden">, which runs every effect cleanup, the one below included: it removed
+  // the chart, and a return re-created it (creation, series, setData, framing). When the board's handle says 'hidden'
+  // the cleanup keeps the instance and every latch describing it, and turns autoSize off (a hidden box is 0 x 0, which
+  // must not resize the chart); the layout effect after it turns autoSize back on at the show, after one forced resize
+  // when the device-pixel ratio changed while hidden. No provider (the flag off): exactly as before.
+  // (`boardVisibility` / `boardVisibilityRef`: read at the top of the body)
+  const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
+  // the chart holds its manifest slot and `window.__uctChartDebug` handle now (false while created on, or moved to, a
+  // hidden layer: the layer follow effect below)
+  const _layerRegisteredRef = useRef(false)
+  const keptDisposerRef = useRef(null)      // the handle's unregister of this chart's teardown, while kept
+  // This chart's own `window.__uctChartDebug` handle: a kept (hidden) board's chart may share its widget id with one on
+  // the board in front, so a handle is removed only while it is still THIS chart's, and re-registered at the show.
+  const chartDebugHandleRef = useRef(null)
+  const dropOwnDebugHandle = () => {
+    try {
+      const d = typeof window !== 'undefined' ? window.__uctChartDebug : null
+      const id = chartId || 'main'
+      if (d && chartDebugHandleRef.current && d[id] === chartDebugHandleRef.current) delete d[id]
+    } catch { /* SSR/teardown */ }
+  }
+
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
     return () => {
-      try { markersControllerRef.current?.detach?.() } catch {}
-      markersControllerRef.current = null
-      // The manifest registry holds ONE slot. Releasing it here — beside
-      // `chart.remove()` — is what stops `currentPaneManifest()` calling `panes()`
-      // on a disposed chart after an unmount. The unregister is identity-scoped, so
-      // a chart that has already been superseded by another mount is a no-op rather
-      // than erasing its successor's registration.
-      try { unregisterManifestRef.current?.() } catch {}
-      unregisterManifestRef.current = null
-      // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
-      // releases its series and clears every bind-time note it published under this
-      // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
-      // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
-      // Safe unconditionally (zero calls when it holds nothing); no render follows.
-      try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
-      engineRef.current = null
-      if (chartRef.current) {
-        try { delete window.__uctChartDebug?.[chartId || 'main'] } catch { /* SSR/teardown */ }
-        chartRef.current.remove()
-        chartRef.current = null
-        candleSeriesRef.current = null
-        volumeSeriesRef.current = null
-        overlaySeriesRefs.current = []
-        futureWsSeriesRef.current = null   // removed with the chart; the effect re-adds it on the new one
-        priceLineRefs.current = []
-        sessionTagRefs.current = []
-        sessionTagSeriesRef.current = null
-        lastShadeBandsRef.current = undefined   // primitive goes with the chart; bands must re-apply
-        lastMarkersSrcRef.current = undefined
-        // Reset every paint/framing latch alongside the chart they describe.
-        // These survive a destroy→recreate cycle otherwise (StrictMode's
-        // simulated remount, or any future remount path with warm caches):
-        // chart #2 then comes up under an armed 'noop' render plan and an
-        // already-consumed zoom key — created but never painted, never framed
-        // (the blank multi-chart grid cells after a mode roundtrip).
-        volMaSeriesRef.current = null
-        volMaTailSeriesRef.current = null
-        volumeSeparatePaneRef.current = false
-        prevChartTypeRef.current = null
-        wmAttachedRef.current = false
-        sessionShadeAttachedRef.current = false
-        sessionShadeVolAttachedRef.current = false
-        sessionBreaksAttachedRef.current = false  // the session-breaks primitive goes with the chart
-        pmLineRefs.current = []                   // …and so do the PM high/low price lines
-        pmLinesKeyRef.current = ''
-        lastShadeBandsVolRef.current = null
-        zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
-        lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
-        lastCfgSigRef.current = null
-        prevBarsRef.current = null
-        prevBarsSymRef.current = null           // the stamp goes with the bars it names
-        prevBarsTfRef.current = null
-        prevPaintBarsRef.current = null
-        lastBarCountRef.current = 0
-        zoomKeyRef.current = null
-        lastTfRef.current = null
-        pendingTfReframeRef.current = null
+      // the whole teardown, run here at an unmount, or later by the board's handle for a chart kept through a hide
+      const destroyChart = () => {
+        keptDisposerRef.current = null
+        keptThroughHideRef.current = null
+        try { markersControllerRef.current?.detach?.() } catch {}
+        markersControllerRef.current = null
+        // The manifest registry holds ONE slot. Releasing it here — beside
+        // `chart.remove()` — is what stops `currentPaneManifest()` calling `panes()`
+        // on a disposed chart after an unmount. The unregister is identity-scoped, so
+        // a chart that has already been superseded by another mount is a no-op rather
+        // than erasing its successor's registration.
+        try { unregisterManifestRef.current?.() } catch {}
+        unregisterManifestRef.current = null
+        // ⭐ The indicator binder lets go BEFORE its chart is removed: `teardown()`
+        // releases its series and clears every bind-time note it published under this
+        // chart's notice scope (`chartClockNotice` / `objectRenderNotice` /
+        // `runtimeErrorNotice`), so an unmounted chart leaves no orphaned scope behind.
+        // Safe unconditionally (zero calls when it holds nothing); no render follows.
+        try { engineRef.current?.binder?.teardown?.() } catch { /* disposed */ }
+        engineRef.current = null
+        if (chartRef.current) {
+          dropOwnDebugHandle()
+          chartRef.current.remove()
+          chartRef.current = null
+          candleSeriesRef.current = null
+          volumeSeriesRef.current = null
+          overlaySeriesRefs.current = []
+          futureWsSeriesRef.current = null   // removed with the chart; the effect re-adds it on the new one
+          priceLineRefs.current = []
+          sessionTagRefs.current = []
+          sessionTagSeriesRef.current = null
+          lastShadeBandsRef.current = undefined   // primitive goes with the chart; bands must re-apply
+          lastMarkersSrcRef.current = undefined
+          // Reset every paint/framing latch alongside the chart they describe.
+          // These survive a destroy→recreate cycle otherwise (StrictMode's
+          // simulated remount, or any future remount path with warm caches):
+          // chart #2 then comes up under an armed 'noop' render plan and an
+          // already-consumed zoom key — created but never painted, never framed
+          // (the blank multi-chart grid cells after a mode roundtrip).
+          volMaSeriesRef.current = null
+          volMaTailSeriesRef.current = null
+          volumeSeparatePaneRef.current = false
+          prevChartTypeRef.current = null
+          wmAttachedRef.current = false
+          sessionShadeAttachedRef.current = false
+          sessionShadeVolAttachedRef.current = false
+          sessionBreaksAttachedRef.current = false  // the session-breaks primitive goes with the chart
+          pmLineRefs.current = []                   // …and so do the PM high/low price lines
+          pmLinesKeyRef.current = ''
+          lastShadeBandsVolRef.current = null
+          zonesAttachedRef.current = false        // primitive goes with the chart; must re-attach
+          lastDpZonesRef.current = undefined      // …and the zones must re-apply to the new one
+          lastCfgSigRef.current = null
+          prevBarsRef.current = null
+          prevBarsSymRef.current = null           // the stamp goes with the bars it names
+          prevBarsTfRef.current = null
+          prevPaintBarsRef.current = null
+          lastBarCountRef.current = 0
+          zoomKeyRef.current = null
+          lastTfRef.current = null
+          pendingTfReframeRef.current = null
+        }
       }
+      const keep = chartRef.current
+      // kept only while its element is still in the document: an <Activity> hide leaves it there (display:none);
+      // an unmount under a 'hidden' handle (the workspace leaving, grid mode) has removed it already
+      let attached = false
+      try { attached = !!keep?.chartElement?.()?.isConnected } catch { /* disposed */ }
+      if (keep && attached && boardIsHiding(boardVisibilityRef.current)) {
+        try { keep.applyOptions({ autoSize: false }) } catch { /* disposed */ }
+        keptThroughHideRef.current = { dpr: (typeof window !== 'undefined' && window.devicePixelRatio) || 1 }
+        dropOwnDebugHandle()
+        // the manifest's one slot goes with the hide (the show takes it back)
+        try { unregisterManifestRef.current?.() } catch { /* disposed */ }
+        unregisterManifestRef.current = null
+        // ⛔ the full teardown waits on the handle: a board deleted while hidden runs no cleanup again
+        const vis = boardVisibilityRef.current
+        keptDisposerRef.current = typeof vis?.onDispose === 'function' ? vis.onDispose(destroyChart) : null
+        return
+      }
+      destroyChart()
     }
   }, [])
+  // The show of a board that kept this chart through a hide (above): autoSize back on; one forced resize first when the
+  // device-pixel ratio moved while hidden (the canvases' bitmaps were sized for the old ratio).
+  useLayoutEffect(() => {
+    const kept = keptThroughHideRef.current
+    const chart = chartRef.current
+    if (!kept || !chart) return
+    keptThroughHideRef.current = null
+    keptDisposerRef.current?.()
+    keptDisposerRef.current = null
+    unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
+    if (dpr !== kept.dpr) {
+      const el = containerRef.current
+      try { chart.resize(el?.clientWidth || 0, el?.clientHeight || 0, true) } catch { /* disposed */ }
+    }
+    try { chart.applyOptions({ autoSize: true }) } catch { /* disposed */ }
+    if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+      window.__uctChartDebug = window.__uctChartDebug || {}
+      window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+    }
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- a show only: the refs and chartId are read at that moment
+  // ⭐ The LAYER keep-alive (boardVisibility.js): a hidden layer board's chart keeps its instance and every effect, but
+  // holds no manifest slot and no `window.__uctChartDebug` handle while hidden (the board in front may hold a chart of
+  // the same id); the show takes both back. An unmount while hidden (or disposed) takes nothing back.
+  // (read through the handle, never as React state: neither the hide nor the show re-renders the chart)
+  useEffect(() => {
+    const vis = boardVisibilityRef.current
+    if (!vis || !vis.layer) return undefined
+    // ⭐ (2026-11-27, the double-buffered next row) WHAT THE CHART HOLDS, not what the board last was: a chart created on
+    // a hidden layer took nothing at creation (above), so its first show must take both even though no hide preceded it.
+    const follow = () => {
+      const chart = chartRef.current
+      if (!chart) return
+      const hidden = boardHiddenNow(vis)
+      if (hidden && _layerRegisteredRef.current) {
+        _layerRegisteredRef.current = false
+        dropOwnDebugHandle()
+        try { unregisterManifestRef.current?.() } catch { /* disposed */ }
+        unregisterManifestRef.current = null
+      } else if (!hidden && vis.state === 'visible' && !_layerRegisteredRef.current) {
+        _layerRegisteredRef.current = true
+        unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
+        if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+          window.__uctChartDebug = window.__uctChartDebug || {}
+          window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+        }
+      }
+    }
+    follow()
+    return vis.subscribe(follow)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- one board for life; the refs and chartId are read when it fires
 
   // ── Clear drawing selection on symbol/tf change ──
   useEffect(() => {
@@ -19980,6 +20303,12 @@ function StockChartBody({
     } catch { /* disposed */ }
     return {
       firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
+      // the plot's width (px): the right margin the newest candle is pinned at scales with it (chart/rightMargin.js); the
+      // double buffer's zoom mirror re-pins a hidden chart at a new width with it (chart/doubleBuffer.js mirrorFrameFor)
+      plotWidthPx: (() => { try { return plotWidthOf(chartRef.current, containerRef.current) } catch { return null } })(),
+      // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
+      // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
+      pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
@@ -21059,6 +21388,7 @@ function StockChartBody({
           26px allows for the time axis below the price-pane drawing area. */}
       {!showFatalError && chartReady && !hideScaleToggle && (
         <div
+          ref={scaleToggleRefCb}
           className={`${styles.scaleToggle}${compactAxes ? ' ' + styles.scaleToggleCompact : ''}`}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
              it just clear of the SE corner resize handle).
@@ -21597,6 +21927,7 @@ function StockChartBody({
                            indicator row. */
                         label="Volume"
                         controlLabel="Volume"
+                        note={VOLUME_SOURCE_NOTE}
                         color={opaqueColor(cs.volume?.upColor)}
                         value={volHidden ? '' : formatVolume(crosshairData.volume)}
                         baseColor={legendColor || undefined}
@@ -21606,7 +21937,7 @@ function StockChartBody({
                         {...legendRowHandlers}
                       />
                     ) : (cs.volume?.visible === false ? null : (   // a hidden volume pane prints no volume (round 18: Hard mode's candles-only chart showed one)
-                      <span key="vol" className={styles.vlRow}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
+                      <span key="vol" className={styles.vlRow} title={VOLUME_SOURCE_NOTE}><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span><span className={styles.vlCtlPad} /></span>
                     ))
                   }
                   if (it.kind === 'ma') {
@@ -21685,13 +22016,14 @@ function StockChartBody({
               rowId="volume"
               label="V"
               controlLabel="Volume"
+              note={VOLUME_SOURCE_NOTE}
               value={volHidden ? '' : formatVolume(crosshairData.volume)}
               baseColor={legendColor || undefined}
               hidden={volHidden}
               {...legendRowHandlers}
             />
           ) : (
-            <span className={styles.legendLabel} style={legBase}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+            <span className={styles.legendLabel} style={legBase} title={VOLUME_SOURCE_NOTE}>V <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
           ))}
           {/* ⭐ MOB-06′ — the volume MA's reading, for the PHONE only. It renders on
               desktop in the volume-pane strip (.volLegend), which is `display:none`
@@ -21992,7 +22324,7 @@ function StockChartBody({
       )}
       {showRangeSelector && chartReady && filteredBars?.length > 1
         && !rangeBarYieldsToLegend(compactLegend, legendV2 && chipsExpanded) && (
-        <div ref={rangeBarRef} data-guide="chart.range" className={styles.rangeBar}>
+        <div ref={rangeBarRefCb} data-guide="chart.range" className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
               key={label + i}
@@ -22109,6 +22441,7 @@ function StockChartBody({
               rowId={r.rowId}
               label={r.label}
               controlLabel={r.controlLabel}
+              note={r.note || undefined}
               value={r.value}
               color={r.color}
               baseColor={legendColor || undefined}
@@ -22364,13 +22697,11 @@ function StockChartBody({
                   // legend ink and the colour stays as the tag's edge (`legibleInk`).
                   color={legibleInk(c.color, canvasSample.low) || undefined}
                   swatch={c.color}
-                  ref={(el) => {
-                    const m = endLabelRefs.current
-                    if (el) { m.set(key, { el, model: c.endLabel }); pinEndLabel(el, key, c.endLabel) } else m.delete(key)
-                  }}
+                  ref={endLabelRefOf(key)}
                 />
               )
             })}
+            {hosted.ends.length ? <EndLabelsCommitted ends={hosted.ends} onCommit={commitEndLabels} /> : null}
           </Fragment>
         )
       })() : null} />

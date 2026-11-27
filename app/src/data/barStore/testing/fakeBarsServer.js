@@ -5,6 +5,7 @@
 import { vi } from 'vitest'
 import { bucketStartUnix } from '../../../components/chart/barTime'
 import { bucketEndUnix } from '../../../components/chart/liveBuckets'
+import { inExtendedSession } from '../extendedSession'
 
 export const OPEN = Date.UTC(2026, 10, 10, 14, 30) / 1000     // Tue 2026-11-10 09:30 ET
 /** 'lagging': how long after a bucket's end the server has stored it. */
@@ -25,12 +26,14 @@ export function parseBarsUrl(url) {
 /** The deep sealed daily rows /api/bars-history answers (older than, and overlapping, the D tail). */
 export const HISTORY_DAYS = Object.freeze(['2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09'])
 
-/** Intraday rows from the open to `now` (unix s) on `tf`, newer than `since`. */
+/** Intraday rows from `from` to `now` (unix s) on `tf`, newer than `since`: the buckets inside the extended session,
+ *  as the real server answers (it never serves a bar outside its ET day's 04:00-20:00 session). */
 export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
   const out = []
   for (let t = from; t <= now; t = bucketEndUnix(t, tf, {})) {
     const s = bucketStartUnix(t, tf, {})
     if (since != null && s <= since) continue
+    if (!inExtendedSession(s)) continue
     out.push({ t: s, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
   }
   return out
@@ -39,8 +42,17 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
 /** The server's answer for a parsed request at Date.now().
  *  `mode`: ok | closed (contract, the closed buckets only: no forming row, no developing) | lagging (closed, but a bucket
  *  is stored only LAGGING_S after it ends: the server's write lag at a boundary) | lag:<seconds> (the same, with that
- *  lag, fractional: `lag:1.5`) | behind (legacy, 09:40) |
- *  behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
+ *  lag, fractional: `lag:1.5`) | lag-unverified:<seconds> (the same, its tail marked `unverified` by the server) |
+ *  pending-seal (contract: the bucket that just CLOSED sent as the developing bar, its seal not landed yet, no forming
+ *  row: a MODEL, the real contract never sends a closed bucket as developing) | unsealed-row (the real counterpart: the
+ *  just-closed bucket as a stored ROW not final yet, its close 10.4 where the final is 10.5, sealed through the bucket
+ *  before) | thin:<buckets> (a name with no trade in its newest <buckets> closed buckets: closed rows ending that far
+ *  back, and the server's PROOF `verified_through` = now) | proof:<buckets>:<seconds> (closed rows ending <buckets> back,
+ *  `verified_through` = the current bucket's start + <seconds>, which may be negative: a proof stamped at a given instant
+ *  around the roll, e.g. a provider heal at roll+1 s or a live watermark at the roll) | behind (legacy, 09:40) |
+ *  behind-unsealed (contract, 09:40,
+ *  no seal) | nodata | shed | fail
+ *  ⚠️ `lag:` modes prove only what the store holds: `verified_through` is the store's horizon (now - lag), never now. */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
@@ -67,12 +79,53 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
-  const lag = /^lag:(\d+(?:\.\d+)?)$/.exec(String(mode))
-  if (mode === 'closed' || mode === 'lagging' || lag) {
-    // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
-    // a contract answer with no developing bar, its newest row the last closed bucket.
-    const stored = lag ? Date.now() / 1000 - Number(lag[1]) : mode === 'lagging' ? now - LAGGING_S : now
-    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
+  if (mode === 'pending-seal') {
+    // At a roll: the newest CLOSED bucket is still the server's developing bar (its seal has not landed), the bucket
+    // before it is the newest sealed row, and the forming bucket has no row yet.
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const dev = closed[closed.length - 1] || null
+    const rows = dev ? closed.slice(0, -1) : closed
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: now, complete_through: end, tail_status: 'verified',
+        developing: dev ? { ...dev, rev: Date.now() } : null,
+      },
+    }
+  }
+  if (mode === 'unsealed-row') {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const last = closed[closed.length - 1]
+    const rows = last ? [...closed.slice(0, -1), { ...last, c: 10.4 }] : closed
+    const end = rows.length >= 2 ? bucketEndUnix(rows[rows.length - 2].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: now, complete_through: end, tail_status: 'current', developing: null,
+      },
+    }
+  }
+  const proof = /^proof:(\d+):(-?\d+)$/.exec(String(mode))
+  if (proof) {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const rows = closed.slice(0, Math.max(0, closed.length - Number(proof[1])))
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: bucketStartUnix(now, tf, {}) + Number(proof[2]), complete_through: end, tail_status: 'verified',
+        developing: null,
+      },
+    }
+  }
+  const thin = /^thin:(\d+)$/.exec(String(mode))
+  if (thin) {
+    const closed = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const rows = closed.slice(0, Math.max(0, closed.length - Number(thin[1])))
     const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
     return {
       body: {
@@ -82,6 +135,40 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
+  // `lag-noproof:N`: the store lags N s and the answer claims nothing (no verified_through, its tail not marked unverified):
+  // what a tolerance-`current` answer was at the 2026-11-25 open
+  const noproof = /^lag-noproof:(\d+(?:\.\d+)?)$/.exec(String(mode))
+  if (noproof) {
+    const stored = Date.now() / 1000 - Number(noproof[1])
+    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: null, complete_through: null, tail_status: 'verified', developing: null,
+      },
+    }
+  }
+  const lag = /^lag(-unverified)?:(\d+(?:\.\d+)?)$/.exec(String(mode))
+  if (mode === 'closed' || mode === 'lagging' || lag) {
+    // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
+    // a contract answer with no developing bar, its newest row the last closed bucket.
+    const stored = lag ? Date.now() / 1000 - Number(lag[2]) : mode === 'lagging' ? now - LAGGING_S : now
+    const unverified = !!lag?.[1]
+    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: unverified ? null : (lag ? Math.floor(stored) : now), complete_through: end,
+        tail_status: unverified ? 'unverified' : 'verified',
+        developing: null,
+      },
+    }
+  }
+  // `rev:N`: the default answer under history_rev N (the open's gap fills bump the history)
+  const rev = /^rev:(\d+)$/.exec(String(mode))
   const bars = intradayRows(tf, now, { since: q.since })
   let C = null
   for (const b of bars) { const e = bucketEndUnix(b.t, tf, {}); if (e <= now - 45) C = e }
@@ -89,7 +176,7 @@ export function serverAnswer(q, mode = 'ok') {
   return {
     body: {
       ticker: q.sym, tf: q.tf, bars, contract: 1, grid: 'eth-clock', session: 'rth',
-      cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+      cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: rev ? Number(rev[1]) : 1,
       verified_through: now, complete_through: C, tail_status: 'verified',
       developing: last && bucketEndUnix(last.t, tf, {}) > now ? { ...last, rev: Date.now() } : null,
     },

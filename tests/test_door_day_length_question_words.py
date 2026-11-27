@@ -16,7 +16,8 @@ Held here, with no model call:
   * the guard's NOTE asks for what its CODE accepts: what the note quotes, put in a choice, is accepted and fits;
   * the assistant is told the limit, and it is the schema's own number;
   * a guard that demands exact words must fit its field, or the module does not import;
-  * ONE function says whether a chart below a day can build a daily measure. It says no today.
+  * ONE function says whether a chart below a day can build a daily measure. Since U-DAILY (e96) it reads the
+    capability (D among the cross context's `tfBelowADayCodes`, on a chart that states a timeframe below a day).
 
 SECOND UNIT (2026-11-23), after the 24 day-length requests were sent again: 0 refused (3 before), and 8 questions
 still paid for a second call. Seven were choices of 82 to 96 characters: the assistant's own words (27 to 58) plus
@@ -212,13 +213,26 @@ def test_the_module_does_not_start_when_the_guards_words_would_not_fit_a_choice(
     assert len(at_import) == 1 and [getattr(a, "id", None) for a in at_import[0].value.args] == ["CHOICE_MAX_CHARS"]
 
 
-# ── the capability: one function, and it says no today ──
+# ── the capability: one function, and since U-DAILY (e96) it reads the capability itself ──
 
-def test_one_function_says_whether_a_daily_measure_builds_below_a_day_and_it_says_no(monkeypatch):
-    assert dc.daily_values_below_a_day() is False and dc.daily_values_below_a_day(FIVE) is False
+def test_one_function_says_whether_a_daily_measure_builds_below_a_day_and_it_reads_the_capability(monkeypatch):
+    # ⭐⭐ U-DAILY (e96): a chart below a day builds a daily read (`tf` of D, the door's `tfBelowADayCodes`); a chart
+    # that is days, or one that never said its timeframe, does not (the browser's gate refuses it there)
+    assert dc.daily_values_below_a_day(FIVE) is True
+    assert dc.daily_values_below_a_day() is False and dc.daily_values_below_a_day({"sym": "NVDA"}) is False
+    assert dc.daily_values_below_a_day({"sym": "NVDA", "tf": "D"}) is False
     notes = dc.day_length_turn_notes(words_for((50,)), FIVE)
-    assert set(notes) == {"day_lengths", "day_lengths_bars_phrase", "day_lengths_choice_room"}     # nothing is promised today
+    assert set(notes) == {"day_lengths", "day_lengths_bars_phrase", "day_lengths_choice_room", "daily_measure_inside"}
+    assert notes["daily_measure_inside"] is True
     assert dc.day_length_turn_notes("the 50 day average", {"sym": "NVDA", "tf": "D"}) == {}
+    # CONTROL: the answer is the capability's, not a constant: withdraw D from the cross context and it is no again,
+    # and the turn promises nothing
+    withdrawn = {**dc.cross_context(), "tfBelowADayCodes": []}
+    monkeypatch.setattr(dc, "cross_context", lambda: withdrawn)
+    assert dc.daily_values_below_a_day(FIVE) is False
+    assert set(dc.day_length_turn_notes(words_for((50,)), FIVE)) == {"day_lengths", "day_lengths_bars_phrase",
+                                                                 "day_lengths_choice_room"}
+    monkeypatch.undo()
     # the ONE place: nothing else in the module decides it, and the turn's notes read it by name
     source = (ROOT / "api" / "services" / "definition_conversation.py").read_text(encoding="utf-8")
     tree = ast.parse(source)

@@ -46,7 +46,7 @@
 import { bucketStartUnix, computeBarTime, isRthBar, etDateOf, etMinuteOfDay } from '../../components/chart/barTime'
 import { isHolidayISO } from '../../utils/marketSession'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { foldOffGridBars } from '../../components/chart/offGridBars'
+import { foldOffGridBars, offGrid } from '../../components/chart/offGridBars'
 import { isSaneLivePriceFor } from '../../components/chart/liveTickBaseline'
 import {
   mergePushBar, reconcileWithServerTail, foldPrice, provisionalOpen, isCompleteOhlc,
@@ -55,6 +55,7 @@ import {
   ACTION, DEV_SRC, isDateTf, parseKey, dateLabelToUnix,
 } from './types'
 import { deriveStatus } from './status'
+import { clampToExtendedSession } from './extendedSession'
 import { historyReachesTail } from '../../utils/historyPrepend'
 
 // ── source ranks (tie-break among equal revs) ────────────────────────────────
@@ -82,6 +83,8 @@ export function initialState(key, ctx = {}) {
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
     lakeOnly: false,
+    // ⭐ (review of #2721) the closed bucket (unix s) the switch painted this copy without: UPDATING until held (ACTION.AWAIT_CLOSED)
+    awaitingClosed: null,
     // ⭐⭐ (2026-11-18) the route's `newest_bar_is_forming` WITH the bar it describes ({t, forming}), or null
     newestForming: null,
   }
@@ -198,12 +201,46 @@ function _idx(bars, t) {  // first index with bars[i].t >= t
   return lo
 }
 
-/** Is the bucket starting at `t` inside a sealed span? */
+/** The longest a bucket of `tf` can run past any second inside it: `bucketEnd(t, state) - t` never exceeds it for a finite
+ *  `t` (a D/W bucket ends 86400 s after its start, a month at most 31 days after any second of it; an intraday bucket
+ *  starts at or before `t` and lasts at most one period, `bucketEndUnix`'s own `(tf > 0 ? tf : 5) * 60`, or an hour on
+ *  60m, whose session-grid stubs are SHORTER). */
+function _bucketRoom(tf) {
+  if (tf === 'D' || tf === 'W') return 86400
+  if (tf === 'M') return 31 * 86400
+  const n = Number(tf)
+  return n === 60 ? 3600 : (n > 0 ? n : 5) * 60
+}
+
+/** A `t` whose bucket end is always computable (a finite second well inside Date's range): only for such a `t` may the
+ *  end be skipped. Any other `t` computes it first, as before (on the 60m session grid that end throws past Date's range,
+ *  and the caller sees the same throw). */
+const _lazyEnd = (t) => typeof t === 'number' && t > -8.6e12 && t < 8.6e12
+
+/** Does the bucket at `t` end by `c`: `bucketEnd(t, state) <= c`, its end computed only when it decides (a bucket at
+ *  `t` ends by `t + room`, `_bucketRoom`). Same answer as computing it first, for every `t` and `c`. */
+function _endsBy(t, c, state, room) {
+  return (_lazyEnd(t) && t + room <= c) || bucketEnd(t, state) <= c
+}
+
+/** Is the bucket starting at `t` inside a sealed span?
+ *  ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: 6.6 ms of the 18 a flip spends in `_applyLocal`; on the 60m session
+ *  grid each `bucketEnd` is an ET minute-of-day and a session close, asked for every row a copy brings): the bucket's end
+ *  is computed only when it decides. Never for a span that starts after `t`, and not for a span ending at least one whole
+ *  bucket (`_bucketRoom`) after `t`: that bucket ends inside it whatever its grid. Same answer as computing it first, for
+ *  every `t` (one outside `_lazyEnd` computes it first, as before). */
 function _inSpans(state, t) {
   const sp = state.sealedSpans
   if (!sp || !sp.length) return false
-  const e = bucketEnd(t, state)
-  for (const [a, c] of sp) if (t >= a && e <= c) return true
+  const lazy = _lazyEnd(t)
+  const near = lazy ? t + _bucketRoom(state.tf) : NaN   // the bucket at `t` ends by `near`
+  let e = lazy ? undefined : bucketEnd(t, state)
+  for (const [a, c] of sp) {
+    if (!(t >= a)) continue
+    if (near <= c) return true
+    if (e === undefined) e = bucketEnd(t, state)
+    if (e <= c) return true
+  }
   return false
 }
 /** A held row is sealed when the server sent it and a sealed span covers it. */
@@ -313,7 +350,8 @@ function mergeRows(state, rows, span = null) {
   const out = []
   let changed = false
   let i = 0, j = 0
-  const inSpan = (t) => span && t >= span[0] && finite(span[1]) && bucketEnd(t, state) <= span[1]
+  const room = _bucketRoom(state.tf)
+  const inSpan = (t) => span && t >= span[0] && finite(span[1]) && _endsBy(t, span[1], state, room)
   const strip = (r) => { if (!('_sealed' in r)) return freezeBar(r); const { _sealed, ...b } = r; return freezeBar(b) }
   while (i < held.length || j < rows.length) {
     const h = held[i], r = rows[j]
@@ -369,6 +407,9 @@ function ingestRows(raw, state, extra) {
   if (!isDateTf(tf)) {
     const p = parseKey(state.key)
     rows = foldOffGridBars(rows, tf, { showExtended: _gridFor(state) === 'clock' || p?.session === 'eth' })
+    // ⭐ A bar outside its ET day's extended session (a 20:00 bar, a held IndexedDB row from before the server
+    // refused them) never enters the store: a delta answer would never delete it (`extendedSession.js`).
+    rows = clampToExtendedSession(rows, p?.sym)
   }
   rows.sort((a, b) => a.t - b.t)
   const out = []
@@ -401,7 +442,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming', 'awaitingClosed']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -412,6 +453,12 @@ function _sameFields(a, b) {
 
 function finalize(prev, next, ctx) {
   const n = { ...prev, ...next }
+  // the closed bucket the switch painted this copy without: settled once the copy holds it (a row at or after it, or a
+  // developing bar of a later bucket)
+  if (n.awaitingClosed != null) {
+    const last = n.bars && n.bars.length ? n.bars[n.bars.length - 1].t : null
+    if ((last != null && last >= n.awaitingClosed) || (n.developing && n.developing.t > n.awaitingClosed)) n.awaitingClosed = null
+  }
   let { bars } = n
   // Depth cap: trims the OLDEST rows on tail growth, but never below the depth the user
   // scrolled back to (`depthFloor`, raised by scroll-back) — deep history a scroll just
@@ -433,6 +480,7 @@ function finalize(prev, next, ctx) {
   const baseChanged = n.bars !== prev.bars || BASE_FIELDS.some((f) => n[f] !== prev[f])
   const devChanged = n.developing !== prev.developing
   if (baseChanged && n.bars !== prev.bars && !Object.isFrozen(n.bars)) Object.freeze(n.bars)
+  if (n.bars !== prev.bars) markStoreBars(n.bars)   // (its rows are store rows: mergeRows / freezeBar)
   n.baseRev = prev.baseRev + (baseChanged ? 1 : 0)
   n.devRev = prev.devRev + (devChanged ? 1 : 0)
   n.depth = n.bars.length
@@ -487,6 +535,34 @@ export const BASIS_EPS = 0.005
 export const BASIS_VOL_TOL = 0.05
 const BASIS_MAX_PAIRS = 64
 
+// ⭐ PERF (smoothness trace 2026-11-26, 5m+60m board: ~3.3 ms a flip in `heldBasisProof`): the sortedness of one of the
+// STORE'S OWN bars arrays (`finalize` marks each, `markStoreBars`: a frozen array of frozen store rows, so neither the order
+// nor a row's `t` can change) is read once, not on every copy that lands. Any other array, frozen or not, is read every
+// time (review of #2782: a frozen array of rows whose `t` could still change is never trusted). And a `t` outside the
+// sorted array's first..last `t` is answered without a search (no row of it can hold that `t`): a lake copy whose rows are
+// mostly OLDER than the held rows searched once per row for nothing. Same row for every `t`.
+const _storeBars = new WeakSet()
+/** Mark `bars` as one of the store's own bars arrays: frozen, and every row in it a frozen store row (`finalize` calls it
+ *  for each entry's `bars`). Exported for its rail. */
+export function markStoreBars(bars) {
+  if (Array.isArray(bars) && Object.isFrozen(bars)) _storeBars.add(bars)
+  return bars
+}
+/** Is `bars` one of the store's own bars arrays (`markStoreBars`)? */
+export const isStoreBars = (bars) => _storeBars.has(bars)
+const _sortedByRef = new WeakMap()
+function _isSortedRows(rows) {
+  // (and its first row frozen too: a store row always is, so an array marked by mistake is read every time, review of #2786)
+  const frozen = _storeBars.has(rows) && (rows.length === 0 || Object.isFrozen(rows[0]))
+  if (frozen) { const k = _sortedByRef.get(rows); if (k !== undefined) return k }
+  let sorted = true
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]?.t
+    if (typeof t !== 'number' || t !== t || (i > 0 && !(rows[i - 1].t < t))) { sorted = false; break }
+  }
+  if (frozen) _sortedByRef.set(rows, sorted)
+  return sorted
+}
 /** `ref`'s row at time `t`, as a lookup. ⭐ (2026-11-20, switch profile) Every array the store holds is strictly
  *  ascending in a numeric `t` (its bars), and `basisVerdict` pairs at most 64 rows of it: so such an array is
  *  SEARCHED (binary search, nothing allocated) instead of copied whole into a Map of every row, which on a list
@@ -496,16 +572,14 @@ const BASIS_MAX_PAIRS = 64
 function _rowAtOf(ref) {
   if (ref instanceof Map) return (t) => ref.get(t)
   const rows = ref || []
-  let sorted = true
-  for (let i = 0; i < rows.length; i++) {
-    const t = rows[i]?.t
-    if (typeof t !== 'number' || t !== t || (i > 0 && !(rows[i - 1].t < t))) { sorted = false; break }
-  }
-  if (!sorted) {
+  if (!_isSortedRows(rows)) {
     const byT = new Map(rows.map((r) => [r.t, r]))
     return (t) => byT.get(t)
   }
+  if (!rows.length) return () => undefined
+  const first = rows[0].t, last = rows[rows.length - 1].t
   return (t) => {
+    if (!(t >= first && t <= last)) return undefined
     let lo = 0, hi = rows.length - 1
     while (lo <= hi) {
       const mid = (lo + hi) >> 1
@@ -748,7 +822,7 @@ function applyRest(state, action, ctx, kind) {
   const spanFrom = kind === 'delta' && finite(numOrNull(p.since)) ? normT(p.since, state.tf)
     : (rows.length ? rows[0].t : null)
   if (spanFrom == null) sealedIn = null   // an answer seals only what it carries
-  if (finite(sealedIn)) for (const r of rows) if (bucketEnd(r.t, working) <= sealedIn) r._sealed = true
+  if (finite(sealedIn)) { const room = _bucketRoom(working.tf); for (const r of rows) if (_endsBy(r.t, sealedIn, working, room)) r._sealed = true }
 
   const C = finite(sealedIn) && (!finite(state.completeThrough) || sealedIn > state.completeThrough)
     ? sealedIn : state.completeThrough
@@ -828,6 +902,7 @@ function applyRest(state, action, ctx, kind) {
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
     liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
+    awaitingClosed: null,   // ...and its own status says whether it is current (review of #2721)
     newestForming: _formingOf(p, state),
   }, ctx)
 }
@@ -864,6 +939,70 @@ function applyLocal(state, action, ctx, source) {
   if (out === state) return state
   const lakeOnly = _bulk(source) && (!!state.lakeOnly || (!state.bars.length && !state.developing))
   return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
+}
+
+/**
+ * ⭐ (2026-11-25, next-row key task) DOES A SAVED COPY'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? True only when
+ * `applyLocal(state, {payload: {bars: raw, ...}})` returns `state` ITSELF, whatever else the payload carries (its stamp,
+ * its seals, `saved_at`, `repair_from`): the entry holds a server answer (`restSeen`), and there a local copy can only add
+ * rows OLDER than everything held (`first`, the restSeen branch of `_applyLocal`), so a copy none of whose rows lands
+ * before `first` is refused whole. A row keeps its own `t` through `ingestRows` (`normT`, as `toBar` reads it), or, off
+ * its intraday grid, is moved to its bucket's start, never more than one bucket (at most an hour) earlier: such a row
+ * within an hour of `first` is not proven and answers false. A malformed row is dropped by `toBar` and adds nothing.
+ * O(rows), no allocation: what lets the bar store skip decoding and ingesting a copy that would change nothing
+ * (persist.hydrateMem, on every chart switch). False is always safe (the copy is applied as before).
+ */
+export function localCopyAddsNothing(state, raw) {
+  if (!state || !state.restSeen || !Array.isArray(raw)) return false
+  if (!raw.length) return true
+  const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
+  if (!finite(first)) return false
+  const tf = String(state.tf)
+  const slack = isDateTf(tf) ? 0 : 3600
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    if (!finite(t)) continue
+    if (t < first) return false
+    if (t < first + slack && offGrid(t, tf)) return false
+  }
+  return true
+}
+
+/**
+ * ⚡ (2026-11-27, the keep-alive A/B on master) DOES A LAKE LOAD'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? An
+ * ANSWERED entry: `localCopyAddsNothing` (a local copy there can only add rows older than everything held). An entry NO
+ * server answered (the lake's own rows, a saved or pack copy): true only when every row the load carries is a bar the
+ * entry already holds, value for value (t, o, h, l, c, v), on its grid (an off-grid row would move to its bucket's
+ * start), so the join could add, replace or move nothing. A malformed row is dropped by `toBar` and adds nothing. Used by
+ * network.lakeSeed: the chart's background warm re-reads the lake on every visit of a board (about 40-48 ms a click,
+ * profiled). O(rows log held), no allocation. False is always safe (the load is applied as before).
+ */
+export function lakeCopyAddsNothing(state, raw) {
+  if (!state || !Array.isArray(raw)) return false
+  if (state.restSeen) return localCopyAddsNothing(state, raw)
+  const held = state.bars
+  if (!held || !held.length || !raw.length) return false
+  const tf = String(state.tf)
+  const intraday = !isDateTf(tf)
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    const o = Number(r.o ?? r.open), h = Number(r.h ?? r.high), l = Number(r.l ?? r.low), c = Number(r.c ?? r.close)
+    if (!finite(t) || !isCompleteOhlc({ open: o, high: h, low: l, close: c })) continue
+    if (intraday && offGrid(t, tf)) return false
+    let lo = 0, hi = held.length - 1, at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const mt = held[mid].t
+      if (mt === t) { at = mid; break }
+      if (mt < t) lo = mid + 1; else hi = mid - 1
+    }
+    if (at < 0) return false
+    const b = held[at]
+    if (b.o !== o || b.h !== h || b.l !== l || b.c !== c || b.v !== _vol(r.v ?? r.volume)) return false
+  }
+  return true
 }
 
 /** A server answer's result no longer holds the lake's rows alone. */
@@ -1301,6 +1440,10 @@ export function reduce(state, action, ctx = {}) {
     case ACTION.TICK_FALLBACK: return applyTick(state, action, ctx)
     case ACTION.SCROLL_BACK: return applyScrollBack(state, action, ctx)
     case ACTION.INVALIDATE: return invalidate(state, action.reason, ctx)
+    case ACTION.AWAIT_CLOSED: {
+      const t = numOrNull(action.payload?.t ?? action.t)
+      return t == null || isDateTf(state.tf) ? state : finalize(state, { awaitingClosed: t }, ctx)
+    }
     // ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2): the copy's stamp vouches for nothing any more, so the first answer
     // keeps none of the device's rows newer than itself (applyRest). The rows stay until then (nothing is blanked), and the
     // marker stays: the refusal ('killed') keys on it. Only an entry holding device rows; never with the store off.

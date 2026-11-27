@@ -25,11 +25,13 @@
 // reachability rail's TEST_INFRA rule), invoked by the harness tests and the
 // vitest CLI entry, and must never be imported by a member surface.
 
-import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, WITHHELD_COLOUR_INK } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
 import { createBinder, drawShiftOf, paintColoursFor, plotStripNoticesOf } from '../../binder'
-import { bindWithheldPaintsOf } from './paintColours'
-import { bindingKey } from '../../pool'
+import { OHLC_DEF_STYLES } from '../../defSchema'
+import { bindWithheldPaintsOf, runStopOf } from './paintColours'
+import { bindingKey, resolvePlotForInstance } from '../../pool'
+import { hlineOrdinalOf } from '../../hlineLevels'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -73,6 +75,7 @@ import { instanceDocumentForFetch } from '../../symbolInputs.js'
 import { isStrategyWindowDefinition } from '../../strategyWindow'
 import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
 import { chartStrategyWindowOf } from '../../runtime/__tests__/strategyArmed.js'
+import { plotHiddenAt } from '../../knobBind.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -1276,6 +1279,9 @@ function runtimeAwarePaints(built, def) {
 
 /** Drive the real binder over the recording double; per plot key, the colour
  *  the renderer was handed for every bar (point colour, else series colour). */
+/** ⭐ e98 P3 — a document row drawn as a candle or an OHLC bar (`plots[].style`). */
+const isCandleStyle = (plot) => !!plot && OHLC_DEF_STYLES.includes(plot.style)
+
 function drawnColours(def, bars, ctx, inputs = undefined) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
@@ -1349,11 +1355,24 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     // was never drawn by either platform, so its colour is not a reading
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
-    const shift = drawShiftOf(plot)
+    const shift = drawShiftOf(plot, def, b.inst && b.inst.inputs)
     // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
     // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
     // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
     const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
+    // ⭐ e98 P3 (phase B) — A DRAWN CANDLE'S BODY COLOUR is what the renderer was handed for each bar: the point's own
+    // `color` (`binder.computedOhlcPayload`, from the colour column `plots[].ohlcColors.body` names, on both lanes). A
+    // candle point carries prices, not a `value`. ⛔ Only a candle whose document carries a body colour column: one
+    // without is not read (no colour is read off LWC's up/down defaults), so its colour stays unresolved, by name.
+    if (isCandleStyle(plot)) {
+      if (!(plot.ohlcColors && typeof plot.ohlcColors.body === 'string')) continue
+      out.set(b.plotKey, bars.map((_bar, i) => {
+        const p = byTime.get(String(bars[i].t))
+        if (!p || !Number.isFinite(p.close)) return null
+        return typeof p.color === 'string' ? normalizeColor(p.color) : null
+      }))
+      continue
+    }
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined
@@ -1653,6 +1672,36 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
  * ⚠️ On any path that reached the install door, the caller owns the uninstall
  * (`registry.uninstallUserDefinition(HARNESS_DEF_ID)`).
  */
+/** ⭐⭐ e96 — OUR LEVELS, for the band grade (`compare.mjs::compareBands`): one entry per `hline` call, by its
+ *  ordinal, read off the INSTALLED document's guides at the capture's own settings (`pool.resolvePlotForInstance`,
+ *  the bind path the chart takes), or what the translation and the door said instead (hidden by the author, or
+ *  withheld by name). Nothing is re-derived: the guide drawn IS the level graded. */
+export function bandsOf(def, built, inputs) {
+  const t = built && built.translation
+  const pres = (t && t.presentation) || {}
+  const guides = new Map(((def && def.plots) || []).filter((p) => p && p.style === 'hlines')
+    .map((p) => [hlineOrdinalOf(p.key), p]).filter(([k]) => k !== null))
+  const notes = (built && Array.isArray(built.notes)) ? built.notes : []
+  const out = []
+  for (const u of (Array.isArray(pres.levelsWithheld) ? pres.levelsWithheld : [])) {
+    if (u && Number.isInteger(u.ordinal)) out.push({ ordinal: u.ordinal, withheld: u.reason || 'not read' })
+  }
+  for (const lv of (Array.isArray(pres.levels) ? pres.levels : [])) {
+    if (!lv || !Number.isInteger(lv.ordinal)) continue
+    const title = lv.title || null
+    if (lv.hidden === true) { out.push({ ordinal: lv.ordinal, title, hidden: true }); continue }
+    const label = title || `hline ${lv.ordinal + 1}`
+    const said = notes.find((n) => n && n.name === label && typeof n.note === 'string')
+    const g = guides.get(lv.ordinal)
+    if (!g) { out.push({ ordinal: lv.ordinal, title, withheld: said ? said.note : 'our document carries no level for it' }); continue }
+    const r = resolvePlotForInstance(g, inputs || {})
+    const neutral = r.color === WITHHELD_COLOUR_INK
+    out.push({ ordinal: lv.ordinal, title, value: Number((r.levels || [])[0]), color: r.color, lineStyle: r.lineStyle, width: r.width,
+      ...(neutral ? { neutral: true, reason: said ? said.note : 'its style is not reproduced' } : {}) })
+  }
+  return out.sort((a, b) => a.ordinal - b.ordinal)
+}
+
 export function enterMemberDoor(source) {
   const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
   if (!built.ok) {
@@ -1704,6 +1753,34 @@ const PARITY_CLOCK = () => 0
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
  *            ctx: object, notes: string[]}}
  */
+/** ⭐ e97 U5 — `{role, roleIndex}` of a translator output that is a candle part (`plotcandle` / `plotbar`), read
+ *  off its title (`pine.js::outputTitle` always ends it with the role), or `{}` for anything else. */
+const CANDLE_PART_ROLES = Object.freeze(['open', 'high', 'low', 'close'])
+export function candleRoleOf(o) {
+  if (!o || (o.kind !== 'plotcandle' && o.kind !== 'plotbar') || typeof o.title !== 'string') return {}
+  const role = o.title.split(' ').pop()
+  const roleIndex = CANDLE_PART_ROLES.indexOf(role)
+  return roleIndex < 0 ? {} : { role, roleIndex }
+}
+
+/** ⭐ e97 U5 — the sentence a candle part carries when our side does not draw it because its author hid it. */
+export const AUTHOR_HIDDEN_CANDLE = 'author-hidden on our side (its display is off at the script\'s default inputs); '
+  + 'the capture does not record TradingView\'s display'
+
+/** ⭐ e97 U5 — WHY THE DOOR DID NOT DRAW THIS CANDLE PART, by the door's own answer, or null (drawn, or not a candle):
+ *  `{by, sentence}`. The runtime door names each candle it does not draw by host output index (`candlesNotDrawn`:
+ *  hidden by its author, or withheld by name with its reason); the host translation marks its own author-hidden
+ *  outputs (`hiddenReason: 'author'`). ⛔ The host's `passthrough` hiding is not a reason: such a candle is drawn. */
+export function candleNotDrawnOf(o, index, built) {
+  if (!o || (o.kind !== 'plotcandle' && o.kind !== 'plotbar')) return null
+  if (o.hiddenReason === 'author' || o._authorHidden === true) return { by: 'author', sentence: AUTHOR_HIDDEN_CANDLE }
+  const listed = built && Array.isArray(built.candlesNotDrawn)
+    ? built.candlesNotDrawn.find((c) => Array.isArray(c.outputs) && c.outputs.includes(index)) : null
+  if (!listed) return null
+  if (listed.by === 'author') return { by: 'author', sentence: AUTHOR_HIDDEN_CANDLE }
+  return { by: 'withheld', sentence: `withheld by name on our side${listed.label ? ` (\`${listed.label}\`)` : ''}: ${listed.why}` }
+}
+
 /** Does this column hold no value on any bar (a by-name withholding that reached
  *  every bar)? A missing column answers no: there is nothing to grade either way. */
 export function withholdsEveryBar(column) {
@@ -1956,6 +2033,9 @@ function runOurSideOnTheParityClock(capture) {
       columnErrors: typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {},
       notices: plotStripNoticesOf(registry, def, paintColsRaw),
     })
+    // ⭐ e98 — a run that STOPPED (a run-stop guard on the columns the paints were computed on): a paint it did not draw
+    // is withheld by the run's name in the grade (`paintColours.js::gradePaints`), never a missing colour
+    const paintRunStop = runStopOf(typeof registry.columnErrors === 'function' ? registry.columnErrors(paintColsRaw || {}) : {})
     const lowerReport = registry.lowerTfReport(cols)
     if (lowerReport) {
       for (const c of lowerReport.served) notes.push(`lower timeframe ${c}: served`)
@@ -2052,6 +2132,27 @@ function runOurSideOnTheParityClock(capture) {
     const plots = []
     const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
     const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
+    // ⭐ train e97 (U5 x U6, coordinator ruling 2026-11-25) — A RUNTIME CANDLE'S FOUR PARTS ARE CARRIED. A runtime-lane
+    // candle is ONE row (its close, `output` = the close's host index) whose plot names the other three price columns
+    // (`plots[].ohlc`, `memberPaneDefinition.runtimeLaneDocument`). The open / high / low host outputs had no row of
+    // their own, so a candle the door DRAWS (U6: drawn or hidden as the member's settings decide, `hiddenWhen`) read
+    // "the member pane did not carry this output". Each part is matched to its own column here, so its values are
+    // graded against TradingView's recorded values (TradingView records a display.none plot's values too), and its
+    // drawing is the CANDLE's (`candleKey`: the candle plot's `hiddenWhen`, never the part column's own `hidden`).
+    if (built.lane === 'runtime') {
+      const outs = built.translation.outputs || []
+      for (const r of built.rows || []) {
+        const cp = Number.isInteger(r.output) ? defPlotByKey.get(r.key) : null
+        if (!cp || !cp.ohlc || candleRoleOf(outs[r.output]).role !== 'close') continue
+        CANDLE_PART_ROLES.slice(0, 3).forEach((role, j) => {
+          const at = r.output - 3 + j
+          const part = outs[at]
+          if (!part || part.kind !== outs[r.output].kind || candleRoleOf(part).role !== role) return
+          if (typeof cp.ohlc[role] !== 'string' || rowByOutput.has(at)) return
+          rowByOutput.set(at, { key: cp.ohlc[role], output: at, candleKey: r.key })
+        })
+      }
+    }
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -2063,9 +2164,18 @@ function runOurSideOnTheParityClock(capture) {
       // it, and carries `withheldBy` — which `compare.mjs` grades exactly as it grades
       // a missing column: INCONCLUSIVE, with the reason.
       const col = row && heldBy !== 'bar-index:window' ? cols[row.key] : undefined
+      // ⭐ e97 U5 — a candle part with no row of its own: did the door say why it is not drawn?
+      const notDrawnCandle = row ? null : candleNotDrawnOf(o, index, built)
+      // ⭐ e98 P3 — a candle the door WITHHOLDS by name whose rows it still carries (the host door hides all four and
+      // computes them): its prices are graded, and the grade names that nothing is drawn for it (`candleWithheld`)
+      const listedCandle = row ? candleNotDrawnOf(o, index, built) : null
+      const candleWithheld = listedCandle && listedCandle.by === 'withheld' ? listedCandle.sentence : null
       let missingReason = null
       if (heldBy) {
         missingReason = `withheld on this chart on every bar, by name (${heldBy}) — nothing is drawn for it`
+      } else if (!row && notDrawnCandle) {
+        // ⭐ e97 U5 — a candle the door did not draw, by the door's own reason (`candlesNotDrawn`)
+        missingReason = notDrawnCandle.sentence
       } else if (!row) {
         missingReason = o && o.refusal
           ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
@@ -2101,6 +2211,13 @@ function runOurSideOnTheParityClock(capture) {
         title: o ? o.title : null,
         // the call that made it (`plot`, `plotshape`, ...): the strategy grade pairs `plot()` outputs only
         kind: o && typeof o.kind === 'string' ? o.kind : null,
+        // ⭐ e97 U5 — a candle part's Pine role (`open` / `high` / `low` / `close`) and its place in the call: the
+        // harness pairs candles by them (`compare.mjs::pairCandles`). Read off the translator's own title, which
+        // ALWAYS ends in the role (`pine.js::outputTitle`: "<title> <role>", or the role alone): nothing new is
+        // asked of the engine.
+        ...candleRoleOf(o),
+        ...(notDrawnCandle && !heldBy ? { candleNotDrawn: notDrawnCandle.by } : {}),
+        ...(candleWithheld && !heldBy ? { candleWithheld } : {}),
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
@@ -2111,6 +2228,13 @@ function runOurSideOnTheParityClock(capture) {
         // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
         floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
+        // ⭐ e97 U6 — whether THIS document draws the plot at the capture's settings (`knobBind.js::plotHiddenAt`: its
+        // `hidden`, or `hiddenWhen` at the instance's inputs), for the grade to name a drawing TradingView does not share
+        // ⛔ only where the DISPLAY decided it (a plot hidden for another reason, a condition column, a marker's host row,
+        // is not a drawing TradingView could share or not)
+        drawnHidden: defPlot && o && (o.offPane === true || o.hiddenWhen || o.displayUnread || o.hiddenReason === 'author')
+          // train e97 (U5 x U6): a runtime candle's part is drawn as its CANDLE is (`candleKey`)
+          ? plotHiddenAt((row && row.candleKey && defPlotByKey.get(row.candleKey)) || defPlot, def, instanceInputs || {}) : null,
         column: col || null,
         missingReason,
         lookback: curtain ? curtain.withheldBars : (o && o.ast ? lookbackOf(o.ast) : null),
@@ -2167,6 +2291,8 @@ function runOurSideOnTheParityClock(capture) {
       refusal: null,
       plots,
       objects,
+      // ⭐⭐ e96 — the levels this document draws, at the capture's settings (`bandsOf`)
+      bands: bandsOf(def, built, instanceInputs),
       // ⭐ SETTINGS PARITY (2c) — `{Pine name: TradingView value}` for every setting the capture moved
       capturedInputs: taken.moved,
       ctx,
@@ -2200,6 +2326,7 @@ function runOurSideOnTheParityClock(capture) {
       door: built.lane === 'runtime' ? 'runtime' : 'host',
       // ⭐ G5 — read by `paintColours.gradePaints` where the binder drew nothing
       bindWithheldPaints,
+      ...(paintRunStop ? { paintRunStop } : {}),
       drawnPaints,
       // ⭐ ENGINE 53 — what the door did with the run half (minted / declined by code); the bind's
       // answer (served / refused) rides on `objects.runHalf`.

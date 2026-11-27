@@ -47,25 +47,39 @@ beforeEach(() => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
 })
+// every service a test made is disposed after it, PASS OR FAIL: a failed test must not leave its builds running into
+// the next one (a test that throws never reaches its own `svc.dispose()`)
+const services = []
+const serviceOf = (opts) => { const s = createMemberDoorService(opts); services.push(s); return s }
 afterEach(() => {
+  for (const s of services.splice(0)) s.dispose()
   vi.unstubAllEnvs()
   setRuntimeKillList([])
   __resetRuntimeAdmission()
 })
 
-const settle = async () => { for (let i = 0; i < 6; i += 1) await Promise.resolve() }
+// ⭐ BOUNDED, BY CONSTRUCTION: the stand-in answers by MACROTASK (`answerBy: 'macrotask'`), as a real Worker's messages
+// arrive, and every wait is `until` (a timer loop with its own bound). A microtask stand-in let a mutant that rebuilt
+// on every answer (S9: the answer held back after it lands) spin an endless microtask chain that starved every timer,
+// so neither the test's timeout nor any bound could fire and the file ran until the CI job's 30-minute limit (e96).
 const until = async (pred, ms = 20000) => {
   const t0 = Date.now()
   while (!pred()) {
-    if (Date.now() - t0 > ms) throw new Error('timed out waiting')
+    if (Date.now() - t0 > ms) throw new Error(`timed out waiting (${ms} ms)`)
     await new Promise((r) => setTimeout(r, 5))
   }
 }
+// "at once": what a released or answered build lands must land within this, a few timer turns (S9 holds it 1500 ms)
+const AT_ONCE_MS = 250
+/** This file's stand-in workers: every one answers by macrotask. */
+const doorWorkers = (c, opts = {}) => fakeDoorWorkers(c, typeof opts === 'function'
+  ? (n) => ({ answerBy: 'macrotask', ...opts(n) })
+  : { answerBy: 'macrotask', ...opts })
 
 describe('1. ONE door call per script and state', () => {
   it('⭐⭐ the pane and the status panel share ONE build: while it runs, and after it lands', async () => {
-    const { factory, made } = fakeDoorWorkers(core, { mode: 'hold' })
-    const svc = createMemberDoorService({ factory })
+    const { factory, made } = doorWorkers(core, { mode: 'hold' })
+    const svc = serviceOf({ factory })
     const pane = []
     const status = []
     const late = []
@@ -74,7 +88,7 @@ describe('1. ONE door call per script and state', () => {
     expect(made).toHaveLength(1)
     expect(made[0].jobs, 'one job for two subscribers').toHaveLength(1)
     made[0].release()
-    await settle()
+    await until(() => pane.length === 1 && status.length === 1, AT_ONCE_MS)
     expect(pane).toHaveLength(1)
     expect(status).toHaveLength(1)
     expect(status[0], 'both read THE answer').toBe(pane[0])
@@ -87,8 +101,8 @@ describe('1. ONE door call per script and state', () => {
   }, 120000)
 
   it('a page state that moved between two subscribers is a NEW build (the control: sharing is per state)', async () => {
-    const { factory, made } = fakeDoorWorkers(core)
-    const svc = createMemberDoorService({ factory })
+    const { factory, made } = doorWorkers(core)
+    const svc = serviceOf({ factory })
     const a = []
     const b = []
     const offA = svc.subscribe({ source: ADX }, (l) => a.push(l))
@@ -108,14 +122,14 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
   it('⭐⭐ a newer script stops the running build; the stopped script, still wanted, is built after', async () => {
     // the builds alive when each job is posted: the held jobs of every worker not stopped, and this one
     let maxInFlight = 0
-    const { factory, made } = fakeDoorWorkers(core, () => ({
+    const { factory, made } = doorWorkers(core, () => ({
       mode: 'hold',
       onPost: () => {
         const live = made.filter((w) => !w.terminated).reduce((n, w) => n + w.held.length, 0) + 1
         maxInFlight = Math.max(maxInFlight, live)
       },
     }))
-    const svc = createMemberDoorService({ factory })
+    const svc = serviceOf({ factory })
     const a = []
     const b = []
     const offA = svc.subscribe({ source: RVOL }, (l) => a.push(l))
@@ -124,12 +138,12 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
     expect(made[0].terminated, 'the running build was stopped').toBe(true)
     expect(svc.stats().superseded).toBe(1)
     made[1].release()
-    await settle()
+    await until(() => b.length === 1, AT_ONCE_MS)
     expect(b).toHaveLength(1)
     expect(a, 'the stopped script got nothing of the other script').toHaveLength(0)
     expect(made[1].jobs.map((j) => j.args.source === RVOL), 'the stopped script is built again, once the worker is free').toEqual([false, true])
     made[1].release()
-    await settle()
+    await until(() => a.length === 1, AT_ONCE_MS)
     expect(a).toHaveLength(1)
     expect(canonOf(a[0].built)).toBe(canonOf(doorForPage(memberPaneDefinition({ source: RVOL, id: MEMBER_PANE_DEF_PREFIX }))))
     expect(maxInFlight, 'one build at a time').toBe(1)
@@ -138,8 +152,8 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
   }, 120000)
 
   it('⭐⭐ the member pane\'s rebuild (same script, a newer state): the old build is stopped, only the new one is read', async () => {
-    const { factory, made } = fakeDoorWorkers(core, { mode: 'hold' })
-    const svc = createMemberDoorService({ factory })
+    const { factory, made } = doorWorkers(core, { mode: 'hold' })
+    const svc = serviceOf({ factory })
     const got = []
     const off1 = svc.subscribe({ source: ADX }, (l) => got.push(l))
     setRuntimeKillList(['u_0123456789ab'])   // the kill list landed: the pane asks again (release, subscribe)
@@ -147,7 +161,7 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
     expect(made[0].terminated, 'nobody reads the old build: its worker stopped').toBe(true)
     const off2 = svc.subscribe({ source: ADX }, (l) => got.push(l))
     made[made.length - 1].release()
-    await settle()
+    await until(() => got.length === 1, AT_ONCE_MS)
     expect(got).toHaveLength(1)
     expect(svc.stats().stopped).toBe(1)
     off2()
@@ -155,13 +169,13 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
   }, 120000)
 
   it('a released build stops its worker and answers nobody', async () => {
-    const { factory, made } = fakeDoorWorkers(core, { mode: 'hold' })
-    const svc = createMemberDoorService({ factory })
+    const { factory, made } = doorWorkers(core, { mode: 'hold' })
+    const svc = serviceOf({ factory })
     const got = []
     const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
     off()
     made[0].release()
-    await settle()
+    await new Promise((r) => setTimeout(r, AT_ONCE_MS))   // what it would have landed has had time to land: nothing did
     expect(made[0].terminated).toBe(true)
     expect(got).toHaveLength(0)
     svc.dispose()
@@ -170,8 +184,8 @@ describe('2. cancel-on-rebuild: never two builds racing, never a build nobody as
 
 describe('3. the WATCHDOG: a hung worker is stopped and the script refused by name', () => {
   it('⭐⭐ past the deadline and its grace: terminated, refused with the deadline\'s own answer', async () => {
-    const { factory, made } = fakeDoorWorkers(core, { mode: 'hang' })
-    const svc = createMemberDoorService({ factory, watchdogMs: 40, budgetMs: 300000 })
+    const { factory, made } = doorWorkers(core, { mode: 'hang' })
+    const svc = serviceOf({ factory, watchdogMs: 40, budgetMs: 300000 })
     const got = []
     const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
     await until(() => got.length === 1, 5000)
@@ -188,7 +202,7 @@ describe('3. the WATCHDOG: a hung worker is stopped and the script refused by na
 
 describe('4. a worker that dies is stopped and the script refused by name; a door that threw is said', () => {
   const refusedByName = async (factory) => {
-    const svc = createMemberDoorService({ factory, watchdogMs: 60000 })
+    const svc = serviceOf({ factory, watchdogMs: 60000 })
     const got = []
     const off = svc.subscribe({ source: RVOL }, (l) => got.push(l))
     await until(() => got.length === 1, 5000)
@@ -197,24 +211,24 @@ describe('4. a worker that dies is stopped and the script refused by name; a doo
     return got[0]
   }
   it('⭐⭐ an error it did not catch', async () => {
-    const { factory, made } = fakeDoorWorkers(core, { mode: 'die' })
+    const { factory, made } = doorWorkers(core, { mode: 'die' })
     const l = await refusedByName(factory)
     expect(l.built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
     expect(l.built.ok).toBe(false)
     expect(made[0].terminated).toBe(true)
   }, 30000)
   it('an answer this side cannot read', async () => {
-    const { factory } = fakeDoorWorkers(core, { mode: 'garble' })
+    const { factory } = doorWorkers(core, { mode: 'garble' })
     expect((await refusedByName(factory)).built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
   }, 30000)
   it('a worker that will not start, and a job it cannot be sent', async () => {
     expect((await refusedByName(() => { throw new Error('no workers here') })).built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
-    const unsendable = () => Object.assign(new FakeDoorWorker(core), { postMessage() { throw new Error('DataCloneError') } })
+    const unsendable = () => Object.assign(new FakeDoorWorker(core, { answerBy: 'macrotask' }), { postMessage() { throw new Error('DataCloneError') } })
     expect((await refusedByName(unsendable)).built.guard).toBe(MEMBER_DOOR_WORKER_GUARD)
   }, 30000)
   it('a door that THREW in the worker reaches each consumer as an error (the pane words it by name)', async () => {
     const throwing = { answerMemberDoorJob: (job) => ({ id: job.id, ok: false, error: { name: 'TypeError', message: 'x is undefined' }, consults: [], ms: 1 }) }
-    const { factory } = fakeDoorWorkers(throwing)
+    const { factory } = doorWorkers(throwing)
     const l = await refusedByName(factory)
     expect(l.built).toBe(null)
     expect(l.error).toEqual({ message: 'x is undefined' })
@@ -226,8 +240,8 @@ describe('4. a worker that dies is stopped and the script refused by name; a doo
 
 describe('5. the CONTROL: a fast script answers at once, and its answer is the main thread\'s', () => {
   it('⭐ rvol: answered within a second of a fresh worker, byte for byte', async () => {
-    const { factory } = fakeDoorWorkers(core)
-    const svc = createMemberDoorService({ factory })
+    const { factory } = doorWorkers(core)
+    const svc = serviceOf({ factory })
     const main = memberPaneDefinition({ source: RVOL, id: MEMBER_PANE_DEF_PREFIX })
     const got = []
     const t0 = Date.now()
@@ -247,8 +261,8 @@ describe('6. what the build did to the page is done on the page', () => {
     __resetRuntimeAdmission()
     setRuntimeCapabilityAdmission(true)
     expect(runtimeConsultPendingOf({ source: STOP_TAKE }), 'no consult has been made on this page').toBe(false)
-    const { factory } = fakeDoorWorkers(core)
-    const svc = createMemberDoorService({ factory })
+    const { factory } = doorWorkers(core)
+    const svc = serviceOf({ factory })
     const got = []
     const off = svc.subscribe({ source: STOP_TAKE }, (l) => got.push(l))
     await until(() => got.length === 1)
@@ -270,8 +284,8 @@ describe('6. what the build did to the page is done on the page', () => {
       if (main.ok && main.lane === 'runtime' && runtimeLaneWarmAsks() > before) { source = s; break }
     }
     expect(source, 'a runtime-lane script among the candidates').toBeTruthy()
-    const { factory } = fakeDoorWorkers(core)
-    const svc = createMemberDoorService({ factory })
+    const { factory } = doorWorkers(core)
+    const svc = serviceOf({ factory })
     const got = []
     const mid = runtimeLaneWarmAsks()
     const off = svc.subscribe({ source }, (l) => got.push(l))
@@ -303,7 +317,12 @@ describe('7. the permission: a worker that latched "not permitted" is never aske
     const notPermitted = memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX })
     expect(canonOf(notPermitted), 'the control: the permission changes this answer').not.toBe(canonOf(permitted))
     const made = []
-    const svc = createMemberDoorService({ factory: () => { const w = new FakeDoorWorker(realms[made.length]); made.push(w); return w } })
+    // a macrotask stand-in like every other in this file (this one is built by hand, so it says so itself)
+    const svc = serviceOf({ factory: () => {
+      const w = new FakeDoorWorker(realms[made.length], { answerBy: 'macrotask' })
+      made.push(w)
+      return w
+    } })
     const got = []
     const ask = async () => {
       const n = got.length

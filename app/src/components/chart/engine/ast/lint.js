@@ -85,6 +85,9 @@ import {
  *  proof, so the copy stays and a test binds the two.
  *  ⭐ THE BINDING LIVES IN THE TEST, where both modules may be imported at once. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
+/** ⭐⭐ U-DAILY (e96) — the one `tf` code that is not a resample: a daily read on a chart below a day. The mirror of
+ *  `interpret.js::DAILY_READ`, a literal for the reason above, bound to it by `dailyRead.test.js`. */
+export const DAILY_READ_CODE = 'D'
 /** ⭐ C47 — the spans a FORMING read (`tf_live`) may carry: the mirror of
  *  `interpret.js::TF_LIVE_BASE_BARS` (the quarter, read live only), bound to it
  *  by `lint.test.js` for the same forced reason as the table above. */
@@ -684,6 +687,18 @@ export function astReach(ast, opts = {}) {
         // `repaints`; reporting UNKNOWN would make the badge undecidable.
         // Mirrors `ast_lint.ast_reach`'s `tf` arm.
         const args = Array.isArray(node.args) ? node.args : []
+        // ⭐⭐ U-DAILY (e96) — A DAILY READ ON A CHART BELOW A DAY (`interpret.js::DAILY_READ`). Its child runs on DAILY
+        // bars and each chart bar reads the LAST FINISHED day, never the one it is inside: back is the child's daily
+        // reach plus that day (as `maxLookback` counts it), forward is the child's own (0 for every table function but a
+        // forward one, which keeps its badge). Mirrors `ast_lint.ast_reach`'s `tf` arm.
+        if (String(node.value) === DAILY_READ_CODE && args.length === 1) {
+          const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+          reachOf.set(node, {
+            back: typeof child.back === 'number' ? child.back + 1 : child.back,
+            forward: child.forward,
+          })
+          break
+        }
         const span = TF_BASE_BARS[String(node.value)]
         if (args.length !== 1 || span === undefined) {
           reachOf.set(node, noteUnknown(

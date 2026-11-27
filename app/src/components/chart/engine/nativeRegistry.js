@@ -164,7 +164,7 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
-import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompute'
+import { serverColumnsFor, notifyColumnsLanded, scalarsFor, customTfDepthSignature } from './serverCompute'
 // ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
@@ -198,12 +198,13 @@ import {
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
   historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
   resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD, defaultBoundDocument,
+  astLanePlan,
 } from './astColumns.js'
 import { FIRST_PAGE_CODE, FIRST_PAGE_NOTE } from './firstPage.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
-import { hostLaneColumns } from './hostLaneAsync.js'
+import { hostLaneColumns, isHostLanePending } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -2693,7 +2694,11 @@ export function computeSignature(def, inputs, ctx) {
   if (carriesRunHalf(def)) return runHalfGateSignature(def)
   if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
   const resolved = resolveInputs(def, inputs)
-  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
+  const live = liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf, !!(ctx && ctx.extended))
+  // ⭐ (2026-11-26) on a custom timeframe the compute also reads the benchmark's held bars (`deepenCustomTf`): their
+  // landing is a memo miss, so the line upgrades to the chart's depth on the next paint
+  const deep = customTfDepthSignature(ctx && ctx.tf)
+  return deep ? `${live}|${deep}` : live
 }
 
 /** ⭐ DIV-4 — the run computes the script AS WRITTEN, so its colour is the member's
@@ -3039,68 +3044,10 @@ function withRunHalf(def, out, bars, inputs, ctx) {
     noteRunHalfAnswer(def, src, null)
     return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
   }
-  if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
-    return refused('run-half:malformed')
-  }
-  // ⛔⛔ THE RUN HALF RUNS THE DOCUMENT'S OWN SCRIPT, OR NOTHING. The member door stamps the
-  // script it translated (`meta.pineSourceSha256`, `memberPaneDefinition::RUN_HALF_SOURCE_STAMP`)
-  // and the store saves a run half only when that stamp, `runtimeObjects.source` and the row's
-  // own script are one script (`runtime_definitions.run_half_source_refusal`). A document whose
-  // run half names another script would have that script's (empty or foreign) drawings replace
-  // this one's host picture.
-  const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
-    ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
-  if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
-  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
-  // object program, the output map and the site map, re-derived from this document
-  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
-  // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
-  // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
-  const stamped = originalDocumentOf(def)
-  if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
-  if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
-  const stamp = servedRunStamp(def)
-  if (!runtimePaneBuilt()) return refused('pane:not-built')
-  if (!runtimePanePermitted()) return refused('pane:not-permitted')
-  if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
-  if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
-  if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
-    return refused(RUNTIME_FORMING_GUARD)
-  }
-  const stop = runtimeErrorStopOf(out)
-  if (stop && stop.reached) return refused('runtime:runtime.error')
-  // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
-  // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
-  // the instance's values in its own names (`runHalfRunInputs`: a host input by its Pine name, a
-  // folded length by its `sourceName`, a drawing-only setting by its key), and the column rail
-  // below still holds every mapped run column to the host's at those same settings. A moved
-  // setting is served only on recorded evidence (`runHalfSettingsAdmitted`: two captures that
-  // count, taken with that setting moved, graded against TradingView); a moved setting the run
-  // cannot be handed (a plot colour) or one without evidence is refused by name, as before.
-  const runIn = runHalfRunInputs(def, inputs)
-  if (!runIn.ok) return refused('runtime:member-inputs')
-  // only a moved setting a DRAWING can read needs evidence of its own (`drawingReadNames`): one no
-  // drawing reads (an average's length) leaves the drawings the defaults' evidence already graded
-  if (runIn.needsEvidence.length && !runHalfSettingsAdmitted(runHalfSourceHashOf(ro), runIn.needsEvidence).ok) {
-    return refused('runtime:member-inputs')
-  }
-  if (!_runtimeLane) {
-    if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
-    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
-    return refused('runtime:not-loaded')
-  }
-  let cols
-  try {
-    cols = _runtimeLane(runHalfDefOf(def, ro), bars, runIn.values, ctx)
-  } catch (err) {
-    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
-    // run in flight, not a refusal: seen on production, the note under a chart read "the script
-    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
-    // the bars took to load, and a different reason once they had. Held, with nothing said about
-    // a cause, until the run can answer.
-    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
-    return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
-  }
+  const asked = askRunHalf(def, bars, inputs, ctx, out)
+  if (asked.refused) return refused(asked.refused)
+  if (asked.pending) return answered('pending', asked.pending, asked.waitingFor || null)
+  const { cols } = asked
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
@@ -3153,6 +3100,103 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   return answered('served', null)
 }
 
+// (askRunHalf / primeRunHalf sit AFTER withRunHalf and before the gate signature: the refusal-telemetry rail,
+// `tests/test_run_half_refusal_telemetry.py`, reads every refusal code between those two functions.)
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — THE RUN HALF'S GATES AND ITS ASK, without the rails: what `withRunHalf`
+ *  reads before it compares anything. `{refused: code}`, `{pending: code, waitingFor?}`, or `{cols, runIn}` (the run's
+ *  columns, its drawings riding them). Asking twice for the same bars is one run (`runtimeColumnsFor`'s memo), so
+ *  `primeRunHalf` can ask it EARLY and `withRunHalf` finds the run already started, or already landed. */
+function askRunHalf(def, bars, inputs, ctx, out = null) {
+  const ro = def.compute.runtimeObjects
+  const refused = (code) => ({ refused: code })
+  const answered = (_state, code, waitingFor = null) => ({ pending: code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
+    return refused('run-half:malformed')
+  }
+  // ⛔⛔ THE RUN HALF RUNS THE DOCUMENT'S OWN SCRIPT, OR NOTHING. The member door stamps the
+  // script it translated (`meta.pineSourceSha256`, `memberPaneDefinition::RUN_HALF_SOURCE_STAMP`)
+  // and the store saves a run half only when that stamp, `runtimeObjects.source` and the row's
+  // own script are one script (`runtime_definitions.run_half_source_refusal`). A document whose
+  // run half names another script would have that script's (empty or foreign) drawings replace
+  // this one's host picture.
+  const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
+    ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
+  if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
+  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
+  // object program, the output map and the site map, re-derived from this document
+  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
+  // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
+  const stamped = originalDocumentOf(def)
+  if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
+  const stamp = servedRunStamp(def)
+  if (!runtimePaneBuilt()) return refused('pane:not-built')
+  if (!runtimePanePermitted()) return refused('pane:not-permitted')
+  if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
+  if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
+    return refused(RUNTIME_FORMING_GUARD)
+  }
+  // the host's own `runtime.error` stop, read where the host values are in hand (`withRunHalf`); an early ask
+  // (`primeRunHalf`) has none yet, and the later ask refuses on it exactly here
+  const stop = out ? runtimeErrorStopOf(out) : null
+  if (stop && stop.reached) return refused('runtime:runtime.error')
+  // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
+  // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
+  // the instance's values in its own names (`runHalfRunInputs`: a host input by its Pine name, a
+  // folded length by its `sourceName`, a drawing-only setting by its key), and the column rail
+  // below still holds every mapped run column to the host's at those same settings. A moved
+  // setting is served only on recorded evidence (`runHalfSettingsAdmitted`: two captures that
+  // count, taken with that setting moved, graded against TradingView); a moved setting the run
+  // cannot be handed (a plot colour) or one without evidence is refused by name, as before.
+  const runIn = runHalfRunInputs(def, inputs)
+  if (!runIn.ok) return refused('runtime:member-inputs')
+  // only a moved setting a DRAWING can read needs evidence of its own (`drawingReadNames`): one no
+  // drawing reads (an average's length) leaves the drawings the defaults' evidence already graded
+  if (runIn.needsEvidence.length && !runHalfSettingsAdmitted(runHalfSourceHashOf(ro), runIn.needsEvidence).ok) {
+    return refused('runtime:member-inputs')
+  }
+  if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
+    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
+    return refused('runtime:not-loaded')
+  }
+  let cols
+  try {
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, runIn.values, ctx)
+  } catch (err) {
+    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
+    // run in flight, not a refusal: seen on production, the note under a chart read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the bars took to load, and a different reason once they had. Held, with nothing said about
+    // a cause, until the run can answer.
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
+    return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
+  }
+  return { cols, runIn }
+}
+
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — START THE RUN HALF BESIDE ITS HOST JOB, NOT AFTER IT.
+ *  ⚰️ Measured (production-flag bundle, smoke@ AGL 1D, n=20, 2026-11-26): the run half was asked only when the host
+ *  lane's values LANDED (`astLaneFinish` → `astRunExtras` → `withRunHalf`), so a chart whose host values went to the
+ *  host worker posted its run 170-300 ms after the bars were in hand, and the RS label waited for both in series. The
+ *  run reads the bars, the settings and the other-symbol cache, never the host's values (only the rails compare them,
+ *  after both have landed), so it is asked here, the moment the host job goes out, with exactly the arguments
+ *  `astLaneFinish` will hand `withRunHalf` (`plan.def`, `plan.rows`): the same run, found by its memo when the host
+ *  lands. ⛔ A `calc_bars_count` window or a whole answer (`plan.done`) is left to `withRunHalf`, as before; nothing
+ *  here is drawn, noted or refused. */
+function primeRunHalf(def, bars, inputs, ctx) {
+  try {
+    const plan = astLanePlan(def, bars, inputs, ctx)
+    if (plan.done || plan.win || !plan.def.compute || !plan.def.compute.runtimeObjects) return false
+    askRunHalf(plan.def, plan.rows, inputs, ctx)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
  *  (def, bars, inputs) key: the per-member permission and this tab's lists. Joined to the
  *  binder's memo key (`computeSignature`), so a revoked latch or a kill reaches an open
@@ -3189,6 +3233,9 @@ export function computeFor(def, bars, inputs, ctx) {
     // answer with the pane's last picture until they land). Every request that is not a chart's is
     // answered here exactly as before.
     const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    // ⭐⭐ (Fred RS run half, 2026-11-26) — the host values are in the worker: its run half is asked NOW, beside
+    // them, so the drawings land with the values instead of a run after them (`primeRunHalf`)
+    if (pane && def.compute.runtimeObjects && isHostLanePending(pane)) primeRunHalf(def, bars, inputs, ctx)
     if (pane) return pane
     return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
@@ -3749,6 +3796,57 @@ function heldDivergenceRefused(def, errors, killedIds) {
   return true
 }
 
+// ─── ⭐⭐ (e101 S4, coordinator GO 2026-11-27) — AN UNCHANGED LIST IS NOT VALIDATED TWICE ─────────────────────────────
+//
+// ⚰️ MEASURED (node, a remote runner, 27 member documents: 18 `ast`, 9 runtime): `validateUserDefinitions` 125-178 ms,
+// and installing the SAME list again 153 ms, because nothing was kept. Since #2865 every load validates the member's
+// kept list on the chart's first render, and validates it again in full when the store's answer lands, which is
+// almost always the same list.
+// So the PURE stage is kept for the last lists seen, keyed on their content: the whole list's JSON, compared as text (no
+// hash, so no collision can hand one list another's verdicts). The key is the LIST, not each document: a definition may
+// source another's columns (`registerDefinitions`).
+//   * the projection (`projectMemberDocument`) and the schema's three passes (`registerDefinitions`);
+//   * each `ast` document's gates (`validateAstLane`: the linter, the budget, the freshness), computed when first asked.
+// Both are functions of the documents' content and of this bundle (`closedTable.json`, the schema) alone.
+// ⛔ EVERY LIVE GATE IS ASKED AGAIN ON EVERY CALL (`validateUserDefinitions`'s loop): the runtime pane's permission,
+// the kill list (`runtimeKillOf`), the held-divergence and known-divergence stamps. A stamp is content, so a changed
+// stamp is a changed key as well. ⛔ The kept stage holds no live answer and is never written back into a document.
+const VALIDATION_MEMO_CAP = 2
+const _validationMemo = new Map()   // list content key -> { base, laneErrorsOf }
+const _validationMemoStats = { hits: 0, misses: 0, pureRuns: 0 }
+let _validationMemoOff = false
+/** Tests: validate every list in full (the identity rails compare both ways). */
+export function __validationMemoOffForTests(off) { _validationMemoOff = !!off; _validationMemo.clear() }
+/** ⭐ What the memo did (diagnostics and its rails). */
+export function validationMemoStats() { return { ..._validationMemoStats, kept: _validationMemo.size } }
+function pureValidationOf(rawDefs) {
+  const compute = () => {
+    _validationMemoStats.pureRuns += 1
+    const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
+    const lane = new Map()
+    return { base, laneErrorsOf: (def) => {
+      if (!lane.has(def)) lane.set(def, validateAstLane(def))
+      return lane.get(def)
+    } }
+  }
+  if (_validationMemoOff || !Array.isArray(rawDefs)) return compute()
+  let key
+  try { key = JSON.stringify(rawDefs) } catch { return compute() }
+  if (typeof key !== 'string') return compute()
+  const kept = _validationMemo.get(key)
+  if (kept) {
+    _validationMemoStats.hits += 1
+    _validationMemo.delete(key)
+    _validationMemo.set(key, kept)
+    return kept
+  }
+  _validationMemoStats.misses += 1
+  const fresh = compute()
+  _validationMemo.set(key, fresh)
+  while (_validationMemo.size > VALIDATION_MEMO_CAP) _validationMemo.delete(_validationMemo.keys().next().value)
+  return fresh
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3792,7 +3890,10 @@ export function validateUserDefinitions(rawDefs) {
   // idempotent (`memberDocumentMigration.js`): a condition column its parameter
   // manifest never placed, and a handle an old parameter edit left stale. Never a
   // server-side write: the stored row is untouched; only what this tab installs moves.
-  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
+  // ⭐⭐ (e101 S4) the pure stage (projection, schema, the `ast` gates) is read from the memo for a list it has seen;
+  // every LIVE gate below (the runtime pane's permission, the kill list, the stamps) is asked again on every call
+  const pure = pureValidationOf(rawDefs)
+  const base = pure.base
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or
@@ -3861,7 +3962,7 @@ export function validateUserDefinitions(rawDefs) {
       }
       // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
       if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
-      const laneErrors = validateAstLane(def)
+      const laneErrors = pure.laneErrorsOf(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
         continue
@@ -6107,7 +6208,8 @@ export function installUserDefinitions(rawDefs) {
       continue
     }
     const prev = _userById.get(def.id)
-    if (prev && installKey(prev) === installKey(def)) { installed.push(prev); continue }
+    // ⭐ (e101 S4) the SAME object (an unchanged list read from the validation memo): the same claim, nothing to print
+    if (prev && (prev === def || installKey(prev) === installKey(def))) { installed.push(prev); continue }
     _userById.set(def.id, def)
     _generation += 1
     installed.push(def)

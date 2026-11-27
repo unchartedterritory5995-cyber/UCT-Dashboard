@@ -29,6 +29,12 @@ THE PROTOCOL IT ENFORCES
 Any deviation is reported and exits non-zero. After each of its two writes (2 and 4) the tool
 deletes the file's own cached bytecode, so neither run can execute the other's (`_drop_bytecode`).
 
+A HANG IS NOT A KILL, AND A TIMEOUT STOPS THE WHOLE TREE (`--timeout`, e96 2026-11-25). Each rail run has its own
+bound (default 1500 s, under CI's 30-minute job limit, so the harness reports and restores before CI kills it). On
+timeout the rail's WHOLE process tree is stopped (Windows `taskkill /F /T`; POSIX its own process group), never just
+the shell: an outer `timeout` that killed only this harness once left a vitest child running on the mutated code,
+growing to 7 GB, with the mutated file still on disk. A timed-out rail is reported as such and is NOT a kill.
+
 USAGE
 -----
     python tools/mutation_check.py \
@@ -45,9 +51,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
+import signal
 import subprocess
 import sys
 from pathlib import Path
+
+#: A rail run's default bound, in seconds (under CI's 30-minute job limit).
+DEFAULT_TIMEOUT_S = 1500
 
 
 def _digest(b: bytes) -> str:
@@ -88,7 +99,7 @@ def _drop_bytecode(path: Path) -> None:
             print(f"    could not remove cached bytecode {pyc}: {e}")
 
 
-def _run(cmd: str) -> tuple[int, str]:
+def _run(cmd: str, timeout: float = DEFAULT_TIMEOUT_S) -> tuple[int | None, str]:
     """Run the rail and capture everything it said.
 
     DECODE AS UTF-8, NEVER THE LOCALE CODEC. `text=True` decodes with the
@@ -101,10 +112,33 @@ def _run(cmd: str) -> tuple[int, str]:
     whole job is saying whether a rail is real answers "no" for a reason that
     has nothing to do with the rail. errors="replace" because a mangled glyph
     in a diagnostic is nothing; a lost diagnostic is the bug above.
+
+    Returns ``(None, output)`` when the rail outlived ``timeout`` seconds: its whole process tree has then been
+    stopped (`_kill_tree`), never only the shell that started it.
     """
-    p = subprocess.run(cmd, shell=True, capture_output=True,
-                       encoding="utf-8", errors="replace")
-    return p.returncode, (p.stdout or "") + (p.stderr or "")
+    popen_kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **popen_kw)
+    try:
+        out, _ = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _kill_tree(p)
+        try:
+            out, _ = p.communicate(timeout=60)
+        except subprocess.TimeoutExpired:
+            out = b""
+        return None, (out or b"").decode("utf-8", errors="replace")
+    return p.returncode, (out or b"").decode("utf-8", errors="replace")
+
+
+def _kill_tree(p: subprocess.Popen) -> None:
+    """Stop the rail's WHOLE process tree: the shell, the runner it started and every worker under them."""
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True)
+    else:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)   # its own session (start_new_session): the group is the tree
+        except ProcessLookupError:
+            pass
 
 
 def main() -> int:
@@ -118,6 +152,9 @@ def main() -> int:
     ap.add_argument("--set", dest="set_line", help="new text for --line")
     ap.add_argument("--test", required=True, help="shell command that runs the rail")
     ap.add_argument("--expect-red", help="substring that must appear in the FAILING output")
+    ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S,
+                    help=f"seconds per rail run (default {DEFAULT_TIMEOUT_S}); on timeout the rail's whole process "
+                         f"tree is stopped and the run is reported as timed out, never as a kill")
     args = ap.parse_args()
 
     path = Path(args.file)
@@ -159,8 +196,12 @@ def main() -> int:
         _drop_bytecode(path)
 
         # 3. REQUIRE RED
-        code, out = _run(args.test)
-        if code == 0:
+        code, out = _run(args.test, args.timeout)
+        if code is None:
+            print(f"[3] [X] THE RAIL TIMED OUT after {args.timeout:g} s -- a hang is not a kill. Its whole process "
+                  f"tree was stopped. A rail must fail in finite time to prove anything.")
+            ok = False
+        elif code == 0:
             print("[3] [X] THE RAIL DID NOT FAIL -- it does not detect this mutation.")
             print("     A test that stays green through a broken implementation "
                   "is not a rail.")
@@ -189,8 +230,11 @@ def main() -> int:
         print(f"[4] restored {path}")
 
     # 5. REQUIRE GREEN AGAIN
-    code, _ = _run(args.test)
-    if code != 0:
+    code, _ = _run(args.test, args.timeout)
+    if code is None:
+        print(f"[5] [X] rail TIMED OUT after restore ({args.timeout:g} s; its whole process tree was stopped)")
+        ok = False
+    elif code != 0:
         print(f"[5] [X] rail is RED after restore (exit {code}) -- the file may not "
               f"be what it was, or the rail was already failing before this ran.")
         ok = False

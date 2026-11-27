@@ -1072,7 +1072,7 @@ def test_a_builtin_is_added_from_the_dialog_by_its_measured_search_and_its_ident
     assert page.searches == ["VWAP"]                       # the measured term, from the table: the row named none
     cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
     assert cap["study"]["id"] == "Script$STD;VWAP@tv-scripting"
-    assert {"id": "in_1", "value": "Earnings"} in cap["study"]["inputs"]
+    assert {"id": "in_1", "name": "Anchor Period", "defval": "Session", "value": "Earnings"} in cap["study"]["inputs"]
     assert cap["source"]["text"] == bc.builtin_label(VWAP_ROW)                  # the GENERATED label, verbatim
     assert cap["source"]["sha256"] == manifest["scripts"][0]["sha256"] == hashlib.sha256(
         bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
@@ -1311,3 +1311,48 @@ def test_the_menu_and_add_scripts_evaluate_the_railed_finder_in_its_container():
     rest = bc.ADD_JS.replace(bc.BINDING_JS, "").replace(bc.CONTROL_FINDER_JS, "")
     assert "querySelectorAll" not in rest and "querySelectorAll" not in bc.MENU_ITEM_JS.replace(bc.CONTROL_FINDER_JS, "")
     assert bc.ADD_JS.count(".click()") == 1 and "f.el.click()" in bc.ADD_JS
+
+
+# ── a PASTED script's input overrides (`scriptInputs`, coordinator ruling 2026-11-26) ─────────────────────────────────
+# kernel-channel-backquant's "Color Bars By Regime" (in_7) ON, captured against the committed source byte for byte: the
+# override is set by label or id, read back, then CONFIRMED from a separate read of the chart's own study inputs before
+# anything is captured; a chart that does not hold it stops the row by name.
+def _with_inputs(tmp_path, inputs, page_setup=None):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0]["scriptInputs"] = inputs
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    if page_setup:
+        page_setup(page)
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    return page, code, rd.results()["x"]
+
+
+@pytest.mark.parametrize("key", ["Color Bars By Regime", "in_7"])
+def test_a_pasted_script_input_is_set_confirmed_and_captured(tmp_path, key):
+    page, code, res = _with_inputs(tmp_path, {key: True})
+    assert res["outcome"] == bc.CAPTURED and code == 0, res
+    steps = res["steps"]
+    want = ["add", "compute", "script:input_ids", "script:input-in_7", "script:inputs-confirmed", "inject", "vh_capture"]
+    pos = [steps.index(w) for w in want]
+    assert pos == sorted(pos), steps
+    cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+    assert {"id": "in_7", "name": "Color Bars By Regime", "defval": False, "value": True} in cap["study"]["inputs"]
+    assert cap["source"]["text"] == 'indicator("X")\nplot(close)\n'          # the source untouched: byte for byte
+
+
+def test_a_chart_that_does_not_hold_the_override_stops_the_row_and_captures_nothing(tmp_path):
+    page, code, res = _with_inputs(tmp_path, {"in_7": True}, lambda p: setattr(p, "inputs_revert", ("in_7",)))
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "do not hold the row's override" in res["reason"] and "in_7" in res["reason"]
+    assert "inject" not in res["steps"] and not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def test_an_unknown_input_stops_the_row_by_name(tmp_path):
+    page, code, res = _with_inputs(tmp_path, {"No Such Input": True})
+    assert res["outcome"] == bc.GATE_FAILED and "no input labelled 'No Such Input'" in res["reason"], res
+
+
+def test_script_inputs_on_a_builtin_or_malformed_are_refused_before_any_page_step():
+    assert "builtinInputs" in bc.script_inputs_refusal([{"slug": "b", "builtin": {"id": "STD;VWAP"}, "scriptInputs": {"x": 1}}])
+    assert "scriptInputs must name" in bc.script_inputs_refusal([{"slug": "p", "scriptInputs": {}}])
+    assert bc.script_inputs_refusal([{"slug": "p", "scriptInputs": {"in_7": True}}]) is None

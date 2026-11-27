@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 627, host refusals 676) · objects-only pane ARMED · runtime drew 279, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 633, host refusals 682) · objects-only pane ARMED · runtime drew 285, declined 348 · strategy lane: broker gate ON, 88 graded on their trades, 73 broker run(s)
 
-Graded at script engine **95**.
+Graded at script engine **98**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -34,10 +34,10 @@ adx-and-di-for-v4-spy-1d-2026-10-03          AMEX:SPY 1D      3      MATCH      
     DI-                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     ADX                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.67e-15
     objects                                  MATCH         neither side draws an object
-adx-and-di-for-v4-spy-1d-2026-11-17          AMEX:SPY 1D      3      MATCH             all 4 items agree
-    DI+                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
-    DI-                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
-    ADX                                      MATCH             cmp 8509 ok 7943 warm 566/579 steady 0/7930 maxRel 0.00e+0
+adx-and-di-for-v4-spy-1d-2026-11-17          AMEX:SPY 1D      3      INCONCLUSIVE      3 of 4 items could not be compared
+    DI+                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    DI-                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    ADX                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 all-chart-patterns-theeccentrictrader-rddt-1 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 157 paired slots; 43 slots on objects neither side draws not graded; coordinates are NOT compared by v1
@@ -167,14 +167,14 @@ bolingger-bands-inside-bar-boxes-rddt-1d-202 NYSE:RDDT 1D     5      INCONCLUSIV
     Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
     paints                                   MATCH         1 paint agree bar for bar
-bolingger-bands-inside-bar-boxes-spy-1d-2026 AMEX:SPY 1D      5      INCONCLUSIVE      1 of 7 items could not be compared
-    Basis                                    MATCH             cmp 8509 ok 8258 warm 251/270 steady 0/8239 maxRel 0.00e+0
-    Upper                                    MATCH             cmp 8509 ok 8258 warm 251/270 steady 0/8239 maxRel 1.27e-13
-    Lower                                    MATCH             cmp 8509 ok 8258 warm 251/270 steady 0/8239 maxRel 1.28e-13
-    Shapes                                   MATCH             cmp 8509 ok 8486 warm 23/270 steady 0/8239 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8509 ok 8496 warm 13/270 steady 0/8239 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
-    paints                                   MATCH         1 paint agree bar for bar
+bolingger-bands-inside-bar-boxes-spy-1d-2026 AMEX:SPY 1D      5      INCONCLUSIVE      6 of 6 items could not be compared
+    Basis                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Upper                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    Lower                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    Shapes                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    Shapes                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:history-start: this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.)
+    paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_3)
 bollinger-band-width-percentile-rddt-1d-2026 NYSE:RDDT 1D     4      MATCH             all 6 items agree
     BBWP                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     MA                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -239,17 +239,7 @@ candlestick-patterns-identified-update-1-17- AMEX:SPY 1D      15     MATCH      
     Inverted Hammer                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 candlestick-patterns-on-backtest-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `MUQWISHI/CandlestickPatterns/2` is not in this engine's library registry, so its code cannot be compiled
-cc-yata-rddt-1d-2026-09-27                   NYSE:RDDT D      54     INCONCLUSIVE      10 of 55 items could not be compared
-    b9                                       INCONCLUSIVE       — UNMAPPED — vendor title "b9" is not unique in the study
-    s9                                       INCONCLUSIVE       — UNMAPPED — vendor title "s9" is not unique in the study
-    b9                                       INCONCLUSIVE       — UNMAPPED — vendor title "b9" is not unique in the study
-    s9                                       INCONCLUSIVE       — UNMAPPED — vendor title "s9" is not unique in the study
-    +                                        INCONCLUSIVE       — UNMAPPED — vendor title "+" is not unique in the study
-    os13                                     INCONCLUSIVE       — UNMAPPED — vendor title "os13" is not unique in the study
-    oa13                                     INCONCLUSIVE       — UNMAPPED — vendor title "oa13" is not unique in the study
-    +                                        INCONCLUSIVE       — UNMAPPED — vendor title "+" is not unique in the study
-    os13                                     INCONCLUSIVE       — UNMAPPED — vendor title "os13" is not unique in the study
-    oa13                                     INCONCLUSIVE       — UNMAPPED — vendor title "oa13" is not unique in the study
+cc-yata-rddt-1d-2026-09-27                   NYSE:RDDT D      54     MATCH             all 55 items agree
     b1                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     b2                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     b3                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
@@ -294,6 +284,16 @@ cc-yata-rddt-1d-2026-09-27                   NYSE:RDDT D      54     INCONCLUSIV
     bc11                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     bc12                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     bc13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    b9                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    b9                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    s9                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    s9                                       MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    +                                        MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    +                                        MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    os13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    os13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    oa13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    oa13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 cdc-btc-rainbow-road-spy-1d-2026-10-02       AMEX:SPY 1D      13     MATCH             all 14 items agree
     Lower Channel                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.64e-15
@@ -623,11 +623,11 @@ fvg-trend-rddt-1d-2026-11-17                 NYSE:RDDT 1D     2      MATCH      
     Plot                                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-fvg-trend-spy-1d-2026-11-17                  AMEX:SPY 1D      2      MATCH             all 4 items agree
-    fvgCounter                               MATCH             cmp 8509 ok 8254 warm 255/255 steady 0/8254 maxRel 0.00e+0
-    Plot                                     MATCH             cmp 8509 ok 8254 warm 255/255 steady 0/8254 maxRel 0.00e+0
+fvg-trend-spy-1d-2026-11-17                  AMEX:SPY 1D      2      INCONCLUSIVE      3 of 4 items could not be compared
+    fvgCounter                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
-    paints                                   MATCH         1 paint agree bar for bar
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: bgcolor plot_2 "Background Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 fx-market-sessions-rddt-1d-2026-11-15        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `boitoki/AwesomeColor/9` is not in this engine's library registry, so its code cannot be compiled
 h3-alma-v4-rddt-1d-2026-10-02                NYSE:RDDT 1D     8      MATCH             all 9 items agree
     A00_bar_index_CONTROL                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -730,11 +730,11 @@ inside-bar-boxes-rddt-1d-2026-11-17          NYSE:RDDT 1D     2      INCONCLUSIV
     Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
     paints                                   MATCH         1 paint agree bar for bar
-inside-bar-boxes-spy-1d-2026-11-17           AMEX:SPY 1D      2      INCONCLUSIVE      1 of 4 items could not be compared
-    Shapes                                   MATCH             cmp 8509 ok 8483 warm 26/261 steady 0/8248 maxRel 0.00e+0
-    Shapes                                   MATCH             cmp 8509 ok 8493 warm 16/261 steady 0/8248 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
-    paints                                   MATCH         1 paint agree bar for bar
+inside-bar-boxes-spy-1d-2026-11-17           AMEX:SPY 1D      2      INCONCLUSIVE      4 of 4 items could not be compared
+    Shapes                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Shapes                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:history-start: this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.)
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_0 "Bar Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     2      MATCH             all 4 items agree
     Shapes                                   MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Shapes                                   MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -765,9 +765,17 @@ inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH      
     Shapes                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         2 paints agree bar for bar
-institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     0      MATCH             all 1 items agree
+institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      MATCH             all 5 items agree
+    Heatmap Candles open                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles high                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles low                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles close                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; coordinates are NOT compared by v1
-institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      0      MATCH             all 1 items agree
+institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      MATCH             all 5 items agree
+    Heatmap Candles open                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles high                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles low                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles close                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 1105 paired slots; coordinates are NOT compared by v1
 ipda-standard-deviations-dexterlab-x-tfo-x-t NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:call-undeclared-builtin-state]: the pasted script offers no plot and no alert condition to filter on
 k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
@@ -840,12 +848,36 @@ keltner-channels-bands-spy-1d-2026-10-03     AMEX:SPY 1D      7      MATCH      
     Upper 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.70e-16
     Lower 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.95e-16
     objects                                  MATCH         neither side draws an object
-kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     3      MATCH             all 5 items agree
+kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     7      MATCH             all 9 items agree
     Kernel Midline                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Upper Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Lower Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         3 paints agree bar for bar
+kernel-channel-backquant-regime-rddt-1d-2026 NYSE:RDDT 1D     7      MATCH             all 9 items agree
+    Kernel Midline                           MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    Upper Band                               MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    Lower Band                               MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    open                                     MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    high                                     MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    low                                      MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    close                                    MATCH             cmp 674 ok 674 warm 0/0 steady 0/674 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         3 paints agree bar for bar
+kernel-channel-backquant-regime-spy-1d-2026- AMEX:SPY 1D      7      INCONCLUSIVE      8 of 9 items could not be compared
+    Kernel Midline                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:limit)
+    Upper Band                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:limit)
+    Lower Band                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:limit)
+    plot_10                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:limit)
+    plot_11                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:limit)
+    plot_12                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:limit)
+    plot_13                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:limit)
+    objects                                  MATCH         neither side draws an object
+    paints                                   INCONCLUSIVE  2 paints agree bar for bar; 1 paint withheld by name, not graded (first: bgcolor plot_7 "Background Color" — our run stopped (runtime:limit), so nothing is drawn for it)
 lib-v5-in-v6-rddt-1d-2026-11-16              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `BarefootJoey/AstroLib/1` is not in this engine's library registry, so its code cannot be compiled
 linear-regression-channel-200-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:call-undeclared-builtin-state]: this Pine call answers with several values at once and a column carries one — `price1` — `calculateRegression` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `calculateRegression`)
 linear-regression-channel-tradingfinder-exis NYSE:RDDT 1D     0      MATCH             all 1 items agree
@@ -959,10 +991,10 @@ machine-learning-moving-average-backquant-rd NYSE:RDDT 1D     1      MATCH      
     ML MA                                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 53 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      DIVERGE           1 of 3 compared items diverge
-    ML MA                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:limit)
-    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:limit: this script went past the number of array operations a script may make over the whole chart (at most 4,254,500 for 8,509 bars, it reached 4,254,644) on bar 5,602 of 8,509, so it is stopped and nothing is drawn rather than part of it.)
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_6 "Bar Color" notDrawn)
+machine-learning-moving-average-backquant-sp AMEX:SPY 1D      1      INCONCLUSIVE      3 of 3 items could not be compared
+    ML MA                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:history-start: this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.)
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_6 "Bar Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 machine-learning-rsi-bullvision-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:conditional-history]: this Pine call answers with several values at once and a column carries one — `knnRsi` — `knnEnhancedRsi` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `knnEnhancedRsi`)
 madrid-moving-average-ribbon-rddt-1d-2026-09 NYSE:RDDT 1D     18     MATCH             all 19 items agree
     MMA05                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 4.49e-16
@@ -1125,10 +1157,10 @@ multicator-table-rddt-1d-2026-10-02          NYSE:RDDT 1D     28     DIVERGE    
     Conversion Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Base Line                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1155,10 +1187,10 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     Conversion Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Base Line                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1179,8 +1211,8 @@ nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIV
     Rational Quadratic Kernel Estimate       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
-nadaraya-watson-rational-quadratic-kernel-no AMEX:SPY 1D      2      INCONCLUSIVE      1 of 3 items could not be compared
-    Rational Quadratic Kernel Estimate       MATCH             cmp 8509 ok 8258 warm 251/277 steady 0/8232 maxRel 0.00e+0
+nadaraya-watson-rational-quadratic-kernel-no AMEX:SPY 1D      2      INCONCLUSIVE      2 of 3 items could not be compared
+    Rational Quadratic Kernel Estimate       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
 neural-network-buy-and-sell-signals-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:block-value]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `buy_signal_shortStop[1]` reads what `buy_signal_shortStop` held on an earlier bar, and this script reassigns it
@@ -1202,78 +1234,78 @@ one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     4      MATCH      
     Short                                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      4      DIVERGE           1 of 6 compared items diverge
-    OS Gaussian SR Rate                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    Middle                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    Long                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    Short                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      4      INCONCLUSIVE      5 of 6 items could not be compared
+    OS Gaussian SR Rate                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Middle                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    Long                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    Short                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_4 "Bar Color" notDrawn)
-open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
-open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_4 "Bar Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
+open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     OR High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     IB High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     OR High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     IB High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     OR High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     OR High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     IB High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      INCONCLUSIVE      all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     Upper                                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.65e-16
@@ -1396,22 +1428,22 @@ pivot-point-supertrend-spy-1d-2026-10-03     AMEX:SPY 1D      8      MATCH      
     objects                                  MATCH         neither side draws an object
 pivot-trendlines-with-breaks-hg-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `HoanGhetti/SimpleTrendlines/4` is not in this engine's library registry, so its code cannot be compiled
 pmax-explorer-rddt-1d-2026-10-02             NYSE:RDDT 1D     7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.81e-16
     PMax                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.62e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.87e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.63e-16
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 pmax-explorer-spy-1d-2026-10-02              AMEX:SPY 1D      7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.05e-16
     PMax                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.29e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.20e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 3.72e-16
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
@@ -1517,24 +1549,24 @@ renko-candles-overlay-spy-1d-2026-10-03      AMEX:SPY 1D      0      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 288 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
 request-realtime-alignment-spy-5-2026-10-01  AMEX:SPY 5       8      INCONCLUSIVE      8 of 9 items could not be compared
-    R1_close_D_lookahead_ON                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:request)
-    R2_close_D_lookahead_OFF                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:request)
-    R3_DELTA_on_minus_off                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:request)
-    R4_isrealtime                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:request)
-    R5_islast                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:request)
-    R6_chart_close                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:request)
-    R7_prev_D_close_OFF                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:request)
-    R8_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:request)
+    R1_close_D_lookahead_ON                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    R2_close_D_lookahead_OFF                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    R3_DELTA_on_minus_off                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    R4_isrealtime                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    R5_islast                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    R6_chart_close                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    R7_prev_D_close_OFF                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    R8_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 request-realtime-alignment-spy-5-b-2026-10-0 AMEX:SPY 5       8      INCONCLUSIVE      8 of 9 items could not be compared
-    R1_close_D_lookahead_ON                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:request)
-    R2_close_D_lookahead_OFF                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:request)
-    R3_DELTA_on_minus_off                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:request)
-    R4_isrealtime                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:request)
-    R5_islast                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:request)
-    R6_chart_close                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:request)
-    R7_prev_D_close_OFF                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:request)
-    R8_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:request)
+    R1_close_D_lookahead_ON                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    R2_close_D_lookahead_OFF                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    R3_DELTA_on_minus_off                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    R4_isrealtime                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    R5_islast                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    R6_chart_close                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    R7_prev_D_close_OFF                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    R8_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 reverse-stochastic-momentum-index-on-chart-r NYSE:RDDT 1D     7      MATCH             all 8 items agree
     Scale High                               MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.47e-15
@@ -1589,18 +1621,18 @@ rs-rating-fred6724-crwv-1d-2026-11-16        NASDAQ:CRWV 1D   4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
-rs-rating-fred6724-m-nvda-1m-2026-11-18      NASDAQ:NVDA 1M   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+rs-rating-fred6724-m-nvda-1m-2026-11-18      NASDAQ:NVDA 1M   4      DIVERGE           1 of 5 compared items diverge
     RS Line                                  MATCH_SUBSTITUTED cmp 335 ok 265 warm 0/0 steady 29/335 maxRel 5.66e-3 · rounding-equal 41 (sub-tick 1, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/50 steady 0/285 maxRel 0.00e+0
-    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
-rs-rating-fred6724-m-rddt-1m-2026-11-18      NYSE:RDDT 1M     4      INCONCLUSIVE      1 of 5 items could not be compared
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
+rs-rating-fred6724-m-rddt-1m-2026-11-18      NYSE:RDDT 1M     4      DIVERGE           1 of 5 compared items diverge
     RS Line                                  MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/0 steady 0/33 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
     Plot                                     INCONCLUSIVE      cmp 33 ok 33 warm 0/33 steady 0/0 maxRel 0.00e+0 — every compared bar is inside the warm-up region — nothing in steady state to judge
-    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
 rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 6997 ok 5705 warm 0/0 steady 374/6997 maxRel 1.83e-2 · rounding-equal 918 (sub-tick 14, worst 1.01 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
@@ -1707,24 +1739,24 @@ rs-rating-fred6724-setf-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
-rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      INCONCLUSIVE      1 of 5 items could not be compared
+rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      DIVERGE           1 of 5 compared items diverge
     RS Line                                  MATCH_SUBSTITUTED cmp 1452 ok 1186 warm 0/0 steady 74/1452 maxRel 7.62e-3 · rounding-equal 192 (sub-tick 3, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/50 steady 0/1402 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  every drawing object is on such a bar: 2 drawing object(s) placed on the forming newest bar, which the SPX supply recorded beside this capture (newest row 2026-11-16) cannot answer for session 2026-11-17, are not compared (supplyBehind)
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
 rs-rating-fred6724-w-nvda-1w-2026-11-21      NASDAQ:NVDA 1W   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 1453 ok 1187 warm 0/0 steady 74/1453 maxRel 7.62e-3 · rounding-equal 192 (sub-tick 3, worst 1.00 tick)
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/0 steady 0/1453 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
-rs-rating-fred6724-w-rddt-1w-2026-11-17      NYSE:RDDT 1W     4      INCONCLUSIVE      1 of 5 items could not be compared
+rs-rating-fred6724-w-rddt-1w-2026-11-17      NYSE:RDDT 1W     4      DIVERGE           1 of 5 compared items diverge
     RS Line                                  MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/0 steady 0/139 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/50 steady 0/89 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  every drawing object is on such a bar: 2 drawing object(s) placed on the forming newest bar, which the SPX supply recorded beside this capture (newest row 2026-11-16) cannot answer for session 2026-11-17, are not compared (supplyBehind)
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
 rs-rating-fred6724-w-rddt-1w-2026-11-21      NYSE:RDDT 1W     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 140 ok 140 warm 0/0 steady 0/140 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 140 ok 140 warm 0/0 steady 0/140 maxRel 0.00e+0
@@ -2011,7 +2043,7 @@ smart-money-interest-index-algoalpha-rddt-1d NYSE:RDDT 1D     4      MATCH      
     paints                                   MATCH         1 paint agree bar for bar
 smart-money-volume-activity-algoalpha-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
 smart-money-volume-activity-algoalpha-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
-smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIVE      1 of 21 items could not be compared
+smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      2 of 25 items could not be compared
     Zero Line                                INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     Top Limit                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Bottom Limit                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2032,6 +2064,10 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIV
     Net Sell 20                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Net Sell Line                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Price Tracking line                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — 666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         neither side draws an object
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:conditional-history]: this Pine built-in names something the engine grammar does not hold — `str.length`
@@ -2040,13 +2076,29 @@ smc-structures-and-multi-timeframe-fvg-ma-py NYSE:RDDT 1D     0      INCONCLUSIV
 smc-structures-and-multi-timeframe-fvg-ma-py AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:history-dynamic-offset]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 smoothed-gaussian-trend-filter-algoalpha-rdd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: lower-tf:store-unmeasured]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
 smoothed-gaussian-trend-filter-algoalpha-spy AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: lower-tf:store-unmeasured]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
-smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
 smt-divergence-ict-killzones-rddt-1d-2026-11 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:builtin-args]: a name that is reassigned later cannot be folded into one expression — `alert_bear` — and the fold stopped before it, at line 329: a Pine block spans several statements and this engine stores a single expression — `for`
 smt-divergence-ict-killzones-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:builtin-args]: a name that is reassigned later cannot be folded into one expression — `alert_bear` — and the fold stopped before it, at line 329: a Pine block spans several statements and this engine stores a single expression — `for`
@@ -2141,15 +2193,15 @@ supply-demand-mtf-flux-charts-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIV
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-60-2026-11 AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
-support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      INCONCLUSIVE      2 of 9 items could not be compared
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
+support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      MATCH             all 9 items agree
     STR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     STS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .R                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .S                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 support-and-resistance-7538ddd8-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:statement]: the pasted script offers no plot and no alert condition to filter on
 support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function]: a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
@@ -2203,8 +2255,8 @@ swing-highlow-zigzag-chartprime-rddt-1d-2026 NYSE:RDDT 1D     1      MATCH      
 swing-highlow-zigzag-chartprime-spy-1d-2026- AMEX:SPY 1D      1      MATCH             all 2 items agree
     Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots (3 theme-relative); 1 slot on objects neither side draws not graded; coordinates are NOT compared by v1
-swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
-swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
+swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
 syminfo-mincontract-aapl-1d-2026-11-16       NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
@@ -2291,14 +2343,14 @@ trend-targets-algoalpha-spy-1d-2026-11-15    AMEX:SPY 1D      5      MATCH      
     Bearish Trend Change                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 4.14e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-trend-targets-algoalpha-spy-1d-2026-11-17    AMEX:SPY 1D      5      INCONCLUSIVE      1 of 7 items could not be compared
-    Bullish Rejection                        MATCH             cmp 8509 ok 8490 warm 19/1778 steady 0/6731 maxRel 4.75e-16
-    Bearish Rejection                        MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 3.96e-16
-    Baseline                                 MATCH             cmp 8509 ok 6871 warm 1638/1778 steady 0/6731 maxRel 6.97e-16
-    Bullish Trend Change                     MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 5.21e-16
-    Bearish Trend Change                     MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 4.14e-16
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: this chart's history does not start at the symbol's first bar, so its plots are drawn only from bar 1779 on, where their values stop depending on where the chart begins, and where its drawings land is not proven the same way. Nothing is drawn rather than a guess.
-    paints                                   MATCH         1 paint agree bar for bar
+trend-targets-algoalpha-spy-1d-2026-11-17    AMEX:SPY 1D      5      INCONCLUSIVE      7 of 7 items could not be compared
+    Bullish Rejection                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Bearish Rejection                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    Baseline                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    Bullish Trend Change                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    Bearish Trend Change                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_6 "Bar Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 trendline-pivots-quantvue-rddt-1d-2026-11-14 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 11 paired slots; coordinates are NOT compared by v1
 trendlines-rddt-1d-2026-09-27                NYSE:RDDT D      8      MATCH             all 9 items agree
@@ -2359,19 +2411,23 @@ volatility-coil-edge-bullbyte-rddt-1d-2026-1 NYSE:RDDT 1D     3      DIVERGE    
     Coil Bars                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (interpret:bind-time-text)
     objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)
     paints                                   DIVERGE       1 paint differs (first: bgcolor plot_0 "Signal Bar BG" notDrawn)
-volatility-coil-edge-bullbyte-spy-1d-2026-11 AMEX:SPY 1D      3      DIVERGE           1 of 5 compared items diverge
-    Local ATR                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (interpret:bind-time-text)
-    Background ATR                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (interpret:bind-time-text)
-    Coil Bars                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (interpret:bind-time-text)
-    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (interpret:bind-time-text: a value that a symbol settles reached the evaluator unsettled — the binding did not supply the symbol field it names this value is decided when a symbol is chosen, and this binding did not settle syminfo.ticker)
-    paints                                   DIVERGE       1 paint differs (first: bgcolor plot_0 "Signal Bar BG" notDrawn)
+volatility-coil-edge-bullbyte-spy-1d-2026-11 AMEX:SPY 1D      3      INCONCLUSIVE      5 of 5 items could not be compared
+    Local ATR                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Background ATR                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    Coil Bars                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:history-start: this script is drawn bar by bar from its first bar, and this chart's history is not known to start at the symbol's first bar, so the values it carries from bar to bar would start from a different bar than TradingView's. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.)
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: bgcolor plot_0 "Signal Bar BG" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 volatility-stop-mtf-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/5` is not in this engine's library registry, so its code cannot be compiled
 volatility-stop-mtf-spy-1d-2026-11-15        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/5` is not in this engine's library registry, so its code cannot be compiled
-volatility-trend-score-backquant-rddt-1d-202 NYSE:RDDT 1D     4      INCONCLUSIVE      1 of 5 items could not be compared
-    plot_0                                   INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
+volatility-trend-score-backquant-rddt-1d-202 NYSE:RDDT 1D     8      INCONCLUSIVE      4 of 9 items could not be compared
     ATR On Chart                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Long Signal                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Short Signal                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    plot_0                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    plot_4                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_5                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_6                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
+    plot_7                                   INCONCLUSIVE       — withheld by name on our side (`Trend Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots (2 theme-relative); coordinates are NOT compared by v1
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_11)
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:input-state]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture vold-market-breadth-rddt-1d-2026-09-28) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 2, ours 0. It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
@@ -2390,16 +2446,16 @@ volume-divergence-by-mm-rddt-1d-2026-11-17   NYSE:RDDT 1D     9      MATCH      
     Hidden Bearish                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Hidden Bearish Label                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-volume-divergence-by-mm-spy-1d-2026-11-17    AMEX:SPY 1D      9      MATCH             all 10 items agree
-    Volume                                   MATCH             cmp 8509 ok 8252 warm 257/333 steady 0/8176 maxRel 0.00e+0
-    Regular Bullish                          MATCH             cmp 8509 ok 8491 warm 18/333 steady 0/8176 maxRel 0.00e+0
-    Regular Bullish Label                    MATCH             cmp 8509 ok 8504 warm 5/333 steady 0/8176 maxRel 0.00e+0
-    Hidden Bullish                           MATCH             cmp 8509 ok 8491 warm 18/333 steady 0/8176 maxRel 0.00e+0
-    Hidden Bullish Label                     MATCH             cmp 8509 ok 8509 warm 0/333 steady 0/8176 maxRel 0.00e+0
-    Regular Bearish                          MATCH             cmp 8509 ok 8494 warm 15/333 steady 0/8176 maxRel 0.00e+0
-    Regular Bearish Label                    MATCH             cmp 8509 ok 8504 warm 5/333 steady 0/8176 maxRel 0.00e+0
-    Hidden Bearish                           MATCH             cmp 8509 ok 8494 warm 15/333 steady 0/8176 maxRel 0.00e+0
-    Hidden Bearish Label                     MATCH             cmp 8509 ok 8509 warm 0/333 steady 0/8176 maxRel 0.00e+0
+volume-divergence-by-mm-spy-1d-2026-11-17    AMEX:SPY 1D      9      INCONCLUSIVE      9 of 10 items could not be compared
+    Volume                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    Regular Bullish                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    Regular Bullish Label                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    Hidden Bullish                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    Hidden Bullish Label                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    Regular Bearish                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    Regular Bearish Label                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    Hidden Bearish                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    Hidden Bearish Label                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 volume-open-interest-footprint-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
 volume-open-interest-footprint-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
@@ -2412,11 +2468,7 @@ volume-profile-spy-1d-2026-10-03             AMEX:SPY 1D      0      INCONCLUSIV
     objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 volume-spikes-growing-volume-signals-with-al NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: budget:lookback]: this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
 volume-spikes-growing-volume-signals-with-al AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: budget:lookback]: this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
-volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     14     INCONCLUSIVE      5 of 15 items could not be compared
-    Plot 1                                   INCONCLUSIVE       — UNMAPPED — title "Plot 1" could not be paired unambiguously
-    Plot 2                                   INCONCLUSIVE       — UNMAPPED — title "Plot 2" could not be paired unambiguously
-    Plot 3                                   INCONCLUSIVE       — UNMAPPED — title "Plot 3" could not be paired unambiguously
-    Plot 4                                   INCONCLUSIVE       — UNMAPPED — title "Plot 4" could not be paired unambiguously
+volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     22     INCONCLUSIVE      1 of 23 items could not be compared
     CRVOL                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     CVD                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     RVOL                                     INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (withheld by name (pine:colour-unread) — its colour is an expression this door cannot read yet)
@@ -2427,13 +2479,21 @@ volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     14     INCONCLUSIV
     VWAP                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     VWAP +SD                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     VWAP -SD                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 1                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 2                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 3                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 4                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL open                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL high                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL low                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL close                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD open                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD high                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD low                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_28)
-volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      14     INCONCLUSIVE      5 of 15 items could not be compared
-    Plot 1                                   INCONCLUSIVE       — UNMAPPED — title "Plot 1" could not be paired unambiguously
-    Plot 2                                   INCONCLUSIVE       — UNMAPPED — title "Plot 2" could not be paired unambiguously
-    Plot 3                                   INCONCLUSIVE       — UNMAPPED — title "Plot 3" could not be paired unambiguously
-    Plot 4                                   INCONCLUSIVE       — UNMAPPED — title "Plot 4" could not be paired unambiguously
+volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      22     INCONCLUSIVE      1 of 23 items could not be compared
     CRVOL                                    MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     CVD                                      MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     RVOL                                     INCONCLUSIVE      cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (withheld by name (pine:colour-unread) — its colour is an expression this door cannot read yet)
@@ -2444,6 +2504,18 @@ volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      14     INCONCLUSIV
     VWAP                                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     VWAP +SD                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     VWAP -SD                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 1                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 2                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 3                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 4                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL open                               MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL high                               MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL low                                MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL close                              MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD open                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD high                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD low                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD close                                MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_28)
 volumized-order-blocks-flux-charts-rddt-1d-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
@@ -2783,29 +2855,29 @@ vw-bool-cast-v4-spy-60-2026-09-28            AMEX:SPY 60      11     MATCH      
     B08_t_is_na_CONTROL                      MATCH             cmp 20616 ok 20616 warm 0/0 steady 0/20616 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-bt-session-overnight-value-btcusd-1d-2026 BITSTAMP:BTCUSD  7      INCONCLUSIVE      7 of 8 items could not be compared
-    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    V1_secs_wrap_half_hour                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    V2_secs_wrap_on_the_hour_CONTROL         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    V3_secs_whole_day_wrap                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    V4_secs_wrap_through_the_day             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    V1_secs_wrap_half_hour                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    V2_secs_wrap_on_the_hour_CONTROL         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    V3_secs_whole_day_wrap                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    V4_secs_wrap_through_the_day             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-bt-session-overnight-value-btcusd-60-2026 BITSTAMP:BTCUSD  7      INCONCLUSIVE      7 of 8 items could not be compared
-    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    V1_secs_wrap_half_hour                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    V2_secs_wrap_on_the_hour_CONTROL         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    V3_secs_whole_day_wrap                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    V4_secs_wrap_through_the_day             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    MINUTE                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    V1_secs_wrap_half_hour                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    V2_secs_wrap_on_the_hour_CONTROL         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    V3_secs_whole_day_wrap                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    V4_secs_wrap_through_the_day             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-bt-session-to-midnight-daymask-btcusd-60- BITSTAMP:BTCUSD  5      INCONCLUSIVE      5 of 6 items could not be compared
-    M0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    M1_na_to_midnight_weekdays               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    M2_na_to_midnight_every_day_CONTROL      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    M0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    M1_na_to_midnight_weekdays               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    M2_na_to_midnight_every_day_CONTROL      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
 vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
@@ -2958,24 +3030,24 @@ vw-clock-close-tfchange-spy-1d-2026-09-28    AMEX:SPY 1D      18     MATCH      
     K17_isconfirmed_LAST_BAR_FORMING         MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-clock-close-tfchange-spy-1d-2026-09-28    AMEX:SPY 1W      18     INCONCLUSIVE      18 of 19 items could not be compared
-    K00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    K01_time_close_SECS                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    K02_time_closeD_SECS                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    K03_span_time_close_minus_time_SECS      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    K04_tfchange_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    K05_tfchange_W                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    K06_tfchange_M                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    K07_newDay_from_timeD_CONTROL            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    K08_time_SECS_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    K09_hour_time_close                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    K10_minute_time_close                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    K11_dayofweek_time_close                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    K12_time_close_spacing_SECS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
-    K13_time_closeD_minus_time_SECS          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:warmup-never-converges)
-    K14_newWeek_from_timeW_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:warmup-never-converges)
-    K15_newMonth_from_timeM_CONTROL          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:warmup-never-converges)
-    K16_tfchange_1W_SPELLING                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:warmup-never-converges)
-    K17_isconfirmed_LAST_BAR_FORMING         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:warmup-never-converges)
+    K00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    K01_time_close_SECS                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    K02_time_closeD_SECS                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    K03_span_time_close_minus_time_SECS      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    K04_tfchange_D                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    K05_tfchange_W                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    K06_tfchange_M                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    K07_newDay_from_timeD_CONTROL            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    K08_time_SECS_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    K09_hour_time_close                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    K10_minute_time_close                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    K11_dayofweek_time_close                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    K12_time_close_spacing_SECS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    K13_time_closeD_minus_time_SECS          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    K14_newWeek_from_timeW_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    K15_newMonth_from_timeM_CONTROL          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    K16_tfchange_1W_SPELLING                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    K17_isconfirmed_LAST_BAR_FORMING         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-clock-vwap-spy-5-ext-2026-09-28           AMEX:SPY 5       15     INCONCLUSIVE      5 of 16 items could not be compared
     V00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
@@ -3471,14 +3543,14 @@ vw-deadband-ticks-aapl-1d-2026-09-28         NASDAQ:AAPL 1D   5      MATCH      
     D03_dbhf                                 MATCH             cmp 11534 ok 11534 warm 0/0 steady 0/11534 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-vw-deadband-ticks-brk-a-1d-2026-09-28        NYSE:BRK.A 1D    5      DIVERGE           1 of 7 compared items diverge
-    DBHF                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    D01_mintick                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    D02_base_tau                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    D03_dbhf                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+vw-deadband-ticks-brk-a-1d-2026-09-28        NYSE:BRK.A 1D    5      INCONCLUSIVE      6 of 7 items could not be compared
+    DBHF                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    D01_mintick                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    D02_base_tau                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    D03_dbhf                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
-    paints                                   DIVERGE       1 paint differs (first: barcolor plot_0 "Bar Color" notDrawn)
+    paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_0 "Bar Color" — our run was withheld by name (runtime:history-start), so nothing is drawn for it)
 vw-deadband-ticks-brk-a-1d-2026-11-15        NYSE:BRK.A 1D    5      MATCH             all 7 items agree
     DBHF                                     MATCH             cmp 11369 ok 11369 warm 0/0 steady 0/11369 maxRel 0.00e+0
     D00_bar_index_CONTROL                    MATCH             cmp 11369 ok 11369 warm 0/0 steady 0/11369 maxRel 0.00e+0
@@ -4237,19 +4309,19 @@ vw-h4-loops-spy-1d-2026-10-03                AMEX:SPY 1D      4      MATCH      
     objects                                  MATCH         neither side draws an object
 vw-h5-format-volume-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:call-text-state]: this script is not drawn: on a captured AMEX:SPY 1D chart (capture vw-h5-format-volume-spy-1d-2026-11-16) it draws something that differs from TradingView: tableCells count of tableCells held: TradingView 34, ours 18. It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
 vw-h5-request-timeframe-text-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_rsi                                   MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 670 ok 670 warm 0/0 steady 0/670 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-hs2-v3-highestbars-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `highestbars`: the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset is not stated by any reference text this engine holds (the v4 reference states v4 only) and is not yet captured (Q-HS2); write it in `//@version=4` or later
@@ -4407,15 +4479,15 @@ vw-lastbar-forming-spy-1d-2026-11-20-preopen AMEX:SPY 1D      7      DIVERGE    
     F06 time==last_bar_time                  MATCH             cmp 8512 ok 8512 warm 0/0 steady 0/8512 maxRel 0.00e+0
     F07 close                                MATCH             cmp 8512 ok 8512 warm 0/0 steady 0/8512 maxRel 0.00e+0
     objects                                  DIVERGE       1 object families differ (count or text); colours agree on 11 paired slots; coordinates are NOT compared by v1
-vw-lastbar-forming-spy-5-2026-11-20-insessio AMEX:SPY 5       7      INCONCLUSIVE      1 of 8 items could not be compared
-    F01 islast                               MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F02 isrealtime                           MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F03 isconfirmed                          MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F04 islastconfirmedhistory               MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F05 bar_index==last_bar_index            MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F06 time==last_bar_time                  MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    F07 close                                MATCH             cmp 20587 ok 20336 warm 251/251 steady 0/20336 maxRel 0.00e+0
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: this chart's history does not start at the symbol's first bar, so its plots are drawn only from bar 252 on, where their values stop depending on where the chart begins, and where its drawings land is not proven the same way. Nothing is drawn rather than a guess.
+vw-lastbar-forming-spy-5-2026-11-20-insessio AMEX:SPY 5       7      INCONCLUSIVE      8 of 8 items could not be compared
+    F01 islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    F02 isrealtime                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    F03 isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    F04 islastconfirmedhistory               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    F05 bar_index==last_bar_index            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    F06 time==last_bar_time                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    F07 close                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
 vw-library-import-rddt-1d-2026-10-02         NYSE:RDDT 1D     7      MATCH             all 8 items agree
     L01 ao                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.89e-13
     L01c ao minus inline                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -4514,21 +4586,21 @@ vw-object-gc-a-spy-1d-2026-09-28             AMEX:SPY 1D      4      MATCH      
     A03_O2_created_this_bar                  MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 194 paired slots; 132 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 vw-object-gc-a-spy-1d-2026-09-28             AMEX:SPY 1W      4      INCONCLUSIVE      5 of 5 items could not be compared
-    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    A01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    A02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    A03_O2_created_this_bar                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:warmup-never-converges), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    A01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    A02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    A03_O2_created_this_bar                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
 vw-object-gc-b-spy-1d-2026-09-28             AMEX:SPY 1D      3      MATCH             all 4 items agree
     B00_bar_index_CONTROL                    MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     B01_isconfirmed                          MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     B02_islast                               MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 326 paired slots; coordinates are NOT compared by v1
 vw-object-gc-b-spy-1d-2026-09-28             AMEX:SPY 1W      3      INCONCLUSIVE      4 of 4 items could not be compared
-    B00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    B01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    B02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:warmup-never-converges), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
+    B00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    B01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    B02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
 vw-object-gc-c-spy-1d-2026-09-28             AMEX:SPY 1D      4      MATCH             all 5 items agree
     C00_bar_index_CONTROL                    MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     C01_isconfirmed                          MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
@@ -4536,11 +4608,11 @@ vw-object-gc-c-spy-1d-2026-09-28             AMEX:SPY 1D      4      MATCH      
     C03_bar_index_mod3                       MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 38 paired slots; coordinates are NOT compared by v1
 vw-object-gc-c-spy-1d-2026-09-28             AMEX:SPY 1W      4      INCONCLUSIVE      5 of 5 items could not be compared
-    C00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    C01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    C02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    C03_bar_index_mod3                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:warmup-never-converges), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
+    C00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    C01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    C02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    C03_bar_index_mod3                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
 vw-object-gc-d-spy-1d-2026-09-28             AMEX:SPY 1D      10     MATCH             all 11 items agree
     D00_bar_index_CONTROL                    MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     D01_isconfirmed                          MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
@@ -4554,17 +4626,17 @@ vw-object-gc-d-spy-1d-2026-09-28             AMEX:SPY 1D      10     MATCH      
     D09_oldest_held_line_j                   MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 42 paired slots; coordinates are NOT compared by v1
 vw-object-gc-d-spy-1d-2026-09-28             AMEX:SPY 1W      10     INCONCLUSIVE      11 of 11 items could not be compared
-    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    D01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    D02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    D03_labels_all_BEFORE_create             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    D04_labels_all_AFTER_create              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    D05_oldest_held_label_bar                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    D06_boxes_all                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    D07_oldest_held_box_j                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    D08_lines_all                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    D09_oldest_held_line_j                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:warmup-never-converges), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    D01_isconfirmed                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    D02_islast                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    D03_labels_all_BEFORE_create             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    D04_labels_all_AFTER_create              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    D05_oldest_held_label_bar                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    D06_boxes_all                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    D07_oldest_held_box_j                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    D08_lines_all                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    D09_oldest_held_line_j                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: its run computed nothing on this chart (runtime:history-start), and its drawings belong to that run — drawn alone they would be a picture TradingView does not draw. Nothing is drawn rather than a guess.
 vw-offset-na-spy-1d-2026-09-30               AMEX:SPY 1D      6      MATCH             all 7 items agree
     E00_bar_index_CONTROL                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     E01_e_is_na                              MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
@@ -4580,6 +4652,321 @@ vw-once-ta-helper-spy-1d-2026-10-02          AMEX:SPY 1D      1      MATCH      
     V00_close_CONTROL                        MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 28 paired slots; coordinates are NOT compared by v1
 vw-other-symbol-rddt-1d-2026-09-30           NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:known-divergence) [runtime declined: runtime:request]: this script is not drawn: on a captured NYSE:RDDT 1D chart (capture vw-other-symbol-rddt-1d-2026-09-30) it draws something that differs from TradingView: plot `O05_BRKB_bare`: 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na); scattered, last at bar 333. It is withheld until that is fixed, and comes back once a new comparison against TradingView matches.
+vw-plotshape-abovebar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-absolute-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-belowbar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-bottom-spy-1d-2026-11-26        AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-top-spy-1d-2026-11-26           AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-pt-na-guard-and-rddt-1d-2026-11-16        NYSE:RDDT 1D     9      INCONCLUSIVE      3 of 10 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     A01_left_side_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
@@ -4625,36 +5012,36 @@ vw-ratchet-stops-spy-1d-2026-10-02           AMEX:SPY 1D      8      MATCH      
 vw-req-extended-own-rddt-1d-2026-11-20       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: `session.extended` asks for pre- and post-market prints and this engine serves the REGULAR session, so folding it would answer a real but DIFFERENT number on every bar. Writing `session.regular` says which series you meant, in your own script, where you can see it.
 vw-req-extended-own-spy-1d-2026-11-20        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: `session.extended` asks for pre- and post-market prints and this engine serves the REGULAR session, so folding it would answer a real but DIFFERENT number on every bar. Writing `session.regular` says which series you meant, in your own script, where you can see it.
 vw-req-w-closure-day-es1-1d-2026-11-20       CME_MINI:ES1! 1D 14     INCONCLUSIVE      14 of 15 items could not be compared
-    C0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
-    W_open_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:chart-clock)
-    W_high_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:chart-clock)
-    W_low_off                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:chart-clock)
-    W_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:chart-clock)
-    W_volume_off                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:chart-clock)
-    W_open_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:chart-clock)
-    W_high_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:chart-clock)
-    W_low_on                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:chart-clock)
-    W_close_on                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:chart-clock)
-    W_volume_on                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:chart-clock)
-    M_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:chart-clock)
-    T1_time_W_CONTROL                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:chart-clock)
-    T2_time_close_W_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:chart-clock)
+    C0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    W_open_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    W_high_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    W_low_off                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    W_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    W_volume_off                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    W_open_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    W_high_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    W_low_on                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    W_close_on                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    W_volume_on                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    M_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T1_time_W_CONTROL                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T2_time_close_W_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-req-w-closure-day-eurusd-1d-2026-11-20    FX:EURUSD 1D     14     INCONCLUSIVE      14 of 15 items could not be compared
-    C0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
-    W_open_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:chart-clock)
-    W_high_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:chart-clock)
-    W_low_off                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:chart-clock)
-    W_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:chart-clock)
-    W_volume_off                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:chart-clock)
-    W_open_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:chart-clock)
-    W_high_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:chart-clock)
-    W_low_on                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:chart-clock)
-    W_close_on                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:chart-clock)
-    W_volume_on                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:chart-clock)
-    M_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:chart-clock)
-    T1_time_W_CONTROL                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:chart-clock)
-    T2_time_close_W_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:chart-clock)
+    C0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    W_open_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    W_high_off                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    W_low_off                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    W_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    W_volume_off                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    W_open_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    W_high_on                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    W_low_on                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    W_close_on                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    W_volume_on                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    M_close_off                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T1_time_W_CONTROL                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T2_time_close_W_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-request-htf-alignment-qqq-1d-2026-11-18   NASDAQ:QQQ 1D    0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 vw-request-htf-alignment-spy-1d-2026-10-02   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
@@ -4996,24 +5383,24 @@ vw-time-tf-bitstamp-btcusd-1d-2026-09-30     BITSTAMP:BTCUSD  18     INCONCLUSIV
     T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:chart-clock)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-eurusd-1d-2026-10-02              FX:EURUSD 1D     18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:chart-clock)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:chart-clock)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:chart-clock)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:chart-clock)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:chart-clock)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:chart-clock)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:chart-clock)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:chart-clock)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:chart-clock)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:chart-clock)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:chart-clock)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:chart-clock)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:chart-clock)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:chart-clock)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:chart-clock)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:chart-clock)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:chart-clock)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-fx-eurusd-1d-2026-10-01           FX:EURUSD 1D     18     INCONCLUSIVE      18 of 19 items could not be compared
     T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
@@ -5056,44 +5443,44 @@ vw-time-tf-rddt-1d-2026-10-02                NYSE:RDDT 1D     18     MATCH      
     T17_dayofweek                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-1-2026-10-02                  AMEX:SPY 1       18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:function)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:function)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:function)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:function)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:function)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:function)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:function)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:function)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:function)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (pine:function)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (pine:function)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (pine:function)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (pine:function)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (pine:function)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (pine:function)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (pine:function)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (pine:function)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (pine:function)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-15-2026-10-01                 AMEX:SPY 15      18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:warmup-never-converges)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:warmup-never-converges)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:warmup-never-converges)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:warmup-never-converges)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:warmup-never-converges)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-1d-2026-09-28                 AMEX:SPY 1D      18     MATCH             all 19 items agree
     T00_bar_index_CONTROL                    MATCH             cmp 900 ok 900 warm 0/0 steady 0/900 maxRel 0.00e+0
@@ -5236,104 +5623,104 @@ vw-time-tf-spy-1w-2026-10-02                 AMEX:SPY 1W      18     MATCH      
     T17_dayofweek                            MATCH             cmp 1758 ok 1758 warm 0/0 steady 0/1758 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-240-2026-10-02                AMEX:SPY 240     18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:function)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:function)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:function)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:function)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:function)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:function)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:function)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:function)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:function)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (pine:function)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (pine:function)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (pine:function)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (pine:function)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (pine:function)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (pine:function)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (pine:function)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (pine:function)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (pine:function)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-30-2026-10-02                 AMEX:SPY 30      18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:function)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:function)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:function)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:function)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:function)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:function)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:function)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:function)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:function)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (pine:function)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (pine:function)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (pine:function)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (pine:function)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (pine:function)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (pine:function)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (pine:function)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (pine:function)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (pine:function)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-5-2026-10-01                  AMEX:SPY 5       18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:warmup-never-converges)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:warmup-never-converges)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:warmup-never-converges)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:warmup-never-converges)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:warmup-never-converges)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-5-ext-2026-10-02              AMEX:SPY 5       18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:chart-clock)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:chart-clock)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:chart-clock)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:chart-clock)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:chart-clock)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:chart-clock)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:chart-clock)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:chart-clock)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:chart-clock)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:chart-clock)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:chart-clock)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:chart-clock)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:chart-clock)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:chart-clock)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:chart-clock)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:chart-clock)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:chart-clock)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:chart-clock)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-60-2026-09-28                 AMEX:SPY 60      18     INCONCLUSIVE      18 of 19 items could not be compared
-    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
-    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:warmup-never-converges)
-    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:warmup-never-converges)
-    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:warmup-never-converges)
-    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:warmup-never-converges)
-    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:warmup-never-converges)
+    T00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    T01_timeW_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    T02_timeM_minus_time_DAYS                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    T03_time3M_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    T04_time12M_minus_time_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    T05_timeSelf_minus_time_MUST_BE_0        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    T06_time60_minus_time_DAYS               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    T07_newWeek                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    T08_newMonth                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    T09_newQuarter                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    T10_in_seconds_1                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    T11_in_seconds_60                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    T12_in_seconds_D                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
+    T13_in_seconds_W                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:history-start)
+    T14_in_seconds_M                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:history-start)
+    T15_in_seconds_12M                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:history-start)
+    T16_input_time_default_DAYS              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:history-start)
+    T17_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-type-word-names-spy-1d-2026-10-02         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:call-undeclared-builtin-state]: a user-defined type is outside the node shapes this engine stores — `color.r`
 vw-udaily-expr-rddt-15-2026-11-23            NYSE:RDDT 15     4      INCONCLUSIVE      4 of 5 items could not be compared
@@ -5576,66 +5963,66 @@ vw-w4-series-length-v4-spy-1d-2026-11-16     AMEX:SPY 1D      8      DIVERGE    
     len                                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-w4-session-daymask-btcusd-60-2026-11-16   BITSTAMP:BTCUSD  13     INCONCLUSIVE      13 of 14 items could not be compared
-    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w4-session-daymask-spy-60-2026-11-16      AMEX:SPY 60      13     INCONCLUSIVE      13 of 14 items could not be compared
-    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
-    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
-    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
-    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
-    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
-    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
-    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
+    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:history-start)
+    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:history-start)
+    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:history-start)
+    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:history-start)
+    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:history-start)
+    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w4-session-default-days-btcusd-60-2026-11 BITSTAMP:BTCUSD  5      INCONCLUSIVE      5 of 6 items could not be compared
-    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    N1_na_no_day_list                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    N2_na_every_day_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    N3_na_monday_to_friday_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    N1_na_no_day_list                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    N2_na_every_day_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    N3_na_monday_to_friday_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w4-session-default-days-v4-btcusd-60-2026 BITSTAMP:BTCUSD  5      INCONCLUSIVE      5 of 6 items could not be compared
-    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    N1_na_no_day_list                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    N2_na_every_day_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    N3_na_monday_to_friday_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    N1_na_no_day_list                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    N2_na_every_day_CONTROL                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    N3_na_monday_to_friday_CONTROL           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w4-session-overnight-btcusd-60-2026-11-16 BITSTAMP:BTCUSD  7      INCONCLUSIVE      7 of 8 items could not be compared
-    O0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    O1_na_wrap_all_days                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    O2_na_wrap_weekdays                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    O3_na_to_midnight                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    O4_na_whole_day                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    O0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    HOUR                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    DOW_dayofweek                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    O1_na_wrap_all_days                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    O2_na_wrap_weekdays                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    O3_na_to_midnight                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    O4_na_whole_day                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w4-session-param-spy-5-2026-11-16         AMEX:SPY 5       7      INCONCLUSIVE      7 of 8 items could not be compared
-    P0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
-    P1_na_literal_REFERENCE                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
-    P2_na_udf_param_and_own_timeframe        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
-    P3_na_input_session_through_udf          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
-    P4_na_joined_text                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
-    P5_na_constant_var                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
-    P6_na_empty_timeframe_is_main            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    P0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:history-start)
+    P1_na_literal_REFERENCE                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:history-start)
+    P2_na_udf_param_and_own_timeframe        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:history-start)
+    P3_na_input_session_through_udf          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:history-start)
+    P4_na_joined_text                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:history-start)
+    P5_na_constant_var                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:history-start)
+    P6_na_empty_timeframe_is_main            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:history-start)
     objects                                  MATCH         neither side draws an object
 vw-w6-array-every-empty-spy-1d-2026-11-16    AMEX:SPY 1D      3      INCONCLUSIVE      3 of 4 items could not be compared
     A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
@@ -7266,12 +7653,12 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 MATCH_SUBSTITUTED 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 MATCH_SUBSTITUTED 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 INCONCLUSIVE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 MATCH_SUBSTITUTED 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 371 · DIVERGE 39 · INCONCLUSIVE 605 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 207 captures) — MATCH 372 · DIVERGE 39 · INCONCLUSIVE 604
+INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 MATCH_SUBSTITUTED 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 MATCH_SUBSTITUTED 192 rounding-equal bars (sub-tick 3)
+TOTAL 1045 captures — MATCH 380 · DIVERGE 39 · INCONCLUSIVE 604 · MATCH_SUBSTITUTED 22 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 203 captures) — MATCH 381 · DIVERGE 39 · INCONCLUSIVE 603
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 80 captures) — MATCH 374 · DIVERGE 33 · INCONCLUSIVE 608
-CHANGED BY PAINTS (9): machine-learning-moving-average-backquant-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+WITHOUT PAINTS (the verdict before B1; paints graded on 81 captures) — MATCH 383 · DIVERGE 37 · INCONCLUSIVE 603
+CHANGED BY PAINTS (5): supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 
 ## Runtime declines by code (348)

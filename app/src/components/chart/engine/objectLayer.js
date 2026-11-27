@@ -235,6 +235,11 @@ export function createObjectLayer(host) {
     stats = paintObjects(ctx, state, {
       timeToX: map.timeToX, priceToY: map.priceToY, width: w, height: h, rightInset: map.rightInset,
     })
+    // ⭐ (owner ruling 2026-11-24, "room for labels") a label at the newest bar that runs under the price scale: the
+    // host widens the right gap by that much (`labelRoom.js`). ⛔ Wrapped: the drawings never fail for it.
+    if (typeof host.onLabelOverflow === 'function') {
+      try { host.onLabelOverflow(stats.labelOverflowRight || 0) } catch { /* the host's view, not the drawings */ }
+    }
     if (canvas.setAttribute) {
       const sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0)
       canvas.setAttribute('data-uct-objects-drawn',
@@ -243,6 +248,7 @@ export function createObjectLayer(host) {
         `${sum(stats.skipped)}:${JSON.stringify(stats.skipped)}`)
       canvas.setAttribute('data-uct-objects-tables', String(tables.length))
       canvas.setAttribute('data-uct-objects-bbox', JSON.stringify(stats.bbox || null))
+      canvas.setAttribute('data-uct-objects-label-overflow', String(stats.labelOverflowRight || 0))
       canvas.setAttribute('data-uct-objects-pane', `${w}x${h}@${dpr}`)
       // ⛔ THE RAW COORDINATE BESIDE THE MAPPED ONE. "we drew off-screen" has two
       // possible causes — the object's coordinate is wrong, or the mapping is —

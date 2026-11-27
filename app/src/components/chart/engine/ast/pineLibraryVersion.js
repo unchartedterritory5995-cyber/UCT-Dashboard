@@ -272,8 +272,6 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
   const numNames = new Set()
   const intLiteralNames = new Set()
   const notConstNames = new Set()
-  // names DECLARED with a type other than `bool` (`var color c`, `float x`): never a bool operand of `==` / `!=`
-  const typedNotBool = new Set()
   const bindings = []
   const possiblyConstInt = (span) => span.length > 0 && span.every((t) => (t.kind === 'number' && /^\d+$/.test(String(t.raw)))
     || (t.kind === 'ident' && !t.member && intLiteralNames.has(String(t.value)) && !notConstNames.has(String(t.value)))
@@ -286,7 +284,6 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       const n = toks[i + 1]
       if (t.kind !== 'ident' || t.member || n.kind !== 'ident' || n.member || String(n.value).includes('.')) continue
       if (t.value === 'bool') boolNames.add(String(n.value))
-      else if (TYPE_WORDS.has(t.value)) typedNotBool.add(String(n.value))
       if (t.value === 'float' || t.value === 'int') numNames.add(String(n.value))
       if (TYPE_WORDS.has(t.value) && t.value !== 'int') notConstNames.add(String(n.value))
       if (QUALIFIERS.has(t.value) && t.value !== 'const') {
@@ -544,11 +541,13 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
           }
           return out
         }
-        const boolOperand = (span) => {
-          const u = unwrap(span)
-          if (u.length === 1 && u[0].kind === 'ident' && !u[0].member && typedNotBool.has(String(u[0].value))) return false
-          return mayBeBool(span, boolNames, numNames)
-        }
+        // ⚰️ (2026-11-23, coordinator ruling on mutant V28) a name declared with another type ANYWHERE in the kept code
+        // (`typedNotBool`) was never a bool operand here. A typed name reaches `boolNames` only through a shadowing
+        // untyped bool (the bindings pass above: "a shadowing bool stays held"), so that read decided nothing anywhere
+        // else and, there, linked the shadowing bool's `k == y`: an under-refusal. Gone: the operand is what the
+        // bindings say. The price, until a per-definition scoping: an outer-scope `k == y` of the typed name itself,
+        // in a library that also shadows it with a bool, is held too (an over-refusal, the honest side).
+        const boolOperand = (span) => mayBeBool(span, boolNames, numNames)
         if (boolOperand(operand(i - 1, -1)) || boolOperand(operand(i + 1, 1))) {
           const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `a bool compared with \`${lt[i].value}\``, why: 'na == false is na in v5, and a v6 bool is never na (Boolean values cannot be na)', tok: lt[i] })
           if (r) return r

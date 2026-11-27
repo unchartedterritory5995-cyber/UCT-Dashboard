@@ -1,0 +1,10 @@
+//@version=5
+indicator("a local, no getter", overlay=true)
+var line ln = na
+var label lb = na
+if barstate.islast
+    line.delete(ln)
+    label.delete(lb)
+    ln := line.new(bar_index - 5, low[5], bar_index, close)
+    float y = close - low[5]
+    lb := label.new(bar_index, close, str.tostring(y, "#.00"))

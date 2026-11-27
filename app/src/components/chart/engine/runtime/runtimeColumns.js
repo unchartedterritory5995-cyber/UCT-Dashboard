@@ -62,11 +62,12 @@ export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
 // ⭐⭐ CBC-FMT — `calc_bars_count`: ONE window for both lanes (`engine/calcBarsWindow.js`), read
 // off the document's own stamp (`meta.calcBarsCount`, `pine.js::declarationCalcBars`).
-import { rememberRuntimeBudgetStop, runtimeBudgetStopAt, runtimeBudgetGeneration, onRuntimeBudgetStopsChange, resetRuntimeBudgetStops } from '../runtimeBudgetStops.js'
+import { rememberRuntimeBudgetStop, askRuntimeBudgetStop, runtimeBudgetGeneration, onRuntimeBudgetStopsChange, resetRuntimeBudgetStops } from '../runtimeBudgetStops.js'
 import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
   CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 import { withAmbientRunClock } from './vm.js'
+import { dailyExpressionAdmitted } from '../dailyExpressionGate.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
 // `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
@@ -320,6 +321,8 @@ export const RUNTIME_PANE_TIME_BUDGET_MS = 1000
  *    budget(n) = min(12,000, 1,000 + 1.0 x max(0, n - 5,000)) ms, `n` the bars the run COVERS (the rows after the
  *  depth cut, a `calc_bars_count` or strategy window's own): 1,000 up to 5,000 bars (today's behaviour), 4,000 at
  *  8,000, 7,520 at 11,520, 12,000 from 16,000 bars.
+ *    ⭐⭐ (e102, 2026-11-27 amendment) the off-listing curtain's `n` is the bars BOTH its runs cover, `n + (n - shift)`
+ *  (`computeOffListing`): it runs the script twice inside one budget.
  *    ⭐⭐ (engine 86, coordinator ruling: option A2) THE SLOPE IS 1.0 MS A BAR AND THE CEILING 12,000 ms (engine 84 shipped
  *  0.35 and 4,000), AND IN THE WORKER THE VM'S `WALL_TIME` FOLLOWS THIS BUDGET (`runLimitsOf`). Measured: Fred RS's run
  *  half on 5m (11,520 bars covered) costs about 2 s on the desktop (0.17 ms a bar), 7.5-8.2 s in-process on a CI runner
@@ -442,7 +445,10 @@ function runKey(def, ctx, withSupply = true) {
   const hw = ctx && Number.isInteger(ctx.historyWindowBars) ? `|hw${ctx.historyWindowBars}` : ''
   // ⭐⭐ (2026-11-19) and the depth it is served at without [B-START-DEEP] (a different depth is a different answer)
   const ld = ctx && Number.isInteger(ctx.listingDepthBars) ? `|ld${ctx.listingDepthBars}` : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
+  // ⭐ U-DAILY (e96, part B) — a run made with the daily-expression capability open is another run (its session, its
+  // memo): unchanged while it is closed, as committed (`dailyExpressionGate.js`)
+  const dx = dailyExpressionAdmitted() ? '|dx' : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
 /** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
@@ -463,6 +469,8 @@ function requestSupplyKey(compute, ctx) {
     // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
     parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
+      // ⭐⭐ e98 — the chart's session (`otherSymbols.CHART_SESSION_KEY`, no bars): it moves a custom timeframe's grid
+      + `${e && e.extended === true ? ':eth' : ''}`
       // ⭐⭐ T4 E2 — the events entry (no bars): its answer's refresh and its symbol
       + `${(k === EVENTS_KEY || k === FINANCIAL_KEY) && e ? `:r${e.rev || ''}:s${e.symbol || ''}` : ''}`)
   }
@@ -1079,9 +1087,13 @@ function computeOffListing(def, rows, ctx, opts) {
   if (shift < 2) throw never()
   const clock = clockOf(opts)
   const t0 = clock()
-  // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled by the bars the chart's run covers
-  // (`budgetFor`), then handed to each as a fixed number: A's whole run, then B's VM within what A left
-  const budgetMs = budgetFor(opts, n)
+  // ⭐⭐ (coordinator ruling 2026-11-19) the budget of the two runs together, scaled (`budgetFor`), then handed to each
+  // as a fixed number: A's whole run, then B's VM within what A left.
+  // ⭐⭐ (e102, coordinator ruling 2026-11-27, option A, amending 2026-11-19) SCALED BY THE BARS BOTH RUNS COVER:
+  // A covers `n` and B `n - shift`. ⚰️ Scaled by `n` alone, the curtain did ~1.4-2x one run's work inside one run's
+  // budget, and every off-listing kernel-channel-backquant run on W 1,453-3,400 rows and D 3,497-7,000 rows was
+  // stopped while every on-listing run of the same charts fit (`paneBudgetPerBar.test.js` 7).
+  const budgetMs = budgetFor(opts, n + (n - shift))
   const inner = { ...opts, warmupCurtain: false, budgetScales: false, ...(Number.isFinite(budgetMs) ? { budgetMs } : {}),
     // ⭐⭐ (engine 86) the worker's `WALL_TIME` follows each run's budget (`runLimitsOf`)
     ...(opts.budgetScales === true || opts.wallFollowsBudget === true ? { wallFollowsBudget: true } : {}) }
@@ -1327,6 +1339,43 @@ function acrossSupplyBlocked(cp, program, supply) {
   return null
 }
 
+// ─── ⭐⭐ (e101 S1, coordinator GO 2026-11-27) — A RUN RESUMES ACROSS SYMBOL FACTS IT CANNOT HAVE READ ─────────────────
+//
+// A cold ticker switch asks for one run three times while the symbol's facts land: the listing date ('^?' -> '^date',
+// `/api/ticker-ipo`) and the exchange (null -> NYSE, `/api/ticker-meta`). Each fact is in `runKey` (`symbolKey`), so
+// each ask was a cold run over every bar, even for a script that reads neither fact (`runtimeAsync.js::supersede`
+// tells the measured story). A run with NO session of its own may now resume from the session of the same run asked
+// under other symbol facts: the same document, settings, timeframe, forming state, listing flags and role
+// (`factsFreeCtx` erases only the symbol's exchange, classification and listing date).
+// ⛔ THE PROOF IS THE ONE EVERY RESUME USES, UNCHANGED (`resumableFrom`):
+//   * the bars up to the checkpoint are the same, bit for bit;
+//   * THIS run's own build (its build memo hit or a cold build, never the session's build) lowers to the same program
+//     (`sameProgram`: code, constants, slots). A `syminfo.*` read is folded into the program at build time, so a fact
+//     the script reads makes the programs differ, and the run is a full run;
+//   * every precomputed column it reads is the same up to the checkpoint.
+// ⛔ AND TWO KINDS OF RUN ARE NEVER SERVED (the run reads the facts outside its program):
+//   * a run with request sites: the own-daily read rests on the listing date and the other-symbol bind on the
+//     exchange (`requestSupply.js`);
+//   * a run that keeps a realtime ledger (`keepsLedger`): its ledger is keyed by the run's own identity.
+
+/** The context with the symbol's facts erased: its ticker only. */
+function factsFreeCtx(ctx) {
+  if (!ctx || !ctx.symbol || typeof ctx.symbol !== 'object') return ctx
+  return { ...ctx, symbol: { ticker: ctx.symbol.ticker } }
+}
+let _factsResumeOff = false
+/** Tests: never resume across symbol facts (the identity rails compare both ways). */
+export function __factsResumeOffForTests(off) { _factsResumeOff = !!off }
+/** The newest session kept under `factsKey` by a run of ANOTHER identity, or null; never for a run that keeps a
+ *  realtime ledger. The caller asks only for a run with no request sites (`!reqSupply`) and proves the session
+ *  (`resumableFrom`). */
+function factsSessionFor(factsKey, sessionKey, ir, source) {
+  if (_factsResumeOff || !factsKey || !ir) return null
+  if (keepsLedger(varipSlotsOf(ir), source)) return null
+  let found = null
+  for (const [key, session] of _sessions) if (key !== sessionKey && session.factsKey === factsKey) found = session
+  return found
+}
 /** The checkpoint a run over `rows` with `program` may resume from, or `{why}`. With `supply` (a run that reads
  *  requests), only across a supply that agrees (`acrossSupplyBlocked`). */
 export function resumableFrom(prev, rows, program, supply = null) {
@@ -1510,8 +1559,10 @@ export function runtimeBuildMemoStats() {
 /** The memo key of a build made with `irOpts` (`runtimeIrOptions`) for `def`. */
 export function buildMemoKey(def, irOpts) {
   const { bars, symbol: _symbol, ...rest } = irOpts
+  // ⭐ U-DAILY (e96, part B) — a build made with the daily-expression capability open is another build
+  // (`dailyExpressionGate.js`); the key is unchanged while it is closed, as committed
   return JSON.stringify([runtimeContentKey(def), rest, strategyBrokerGateOn() === true,
-    buildBarCountClass(Array.isArray(bars) ? bars.length : 0)])
+    buildBarCountClass(Array.isArray(bars) ? bars.length : 0), ...(dailyExpressionAdmitted() ? ['dx'] : [])])
 }
 /** The binding constants a build with `irOpts` reads, as the front end assembles them (`bindConstsFor`). */
 const bindConstsOfOpts = (irOpts) => bindConstsFor({ tf: irOpts.tf, inputs: irOpts.inputs || {}, symbol: irOpts.symbol })
@@ -1735,10 +1786,15 @@ function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
   if (seen) return { from: seen.start, record: null, isNew: seen.first === true }
   return { from: e.end, record: { confirmed: confirmedNow, first: false, sig }, isNew: false }
 }
+/** The run's `varip` slots (top-level persists declared `varip`). */
+const varipSlotsOf = (ir) => (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
+  .map((sl) => sl.index)
+/** ⭐ Does a run keep a realtime ledger: it declares a `varip` or reads `barstate.isnew`. ONE predicate, read by
+ *  `realtimeRun` and by the facts resume (`factsSessionFor`), which never serves a run that keeps one. */
+const keepsLedger = (varip, source) => varip.length > 0 || readsIsNew(source)
 function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
-  const varip = (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
-    .map((sl) => sl.index)
-  if (!varip.length && !readsIsNew(source)) return null
+  const varip = varipSlotsOf(ir)
+  if (!keepsLedger(varip, source)) return null
   // ⭐ (review H1) SHARED BY IDENTICAL PANES, ON PURPOSE: two panes of one script on one symbol
   // and timeframe see one feed, so they must show one `varip`. Sharing cannot double-count once
   // a run over the same prices is the same update (`realtimeDecision`): the second pane's run
@@ -1900,6 +1956,20 @@ export function runtimeIrOptions(def, rows, ctx, { sessionKey = null, slides = f
   }
 }
 
+// ⛔⛔ (e102, coordinator ruling 2026-11-27) THE OFF-LISTING CURTAIN RELEASES NOTHING, until it is PROVED exact.
+// MEASURED (`vendorHarness/curtainCensus.*.measure.test.js`, every corpus script the member door puts on the runtime lane,
+// its off-listing run held to a run from an earlier start on SPY 1D, AAPL 1D, JPM 1D, SPY 60, SPY 1W and NVDA 1W): two
+// starts agreeing is not a proof. order-block-finder's `var latest_bull_high = 0.0`, written only when an order block
+// forms, held its INITIAL value in both runs and was released as 0 where a run from an earlier start holds 5.7; the census
+// found such releases on every daily chart (plots, colours and drawings). So a listing document on a chart whose history
+// does not start at the listing is refused by name again (R-W, as before UIE phase 2), never drawn from two starts.
+// The curtain's code is kept for its re-enable (a provable reach/state bound, wrong == 0 on every census series); the
+// rails that test it turn it on themselves (`setOffListingCurtainEnabled(true)`); `runtimeCurtainOff.rail.test.js`
+// holds this switch off.
+let _offListingCurtainOn = false
+/** Tests, and the re-enable once proved: does an off-listing listing document run the curtain (`computeOffListing`)? */
+export function setOffListingCurtainEnabled(on) { _offListingCurtainOn = on !== false }
+
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
   const outputs = compute.outputs || {}
@@ -1912,7 +1982,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
     // the bars whose values do not depend on where the chart starts are drawn; the
     // ones before them are withheld; a script that never forgets its start is refused.
-    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    // ⛔⛔ (e102) OFF until proved exact: refused by name below (`_offListingCurtainOn`)
+    if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
     throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
       + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
@@ -1940,6 +2011,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // read of the supply is checked bar for bar before it is resumed (`acrossSupplyBlocked`)
     : `${runKey(def, ctx, _resumeAcrossSupplyOff)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
   const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  // ⭐⭐ (e101 S1) the same identity with the symbol facts erased (`factsSessionFor`): kept on the session this run leaves
+  const factsKey = sessionKey
+    ? `${runKey(def, factsFreeCtx(ctx), _resumeAcrossSupplyOff)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}` : null
   // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
   // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
   const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
@@ -2074,8 +2148,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   // ⭐⭐ (item 3) …unless its supply agrees with the checkpoint's (`acrossSupplyBlocked`)
   const acrossSupply = !!reqSupply && !_resumeAcrossSupplyOff && opts.resumeAcrossSupply !== false
-  const resumable = prevSession && !opts.probe && (!reqSupply || acrossSupply)
-    ? resumableFrom(prevSession, rows, program, reqSupply ? reqSupply.supply : null)
+  // ⭐⭐ (e101 S1) no session of its own: the session of the same run under other symbol facts, when this run cannot
+  // read them (`factsSessionFor`), proved by the same `resumableFrom` as any other resume
+  const factsSession = !prevSession && !opts.probe && !reqSupply
+    ? factsSessionFor(factsKey, sessionKey, built.ir, compute.source) : null
+  const fromSession = prevSession || factsSession
+  const resumable = fromSession && !opts.probe && (!reqSupply || acrossSupply)
+    ? resumableFrom(fromSession, rows, program, reqSupply ? reqSupply.supply : null)
     : { why: reqSupply ? 'request' : sessionKey ? 'cold' : 'off' }
   // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
   // session's program instead drew the same columns and drawings on every rail and probe tried
@@ -2087,7 +2166,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const resumeFrom = resumable.checkpoint || null
   // ⭐ a resumed run runs the SESSION's program (its constants — a drawing-handle template
   // the checkpointed state already holds is that very object) over THIS build's columns
-  const runProgram = resumeFrom ? { ...prevSession.program, columns: program.columns } : program
+  const runProgram = resumeFrom ? { ...fromSession.program, columns: program.columns } : program
   // ⭐ P3 WS-F (B5) — the five series and the times in ONE pass (it was six `map`s and five
   // `Float64Array.from`s, about 3 ms a tick at 5,000 bars); the same numbers.
   const nRows = rows.length
@@ -2277,7 +2356,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (res.checkpoint && reqSupply) res.checkpoint.supply = supplyDigestOf(reqSupply.supply, res.checkpoint)
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
-    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, ...(build ? { build } : {}) }
+    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, factsKey, ...(build ? { build } : {}) }
     next.bytes = sessionBytes(next)
     if (next.bytes <= SESSION_BYTE_CAP / 2) {
       _sessions.set(sessionKey, next)
@@ -2452,12 +2531,19 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
   // ⭐ UIE PHASE 2 (M4) — the instance's settings ride the context the run reads
   const values = runtimeInputValues(def, inputs)
   if (Object.keys(values).length) ctx = { ...(ctx || {}), runtimeInputs: values }
-  const key = runKey(def, ctx)
+  // the budget stop's key (`runKey` WITHOUT the other-symbol supply, which moves every tick), and the memo's: the same
+  // string with the supply after it, built once
+  const stopKey = runKey(def, ctx, false)
+  const key = `${stopKey}${requestSupplyKey((def && def.compute) || {}, ctx)}`
+  // ⭐⭐ (e102, option B) the lane asks the page's store on EVERY call, so it sees the pane move to another picture and
+  // back (`askRuntimeBudgetStop`): a stop past its hold, or on a return, is released (at most twice per key per page)
+  const remembered = askRuntimeBudgetStop(stopKey, def && def.id)
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
-  // ⭐ (engine 86) a budget stop remembered before a Retry is dropped here, and the bars run again
+  // ⭐ (engine 86) a budget stop remembered before a Retry is dropped here, and the bars run again; ⭐⭐ (e102) and so is
+  // one the store has just released
   if (perBars.has(key) && perBars.get(key) && perBars.get(key).budgetGen !== undefined
-      && perBars.get(key).budgetGen !== runtimeBudgetGeneration()) {
+      && (perBars.get(key).budgetGen !== runtimeBudgetGeneration() || !remembered)) {
     perBars.delete(key)
   }
   if (perBars.has(key)) {
@@ -2473,8 +2559,8 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
   // run cold again only to be stopped again (they were, on every update, each burning the whole budget and drawing
   // nothing). ⛔ Never persisted: a reload, another setting or symbol, or Retry on the strip
   // (`retryRuntimeBudgetStops`) runs it again, so a stop that came from a busy machine is never permanent.
-  const stopKey = runKey(def, ctx, false)
-  const remembered = runtimeBudgetStopAt(stopKey)
+  // ⭐⭐ (e102, coordinator ruling 2026-11-27, option B) and the page itself asks it again: after 20 s, or when the pane
+  // comes back to this picture from another, at most twice per key (`runtimeBudgetStops.js::askRuntimeBudgetStop`)
   if (remembered) {
     perBars.set(key, { stoppedBy: remembered.err, budgetGen: runtimeBudgetGeneration() })
     throw remembered.err
@@ -2521,7 +2607,7 @@ export function runtimeColumnsFor(def, bars, inputs, ctx) {
 /** The stop as the strip says it: the run's own sentence, and that it is not run again until a retry. */
 function budgetStopOf(err) {
   const kept = new Error(`${String((err && err.message) || '').trim()} It is not run again on this chart's next bars `
-    + '(each would be stopped the same way); Retry runs it again.')
+    + 'for a while (each would be stopped the same way); Retry runs it again now.')
   for (const [k, v] of Object.entries(err || {})) if (k !== 'message' && k !== 'stack') kept[k] = v
   kept.guard = RUNTIME_TIME_BUDGET_GUARD
   kept.retryable = true
@@ -2821,7 +2907,10 @@ export function runtimeOwnDailyQuestion(source, tf, symbol = null) {
   const t = tf == null ? '' : String(tf)
   if (!isIntradayTf(t) || typeof source !== 'string' || !source) return null
   const sym = symbolOf({ symbol })
-  return { key: `${t}|${symbolKey(sym)}|${source}`, tf: t, symbol: sym || null }
+  // ⭐ U-DAILY (e96, part B) — whether a daily EXPRESSION is read there depends on its capability's admission too
+  // (`dailyExpressionGate.js`): an answer given with it closed is never the answer with it open
+  const gate = dailyExpressionAdmitted() ? 'dx|' : ''
+  return { key: `${t}|${symbolKey(sym)}|${gate}${source}`, tf: t, symbol: sym || null }
 }
 /** The memoised answer for a question's key, or undefined when it has not been answered in this tab. */
 export function runtimeOwnDailyKnown(key) {

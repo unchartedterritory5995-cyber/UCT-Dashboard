@@ -24,7 +24,8 @@ DECLARED = {
     "api/routers/screener_backtest.py": ("pine", 1),
     "api/services/screener/backtest.py": ("inherits", 1),
     # e95 unit 2: +1, ``builtin_witness_mask`` reads an anchored VWAP's anchor as the chart can know it
-    "api/services/ast_interpret.py": ("inherits", 5),
+    # U-DAILY (e96): +2, a daily read's child on the daily bars and the tree with its leaves, both on the caller's opts
+    "api/services/ast_interpret.py": ("inherits", 7),
     "api/services/definition_concierge.py": ("native", 1),
     # SETH (#2491): the fixed LIBRARY's hand-built screen trees (the persisted native shape), never a Pine document
     "api/services/setup_history_calc.py": ("native", 1),

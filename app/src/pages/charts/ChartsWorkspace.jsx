@@ -1,9 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
+import { boardLayerProps } from '../../components/chart/boardLayer'
+import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache, settlePreferenceWrites } from '../../hooks/usePreferences'
 import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
 import { markDeskHidden } from './deskKeyGate'
@@ -17,7 +20,8 @@ import { WorkspaceContext } from './WorkspaceContext'
 import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
-import useSWR, { useSWRConfig } from 'swr'
+import useSWR, { SWRConfig, unstable_serialize, useSWRConfig } from 'swr'
+import { isAppVisible } from '../../lib/deskVisibility'
 import { useAgentAccess, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
@@ -49,6 +53,7 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import useStaggeredMount from './grid/useStaggeredMount'
+import { createBoardSwitchMark } from './boardSwitchMark'
 import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
@@ -94,7 +99,7 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
-import { createGroupSymsStore } from './groupSymsStore'
+import { createBoardGroupSymsView, createGroupSymsStore } from './groupSymsStore'
 import { beginGroupSwitch, chartGroupKey } from '../../hooks/handoffGroups'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
@@ -724,6 +729,116 @@ function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
   return 'A'
 }
 
+// A kept board's grid (board keep-alive): nothing it does writes a board (it is hidden; this is the guard that holds if
+// it were not). One module object, so the kept board's widget hosts see the same handlers at every render.
+const NO_GRID_OP = () => {}
+const HIDDEN_GRID_HANDLERS = {
+  onLayoutChange: NO_GRID_OP, onDragStart: NO_GRID_OP, onRemove: NO_GRID_OP, onColorChange: NO_GRID_OP,
+  onOptsChange: NO_GRID_OP, onReplaceWidget: NO_GRID_OP,
+}
+
+// The layer keep-alive's per-board workspace (boardKeepAlive.js '2'): the workspace's value with the groups' symbols
+// read through the board's own view (groupSymsStore.js `createBoardGroupSymsView`), which holds them while the board
+// is hidden. The view is the slot's for life, so a hide or a show changes nothing a reader keys on.
+function withGroupSymsView(base, view) {
+  const out = {}
+  for (const k of Object.keys(base)) if (k !== 'groupSyms' && k !== 'groupSymsStore') out[k] = base[k]
+  Object.defineProperty(out, 'groupSyms', { enumerable: true, configurable: true, get: () => view.get() })
+  out.groupSymsStore = view
+  return out
+}
+// Two slot values carry the same content: every field the same, or (plain data, e.g. `widgetCanvasById` recomputed
+// for the other board's layout) equal by value. A board's readers then keep the value they had (no re-render).
+function plainData(v) {
+  if (v == null || typeof v !== 'object') return false
+  const p = Object.getPrototypeOf(v)
+  return Array.isArray(v) || p === Object.prototype || p === null
+}
+// (review of #2901, D8) only these fields are compared by value: each is arrays / objects of primitives. Every other
+// field must be the same object, so a future field holding functions or a Map can never compare equal while it differs.
+const SLOT_VALUE_DATA_FIELDS = new Set(['groupTfs', 'groupTfSets', 'widgetCanvasById', 'widgetCanvasByType'])
+function sameSlotValue(a, b) {
+  for (const k of Object.keys(b)) {
+    if (k === 'groupSyms') continue   // read through the slot's view, the same object in both
+    const x = a[k], y = b[k]
+    if (x === y) continue
+    if (!SLOT_VALUE_DATA_FIELDS.has(k) || !plainData(x) || !plainData(y)) return false
+    try { if (JSON.stringify(x) !== JSON.stringify(y)) return false } catch { return false }
+  }
+  return Object.keys(a).length === Object.keys(b).length
+}
+// ⭐ (review of #2901, M4) while its board is hidden a slot HOLDS the workspace value it last showed: a group
+// timeframe, the theme or anything else that changes on the board in front reaches the hidden board's widgets only at
+// its show (as the group symbols do, through the view). A shown slot keeps its value object whenever the content is
+// the same, so a switch between two boards re-renders neither board's workspace readers.
+function BoardSlotWorkspace({ base, view, vis, children }) {
+  const live = useMemo(() => withGroupSymsView(base, view), [base, view])
+  const lastRef = useRef(null)
+  let value
+  if (boardHiddenNow(vis) && lastRef.current) value = lastRef.current
+  else {
+    value = lastRef.current && sameSlotValue(lastRef.current, live) ? lastRef.current : live
+    lastRef.current = value
+  }
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+}
+
+// ⭐ The slot's board, rendered: in front, at once; hidden, the re-render that takes its writes and attributes away
+// (HIDDEN_GRID_HANDLERS, no data-widget-id) is DEFERRED (useDeferredValue: a background render after the click's task),
+// as an <Activity> hide defers its subtree. The slot itself is already inert and invisible in the click's commit.
+function SlotBoard({ el, hidden }) {
+  const deferred = useDeferredValue(el)
+  return hidden ? deferred : el
+}
+
+// ⭐ (review of #2901, M3 + D2) the slot's SWR hooks, recorded so a show can catch up the reads its hidden board
+// missed (a hidden board's polls are off: SWRConfig isVisible). Each entry: the hook's serialized key, its refresh
+// interval, its bound mutate (read through a ref) and when its key last fetched (the slot's fetcher wrapper).
+// ⛔ mutate() is one FORCED, undeduped request (SWR drops the key's in-flight fetch first), so the show revalidates
+// each distinct POLLED key once, and only when its own interval ran out while hidden; a key with no refresh interval
+// (static data: profiles, statements, meta) is never re-read by a show.
+function slotSwrMiddleware(hooks, fetchedAt) {
+  return (useSWRNext) => (key, fetcher, config) => {
+    let sk = null
+    try { sk = key == null ? null : unstable_serialize(key) } catch { sk = null }
+    const timed = fetcher && sk
+      ? (...args) => { const p = fetcher(...args); fetchedAt.set(sk, Date.now()); return p }
+      : fetcher
+    const swr = useSWRNext(key, timed, config)
+    const mutateRef = useRef(swr.mutate)
+    mutateRef.current = swr.mutate
+    const entryRef = useRef(null)
+    if (!entryRef.current) entryRef.current = { key: null, interval: 0, revalidate: () => mutateRef.current() }
+    entryRef.current.key = sk
+    entryRef.current.interval = typeof config?.refreshInterval === 'number' ? config.refreshInterval : 0
+    useEffect(() => {
+      const entry = entryRef.current
+      hooks.add(entry)
+      return () => { hooks.delete(entry) }
+    }, [])
+    return swr
+  }
+}
+/** The show of a slot: one revalidation per distinct polled key whose interval ran out (D2). Returns the count. */
+export function revalidateSlotReads(hooks, fetchedAt, now = Date.now()) {
+  const seen = new Set()
+  let n = 0
+  for (const h of hooks) {
+    if (!h.key || seen.has(h.key) || !(h.interval > 0)) continue
+    seen.add(h.key)
+    const at = fetchedAt.get(h.key)
+    if (at != null && now - at < h.interval) continue
+    try { h.revalidate(); n++ } catch { /* one read */ }
+  }
+  return n
+}
+// A board hidden at least this long revalidates its polled SWR reads after its show's first paint.
+const SLOT_REVALIDATE_AFTER_MS = 2000
+function afterFirstPaint(fn) {
+  if (typeof requestAnimationFrame !== 'function') { setTimeout(fn, 0); return }
+  requestAnimationFrame(() => { setTimeout(fn, 0) })
+}
+
 // Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
 // can't wipe a saved layout. Yes deletes; Go back cancels.
 function DeleteConfirm({ onYes, onCancel }) {
@@ -893,6 +1008,101 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
+  // ⚡ (2026-11-26, the board switch; owner: "jumpy") A LAYOUT SWITCH NEVER ANIMATES THE WIDGETS. react-grid-layout's item
+  // transition (`all 200ms`) belongs to drag and resize gestures. A switch to a layout that keeps a widget's id (a layout
+  // saved from another keeps them) kept its grid item and ANIMATED the new size and place over 200 ms: the chart resized
+  // and its header re-fitted at every step (bench: 463 -> 529 -> 670 -> 846 -> 1124 -> ... -> 1400 px over ~230 ms).
+  // `switchLayout` marks the grid `charts-switching` (transition none, ChartsWorkspace.module.css, as `.charts-resizing`
+  // does during a resize) BEFORE the commit that shows the new board, and clears it once the next frame has drawn, so a
+  // later drag or resize animates exactly as before. Every whole-board replacement goes through it.
+  // ⛔ ON THE GRID'S DOM NODE, NOT IN STATE: a state flag would re-render the whole board once more two frames after every
+  // switch just to drop a class. React leaves the node's class alone while the grid's className prop is unchanged.
+  // ⛔ THE TWO FRAMES COUNT FROM THE COMMIT, NOT THE CALL (review of #2860): a switch made after an await or from an
+  // effect (the first prefs load, the default resolve, a version restore, a revert) commits in a later task, and frames
+  // counted from the call could be spent on the OLD board. The call marks the node; the layout effect of the commit that
+  // shows the new board arms the two frames (boardSwitchMark.js).
+  const switchMarkRef = useRef(null)
+  if (!switchMarkRef.current) switchMarkRef.current = createBoardSwitchMark()
+  // (review of #2911, F2) a layer switch to a board that is NOT kept: its fresh grid is marked in the commit that shows it
+  const markShownGridRef = useRef(false)
+  // ⭐ BOARD KEEP-ALIVE (2026-11-27, flag off by default; boardKeepAlive.js). The board a member's switch leaves stays
+  // mounted, hidden (<Activity mode="hidden">, every effect of it disconnected), and a switch back to the very same
+  // layout SHOWS it. Each board is a SLOT (its React key, stable across the prefs load and every non-member switch) with
+  // ONE visibility handle its charts read (boardVisibility.js); the handle's state is written HERE, before the commit
+  // that hides, shows or disposes the board. `key` is the board's dock id: what a switch back is matched on.
+  // '2' is the LAYER mode (boardKeepAlive.js): the kept board stays laid out under the board in front, its effects alive
+  // and its work paused through its handle; each slot also reads the groups' symbols and SWR through its own view.
+  const keepAliveMode = useMemo(() => boardKeepAliveMode(), [])
+  const keepAliveOn = keepAliveMode !== 'off'
+  const layerMode = keepAliveMode === 'layer'
+  const keepAliveOnRef = useRef(keepAliveOn)
+  // what a layer hide resets that lives further down this component (set there: the active chart / watchlist refs)
+  const onLayerHideRef = useRef(null)
+  const boardSlotSeqRef = useRef(0)
+  const currentBoardRef = useRef(null)   // { slot, key, vis } of the board in front
+  if (!currentBoardRef.current) currentBoardRef.current = { slot: 0, key: null, vis: createBoardVisibility({ layer: layerMode }) }
+  const [keptBoard, setKeptBoard] = useState(null)   // { slot, key, vis, layout } of the hidden board
+  const keptBoardRef = useRef(null)
+  keptBoardRef.current = keptBoard
+  // `user`: a member's switch to the board `key` names (a dock tab, Open Layout, the UCT Default, a failed switch put
+  // back). Every other switch (the prefs load, a version restore, the agent) replaces the board in front, in its slot.
+  // (review of #2926, F-D) every board replacement, counted: a Save As that awaited the server adopts the copy it made
+  // only when the board it saved is still the one on screen
+  const boardSwitchSeqRef = useRef(0)
+  const switchLayout = useCallback((next, { user = false, key } = {}) => {
+    boardSwitchSeqRef.current += 1
+    const body = bodyRef.current
+    const grid = body?.querySelector?.('[data-board-current] .react-grid-layout') || body?.querySelector?.('.react-grid-layout')
+    let shown = next
+    let layerSwitch = false
+    if (keepAliveOnRef.current && user && key != null) {
+      const cur = currentBoardRef.current
+      const prevKey = cur.key ?? dockActiveIdRef.current
+      if (prevKey != null && String(prevKey) !== String(key)) {
+        const kept = keptBoardRef.current
+        const reuse = !!kept && String(kept.key) === String(key) && sameBoard(kept.layout, next, serializeLayout)
+        // a slot's record carries what is its for life (the handle; in the layer mode its views, made at its first render)
+        const leaving = { ...cur, key: prevKey, layout: layoutRef.current }
+        layerSwitch = !!leaving.vis.layer
+        leaving.vis.set('hidden')
+        if (leaving.vis.layer) {
+          leaving.hiddenAt = Date.now()
+          onLayerHideRef.current?.()
+        }
+        if (reuse) {
+          kept.vis.set('visible')
+          // M3: a kept layer board hidden long enough revalidates its SWR reads after the show's first paint
+          if (kept.vis.layer && kept.swrHooks && Date.now() - (kept.hiddenAt || 0) >= SLOT_REVALIDATE_AFTER_MS) {
+            const { swrHooks, swrFetchedAt } = kept
+            afterFirstPaint(() => { revalidateSlotReads(swrHooks, swrFetchedAt) })
+          }
+          const { layout: _shownLayout, ...slotRec } = kept
+          currentBoardRef.current = { ...slotRec, key }
+          shown = kept.layout
+        } else {
+          if (kept) kept.vis.dispose()   // its charts' teardowns run (a hidden board runs no cleanup when deleted)
+          markShownGridRef.current = !!leaving.vis.layer
+          currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility({ layer: cur.vis.layer }) }
+        }
+        keptBoardRef.current = leaving
+        setKeptBoard(leaving)
+      } else {
+        cur.key = key
+      }
+    }
+    // the switch mark is for a grid that stays and takes the new layout (the remount path); a layer keep-alive switch
+    // shows a kept grid as it was or mounts a fresh one, and the grid it would mark is the one now hidden
+    if (grid && shown !== layoutRef.current && !layerSwitch) switchMarkRef.current.mark(grid)
+    setLayout(shown)
+  }, [])
+  useLayoutEffect(() => {
+    if (markShownGridRef.current) {
+      markShownGridRef.current = false
+      const grid = bodyRef.current?.querySelector?.('[data-board-current] .react-grid-layout')
+      if (grid) switchMarkRef.current.mark(grid)
+    }
+    switchMarkRef.current.committed()
+  }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
@@ -911,16 +1121,26 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // A refusal describes a full board; once a widget is closed it is no longer true.
   useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom, boardCount])
 
+  // ⛔ (2026-11-27, the live sweep's S3b) THE LAYOUT THE BOARD ON SCREEN WAS OPENED FROM, as THIS tab set it, and the
+  // only layout the named save may write the board into. A board taken from the stored preferences (the first load, a
+  // version restore, a re-read after a conflict) takes the pointer of THE SAME preferences (review of #2926, F-C);
+  // `undefined` only before the board is seeded.
+  // Measured on production: a preferences read that began before a dock switch answered after it and put the OLD
+  // `charts_active_template` back into the cache, under the NEW board. The auto-save 400 ms later wrote the new board
+  // into the old layout's row by name (flip-tab-B's row took flip-tab-A's three widgets), and every later switch
+  // between the two opened the same board. The pointer in the cache can be stale; the board's own origin cannot.
+  const boardOriginRef = useRef(undefined)
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
   useEffect(() => {
     if (loadedFromPrefsRef.current) return
     const parsed = parseLayout(prefs?.charts_workspace_layout)
     if (parsed) {
-      setLayout(parsed)
+      boardOriginRef.current = parsePref(prefs?.charts_active_template, null)?.id ?? null
+      switchLayout(parsed)
       loadedFromPrefsRef.current = true
     }
-  }, [prefs?.charts_workspace_layout])
+  }, [prefs?.charts_workspace_layout, prefs?.charts_active_template, switchLayout])
 
   // Hydration gate: don't persist until server prefs have settled, so RGL's
   // on-mount onLayoutChange can't clobber a returning user's saved layout with the
@@ -1116,6 +1336,33 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.
   const activeWatchlistRef = useRef(null)
+  // (review of #2901, H1) a layer hide leaves no chart or watchlist of the hidden board "active": the key handlers that
+  // follow these refs answer the board in front only (an unmount does the same through the widgets' own cleanups)
+  // ...and (M5) a menu or popover the hidden board opened into document.body (a portal: outside the inert, invisible
+  // layer) is told the press went elsewhere, as a pointer press on the dock would have told it, so it closes
+  onLayerHideRef.current = () => {
+    activeChartRef.current = null
+    activeWatchlistRef.current = null
+    // (D7) the leaving board's widget attributes go NOW: its re-render without them is deferred, and a lookup by
+    // [data-widget-id] in between must find the board in front only
+    try {
+      const leaving = bodyRef.current?.querySelector?.('[data-board-current]')
+      if (leaving) {
+        for (const el of leaving.querySelectorAll('[data-widget-id],[data-widget-type]')) {
+          el.removeAttribute('data-widget-id')
+          el.removeAttribute('data-widget-type')
+        }
+      }
+    } catch { /* no DOM */ }
+    // (D4) a MOUSE press, off-screen: a handler with a touch branch (pointerType '') or one measuring the press never
+    // takes it for a gesture
+    try {
+      const body = document.body
+      const at = { bubbles: true, cancelable: true, button: 0, buttons: 1, clientX: -1, clientY: -1 }
+      if (typeof PointerEvent === 'function') body.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse', isPrimary: true, pointerId: 1 }))
+      body.dispatchEvent(new MouseEvent('mousedown', at))
+    } catch { /* no DOM */ }
+  }
 
   // AI-search bus: a chart's "AI search" context action routes a query to any
   // mounted AI Search widget; request() returns false when none exist so the
@@ -1165,12 +1412,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // `mainBoardWidgetIds` mirrors visibleWidgets' filter (defined again, further
   // down, once poppedWidgetIds/floatingWidgetIds are in scope either way) —
   // computed from the same two state values so the two can never disagree.
-  const mainBoardWidgetIds = useMemo(
-    () => layout.widgets
+  const mainBoardWidgetIds = useMemo(() => {
+    const cur = layout.widgets
       .filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
-      .map(w => w.id),
-    [layout.widgets, poppedWidgetIds, floatingWidgetIds],
-  )
+      .map(w => w.id)
+    // the kept (hidden) board's widgets stay admitted: they are mounted, and its show must not gate them again
+    const extra = keptBoard
+      ? keptBoard.layout.widgets.map(w => w.id).filter(id => !cur.includes(id) && !poppedWidgetIds.includes(id) && !floatingWidgetIds.includes(id))
+      : []
+    return extra.length ? [...cur, ...extra] : cur
+  }, [layout.widgets, poppedWidgetIds, floatingWidgetIds, keptBoard])
   // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
   // the widgets back in through the same cap instead of mounting them all at once.
   const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
@@ -2266,12 +2517,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
     const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
     const beforeLayout = layoutRef.current
+    const beforeOrigin = boardOriginRef.current
+    // the board in front before this switch: a put-back is a switch back to it (the kept board, keep-alive on)
+    const back = { user: true, key: currentBoardRef.current.key ?? dockActiveIdRef.current }
     let beforeCols = null
     try { beforeCols = localStorage.getItem('uct.watchlist.cols') } catch { /* storage off */ }
     const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
     const seq = ++boardCommitSeqRef.current
     boardCommitInFlightRef.current = true
-    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op)
+    // pending: the document write below carries them; until it answers no read may put the old values back
+    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op, { pending: true })
     applyColumnsSteps(steps)
     applyLocal()
     loadedFromPrefsRef.current = true
@@ -2282,10 +2537,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const run = prior.then(() => commitBoardDocument(boardDocumentPatch(steps))).then((x) => { r = x }, () => { r = { status: 'failed' } })
     boardCommitChainRef.current = run
     await run
+    settlePreferenceWrites(keys)   // answered (any outcome): a read that begins now holds the server's values
     const latest = seq === boardCommitSeqRef.current
     if (latest) boardCommitInFlightRef.current = false
     // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
-    if (op.stale()) { if (latest) { putColsBack(); setLayout(beforeLayout) } return 'stale' }
+    if (op.stale()) { if (latest) { putColsBack(); boardOriginRef.current = beforeOrigin; switchLayout(beforeLayout, back) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       onCommitted?.()
@@ -2299,17 +2555,20 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
       putColsBack()
-      setLayout(current || beforeLayout)
+      // the board is re-seeded from the preferences just read: their pointer is its origin (or the one before)
+      boardOriginRef.current = current ? (parsePref(fresh?.charts_active_template, null)?.id ?? null) : beforeOrigin
+      switchLayout(current || beforeLayout, back)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
     // failed: put back exactly what was on screen before the switch
     for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
     putColsBack()
-    setLayout(beforeLayout)
+    boardOriginRef.current = beforeOrigin
+    switchLayout(beforeLayout, back)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
-  }, [setPref])
+  }, [setPref, switchLayout])
 
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
@@ -2341,7 +2600,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => { setLayout(boardLayout); setOpenMenuOpen(false) },
+      applyLocal: () => { boardOriginRef.current = tpl.id; switchLayout(boardLayout, { user: true, key: tpl.id }); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2389,7 +2648,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
       },
     })
-  }, [commitBoard, flashSaved, suppressAutoSave])
+  }, [commitBoard, flashSaved, suppressAutoSave, switchLayout])
 
   // Terminal-grade property 3, "saved things become names, and names are
   // addresses" — opens a specific saved board directly from a URL, the same
@@ -2497,7 +2756,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => { if (!keepBoard) setLayout(normalized) },
+      applyLocal: () => {
+        // the pointer this apply writes (below): the default's sentinel, or none
+        boardOriginRef.current = UCT_DEFAULT_OFFERED ? UCT_DEFAULT_ID : null
+        if (!keepBoard) switchLayout(normalized, { user: !quiet, key: UCT_DEFAULT_ID })
+      },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
@@ -2525,7 +2788,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           : 'null')
       },
     })
-  }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave])
+  }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave, switchLayout])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -2573,9 +2836,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       return
     }
     // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
-    if (UCT_DEFAULT_OFFERED || d.fromTemplate) setLayout(d.layout)
+    if (UCT_DEFAULT_OFFERED || d.fromTemplate) {
+      // (review of #2928, L4) its origin is the pointer of the same preferences, as a loaded board's (F-C)
+      boardOriginRef.current = parsePref(prefs?.charts_active_template, null)?.id ?? null
+      switchLayout(d.layout)
+    }
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState, switchLayout])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
@@ -2592,7 +2859,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const blank = { widgets: [], cols: GRID_COLS }
     const g = { A: null, B: null, C: null, D: null }
     commitBoard({
-      applyLocal: () => { setLayout(blank); setGroupSymsState(g) },
+      applyLocal: () => { boardOriginRef.current = activeTemplate?.id ?? null; switchLayout(blank); setGroupSymsState(g) },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(blank))
         setPref('charts_workspace_groups', JSON.stringify(g))
@@ -2612,7 +2879,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         setPref('charts_active_template', activeTemplate ? JSON.stringify(activeTemplate) : 'null')
       },
     })
-  }, [commitBoard, suppressAutoSave, setGroupSymsState])
+  }, [commitBoard, suppressAutoSave, setGroupSymsState, switchLayout])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2637,6 +2904,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // the member this save is for, begun before the save's await (usePreferences `beginPrefsOp`):
     // the active-template pointer below is never written into a member who signed in meanwhile
     const op = beginPrefsOp()
+    const switchAt = boardSwitchSeqRef.current
     const saved = await saveLayout({
       name: nm,
       layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns },
@@ -2646,7 +2914,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     })
     // The just-saved template becomes the active one, so "Save current
     // arrangement" updates it going forward.
-    if (saved?.id != null) {
+    // (review of #2926, F-D) the copy is adopted (origin and pointer) only when the board it was made from is still the
+    // one on screen: a switch while the save awaited keeps the board that is on screen now pointed where it is
+    if (saved?.id != null && boardSwitchSeqRef.current === switchAt) {
+      if (!op.stale()) boardOriginRef.current = saved.id   // the board on screen now belongs to the copy just saved
       setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }), op)
     }
     return saved
@@ -2672,7 +2943,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // + chart settings, so reopening it reflects the edits. Only updates a template
   // the user can write (their own, or a global one when admin); a stale/deleted
   // active ref is ignored (just saves the working board).
-  const handleSaveLayout = useCallback(async () => {
+  const crossWriteWarnedRef = useRef(false)
+  // `{ auto: true }`: the dock's auto-save (silent when it saves nothing); anything else is a member's Save (the
+  // button, the menu row, UCT Agent's layout.saveCurrent), which is told when the named layout was not written
+  const handleSaveLayout = useCallback(async ({ auto = false } = {}) => {
+    // the origin of THIS render's board, read before the first await: the flush a switch runs (applyTemplate) calls
+    // this before the switch replaces the board and its origin, and its `layout` and pointer are the leaving board's
+    const origin = boardOriginRef.current
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
     // ⛔ REVISION SAFETY: the named layout is written ONLY after the board itself was accepted.
     // A board the server refused as stale (another tab or device changed it) must never be
@@ -2686,9 +2963,24 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (boardOk === false || groupsOk === false) return { ok: false, named: 'none' }
     let named = 'none'
     const active = parsePref(prefs?.charts_active_template, null)
+    // ⛔ the board on screen is written only into the layout it was opened from (boardOriginRef): a pointer that
+    // names another layout (a stale read put it back) gets nothing, and the next save, once they agree, writes it
+    if (active?.id != null && origin !== undefined && String(origin) !== String(active.id)) {
+      if (!crossWriteWarnedRef.current) {
+        crossWriteWarnedRef.current = true
+        console.warn('[layout-dock] named save skipped: the open-layout pointer names a different layout than the board on screen was opened from. Neither layout was written.')
+      }
+      // (review of #2926, F-B) the auto-save stays silent; a member's Save is told, and nothing says "Saved"
+      if (auto) return { ok: true, named: 'none' }
+      workspaceNoticeRef.current?.('Your layout was not saved: the board changed while it was being saved. Try Save again.')
+      return { ok: false, named: 'skipped' }
+    }
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
-      if (list.some(t => t.id === active.id)) {
+      // (review of #2926, F-A) the row is found BY ID and written under ITS name: the pointer's name can be stale (a
+      // rename elsewhere), and the save upserts by name, so another layout that now has the old name would take it
+      const row = list.find(t => t.id === active.id)
+      if (row) {
         const chartSettings = parsePref(prefs?.chart_settings, null)
         const watchlistSettings = parsePref(prefs?.watchlist_settings, null)
         const themeTrackerSettings = parsePref(prefs?.theme_tracker_settings, null)
@@ -2696,7 +2988,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         const breadthSettings = parsePref(prefs?.breadth_widget_settings, null)
         const watchlistColumns = readWatchlistColumns()
         try {
-          await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
+          await saveLayout({ name: row.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
           named = 'saved'
         } catch { named = 'failed' /* surfaced by SWR revalidate */ }
       }
@@ -2705,6 +2997,16 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     return { ok: named !== 'failed', named }
   }, [layout, groupSymsStore, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
+  // The keep-alive keeps no board of a layout that no longer exists (nothing can switch back to it): every door that
+  // deletes a layout (the menu's delete, the Agent's remove) drops a kept board of it.
+  const dropKeptBoardOf = useCallback((id) => {
+    const kept = keptBoardRef.current
+    if (!kept || String(kept.key) !== String(id)) return
+    kept.vis.dispose()
+    keptBoardRef.current = null
+    setKeptBoard(null)
+  }, [])
+
   const handleDeleteTemplate = useCallback(async (id) => {
     // Fall back BEFORE awaiting the delete: if the layout you just deleted was
     // the one open on screen, waiting for the round-trip left you staring at a
@@ -2712,8 +3014,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // the bar optimistically, so both halves of the click land together.
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id === id) applyUctDefault()
+    // the switch above kept the open one; a layout deleted from the list may be the kept one
+    dropKeptBoardOf(id)
     try { await deleteLayout(id) } catch { /* restored by the optimistic rollback */ }
-  }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
+  }, [deleteLayout, prefs?.charts_active_template, applyUctDefault, dropKeptBoardOf])
 
   const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
 
@@ -2951,7 +3255,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     const restoredLayout = parseLayout(fresh.charts_workspace_layout)
     if (restoredLayout) {
-      setLayout(restoredLayout)
+      boardOriginRef.current = parsePref(fresh.charts_active_template, null)?.id ?? null
+      switchLayout(restoredLayout)
       loadedFromPrefsRef.current = true
     }
     const g = parsePref(fresh.charts_workspace_groups, null)
@@ -2975,7 +3280,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     } else {
       showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
     }
-  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState])
+  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState, switchLayout])
   const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
@@ -2984,6 +3289,51 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('gridspike')
   const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
+  // Grid mode and a hidden workspace render no board: the kept one goes (its charts are destroyed with it).
+  useEffect(() => {
+    if (!(gridMode || boardHidden)) return
+    const kept = keptBoardRef.current
+    if (!kept) return
+    kept.vis.dispose()
+    keptBoardRef.current = null
+    setKeptBoard(null)
+  }, [gridMode, boardHidden])
+  // A board kept for KEPT_BOARD_MAX_HIDDEN_MS without a show lets go too, page visible or not (its feeds stay live while
+  // it is kept: review of #2901, D3). The timer belongs to the kept board it was started for.
+  useEffect(() => {
+    if (!keptBoard) return undefined
+    const t = setTimeout(() => {
+      const kept = keptBoardRef.current
+      if (kept !== keptBoard) return
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }, KEPT_BOARD_MAX_HIDDEN_MS)
+    return () => clearTimeout(t)
+  }, [keptBoard])
+  // A page hidden for KEPT_BOARD_HIDDEN_DISPOSE_MS lets the kept board go (memory); the workspace leaving disposes it.
+  useEffect(() => {
+    if (!keepAliveOn) return undefined
+    let t = null
+    const drop = () => {
+      t = null
+      const kept = keptBoardRef.current
+      if (!kept) return
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }
+    const onVisibility = () => {
+      if (document.hidden) { if (t == null) t = setTimeout(drop, KEPT_BOARD_HIDDEN_DISPOSE_MS) }
+      else if (t != null) { clearTimeout(t); t = null }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      if (t != null) clearTimeout(t)
+      keptBoardRef.current?.vis.dispose()
+    }
+  }, [keepAliveOn])
 
   // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
   // demands an explicit owner — see the widget's own listener) and the press
@@ -3250,7 +3600,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const runNamedSave = useCallback(() => {
     const sig = arrangementSig(layoutRef.current)
     setAutoSaveInFlight(true)
-    Promise.resolve(namedSaveRef.current?.())
+    Promise.resolve(namedSaveRef.current?.({ auto: true }))
       .then((r) => setAutoSaveFailSig(r && r.ok === false ? sig : null), () => setAutoSaveFailSig(sig))
       .finally(() => setAutoSaveInFlight(false))
     userRemovedRef.current = false
@@ -3581,7 +3931,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       create: (name) => saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user', createOnly: true }),
       // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
       // deletes the OPEN layout (the dock would first switch the board to UCT Default).
-      remove: (id) => deleteLayout(id),
+      remove: (id) => { dropKeptBoardOf(id); return deleteLayout(id) },
       // "Save current arrangement" — the Layouts ▾ menu's own handler (board first, then the
       // open layout's row, only after the board was accepted). {ok, named: saved|none|failed}.
       saveCurrent: () => handleSaveLayout(),
@@ -3861,7 +4211,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // RGL configuration (viewport lock, 24 columns, computed row height) is
   // defined once here so a board on another monitor can't drift out of sync with
   // the workspace it came from.
-  const renderGrid = (widgets, h, rowHeightOverride, widthOverride) => {
+  const renderGrid = (widgets, h, rowHeightOverride, widthOverride, { hidden = false } = {}) => {
     // A popped-out board passes an explicit width (measured against its OWN
     // window); the main board leaves it undefined and uses WidthProvider's
     // auto-measurement.
@@ -3960,12 +4310,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         return (
           <div
             key={w.id}
-            data-widget-id={w.id}
+            // a kept (hidden) board carries neither: the board in front may hold a widget of the same id
+            data-widget-id={hidden ? undefined : w.id}
             // UCT Agent's product guide finds a board's watchlist / chart by its type (agent/guide/targets.js)
-            data-widget-type={w.type}
+            data-widget-type={hidden ? undefined : w.type}
             // main board charts only (a popped-out board's renderGrid passes no onPopOut): the
             // UCT Agent's "this chart". Capture phase, so a chart that stops propagation still counts.
-            onPointerDownCapture={w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
+            onPointerDownCapture={!hidden && w.type === 'chart' && h.onPopOut ? () => { selectedChartRef.current = { widgetId: w.id, layoutId: dockActiveIdRef.current } } : undefined}
           >
             <WidgetHost
               widget={w}
@@ -4027,6 +4378,74 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const showPopupBlocked = () => {
     setPopoutNotice(POPUP_BLOCKED_MSG)
     if (boardHidden) announceDeskLaunchBlocked()
+  }
+
+  // The board in front and, keep-alive on, the kept one: each in its SLOT (a stable React key, ordered by slot so a
+  // switch back moves no DOM node), under its visibility handle, in an <Activity>. Keep-alive off: the board alone.
+  const renderMainBoards = () => {
+    const front = renderGrid(visibleWidgets, mainGridHandlers)
+    if (!keepAliveOn) return front
+    const cur = currentBoardRef.current
+    const keptGrid = () => renderGrid(
+      // a popped or floating widget exists once: never again on the kept board
+      keptBoard.layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id)),
+      HIDDEN_GRID_HANDLERS, undefined, undefined, { hidden: true },
+    )
+    if (layerMode) {
+      // ⭐ LAYER: no <Activity>. The kept board is laid out under the one in front (`.boardSlotLayer`), inert; its slot's
+      // views hold the groups' symbols and pause its SWR polls while its handle says hidden. A switch back changes
+      // classes and attributes only.
+      const recs = [{ rec: cur, front: true }]
+      if (keptBoard && keptBoard.slot !== cur.slot) recs.push({ rec: keptBoard, front: false })
+      recs.sort((a, z) => a.rec.slot - z.rec.slot)
+      return recs.map(({ rec, front: isFront }) => {
+        if (!rec.groupView) rec.groupView = createBoardGroupSymsView(groupSymsStore, rec.vis)
+        if (!rec.swr) {
+          // ⛔ (review of #2901, H2) NOT isPaused: SWR hands a key's mutate() and its error retry to the FIRST hook
+          // mounted for it, which after a switch is often the kept board's; a paused hook drops them for the board in
+          // front. isVisible gates only the hidden hook's own interval and focus revalidation.
+          const vis = rec.vis
+          rec.swrHooks = new Set()
+          rec.swrFetchedAt = new Map()
+          rec.swr = { isVisible: () => !boardHiddenNow(vis) && isAppVisible(), use: [slotSwrMiddleware(rec.swrHooks, rec.swrFetchedAt)] }
+        }
+        // the hidden board's element is made once per hide (a later render of the workspace re-renders nothing of it)
+        let content = front
+        if (!isFront) {
+          const sig = `${poppedWidgetIds.join(',')}|${floatingWidgetIds.join(',')}|${merged ? 1 : 0}|${rowHeight}`
+          if (!rec.hiddenEl || rec.hiddenSig !== sig) { rec.hiddenEl = keptGrid(); rec.hiddenSig = sig }
+          content = rec.hiddenEl
+        } else {
+          rec.hiddenEl = null
+        }
+        return (
+          <BoardVisibilityContext.Provider key={`board-slot-${rec.slot}`} value={rec.vis}>
+            <BoardSlotWorkspace base={workspaceValue} view={rec.groupView} vis={rec.vis}>
+              <SWRConfig value={rec.swr}>
+                <div
+                  {...boardLayerProps(!isFront, styles.boardSlot)}
+                  data-board-current={isFront ? '' : undefined}
+                >
+                  <SlotBoard el={content} hidden={!isFront} />
+                </div>
+              </SWRConfig>
+            </BoardSlotWorkspace>
+          </BoardVisibilityContext.Provider>
+        )
+      })
+    }
+    const boards = [{ slot: cur.slot, vis: cur.vis, front: true }]
+    if (keptBoard && keptBoard.slot !== cur.slot) boards.push({ slot: keptBoard.slot, vis: keptBoard.vis, front: false })
+    boards.sort((a, z) => a.slot - z.slot)
+    return boards.map((bd) => (
+      <BoardVisibilityContext.Provider key={`board-slot-${bd.slot}`} value={bd.vis}>
+        <Activity mode={bd.front ? 'visible' : 'hidden'}>
+          <div className={styles.boardSlot} data-board-current={bd.front ? '' : undefined}>
+            {bd.front ? front : keptGrid()}
+          </div>
+        </Activity>
+      </BoardVisibilityContext.Provider>
+    ))
   }
 
   const mainGridHandlers = {
@@ -4377,7 +4796,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
-          ) : renderGrid(visibleWidgets, mainGridHandlers)}
+          ) : renderMainBoards()}
           {/* Owner 11-16: a blank workspace (new members start here) says what to do. */}
           {!gridMode && layout.widgets.length === 0 && !pendingAdd && (
             <div className={styles.emptyBoard} data-testid="empty-board">

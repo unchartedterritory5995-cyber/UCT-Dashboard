@@ -97,22 +97,39 @@ function _dwmGraceOff() {
  * chart drew nothing.
  * @returns {{url: string|null, spec: object|null}}
  */
-export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '') {
+export function compareBarsRequest(compareSymbol, resolvedTf, barCount, gridQ = '', extended = false) {
   if (!compareSymbol) return { url: null, spec: null }
-  const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf)
+  const spec = isNativeTf(resolvedTf) ? null : resampleSpec(resolvedTf, { extended })
   const code = spec ? spec.base : resolvedTf
   const count = spec ? customBaseBarsOf(spec.base) : barCount
-  const q = spec ? '' : gridQ
+  // (an extended custom intraday spec reads its base on the extended grid where it differs: 60m's clock grid; 1/5/15/30m
+  // are one grid in both views, review of #2753)
+  const q = spec ? customBaseSessionQuery(spec, extended) : gridQ
   // ⛔ ONE url literal, the site `rails/oneKey.baseline.json` already lists (a shrink-only allowlist: never a new one)
   return { url: `/api/bars/${encodeURIComponent(compareSymbol.toUpperCase())}?tf=${code}&bars=${count}${q}`, spec }
 }
 
+/** `&session=eth` where a custom intraday spec's base differs by view (60m: the clock grid), else ''. */
+export function customBaseSessionQuery(spec, extended) {
+  return extended && spec?.kind === 'intradaySession' && String(spec.base) === '60' ? barsSessionQuery(spec.base, true) : ''
+}
+
+/** ⭐ (2026-11-25) THE CHART'S OWN CUSTOM SERIES, legacy source: its spec (anchored at the view's session start: 04:00 ET
+ *  extended, 09:30 regular) and its base URL (on the view's grid). One function, so the URL and the resample agree. */
+export function customSeriesRequest(sym, resolvedTf, showExtended) {
+  if (!sym || isNativeTf(resolvedTf)) return { spec: null, url: null }
+  const spec = resampleSpec(resolvedTf, { extended: !!showExtended })
+  if (!spec) return { spec: null, url: null }
+  const _customBaseTf = spec.base   // (the census's one custom-base url literal, `rails/oneKey.baseline.json`)
+  return { spec, url: `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${customBaseBarsOf(_customBaseTf)}${customBaseSessionQuery(spec, !!showExtended)}` }
+}
+
 /** The comparison symbol's bars (an SWR of its own URL). P3-S1: BOTH bar sources call this one
  *  hook, so a compare overlay is identical under either switch value; P3-S3 moves it onto a store key. */
-export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher }) {
+export function useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended = false }) {
   const { url: compareSwrUrl, spec } = useMemo(
-    () => compareBarsRequest(compareSymbol, resolvedTf, barCount, _gridQ),
-    [compareSymbol, resolvedTf, barCount, _gridQ],
+    () => compareBarsRequest(compareSymbol, resolvedTf, barCount, _gridQ, extended),
+    [compareSymbol, resolvedTf, barCount, _gridQ, extended],
   )
   const { data: compareData } = useSWR(compareSwrUrl, instFetcher, { dedupingInterval: 60_000, revalidateOnFocus: false })
   // a custom timeframe: the base payload, its rows resampled (same object while the payload is the same one)
@@ -582,7 +599,8 @@ export function useLegacyChartBars({
   // custom SWR below fetches the base + resamples. Declared here so swrUrl can defer.
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
   const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
-  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
+  const _customReq = useMemo(() => customSeriesRequest(sym, resolvedTf, showExtended), [sym, resolvedTf, showExtended])
+  const _customSpec = _customReq.spec
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   // ⛔ AN ECONOMIC PRIMARY NEVER REACHES THE BARS LANE — loaded, loading, denied or
@@ -862,10 +880,7 @@ export function useLegacyChartBars({
   // it can null itself out for a custom TF; the fetch + resample happen here.)
   const _customBaseIntraday = ['1', '5', '15', '30', '60'].includes(_customBaseTf)
   // Pull a generous base window so the resampled series has enough bars to fill the view.
-  const _customBaseBars = customBaseBarsOf(_customBaseTf)
-  const customSwrUrl = _isCustomTf
-    ? `/api/bars/${encodeURIComponent(sym)}?tf=${_customBaseTf}&bars=${_customBaseBars}`
-    : null
+  const customSwrUrl = _isCustomTf ? _customReq.url : null
   const { data: customBaseData } = useSWR(customSwrUrl, instFetcher, {
     dedupingInterval: dedupMs,
     revalidateOnFocus: false,
@@ -885,7 +900,7 @@ export function useLegacyChartBars({
   const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
 
   // ── Comparison symbol SWR fetch ── (useCompareBars, shared with useBarSnapshotBars)
-  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher })
+  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended: !!showExtended })
 
   // ── Intraday deep history = LEFT-PREPEND windows (2026-11-11, utils/historyPrepend.js) ──
   // ⛔ Replaces the one-shot `bars=3000` deep pull AND the scroll-back `setFetchDepth` x8

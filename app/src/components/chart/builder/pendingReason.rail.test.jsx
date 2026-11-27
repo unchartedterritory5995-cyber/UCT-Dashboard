@@ -35,6 +35,11 @@ import {
   checkScript, settleScript, scriptEntry, isChecking, PENDING_REASON_LINES, PENDING_REASONS_THAT_END_THE_WAIT,
   PENDING_RECHECKS, STILL_CHECKING_HEADLINE, STILL_CHECKING_LINE, CHECKING_IN_THE_EDITOR_LINE,
 } from './authoring/scriptAnswer'
+// (2026-11-23, unit (c): the dock's check loads its engine modules on first use. Every one of them was already in this
+// file's graph, so that load took no real time; the workers' check is a module nothing here imports, and a cold
+// import is REAL time while this rail's clock is a fake one: the first check then armed its timers after the clock
+// had been moved, and waited for ever. Named here, it is in the graph like the rest.)
+import './authoring/scriptCheckOffThread'
 import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
 import {
   __resetRuntimeAllowList, __resetRuntimeAdmission, __resetRuntimeListsRecheck, setRuntimeKillList, latchRuntimeLists,

@@ -458,6 +458,7 @@ export const AUTO_MAX_BARS_BACK = 400
  *
  *   program.nums = [{ id, init }]            a scalar only getters write
  *   { k:'setnum', num, value:{v:'get'…} }    written at its statement's place
+ *                                            (⭐ e96: or `isGetterArith` — getter arithmetic)
  *   { v:'num', id }                          read — like `get`: a guard operand,
  *                                            a WHOLE coordinate, a text `if` operand
  *
@@ -820,6 +821,23 @@ export function withBarIndexHeld(program, classOfNode) {
 export function opReadsState(v, depth = 0) {
   if (!isObj(v) || v.v !== 'op' || depth > 32 || !Array.isArray(v.args)) return false
   return v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || opReadsState(a, depth + 1)))
+}
+
+/** ⭐ e96 — A GETTER-FED SCALAR'S ARITHMETIC WRITE (`setnum`): the value operators
+ *  (`OBJECT_VALUE_OPS`, and a unary minus) over WHOLE getters and numeric constants, with at
+ *  least one getter — exactly what the converter builds (`pine.js::scalarNumber`) from what the
+ *  reader admits (`objectFnInline.js::isGetterArithAt`), and nothing wider: no tree, no other
+ *  scalar, no getter's history. */
+export function isGetterArith(v) {
+  const walk = (x, depth) => {
+    if (!isObj(x) || depth > 32) return false
+    if (x.v === 'get') return x.back === undefined
+    if (x.v === 'const') return typeof x.value === 'number'
+    if (x.v !== 'op' || !Array.isArray(x.args)) return false
+    const ok = x.args.length === 1 ? x.op === '-' : x.args.length === 2 && OBJECT_VALUE_OPS.includes(x.op)
+    return ok && x.args.every((a) => walk(a, depth + 1))
+  }
+  return isObj(v) && v.v === 'op' && walk(v, 0) && containsGet(v)
 }
 
 /** Does this value reference read object state anywhere beneath it? */
@@ -1361,8 +1379,11 @@ export function assertObjectProgram(program) {
         if (!live.inLoop) throw new Error(`${where}: a loop scalar written outside a loop body`)
         assertValueRef(op.value, `${where}.value`, { ...live, loopNumsOnly: true })
       } else {
-        if (!opLive || !nums.has(op.num) || op.value?.v !== 'get') throw new Error(`${where}: bad setnum`)
-        assertLiveRef(op.value, where, opLive)
+        // ⭐ e96 — a bare getter, or arithmetic over getters and numbers (`isGetterArith`).
+        const arith = isGetterArith(op.value)
+        if (!opLive || !nums.has(op.num) || !(op.value?.v === 'get' || arith)) throw new Error(`${where}: bad setnum`)
+        if (arith) assertValueRef(op.value, `${where}.value`, opLive)
+        else assertLiveRef(op.value, where, opLive)
       }
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)

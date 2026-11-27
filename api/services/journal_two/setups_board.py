@@ -155,8 +155,9 @@ def read_prices(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
     # labelled with its source and minute (`asOf`).
     out: dict[str, dict[str, Any]] = {}
     try:
-        from api.services import bar_broadcaster
-        bc = bar_broadcaster.get_broadcaster()
+        # the stream module registers itself there (never imported here: flow-worker's closure stays clean)
+        from api.services import live_price_source
+        bc = live_price_source.broadcaster()
     except Exception:  # noqa: BLE001 -- not initialised (a job, a test): closes only
         bc = None
     for sym in symbols:

@@ -38,6 +38,8 @@ const _groupsOf = (scope) => { let g = _members.get(scope); if (!g) { g = new Ma
  *     imperative switch); anything else, or a throw, and the member adopts the decision in its next render.
  *   member.tf() -> the timeframe it shows now (recorded in the decision; a member whose timeframe has moved by
  *     its render does not adopt the decision).
+ *   member.key (optional) -> the identity its chart paints under (chart/paintLog PaintMemberContext), read only
+ *     by the switch-speed instrument (observeGroupSwitches).
  */
 export function registerMember(scope, group, id, member) {
   if (!scope || !group) return () => {}
@@ -86,12 +88,25 @@ export function latestOnly(fn) {
   return run
 }
 
+// ── the observer: the field instrument for switch speed (lib/switchSpeed.js, 2026-11-23) ──────────────────────
+// ⛔ ZERO IMPORTS STILL: the instrument is HANDED in (useSymbolHandoff wires it), never imported here.
+//   observer.press(scope, group, sym, members)  the key press, before anything else of the switch runs;
+//                                               `members` is the group's Map of registered members (or null)
+//   observer.decided(group, sym)                the decision said yes
+// Read by no decision. A throw in it never costs the switch.
+let _observer = null
+export function observeGroupSwitches(observer) { _observer = observer || null }
+
 /** THE KEY PRESS, in the order it must run (the board's setGroupSym calls this one function): every member's
  *  device read starts (primeGroup), THEN the group decides (decideGroupShow), so a copy the device already holds
  *  can be shown in this task. Returns the decision's answer. */
 export function beginGroupSwitch(scope, group, sym) {
+  const o = scope && group && sym ? _observer : null
+  if (o) { try { o.press(scope, group, sym, _groupsOf(scope).get(group) || null) } catch { /* a measurement only */ } }
   primeGroup(scope, group, sym)
-  return decideGroupShow(scope, group, sym)
+  const decided = decideGroupShow(scope, group, sym)
+  if (o && decided) { try { o.decided(group, sym) } catch { /* a measurement only */ } }
+  return decided
 }
 
 // ── the settle clock: the settle rule's state per group, shared by the decision and the round ───────────────

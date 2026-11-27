@@ -145,8 +145,14 @@ describe('the legend fold pays for the disclosure button it renders', () => {
     expect(rangeBarYieldsToLegend(false, true)).toBe(true)
     expect(rangeBarYieldsToLegend(true, false)).toBe(true)    // the collapse always hid it
     expect(rangeBarYieldsToLegend(false, false)).toBe(false)  // the control: at rest the bar is drawn
-    // the wire: the bar's own render gate asks, with the V2 stack's expand
-    expect(JSX).toMatch(/&& !rangeBarYieldsToLegend\(compactLegend, legendV2 && chipsExpanded\) && \(\s*<div ref=\{rangeBarRef\}/)
+    // the wire: the bar's own render gate asks, with the V2 stack's expand. The bar's ref is its object ref or the
+    // callback that sets it (`rangeBarRefCb`, which also hands the bar `--price-axis-w`); the gate is what is pinned.
+    const GATE = /&& !rangeBarYieldsToLegend\(compactLegend, legendV2 && chipsExpanded\) && \(\s*<div ref=\{rangeBarRef(?:Cb)?\}/
+    expect(JSX).toMatch(GATE)
+    // the control: the same source with the condition removed does not pass
+    const ungated = JSX.replace(/&& !rangeBarYieldsToLegend\(compactLegend, legendV2 && chipsExpanded\) /, '')
+    expect(ungated).not.toBe(JSX)
+    expect(ungated).not.toMatch(GATE)
   })
 
   it('an expand with no fold left to close is dropped, so the range bar and the collapse come back', () => {

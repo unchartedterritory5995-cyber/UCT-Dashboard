@@ -66,6 +66,12 @@
    "title": "Heikin Ashi candles",
    "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
    "file": "heikin-ashi-candles.pine"
+  },
+  {
+   "id": "average-by-type",
+   "title": "A moving average whose type is a setting",
+   "shows": "ta.* calls in the arms of a switch over an input.string: the chosen arm runs on every bar, so each call sees every bar (a block that skips bars and runs again, such as an if on a price condition, is refused)",
+   "file": "average-by-type.pine"
   }
  ]
 }

@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_PLOTARROW_LENGTH", overlay = true)
+
+// PROVENANCE: written 2026-11-22 (Q-ARROW-1, docs/pine/capture-queue-2026-11-22-e96-presentation.md). Our probe.
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── HOW LONG IS EACH `plotarrow` ARROW? (coordinator ruling Q4: plotarrow is HELD until this is witnessed) ───
+//
+// TradingView draws an up arrow at a positive value and a down arrow at a negative one, between `minheight` and
+// `maxheight` pixels long. Which value maps to which length (the largest |value| among the bars shown? among all
+// bars?) and where each arrow sits (above or below the bar, from which price) is not in the study's data model, so
+// it is read off the picture. The series is a known staircase so each arrow's length can be measured against it.
+//   A0  +1, +2, +4, +8, -1, -2, -4, -8, then repeat (bar_index % 8), minheight 5, maxheight 100
+// CAPTURE: NYSE:RDDT 1D, two zoom levels (about 40 bars shown, then about 200), a screenshot of each, the pixel
+// length of eight consecutive arrows and their tip and tail prices; plus the study's styles / styleState.
+
+steps = array.from(1.0, 2.0, 4.0, 8.0, -1.0, -2.0, -4.0, -8.0)
+v = array.get(steps, bar_index % 8)
+plotarrow(v, title = "A0_staircase", colorup = color.teal, colordown = color.orange, minheight = 5, maxheight = 100)

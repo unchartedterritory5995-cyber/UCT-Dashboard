@@ -232,6 +232,48 @@ def test_a_next_url_that_already_carries_a_key_gets_ours_once_never_two(monkeypa
     assert t.paths[1] == f"/v3/x?cursor=1&limit=5&apiKey={_KEY}"
 
 
+# ── get_next: ONE cursor page, for a caller that walks the cursor itself ──────
+
+def test_get_next_reads_one_cursor_page_verbatim_with_the_key_ours_once(monkeypatch):
+    t = _use(monkeypatch, _Transport({"results": [{"a": 2}], "next_url": _BASE + "/v3/q/O:X?cursor=n3"}))
+    r = ad.get_next(_BASE + "/v3/q/O:X?cursor=YWJj%3D%3D+x&apiKey=zzz&limit=5",
+                    data_class="quotes", activity="t.next")
+    assert r.value == {"results": [{"a": 2}], "next_url": _BASE + "/v3/q/O:X?cursor=n3"}
+    assert r.provenance.vendor == "massive" and r.provenance.source_activity == "t.next"
+    assert r.licensing_class == plc.licensing_class_for("massive", "quotes")
+    assert t.paths == [f"/v3/q/O:X?cursor=YWJj%3D%3D+x&limit=5&apiKey={_KEY}"]
+    assert ad.stats()["by_data_class"]["quotes"] == {"calls": 1, "errors": 0, "budget_denied": 0}
+
+
+@pytest.mark.parametrize("foreign", [
+    "https://evil.example/v3/x?cursor=1",
+    _BASE + ".evil.example/v3/x?cursor=1",
+    "http://api." + "massive" + ".com/v3/x?cursor=1",
+    _BASE + "@evil.example/v3/x",
+    "/v3/x?cursor=1",
+    None,
+])
+def test_get_next_refuses_a_cursor_off_the_massive_https_host_before_any_request(monkeypatch, foreign):
+    t = _use(monkeypatch, _Transport())
+    with pytest.raises(massive.MassiveTransient) as ei:
+        ad.get_next(foreign, data_class="quotes", activity="t")
+    assert t.paths == [] and ei.value.code == "foreign_next_url"
+    assert _KEY not in str(ei.value)
+    assert ad.stats()["by_data_class"]["quotes"]["errors"] == 1
+
+
+def test_get_next_raises_typed_like_get_and_requires_its_stamp(monkeypatch):
+    _use(monkeypatch, _Transport(massive._ERR.transient("Massive server error (502)", status=502)))
+    with pytest.raises(massive.MassiveTransient):
+        ad.get_next(_BASE + "/v3/x?cursor=1", data_class="quotes", activity="t")
+    _use(monkeypatch, _Transport({"__degraded__": "cached_forbidden", "__degraded_since__": 1.0}))
+    with pytest.raises(massive.MassiveAuthError) as ei:
+        ad.get_next(_BASE + "/v3/x?cursor=1", data_class="quotes", activity="t")
+    assert ei.value.code == "cached_forbidden"
+    with pytest.raises(ValueError):
+        ad.get_next(_BASE + "/v3/x?cursor=1", data_class="", activity="t")
+
+
 # ═════════════════════════════════════════════════════════════════════════
 # the key never appears in an error -- end to end through the real transport
 # ═════════════════════════════════════════════════════════════════════════

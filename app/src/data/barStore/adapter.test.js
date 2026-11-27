@@ -246,3 +246,58 @@ describe('A6 one slot per key, and a bar budget', () => {
     }
   })
 })
+
+// ⭐ (2026-11-26, the heap check) legacyBars' memo obeys its OWN budget. It was a WeakMap keyed by the snapshot, so a
+// legacy copy lived as long as the registry kept the snapshot (up to 2.5M bars): ~200 MB of second copies after 50
+// switches on production's build. Here the "registry" is `held`: every snapshot stays alive throughout.
+describe('A7 legacyBars obeys its own budget, not the registry budget', () => {
+  it('a snapshot the registry still holds does not keep its legacy copy alive once the memo evicts it', async () => {
+    expect(typeof gcNow).toBe('function')
+    _setAdapterMemoLimits({ maxEntries: 2, maxBars: 1e9 })
+    const r = rng(21)
+    const held = []
+    const refs = []
+    for (const k of ['K1_D', 'K2_D', 'K3_D', 'K4_D']) {
+      const s = snap(k, unixDaily(r, 300), null, 1)
+      held.push(s)
+      const out = legacyBars(s, 'D')
+      expect(out).not.toBe(s.bars)                                      // a legacy copy (D t -> label)
+      refs.push(new globalThis.WeakRef(out))
+    }
+    expect(_adapterMemoStats().legacyBars.slots).toBe(2)
+    await settle()
+    gcNow()
+    expect(refs[0].deref(), 'K1: evicted, collected though its snapshot lives').toBeUndefined()
+    expect(refs[1].deref(), 'K2: evicted, collected though its snapshot lives').toBeUndefined()
+    expect(refs[3].deref(), 'K4: the newest, still served').toBeDefined()
+    expect(legacyBars(held[3], 'D')).toBe(refs[3].deref())
+    const again = legacyBars(held[0], 'D')                              // a revisit rebuilds the same rows
+    expect(again.length).toBe(300)
+    expect(again[0].t).toBe(new Date(held[0].bars[0].t * 1000).toISOString().slice(0, 10))
+    expect(held.length).toBe(4)
+  })
+
+  it('a snapshot keeps its array while anything holds it; the newest is held by the memo; a static one always', async () => {
+    expect(typeof gcNow).toBe('function')
+    const r = rng(22)
+    const s1 = snap('Z_D', unixDaily(r, 50), null, 1)
+    const a1 = legacyBars(s1, 'D')
+    expect(legacyBars(s1, 'D')).toBe(a1)
+    const s2 = snap('Z_D', unixDaily(r, 50), null, 2)
+    const a2 = legacyBars(s2, 'D')
+    expect(a2).not.toBe(a1)                                             // a new snapshot: its own rows, never the old array
+    expect(legacyBars(s2, 'D')).toBe(a2)
+    expect(legacyBars(s1, 'D'), 'the previous snapshot, still held by a reader: the same array').toBe(a1)
+    expect(_adapterMemoStats().legacyBars.keys).toEqual(['Z_D|D'])     // one slot per key: the newest array
+    _setAdapterMemoLimits({ maxEntries: 1, maxBars: 1e9 })
+    const st = staticSnapshot(unixDaily(r, 20), { key: 'MB', tf: 'D' })   // store-unit D bars: the legacy shape is a copy
+    const sref = new globalThis.WeakRef(legacyBars(st, 'D'))
+    expect(sref.deref()).not.toBe(st.bars)
+    for (const k of ['Y1_D', 'Y2_D', 'Y3_D']) legacyBars(snap(k, unixDaily(r, 5), null, 1), 'D')
+    await settle()
+    gcNow()
+    expect(sref.deref(), 'a static snapshot holds its own array, whatever the slots evict').toBeDefined()
+    expect(legacyBars(st, 'D')).toBe(sref.deref())
+    expect(_adapterMemoStats().legacyBars.keys).toEqual(['Y3_D|D'])
+  })
+})

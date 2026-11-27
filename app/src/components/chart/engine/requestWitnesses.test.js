@@ -138,15 +138,24 @@ describe('with the witness row injected, SP:SPX is served — aligned by session
     expect(r.refused[0].code).toBe(R.WITNESS_PENDING)
   })
 
-  it('⛔ only the witnessed timeframes: a 4-hour chart refuses by name', () => {
+  it('⛔ only the witnessed timeframes: a 2-hour chart refuses by name', () => {
     // (⭐ RS RATING L13 witnessed the monthly chart, Q-RS-M; L12 the 1 / 5 / 15 / 30 / 60 minute charts, Q-L12-1,
-    // `rsIntradayWitness.test.js`; a timeframe with no witnessed block still refuses)
+    // `rsIntradayWitness.test.js`; ⭐ e98 the 4-hour chart, Q-FRED-4H, `rsFourHourWitness.test.js`; a timeframe with
+    // no witnessed block still refuses)
+    setRequestWitnessRows(WITNESSED)
+    const { def } = docOf(pine(['plot(request.security("SP:SPX", timeframe.period, close))']))
+    const r = resolveOtherSymbols(def, ctxOf({ tf: '120' }))
+    expect(r.served).toEqual([])
+    expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
+    expect(r.refused[0].reason).toMatch(/witnessed on D, W, M, 1, 5, 15, 30, 60, 240 charts only \(capture-queue rows [^)]*Q-L12-1[^)]*Q-FRED-4H/)
+  })
+
+  it('⭐ e98 — a 4-hour chart is witnessed (Q-FRED-4H): not refused for its timeframe; with no bars in hand, a wait by name', () => {
     setRequestWitnessRows(WITNESSED)
     const { def } = docOf(pine(['plot(request.security("SP:SPX", timeframe.period, close))']))
     const r = resolveOtherSymbols(def, ctxOf({ tf: '240' }))
     expect(r.served).toEqual([])
-    expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
-    expect(r.refused[0].reason).toMatch(/witnessed on D, W, M, 1, 5, 15, 30, 60 charts only \(capture-queue rows [^)]*Q-L12-1/)
+    expect(r.refused[0].code).toBe(R.NO_BARS)
   })
 
   it('⭐ RS RATING L11 — a weekly chart is served from the DAILY rows held under `SPX@D`, never from the plain key', () => {

@@ -30,7 +30,9 @@ afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version'
 
 async function boot() {
   vi.resetModules()
-  const server = installFakeBarsServer({ modeFor: () => 'behind' })
+  // a thin name, one bucket behind WITH the server's proof (verified_through now): since 2026-11-25 the switch's own answer
+  // lends the "not printing" grace on that proof only (prefetch _ownGrace; the bucket-count fallback is gone)
+  const server = installFakeBarsServer({ modeFor: () => 'thin:1' })
   const { createBarStore } = await import('./index')
   const { createPrefetch, LAKE_JOIN_WAIT_MS } = await import('./prefetch')
   const store = createBarStore({

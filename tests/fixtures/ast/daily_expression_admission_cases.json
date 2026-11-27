@@ -1,0 +1,44 @@
+{
+ "_": "U-DAILY part B (train e96): rows for the capability `request-daily-expression`, each written to pass or to fail the capability registry's rule (`api/services/rollout_gate.py::pine_capability_admission`). The server's function is the ONE authority; the browser's twin (`app/src/components/chart/engine/dailyExpressionGate.js::dailyExpressionAdmissionReasons`) must answer every row the same. Read by `tests/test_daily_expression_admission_parity.py` (the server) and `app/src/components/chart/engine/dailyExpressionAbove.test.js` (the browser). `scriptEngineVersion: \"CURRENT\"` is replaced by each lane with the engine it ships.",
+ "capability": "request-daily-expression",
+ "cases": [
+  {"name": "two MATCH captures of two scripts, one a community script, admitted and conformant", "admitted": true,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "the same evidence, not marked admitted", "admitted": false,
+   "row": {"admitted": false, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "the same evidence, ungraded", "admitted": false,
+   "row": {"admitted": true, "status": "ungraded", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "two probes, no community script", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "vw-udaily-expr2-spy-5-2026-11-23", "script": "vw-udaily-expr2", "community": false, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "one community script captured twice is one script", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-rddt-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "a DIVERGE counts for nothing", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "DIVERGE", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "a capture with the runtime pane off counts for nothing", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "off"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on"}]}},
+  {"name": "a ledger capture graded at another engine counts for nothing", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on", "ledger": true, "scriptEngineVersion": 1}]}},
+  {"name": "a ledger capture graded at this engine counts", "admitted": true,
+   "row": {"admitted": true, "status": "conformant", "evidence": [
+    {"capture": "vw-udaily-expr-spy-5-2026-11-23", "script": "vw-udaily-expr", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+    {"capture": "community-a-spy-5-2026-11-24", "script": "Community A", "community": true, "verdict": "MATCH", "runtimePane": "on", "ledger": true, "scriptEngineVersion": "CURRENT"}]}},
+  {"name": "no evidence at all", "admitted": false,
+   "row": {"admitted": true, "status": "conformant", "evidence": []}}
+ ]
+}

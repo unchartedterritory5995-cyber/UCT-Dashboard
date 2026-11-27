@@ -28,16 +28,20 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
-import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
+import { boardHiddenNow, useLayerBoard } from '../components/chart/boardVisibility'
+import { useVirtualizer, observeElementOffset } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
 // just above the enrichment batches' own 100-ticker boundary, so a list either fits
 // every batch AND renders outright, or takes the windowed path for both — rather
 // than straddling the two and behaving differently column by column.
 const VIRTUALIZE_MIN_ROWS = 120
+// A virtualized list's MOVED window (which rows stream live prices) is stored in idle time, at the latest this
+// many ms after the scroll that moved it (Watchlists `handleListVisible`).
+export const VISIBLE_IDLE_MS = 100
 // The rows ahead of a scan warmed URGENTLY (not held behind the daily pack ingest); the
 // screener's `URGENT_NEXT` (pages/screener/focus/useFocusSelection.js) is the same number.
 const SCAN_URGENT_NEXT = 2
@@ -50,13 +54,128 @@ const SCAN_URGENT_NEXT = 2
 // Deferring each measurement to the next animation frame breaks the SYNCHRONOUS
 // nesting React counts, so the loop can no longer crash the page (at worst a
 // harmless one-per-frame settle). Measuring a frame late is imperceptible.
+//
+// ⚡ (2026-11-27, the board switch) AND THE BOX IS READ IN THAT FRAME, NOT IN THE COMMIT. The library's own
+// `observeElementRect` reads `offsetWidth` / `offsetHeight` synchronously when the list mounts (inside the commit's
+// layout effects: a forced layout of the freshly committed board, ~2 ms a click in a profile) and this wrapper then
+// held that value for the next frame anyway. The read now happens where the value is delivered; the observer's
+// border-box deliveries are unchanged. Same contract as the library's (3.14): a rounded `{ width, height }`, from the
+// observer's border box when it has one, else the element's offset box.
 function rafObserveElementRect(instance, cb) {
+  const element = instance.scrollElement
+  const win = instance.targetWindow
+  if (!element || !win) return undefined
   let raf = 0
-  const stop = observeElementRect(instance, (rect) => {
+  const later = (read) => {
     if (raf) cancelAnimationFrame(raf)
-    raf = requestAnimationFrame(() => { raf = 0; cb(rect) })
-  })
-  return () => { if (raf) cancelAnimationFrame(raf); if (typeof stop === 'function') stop() }
+    raf = requestAnimationFrame(() => { raf = 0; cb(read()) })
+  }
+  const offsetBox = () => ({ width: Math.round(element.offsetWidth), height: Math.round(element.offsetHeight) })
+  later(offsetBox)
+  let ro = null
+  if (win.ResizeObserver) {
+    ro = new win.ResizeObserver((entries) => {
+      const box = entries[0]?.borderBoxSize?.[0]
+      later(box ? () => ({ width: Math.round(box.inlineSize), height: Math.round(box.blockSize) }) : offsetBox)
+    })
+    ro.observe(element, { box: 'border-box' })
+  }
+  return () => { if (raf) cancelAnimationFrame(raf); if (ro) ro.disconnect() }
+}
+
+// ⚡ (2026-11-27, the board switch) THE ROW SIZES A LIST MEASURED, KEPT FOR ITS NEXT MOUNT. Rows are content-sized, so
+// the virtualizer measures each one; it did that on every mount (a board switch remounts the list), on ref attach,
+// inside the commit (`offsetHeight`: 12-25 ms a first click in untraced profiles), and every row that measured other
+// than the estimate re-rendered the list after the commit. A list with a `sizeCacheKey` now starts from what it
+// measured last time: those sizes are its estimates (the first render is placed right) and its attach-time answers (no
+// layout read). The ResizeObserver still measures every mounted row from its border box (after layout, before paint),
+// so a row that changed height since is corrected; only those re-render. Rail: Watchlists.rowSizeSeed.test.jsx.
+const ROW_SIZES = new Map()        // sizeCacheKey -> { sizes: Map(row key -> px), rect: the scroller box last delivered, offset: its last scroll offset }
+const ROW_SIZE_LISTS_MAX = 24
+// one list's memory: a whole-market scan scrolled end to end must not grow it without bound
+export const ROW_SIZE_ROWS_MAX = 5000
+// a mount whose first observer pass corrects more remembered rows than this was laid out unlike the last one (a
+// row-geometry input the key does not carry): its memory is dropped, and the list measures as it mounts again
+export const ROW_SIZE_CORRECTIONS_MAX = 3
+function rowSizesFor(key) {
+  let record = ROW_SIZES.get(key)
+  if (record) ROW_SIZES.delete(key)
+  else record = { sizes: new Map(), rect: null, offset: 0, margin: 0 }
+  ROW_SIZES.set(key, record)
+  if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
+  return record
+}
+/**
+ * The key a list's row sizes are remembered under, or `null` (not remembered). It names the list by a STABLE id (a
+ * list's own id; a scan host's column-storage key, never its display name: every pick list without a name is "Scan")
+ * and carries every input that sets a row's height: the text size, the logo's size (0 without logos), the visible
+ * column set, the touch tier and the viewport band the stylesheet switches on. Two widgets on one list with different
+ * settings therefore keep separate memories (review of #2907, M1).
+ */
+export function rowSizeCacheKey({ kind, id, fontSize, logoPx, columns, touch, viewportW }) {
+  if (id === null || id === undefined || id === '') return null
+  const band = !(viewportW > 0) ? '?' : viewportW <= 640 ? 's' : viewportW <= 1024 ? 'm' : 'l'
+  return `${kind}:${id}|f${fontSize ?? ''}|l${logoPx || 0}|c${(columns || []).join(',')}|${touch ? 't' : 'p'}|${band}`
+}
+/**
+ * The remembered scroll offset, clamped to the list as it is now (review of #2916): a list that comes back SHORTER than
+ * it was scrolled would otherwise start past its end, a first frame of blank space. The rows' height is estimated as
+ * the first render will place them (each row's remembered size, else the 30 px estimate), and the offset may go no
+ * further than its last screenful.
+ */
+export function rememberedOffsetFor(record, items) {
+  const offset = record.offset || 0
+  if (!(offset > 0)) return 0
+  let total = 0
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    total += record.sizes.get(it?.id || it?.sym || i) ?? 30
+  }
+  // the offset is the SCROLLER's scrollTop, which includes what sits above the rows inside it (a list's description,
+  // the add row, the column header: `scrollMargin`), so its last screenful starts at margin + rows - view
+  return Math.min(offset, Math.max(0, (record.margin || 0) + total - (record.rect?.height || 0)))
+}
+/** A list's memory as it stands (no LRU bump): for rails and probes. */
+export function rowMemoryOf(key) {
+  return ROW_SIZES.get(key) || null
+}
+/**
+ * The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
+ * size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit.
+ * `mem` is one mount's view of the memory: `{ sizes, seeded, corrections, dropped, onCorrection }`.
+ *
+ * ⭐ (review of #2907, D1/D2) A CORRECTION IS JUDGED AGAINST THE VIRTUALIZER, FOR THE ROWS THIS MOUNT SEEDED. A row
+ * whose estimate or attach-time answer came from memory (`seeded`) is checked once, at its first observer delivery,
+ * against the size the virtualizer HOLDS for it (not against the memory, which another mount on the same key, or the
+ * drop below, may have changed). A difference calls `onCorrection` (the list commits every correction of the pass at
+ * once, before paint); the row then leaves `seeded`, so a later real resize takes the ordinary batched path. Nothing is
+ * left set between calls.
+ */
+export function measureRememberedRow(el, entry, instance, mem) {
+  const index = instance.indexFromElement(el)
+  const key = index >= 0 ? instance.options.getItemKey(index) : undefined
+  const box = entry?.borderBoxSize?.[0]
+  let size
+  if (box) {
+    size = Math.round(box.blockSize)
+    if (key !== undefined && mem.seeded?.has(key)) {
+      mem.seeded.delete(key)
+      const held = instance.itemSizeCache?.get(key) ?? instance.measurementsCache?.[index]?.size
+      if (held !== undefined && held !== size && size > 0) {
+        if (++mem.corrections > ROW_SIZE_CORRECTIONS_MAX && !mem.dropped) { mem.sizes.clear(); mem.dropped = true }
+        mem.onCorrection?.()
+      }
+    }
+  } else {
+    const known = key === undefined || mem.dropped ? undefined : mem.sizes.get(key)
+    if (known !== undefined) { mem.seeded?.add(key); return known }
+    size = el.offsetHeight
+  }
+  if (size > 0 && key !== undefined && !mem.dropped) { // a hidden list (0) teaches nothing; nor does a row with no index
+    if (!mem.sizes.has(key) && mem.sizes.size >= ROW_SIZE_ROWS_MAX) mem.sizes.clear()
+    mem.sizes.set(key, size)
+  }
+  return size
 }
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
@@ -99,7 +218,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
-import { scanNeighbors } from '../utils/scanNeighbors'
+import { scanNeighbors, jumpTarget, jumpStride, strideTarget } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
@@ -203,6 +322,19 @@ const COL_FULL_MINW = {
 }
 // The column library's new columns (owner 11-14): a width each, and the width at which the
 // full label fits (shorter → the short label).
+// A row's library cells (`libCellsFor` in the component) are kept while every shown cell is the same, so the
+// memoized row sees the same object; this is that sameness: the same columns, each with the same value, text and kind.
+const LIB_CELLS_KEEP_MAX = 2000
+function sameLibCells(a, b, keys) {
+  let n = 0
+  for (const k in a) n++
+  if (n !== keys.length) return false
+  for (const k of keys) {
+    const x = a[k], y = b[k]
+    if (!x || !y || !Object.is(x.v, y.v) || x.t !== y.t || x.signed !== y.signed || x.bar !== y.bar || x.text !== y.text) return false
+  }
+  return true
+}
 for (const [k, c] of [...Object.entries(LIVE_COLUMNS), ...Object.entries(FACT_COLUMNS)]) {
   COL_META[k] = { def: c.width || (c.text ? 96 : 72), min: 44 }
   COL_FULL_MINW[k] = Math.round(c.label.length * 6.6 + 20)
@@ -395,6 +527,8 @@ const WatchRow = React.memo(function WatchRow({
   entityNote = null, entityTitle = null, entityTone = null,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
+  // a row the list mounts OFF screen (ScanRows' overscan): its logo asks for its image after paint (CompanyLogo deferSrc)
+  deferLogo = false,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   rsExitLast = null, rsExitAgo = null,
@@ -465,7 +599,7 @@ const WatchRow = React.memo(function WatchRow({
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {flagBadge}
-          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
+          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} deferSrc={deferLogo} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
           {entityNote && (
             <span className={`${styles.entityMark}${entityTone === 'danger' ? ' ' + styles.entityMarkDanger : ''}`}
@@ -655,7 +789,52 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
+/** Where row `idx` sits against the list's CLEAR view, from the virtualizer's measurements: 'visible' (wholly in it),
+ *  'near' (in it in part, or within one row of an edge) or 'far' (beyond that, or nothing measured yet).
+ *  `scrollTop`: the scroller's LIVE position (the virtualizer's own `scrollOffset` follows the scroll EVENT, which can
+ *  lag a fast repeat under a busy main thread: a near row would then read far and be centred). `padStart`: the sticky
+ *  band at the scroller's top (the column header): a row under it is not in view (review of #2834). */
+export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
+  const m = virt?.measurementsCache?.[idx]
+  const offset = Number.isFinite(scrollTop) ? scrollTop : virt?.scrollOffset
+  const h = virt?.scrollRect?.height
+  if (!m || !Number.isFinite(offset) || !(h > 0)) return 'far'
+  const top = offset + padStart
+  const bottom = offset + h
+  if (m.start >= top && m.end <= bottom) return 'visible'
+  const size = m.end - m.start
+  return m.end > top - size && m.start < bottom + size ? 'near' : 'far'
+}
+
+export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false, sizeCacheKey = null }) {
+  // the row sizes this list measured on its last mount (see `rowSizesFor`), as this mount's view of them
+  // (`measureRememberedRow`); none: measured as they mount, as before
+  const [, commitCorrection] = useState(0)
+  const rowMem = useMemo(() => {
+    if (!sizeCacheKey) return null
+    const record = rowSizesFor(sizeCacheKey)
+    const mem = {
+      record, sizes: record.sizes, seeded: new Set(), corrections: 0, dropped: false, flushQueued: false,
+      // a warm mount's first render (see `initialRect` below): the window's rows only, the overscan joins after it
+      firstFrame: !!record.rect,
+      offset: record.rect ? rememberedOffsetFor(record, items) : 0,
+    }
+    // ⭐ (review of #2907, D1) EVERY CORRECTION OF ONE OBSERVER PASS, ONE COMMIT, BEFORE PAINT. The observer delivers all
+    // the rows of a pass in one callback; a correction (`measureRememberedRow`) only queues this, and the microtask runs
+    // after the callback has applied every row's size and before the frame paints. One `flushSync` commits them all.
+    mem.onCorrection = () => {
+      if (mem.flushQueued) return
+      mem.flushQueued = true
+      queueMicrotask(() => { mem.flushQueued = false; flushSync(() => commitCorrection((n) => n + 1)) })
+    }
+    return mem
+  }, [sizeCacheKey])
+  // the overscan rows join right after the warm first commit (off screen: nothing on screen moves)
+  useEffect(() => {
+    if (!rowMem?.firstFrame) return
+    rowMem.firstFrame = false
+    commitCorrection((n) => n + 1)
+  }, [rowMem])
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -667,30 +846,92 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   // per render, and with no ResizeObserver. A measurement that re-runs on every paint
   // is exactly the feedback loop `rafObserveElementRect` above exists to survive.
   const hostRef = useRef(null)
-  const [scrollMargin, setScrollMargin] = useState(0)
-  useLayoutEffect(() => {
-    if (!measureOffset) return
+  // a warm mount starts from the margin it had (its first render's window is chosen against the remembered scroll offset,
+  // which includes the margin); the effect below measures it again, as before
+  const [scrollMargin, setScrollMargin] = useState(() => (rowMem?.record.rect ? rowMem.record.margin || 0 : 0))
+  useEffect(() => { if (rowMem) rowMem.record.margin = scrollMargin }, [rowMem, scrollMargin])
+  // ⭐ (review of #2834) THE STICKY BAND. The column header (`.gridHead`, `position: sticky; top: 0`) is a child of the
+  // SAME scroller, so rows scroll under it: the clear view is [scrollTop + band, scrollTop + height]. Its height is the
+  // virtualizer's `scrollPaddingStart` (an `align: 'auto'` scroll keeps the row clear of it) and the selection's
+  // placement test reads it. Measured with the offset, by the same rule (mount, a row-count change).
+  const [stickyTop, setStickyTop] = useState(0)
+  // ⛔ A PASSIVE effect, not a layout one (review of #2834): the scroller is this list's PARENT, and a parent's ref is
+  // attached AFTER its children's layout effects run, so on a mount in the same commit (a widget opening on a list
+  // already loaded) a layout effect found no scroller and measured nothing until the row count changed. The rows'
+  // positions do not depend on it (`vi.start - scrollMargin`); only the virtualizer's range and the scroll decisions do.
+  useEffect(() => {
     const host = hostRef.current
     const scroller = scrollRef?.current
     if (!host || !scroller) return
-    const top = host.getBoundingClientRect().top
-      - scroller.getBoundingClientRect().top
-      + scroller.scrollTop
-    setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    let band = 0
+    for (const el of scroller.children) {
+      if (el === host || el.contains(host)) continue
+      // the column header says so (`data-sticky-head`); any other sticky child counts too
+      if (el.hasAttribute('data-sticky-head') || getComputedStyle(el).position === 'sticky') { band = el.getBoundingClientRect().height || 0; break }
+    }
+    setStickyTop(prev => (Math.abs(prev - band) > 0.5 ? band : prev))
+    // the offset when asked, AND whenever a sticky band sits above the rows: a scan's rows (no `measureOffset`) start
+    // below the column header, so its positions were the band's height off the scroller's
+    if (measureOffset || band > 0) {
+      const top = host.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top
+        + scroller.scrollTop
+      setScrollMargin(prev => (Math.abs(prev - top) > 0.5 ? top : prev))
+    }
   }, [measureOffset, scrollRef, items.length])
 
+  const rowKey = (i) => items[i]?.id || items[i]?.sym || i
   const virt = useVirtualizer({
     count: items.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 30,
+    // ⚡ A warm list remembered SCROLLED (`offset` > 0) finds its scroller in the switch's own commit: the parent's ref is
+    // attached after this list's layout effects, and without the scroller the rows rendered for the remembered offset
+    // would sit out of view (the fresh scroller is at 0) for a frame. Found through the DOM (its host is already
+    // attached), the virtualizer restores the offset there, before paint. This costs the one layout the scroll needs;
+    // a list at the top (the usual case) keeps waiting for the ref and pays nothing in the commit.
+    getScrollElement: () => scrollRef.current
+      ?? (rowMem?.offset > 0 ? hostRef.current?.closest('[data-scan-scroller]') ?? null : null),
+    estimateSize: rowMem
+      ? (i) => {
+        if (rowMem.dropped) return 30
+        const k = rowKey(i)
+        const known = rowMem.sizes.get(k)
+        if (known === undefined) return 30
+        rowMem.seeded.add(k) // checked against the observer's first delivery (`measureRememberedRow`)
+        return known
+      }
+      : () => 30,
+    ...(rowMem ? {
+      // ⭐ (review of #2907, M2/D1: "no jumps") A ROW SEEDED FROM MEMORY THAT THE OBSERVER CONTRADICTS IS CORRECTED BEFORE
+      // THE FRAME PAINTS. The library's re-render from an observer callback is an ordinary update, rendered after this
+      // frame paints (one frame of rows at the wrong offsets, then a jump); the corrections of a pass commit together in
+      // one `flushSync` instead (`rowMem.onCorrection`). Every other change keeps the batched path (`useFlushSync: false`).
+      measureElement: (el, entry, instance) => measureRememberedRow(el, entry, instance, rowMem),
+      // the scroll offset is remembered beside the box, for the next warm mount's first render (`initialOffset`)
+      observeElementOffset: (instance, cb) => observeElementOffset(instance, (offset, scrolling) => {
+        rowMem.record.offset = offset
+        cb(offset, scrolling)
+      }),
+    } : null),
     // Measured heights keyed by the ROW, not its position: a grouped list puts a
     // taller section header where a ticker row used to be, and a position-keyed
     // cache kept the old 29px height (headers overlapped).
-    getItemKey: (i) => items[i]?.id || items[i]?.sym || i,
-    overscan: 12,
+    getItemKey: rowKey,
+    // the warm first render holds the window's rows only (it runs in the switch's click task); the overscan follows
+    overscan: rowMem?.firstFrame ? 0 : 12,
     scrollMargin,
+    scrollPaddingStart: stickyTop,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
-    observeElementRect: rafObserveElementRect,
+    observeElementRect: rowMem
+      ? (instance, cb) => rafObserveElementRect(instance, (rect) => { if (rect.width > 0 && rect.height > 0) rowMem.record.rect = rect; cb(rect) })
+      : rafObserveElementRect,
+    // ⚡ FIRST FRAME CHANGES (2026-11-27, owner: "everything at once"): A REMEMBERED LIST'S ROWS ARE IN THE SWITCH'S FIRST
+    // FRAME. The scroller mounts in the same commit as the list, and a parent's ref is attached after a child's layout
+    // effects, so the virtualizer found no scroll element there: with no box it rendered NO rows, and the rows came a
+    // frame or more after the charts (once a later render subscribed and the box arrived). A list that remembers its
+    // scroller's box starts from it: its first render already holds the window's rows, at their remembered sizes, and
+    // the real box (a frame later) only confirms it. A list with no memory (cold) is unchanged.
+    // Rail: Watchlists.rowSizeSeed.test.jsx (R12, R13).
+    ...(rowMem?.record.rect ? { initialRect: rowMem.record.rect, initialOffset: rowMem.offset } : null),
     // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
     // `flushSync` on every scroll event while the list scrolls (`isScrolling`), and the arrow key's
     // `scrollIntoView` is such a scroll: that forced the whole pending chart switch to render and commit
@@ -700,6 +941,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     useFlushSync: false,
   })
   const vItems = virt.getVirtualItems()
+  // ⚡ (2026-11-26, the board switch) which mounted rows lie OFF screen (the overscan): their logos ask for their images
+  // after paint (CompanyLogo `deferSrc`). Judged on the virtualizer's own view with one row of margin on each side;
+  // nothing measured yet counts as on screen, as does everything inside that margin.
+  const viewTop = virt.scrollOffset
+  const viewH = virt.scrollRect?.height
+  const rowOffscreen = (vi) => {
+    if (!Number.isFinite(viewTop) || !(viewH > 0)) return false
+    const size = vi.end - vi.start
+    return vi.end <= viewTop - size || vi.start >= viewTop + viewH + size
+  }
   const first = vItems.length ? vItems[0].index : 0
   const last = vItems.length ? vItems[vItems.length - 1].index : -1
   // ⛔ REPORT A CHANGED WINDOW, NEVER A RE-RENDER (React #185, /breadth drill board,
@@ -723,7 +974,9 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     const prev = reportedRef.current
     if (prev.cb === onVisibleChange && prev.key === key) return
     reportedRef.current = { cb: onVisibleChange, key }
-    onVisibleChange(syms)
+    // the second argument: is this the receiver's FIRST window from this list (it mounted, the receiver is new, or
+    // nothing but an empty window was reported yet: the virtualizer reports one before it has measured)?
+    onVisibleChange(syms, prev.cb !== onVisibleChange || !prev.key)
   }, [first, last, items, onVisibleChange])
   // Scroll a searched/selected symbol INTO VIEW — ONCE, on first search. DOM querySelector
   // can't find a virtualized row that isn't rendered yet, so drive the virtualizer by index.
@@ -740,7 +993,16 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
-    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+    // ⭐ (2026-11-26, owner: "jumpy") THE LEAST SCROLL. This re-centred the list on EVERY selection change, so each arrow
+    // press moved the whole list under the member's eye. Now (TradingView-like): a row already in view does not move the
+    // list; a row in view in part, or one row past an edge (the arrow press at the bottom), scrolls the least
+    // (`align: 'auto'`: one row); a selection landing far off-screen (a typed ticker, a jump, a list opening on a
+    // symbol) is centred, once. Rail: Watchlists.scanRowsScroll.test.jsx.
+    const where = rowPlacement(virt, idx, { scrollTop: scrollRef?.current?.scrollTop, padStart: stickyTop })
+    try {
+      if (where === 'far') virt.scrollToIndex(idx, { align: 'center' })
+      else if (where === 'near') virt.scrollToIndex(idx, { align: 'auto' })
+    } catch { /* mid-mount */ }
     scrolledForRef.current = scrollToSym
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
@@ -762,7 +1024,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
             // `scrollMargin: 0` (every pre-existing caller) this is `vi.start`.
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - scrollMargin}px)` }}
           >
-            {renderRow(item)}
+            {renderRow(item, { offscreen: rowOffscreen(vi) })}
           </div>
         )
       })}
@@ -810,6 +1072,8 @@ function CompareSearch({ onPick, baseSym }) {
 
 // How long a selection must rest before its OTHER timeframes are warmed (see below).
 const SCAN_DWELL_MS = 600
+/** The rows ahead a list's hold keeps resident (barStore prefetch NEIGHBOR_KEEP_AHEAD caps it). */
+const SCAN_KEEP_AHEAD = 30
 
 export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, listView = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, scanActions = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null, groupExpand = 'accordion', quoteOverride = null, pickTitleSlot = null, pickTitleBefore = null, pickTitleAfter = null, pickSubHeader = null, renderGroupRow = null, groupAccent = null, openFirstGroup = false, stableGutter = false,
   // RTH · EXT switch (owner 11-14, /charts board Watchlist widget): 'ext' shows pre-market /
@@ -877,6 +1141,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   )
   // This widget is "active" (owns arrow keys + its own scroll) when hovered/focused.
   const isActiveWidget = () => !activeRef || activeRef.current == null || activeRef.current === widgetKey
+  // the layer keep-alive's handle of this list's board, or null (boardVisibility.js); stable for the list's life
+  const layerBoard = useLayerBoard()
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
 
   // ── Watchlist appearance settings (⚙ panel) ────────────────────────────────
@@ -1391,6 +1657,43 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
   // list id so several open lists can each report their own window.
   const [listVisible, setListVisible] = useState({})
+  // ⭐ (2026-11-25, next-row key task) A MOVED WINDOW IS STORED WHEN THE PAGE IS IDLE. An arrow key scrolls the list
+  // to the row it selects (ScanRows `scrollToIndex`); the scroll moves the virtualized window by a row, and storing the
+  // new window re-rendered the WHOLE watchlist (the streamed set, the price map, the sort) in the tasks right after the
+  // chart switch's frame, ahead of everything else waiting (the 40 ms breakdown, 2026-11-25: ScanRows rendered again
+  // after the frame on most presses, its items and row renderer new). The window only says which rows stream live
+  // prices, so a MOVED window waits for idle time (at most VISIBLE_IDLE_MS), the newest one of each list, stored once.
+  // A list's FIRST window (ScanRows says so: its first non-empty report since it mounted) is stored at once, as before:
+  // what a list streams when it opens.
+  const visibleWaiting = useRef({ handle: null, lists: new Map() })
+  const storeListWindows = useCallback((entries) => {
+    setListVisible((prev) => {
+      let next = prev
+      for (const [wlId, syms] of entries) {
+        const cur = next[wlId]
+        // Scrolling re-reports the same window constantly; only a real change may
+        // write, or the identity churn cascades into every downstream memo.
+        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) continue
+        next = { ...next, [wlId]: syms }
+      }
+      return next
+    })
+  }, [])
+  const storeWaitingWindows = useCallback(() => {
+    const q = visibleWaiting.current
+    q.handle = null
+    if (!q.lists.size) return
+    const entries = [...q.lists]
+    q.lists.clear()
+    storeListWindows(entries)
+  }, [storeListWindows])
+  useEffect(() => () => {
+    const q = visibleWaiting.current
+    if (q.handle?.idle != null) { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(q.handle.idle) }
+    else if (q.handle) clearTimeout(q.handle.timer)
+    q.handle = null
+    q.lists.clear()
+  }, [])
   // ⚠️ One STABLE callback per list id. `onVisibleChange` is in ScanRows' effect deps,
   // so a fresh closure per render would re-run that effect every render — set state,
   // re-render, re-run. Cached by id, created once.
@@ -1398,17 +1701,23 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const handleListVisible = useCallback((wlId) => {
     let cb = listVisibleCbs.current.get(wlId)
     if (!cb) {
-      cb = (syms) => setListVisible(prev => {
-        const cur = prev[wlId]
-        // Scrolling re-reports the same window constantly; only a real change may
-        // write, or the identity churn cascades into every downstream memo.
-        if (cur && cur.length === syms.length && cur.every((s, i) => s === syms[i])) return prev
-        return { ...prev, [wlId]: syms }
-      })
+      cb = (syms, first = true) => {
+        const q = visibleWaiting.current
+        if (first) {
+          q.lists.delete(wlId)
+          storeListWindows([[wlId, syms]])
+          return
+        }
+        q.lists.set(wlId, syms)
+        if (q.handle) return
+        q.handle = typeof requestIdleCallback === 'function'
+          ? { idle: requestIdleCallback(storeWaitingWindows, { timeout: VISIBLE_IDLE_MS }) }
+          : { timer: setTimeout(storeWaitingWindows, 0) }
+      }
       listVisibleCbs.current.set(wlId, cb)
     }
     return cb
-  }, [])
+  }, [storeListWindows, storeWaitingWindows])
   const visibleFromVirtualized = useMemo(
     () => Object.values(listVisible).flat(),
     [listVisible],
@@ -1781,6 +2090,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
     if (isHiddenDeskKey(e)) return
+    // (review of #2901, H1) a hidden layer keep-alive board's list answers no key: the board in front may hold a list of
+    // the same widget id, and this one would move a list nobody sees and switch the front board's linked charts
+    if (boardHiddenNow(layerBoard)) return
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return
@@ -1882,7 +2194,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       toggleFlag(selectedSym)
       setFlagToast(willFlag ? 'added' : 'removed')
     }
-  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym])
+  }, [visibleSymsFlat, selectedSym, flagged, toggleFlag, setHubSym, layerBoard])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -1985,9 +2297,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (idx < 0 || flat.length < 2) return
     const len = flat.length
     const prev = _scanPrevRef.current
-    _scanPrevRef.current = { sym: selectedSym, idx }
+    // ⭐ (2026-11-26, jump replay) A RE-RUN FOR THE SAME SELECTION KEEPS WHAT THE PRESS LANDED WITH. This effect runs again
+    // whenever the list's rows change identity (a list or tag refresh); that run read the PREVIOUS selection from this ref,
+    // which the first run had just set to the selection itself, so it saw no jump and moved "down", and its urgent call (the
+    // latest one, the only one that keeps its rows) aborts the jump target's ask if it has not started. Direction and stride
+    // are kept.
+    // (review of #2768, LOW) ...in the SAME list: a list switch with the same symbol selected is a fresh press there.
+    const listKey = pickList ?? `${activeTab}:${[...expandedLists].map(String).sort().join(',')}`
+    const rerun = prev.sym === selectedSym && prev.list === listKey
     // Moving up when the previous row sits just below (wrap-aware); down otherwise.
-    const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
+    const dir = rerun ? (prev.dir || 1) : ((prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1)
+    const prevIdx = !rerun && prev.sym ? flat.indexOf(prev.sym) : -1
+    const stride = rerun ? (prev.stride || 0) : jumpStride(flat, idx, prevIdx)
+    _scanPrevRef.current = { sym: selectedSym, idx, dir, stride, list: listKey }
     const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
     // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
@@ -1996,6 +2318,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
     const ahead = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 })
+    const keep0 = scanNeighbors(flat, idx, dir, { ahead: SCAN_KEEP_AHEAD, behind: 0 })
+    // ⭐ (2026-11-25 wide sweep) A JUMP warms where the next jump lands (utils/scanNeighbors jumpTarget): jumps of 20
+    // rows outran the urgent next-row warm. The previous selection is looked up in THIS order (a re-sort moved it).
+    const jump = rerun ? strideTarget(flat, idx, stride) : (prevIdx >= 0 ? jumpTarget(flat, idx, prevIdx) : null)
+    // ⛔ (review of #2739) INSIDE BOTH CAPS. prefetchBars makes only the first URGENT_MAX_PER_CALL (2) symbols of a call
+    // urgent: a third leaves as a shed-able background warm that is never re-asked after a roll, so a jump asks for
+    // [the jump target, the next row] (a jumping member does not need row + 2 urgently). Never a SECOND urgent call: only
+    // the latest urgent call keeps its rows. And a hold pins `keep.slice(0, share)` (30 on a two-hold board, 20 on three):
+    // the target goes FIRST in keep, never after the 30 rows ahead.
+    // ⭐ (2026-11-26) THE TARGET FIRST: the lane starts a call's rows in order, and on the jump replay the target, second,
+    // started 0.4-0.5 s after landing, behind the next row (a jumping member presses the target next).
+    const urgentNext = jump && !next.includes(jump) ? [jump, next[0]].filter(Boolean) : next
+    const keep = jump ? [jump, ...keep0.filter((x) => x !== jump)] : keep0
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
@@ -2005,7 +2340,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // paints them as deep as the chart would reach after its own wait (createNeighborHold).
         // `tail`: the next row, the one after and the previous row stay current across a bucket boundary while the
         // member navigates (createNeighborHold `tail`; `selected` opens its window: a re-sort of the rows does not)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], selected: selectedSym })
+        // `keep`: the rows ahead stay resident until the member reaches them (createNeighborHold NEIGHBOR_KEEP_AHEAD): the
+        // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
+        // `live` (2026-11-25): the next rows the way the member is moving ride the bars stream as `ahead` pairs, so the
+        // first press after a minute roll finds that row as current as the chart on screen (createNeighborHold `live`)
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
       for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })
@@ -2018,7 +2357,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
       // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight (per
       // timeframe: an urgent call only aborts its own timeframe's passed rows).
-      for (const tf of tfs) prefetchBars(next, tf, { urgent: true })
+      // (2026-11-26) OPT-IN TRACE for the jump replay: a harness that sets `window.__uctScanWarmTrace = []` reads every send
+      // here (a re-run included), so a measured wait can be told apart: never asked, or asked and lost in the store.
+      const trace = globalThis.__uctScanWarmTrace
+      if (Array.isArray(trace)) {
+        trace.push({ at: Math.round(performance.now()), sym: selectedSym, rerun, stride, jump, urgent: urgentNext, tfs })
+        if (trace.length > 200) trace.splice(0, trace.length - 200)
+      }
+      for (const tf of tfs) prefetchBars(urgentNext, tf, { urgent: true })
     }
     if (hurried) { sendWarm(); return undefined }
     const cancel = afterPaint(sendWarm)
@@ -2323,6 +2669,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return uctCtrlSlot ? ks.filter(k => k !== 'flag') : ks
   }, [colCfg, isAllIdxList, uctCtrlSlot])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
+  // Everything that sets a list row's height, for the virtualized list's remembered row sizes (`rowSizeCacheKey`).
+  const rowGeometry = {
+    fontSize: wlSettings.fontSize, logoPx: wlSettings.showLogos ? rowLogoSize : 0, columns: orderedKeys, touch: isTouch,
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 0,
+  }
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
   const listBodyRef = useRef(null)
@@ -2417,6 +2768,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // The column library's columns for one row (owner 11-14): the value (also the sort key)
   // and its display text. LIVE ones read the session-aware quote (and the meta batch for
   // Days to Earnings); FACT ones read the nightly snapshot, re-based on the live price.
+  // ⭐ (2026-11-23, next-row key profile) A ROW KEEPS ITS CELLS OBJECT WHILE WHAT IT SHOWS IS UNCHANGED. This built a
+  // new object for every row on every render, and `WatchRow` is React.memo over its props: with one library column
+  // shown, an arrow key re-rendered EVERY mounted row (twice: the group symbol's render and the selection's), not the
+  // two whose highlight moved. The cells are still computed each render; when every shown cell (value, text, kind)
+  // equals the row's last ones, the last object is handed back, so the row's memo holds. A changed cell, an added or
+  // removed column, gives a new object. Kept per symbol, at most `LIB_CELLS_KEEP_MAX`: past it the store starts over
+  // (each row then re-renders once).
+  const libCellsKeptRef = useRef(new Map())
   const libCellsFor = (sym, q) => {
     const out = {}
     for (const k of libKeys) {
@@ -2430,6 +2789,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const v = factValue(k, factsData?.[sym], q?._sessBlank ? null : q)
       out[k] = { v, t: factText(k, v), signed: !!f.signed, text: !!f.text }
     }
+    const kept = libCellsKeptRef.current
+    const last = kept.get(sym)
+    if (last && sameLibCells(last, out, libKeys)) return last
+    if (kept.size >= LIB_CELLS_KEEP_MAX) kept.clear()
+    kept.set(sym, out)
     return out
   }
 
@@ -2872,7 +3236,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     )
   }
   const columnHeader = (
-    <div className={styles.gridHead} onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
+    <div className={styles.gridHead} data-sticky-head="" onContextMenu={e => { e.preventDefault(); setColMenu({ x: e.clientX, y: e.clientY }) }}>
       {orderedKeys.map(renderHeaderCell)}
       {/* Column library (owner 11-14): the + opens it under itself; right-click opens it at the cursor. */}
       {!isAllIdxList && (
@@ -2934,7 +3298,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
-  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null }) {
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null, deferLogo = false }) {
     // Thematic-index row: no market feed — pull its live daily % from the batch
     // quotes map (keyed by lowercase slug), and show the theme's name instead of
     // the raw "$IDX:CYBERSECURITY" pseudo-ticker.
@@ -2950,7 +3314,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           price={q.price} changePct={q.change_pct} volume={null}
           coName={idxq?.name ?? null}
           flagged={isFlagged(sym)} selected={selectedSym === sym} orderedKeys={orderedKeys}
-          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize}
+          showLogos={wlSettings.showLogos} tintEnabled={wlSettings.tintEnabled} logoSize={rowLogoSize} deferLogo={deferLogo}
           isOwner={isOwner} wlId={wlId} isMember={isMember}
           onSelect={onRowSelect} onToggleFlag={onRowFlag} onIntent={onRowIntent} onCtx={onRowCtx}
         />
@@ -3018,6 +3382,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         showLogos={wlSettings.showLogos}
         tintEnabled={wlSettings.tintEnabled}
         logoSize={rowLogoSize}
+        deferLogo={deferLogo}
         mcap={metaData[sym]?.market_cap ?? null}
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
@@ -3172,9 +3537,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
           // ONE renderer for both paths — a virtualized row and a plain row must never
           // be able to drift apart.
-          const renderListItem = (item) => (
+          const renderListItem = (item, meta) => (
             <>
-              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item })}
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item, deferLogo: !!meta?.offscreen })}
               {/* Note editor, opened from the row menu's "Notes" entry (and closed by
                   picking it again). Editable on YOUR lists only — a shared list's
                   notes are read-only. */}
@@ -3214,6 +3579,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   scrollToSym={selectedSym}
                   noScrollRef={clickSelectRef}
                   measureOffset
+                  sizeCacheKey={rowSizeCacheKey({ kind: 'wl', id: wl.id, ...rowGeometry })}
                 />
               </>
             )
@@ -3590,7 +3956,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         )}
 
         {/* Body */}
-        <div ref={listBodyRef} className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}${stableGutter ? ' ' + styles.stableGutter : ''}`} style={{ '--wl-grid': gridTemplate }}>
+        <div ref={listBodyRef} data-scan-scroller="" className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}${stableGutter ? ' ' + styles.stableGutter : ''}`} style={{ '--wl-grid': gridTemplate }}>
 
           {columnHeader}
 
@@ -3601,7 +3967,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <ScanRows
               scrollRef={listBodyRef}
               items={scanSortedItems}
-              renderRow={(item) => {
+              renderRow={(item, meta) => {
                 // A host may draw its own group header (the breadth drill's sections).
                 if (item.isGroup && renderGroupRow) {
                   const open = expandedGroups.has(item.sym)
@@ -3611,6 +3977,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   sym: item.sym, name: item.name, isOwner: false, wlId: null,
                   isGroup: !!item.isGroup, isMember: !!item.isMember,
                   expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
+                  deferLogo: !!meta?.offscreen,
                 })
                 const accent = item.isMember && groupAccent ? groupAccent(String(item.id).split('::')[0]) : null
                 return accent
@@ -3621,6 +3988,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}
               noScrollRef={clickSelectRef}
+              sizeCacheKey={rowSizeCacheKey({ kind: 'scan', id: colStorageKey, ...rowGeometry })}
             />
           )}
 

@@ -48,6 +48,30 @@ BARS_N = {"1": 3000, "5": 1200, "15": 400, "30": 250, "60": 200, "D": 300}
 STREAM_TICKERS = ("SPY", "AAPL", "NVDA", "SOFI")
 STREAM_TFS = ("1", "5")
 
+#: ⭐ AN HONEST `unverified` AT THE OPEN CAN NEED MORE THAN ONE RETRY (review #2732, 2026-11-25). The server's tail
+#: proof waits for the provider to PUBLISH the closed minute (`bars_fetch.market_published_through`), and at the open
+#: publication lags 7-42 s (measured), so one 3-5 s Retry-After retry cannot be the bar there. For the first
+#: OPEN_TAIL_WINDOW_S after the regular open the monitor retries up to OPEN_TAIL_RETRIES times, honouring each
+#: Retry-After, within OPEN_TAIL_RETRY_BUDGET_S of total waiting (> the 42 s measured lag); an answer still
+#: `unverified` after that FAILS as before. Everywhere else: one retry, unchanged.
+OPEN_TAIL_WINDOW_S = int(os.environ.get("CHART_MONITOR_OPEN_TAIL_WINDOW_S", "900"))
+OPEN_TAIL_RETRIES = int(os.environ.get("CHART_MONITOR_OPEN_TAIL_RETRIES", "10"))
+OPEN_TAIL_RETRY_BUDGET_S = float(os.environ.get("CHART_MONITOR_OPEN_TAIL_RETRY_BUDGET_S", "45"))
+
+
+def open_tail_retries(now: int) -> tuple[int, float]:
+    """(max retries, total wait budget s) for an `unverified` answer probed at `now`."""
+    try:
+        d = C.et_dt(now).date()
+        if C.is_trading_day(d):
+            open_ts = C.et_epoch(d, C.session_minutes(d)[1])
+            if 0 <= now - open_ts < OPEN_TAIL_WINDOW_S:
+                return OPEN_TAIL_RETRIES, OPEN_TAIL_RETRY_BUDGET_S
+    except Exception:                      # noqa: BLE001 — an unreadable clock keeps the strict rule
+        pass
+    return 1, 10.0
+
+
 #: checks whose per-ticker FAIL folds into the (check, tf) alert key
 PAIR_CHECKS = ("http", "tail_status", "freshness", "ohlc", "dup_sorted", "grid", "rth_gaps_today",
                "rth_gaps_prev", "missing_days", "forming")
@@ -143,19 +167,34 @@ def check_series(http: Http, sym: str, label: str, tf: str, session: Optional[st
 
     first = body.get("tail_status")
     retry = None
+    n_retries = 0
     if first == "unverified":
-        try:
-            ra = float(r["headers"].get("retry-after") or body.get("retry_after") or 3)
-        except (TypeError, ValueError):
-            ra = 3.0
-        sleep(min(max(ra, 0.5), 10.0))
-        r2 = http.get_json(q, deadline=deadline)
-        b2 = r2["body"] if isinstance(r2["body"], dict) else None
-        retry = b2.get("tail_status") if b2 else None
-        if b2 is not None and r2["status"] == 200:
-            body = b2                         # judge what the client ends up holding
+        # One Retry-After retry, as the client does; at the open up to OPEN_TAIL_RETRIES within
+        # OPEN_TAIL_RETRY_BUDGET_S of waiting (see `open_tail_retries`).
+        max_retries, budget = open_tail_retries(now)
+        waited, last = 0.0, r
+        while n_retries < max_retries:
+            try:
+                ra = float(last["headers"].get("retry-after") or body.get("retry_after") or 3)
+            except (TypeError, ValueError):
+                ra = 3.0
+            wait = min(max(ra, 0.5), 10.0)
+            if n_retries and waited + wait > budget:
+                break
+            if deadline is not None and n_retries and time.monotonic() + wait > deadline:
+                break
+            sleep(wait)
+            waited += wait
+            n_retries += 1
+            last = http.get_json(q, deadline=deadline)
+            b2 = last["body"] if isinstance(last["body"], dict) else None
+            retry = b2.get("tail_status") if b2 else None
+            if b2 is not None and last["status"] == 200:
+                body = b2                     # judge what the client ends up holding
+            if retry != "unverified":
+                break
     if tf != "D":
-        ck["tail_status"] = C.check_tail_status(first, retry)
+        ck["tail_status"] = C.check_tail_status(first, retry, n_retries)
 
     bars = body.get("bars") or []
     if body.get("no_data") or body.get("error") or not bars:

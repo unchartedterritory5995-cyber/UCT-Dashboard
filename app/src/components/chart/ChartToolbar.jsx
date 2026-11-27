@@ -1068,6 +1068,39 @@ export function libraryDescribeSeed(opts) {
   return s ? s.slice(0, 400) : null
 }
 
+/** Seconds per intraday bar, by toolbar timeframe (the countdown's period). */
+const INTRADAY_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
+
+/**
+ * ⭐ (2026-11-25, next-row key task) THE BAR-CLOSE COUNTDOWN, IN ITS OWN COMPONENT. Its once-a-second tick was state
+ * of the whole toolbar: every second, on every intraday chart, all of ChartToolbar rendered again (its props unchanged),
+ * and it did so with the countdown HIDDEN too (`hideCountdown`: a grid cell, a review card, StockChart's own prop), where
+ * the tick drew nothing at all. A chart switch's frame could wait behind it (the 40 ms breakdown, 2026-11-25: toolbar
+ * renders after the frame with no prop changed). Now the tick renders this span alone, and a hidden countdown has no
+ * timer. The text, its first value and its one-second cadence from mount are as before.
+ */
+function BarCloseCountdown({ periodSec }) {
+  const [countdown, setCountdown] = useState(null)
+  useEffect(() => {
+    const tick = () => {
+      const nowSec = Math.floor(Date.now() / 1000)
+      const rem = periodSec - (nowSec % periodSec)
+      const mm = String(Math.floor(rem / 60)).padStart(2, '0')
+      const ss = String(rem % 60).padStart(2, '0')
+      setCountdown(`${mm}:${ss}`)
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [periodSec])
+  if (!countdown) return null
+  return (
+    <span className={styles.countdown} title="Time until bar closes">
+      {countdown}
+    </span>
+  )
+}
+
 function ChartToolbar({
   // Phone chart shell: MobileDrawBar presents the drawing tools instead, so
   // this strip hides ENTIRELY (its dialogs still portal out, its imperative
@@ -1600,24 +1633,8 @@ function ChartToolbar({
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [alertPopoverOpen])
 
-  // ── Countdown to bar close ──
-  const INTRADAY_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
+  // ── Countdown to bar close (BarCloseCountdown: its tick renders the countdown alone) ──
   const periodSec = INTRADAY_SECONDS[tf]
-  const [countdown, setCountdown] = useState(null)
-
-  useEffect(() => {
-    if (!periodSec) { setCountdown(null); return }
-    const tick = () => {
-      const nowSec = Math.floor(Date.now() / 1000)
-      const rem = periodSec - (nowSec % periodSec)
-      const mm = String(Math.floor(rem / 60)).padStart(2, '0')
-      const ss = String(rem % 60).padStart(2, '0')
-      setCountdown(`${mm}:${ss}`)
-    }
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [periodSec])
 
   // Close popups on outside click.
   //
@@ -1873,11 +1890,7 @@ function ChartToolbar({
         )}
 
         {/* ── Countdown to bar close ── */}
-        {!hideCountdown && countdown && (
-          <span className={styles.countdown} title="Time until bar closes">
-            {countdown}
-          </span>
-        )}
+        {!hideCountdown && periodSec ? <BarCloseCountdown periodSec={periodSec} /> : null}
 
         {/* ── Share ── */}
         {/* The tooltip named ONE of the three things this opens. The popover is

@@ -210,6 +210,10 @@ export function memberRefusal(gate, reason = '', extra = {}) {
   if (g === 'network' || g === 'model:transport' || g === 'model:unavailable' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
   if (g === 'internal:timeout') return TOOK_TOO_LONG
   if (/^internal:/.test(g)) return INTERNAL
+  // ⭐ 2026-11-25 -- TOO LONG IS THE MEMBER'S TO FIX, IN THE SERVER'S WORDS ("your request is 3,262 characters; the
+  // limit is 2,000"). It fell under `converse:` below and read "couldn't produce a valid change", which says nothing
+  // they can act on.
+  if (g === 'converse:too-large' && reason) return reason
   if (/^(envelope|model|schema|converse):/.test(g)) return MODEL
   return reason || MODEL
 }

@@ -73,9 +73,22 @@ def calc_timeframe_of(answer):
     return calc
 
 
-def _interpret(tree, bars, inputs, tf, symbols):
+def _interpret(tree, bars, inputs, tf, symbols, frames=None):
     # the door stores the EXPANSION of a band or regression call, never the name: evaluate what is stored
-    return [_num(x) for x in ast_interpret.interpret(call_expansions.expand_calls(tree), bars, inputs, None, None, {'tf': tf, 'symbols': symbols})]
+    opts = {'tf': tf, 'symbols': symbols}
+    if frames:
+        opts['frames'] = frames
+    return [_num(x) for x in ast_interpret.interpret(call_expansions.expand_calls(tree), bars, inputs, None, None, opts)]
+
+
+def _daily_frames(c):
+    """⭐⭐ U-DAILY (e96) -- the daily bars a DAILY READ (`tf` of D) is computed on, below a day: the chart's own daily bars
+    and each other symbol's, every one of them finished (the built market's last day is a closed one), as the chart
+    hands them (`dailyReadSupply.js`). None on a chart that holds no daily frame."""
+    d = c['frames'].get('D')
+    if not d:
+        return None
+    return {'D': {'bars': d['bars'], 'symbols': d['symbols'], 'newestFinal': True}}
 
 
 def evaluate(tree, inputs, chart='daily', calc=None):
@@ -87,7 +100,7 @@ def evaluate(tree, inputs, chart='daily', calc=None):
     c = CHARTS[chart]
     try:
         if calc in (None, '', c['tf']):
-            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols']), None
+            return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols'], _daily_frames(c)), None
         frame = c['frames'].get(calc)
         if frame is None:
             return None, f'a calculation timeframe of {calc!r} on the {chart} chart is not graded here'
@@ -289,6 +302,12 @@ def grade_case(case, answer=None):
         result = grade_wall(case, answer)
     elif case['lane'] == 'formula':
         result = grade(case['id'], answer, case.get('chart', 'daily'))
+        # ⭐ 2026-11-25 -- A CASE MAY NAME AN EDGE CHART (`edges.py`): right only when right on the plain bars AND on it
+        if isinstance(case.get('edge'), list) and result['verdict'] == 'right':
+            from . import edges
+            with edges.on(case['edge'], case.get('chart', 'daily')):
+                edged = grade(case['id'], answer, case.get('chart', 'daily'))
+            result = {**edged, 'lines': result['lines'] + ['  -- on the edge chart --'] + edged['lines']}
         # a formula case may also hold what the member is TOLD (`says`: each group needs one of its phrases)
         told = ' '.join(str(answer.get('reply') or '').lower().replace('\u2019', "'").split())      # (a typographic apostrophe is a plain one)
         for group in case.get('says') or []:

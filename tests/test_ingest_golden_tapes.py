@@ -85,10 +85,11 @@ def test_the_real_reader_loop_matches_golden(name):
 
 def test_pinned_rules_survive_a_provider_rules_load():
     from api.services import trade_conditions as tc
-    saved = (tc._hl_ineligible, tc._last_ineligible)
+    saved = (tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible)
     try:
-        tc._hl_ineligible, tc._last_ineligible = set(), set()     # as if a provider load said "nothing"
+        # as if a provider load said "nothing" (the volume set too: the tape's 15 print must still add no size)
+        tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible = set(), set(), set()
         assert H.run_tape("conditions_and_noise") == H.read_golden("conditions_and_noise")
-        assert (tc._hl_ineligible, tc._last_ineligible) == (set(), set())   # restored after the run
+        assert (tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible) == (set(), set(), set())
     finally:
-        tc._hl_ineligible, tc._last_ineligible = saved
+        tc._hl_ineligible, tc._last_ineligible, tc._vol_ineligible = saved

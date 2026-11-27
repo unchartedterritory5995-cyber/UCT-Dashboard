@@ -541,6 +541,10 @@ def test_stream_frames_carry_the_rest_identity_and_a_strictly_increasing_rev(sto
     for i in range(5):
         bb._dispatch("AAA", "5", [{"t": t_ms, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": i,
                                    "final": i == 4}], list(bb._subscribers[("AAA", "5")]))
+    # the route starts the pair's series_rev read when the stream opens (off the event loop since
+    # 2026-11-25, test_stream_fields_off_loop); once it has landed, every frame carries REST's identity
+    bc.prefetch_stream_fields([("AAA", "5")], "rth")
+    assert bc.stream_rev_settle(5)
     frames = [st._contract_event(bc, m, "rth") for m in sent]
     revs = [f["rev"] for f in frames]
     assert revs == sorted(revs) and len(set(revs)) == len(revs)

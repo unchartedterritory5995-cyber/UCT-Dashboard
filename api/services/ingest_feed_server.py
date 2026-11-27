@@ -37,6 +37,7 @@ import itertools
 import logging
 import os
 import time
+import dataclasses
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -86,6 +87,16 @@ class _Client:
     connected_at: float
     batches_sent: int = 0
     last_send_s: Optional[float] = None
+
+
+def stamp_batch(batch: fp.Batch) -> fp.Batch:
+    """The batch with ingest's send time (`ext.ts`, wall ms) when INGEST_BATCH_TS_ENABLED=1, else unchanged.
+    ⛔ Switch it on only after every receiver (web, stream-edge) runs a parser that knows `ext`:
+    _parse_batch refuses an unknown top-level field, so an old receiver would drop the whole feed
+    (and the same if web/stream-edge are ROLLED BACK past that parser: unset the flag first)."""
+    if os.environ.get("INGEST_BATCH_TS_ENABLED", "").strip() != "1":
+        return batch
+    return dataclasses.replace(batch, ext={**(batch.ext or {}), "ts": int(time.time() * 1000)})
 
 
 @dataclass
@@ -322,6 +333,7 @@ class IngestFeedServer:
         batch = buf.drain()
         if batch is None:
             return True
+        batch = stamp_batch(batch)
         try:
             await asyncio.wait_for(client.conn.send(fp.encode(batch)),
                                    timeout=SEND_TIMEOUT_S if timeout_s is None else timeout_s)

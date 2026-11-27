@@ -51,7 +51,7 @@ import {
 } from '../../utils/barsIDB'
 import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
-import { isSealedRow, bucketEnd, normT, answerFrame } from './reducer'
+import { isSealedRow, bucketEnd, normT, answerFrame, localCopyAddsNothing } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
@@ -632,8 +632,19 @@ export function createPersist({
       const gen = registry.getSnapshot(key).gen
       const m = IO.memPeekEntry(p.sym, p.cacheTf)
       if (m?.bars?.length) {
-        const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
-        registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
+        // ⭐ (2026-11-25, next-row key task) A COPY THAT PROVABLY CHANGES NOTHING IS NOT DECODED. A chart's switch onto a
+        // row the list warmed (the entry holds the server's answer) re-reads this record in the switch's own task
+        // (index.js _start: the first subscriber hydrates), and there it can only add rows older than everything held.
+        // Holding none (reducer.localCopyAddsNothing), the reducer would return the entry itself: decoding the envelope
+        // (row hashes), ingesting every row and proving the basis (~1.3 ms a press, both charts) bought nothing. The
+        // dispatch stays, empty, for the registry's own bookkeeping (the entry marked used, the eviction check), and
+        // `_noteSaved` as before. A copy that can add a row is applied exactly as before.
+        if (localCopyAddsNothing(registry.peek(key), m.bars)) {
+          registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { bars: [] } })
+        } else {
+          const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
+          registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
+        }
         _noteSaved(key, m.savedAt)
       }
       // (after a mem record too: one that makes no claim, the pack's rows promoted from IndexedDB, is joined)

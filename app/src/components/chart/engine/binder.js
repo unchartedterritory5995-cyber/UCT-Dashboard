@@ -65,9 +65,11 @@ import {
   markerIsEvent,
 } from './pool'
 import { outputTypeOf, OUTPUT_TYPES } from './outputType'
+// ⭐ e97 U6 — the ONE answer to "is this plot hidden for this instance" (`plots[].hidden` / `plots[].hiddenWhen`)
+import { plotHiddenAt, plotLineStyleAt } from './knobBind.js'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
+import { MAIN_PRICE_SCALE_ID, PIN_SCALE_PREFIX, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -117,10 +119,11 @@ import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapR
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
+import { dailyReadSupplyFor } from './dailyReadSupply'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
-import { serverDeclares, scalarsFor, landedEnvelopeFor, noteServerHit } from './serverCompute'
+import { serverDeclares, scalarsFor, landedEnvelopeFor, noteServerHit, adoptFillStates } from './serverCompute'
 import { computeLaneOf, COMPUTE_LANE } from './computeLane'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20) — columns and points computed AHEAD, in idle time, for the bars of the
 // rows a member is about to reach (`prepare` below), found by the switch instead of recomputed.
@@ -171,8 +174,36 @@ const _projMemo = new WeakMap()
  *  does reads the inputs' condition grammar through the SAME evaluator a plot's
  *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
  *  default), so a band and a guide can never disagree about one switch. */
-function fillActiveFor(fillSpec, b) {
-  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+/** ⭐ (2026-11-26) WHICH COLUMN IS A BAND'S STATE, AND BY WHAT RULE: the binder answering, as the ONE reader of
+ *  `plots[].fill` (defSchema.test.js's reader rail), for the server lane's custom-timeframe fold
+ *  (`serverCompute.customTfFoldsOf`), which must REBUILD that column over the chart's own buckets rather than carry the
+ *  base timeframe's over. A band coloured by a computed column (`colorMode: 'column:<state>'`) beside a partner plot
+ *  (`with`) reads `<state>` as 1 where its plot is at or above the partner, else 0 (the server's `above_column` rule):
+ *  `{ state, rule: 'above', of: <plot key>, with: <partner key> }`, one per such band, in plot order.
+ *  ⛔ HANDED TO THE LANE WHEN A CHART'S BINDER IS CREATED (`createBinder`, `adoptFillStates`), NEVER IMPORTED BY IT
+ *  AND NEVER AT LOAD. serverCompute sits in ten lazy chunks this module is not in (the formula library, the share
+ *  panel, the voice layer, the settings modal...); an import there would carry the renderer and ~70 modules into
+ *  every one of them, and close a cycle. And a registration at load is one the member door's worker graph would not
+ *  make (memberDoorWorkerGraph.test.js, case 5): no chart there, no band, no answer. Until a chart binds, the lane
+ *  withholds the state column on a custom timeframe rather than guess it. */
+export function fillStatesOf(def) {
+  const out = []
+  for (const p of def && Array.isArray(def.plots) ? def.plots : []) {
+    const fill = p && p.fill
+    if (!fill || typeof p.key !== 'string' || typeof fill.with !== 'string' || typeof fill.colorMode !== 'string') continue
+    if (!fill.colorMode.startsWith('column:')) continue
+    out.push(Object.freeze({ state: fill.colorMode.slice('column:'.length), rule: 'above', of: p.key, with: fill.with }))
+  }
+  return Object.freeze(out)
+}
+
+export function fillActiveFor(fillSpec, b) {
+  if (!fillSpec) return true
+  // ⭐ e97 U7 — and is it DRAWN at this instance's settings: a band whose `display` a setting decides
+  // (`fill.hiddenWhen`, `pine.js::resolveFillHandles`) is decided by the ONE reader every plot is (`plotHiddenAt`)
+  if (fillSpec.hiddenWhen !== undefined
+    && plotHiddenAt({ hiddenWhen: fillSpec.hiddenWhen }, b && b.def, b && b.inst && b.inst.inputs)) return false
+  if (fillSpec.activeWhen === undefined) return true
   return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
 }
 
@@ -383,8 +414,22 @@ function toOhlcPoints(payload, adjustTime) {
  *  negative whole number; anything else is 0, so a rightward displacement — which
  *  the translator already put in the TREE as `x[N]` — can never be applied a
  *  second time by the renderer. */
-export function drawShiftOf(plot) {
-  const d = plot && plot.displace
+export function drawShiftOf(plot, def = null, inputs = null) {
+  if (!plot) return 0
+  // ⭐⭐ e98 E3 — A DISPLACEMENT THE MEMBER'S SETTING DECIDES (`plots[].displaceInput`, Pine `offset = <input>`): the
+  // instance's value of that int setting (else its declared default), `scale * value + add` bars, EITHER SIDE: the
+  // drawing moves, the column (what a scan, an alert and every `source` read) never does. TradingView: "the shift is
+  // only cosmetic; the actual values in the series are not moved" (Pine User Manual v4, `plot` annotation). The ONE
+  // reader of a plot's draw shift: every binder site and the vendor harness ask it with the instance's inputs.
+  const di = plot.displaceInput
+  if (di && typeof di === 'object' && typeof di.key === 'string') {
+    const own = inputs && typeof inputs === 'object' ? inputs[di.key] : undefined
+    const declared = def && Array.isArray(def.inputs) ? def.inputs.find((i) => i && i.key === di.key) : null
+    const v = Number.isInteger(own) ? own : (declared && Number.isInteger(declared.default) ? declared.default : 0)
+    const d = (di.scale === -1 ? -v : v) + (Number.isInteger(di.add) ? di.add : 0)
+    return Number.isInteger(d) ? d : 0
+  }
+  const d = plot.displace
   return Number.isInteger(d) && d < 0 ? d : 0
 }
 
@@ -409,8 +454,12 @@ export function displacedColumn(column, d) {
   const n = column.length
   const numeric = column instanceof Float64Array || column instanceof Float32Array
   const out = numeric ? new Float64Array(n).fill(NaN) : new Array(n).fill(null)
+  // ⭐ e98 E3 — and a RIGHTWARD one (d > 0, a setting's value): bar j shows the value computed at bar j - d; the first
+  // d bars carry no value and the newest d values fall past the last bar, as the tree's `x[N]` already draws them.
   const k = -d
-  for (let j = 0; j + k < n; j += 1) out[j] = column[j + k]
+  if (d > 0) { for (let j = d; j < n; j += 1) out[j] = column[j - d] } else {
+    for (let j = 0; j + k < n; j += 1) out[j] = column[j + k]
+  }
   byShift.set(d, out)
   return out
 }
@@ -787,14 +836,16 @@ const GLYPH_HOST_POOLS = new Set(['line', 'area', 'baseline', 'histogram', 'colu
 export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput } = {}) {
   return bind.map((b, i) => {
     const pl = settled[i]
-    if (!b || !pl || !b.plot || b.plot.hidden === true) return null
+    if (!b || !pl || !b.plot || plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) return null
     if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
-    if (pl.paneIndex === 0) return 'price'
+    // ⛔ PINNED TO "No scale" (`placement.pinScaleOf`) the candles' map is the wrong one: such a glyph
+    // rides a sibling on the instance's own scale, found below, or keeps its own column.
+    if (pl.paneIndex === 0 && !(typeof pl.scaleId === 'string' && pl.scaleId.startsWith(PIN_SCALE_PREFIX))) return 'price'
     for (let j = 0; j < bind.length; j++) {
       const o = bind[j]
       const op = settled[j]
       if (j === i || !o || !op || o.instanceId !== b.instanceId) continue
-      if (!o.plot || o.plot.hidden === true || o.plot.style === 'markers') continue
+      if (!o.plot || plotHiddenAt(o.plot, o.def, o.inst && o.inst.inputs) || o.plot.style === 'markers') continue
       if (!GLYPH_HOST_POOLS.has(o.poolKey)) continue
       if (op.paneIndex !== pl.paneIndex || op.scaleId !== pl.scaleId) continue
       return j
@@ -983,8 +1034,8 @@ function reassignOrphanedGuides(bind) {
   }
   for (const group of byInstance.values()) {
     const carrier = group.find((b) => b.guides && b.guides.length)
-    if (!carrier || !(carrier.plot && carrier.plot.hidden === true)) continue
-    const heir = group.find((b) => b !== carrier && !(b.plot && b.plot.hidden === true))
+    if (!carrier || !(carrier.plot && plotHiddenAt(carrier.plot, carrier.def, carrier.inst && carrier.inst.inputs))) continue
+    const heir = group.find((b) => b !== carrier && !(b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)))
     if (!heir) continue                       // nothing visible left to carry it
     heir.guides = carrier.guides
     heir.guideSig = carrier.guideSig
@@ -1102,7 +1153,7 @@ export function prepKeyOf(registry, def, inst, sourceCols, { sym, tf, forming, o
  * sync's `pointsFor` and by `prepare`, so a prepared point array is filed under exactly what the switch asks.
  */
 function pointsInputsOf(b, rawColumn, columnOf, cs) {
-  const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot)
+  const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
   const column = displacedColumn(rawColumn, shift)
   if (isOhlcPayload(column)) return { ohlc: true, column }
   const sc = signColorsForPlot(b.plot)
@@ -1201,6 +1252,8 @@ export function plotStripNoticesOf(registry, def, cols) {
 }
 
 export function createBinder({ chart, LWC, scope = '' }) {
+  // the band-state answer (`fillStatesOf`), handed to the server lane as a chart comes to exist, before it computes
+  adoptFillStates(fillStatesOf)
   const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
   let held = []
@@ -1427,6 +1480,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
+        // ⭐ e97 U7 — a paint whose `display` a setting decides (`paints[].hiddenWhen`) draws only while this instance
+        // shows it, decided by the ONE reader every plot is (`knobBind.js::plotHiddenAt`); its layer then comes off
+        // with every other paint this pass does not keep alive
+        if (plotHiddenAt(p, def, inst.inputs)) return
         const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,
           { unknownNone: unknownColourRule(def) })
         if (!computed) return
@@ -2556,13 +2613,21 @@ export function createBinder({ chart, LWC, scope = '' }) {
         runCols.set(inst.instanceId, null)
         continue
       }
+      // ⭐⭐ U-DAILY (e96) — A FORMULA THAT READS A DAILY VALUE (`tf` of D) ON A CHART BELOW A DAY is computed with
+      // the symbol's DAILY bars beside the chart's (`dailyReadSupply.js`; `useCalcFrames` fetches them for it). Until
+      // they are in hand it is not computable yet (no series, no stale value), as a framed instance waits for its frame.
+      // (train e96 x e95 2b) asked of the document THIS instance's inputs bind, the one `astColumns` computes: an
+      // unpicked knob arm's daily read neither fetches nor holds the instance pending
+      const daily = frame ? null : dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf, inst.inputs || {})
+      if (daily && daily.pending) continue
+      const dailySig = daily && daily.frame ? `|day:${daily.sig}` : ''
       // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
       // an unchanged key (a server definition's live benchmark tail, `plots[].
       // liveTail`): the registry says so through one optional hook
       // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
       // miss and not another paint of the stale forming bar. `''` for every native.
       const liveSig = typeof registry.computeSignature === 'function'
-        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf, extended: ctx.extended === true }) || '') : ''
       // ⭐ A SERVER-LANE COMPUTE IS KEYED ON (symbol, timeframe) TOO (2026-11-11). The lane
       // fetches `/api/signature/columns?...&sym=&tf=` and aligns the answer onto the bars it
       // is handed, so the same inputs over the SAME bars array mean a different request
@@ -2592,6 +2657,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         + (strategyDepth !== null ? `|ld${strategyDepth}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
+        + dailySig
       // ⭐ (e85) the pane, without what the data moves (the other-symbol, live-tail and forming parts of `sig`): a run
       // half waiting for SPX keeps its picture across SPX's own update
       instancePanes.set(inst.instanceId, `${ctx.sym || ''}\u0001${frame || ctx.tf || ''}\u0001${inputsSignature(inst.inputs)}`)
@@ -2615,7 +2681,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
         // ⭐⭐ NEIGHBOR FRAMES — the same compute over these very bars, done ahead in idle time (`prepare`)
         if (!frame) nfMisses += 1
-        const pre = frame ? null : takePrepared(registry, def, inst, calcBars, sourceCols,
+        const pre = frame || daily ? null : takePrepared(registry, def, inst, calcBars, sourceCols,
           { sym: ctx.sym, tf: ctx.tf, forming: formingNow, otherSig, lowerSig })
         if (pre) nfHits += 1
         const r = pre ? { ok: true, value: pre } : attempt(() => registry.computeFor(def, calcBars, inst.inputs,
@@ -2646,6 +2712,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
           { sym: ctx.sym, symbol: ctx.symbol || null, tf: frame || ctx.tf,
             source: primarySource, sources: sourceCols,
             newestBarIsForming: formingNow,
+            // ⭐⭐ (2026-11-26) THE CHART'S OWN SESSION RIDES THE CTX TOO. StockChart hands `extended` to `sync`, and the
+            // server lane reads `ctx.extended` (`serverCompute.serverAskOf`: an extended 4h chart's envelope is asked at
+            // 30m, not 60m; `benchmarkTailFor`: the benchmark's forming bar on the chart's own grid; and the live-tail
+            // signature, `nativeRegistry.computeSignature`). ⚰️ It stopped at `sync`: every extended-hours chart's server
+            // RS line was asked and tailed on the REGULAR grid.
+            extended: ctx.extended === true,
             // ⭐ C12w — ONLY the chart's own series can start at the listing
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
@@ -2667,6 +2739,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
             lowerTf,
+            // ⭐⭐ U-DAILY (e96) — the daily bars its daily reads are computed on (absent for every other document)
+            ...(daily && daily.frame ? { dailyFrame: daily.frame } : {}),
             // ⭐⭐ HOST WORKER — THE PANE ASKING: this chart's binder and this instance. A costly
             // host document is computed off the main thread for a chart's request only, and a
             // newer request of the same pane supersedes an older one (`hostLaneAsync.js`).
@@ -2695,6 +2769,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       }
       runCols.set(inst.instanceId, cols)
       clockSeen.add(inst.instanceId)
+      // ⭐⭐ U-DAILY — the daily bars were behind the chart (it shows a day they do not know has finished): refreshed by
+      // the same answer a calculated frame gets (`ctx.onFrameStale`, below)
+      if (daily && daily.frame && daily.frame.stale) staleFrames.add('D')
       if (isHostLanePending(cols)) {
         // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE: the values are in the worker. The columns below
         // are the pane's last picture (or none, the first time: the pane's loading state), and every
@@ -2887,6 +2964,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
       // value that row drops (a v4 Reading under a v3 server) is not drawn.
       serverDeclares,
+      // ⭐ e97 U7 — a guide whose display a setting decides is planned only while this instance shows it
+      plotHidden: plotHiddenAt,
+      // ⭐ e98 E1 — a plot whose line style a setting decides is drawn in the style this instance's settings pick
+      plotLineStyle: plotLineStyleAt,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
@@ -3006,7 +3087,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // definition binds exactly as before. And it is wrapped like every other
     // placement call — if it throws, the per-instance answers stand.
     const resolved = bind.map((b) => (
-      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+      (b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
     ))
     const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
     const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
@@ -3020,7 +3101,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
-      if (b.plot && b.plot.hidden === true) { orphan(b); continue }
+      if (b.plot && plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) { orphan(b); continue }
       const placementValue = settled[bi]
       if (!placementValue) { orphan(b); continue }
       const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
@@ -3288,9 +3369,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       }
       // ⭐ 2026-09-26 — each edge of a band is drawn where its OWN plot is drawn,
       // so a displaced plot's band sits under the displaced line, not the column.
-      const plotShift = (key) => drawShiftOf(((b.def && b.def.plots) || []).find((p) => p && p.key === key))
+      const plotShift = (key) => drawShiftOf(((b.def && b.def.plots) || []).find((p) => p && p.key === key), b.def, b.inst && b.inst.inputs)
       if (fillWith) {
-        const ownShift = drawShiftOf(b.plot)
+        const ownShift = drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
         const other = displacedColumn(columns.get(bindingKey(b.instanceId, fillWith)), plotShift(fillWith))
         const own = displacedColumn(columns.get(b.key), ownShift)
         if (own && other) {
@@ -3344,10 +3425,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (isFillHost) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
-          if (!hp || hp.hidden !== true) continue
+          if (!hp || !plotHiddenAt(hp, b.def, b.inst && b.inst.inputs)) continue
           const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
-          const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
+          const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp, b.def, b.inst && b.inst.inputs))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))
           // ⛔ FAIL CLOSED, exactly as the own-fill path does for an
           // unresolvable `with`: no band rather than a band between whatever is
@@ -3364,7 +3445,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp, b.def, b.inst && b.inst.inputs)),
           })
           kept.set(hp.key, h)
         }
@@ -3418,7 +3499,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
         // ⭐ 2026-09-26 — a displaced glyph sits where Pine draws it: a pivot
         // marked on the pivot bar, not on the bar that confirmed it.
-        const markShift = drawShiftOf(b.plot)
+        const markShift = drawShiftOf(b.plot, b.def, b.inst && b.inst.inputs)
         const own = displacedColumn(columns.get(b.key), markShift)
         if (own) {
           if (!markerLayer) {
@@ -3665,7 +3746,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // another instance reads it (`dependedOn`), and a source is not a picture.
       if (inst.hidden === true) continue
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition ? ctx.registry.getDefinition(inst.defId) : null)
-      const hidden = ((def && def.plots) || []).filter((p) => p && p.hidden === true && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key)
+      const hidden = ((def && def.plots) || []).filter((p) => p && plotHiddenAt(p, def, inst.inputs) && p.fill && typeof p.fill.with === 'string' && p.fill.with !== p.key && fillActiveFor(p.fill, { def, inst }))
       if (!hidden.length) continue
       const placement = attempt(() => resolvePlacement(inst, def, ctx)).value
       if (!placement || placement.paneIndex !== 0) continue
@@ -3675,9 +3756,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const prev = was && was.host === priceSeriesNow ? was.fills : new Map()
       if (was && was.host !== priceSeriesNow) for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
       const kept = new Map()
-      const shiftOf = (key) => drawShiftOf(((def && def.plots) || []).find((p) => p && p.key === key))
+      const shiftOf = (key) => drawShiftOf(((def && def.plots) || []).find((p) => p && p.key === key), def, inst.inputs)
       for (const hp of hidden) {
-        const upper = displacedColumn(columns.get(bindingKey(id, hp.key)), drawShiftOf(hp))
+        const upper = displacedColumn(columns.get(bindingKey(id, hp.key)), drawShiftOf(hp, def, inst.inputs))
         const lower = displacedColumn(columns.get(bindingKey(id, hp.fill.with)), shiftOf(hp.fill.with))
         if (!upper || !lower || !registry.hasAnyFinite(upper) || !registry.hasAnyFinite(lower)) continue
         let h = prev.get(hp.key) || null
@@ -3686,7 +3767,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         h.setOptions({
           upper, lower, times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
           color: hc.color, opacity: hc.opacity,
-          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp, def, inst.inputs)),
         })
         kept.set(hp.key, h)
       }
@@ -3706,8 +3787,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const def = inst.def || (ctx.registry && ctx.registry.getDefinition
         ? ctx.registry.getDefinition(inst.defId) : null)
       for (const p of ((def && def.plots) || [])) {
-        if (!p || p.hidden !== true) continue
-        const w = p.fill && typeof p.fill.with === 'string' ? p.fill.with : null
+        if (!p || !plotHiddenAt(p, def, inst.inputs)) continue
+        const w = p.fill && typeof p.fill.with === 'string' && fillActiveFor(p.fill, { def, inst }) ? p.fill.with : null
         if (!w || w === p.key) continue
         notes.push({
           instanceId: id,
@@ -3826,6 +3907,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           sym, symbol: null, tf,
           source: primarySource, sources: sourceCols,
           newestBarIsForming: forming,
+          extended: base.extended === true,
           secondary, exchangeOf: base.exchangeOf, framed: false,
           lowerTf,
           hostPane: `${noticeScope}\u0001${inst.instanceId}`,

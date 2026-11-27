@@ -240,6 +240,12 @@
           "function": "get_bars_since"
         },
         {
+          "function": "get_bars_since"
+        },
+        {
+          "function": "get_bars_since"
+        },
+        {
           "function": "get_bars"
         },
         {

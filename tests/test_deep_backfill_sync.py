@@ -33,6 +33,10 @@ def fresh_state(tmp_path, monkeypatch):
     from api.services.cache import cache as _cache
 
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
+    # The intraday rows below are a continuous 24/7 run ending at the WALL CLOCK; the serve-time session clamp would
+    # drop their nights and weekends. These tests pin the deep-history depth; the clamp has its own rails
+    # (tests/test_bars_eth_session_clamp.py).
+    monkeypatch.setattr(bars_fetch, "_clamp_exempt", lambda _t: True)
     bars_sqlite.bump_db_epoch()
     bars_sqlite.init_db()
     monkeypatch.setattr(bars_disk_cache, "_CACHE_DIR", str(tmp_path / "disk"))

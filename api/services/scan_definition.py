@@ -598,6 +598,18 @@ def assert_scannable(definition: Any) -> dict:
     # reads, the value is withheld (`ast_interpret.tf_merge_mask`) for every
     # symbol. Refused at the door, by name; the same read is served on a chart,
     # and a formula's `tf(…)` (the last closed period) screens as before.
+    # ⭐⭐ U-DAILY (e96) -- A DAILY READ IS FOR A CHART BELOW A DAY, AND THE SWEEP RUNS ON DAILY BARS. `tf(x, 'D')` shows
+    # the last finished day on each bar of an intraday chart; on the sweep's daily bars it is refused by name
+    # (`ast_interpret._interpret_daily_reads`: the bars there ARE days), so it would answer nothing for every symbol.
+    # Refused at the door, by name; on a daily scan the value itself is the read (`close`, not `tf(close, 'D')`).
+    if ast_interpret.tree_reads_daily(tree):
+        raise ScanRefused(
+            "cadence",
+            "this formula reads a daily value the way a chart below a day shows it (`tf(…, 'D')`: the last finished "
+            "day on each intraday bar). A saved scan is run on daily bars, where every bar already is a day, so it "
+            "would answer nothing for every symbol. On a daily scan read the value itself (`close`, not "
+            "`tf(close, 'D')`); the daily read works on an intraday chart.",
+        )
     if _reads_merged_timeframe(tree):
         raise ScanRefused(
             "withheld",

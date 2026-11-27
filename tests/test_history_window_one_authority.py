@@ -77,11 +77,13 @@ def test_the_window_module_holds_exactly_one_assignment_of_the_literal():
 
 # ─── ⭐⭐ (coordinator ruling 2026-11-19, D9 strategy-only) THE SECOND, NAMED CONSTANT ───────────────────────────
 # `STRATEGY_HISTORY_WINDOW_BARS`: the window a strategy run on a member's chart takes. It must never leak into the
-# shared consumers (the scan sweep, the screener backtest, the alert lanes, the server strategy route keep 5,000), it
-# has exactly ONE consumer (the chart lane's endpoint), and it equals the daily depth the chart loads, so a full daily
-# chart is never cut off its listing by the window.
+# shared consumers (the scan sweep, the screener backtest, the alert lanes keep 5,000), it has exactly its named
+# consumers (the chart lane's endpoint; since e100 the single-symbol strategy route, on a run from the listing only),
+# and it equals the daily depth the chart loads, so a full daily chart is never cut off its listing by the window.
 _STRATEGY = "STRATEGY_HISTORY_WINDOW_BARS"
-_STRATEGY_CONSUMERS = ("api/routers/pine_history_window.py",)
+#: (e100, coordinator ruling 2026-11-26) + the single-symbol strategy route, which runs on the chart's history: it
+#: takes the strategy window on a run from the listing only (`tests/test_pine_strategy_backtest.py` rails both arms).
+_STRATEGY_CONSUMERS = ("api/routers/pine_history_window.py", "api/routers/pine_strategy_backtest.py")
 _CHART_DEPTH = "app/src/utils/barsBackfill.js"
 
 

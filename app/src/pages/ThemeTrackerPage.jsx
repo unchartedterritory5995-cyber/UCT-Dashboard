@@ -1,6 +1,7 @@
 // app/src/pages/ThemeTrackerPage.jsx
 import { useWidgetDoor } from './charts/widgetDoors'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
+import { boardHiddenNow, useLayerBoard } from '../components/chart/boardVisibility'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlotAlways, useUctControlsSlot } from './charts/uctHeaderSlot'
@@ -601,6 +602,8 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false, boa
 }
 
 export default function ThemeTrackerPage({ embedded = false, activeRef = null, widgetKey = null, opts = null, onOptsChange = null, onOpenThemeChange = null }) {
+  // the layer keep-alive's handle of this tracker's board, or null (boardVisibility.js); stable for its life
+  const layerBoard = useLayerBoard()
   // Per-widget persistence (opts) — the Close/Open basis and the chosen theme set stick
   // per widget instance via the workspace's debounced layout save.
   const patchOpts = useCallback((patch) => {
@@ -1290,6 +1293,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
   const handleKeyDown = useCallback((e) => {
     if (isHiddenDeskKey(e)) return
+    // (review of #2901, H1) a hidden layer keep-alive board's list answers no key: the board in front may hold a list of
+    // the same widget id, and this one would move a list nobody sees and switch the front board's linked charts
+    if (boardHiddenNow(layerBoard)) return
     // Space advances like ArrowDown (next ticker).
     const navSpace = e.key === ' ' || e.key === 'Spacebar'
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
@@ -1336,7 +1342,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     setTimeout(() => {
       rowRefs.current[stock.key]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 30)
-  }, [allStocks, selectedSym, selectedNavKey, setHubSym, activeRef, widgetKey])
+  }, [allStocks, selectedSym, selectedNavKey, setHubSym, activeRef, widgetKey, layerBoard])
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
@@ -1394,6 +1400,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     if (!selectedSym) return
     const handler = (e) => {
       if (isHiddenDeskKey(e)) return
+      if (boardHiddenNow(layerBoard)) return   // a hidden layer keep-alive board flags nothing (review of #2901, H1)
       // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // ThemeTrackerPage.chordAdoption.test.jsx.
@@ -1408,7 +1415,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [selectedSym, isFlagged, toggleFlag])
+  }, [selectedSym, isFlagged, toggleFlag, layerBoard])
 
   // Close / Open, the Today basis — drawn at the end of the period tabs on the board.
   const basisToggle = (

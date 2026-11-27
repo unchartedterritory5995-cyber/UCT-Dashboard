@@ -1,0 +1,6 @@
+//@version=5
+indicator("Average volume of the last 10 up days (an average inside an if)")
+var float avgUp = na
+if close > close[1]
+    avgUp := ta.sma(volume, 10)
+plot(avgUp, "Average up-day volume")

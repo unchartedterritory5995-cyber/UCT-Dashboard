@@ -34,6 +34,8 @@ export function deriveStatus(s, ctx = {}) {
   const tailT = s.developing ? s.developing.t : s.bars[s.bars.length - 1].t
   // The held window predates the server's current history; a full read is in flight.
   if (s.restSeen && s.pendingHistoryRev != null) return STATUS.UPDATING
+  // ⭐ (review of #2721) the switch painted this copy without a bucket that has closed (its hold ran out): it is not current
+  if (s.awaitingClosed != null) return STATUS.UPDATING
 
   if (isDateTf(s.tf)) {
     let behind = false

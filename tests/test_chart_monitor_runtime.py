@@ -466,3 +466,54 @@ def test_heartbeat_route_is_service_only(monkeypatch, tmp_path):
     st = cl.get("/api/internal/chart-monitor/status", headers={"Authorization": "Bearer s3cr3t"})
     assert st.status_code == 200 and st.json()["seen"] is True
     assert cl.get("/api/internal/chart-monitor/status").status_code == 401
+
+
+# ───────────────────────────── an honest unverified at the open (review #2732 (b), 2026-11-25)
+# At the open the provider publishes a closed minute 7-42 s late, and the server's tail proof now WAITS for that
+# publication, so an honest `unverified` answer can need more than one Retry-After retry to heal. At the open the
+# monitor keeps retrying, BOUNDED (`runner.OPEN_TAIL_RETRIES` retries and `runner.OPEN_TAIL_RETRY_BUDGET_S` of waiting);
+# anywhere else the rule stays one retry.
+
+class _SeqHttp:
+    def __init__(self, statuses, retry_after="3"):
+        self.statuses = list(statuses)
+        self.calls = 0
+        self.retry_after = retry_after
+
+    def get_json(self, q, deadline=None):
+        st = self.statuses[min(self.calls, len(self.statuses) - 1)]
+        self.calls += 1
+        hdr = {"retry-after": self.retry_after} if st == "unverified" else {}
+        return {"status": 200, "ms": 10, "headers": hdr, "retries": 0, "error": None, "clean": True,
+                "body": {"bars": [], "tail_status": st}}
+
+
+def _tail_verdict(statuses, now, retry_after="3"):
+    slept: list = []
+    http = _SeqHttp(statuses, retry_after)
+    res = runner.check_series(http, "SPY", "1", "1", None, now, thin=False, grace=90, sleep=slept.append)
+    return res["checks"]["tail_status"], http.calls, slept
+
+
+def test_an_unverified_that_heals_on_the_third_retry_at_the_open_passes():
+    v, calls, slept = _tail_verdict(["unverified", "unverified", "unverified", "current"], at(WED, 9, 31))
+    assert v.status == C.PASS, v.detail
+    assert calls == 4
+
+
+def test_the_same_answer_mid_session_still_fails_after_one_retry():
+    v, calls, _ = _tail_verdict(["unverified", "unverified", "current"], at(WED, 14, 3))
+    assert v.status == C.FAIL and calls == 2
+
+
+def test_at_the_open_the_retries_are_bounded_in_count_and_in_time():
+    v, calls, slept = _tail_verdict(["unverified"] * 50, at(WED, 9, 31))
+    assert v.status == C.FAIL
+    assert calls == 1 + runner.OPEN_TAIL_RETRIES
+    assert sum(slept) <= runner.OPEN_TAIL_RETRY_BUDGET_S
+
+
+def test_the_open_window_ends():
+    v, calls, _ = _tail_verdict(["unverified", "unverified", "current"],
+                                at(WED, 9, 30) + runner.OPEN_TAIL_WINDOW_S + 60)
+    assert v.status == C.FAIL and calls == 2

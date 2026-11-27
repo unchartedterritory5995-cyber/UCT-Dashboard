@@ -99,6 +99,23 @@ export class HistoryError extends Error {
   }
 }
 
+/** Resolves in a later task (never in the one that asked): `scheduler.yield()` where the browser has it, else a
+ *  MessageChannel message (not clamped like a nested setTimeout), else a setTimeout. */
+export function nextTask() {
+  try {
+    const s = globalThis.scheduler
+    if (s && typeof s.yield === 'function') return s.yield()
+  } catch { /* fall through */ }
+  if (typeof MessageChannel === 'function') {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel()
+      ch.port1.onmessage = () => { ch.port1.close(); ch.port2.close(); resolve() }
+      ch.port2.postMessage(0)
+    })
+  }
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
 async function mapLimit(items, limit, fn) {
   const out = new Array(items.length)
   let next = 0
@@ -113,10 +130,13 @@ async function mapLimit(items, limit, fn) {
 }
 
 /**
- * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number }} o
+ * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => (Promise<void> | null) }} o
+ *   `yieldTask` (also per `loadBars` call): asked before each piece's decode; a promise is awaited (the decode runs in a
+ *   later task), null runs it at once. Default `nextTask`.
  */
 export function createHistorySource(o = {}) {
   const doFetch = o.fetch ?? ((...a) => fetch(...a))
+  const yieldTask = o.yieldTask ?? nextTask
   const base = o.base ?? HIST_BASE
   const maxParallel = o.maxParallel ?? MAX_PARALLEL
   const indexes = new Map()      // lake symbol -> Promise<index | null>
@@ -150,26 +170,81 @@ export function createHistorySource(o = {}) {
 
   function refreshIndex(sym) { indexes.delete(lakeSymbol(sym)) }
 
+  // ⭐ ONE REQUEST PER PIECE IN FLIGHT (2026-11-26, the typed ticker). The typed warm primes the lake (`warmPieces`) and
+  // seeds it (`loadBars`) off the same index answer, so both asked every piece at the same instant: two requests per
+  // piece (the second answered behind the first by the browser's cache lock, still holding a `maxParallel` slot).
+  // A read asked while its URL is in flight shares that request's answer (status, piece header, body bytes; the decode
+  // only reads them). Settled, the entry goes: a later read is answered by the browser's cache, as before.
+  // ⛔ A SHARED REQUEST IS NOT GIVEN UP FOR ANOTHER CALLER: a read whose own signal fires while it waits on someone
+  // else's request rejects at once (that request goes on for its owner); a request its OWNER gave up is asked again
+  // for a read that still wants the piece.
+  // A re-ask joins whatever is in flight by then, with the same rule, so it never inherits another caller's abort.
+  const inflight = new Map()   // piece URL -> Promise<{ status, ok, headerJson, buf }>
+  const abortReason = (signal) => signal.reason ?? new DOMException('The load was aborted', 'AbortError')
+  function readPiece(url, signal) {
+    const start = () => {
+      const p = (async () => {
+        const res = await get(url, signal)
+        return { status: res.status, ok: res.ok, headerJson: res.headers.get(HEADER_NAME), buf: res.ok ? await res.arrayBuffer() : null }
+      })()
+      inflight.set(url, p)
+      const settle = () => { if (inflight.get(url) === p) inflight.delete(url) }
+      p.then(settle, settle)
+      return p
+    }
+    const shared = inflight.get(url)
+    if (!shared) return start()
+    if (signal?.aborted) return Promise.reject(abortReason(signal))
+    const joined = shared.catch((err) => {
+      if (signal?.aborted) throw abortReason(signal)
+      if (err?.name !== 'AbortError') throw err
+      // asked again through the same door, however deep: a re-ask that is given up in turn is asked again too
+      // (review of #2852: adopting the re-ask as it was left a third read with an abort it never asked for)
+      return readPiece(url, signal)
+    })
+    if (!signal) return joined
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(abortReason(signal))
+      signal.addEventListener('abort', onAbort, { once: true })
+      joined.then(
+        (v) => { signal.removeEventListener('abort', onAbort); resolve(v) },
+        (e) => { signal.removeEventListener('abort', onAbort); reject(e) },
+      )
+    })
+  }
+
   /** THE one piece URL (its cache key): `warmPieces` and `loadPiece` must never name a piece two ways. */
   const pieceUrl = (symbol, series, entry) =>
     `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
   const placed = (entry) => Number.isSafeInteger(entry.off) && entry.off >= 0 && Number.isSafeInteger(entry.bytes) && entry.bytes > 0
 
-  async function loadPiece(symbol, series, entry, signal) {
+  async function loadPiece(symbol, series, entry, signal, wait = yieldTask) {
     // the piece is one ranged read of its pack: offset `off`, length `bytes` (edge history.js)
     if (!placed(entry)) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
     }
     const owner = ownerOf(symbol, entry)
     const url = pieceUrl(owner, series, entry)
-    const res = await get(url, signal)
+    const res = await readPiece(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })
     }
     if (!res.ok) throw new HistoryError(`${symbol} ${series}/${entry.period}: HTTP ${res.status}`, { status: res.status })
-    const headerJson = res.headers.get(HEADER_NAME)
+    const headerJson = res.headerJson
     if (!headerJson) throw new HistoryError(`${symbol} ${series}/${entry.period}: no piece header in the answer`)
-    const d = decodeColumns(headerJson, new Uint8Array(await res.arrayBuffer()))
+    const bytes = new Uint8Array(res.buf)
+    // ⭐ ONE PIECE PER TASK (smoothness trace 2026-11-26, 1m+15m board: the deep history's pieces decoded back to back
+    // in 18-27 ms tasks, 160-215 ms after both charts showed the new symbol, each a dropped frame). Pieces whose bytes land
+    // together are decoded in tasks of their own, so a frame can be drawn between two of them. Same decode, same check.
+    // A load something is WAITING on to paint (network.lakeSeed `awaited`) passes a `wait` that answers nothing: it never
+    // yields, so this cannot delay a first frame.
+    const w = wait ? wait() : null
+    if (w) {
+      await w
+      // a load given up while it waited is not decoded (the abort a fetch in flight would have thrown)
+      if (signal?.aborted) throw signal.reason ?? new DOMException('The load was aborted', 'AbortError')
+    }
+    const d = decodeColumns(headerJson, bytes)
     const hd = d.header
     if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
       throw new PieceError(`${symbol} ${series}/${entry.period}: the answer is a different piece`)
@@ -185,7 +260,7 @@ export function createHistorySource(o = {}) {
    * a caller wanting an exact cut slices by `t`.
    * A piece the index names that the edge no longer has is retried ONCE against a fresh index.
    */
-  async function loadBars(sym, tf, { from = null, to = null, extended = false, raw = false, signal } = {}) {
+  async function loadBars(sym, tf, { from = null, to = null, extended = false, raw = false, signal, yieldTask: wait = yieldTask } = {}) {
     const symbol = lakeSymbol(sym)
     const series = seriesFor(tf, { extended })
     if (!series) return null
@@ -196,7 +271,7 @@ export function createHistorySource(o = {}) {
       if (!want.length) return index.series[series] ? emptyResult(symbol, series) : null
       let parts
       try {
-        parts = await mapLimit(want, maxParallel, (e) => loadPiece(symbol, series, e, signal))
+        parts = await mapLimit(want, maxParallel, (e) => loadPiece(symbol, series, e, signal, wait))
       } catch (err) {
         if (err instanceof HistoryError && err.stale && attempt === 0) { refreshIndex(symbol); continue }
         throw err
@@ -216,7 +291,7 @@ export function createHistorySource(o = {}) {
   async function warmPieces(sym, series, entries) {
     const symbol = lakeSymbol(sym)
     await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
-      try { const res = await get(pieceUrl(ownerOf(symbol, e), series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
+      try { await readPiece(pieceUrl(ownerOf(symbol, e), series, e)) } catch { /* a warm only */ }
     })
   }
 

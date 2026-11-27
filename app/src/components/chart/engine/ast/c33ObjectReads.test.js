@@ -379,10 +379,22 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(labels.every((l) => l.props.text === 'NaN')).toBe(true)
   })
 
-  it('⛔ CONTROL: a getter inside arithmetic is still refused by name', () => {
+  // ⭐⭐ e96 (2026-11-23) — RE-PINNED. This control said a getter inside arithmetic was "still refused
+  // by name"; it was dropped with "no refusal recorded" (the studio's probes found the label simply
+  // absent). Arithmetic on a getter is now computed by the object runtime's own value operators
+  // (`pine.js::stateNumber`, `__tests__/e96GetterArithLabels.test.js`); a call over it is what
+  // stays refused, and BY NAME now (`textDrops`).
+  it('⭐ a getter inside arithmetic is computed (e96); a call over it stays refused, by name', () => {
     const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
       'label.new(bar_index, high, str.tostring(line.get_y1(ln) + 1))'))
-    expect(diag(t).dropReasons['create:label']).toBe(1)
+    expect(diag(t).dropReasons['create:label']).toBeUndefined()
+    const labels = run(t).live.filter((o) => o.family === 'label')
+    expect(labels.length).toBe(12)
+    expect(labels.every((l) => l.props.text === '8.5')).toBe(true)
+    const refused = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
+      'label.new(bar_index, high, str.tostring(math.abs(line.get_y1(ln) + 1)))'))
+    expect(diag(refused).dropReasons['create:label']).toBe(1)
+    expect(diag(refused).textDrops).toEqual([expect.objectContaining({ family: 'label', guard: 'pine:text-value' })])
   })
 })
 
@@ -549,12 +561,13 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
   })
 
   it('⛔ a latch with an unread term that NOTHING surviving reads is not carried', () => {
-    // the one step under the guard is refused for a reason of its own (a getter
-    // inside arithmetic), so its latch would be evaluated every bar for nobody —
-    // and would put a program with no unknown step on the runtime's taint path.
+    // the one step under the guard is refused for a reason of its own (a call over a
+    // getter's arithmetic; e96 computes the arithmetic itself), so its latch would be
+    // evaluated every bar for nobody — and would put a program with no unknown step on
+    // the runtime's taint path.
     const t = host(src(5, 'gate = input.bool(true, "G")', 'var line ln = line.new(0, 7.5, 1, 7.5)',
       'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
-      '    label.new(bar_index, high, str.tostring(line.get_y1(ln) + 1))',
+      '    label.new(bar_index, high, str.tostring(math.abs(line.get_y1(ln) + 1)))',
       'label.new(bar_index, low, "control")'))
     expect(diag(t).dropReasons['create:label']).toBe(1)
     expect(JSON.stringify(t.objects)).not.toContain('"v":"unknown"')

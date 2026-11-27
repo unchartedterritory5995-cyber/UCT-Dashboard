@@ -92,8 +92,15 @@ STREAM_COOKIE_PATH = "/api/stream/bars"
 #: in seed.js must stay this path + "/" (`tests/test_chart_edge_token.py` reads both).
 SEED_COOKIE_PATH = "/api/seed"
 
+#: ⭐ PUSHED LIST PRICES (2026-11-25, api/routers/quote_stream.py). `/api/stream/quotes` is served by
+#: stream-edge (once the Worker routes it, edge/bars-edge-router/stream.js `STREAM_QUOTES_PATH`), which
+#: admits a member by this same signed token. Exactly that one path: it never reaches `/api/stream/prices`,
+#: `/api/live-prices` or any other endpoint. Until the edge routes it, web answers with the member's
+#: session and the extra cookie is ignored. `tests/test_chart_edge_token.py` reads both files.
+QUOTES_COOKIE_PATH = "/api/stream/quotes"
+
 #: Every path the entitlement cookie is issued AND revoked on (auth.py `_set_chart_edge_cookie`).
-COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH, SEED_COOKIE_PATH)
+COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH, SEED_COOKIE_PATH, QUOTES_COOKIE_PATH)
 
 #: Entitlement class — WHO the bearer is, not what they may read.
 #:

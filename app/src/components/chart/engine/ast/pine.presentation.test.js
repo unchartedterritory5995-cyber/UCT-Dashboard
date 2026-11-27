@@ -127,9 +127,10 @@ describe('hline is a level, and the schema has had one all along', () => {
   it('⭐⭐ every folded level is carried, with its title and styling', () => {
     const out = translatePine(src(
       'plot(ta.rsi(close, 14))\nhline(70, "Overbought", color = color.red, linewidth = 2)\nhline(30, "Oversold")'))
+    // ⭐ e96 — each level also says which `hline` call it is (`ordinal`, in source order) and its line
     expect(out.presentation.levels).toEqual([
-      { value: 70, title: 'Overbought', color: '#FF5252', width: 2 },
-      { value: 30, title: 'Oversold' },
+      { value: 70, title: 'Overbought', color: '#FF5252', width: 2, ordinal: 0, line: 4 },
+      { value: 30, title: 'Oversold', ordinal: 1, line: 5 },
     ])
   })
 

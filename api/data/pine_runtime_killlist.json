@@ -203,9 +203,9 @@
       "reason": "on a long chart it needs more array operations than a script may make here: on SPY daily (8,509 bars) its run reaches 2,000,262 of the 2,000,000 allowed on bar 2,805, so it stops and draws nothing, where TradingView draws its line, its bar colours and its table (on RDDT daily, 668 bars, every item agrees)",
       "evidence": {
         "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
-        "verdict": "DIVERGE",
-        "paints": "1 paint differs (first: barcolor plot_6 \"Bar Color\" notDrawn); the ML MA plot and the objects INCONCLUSIVE by name (runtime:limit, 2,000,262 array operations on bar 2,805 of 8,509)",
-        "session": "pine heavy run 44427583401 on PR #1930 (d597bb8a62), vendor harness runtime-on lane; the two RDDT captures grade MATCH on the same run (plot, objects, paints, objectsV2)"
+        "verdict": "INCONCLUSIVE",
+        "paints": "the barcolor plot_6 \"Bar Color\" paint is withheld by the run's name, not graded; the ML MA plot and the objects INCONCLUSIVE by name. Restated 2026-11-27 (coordinator ruling (3)): on the committed SPY 1D capture the run is now withheld by name as runtime:history-start (the e102 curtain off, #2893: the capture holds no bars before its first, a cold replay), before it reaches the array-operation limit; on a member's SPY daily chart from the listing the limit (2,000,262 array operations on bar 2,805 of 8,509) is still the wall. The two RDDT captures grade MATCH",
+        "session": "local regen of master df6d39a8b6 + fix/harness-history-start-paints (2026-11-27, official tools, exact production store), vendor harness runtime-on lane"
       },
       "liftWhen": "the run carries SPY daily's whole history inside the runtime's limits (an engine change to the script's array work, or a coordinator ruling on the limit), then a runtime-on re-grade to MATCH on machine-learning-moving-average-backquant-spy-1d-2026-11-17",
       "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash), applied by U-STMT PR 1 (#1930), which is what lets the runtime lane reach it"
@@ -214,12 +214,12 @@
       "slug": "volatility-coil-edge-bullbyte",
       "sha256": "e8c92f7b76aa240c5be0bd39e61150812eb64bf599ac52d616965bc04bea9fba",
       "source": "corpus/committed/volatility-coil-edge-bullbyte__604f0fd1c6.pine",
-      "reason": "its \"Signal Bar BG\" background is not drawn on the runtime lane where TradingView paints it, on every capture (RDDT daily twice, SPY daily)",
+      "reason": "its \"Signal Bar BG\" background is not drawn on the runtime lane where TradingView paints it, on both RDDT daily captures; the SPY daily capture's run is withheld by name (runtime:history-start)",
       "evidence": {
-        "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
+        "capture": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
         "verdict": "DIVERGE",
-        "paints": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn); the objects INCONCLUSIVE by name (interpret:bind-time-text)",
-        "session": "pine heavy run 44482355116 on PR #1984 (106ffa1def), vendor harness runtime-on lane; the two RDDT captures (2026-11-14, 2026-11-17) grade DIVERGE on the same paint in the same run"
+        "paints": "1 paint differs (first: bgcolor plot_0 \"Signal Bar BG\" notDrawn); the objects INCONCLUSIVE by name (interpret:bind-time-text). Restated 2026-11-27 (coordinator ruling (a)): the evidence was the SPY 1D capture, whose run the e102 curtain off (#2893) now withholds by name as runtime:history-start, so it grades INCONCLUSIVE; the RDDT 2026-11-14 capture also DIVERGEs on the same paint",
+        "session": "local regen of master df6d39a8b6 + fix/harness-history-start-paints (2026-11-27, official tools, exact production store), vendor harness runtime-on lane"
       },
       "liftWhen": "the runtime lane draws the script's \"Signal Bar BG\" background as TradingView does, then a runtime-on re-grade to MATCH on volatility-coil-edge-bullbyte-spy-1d-2026-11-17 and both RDDT captures",
       "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash), applied by CO-2 (#1984) under the coordinator's instruction of 2026-11-19, which is what lets the runtime lane reach it"

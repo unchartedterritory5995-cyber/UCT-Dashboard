@@ -13,6 +13,12 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import path from 'node:path'
 
 import { loadCapture, gradeCapture } from './harness'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../../runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const REPO = path.resolve(process.cwd(), '..')
 const IDS = ['bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14', 'bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-17',

@@ -407,12 +407,13 @@ def check_missing_days(now: int, ts: Sequence[int], *, thin: bool = False, grace
                    f"missing_days={len(missing)}" + (f" e.g. {missing[:3]}" if missing else ""))
 
 
-def check_tail_status(first: Optional[str], retry: Optional[str]) -> Verdict:
-    """``unverified`` is honest only if it heals on the Retry-After retry."""
+def check_tail_status(first: Optional[str], retry: Optional[str], retries: int = 1) -> Verdict:
+    """``unverified`` is honest only if it heals on the Retry-After retry (at the open: within the runner's bounded
+    retries, ``runner.open_tail_retries``). ``retries`` = how many retries were made."""
     if first == "unverified":
         if retry in ("current", "verified"):
-            return Verdict(PASS, f"unverified->{retry} (healed on retry)")
-        return Verdict(FAIL, f"unverified->{retry} (did not heal)")
+            return Verdict(PASS, f"unverified->{retry} (healed on retry {retries})")
+        return Verdict(FAIL, f"unverified->{retry} (did not heal in {retries} retr{'y' if retries == 1 else 'ies'})")
     if first in ("current", "verified", None):
         return Verdict(PASS, str(first))
     return Verdict(WARN, str(first))

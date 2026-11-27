@@ -115,6 +115,23 @@ def load_manifest(path: Optional[pathlib.Path] = None) -> Mapping[str, Any]:
 #: imports.
 TABLE: Mapping[str, Any] = load_manifest()
 
+#: The name a Pine-parity twin carries: the house function's name and this suffix (`atrPine`, `stochPine`).
+PINE_TWIN_SUFFIX = "Pine"
+
+
+def pine_twins(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, str]:
+    """⭐ 2026-11-26 -- {house function: its Pine-parity twin}, DERIVED from the table: every function `XPine` whose
+    `X` is also a function. The house one is UCT's own calculation (the native ATR, ThinkScript and the pattern
+    levels read it: `divergences.json::atr-tr-starts-at-bar-1`); the twin is TradingView's (`ta.atr`, `ta.stoch`,
+    `ta.mfi`). The words door builds the twin (coordinator's ruling: a member checks what the assistant built
+    against TradingView). A twin added to the table is mapped without this file moving."""
+    functions = (manifest if manifest is not None else TABLE).get(FUNCTIONS_SECTION) or {}
+    return MappingProxyType({name[:-len(PINE_TWIN_SUFFIX)]: name for name in sorted(functions)
+                             if name.endswith(PINE_TWIN_SUFFIX) and name[:-len(PINE_TWIN_SUFFIX)] in functions})
+
+
+PINE_TWINS: Mapping[str, str] = pine_twins()
+
 
 def declared_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
     """Every name the table declares, across all FOUR sections.

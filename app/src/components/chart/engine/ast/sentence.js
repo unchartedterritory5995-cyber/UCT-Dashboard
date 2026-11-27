@@ -1052,6 +1052,14 @@ function renderTf(node, rules, inputs, depth, path, trace) {
       `at ${path}: a higher-timeframe read has exactly one child column, got `
       + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
   }
+  // ⭐⭐ U-DAILY (e96) — A DAILY READ ON A CHART BELOW A DAY (`interpret.js::DAILY_READ`) says WHICH day it shows:
+  // the last FINISHED one (yesterday's on every bar of today). ⛔ Never "on the daily timeframe" alone: on an
+  // intraday chart a member would read that as today's value so far, which this read never is.
+  if (node.type === 'tf' && String(node.value) === 'D') {
+    trace.push({ path, rule: 'tf' })
+    const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+    return `${inner} on daily bars, as of the last finished day`
+  }
   const liveNoun = node.type === 'tf_live' ? TF_LIVE_NOUN[String(node.value)] : undefined
   const word = TF_WORD[String(node.value)]
   if (!word && !liveNoun) {

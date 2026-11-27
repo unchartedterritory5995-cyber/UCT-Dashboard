@@ -1,0 +1,6 @@
+//@version=5
+indicator("getter read back", overlay=true)
+var line ln = na
+if barstate.isfirst
+    ln := line.new(bar_index, 10.0, bar_index + 1, 25.5)
+plot(line.get_y2(ln) - line.get_y1(ln), "read back")

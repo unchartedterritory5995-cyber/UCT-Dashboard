@@ -453,6 +453,9 @@ GATE_READ_PATHS = (
     "api/services/journal_two/note_connectors/corpora/corpora_gen.py",
     "api/services/journal_two/note_connectors/test_connector_corpora.py",
     "api/services/uct_agent/scan/eval/composition_flatten_cases.json",
+    # ⛔ READ BY app/src/components/chart/engine/__tests__/storeIntradayAgreement.test.js (train e98, #2769): it
+    # pins the witness's price grain to `PRICE_DP` in this file. Exact path.
+    "api/services/bars_fetch.py",
     "docs/agent/CHARTS_COVERAGE_MATRIX.md",
     "docs/agent/CHARTS_TEACH_STATUS.md",
     "docs/economic-data/integration/tools/probe.mjs",
@@ -580,6 +583,8 @@ GATE_READ_PATHS = (
     "docs/pine/evidence/2026-11-15-w3n-d1/evidence.json",
     "docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json",
     "docs/pine/rs-rating",
+    # e98 #2794: vendorHarness.boundedWindow.test.js reads BOTH lanes' committed snapshots (no bounded-window row)
+    "docs/pine/vendor-harness/production/verdicts.json",
     "docs/pine/vendor-harness/runtime-on/verdicts.json",
     "docs/pine/vendor-harness/strategy-verdicts",
     "tools/pine_coverage/paint_predicate.mjs",

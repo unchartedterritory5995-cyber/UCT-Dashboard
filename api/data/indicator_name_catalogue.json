@@ -53,14 +53,16 @@
    "aliases": [
     "least squares moving average",
     "lsma"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "triangular_moving_average",
    "name": "Triangular Moving Average",
    "aliases": [
     "triangular moving average"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "guppy_multiple_moving_average",
@@ -87,7 +89,8 @@
    "aliases": [
     "rainbow moving average",
     "rainbow chart"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "moving_average_envelope",
@@ -181,14 +184,16 @@
    "name": "Range Filter",
    "aliases": [
     "range filter"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "volatility_stop",
    "name": "Volatility Stop",
    "aliases": [
     "volatility stop"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "chande_kroll_stop",
@@ -221,28 +226,32 @@
    "name": "Trend Intensity Index",
    "aliases": [
     "trend intensity index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "vertical_horizontal_filter",
    "name": "Vertical Horizontal Filter",
    "aliases": [
     "vertical horizontal filter"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "random_walk_index",
    "name": "Random Walk Index",
    "aliases": [
     "random walk index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "polarized_fractal_efficiency",
    "name": "Polarized Fractal Efficiency",
    "aliases": [
     "polarized fractal efficiency"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "elder_impulse_system",
@@ -293,7 +302,8 @@
    "name": "Standard Error Bands",
    "aliases": [
     "standard error bands"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "starc_bands",
@@ -309,21 +319,24 @@
    "name": "Acceleration Bands",
    "aliases": [
     "acceleration bands"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "fractal_chaos_bands",
    "name": "Fractal Chaos Bands",
    "aliases": [
     "fractal chaos bands"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "projection_bands",
    "name": "Projection Bands",
    "aliases": [
     "projection bands"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "nadaraya_watson_envelope",
@@ -357,7 +370,8 @@
    "aliases": [
     "relative vigor index",
     "rvgi"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "detrended_price_oscillator",
@@ -432,21 +446,24 @@
    "aliases": [
     "center of gravity",
     "cog oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "relative_momentum_index",
    "name": "Relative Momentum Index",
    "aliases": [
     "relative momentum index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "intraday_momentum_index",
    "name": "Intraday Momentum Index",
    "aliases": [
     "intraday momentum index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "dynamic_momentum_index",
@@ -487,14 +504,16 @@
    "name": "Disparity Index",
    "aliases": [
     "disparity index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "psychological_line",
    "name": "Psychological Line",
    "aliases": [
     "psychological line"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "qstick",
@@ -561,7 +580,8 @@
    "name": "Projection Oscillator",
    "aliases": [
     "projection oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "cyber_cycle",
@@ -664,7 +684,8 @@
    "name": "Volume Weighted MACD",
    "aliases": [
     "volume weighted macd"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "cumulative_volume_delta",
@@ -759,7 +780,8 @@
    "name": "Fractal Dimension Index",
    "aliases": [
     "fractal dimension index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "swing_index",
@@ -985,14 +1007,16 @@
    "name": "McClellan Oscillator",
    "aliases": [
     "mcclellan oscillator"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "mcclellan_summation_index",
    "name": "McClellan Summation Index",
    "aliases": [
     "mcclellan summation index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "arms_index",
@@ -1000,28 +1024,32 @@
    "aliases": [
     "arms index",
     "trin"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "advance_decline_line",
    "name": "Advance Decline Line",
    "aliases": [
     "advance decline line"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "bullish_percent_index",
    "name": "Bullish Percent Index",
    "aliases": [
     "bullish percent index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "high_low_index",
    "name": "High Low Index",
    "aliases": [
     "high low index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "put_call_ratio",
@@ -1029,6 +1057,83 @@
    "aliases": [
     "put call ratio"
    ]
+  },
+  {
+   "id": "true_range",
+   "name": "True Range",
+   "aliases": [
+    "true range"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "net_volume",
+   "name": "Net Volume",
+   "aliases": [
+    "net volume"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "chop_zone",
+   "name": "Chop Zone",
+   "aliases": [
+    "chop zone"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "hull_suite",
+   "name": "Hull Suite",
+   "aliases": [
+    "hull suite"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "rob_booker_pivots",
+   "name": "Rob Booker Intraday Pivot Points",
+   "aliases": [
+    "rob booker intraday pivot points",
+    "rob booker pivot points",
+    "rob booker pivots"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "williams_variable_accumulation_distribution",
+   "name": "Williams Variable Accumulation Distribution",
+   "aliases": [
+    "williams variable accumulation distribution",
+    "variable accumulation distribution"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "williams_accumulation_distribution",
+   "name": "Williams Accumulation Distribution",
+   "aliases": [
+    "williams accumulation distribution"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "symmetrically_weighted_moving_average",
+   "name": "Symmetrically Weighted Moving Average",
+   "aliases": [
+    "symmetrically weighted moving average",
+    "symmetric weighted moving average"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "intraday_intensity_index",
+   "name": "Intraday Intensity Index",
+   "aliases": [
+    "intraday intensity index",
+    "intraday intensity"
+   ],
+   "distinctive": true
   }
  ]
 }

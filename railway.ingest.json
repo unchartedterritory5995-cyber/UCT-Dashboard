@@ -12,6 +12,7 @@
       "api/services/massive_reconnect.py",
       "api/services/bar_stream.py",
       "api/services/bar_broadcaster.py",
+      "api/services/extended_session.py",
       "api/services/bar_rollup.py",
       "api/services/trade_conditions.py",
       "api/services/vendor_socket_guard.py",

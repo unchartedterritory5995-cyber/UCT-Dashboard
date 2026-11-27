@@ -95,7 +95,9 @@ LIVE_HISTORY_MAX_BARS = 1200
 #: a live daily bar cached 300 s would freeze the developing candle for 5 minutes).
 COVERED_CACHE_TTL = {"1": 5, "5": 5, "D": 10,
                      # 15m/30m/60m rebuilt from the live 5m (`bars_fetch._live_derive_on_read`)
-                     "15": 5, "30": 5, "60": 5}
+                     "15": 5, "30": 5, "60": 5,
+                     # W/M rebuilt from the live daily (`bars_fetch._wm_derive_on_read`)
+                     "W": 10, "M": 10}
 
 _lock = threading.Lock()
 _state = {
@@ -103,6 +105,7 @@ _state = {
     "first_full_bucket_ms": None,  # stream owns buckets starting at/after this
     "last_push_mono": None,
     "watermark_ms": None,         # newest minute the stream has delivered
+    "watermark_epoch": None,      # the epoch `watermark_ms` was pushed in (it only grows within one)
     "pushes": 0,
     "rows_written": 0,
     "daily_last_ok_mono": None,
@@ -215,12 +218,63 @@ def stream_alive() -> bool:
     return t is not None and (_now_mono() - t) <= STREAM_ALIVE_S
 
 
+#: ⛔ (2026-11-25 wide sweep, review) THE MARKET'S WATERMARK IS NOT THIS TICKER'S PROOF. It says the stream delivered a
+#: minute for the market; one ticker's aggregate for that minute can come later (a jump's REST answer lacked the
+#: minute that had closed 24 s earlier and read `current`). So a covered ticker is proven through the end of its OWN
+#: newest row this tier wrote, or through `now - LIVE_LATE_S` (a minute that closed that long ago with nothing
+#: delivered for the ticker had no trade), whichever is later, never past the market's watermark. Cost: a covered
+#: name with no print in the newest bucket reads `unverified` for LIVE_LATE_S after each roll (the client re-asks on
+#: Retry-After, 3-5 s); a name whose own minute lands on time proves itself at once. `late_rows` in `status()`
+#: counts rows written later than this after their bucket closed: rows the proof had already vouched for.
+LIVE_LATE_S = float(os.environ.get("BARS_LIVE_LATE_S", "30"))
+#: tf ("1" / "5") -> sym -> the start (unix s) of the newest row this tier wrote whole for it (`_write_rows`).
+_own_last: dict[str, dict[str, int]] = {"1": {}, "5": {}}
+_late = {"rows": 0, "refused_tickers": 0, "unnamed_batches": 0}
+
+
+def _now_wall() -> float:
+    return time.time()
+
+
+def _note_written(tf: str, rows: list, skip=frozenset()) -> None:
+    """Rows the store took: each ticker's newest row start (but a ticker in `skip`, one the store refused a row of), and
+    the late ones counted (see LIVE_LATE_S). The batch's per-ticker newest is found OUTSIDE the lock (a push is ~10k
+    rows); the lock is held only to merge it."""
+    own = _own_last.get(tf)
+    if own is None:
+        return
+    step = MINUTE_S if tf == "1" else BUCKET_S
+    newest: dict[str, int] = {}
+    for sym, ts, *_rest in rows:
+        if sym in skip:
+            continue
+        try:
+            ts = int(ts)
+        except (TypeError, ValueError):
+            continue
+        if ts > newest.get(sym, -1):
+            newest[sym] = ts
+    now = _now_wall()
+    floor = now - LIVE_LATE_S
+    with _lock:
+        covered = _covered1 if tf == "1" else _covered5
+        for sym, ts in newest.items():
+            prev = own.get(sym)
+            if prev is None or ts > prev:
+                own[sym] = ts
+                # a NEW newest row of a covered ticker, for a bucket that closed more than LIVE_LATE_S ago (and in the
+                # last ten minutes: a repair's history is not lateness): the proof had already vouched for it
+                if sym in covered and now - 600 <= ts + step < floor:
+                    _late["rows"] += 1
+
+
 def proven_through_s(ticker: str, tf: str = "5") -> Optional[int]:
     """Unix seconds through which the universe stream PROVES `ticker`'s 5m series
-    complete: the end of the newest minute the (alive) stream has delivered for the
-    whole market, for a ticker covered in this epoch. A thin name that printed
-    nothing since its tail has, by this proof, nothing newer. None = no proof (flag
-    off, not covered, stream silent, or no minute delivered yet this epoch).
+    complete, for a ticker covered in this epoch: through the end of its own newest
+    written row, or `now - LIVE_LATE_S`, whichever is later, and never past the end of
+    the newest minute the (alive) stream has delivered for the whole market (see
+    LIVE_LATE_S). None = no proof (flag off, not covered, stream silent, or no minute
+    delivered yet this epoch).
 
     tf="1": the same proof for a 1m-covered ticker, from the watermark of the newest
     push whose minutes were WRITTEN (`_s1["m1_watermark_ms"]`, set after the write)."""
@@ -237,7 +291,12 @@ def proven_through_s(ticker: str, tf: str = "5") -> Optional[int]:
         wm = _state["watermark_ms"]
     if not wm:
         return None
-    return int(wm) // 1000 + 60
+    market = int(wm) // 1000 + 60
+    key = "1" if tf == "1" else "5"
+    own = _own_last[key].get(sym)
+    quiet = int(_now_wall() - LIVE_LATE_S)
+    mine = quiet if own is None else max(own + (MINUTE_S if key == "1" else BUCKET_S), quiet)
+    return min(market, mine)
 
 
 def daily_alive() -> bool:
@@ -372,8 +431,8 @@ def ingest(payload: dict) -> dict:
                     return {"accepted": 0, "resync": True, "epoch_ms": _state["epoch_ms"]}
                 _begin_epoch_locked(epoch, ffb)
         _state["last_push_mono"] = _now_mono()
-        if payload.get("watermark_ms"):
-            _state["watermark_ms"] = payload["watermark_ms"]
+        # (the 5m watermark, the PROOF, is set after this push's rows are written: below)
+        w_epoch = _state["epoch_ms"]
         _state["pushes"] += 1
         min_ts = (_state["first_full_bucket_ms"] or 0) // 1000
         clean = []
@@ -413,6 +472,15 @@ def ingest(payload: dict) -> dict:
         n += _write_b0(rebuild, epoch)
     with _lock:
         _state["rows_written"] += n
+        # ⛔ Only now (this push's buckets are on disk) may the proof cover them (review of #2708, round 2): set before the
+        # write, a read in between got `proven_through_s` (the roll) for rows not stored yet, and the 15m/30m/60m derived
+        # from the 5m inherited it. The 1m watermark below follows the same rule.
+        # ...and it only grows within the epoch (review of #2708, round 3): two pushes completing out of order (a slow
+        # POST and its retry, concurrent request threads) must not move the proof back by a flush.
+        if payload.get("watermark_ms") and _state["epoch_ms"] == w_epoch:
+            held = _state["watermark_ms"] if _state["watermark_epoch"] == w_epoch else None
+            _state["watermark_ms"] = max(held or 0, payload["watermark_ms"])
+            _state["watermark_epoch"] = w_epoch
     n1 = None
     if m1_rows is not None:
         n1 = _write_m1(m1_rows, m1_epoch)
@@ -579,6 +647,7 @@ def _adopt_restored_locked(r: dict) -> None:
     _state["epoch_ms"] = r["epoch_ms"]
     _state["first_full_bucket_ms"] = r["first_full_bucket_ms"]
     _state["watermark_ms"] = r["watermark_ms"]
+    _state["watermark_epoch"] = r["epoch_ms"]   # (the restored proof belongs to this epoch: later pushes only grow it)
     for sym in r["covered"]:
         _covered5.add(sym)
         _gap_from.pop(sym, None)
@@ -796,7 +865,47 @@ def _write_rows(tf: str, rows: list[tuple]) -> int:
     by_sym: dict[str, list[dict]] = {}
     for sym, ts, o, h, l, c, v in rows:
         by_sym.setdefault(sym, []).append({"t": ts, "o": o, "h": h, "l": l, "c": c, "v": v})
-    return bars_sqlite.put_bars_many(tf, by_sym)
+    # ⛔ A row the store refused (the impossible-bar gate) must never be vouched for by the per-ticker proof, and ONE
+    # refused ticker must not cost the others theirs (review of #2738: a 1m push is the covered universe in one batch;
+    # skipping the whole batch put every liquid name on the 30 s floor). The store names the refused tickers; a store
+    # that cannot (a double without `rejected_out`) proves the batch only when it took it whole.
+    put = bars_sqlite.put_bars_many
+    if _names_refused(put):
+        refused: set = set()
+        n = put(tf, by_sym, rejected_out=refused)
+        if refused:
+            with _lock:
+                _late["refused_tickers"] += len(refused)
+        _note_written(tf, rows, skip=refused)
+        return n
+    n = put(tf, by_sym)
+    try:
+        if int(n or 0) >= len(rows):
+            _note_written(tf, rows)
+        else:
+            with _lock:
+                _late["unnamed_batches"] += 1
+    except (TypeError, ValueError):
+        pass
+    return n
+
+
+_NAMES_REFUSED: dict = {}
+
+
+def _names_refused(fn) -> bool:
+    """Does this `put_bars_many` take `rejected_out` (the real store does; a test double may not)?"""
+    hit = _NAMES_REFUSED.get(fn)
+    if hit is None:
+        try:
+            import inspect
+            hit = "rejected_out" in inspect.signature(fn).parameters
+        except (TypeError, ValueError):
+            hit = False
+        if len(_NAMES_REFUSED) > 64:
+            _NAMES_REFUSED.clear()
+        _NAMES_REFUSED[fn] = hit
+    return hit
 
 
 # ── backfill (fills the reconnect gap and any missing history) ────────────────
@@ -1231,6 +1340,337 @@ def _start_daily() -> str:
         return "thread"
 
 
+# ── SETTLE: AFTER THE CLOSE, THE VENDOR'S HISTORICAL AGGREGATES WIN OVER THE STREAM (2026-11-26) ──────────────────────────
+# ⛔ "THE STREAM WINS FOREVER" ENDS HERE (the candle-accuracy audit, class 2). Every live 1m/5m row is the vendor's AM bar,
+# emitted at the minute's end; trades corrected or cancelled after that, and trades reported late, reach the vendor's
+# historical aggregates but never the AM, and every repair here keeps the stream's minute over the provider's. So a
+# print the vendor later corrected stayed in our store forever (SPY 2026-11-19 15:45: a high $13.77 above TradingView's,
+# from the AM). Once a trading day's extended session has closed (SETTLE_AFTER_CLOSE_MIN after it: 20:30 ET, or 17:30 on
+# an early close; NEVER during the session's load), every ticker this tier covered that day is re-read from the vendor's
+# historical aggregates: 5m for each covered ticker, 1m for each 1m-covered one, one page each. A row that differs is
+# replaced (the vendor's word, written with this pass's check instant), a row the vendor lacks is LEFT and counted (an
+# empty or failed answer never erases what the stream stored), and a ticker whose 5m changed has its 15m/30m/60m of that
+# day re-derived from the corrected 5m, where that series is stored. Once per day: the day it ran is kept in bars.db
+# (`live_settle_done`), so a restart after the pass does not run it again.
+# COST: |covered 5m| + |covered 1m| provider calls per trading day (one page each: a 5m day is 192 rows, a 1m day 960),
+# through `_fetch` (bars_fetch._fetch_intraday_range, the same client as the backfill), SETTLE_WORKERS at a time, and
+# never more than SETTLE_BUCKET_SHARE of the Massive bucket (`_settle_take`: half of 300/min = 150/min, so ~3,742 calls
+# take ~25 minutes and after-hours interactive calls keep the other half). Kill switch: BARS_LIVE_SETTLE_ENABLED=0.
+#
+# ⭐ MATERIAL DIFFERENCES ONLY (#2774 review, M2). Every replaced row below a series' seal bumps its `history_rev`, and a
+# client holding that series then does a FULL read instead of a delta, at the 09:30 open. An exact compare would bump
+# most of ~3.7k series every night for a few late-reported shares. So a row is replaced only when its O/H/L/C differ at
+# the store's grain (bars_fetch.PRICE_DP, 4 dp) or its volume differs by more than max(SETTLE_VOL_REL x the vendor's,
+# SETTLE_VOL_ABS shares); a smaller difference is counted (`rows_immaterial`), never written. SPY's $13.77 false high
+# is material; 40 late shares on a 30,000-share bar are not.
+SETTLE_ENABLED = os.environ.get("BARS_LIVE_SETTLE_ENABLED", "1") == "1"
+SETTLE_AFTER_CLOSE_MIN = int(os.environ.get("BARS_LIVE_SETTLE_AFTER_MIN", "30"))
+SETTLE_WORKERS = max(1, int(os.environ.get("BARS_LIVE_SETTLE_WORKERS", "4")))
+SETTLE_VOL_REL = float(os.environ.get("BARS_LIVE_SETTLE_VOL_REL", "0.02"))
+SETTLE_VOL_ABS = int(os.environ.get("BARS_LIVE_SETTLE_VOL_ABS", "100"))
+SETTLE_BUCKET_SHARE = min(0.5, max(0.05, float(os.environ.get("BARS_LIVE_SETTLE_BUCKET_SHARE", "0.5"))))
+#: The half-day gap rebuild (`halfday_gap`): inside the settle on a half day, and the one-off backfill of past ones.
+HALFDAY_GAP_ENABLED = os.environ.get("BARS_LIVE_HALFDAY_GAP_ENABLED", "1") == "1"
+#: The targeted stored-bar spike repair (`spike_repair`): today inside the settle, and a backfill of recent days.
+SPIKE_REPAIR_ENABLED = os.environ.get("BARS_LIVE_SPIKE_REPAIR_ENABLED", "1") == "1"
+_settle: dict = {"done_ymd": None, "running": False, "tickers": 0, "changed_tickers": 0, "rows_replaced": 0,
+                 "rows_vendor_lacks": 0, "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0,
+                 "started_at": None, "finished_at": None}
+_SETTLE_DDL = ("CREATE TABLE IF NOT EXISTS live_settle_done ("
+               "id INTEGER PRIMARY KEY CHECK (id = 1), ymd INTEGER NOT NULL, saved_at REAL NOT NULL)")
+_settle_bucket = {"tokens": None, "at": None}
+_settle_bucket_lock = threading.Lock()
+
+
+def _settle_rate_per_min() -> float:
+    """The settle's own ceiling: SETTLE_BUCKET_SHARE of the Massive bucket's (per process, like that bucket)."""
+    from api.services import massive
+    return max(1.0, float(massive._MASSIVE_RATE_LIMIT_PER_MIN) * SETTLE_BUCKET_SHARE)
+
+
+def _settle_take() -> None:
+    """Block until the settle may make one more vendor call. Its own token bucket (one minute's worth of burst),
+    taken BEFORE the shared Massive bucket, so the settle never spends more than its share of it."""
+    rate = _settle_rate_per_min()
+    while True:
+        with _settle_bucket_lock:
+            now = time.monotonic()
+            b = _settle_bucket
+            if b["at"] is None:
+                b["tokens"], b["at"] = rate, now
+            b["tokens"] = min(rate, b["tokens"] + (now - b["at"]) * rate / 60.0)
+            b["at"] = now
+            if b["tokens"] >= 1.0:
+                b["tokens"] -= 1.0
+                return
+            wait = (1.0 - b["tokens"]) * 60.0 / rate
+        time.sleep(min(wait, 1.0))
+
+
+def _material(b: dict, r) -> bool:
+    """The vendor's bar `b` differs from the stored row `r` (ts, o, h, l, c, v) enough to write (see the block above)."""
+    if r is None:
+        return True                       # a bucket the store lacks: the vendor's row fills it
+    try:
+        from api.services.bars_fetch import PRICE_DP
+        for k, x in (("o", r[1]), ("h", r[2]), ("l", r[3]), ("c", r[4])):
+            if round(float(b[k]), PRICE_DP) != round(float(x), PRICE_DP):
+                return True
+        bv, sv = int(b.get("v") or 0), int(r[5] or 0)
+        return abs(bv - sv) > max(SETTLE_VOL_REL * bv, SETTLE_VOL_ABS)
+    except Exception:                      # noqa: BLE001 - unreadable: rewrite it
+        return True
+
+
+def _save_settle_marker(ymd: int) -> None:
+    from api.services import bars_sqlite
+    try:
+        with bars_sqlite._WRITE_LOCK:
+            c = bars_sqlite._conn()
+            c.execute(_SETTLE_DDL)
+            c.execute("INSERT OR REPLACE INTO live_settle_done(id, ymd, saved_at) VALUES (1, ?, ?)",
+                      (int(ymd), time.time()))
+            c.commit()
+    except Exception as e:  # noqa: BLE001 - the in-memory marker still holds for this process
+        _log.warning("[bars-live] settle marker save failed: %s", e)
+
+
+def _load_settle_marker() -> Optional[int]:
+    """At boot: the day the last pass settled, from bars.db (none on a fresh or replaced database)."""
+    from api.services import bars_sqlite
+    try:
+        row = bars_sqlite._conn().execute("SELECT ymd FROM live_settle_done WHERE id = 1").fetchone()
+    except Exception:  # noqa: BLE001 - no table yet
+        return None
+    if row and row[0]:
+        _settle["done_ymd"] = int(row[0])
+        return int(row[0])
+    return None
+
+
+def _settle_touch_seal(sym: str, tf: str, checked_at: float) -> bool:
+    """Advance a sealed series' check instant to this pass's, so a repair that CHECKED before the pass but writes
+    after it cannot overwrite the settled rows inside the seal (`bars_sqlite._drop_stale_sealed`). The sealed span
+    itself is not moved. A series with no seal has nothing to protect this way."""
+    from api.services import bars_sqlite
+    cur = bars_sqlite.series_meta(sym, tf).get("sealed_through")
+    if cur is None:
+        return False
+    bars_sqlite.record_sealed(sym, tf, float(cur), float(cur), float(checked_at))
+    return True
+
+
+def _settle_due(now: datetime) -> bool:
+    """A trading day whose extended session closed SETTLE_AFTER_CLOSE_MIN ago, not yet settled by this process."""
+    if not (SETTLE_ENABLED and enabled()):
+        return False
+    from api.services import bars_fetch
+    d = now.astimezone(_ET)
+    if not bars_fetch._is_trading_day_ymd(d):
+        return False
+    ymd = int(d.strftime("%Y%m%d"))
+    if d.hour * 60 + d.minute < bars_fetch._ext_close_minutes(ymd) + SETTLE_AFTER_CLOSE_MIN:
+        return False
+    return _settle["done_ymd"] != ymd
+
+
+def _settle_one(sym: str, tf: str, lo: int, hi: int) -> tuple[int, int, int, bool, float]:
+    """Re-read `sym`'s `tf` rows of [lo, hi) from the vendor; replace the ones that differ MATERIALLY.
+    (replaced, vendor lacks, immaterial, answered, checked_at).
+
+    ⭐ THE CHECK INSTANT IS THIS TICKER'S, taken just before its fetch (#2774 round 2): an after-hours tail heal that
+    seals the series after the pass STARTED but before this read must not make the settle's write read as the older
+    check and be dropped (`bars_sqlite._drop_stale_sealed`). A heal that checks after this instant still wins."""
+    from api.services import bars_sqlite
+    _settle_take()
+    checked_at = time.time()
+    got = [b for b in _fetch(sym, int(tf), lo * 1000, hi * 1000 - 1) if lo <= int(b["t"]) < hi]
+    if not got:
+        return 0, 0, 0, False, checked_at  # nothing answered: the stream's rows stand
+    stored = _stored_rows(sym, tf, lo, hi)
+    diff, immaterial = [], 0
+    for b in got:
+        r = stored.get(int(b["t"]))
+        if _material(b, r):
+            diff.append(b)
+        elif not _same_exact(b, r):
+            immaterial += 1
+    lacks = len(set(stored) - {int(b["t"]) for b in got})
+    if diff:
+        bars_sqlite.put_bars(sym, tf, diff, checked_at=checked_at)
+    return len(diff), lacks, immaterial, True, checked_at
+
+
+def _stored_rows(sym: str, tf: str, lo: int, hi: int) -> dict:
+    """{ts: (ts, o, h, l, c, v)} of the rows AS STORED in [lo, hi), read with SQL of our own, never through the store's
+    read door (`bars_sqlite.get_bars*`, which applies the published corrections ledger): this module writes what it
+    compares, and a correction must never be written into a row (tests/test_bars_store_door.py)."""
+    from api.services import bars_sqlite
+    rows = bars_sqlite._conn().execute(
+        "SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? AND ts>=? AND ts<? ORDER BY ts",
+        (sym.upper(), str(tf), int(lo), int(hi))).fetchall()
+    return {int(r[0]): r for r in rows}
+
+
+def _same_exact(b: dict, r) -> bool:
+    from api.services import bars_fetch
+    return bars_fetch._same_row(b, r)
+
+
+def _settle_rederive(sym: str, lo: int, hi: int, checked_at: float) -> tuple[int, list]:
+    """15m from the stored 5m, then 30m/60m from that 15m, for the day: only series the store already holds, only
+    material differences. Runs for EVERY covered 5m ticker each pass (#2774 review, M1): a restart between a pass's 5m
+    write and this would otherwise leave the day's 15m/30m/60m derived from the stream's 5m for good, because the next
+    pass finds the 5m already equal to the vendor's. Local reads only, no vendor call. (rows written, tfs held)."""
+    from api.services import bars_fetch, bars_sqlite
+    n, held = 0, []
+    for tf, base in (("15", "5"), ("30", "15"), ("60", "15")):
+        b0 = bars_fetch._derived_bucket_start(tf, lo)
+        stored = _stored_rows(sym, tf, b0, hi)
+        if not stored:
+            continue                      # a series this tier does not hold for the day is not started here
+        held.append(tf)
+        rows = [b for b in bars_fetch._derive_from_stored_base(sym, tf, b0, base) if int(b["t"]) < hi]
+        out = [b for b in rows if _material(b, stored.get(int(b["t"])))]
+        if out:
+            bars_sqlite.put_bars(sym, tf, out, checked_at=checked_at)
+            n += len(out)
+    return n, held
+
+
+def settle_pass(now: Optional[datetime] = None) -> dict:
+    """One settle of `now`'s trading day (see the block above). Returns the counts."""
+    from api.services import bars_fetch
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    ymd = int(d.strftime("%Y%m%d"))
+    lo, hi = bars_fetch._session_window(d, "eth")      # the one session clock: 04:00 to 20:00 (17:00 on a half day)
+    with _lock:
+        work = [(s_, "5") for s_ in sorted(_covered5)] + [(s_, "1") for s_ in sorted(_covered1)]
+    counts = {"tickers": len(work), "changed_tickers": 0, "rows_replaced": 0, "rows_vendor_lacks": 0,
+              "rows_immaterial": 0, "derived_rows": 0, "failed": 0, "seals_touched": 0}
+    _settle.update(running=True, started_at=time.time(), finished_at=None)
+    pos = [0]
+    guard = threading.Lock()
+
+    def _worker() -> None:
+        while True:
+            with guard:
+                if pos[0] >= len(work):
+                    return
+                sym, tf = work[pos[0]]
+                pos[0] += 1
+            try:
+                replaced, lacks, immaterial, answered, checked_at = _settle_one(sym, tf, lo, hi)
+                derived, held = _settle_rederive(sym, lo, hi, checked_at) if tf == "5" else (0, [])
+                touched = 0
+                for tf_ in ([tf] if answered else []) + held:
+                    touched += 1 if _settle_touch_seal(sym, tf_, checked_at) else 0
+                with guard:
+                    counts["rows_replaced"] += replaced
+                    counts["rows_vendor_lacks"] += lacks
+                    counts["rows_immaterial"] += immaterial
+                    counts["derived_rows"] += derived
+                    counts["seals_touched"] += touched
+                    counts["changed_tickers"] += 1 if (replaced or derived) else 0
+            except Exception as e:  # noqa: BLE001 - one ticker's failure leaves its rows as they are
+                with guard:
+                    counts["failed"] += 1
+                from api.services.log_redaction import redact
+                _log.debug("[bars-live] settle %s tf=%s failed: %s", sym, tf, redact(str(e)))
+
+    threads = [threading.Thread(target=_worker, daemon=True, name=f"bars-live-settle-{i}")
+               for i in range(min(SETTLE_WORKERS, max(1, len(work))))]
+    for t_ in threads:
+        t_.start()
+    for t_ in threads:
+        t_.join()
+    # ⭐ A HALF DAY'S 13:01-15:59 ET, rebuilt from the vendor's trades (`halfday_gap` module doc): the vendor's
+    # aggregates have none, and the pass above could only re-read what they hold.
+    if HALFDAY_GAP_ENABLED:
+        try:
+            from api.services import halfday_gap
+            if halfday_gap.gap_window(d.date()) is not None and ymd not in halfday_gap.done_days():
+                counts["halfday"] = halfday_gap.run_day(d.date(), sorted({s_ for s_, _tf in work}), _settle_take,
+                                                        rederive=_settle_rederive)
+        except Exception as e:  # noqa: BLE001 - never let it stop the settle's own bookkeeping
+            _log.warning("[bars-live] half-day gap %s failed: %s", ymd, e)
+    # ⭐ THE TARGETED SPIKE REPAIR (`spike_repair` module doc): today's flagged stored bars, re-aggregated from trades
+    # with the live fold's rule, replaced only where that differs.
+    if SPIKE_REPAIR_ENABLED:
+        try:
+            from api.services import spike_repair
+            counts["spike"] = spike_repair.run_day(d.date(), sorted({s_ for s_, _tf in work}), _settle_take,
+                                                   rederive=_settle_rederive)
+        except Exception as e:  # noqa: BLE001 - never let it stop the settle's own bookkeeping
+            _log.warning("[bars-live] spike repair %s failed: %s", ymd, e)
+    _settle.update(counts, running=False, done_ymd=ymd, finished_at=time.time())
+    _save_settle_marker(ymd)
+    _log.info("[bars-live] settle %s: %s", ymd, counts)
+    return counts
+
+
+def _halfday_backfill_due(now: datetime) -> bool:
+    """The one-off rebuild of past half days runs only after the close: a non-trading day, before 04:00 ET, or
+    SETTLE_AFTER_CLOSE_MIN after today's extended close (never during the session's load)."""
+    if not (HALFDAY_GAP_ENABLED and SETTLE_ENABLED and enabled()) or _settle.get("running"):
+        return False
+    from api.services import bars_fetch
+    d = now.astimezone(_ET)
+    if not bars_fetch._is_trading_day_ymd(d):
+        return True
+    m = d.hour * 60 + d.minute
+    return m < 4 * 60 or m >= bars_fetch._ext_close_minutes(int(d.strftime("%Y%m%d"))) + SETTLE_AFTER_CLOSE_MIN
+
+
+def halfday_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
+    """Rebuild the newest half day still pending (one per call), for every 5m-covered ticker. None when none is."""
+    from api.services import halfday_gap
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    days = halfday_gap.pending_days(d.date())
+    if not days:
+        return None
+    with _lock:
+        tickers = sorted(_covered5 | _covered1)
+    if not tickers:
+        return None
+    counts = halfday_gap.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)
+    _settle["halfday_backfill"] = dict(counts, day=days[0].isoformat(), at=time.time())
+    return counts
+
+
+def spike_backfill_step(now: Optional[datetime] = None) -> Optional[dict]:
+    """Repair the newest pending day of the last spike_repair.HISTORY_DAYS trading days (one per call), for every
+    covered ticker; None when none is pending."""
+    if not SPIKE_REPAIR_ENABLED:
+        return None
+    from api.services import spike_repair
+    d = (now or datetime.now(_ET)).astimezone(_ET)
+    days = spike_repair.pending_days(d.date())
+    if not days:
+        return None
+    with _lock:
+        tickers = sorted(_covered5 | _covered1)
+    if not tickers:
+        return None
+    counts = spike_repair.run_day(days[0], tickers, _settle_take, rederive=_settle_rederive)   # marks the day done
+    _settle["spike_backfill"] = dict(counts, day=days[0].isoformat(), at=time.time())
+    return counts
+
+
+def _settle_loop() -> None:
+    while True:
+        time.sleep(60)
+        try:
+            now = datetime.now(_ET)
+            if _settle_due(now):
+                settle_pass()
+            elif _halfday_backfill_due(now):
+                if halfday_backfill_step(now) is None:
+                    spike_backfill_step(now)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-live] settle loop error: %s", e)
+
+
 def start() -> None:
     global _threads_started
     if _threads_started:
@@ -1244,6 +1684,11 @@ def start() -> None:
     threading.Thread(target=_backfill_loop, daemon=True, name="bars-live-backfill").start()
     if enabled1():
         threading.Thread(target=_m1_loop, daemon=True, name="bars-live-1m").start()
+    try:
+        _load_settle_marker()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-live] settle marker read failed: %s", e)
+    threading.Thread(target=_settle_loop, daemon=True, name="bars-live-settle").start()
     how = _start_daily()
     _log.info("[bars-live] started (enabled=%s, 1m=%s, daily poll in %s)", enabled(), enabled1(), how)
 
@@ -1256,6 +1701,11 @@ def status() -> dict:
         s["b0_stream_tickers"] = len(_b0_stream)
         s["daily_seen"] = len(_daily_seen)
         s["checkpoint"] = {k: v for k, v in _ckpt.items() if k != "last_mono"}
+        s["late_rows"] = _late["rows"]
+        s["proof_refused_tickers"] = _late["refused_tickers"]
+        s["proof_unnamed_batches"] = _late["unnamed_batches"]
+        s["live_late_s"] = LIVE_LATE_S
+        s["settle"] = dict(_settle, enabled=SETTLE_ENABLED)
         if enabled1():
             m1 = {k: v for k, v in _s1.items() if k != "m1_last_push_mono"}
             m1.update(covered1=len(_covered1), gap1_pending=len(_gap1_from),
@@ -1304,4 +1754,11 @@ def _reset_for_tests() -> None:
                      _recover1, _queued1, _repairing1, _retry1_after, _eth_minute):
             coll.clear()
         _recent1_meta.update(n=0, newest=None)
+        for own in _own_last.values():
+            own.clear()
+        _late.update(rows=0, refused_tickers=0, unnamed_batches=0)
+        _settle_bucket.update(tokens=None, at=None)
+        _settle.update(done_ymd=None, running=False, tickers=0, changed_tickers=0, rows_replaced=0, rows_immaterial=0,
+                       seals_touched=0,
+                       rows_vendor_lacks=0, derived_rows=0, failed=0, started_at=None, finished_at=None)
     _m1_wakeup.clear()

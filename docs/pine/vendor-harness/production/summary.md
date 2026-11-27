@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 556) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
+Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 558) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 79 graded on their trades, 0 broker run(s)
 
-Graded at script engine **95**.
+Graded at script engine **98**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -640,9 +640,17 @@ inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     0      INCONCLUSIV
 inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `breakoutOccurred` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `breakoutOccurred` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `breakoutOccurred` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
-institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     0      MATCH             all 1 items agree
+institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     4      MATCH             all 5 items agree
+    Heatmap Candles open                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles high                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles low                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Heatmap Candles close                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; coordinates are NOT compared by v1
-institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      0      MATCH             all 1 items agree
+institutional-smc-order-flow-matrix-pro-spy- AMEX:SPY 1D      4      MATCH             all 5 items agree
+    Heatmap Candles open                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles high                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles low                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Heatmap Candles close                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 1105 paired slots; coordinates are NOT compared by v1
 ipda-standard-deviations-dexterlab-x-tfo-x-t NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
 k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
@@ -710,6 +718,8 @@ keltner-channels-bands-spy-1d-2026-10-03     AMEX:SPY 1D      7      MATCH      
     Lower 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.95e-16
     objects                                  MATCH         neither side draws an object
 kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`)
+kernel-channel-backquant-regime-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`) (the vendor study also ran with non-default inputs: Color Bars By Regime=true vs default false)
+kernel-channel-backquant-regime-spy-1d-2026- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`) (the vendor study also ran with non-default inputs: Color Bars By Regime=true vs default false)
 lib-v5-in-v6-rddt-1d-2026-11-16              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module): importing another script pulls in code this engine never sees — the library `BarefootJoey/AstroLib/1` is not in this engine's library registry, so its code cannot be compiled
 linear-regression-channel-200-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple): this Pine call answers with several values at once and a column carries one — `price1` — `calculateRegression` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `calculateRegression`)
 linear-regression-channel-tradingfinder-exis NYSE:RDDT 1D     0      MATCH             all 1 items agree
@@ -956,10 +966,10 @@ multicator-table-rddt-1d-2026-10-02          NYSE:RDDT 1D     28     DIVERGE    
     Conversion Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Base Line                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 611 ok 611 warm 0/0 steady 0/611 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -986,10 +996,10 @@ multicator-table-spy-1d-2026-10-02           AMEX:SPY 1D      28     DIVERGE    
     Conversion Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Base Line                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lagging Span                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Leading Span A                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Leading Span B                           MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Upper Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
-    Kumo Cloud Lower Line                    MATCH             cmp 1775 ok 1775 warm 0/0 steady 0/1775 maxRel 0.00e+0
+    Leading Span A                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Leading Span B                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Upper Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Kumo Cloud Lower Line                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Supertrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Donchian High                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1013,71 +1023,71 @@ nubia-auto-midas-anchored-vwap-xdecow-spy-1d AMEX:SPY 1D      0      INCONCLUSIV
 one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `_smthMA`)
 one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `_smthMA`)
 one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `_smthMA`)
-open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
-open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     OR High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     IB High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     OR High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     IB High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     OR High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     OR High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     IB High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      MATCH             all 6 items agree
     Upper                                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.65e-16
@@ -1153,22 +1163,22 @@ pivot-point-supertrend-spy-1d-2026-10-03     AMEX:SPY 1D      8      MATCH      
     objects                                  MATCH         neither side draws an object
 pivot-trendlines-with-breaks-hg-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module): importing another script pulls in code this engine never sees — the library `HoanGhetti/SimpleTrendlines/4` is not in this engine's library registry, so its code cannot be compiled
 pmax-explorer-rddt-1d-2026-10-02             NYSE:RDDT 1D     7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.81e-16
     PMax                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.62e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.87e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.63e-16
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 pmax-explorer-spy-1d-2026-10-02              AMEX:SPY 1D      7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.05e-16
     PMax                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.29e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.20e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 3.72e-16
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
@@ -1640,7 +1650,7 @@ smart-money-interest-index-algoalpha-rddt-1d NYSE:RDDT 1D     4      MATCH      
     paints                                   MATCH         1 paint agree bar for bar
 smart-money-volume-activity-algoalpha-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
 smart-money-volume-activity-algoalpha-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `retailBullBar` — and the fold stopped before it, at line 105: a Pine block spans several statements and this engine stores a single expression — `for`
-smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIVE      1 of 21 items could not be compared
+smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     24     INCONCLUSIVE      2 of 25 items could not be compared
     Zero Line                                INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     Top Limit                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Bottom Limit                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1661,6 +1671,10 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIV
     Net Sell 20                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Net Sell Line                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Price Tracking line                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    open                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    high                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    low                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    close                                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — 666 steady-state bars agree, but the candle is withheld by name on our side (`Smart Money Candles`): it asks for the price chart (`force_overlay = true`) from a script that is not an overlay: TradingView draws it and our side draws nothing, so its body colour is not compared
     objects                                  MATCH         neither side draws an object
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin): this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin): this Pine built-in names something the engine grammar does not hold — `str.length`
@@ -1669,13 +1683,29 @@ smc-structures-and-multi-timeframe-fvg-ma-py NYSE:RDDT 1D     0      INCONCLUSIV
 smc-structures-and-multi-timeframe-fvg-ma-py AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 smoothed-gaussian-trend-filter-algoalpha-rdd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
 smoothed-gaussian-trend-filter-algoalpha-spy AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
-smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
-smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+smt-divergence-ict-01-tradingfinder-smart-mo AMEX:SPY 1D      4      INCONCLUSIVE      5 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_1                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_2                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
+    plot_3                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:request) — This indicator reads `XAUUSD`: other-symbol:bare — `"XAUUSD"` names no exchange and is not shaped like a US stock listing (one to five letters), so it is a currency pair, a commodity, an index or a foreign listing this chart cannot read; what this indicator draws from it is not computed.
     objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-computable: No line or label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
 smt-divergence-ict-killzones-rddt-1d-2026-11 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `alert_bear` — and the fold stopped before it, at line 329: a Pine block spans several statements and this engine stores a single expression — `for`
 smt-divergence-ict-killzones-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `alert_bear` — and the fold stopped before it, at line 329: a Pine block spans several statements and this engine stores a single expression — `for`
@@ -1770,15 +1800,15 @@ supply-demand-mtf-flux-charts-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIV
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-60-2026-11 AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
-support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      INCONCLUSIVE      2 of 9 items could not be compared
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
+support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      MATCH             all 9 items agree
     STR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     STS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .R                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .S                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 support-and-resistance-7538ddd8-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
 support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
@@ -1832,8 +1862,8 @@ swing-highlow-zigzag-chartprime-rddt-1d-2026 NYSE:RDDT 1D     1      MATCH      
 swing-highlow-zigzag-chartprime-spy-1d-2026- AMEX:SPY 1D      1      MATCH             all 2 items agree
     Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots (3 theme-relative); 1 slot on objects neither side draws not graded; coordinates are NOT compared by v1
-swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
-swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
+swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
+swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
 syminfo-mincontract-aapl-1d-2026-11-16       NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-mincontract-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
@@ -1959,11 +1989,7 @@ volume-profile-spy-1d-2026-10-03             AMEX:SPY 1D      0      INCONCLUSIV
     objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 volume-spikes-growing-volume-signals-with-al NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
 volume-spikes-growing-volume-signals-with-al AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
-volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     14     INCONCLUSIVE      5 of 15 items could not be compared
-    Plot 1                                   INCONCLUSIVE       — UNMAPPED — title "Plot 1" could not be paired unambiguously
-    Plot 2                                   INCONCLUSIVE       — UNMAPPED — title "Plot 2" could not be paired unambiguously
-    Plot 3                                   INCONCLUSIVE       — UNMAPPED — title "Plot 3" could not be paired unambiguously
-    Plot 4                                   INCONCLUSIVE       — UNMAPPED — title "Plot 4" could not be paired unambiguously
+volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     22     INCONCLUSIVE      1 of 23 items could not be compared
     CRVOL                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     CVD                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     RVOL                                     INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (withheld by name (pine:colour-unread) — its colour is an expression this door cannot read yet)
@@ -1974,13 +2000,21 @@ volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     14     INCONCLUSIV
     VWAP                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     VWAP +SD                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     VWAP -SD                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 1                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 2                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 3                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot 4                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL open                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL high                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL low                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CRVOL close                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD open                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD high                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD low                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    CVD close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_28)
-volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      14     INCONCLUSIVE      5 of 15 items could not be compared
-    Plot 1                                   INCONCLUSIVE       — UNMAPPED — title "Plot 1" could not be paired unambiguously
-    Plot 2                                   INCONCLUSIVE       — UNMAPPED — title "Plot 2" could not be paired unambiguously
-    Plot 3                                   INCONCLUSIVE       — UNMAPPED — title "Plot 3" could not be paired unambiguously
-    Plot 4                                   INCONCLUSIVE       — UNMAPPED — title "Plot 4" could not be paired unambiguously
+volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      22     INCONCLUSIVE      1 of 23 items could not be compared
     CRVOL                                    MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     CVD                                      MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     RVOL                                     INCONCLUSIVE      cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (withheld by name (pine:colour-unread) — its colour is an expression this door cannot read yet)
@@ -1991,6 +2025,18 @@ volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      14     INCONCLUSIV
     VWAP                                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     VWAP +SD                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     VWAP -SD                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 1                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 2                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 3                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Plot 4                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL open                               MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL high                               MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL low                                MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CRVOL close                              MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD open                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD high                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD low                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    CVD close                                MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_28)
 volumized-order-blocks-flux-charts-rddt-1d-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
@@ -3601,19 +3647,19 @@ vw-h4-loops-spy-1d-2026-10-03                AMEX:SPY 1D      0      INCONCLUSIV
 vw-h5-format-volume-spy-1d-2026-11-16        AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 37 paired slots; coordinates are NOT compared by v1
 vw-h5-request-timeframe-text-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-autoscale-rddt-1d-2026-11-23-preope NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_rsi                                   MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v3-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v4-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-defaults-v5-rddt-1d-2026-11-23-preo NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 671 ok 671 warm 0/0 steady 0/671 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 2 items agree
+vw-hline-written-rddt-1d-2026-11-20          NYSE:RDDT 1D     1      MATCH             all 3 items agree
     P0_close                                 MATCH             cmp 670 ok 670 warm 0/0 steady 0/670 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-hs2-v3-highestbars-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin): `highestbars`: the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset is not stated by any reference text this engine holds (the v4 reference states v4 only) and is not yet captured (Q-HS2); write it in `//@version=4` or later
@@ -3854,6 +3900,321 @@ vw-other-symbol-rddt-1d-2026-09-30           NYSE:RDDT 1D     8      DIVERGE    
     O06_NYSE_BRKB                            DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 0.00e+0 — 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333
     O07_brkb_bare_eq_nyse                    DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 1.00e+0 — 334 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 333
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
+vw-plotshape-abovebar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-absolute-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-belowbar-spy-1d-2026-11-26      AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-bottom-spy-1d-2026-11-26        AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-plotshape-top-spy-1d-2026-11-26           AMEX:SPY 1D      61     MATCH             all 62 items agree
+    triangleup tiny k0                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup small k1                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup normal k2                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup large k3                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangleup huge k4                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown tiny k5                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown small k6                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown normal k7                   MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown large k8                    MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    triangledown huge k9                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup tiny k10                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup small k11                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup normal k12                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup large k13                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labelup huge k14                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown tiny k15                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown small k16                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown normal k17                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown large k18                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    labeldown huge k19                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag tiny k20                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag small k21                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag normal k22                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag large k23                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    flag huge k24                            MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond tiny k25                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond small k26                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond normal k27                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond large k28                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    diamond huge k29                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross tiny k30                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross small k31                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross normal k32                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross large k33                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    cross huge k34                           MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross tiny k35                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross small k36                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross normal k37                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross large k38                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    xcross huge k39                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle tiny k40                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle small k41                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle normal k42                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle large k43                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    circle huge k44                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square tiny k45                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square small k46                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square normal k47                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square large k48                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    square huge k49                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup tiny k50                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup small k51                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup normal k52                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup large k53                        MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowup huge k54                         MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown tiny k55                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown small k56                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown normal k57                     MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown large k58                      MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    arrowdown huge k59                       MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    char normal k61                          MATCH             cmp 8515 ok 8515 warm 0/0 steady 0/8515 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-pt-na-guard-and-rddt-1d-2026-11-16        NYSE:RDDT 1D     9      INCONCLUSIVE      3 of 10 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     A01_left_side_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
@@ -5019,10 +5380,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 DIVERGE 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 DIVERGE 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
+TOTAL 1045 captures — MATCH 240 · DIVERGE 94 · INCONCLUSIVE 711
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 240 · DIVERGE 94 · INCONCLUSIVE 711
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 238 · DIVERGE 94 · INCONCLUSIVE 706
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 248 · DIVERGE 94 · INCONCLUSIVE 703
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 

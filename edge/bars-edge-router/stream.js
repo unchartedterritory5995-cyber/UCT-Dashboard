@@ -1,5 +1,6 @@
 /**
- * The live chart stream at the edge: `/api/stream/bars` to stream-edge, or to web.
+ * The live streams at the edge: `/api/stream/bars` (charts) and `/api/stream/quotes` (pushed list
+ * prices, api/routers/quote_stream.py) to stream-edge, or to web. One rule for both.
  * docs/plans/2026-11-17-stream-edge.md.
  *
  * stream-edge is a small Railway service that serves ONLY this stream, so its delivery never waits
@@ -22,6 +23,14 @@
  */
 
 export const STREAM_BARS_PATH = "/api/stream/bars";
+// Must equal api/chart_edge_token.py QUOTES_COOKIE_PATH (tests/test_chart_edge_token.py reads both).
+export const STREAM_QUOTES_PATH = "/api/stream/quotes";
+const STREAM_PATHS = new Set([STREAM_BARS_PATH, STREAM_QUOTES_PATH]);
+
+/** Is this exact path one of the streams stream-edge serves? (Exact: `/api/stream/prices` stays on web.) */
+export function isStreamPath(pathname) {
+  return STREAM_PATHS.has(pathname);
+}
 export const CANARY_COOKIE = "uct_stream_edge";
 export const EDGE_COOKIE = "uct_chart_edge";
 export const STREAM_EDGE_CONNECT_MS = 4000;
@@ -36,9 +45,20 @@ function readCookieValue(cookieHeader, name) {
   return null;
 }
 
-/** Does this request go to stream-edge? */
-export function wantsStreamEdge(request, env) {
-  if (!env || !env.STREAM_EDGE_ORIGIN) return false;
+/**
+ * Which origin serves this stream path. Quotes may have their OWN service (QUOTES_EDGE_ORIGIN: a quote-edge,
+ * the same image with QUOTE_STREAM_ENABLED=1, so the quote fan-out never shares the bars stream's event loop;
+ * review of #2751, B); without it they share stream-edge.
+ */
+export function originFor(pathname, env) {
+  if (!env) return undefined;
+  if (pathname === STREAM_QUOTES_PATH && env.QUOTES_EDGE_ORIGIN) return env.QUOTES_EDGE_ORIGIN;
+  return env.STREAM_EDGE_ORIGIN;
+}
+
+/** Does this request go to an edge service (`origin`, default stream-edge)? */
+export function wantsStreamEdge(request, env, origin = env && env.STREAM_EDGE_ORIGIN) {
+  if (!env || !origin) return false;
   if (env.STREAM_EDGE_ALL === "1") return true;
   return readCookieValue(request.headers.get("cookie"), CANARY_COOKIE) === "1";
 }
@@ -62,10 +82,11 @@ export function edgeRequestInit(request) {
  */
 export async function handleStream(request, env, fetchImpl = fetch) {
   const url = new URL(request.url);
-  if (url.pathname !== STREAM_BARS_PATH || request.method !== "GET" || !wantsStreamEdge(request, env)) {
+  const origin = originFor(url.pathname, env);
+  if (!isStreamPath(url.pathname) || request.method !== "GET" || !wantsStreamEdge(request, env, origin)) {
     return fetchImpl(request);
   }
-  const target = env.STREAM_EDGE_ORIGIN.replace(/\/+$/, "") + url.pathname + url.search;
+  const target = origin.replace(/\/+$/, "") + url.pathname + url.search;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), STREAM_EDGE_CONNECT_MS);
   let r = null;

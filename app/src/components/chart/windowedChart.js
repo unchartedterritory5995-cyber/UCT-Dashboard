@@ -60,6 +60,38 @@ export function renderWindowStart(n, rows) {
   return Math.floor(raw / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
 }
 
+/** The first day of the calendar month of a daily-or-coarser time ('YYYY-MM-DD', or {year, month, day}), in the same
+ *  form; null for an intraday time (a number). */
+function monthStartOf(t) {
+  if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}/.test(t)) return `${t.slice(0, 7)}-01`
+  if (t && typeof t === 'object' && Number.isFinite(t.year) && Number.isFinite(t.month)) return { year: t.year, month: t.month, day: 1 }
+  return null
+}
+
+/**
+ * ⭐ (2026-11-24) THE WINDOW START OF A NEW LOAD, from its bars. On daily and coarser bars it is ANCHORED TO A DATE: the
+ * first bar of the calendar month that holds the latest start leaving `rows` bars, so the window holds `rows` bars plus
+ * at most a month's worth. Two names showing the same recent sessions then hand the library the SAME dates whatever
+ * their history depth, and a list switch between them leaves the library's time points as they were: no FULL update
+ * (every series re-set in the library's model, the time scale's points and tick marks redone) and no time-scale rebuild.
+ * The index step (`renderWindowStart`, still what intraday bars use) put each name's start `n - rows` back rounded to
+ * 250 of ITS OWN bars: a different date for nearly every pair of names (StockChart.libraryWork.test.jsx: 1 FULL update
+ * on every daily switch between names of different depth). What is drawn does not change: the view is framed in
+ * full-history indices and the window holds the view and its margin either way (windowAnchor.test.js). 0 when the
+ * saving is small, as with the index step.
+ */
+export function renderWindowStartFor(bars, rows) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!(n > 0) || !(rows > 0)) return 0
+  const latest = Math.floor(n) - Math.floor(rows)
+  if (latest < RENDER_WINDOW_MIN_SAVED) return 0
+  const anchor = monthStartOf(bars[latest]?.time)
+  if (anchor == null) return renderWindowStart(n, rows)
+  const k = firstAtOrAfter(bars, anchor)
+  if (k == null || k > latest) return renderWindowStart(n, rows)
+  return k < RENDER_WINDOW_MIN_SAVED ? 0 : k
+}
+
 /** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`). */
 export function extendedStart(ws, from, span) {
   if (!(ws > 0) || !Number.isFinite(from)) return ws
@@ -120,8 +152,11 @@ function passThrough(chart) {
  * @param {object} chart  the library chart (createChart)
  * @param {object} [o]
  * @param {() => boolean} [o.disabled]   the per-browser switch (default: localStorage)
+ * @param {'date'|'index'} [o.anchor]   where a new load's window starts on daily-or-coarser bars: the first bar of a
+ *                                     calendar month (`renderWindowStartFor`, the default) or the 250-row index step
+ *                                     (`renderWindowStart`, what every load used before 2026-11-24; intraday always)
  */
-export function createWindowedChart(chart, { disabled = renderWindowDisabled } = {}) {
+export function createWindowedChart(chart, { disabled = renderWindowDisabled, anchor = 'date' } = {}) {
   // ⛔ OFF MEANS OFF: switched off in this browser, the app gets the library chart ITSELF (every series, pane and
   // callback object exactly as before), with an inert control so callers need no branch. A rollback that still
   // wrapped would still change object identity, which is what a rollback is for ruling out.
@@ -134,6 +169,11 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     extending: false,
     placePending: false, // a new load: the next primary setData places the window
     checkQueued: false,
+    // the shared axis's epoch: bumped whenever any series is handed a cut whose SET OF TIMES differs from the one it last
+    // handed (a value-only re-set does not move it). A skipped setData needs it unmoved through its pass (setFull).
+    axisGen: 0,
+    passStart: null,     // the epoch when the current synchronous pass of setData calls began (null: no pass open)
+    passSkipped: [],     // the setData calls this pass skipped: re-handed at the pass's end if the axis moved
   }
   /** wrapped series -> { raw, full, tail: Map(time -> item), primary } */
   const series = new Map()
@@ -141,7 +181,59 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
   let primary = null
 
   const on = () => st.wanted != null && !disabled()
+  const anchorStart = anchor === 'index' ? (rows, wanted) => renderWindowStart(rows.length, wanted) : renderWindowStartFor
 
+  /** A synchronous pass of setData calls: opened by the first, closed in a microtask (after the pass, before the frame
+   *  paints). Closing it re-hands what the pass skipped if any series' set of times moved during it. */
+  function openPass() {
+    if (st.passStart != null) return
+    st.passStart = st.axisGen
+    queueMicrotask(() => {
+      const moved = st.axisGen !== st.passStart
+      const skipped = st.passSkipped
+      st.passStart = null
+      st.passSkipped = []
+      // (applyOne, not a bare setData: it replays what update() planted since the skip, the developing candle and its
+      // volume bar, review of #2903's delta F1)
+      if (moved) {
+        for (const k of skipped) {
+          try { if (k.rec.handed === k.cut && series.get(k.w) === k.rec) applyOne(k.w) } catch { /* one series */ }
+        }
+      }
+    })
+  }
+  /** Do two row arrays hold the same times, in order (values aside)? O(rows). */
+  function sameTimes(a, b) {
+    if (a === b) return Array.isArray(a)
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i]?.time
+      const y = b[i]?.time
+      if (x !== y && (x == null || y == null || cmpTime(x, y) !== 0)) return false
+    }
+    return true
+  }
+  /** Do two row arrays hold the same rows (each row's own fields equal; a time compared by value)? O(rows). */
+  function sameRows(a, b) {
+    if (a === b) return Array.isArray(a)
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i]
+      const y = b[i]
+      if (x === y) continue   // (a row object is fresh or frozen: one changed in place would read as equal here)
+      if (!x || !y || typeof x !== 'object' || typeof y !== 'object') return false
+      const kx = Object.keys(x)
+      if (kx.length !== Object.keys(y).length) return false
+      for (const k of kx) {
+        const u = x[k]
+        const v = y[k]
+        if (u === v || (u !== u && v !== v)) continue   // (NaN equals NaN here)
+        if (k === 'time' && u != null && v != null && typeof u === 'object' && cmpTime(u, v) === 0) continue
+        return false
+      }
+    }
+    return true
+  }
   function cutFor(w, rows) {
     if (!Array.isArray(rows) || !rows.length) return rows
     const paint = series.get(w)?.paint || null   // (SET_DATA_PAINTED: the rows handed over, transformed)
@@ -174,7 +266,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       st.ws = Math.max(0, Math.min(firstAtOrAfter(full, st.wsTime) ?? 0, full.length - 1))
       return
     }
-    const ws = forcedWs != null ? forcedWs : renderWindowStart(full.length, st.wanted)
+    const ws = forcedWs != null ? forcedWs : anchorStart(full, st.wanted)
     st.placePending = false
     st.ws = Math.max(0, Math.min(ws, full.length - 1))
     st.wsTime = st.ws > 0 ? full[st.ws].time : null
@@ -332,10 +424,17 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     const origUpdate = typeof raw.update === 'function' ? raw.update.bind(raw) : null
     const origSetDataFn = raw.setData
     const origUpdateFn = raw.update
-    rec.set = (rows) => origSetData(rows)
-    rec.upd = (item, ...rest) => origUpdate(item, ...rest)
+    // (`handed`: the rows the library was last handed; `updated`: an update() reached the library since)
+    rec.set = (rows) => {
+      if (!sameTimes(rec.handed, rows)) st.axisGen++   // this series' times moved: the shared axis re-merges
+      rec.handed = rows
+      rec.updated = false
+      return origSetData(rows)
+    }
+    rec.upd = (item, ...rest) => { rec.updated = true; return origUpdate(item, ...rest) }
     /** The series' setData: keep `rows`, hand the library the cut (painted when `paint` is given). */
     function setFull(rows, paint) {
+      const prev = rec.full
       rec.full = rows
       rec.paint = paint
       rec.tail.clear()
@@ -343,7 +442,29 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       if (w === primary) placeWindow()
       const cut = cutFor(w, rows)
       rec.cutFirst = cut && cut.length ? cut[0].time : null
-      rec.set(cut)
+      // ⭐ (2026-11-27, the second full draw after a typed Enter) THE SAME ROWS ARE NOT HANDED AGAIN. The history deepening
+      // joins older rows behind the view and the chart re-sets every series with its whole new array; the window starts at
+      // the same TIME (the anchor of the same load), so the cut is the rows the library already holds, as new objects. The
+      // library's setData (each series re-set in its model, its time points redone) changed nothing it draws. Handed only
+      // when a row differs, or when an update() reached the library since (it then holds a bar the cut does not).
+      // (never the very array last handed: a caller that changed it in place and hands it again must reach the library)
+      // ⛔ ONLY FOR OLDER HISTORY JOINED AT THE FRONT (review of #2903: symSwitchPinned's compare series). A re-hand of the
+      // same rows (the chart re-merging the axis after another series joined it, a re-colour) is a request to the library
+      // in its own right: it is handed as before. So the skip needs this series' whole array to have GROWN AT ITS FRONT
+      // (more rows, an older first time) with the window where it was.
+      const grewAtFront = !!prev && prev.length > 0 && rows.length > prev.length && rows.length > 0
+        && cmpTime(rows[0].time, prev[0].time) === -1
+      // ⛔ ...AND ONLY WHILE THE SHARED AXIS HOLDS STILL (review of #2903, the owner's "never move"): a series whose set of
+      // times changes in the same pass (a compare series joining, a newer bar on another series) makes the library
+      // re-merge the axis, and the chart's re-hand of the candles is part of what keeps the newest candle in place. So a
+      // skip needs the axis unmoved since the pass began, and a series that moves it LATER in the same pass re-hands every
+      // series this pass skipped, before the frame paints (the pass ends in a microtask, before the rAF paint).
+      openPass()
+      if (grewAtFront && st.wsTime === before && !rec.updated && st.axisGen === st.passStart && cut !== rec.handed
+          && sameRows(rec.handed, cut)) {
+        rec.handed = cut
+        st.passSkipped.push({ rec, w, cut })
+      } else rec.set(cut)
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
       if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }

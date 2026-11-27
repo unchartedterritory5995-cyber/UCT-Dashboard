@@ -30,6 +30,18 @@ export const INSPECT_LIBRARY_JOB = 'inspect-library'
 // worker to the page, unasked, `{type: 'status', reportKey, doorKey, doorVersion, answer, hidden, lost}` (the editor
 // status panel's status of that report with that door answer, `doorKey` null for the report alone).
 
+// ─── ⭐⭐ e96 — THE HEARTBEAT (coordinator ruling 2026-11-23) ──────────────────────────────────────────────────────────
+// From every worker to the page, unasked: `{type: BEAT, id, ms}`, once as a job starts (`id` the job's, `ms` 0) and then
+// at least every `MEMBER_DOOR_HEARTBEAT_MS` while it works, driven from the work's own counted steps
+// (`engine/workPulse.js`; `id` null for work between jobs, such as the hub's status). `ms`: how long the job has run, on
+// the worker's clock. The page treats a worker that owes an answer and has sent nothing for `MEMBER_DOOR_SILENCE_MS` as
+// dead (`memberDoorAsync.js`): a slow check beats, a hung one does not.
+
+/** The message type of a heartbeat. */
+export const BEAT = 'beat'
+/** How often, at least, a working worker says so, in ms of its own clock. */
+export const MEMBER_DOOR_HEARTBEAT_MS = 5000
+
 /**
  * The page's side of a faithful answer: puts back every non-enumerable own property the worker recorded (each
  * `{node, key, value, writable, configurable}`, `node` being an object INSIDE `value`, which the structured clone kept

@@ -65,6 +65,8 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import presentation_schema
+from api.services import code_paste
 from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -157,7 +159,8 @@ def _scope_defs() -> Dict[str, Any]:
                                "args": copy.deepcopy(child)}}
     return {
         "sym": wrapper("sym", {"type": "string", "pattern": cc["tickerPattern"]}),
-        "tf": wrapper("tf", {"enum": list(cc["tfCodes"])}),
+        # ⭐⭐ U-DAILY (e96) -- and D, the last finished day, on a chart below a day only (``check_daily_reads``)
+        "tf": wrapper("tf", {"enum": list(cc["tfCodes"]) + list(cc["tfBelowADayCodes"])}),
         "tf_live": wrapper("tf_live", {"enum": list(cc["tfLiveCodes"])}),
     }
 
@@ -204,10 +207,16 @@ require_room_in_a_choice(CHOICE_MAX_CHARS)
 
 
 def daily_values_below_a_day(chart: Any = None) -> bool:
-    """Can a chart below a day BUILD a daily measure inside its own formula (a daily read on an intraday chart)?
-    NO, today. ⛔ THE ONE PLACE THIS IS ANSWERED: the engine unit that admits it (U-DAILY) points this function at
-    its capability, and what the assistant is told follows (`day_length_turn_notes`), with nothing else to edit."""
-    return False
+    """Can THIS chart BUILD a daily measure inside its own formula (a daily read, `tf(x, D)`, on an intraday chart)?
+    ⛔ THE ONE PLACE THIS IS ANSWERED, and what the assistant is told follows (`day_length_turn_notes`).
+
+    ⭐⭐ U-DAILY (e96) points it at the capability itself: the cross context lists D among the timeframes a chart
+    below a day may read (`crossContext.json::tfBelowADayCodes`, the file the door's `tf` vocabulary
+    (`_scope_defs`, `_check_scopes`) and the browser's tree gate (`applyPatch.js::gateTree`) read), and this chart's
+    own timeframe is below a day (`ast_interpret.is_below_a_day`, the twin of the gate's `isBelowADay`). A chart that
+    does not state its timeframe is not one the browser builds a daily read on, so it is answered no."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    return "D" in cross_context()["tfBelowADayCodes"] and ast_interpret.is_below_a_day(tf)
 
 
 def patch_schema() -> Dict[str, Any]:
@@ -385,7 +394,8 @@ def anthropic_tool() -> Dict[str, Any]:
 #: (U-DAILY) changes what the member is told there, and changes this string alone.
 DAYS_BELOW_A_DAY_MEMBER = (
     "the assistant kept counting the days you asked for as bars of this chart, which is a different measure, so "
-    "nothing was offered to apply. On a daily chart this builds as asked")
+    "nothing was offered to apply. Below a day it builds each daily measure on daily bars, as of the last "
+    "finished day")
 GUARD_REFUSALS: Mapping[str, str] = {
     "envelope:days-as-bars": DAYS_BELOW_A_DAY_MEMBER,
     "envelope:days-choice-in-days": (
@@ -421,6 +431,13 @@ GUARD_REFUSALS: Mapping[str, str] = {
         "offered to apply"),
     "envelope:replayed": (
         "the assistant sent again the change the app had already refused, so nothing was offered to apply"),
+    # ⭐⭐ U-DAILY (e96) -- `check_daily_reads`: a daily read is for a chart below a day, and is one way, not two
+    "envelope:daily-read-on-days": (
+        "the assistant read the last finished day on a chart whose bars already are days, where the value itself "
+        "is that reading, so nothing was offered to apply"),
+    "envelope:daily-read-and-daily-bars": (
+        "the assistant both read the last finished day and moved the whole indicator onto daily bars, two ways of "
+        "doing one thing, so nothing was offered to apply"),
 }
 
 #: Gates THIS door owns. The ledger, transport, unsupported-node and internal
@@ -689,6 +706,10 @@ def _member_tree_phrase(gate: str) -> str:
 
 #: The longest validator diagnostic an ADMIN's refused response carries per attempt.
 DIAGNOSTIC_MAX_CHARS = 600
+#: ⭐ 2026-11-24 -- The longest refused ATTEMPT an admin's response carries (its whole answer, as JSON text). The
+#: diagnostic above says why an attempt was refused; a mend can be ruled on only from what the attempt SAID (its
+#: reply, its notes) and a text that did not parse only from the text itself. Admin only, response only.
+REFUSED_ANSWER_MAX_CHARS = 20000
 
 
 class _Refused(Exception):
@@ -802,7 +823,18 @@ STRICT_WORDS_RULE = (
     "A STRICT WORD STAYS STRICT INSIDE A FUNCTION: when the member's own test is strict (\"above\", \"below\", "
     "\"higher than\", \"lower than\") and a function's line in the function table admits an equal value on either "
     "side (it says \"at least as\"), that function is not the member's test. Write the comparison out with > or < "
-    "against the bars on each side instead of relying on the function. ")
+    "against the bars on each side instead of relying on the function. "
+    # ⭐ 2026-11-24 -- THE SAME RULE, WRITTEN OUT FOR A TEST ON BOTH SIDES OF A BAR. Measured: cap-03's words ("a bar
+    # whose high is above the highs of the 3 bars before it and the 3 bars after it", averaged over the last 5) came
+    # back 0 of 3 right as a MEMBER (739 of 1,643 bars), each answer built on the table's function for it, which admits
+    # an equal high on one side and places its value on the marked bar. The sentence above was in the instructions
+    # and was not enough. This one says what the words ARE, in the formula's own terms, and names no function.
+    "A TEST ON BOTH SIDES OF A BAR IS WRITTEN OUT THE SAME WAY: \"a bar whose high is above the highs of the N bars "
+    "before it and the N bars after it\" is, on each bar, the bar N back: (offset N of high) > (offset N+k of high) "
+    "and (offset N of high) > (offset N-k of high) for every k from 1 to N (offset 0 is this bar), all joined with &&, "
+    "with >= only where the member says \"at least\". Its value is offset N of high, and it is known on this bar, N "
+    "bars after the bar it marks: build every later step (a count, the last few values, their average) on that "
+    "condition and that value, and say in `reply` that each one is known N bars after the bar it marks. ")
 
 #: What a choice of the day-length question must hold (see CHOICE_MAX_CHARS above). The limit is the schema's number.
 DAY_LENGTH_CHOICE_RULE = (
@@ -824,6 +856,19 @@ LOOK_BACK_RULE = (
     "each series is read at its own bar: `close > close` there compares every bar with itself, and `close[1] > close` "
     "compares each bar with the one before it. Neither is \"an earlier close above today's close\"."
     + WHICH_BAR_EXIT + " When you decline, the door can have it written as a script.\n")
+
+#: ⭐ 2026-11-26 -- A MARKER SHAPE THE CHART CANNOT DRAW IS SAID, NEVER SWAPPED IN SILENCE (coordinator's ruling). The
+#: community-words probe (live, admin measurement): "a gray triangle above the bar when ... 2 times the ATR" was built as an
+#: ARROW, and the reply said "an arrow" without saying a triangle is not drawn here. The chart draws four marker shapes
+#: (`presentation_schema.MARKER_SHAPES`, the schema's own list, the words below derived from it, never restated).
+MARKER_SHAPE_WORDS: Dict[str, str] = {"circle": "a circle", "square": "a square", "arrowUp": "an up arrow",
+                                      "arrowDown": "a down arrow"}
+MARKER_SHAPE_RULE = (
+    "Markers are drawn in " + str(len(presentation_schema.MARKER_SHAPES)) + " shapes only: "
+    + ", ".join(MARKER_SHAPE_WORDS[s] for s in presentation_schema.MARKER_SHAPES[:-1])
+    + " or " + MARKER_SHAPE_WORDS[presentation_schema.MARKER_SHAPES[-1]] + ". A marker asked for in another shape (a "
+    "triangle, a diamond, a flag, a cross, a star) is drawn as the nearest of these: say in `reply` which shape it is "
+    "drawn as and that the shape asked for is not drawn on this chart. ")
 
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
@@ -923,6 +968,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
     "member says candles or price bars, or the indicator draws no bars of its own. "
     "A marker's size and color: set_marker `size` / `color`. "
+    + MARKER_SHAPE_RULE +
     "Plot styles are line, stepline, histogram, area and baseline: there is no dots style, and "
     "an output drawn as markers cannot also take set_color_states. For dots that change color "
     "by state (a squeeze on the zero line), draw a thick line on that constant level with "
@@ -972,6 +1018,8 @@ CONVERSE_SYSTEM_PROMPT = (
     '    {"type":"sym","value":<TICKER>,"args":[<one node>]}  the child read on that symbol\n'
     '    {"type":"tf","value":"W"|"M","args":[<one node>]}  the child on the weekly/monthly '
     "timeframe, LAST CLOSED period (the default for any \"weekly\"/\"monthly\" read)\n"
+    '    {"type":"tf","value":"D","args":[<one node>]}  ON A CHART BELOW A DAY ONLY: the child on daily bars, '
+    "shown on every bar as THE LAST FINISHED DAY (a daily read, below)\n"
     '    {"type":"tf_live","value":"W"|"M","args":[<one node>]}  the FORMING period so far: '
     "it repaints; ONLY when the member explicitly asks for the current/live/so-far week "
     "or month\n"
@@ -1009,23 +1057,31 @@ CONVERSE_SYSTEM_PROMPT = (
     "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
     "  ON A CHART BELOW A DAY A LENGTH IN DAYS IS DAYS (\"the 50 day average\", \"the 14 day ATR\", \"a new 20 day "
     "high\"): never that many bars of the chart. `uct_language_notes.day_lengths` lists each one with what that "
-    "many bars of THIS chart really span (`on_this_chart`). When EVERY part of the indicator is a daily LINE on the "
-    "chart's own symbol, build it and add set_calculation_timeframe D. When it is not, it cannot be written yet: the "
-    "words compare each bar of this chart with the daily measure (a cross, a marker, a colour, a dot on each bar that "
-    "closes above it), or add today's own values to it (\"today's low so far plus the 14 day ATR\"), or read another "
-    "symbol (which takes no calculation timeframe at all). Do NOT build it on the chart's bars under a note: a line "
-    "of 50 bars of a 5 minute chart is about four hours, not 50 days, whatever the note says, and the member reads "
-    "the chart. Set disposition clarify, emit `ops: []`, and ask ONE question: one plain sentence of why, then two "
-    "`choices` that each name what they draw IN TIME. "
+    "many bars of THIS chart really span (`on_this_chart`). Build each daily measure as a DAILY READ, "
+    "tf(<the measure>, D): it is computed on daily bars and shows on EVERY bar of the chart the value of THE LAST "
+    "FINISHED DAY (yesterday's on every bar of today), and the rest of the formula stays on the chart's own bars. "
+    "So a cross of the 50 day average is close > tf(sma(close, 50), D) against offset 1 of close <= offset 1 of "
+    "tf(sma(close, 50), D); today's low so far plus the 14 day ATR is sessionLow() + tf(atr(high, low, close, 14), "
+    "D); a dot, a colour or a marker on each bar reads the daily read like any other line. ANOTHER SYMBOL GOES INSIDE "
+    "THE READ: SPY's 20 day percent change is tf(sym(SPY, roc(close, 20)), D), and a 21 day average of the ratio "
+    "against SPY is tf(ema(close / sym(SPY, close), 21), D), beside the ratio of this bar, close / sym(SPY, close). "
+    "A DAILY READ IS NEVER TODAY'S VALUE SO FAR: \"as it stands\", \"including today\" or \"today's\" values are written "
+    "with today's own names (sessionHigh(), sessionLow(), sessionOpen(), close), never with a daily read. ON A DAILY "
+    "READ, AND ON A WHOLE INDICATOR CALCULATED ON DAILY BARS, `close` ALREADY IS THE LAST FINISHED DAY'S CLOSE: "
+    "\"yesterday's close\" is tf(close, D) (or close under set_calculation_timeframe D) with NO further offset, and an "
+    "offset of 1 there means the day before yesterday. In the "
+    "reply, name every daily read plainly for the day it shows (\"the 50 day average as of the last finished day\", "
+    "\"yesterday's 14 day ATR\"), so nobody reads it as today's forming value. When EVERY part of the indicator is a "
+    "daily LINE on the chart's own symbol you may instead build it and add set_calculation_timeframe D (then use no "
+    "daily read in it). A daily read is never inside sym, tf or tf_live, holds no other timeframe read, and is never "
+    "used on a daily or higher chart (there the bars already are days: use the value itself). Do NOT build a daily "
+    "measure on the chart's bars under a note: a line of 50 bars of a 5 minute chart is about four hours, not 50 "
+    "days, whatever the note says, and the member reads the chart. Only when the member ASKS for the chart's own "
+    "bars, build those, named with the `on_this_chart` words exactly as given and never by their number of days. "
+    "When the member's words leave it open whether they mean days or this chart's bars, ask ONE question: one "
+    "plain sentence of why, then two `choices` that each name what they draw IN TIME. "
     + DAY_LENGTH_CHOICE_RULE +
-    "For \"show when the close crosses above its 50 day average\" "
-    "on a 5 minute chart: \"I can't yet compare each 5 minute bar with a daily measure like the 50 day average. Which "
-    "would you like?\" with the choices \"The 50 day average as a line, on daily bars\" and \"Crosses of the average "
-    "of 50 five-minute bars (about 4 hours)\". For a daily measure of another symbol (\"the ratio against SPY with "
-    "its 21 day average\"): \"I can't yet build a daily measure of a ratio against SPY on a 5 minute chart. Which "
-    "would you like?\" with \"The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)\" and "
-    "\"Nothing for now: on a daily chart this builds exactly as asked\". Build only what the member picks, named "
-    "for what it is.\n"
+    "Build only what the member picks, named for what it is.\n"
     "  THE REGULAR SESSION has names of its own, right on every intraday timeframe: "
     "`sessionOpen()` (today's open), `sessionHigh()` and `sessionLow()` (today's high and low so "
     "far, regular hours only), and `openingRangeHigh(minutes)` / `openingRangeLow(minutes)` (the "
@@ -1684,6 +1740,9 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
             return
         if not isinstance(node, Mapping):
             return
+        # ⭐⭐ U-DAILY (e96) -- inside a daily read the windows ARE days: it is computed on daily bars
+        if ast_interpret.is_daily_read(node):
+            return
         args = node.get("args")
         if node.get("type") == "call" and isinstance(args, list):
             for a in args:
@@ -1692,18 +1751,52 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
                     n = int(a["value"])
                     raise _Refused(
                         "envelope:days-as-bars",
-                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. If "
-                        "EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and "
-                        "add set_calculation_timeframe D. If not (each bar is compared with the daily measure, today's "
-                        "own values are added to it, or another symbol is read), it cannot be written yet: do NOT build "
-                        "it on the chart's bars under a note. Answer with disposition clarify, `ops: []`, and ONE "
-                        f"question: one plain sentence of why, then two `choices` of at most {CHOICE_MAX_CHARS} characters "
-                        "that each name what they draw in time, the bars version carrying "
+                        f"{where}: `{node.get('name')}(..., {n})` is {by_days[n]}, and the member asked for {n} DAYS. "
+                        f"Write the {n} day measure as a DAILY READ, tf(<the measure>, D): it is computed on daily bars "
+                        "and shows on every bar of this chart the value of THE LAST FINISHED DAY, while the rest of "
+                        "the formula (a comparison with each bar, today's own values, a marker) stays on this chart's "
+                        "bars. Another symbol goes INSIDE it: tf(sym(SPY, close), D). If EVERY part of the indicator is "
+                        "a daily line on the chart's own symbol, you may instead keep the formula and add "
+                        "set_calculation_timeframe D. Do NOT build it on the chart's bars under a note; only a member "
+                        f"who asks for this chart's bars gets those, written as \"{by_days[n]}\" and never as {n} days. "
+                        "If the member's words leave that open, answer with disposition clarify, `ops: []`, and ONE question "
+                        f"instead: two `choices` of at most {CHOICE_MAX_CHARS} characters that each name what they draw in time, "
+                        "the bars version carrying "
                         f"\"{phrase or by_days[n]}\" as given and never called {n} days.")
         visit(args, where)
 
     for where, tree in _trees_of(envelope):
         visit(tree, where)
+
+
+def check_daily_reads(envelope: Mapping[str, Any], message: Any, chart: Any) -> None:
+    """⭐⭐ U-DAILY (e96) -- A DAILY READ (`tf` of D: the last finished day on each bar) IS FOR A CHART BELOW A DAY.
+
+    On a daily or higher chart the bars already are days, and the engine refuses the read there by name
+    (``ast_interpret._interpret_daily_reads``); a whole indicator calculated on daily bars holds none either (its bars
+    are days too). Refused here so the model gets its repair: on such a chart the value itself is the read.
+    """
+    if envelope.get("disposition") not in (None, "change"):
+        return
+    trees = [(where, tree) for where, tree in _trees_of(envelope) if ast_interpret.tree_reads_daily(tree)]
+    if not trees:
+        return
+    calc = next((o.get("timeframe") for o in envelope.get("ops") or []
+                 if isinstance(o, Mapping) and o.get("op") == "set_calculation_timeframe"), None)
+    where = trees[0][0]
+    if not below_a_day(message, chart):                    # a daily or higher chart: its bars already are days
+        raise _Refused(
+            "envelope:daily-read-on-days",
+            f"{where}: a daily read, tf(..., D), shows the last finished day on each bar of a chart BELOW A DAY, and "
+            "this chart's bars are days or longer: read the value itself (the 50 day average is sma(close, 50) on a "
+            "daily chart).")
+    if calc in _HIGHER_FRAMES:
+        raise _Refused(
+            "envelope:daily-read-and-daily-bars",
+            f"{where}: a daily read, tf(..., D), sits on a chart below a day, and set_calculation_timeframe {calc} "
+            "moves the whole indicator onto bars that already are days or longer. Use one or the other: the daily "
+            "read alone (the rest of the formula stays on this chart's bars), or the calculation timeframe with the "
+            "value itself.")
 
 
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
@@ -1786,6 +1879,25 @@ GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
 }
 #: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
 AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
+#: ⭐ 2026-11-25 -- THE DOOR'S OWN DESCRIPTION WORDS (coordinator's ruling (2), no rule attached). A screener column's
+#: words stopped grounding an indicator name (master was red since #2696: "drift", from a column's filter label, let
+#: the made-up "Zero-Drift Ema" be built as a plain EMA). That took 748 stems out of the chart door's vocabulary, the
+#: words ONLY columns carried. These are the ones of them that describe an indicator or a rule in plain English
+#: ("Linear Regression Slope" was a description the whole-phrase rule was measured to let pass, known only through a
+#: column's description). The other 656 are column identifiers, fundamentals, index and company words and the candle
+#: library's names, which match whole where a member uses them. ⛔ A LITERAL, never derived: a column can never add a
+#: word here (tests/test_column_words_ground_no_name.py).
+DESCRIPTION_WORDS: Tuple[str, ...] = (
+    "above", "below", "across", "against", "acceleration", "bearish", "bullish", "bottom", "top", "break",
+    "breakout", "climax", "compression", "consecutive", "consolidation", "continuation", "contraction", "count",
+    "current", "depth", "direction", "distance", "drawdown", "equal", "expansion", "extension", "flat", "green",
+    "red", "horizontal", "inverted", "least", "level", "long", "short", "look", "loss", "mean", "measure",
+    "multiple", "narrow", "wide", "neutral", "past", "prior", "pattern", "ratio", "recent", "reclaim", "return",
+    "reversal", "rotation", "run", "scale", "score", "shape", "slope", "stack", "stage", "streak", "structure",
+    "successive", "target", "thrust", "today", "total", "touch", "trailing", "turnover", "undercut", "unusual",
+    "variation", "wave", "weak", "wick", "zero", "two", "three", "five", "seven", "annual", "annualised", "body",
+    "box", "different", "fail", "failed", "hold", "key", "leg", "most", "off", "outside",
+)
 # --------------------------------------------------------------------------- #
 # ⭐ CLARIFY FIRST (owner direction, 2026-11-18): "always clarify". When a choice that changes the
 # MATHS is not settled, the door asks ONE short question with the options before anything is built,
@@ -1879,6 +1991,22 @@ def _stochastic_open(understood: Mapping[str, Any], words: str, numbers: Any) ->
     return bool(_STOCHASTIC_WORD.search(words)) and not named and not understood.get("withheld")
 
 
+#: ⭐ 2026-11-25 -- A CHOICE THE MEMBER ASKS TO PICK IS A SETTING, NOT A QUESTION. "Plot a moving average where
+#: I can pick the type from a list (SMA, EMA, WMA, HMA) and the length" was asked "How many bars should the average
+#: use?" with no model call, so the dropdown and the length setting it asked for were never built (Deepvue's agent
+#: built both). The words that hand a choice to the member: a verb of choosing within one clause of the thing
+#: chosen, or a setting's own names (a dropdown, a list, an input).
+_PICK = r"(?:let\s+me|i\s+can|i\s+could|i\s+want\s+to|so\s+i\s+can|user\s+can|able\s+to)\s+(?:pick|choose|select|change|set|adjust|switch|tweak|edit|toggle)"
+_PICK_LENGTH = re.compile(
+    _PICK + r"\b[^.;!?]{0,90}?\b(?:length|lengths|period|periods|lookback|bars|days)\b"
+    r"|\b(?:length|period|lookback)\s+(?:as\s+an?\s+)?(?:input|setting|parameter|option)s?\b"
+    r"|\b(?:adjustable|configurable|editable|customi[sz]able|selectable|changeable)\s+(?:length|period|lookback)s?\b", re.I)
+_PICK_KIND = re.compile(
+    _PICK + r"\b[^.;!?]{0,90}?\b(?:type|types|kind|kinds|style|method)\b"
+    r"|\b(?:drop-?\s?down|from\s+a\s+list|a\s+list\s+of|selectable|switchable)\b"
+    r"|\b(?:type|kind|method)\s+(?:as\s+an?\s+)?(?:input|setting|parameter|option)s?\b", re.I)
+
+
 def open_questions(understood: Mapping[str, Any]) -> List[str]:
     """The registry questions this request leaves OPEN, in the order they are asked.
 
@@ -1894,11 +2022,13 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
     numbers = (understood.get("notes") or {}).get("member_numbers") or []
     words = str(understood.get("request_text") or "")
     found = set()
-    if bare and not kinds and not library:
+    # (a choice the member asks to PICK is theirs to make in the settings: never a question, `_PICK_*`)
+    if bare and not kinds and not library and not _PICK_KIND.search(words):
         found.add("average_kind")
     # (ONE average: "a ribbon of EMAs" or "moving averages" wants several lengths, which this
     # question's choices cannot give; that request is the assistant's to ask about)
-    if (bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words):
+    if ((bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words)
+            and not _PICK_LENGTH.search(words)):
         found.add("average_length")
     if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
         found.add("cross_meaning")
@@ -2429,6 +2559,34 @@ def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     return ready, unchecked
 
 
+#: ⭐ 2026-11-26 -- A BUILT-IN ASKED FOR WITH ITS LOOK CHANGED IS A REQUEST TO BUILD (coordinator's ruling). The fifty-set
+#: probe (live, admin measurement): "In a pane below, plot Bollinger %B (20, 2) as a histogram, green above 1, red below 0,
+#: gray otherwise, with dashed lines at 0 and 1" was answered with the one-tap offer of the stock built-in, and the
+#: member's histogram, colours and dashed lines were dropped. The offer is for a request that is the bare NAME. Words that
+#: change how it is DRAWN (a colour, a style, a level line, a shade, fill or background) mean the member wants their own:
+#: no offer, and the script turn builds it (`customised_built_in`), saying no checked reference stands behind it. A
+#: placement ("in a pane below") and settings numbers ("20, 2") are the built-in's own and keep the offer. Measured over
+#: the requests on record: 10 are offered a built-in today, and only this one carries such a word.
+_PRESENTATION_WORDS = re.compile(
+    r"\b(?:green|red|gr[ae]y|blue|orange|yellow|purple|white|black|teal|pink|colou?r(?:s|ed)?|histogram|dots?|circles?|"
+    r"area|step ?line|dashed|dotted|thick|thin|width|pixels?|px|fill(?:ed)?|shade[ds]?|shading|background|cloud|"
+    r"lines? at|levels? at|horizontal lines?)\b", re.I)
+
+
+def customises_presentation(message: Any) -> bool:
+    """Does the request change how something is DRAWN (colour, style, levels, shading)?"""
+    return isinstance(message, str) and bool(_PRESENTATION_WORDS.search(message))
+
+
+def customised_built_in(message: Any, chart: Any) -> bool:
+    """A request that names one of UCT's own built-in indicators (no checked formula here) AND changes its look."""
+    try:
+        understood = understand_turn(message, chart)
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+    return understood.get("refusal") is not None and bool(understood.get("customised_built_in"))
+
+
 def described_in_own_words(plain: str, chart: Any) -> bool:
     """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
     left of the message once those names are taken out.
@@ -2510,7 +2668,8 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
     inputs = sorted(declared_inputs(envelope, view))
     existing = _view_trees(view)
     for e in named:
-        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+        if (named_indicators.held([house_tree(t) for t in trees], e, inputs)       # a twin read as the library's name
+                or named_indicators.held([house_tree(t) for t in existing], e, inputs)):
             continue
         at = named_indicators.defaults(e)
         formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
@@ -2550,7 +2709,8 @@ def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[T
         if not isinstance(key, str):
             continue
         for e in named:
-            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            got = next((g for g in (named_indicators.output_in(house_tree(tree), e, o, inputs) for o in e["outputs"])
+                        if g is not None), None)                     # (a twin read as the library's house name)
             if got is not None:
                 found.append((key, e, got))
                 break
@@ -2822,18 +2982,22 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
 # input bounds -- refused BEFORE any call
 # --------------------------------------------------------------------------- #
 
-def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any
+def _bounded_inputs(message: Any, view: Any, authoring: Any, snippets: Any, *, code_cap: bool = False
                     ) -> Tuple[str, Dict[str, Any], Dict[str, Any], List[Dict[str, str]]]:
     if not isinstance(message, str):
         raise _Refused("prompt:empty")
     message = message.strip()
     if not message:
         raise _Refused("prompt:empty")
-    if len(message) > MAX_MESSAGE_CHARS:
+    # ⭐ C (2026-11-25): PASTED CODE has a door of its own with its own cap (`code_paste`), on the script lane only
+    # (`code_cap`, given by `_with_script_lane`); plain chat keeps MAX_MESSAGE_CHARS
+    pasted = code_paste.kind_of(message) if code_cap and len(message) > MAX_MESSAGE_CHARS else None
+    limit = code_paste.import_max_chars() if pasted else MAX_MESSAGE_CHARS
+    if len(message) > limit:
         raise _Refused("converse:too-large",
-                       f"message {len(message)} > {MAX_MESSAGE_CHARS}",
-                       member=f"your request is {len(message):,} characters; the limit is "
-                              f"{MAX_MESSAGE_CHARS:,}")
+                       f"message {len(message)} > {limit}",
+                       member=(f"your pasted code is {len(message):,} characters; the limit for pasted code is {limit:,}"
+                               if pasted else f"your request is {len(message):,} characters; the limit is {limit:,}"))
 
     if not isinstance(view, Mapping):
         raise _Refused("converse:view", "it is not an object")
@@ -2908,6 +3072,45 @@ def _trees_of(envelope: Mapping[str, Any]) -> List[Tuple[str, Any]]:
                 if isinstance(s, Mapping) and "when" in s:
                     out.append((f"ops[{i}].states[{j}].when", s["when"]))
     return out
+
+
+def with_pine_twins(envelope: Mapping[str, Any]) -> Dict[str, Any]:
+    """⭐ 2026-11-26 -- THE WORDS DOOR BUILDS TRADINGVIEW'S CALCULATION WHERE THE ENGINE HAS ONE (coordinator's
+    ruling). The fifty-set probe (live, admin measurement): "the 5 bar ATR divided by the 50 bar ATR" was built
+    with the house `atr` (Wilder's original, true range from bar 1), which reads 4.35% below TradingView's
+    `ta.atr(14)` at its first value and 1.4% below twenty bars on, the left edge a member compares. Every call
+    to a function with a Pine-parity twin (`ast_table.PINE_TWINS`: `atr`, `stoch`, `mfi`) is written as the twin;
+    the arguments are the same. Runs AFTER `check_named` (the library's checked formulas carry the house name,
+    and the library match reads a twin as its house name: `house_tree`). ⛔ The native indicators, ThinkScript and
+    the pattern levels are other doors and keep the house calculation. Returns a NEW envelope."""
+    from api.services import ast_table
+    twins = ast_table.PINE_TWINS
+    out = copy.deepcopy(dict(envelope))
+    for where, tree in _trees_of(out):
+        for node in _walk(tree):
+            if node.get("type") == "call" and node.get("name") in twins:
+                node["name"] = twins[node["name"]]
+    return out
+
+
+def house_tree(tree: Any) -> Any:
+    """The reverse of `pine_twin_tree`: each Pine-parity twin read back as its house function. ONLY for matching a
+    built tree against the named-indicator library, whose checked formulas carry the house names, so a library
+    indicator the door built as the twin is still recognised as that indicator (`check_named`, `_named_outputs`).
+    `named_indicators` itself stays free of the engine's table. A NEW tree; never what is built."""
+    from api.services import ast_table
+    house = {twin: name for name, twin in ast_table.PINE_TWINS.items()}
+    out = copy.deepcopy(tree)
+    for node in _walk(out):
+        if node.get("type") == "call" and node.get("name") in house:
+            node["name"] = house[node["name"]]
+    return out
+
+
+def pine_twin_tree(tree: Any) -> Any:
+    """One tree as the words door builds it (`with_pine_twins`): every house call with a Pine-parity twin
+    written as the twin. A NEW tree."""
+    return with_pine_twins({"ops": [{"op": "tree", "tree": tree}]})["ops"][0]["tree"]
 
 
 def _walk(tree: Any):
@@ -3634,7 +3837,8 @@ def _check_scopes(where: str, tree: Any) -> None:
     concierge's gate: one child each, a servable unambiguous ticker, W/M only."""
     cc = cross_context()
     ambiguous = set(cc["ambiguousBare"])
-    codes = {"tf": set(cc["tfCodes"]), "tf_live": set(cc["tfLiveCodes"])}
+    # ⭐⭐ U-DAILY (e96) -- a daily read's code too: WHERE it may be used (a chart below a day) is ``check_daily_reads``'s
+    codes = {"tf": set(cc["tfCodes"]) | set(cc["tfBelowADayCodes"]), "tf_live": set(cc["tfLiveCodes"])}
     for node in _walk(tree):
         kind = node.get("type")
         if kind not in SCOPE_NODES:
@@ -4321,6 +4525,10 @@ MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
 MEND_BAR_FIELDS = "bar-field-order"
+#: ⭐ 2026-11-24 -- AN OPERATOR NODE NAMED AFTER A FUNCTION (`mend_operator_named_function`).
+MEND_OPERATOR_FUNCTION = "operator-named-function"
+#: ⭐ 2026-11-24 -- A CHOICE OVER ITS LIMIT ONLY BECAUSE OF THE DOOR'S OWN WORDS (`mend_choice_phrases`).
+MEND_CHOICE_PHRASE = "choice-bars-phrase"
 _MEND_MAX_PASSES = 8
 
 
@@ -4556,6 +4764,105 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
 
 
 
+#: ⚰️ MEASURED 2026-11-24, the regression sweep after #2599 (admin, measurement only; the request is private, so by
+#: its numbers alone): a request with one length in days on a 5 minute chart asked the right question and paid a
+#: SECOND call for it. Attempt 1's choice was 90 characters and the schema refused it: the door's phrase as given (44
+#: characters, one length) and 46 of the assistant's own, ten over the room it was told (`day_lengths_choice_room`,
+#: 36). A model counts characters badly; the door does not. The door's own SHORTER form of the same phrase (32)
+#: makes that choice 78.
+#: So, before the check: a question's choice that is over the limit ONLY because of the door's phrase has that phrase
+#: said again in the door's next shorter form that makes it fit. The assistant's own words are never touched; the
+#: replacement is one of `bars_phrases`, which `check_day_lengths` accepts by construction; the last resort ("these
+#: bars in place of days", which names no time) is never chosen here; a choice no form can fit is left for the
+#: schema to refuse, as before. Recorded by name (`usage.mended`), like every mend.
+
+def mend_choice_phrases(candidate: Any, forms: List[str]) -> Tuple[Any, int]:
+    """``(answer, n)``: the answer with every question's choice that is over CHOICE_MAX_CHARS only because it carries
+    one of the door's ``forms`` (``bars_phrases``, fullest first) re-said in the first SHORTER form that makes it fit,
+    and how many choices were re-said. Anything else is returned untouched. Never raises."""
+    if not forms or not isinstance(candidate, Mapping) or not isinstance(candidate.get("questions"), list):
+        return candidate, 0
+    try:
+        work: Optional[Dict[str, Any]] = None
+        n = 0
+        for qi, q in enumerate(candidate["questions"]):
+            if not isinstance(q, Mapping) or not isinstance(q.get("choices"), list):
+                continue
+            for ci, choice in enumerate(q["choices"]):
+                if not isinstance(choice, str) or len(choice) <= CHOICE_MAX_CHARS:
+                    continue
+                said = next((i for i, form in enumerate(forms) if form in choice), None)
+                if said is None:
+                    continue                       # the assistant's own words ran over: the schema's to refuse
+                own = len(choice) - len(forms[said])
+                shorter = next((form for form in forms[said + 1:]
+                                if form != BARS_PHRASE_LAST_RESORT and own + len(form) <= CHOICE_MAX_CHARS), None)
+                if shorter is None:
+                    continue                       # no form of the door's words makes it fit: refused, as before
+                if work is None:
+                    work = copy.deepcopy(dict(candidate))
+                work["questions"][qi]["choices"][ci] = choice.replace(forms[said], shorter, 1)
+                n += 1
+        return (work, n) if work is not None else (candidate, 0)
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] choice mend failed; the answer is checked as it came")
+        return candidate, 0
+
+
+#: ⚰️ MEASURED 2026-11-24, the regression sweep after #2599 (admin, measurement only; the request is private, so by
+#: its shape alone): a first attempt wrote the larger and the smaller of two values as OPERATOR nodes,
+#: `{"type": "op", "name": "max", "args": [a, b]}` and the same for `min`. The schema's operators are symbols, so the
+#: whole answer was refused (`envelope:schema`) and the repair wrote the very same thing as calls, for a second paid
+#: call. Coordinator's ruling: re-spelled ONLY where the call is exactly equivalent: the name is a function of the
+#: engine's own table, the node gives exactly that function's number of arguments, and their order is kept. Any other
+#: arity, or a name the table does not hold, is left for the check to refuse, as before. Runs BEFORE `mend` (the
+#: answer is schema-invalid until it has run), recorded by name in `usage.mended`.
+
+def _schema_operators() -> frozenset:
+    """The operator names the contract allows an `op` node, read off the contract."""
+    node = ((composed_schema().get("$defs") or {}).get("op") or {}).get("properties") or {}
+    return frozenset((node.get("name") or {}).get("enum") or ())
+
+
+def _respell_function_ops(node: Any, functions: Mapping[str, Any], operators: frozenset, count: List[int]) -> Any:
+    if isinstance(node, list):
+        return [_respell_function_ops(x, functions, operators, count) for x in node]
+    if not isinstance(node, Mapping):
+        return node
+    out = {k: _respell_function_ops(v, functions, operators, count) for k, v in node.items()}
+    name, args = out.get("name"), out.get("args")
+    if (out.get("type") == "op" and isinstance(name, str) and name not in operators and name in functions
+            and isinstance(args, list) and set(out) == {"type", "name", "args"}
+            and len(args) == len(tuple((functions[name] or {}).get("args") or ()))):
+        count[0] += 1
+        return {"type": "call", "name": name, "args": args}
+    return out
+
+
+def mend_operator_named_function(candidate: Any) -> Tuple[Any, int]:
+    """``(answer, n)``: every `op` node named after a function of the engine's table, with exactly that function's
+    number of arguments, re-spelled as that call (arguments in the same order); and how many. Anything else, and an
+    answer with none, is returned untouched. Never raises."""
+    if not isinstance(candidate, Mapping) or not isinstance(candidate.get("ops"), list):
+        return candidate, 0
+    try:
+        from api.services import ast_table
+        functions = ast_table.TABLE.get("functions") or {}
+        operators = _schema_operators()
+        if not operators or not functions:
+            return candidate, 0
+        count = [0]
+        ops = _respell_function_ops(candidate["ops"], functions, operators, count)
+        if not count[0]:
+            return candidate, 0
+        work = dict(candidate)
+        work["ops"] = ops
+        return work, count[0]
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] operator mend failed; the answer is checked as it came")
+        return candidate, 0
+
+
 def _label_text(value: Any) -> str:
     """A label as the view carries it (``{"untrusted_text": ...}``) or as a patch
     carries it (a string), folded for comparison: case, outer quotes, whitespace."""
@@ -4778,8 +5085,17 @@ PRODUCT_NOUNS: Tuple[str, ...] = (
     "Info Row", "Info Rows", "Info Value", "Info Values", "Info Bar",
     "Chart Header", "Chart Settings", "Chart Legend",
 )
+#: ⭐ 2026-11-26 -- THE PLACES A MARKET SESSION IS NAMED AFTER, lowercased the same way. The write-capability
+#: probe (live, admin measurement): "shade the Asian, London and New York sessions in three different colors"
+#: lost its whole last clause, because "New York" -- two Title-Case words -- was refused as an unknown named
+#: indicator, and the model read a message that stopped at "London" and asked whether New York was meant.
+#: "London" and "Tokyo" were never caught (one word). A closed list of the TWO-word places a trading session is
+#: named after; a place is not an indicator, and the model still decides what a session's hours are.
+SESSION_PLACE_NAMES: Tuple[str, ...] = (
+    "New York", "Hong Kong", "New Zealand",
+)
 _PRODUCT_NOUN_RE = re.compile(
-    r"\b(" + "|".join(re.escape(p) for p in PRODUCT_NOUNS) + r")\b", re.I)
+    r"\b(" + "|".join(re.escape(p) for p in PRODUCT_NOUNS + SESSION_PLACE_NAMES) + r")\b", re.I)
 
 
 def _product_nouns_plain(message: str) -> str:
@@ -4880,6 +5196,10 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         names_only.add(stems)
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "names_only": frozenset(names_only), "names_only_section": WITHHELD_SECTION,
+            # a Screener column is noted only when a request names it WHOLE (`definition_concierge.plan`)
+            "column_notes_whole_only": True,
+            "description_words": frozenset(stem for word in DESCRIPTION_WORDS
+                                           for stem in dc._stem_key(dc._form_tokens(word))[0]),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
 
@@ -4974,6 +5294,39 @@ def lists_from_text(candidate: Any) -> Tuple[Any, List[str]]:
         out[field] = parsed
         which.append(field)
     return out, which
+
+
+def list_text_errors(candidate: Any) -> List[Dict[str, Any]]:
+    """For a builder: each field the contract types as a LIST that arrived as TEXT opening with "[" and did NOT parse
+    (`lists_from_text` leaves those for the check), with the parser's own message and the text around where it stopped.
+    [] when there is none. Never raises."""
+    out: List[Dict[str, Any]] = []
+    if not isinstance(candidate, Mapping):
+        return out
+    for field in _list_fields():
+        text = candidate.get(field)
+        if not isinstance(text, str) or not text.lstrip().startswith("["):
+            continue
+        try:
+            json.loads(text)
+        except json.JSONDecodeError as exc:
+            out.append({"field": field, "error": str(exc)[:200], "at": exc.pos, "length": len(text),
+                        "near": text[max(0, exc.pos - 120):exc.pos + 120]})
+        except Exception as exc:                   # noqa: BLE001 -- said by its type, never raised
+            out.append({"field": field, "error": type(exc).__name__, "length": len(text)})
+    return out
+
+
+def _refused_answer(attempt: int, tool_input: Any) -> Dict[str, Any]:
+    """One refused attempt as a builder reads it: its whole answer as JSON text (cut at REFUSED_ANSWER_MAX_CHARS, and
+    said so) and any list that arrived as text and did not parse. Never raises."""
+    try:
+        text = json.dumps(tool_input, ensure_ascii=False, default=str)
+    except Exception:                              # noqa: BLE001
+        text = repr(tool_input)
+    unwrapped = _unwrap_input(tool_input)[0] if isinstance(tool_input, dict) else tool_input
+    return {"attempt": attempt, "answer": text[:REFUSED_ANSWER_MAX_CHARS],
+            "truncated": len(text) > REFUSED_ANSWER_MAX_CHARS, "list_text_errors": list_text_errors(unwrapped)}
 
 
 def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]:
@@ -5541,6 +5894,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                 result = _refusal(TIMEOUT_GATE)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
+    if asks_for_strategy(message):
+        result = with_strategy_sentence(result)                        # the door's sentence, never "no strategy tester"
     if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
         result["envelope"] = _own_notes_only(result["envelope"])      # an older tab: the answer it always got
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -5583,6 +5938,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         # the text can echo model output and is written for a model, not a person. Added
         # AFTER the turn is recorded, so it reaches no telemetry row.
         result["diagnostic"] = trace["refusals"]
+    if admin and trace.get("refused_answers"):
+        # ⭐ 2026-11-24 -- AND WHAT EACH REFUSED ATTEMPT SAID, FOR THE BUILDERS ONLY (coordinator's ruling). A mend
+        # that drops an op can be ruled on only from what the attempt told the member about it, and a list that came
+        # as text and did not parse only from the text. A member's response never carries it; nothing is stored.
+        result["refused_answers"] = trace["refused_answers"]
     return result
 
 
@@ -5841,13 +6201,17 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
         if not described_in_own_words(plain, chart):
             first = unchecked[0]["entry"]
             is_built_in = named_indicators.built_in(first) is not None
+            # (a built-in asked for with its look changed is not offered: it is the member's own, built by the
+            # script turn -- `customised_built_in`)
+            customised = is_built_in and customises_presentation(message)
             return {"refusal": {"ok": False, "gate": NAMED_BUILT_IN_GATE if is_built_in else NAMED_UNCHECKED_GATE,
                                 "reason": named_indicators.their_number(message, first, False) or named_indicators.way_forward(first),
                                 "not_understood": not_understood, "unavailable": unavailable},
                     "held": [u["entry"]["id"] for u in unchecked],
                     # ⭐ one of UCT's own built-in indicators: the turn may be ANSWERED with an offer
                     # to add it (`_converse_turn`), for a browser that can
-                    **({"built_in": first} if is_built_in else {})}
+                    **({"built_in": first} if is_built_in and not customised else {}),
+                    **({"customised_built_in": first["id"]} if customised else {})}
         own_words = [u["entry"] for u in unchecked]
     elif unchecked:
         discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
@@ -5928,14 +6292,17 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
       * the engine refused a script this door offered (`script_refusal`): the assistant repairs it;
       * the request names something only a script can hold (a table, a label, a drawn line): the
         assistant writes a script, and no formula call is made;
-      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. A
-        script that could not be written leaves the formula turn's own answer standing."""
+      * otherwise the formula turn runs as always, and ONLY if it declines is a script tried. When the
+        script turn DECLINES TOO, in its own words, the member is told ITS reason (`said_why`); a script that
+        failed for any other reason leaves the formula turn's own answer standing."""
     from api.services import script_conversation as sc
     if not sc.lane_open(accepts, admin):
         return formula_turn()
     try:
-        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets)
-    except _Refused:
+        words, bounded_view, _state, _turns = _bounded_inputs(message, view, authoring, snippets, code_cap=True)
+    except _Refused as too_long:
+        if too_long.gate == "converse:too-large" and code_paste.kind_of(message if isinstance(message, str) else ""):
+            return {"ok": False, "gate": too_long.gate, "reason": too_long.reason}   # pasted code over ITS cap
         return formula_turn()                      # the formula turn says why, in its own words
     if not bounded_view.get("empty"):
         return formula_turn()
@@ -5943,16 +6310,33 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
 
     def script(refused=None):
         return sc.script_turn(words, user_id=user_id, chart=chart, cap_usd=cap_usd, calls=calls, revision=revision,
-                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled)
+                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled,
+                              strategy=asks_for_strategy(words))
 
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
         return script(refused)
+    # ⭐ C (2026-11-25): PASTED CODE. Pine that passes the first look is the member's own script, opened with no model
+    # call; any other paste (Deepvue's, or Pine the first look refuses) is written by the script turn, as a translation
+    pasted = code_paste.kind_of(words)
+    if pasted == code_paste.PINE:
+        answer = sc.pasted_pine_turn(words, revision=revision, contract=PATCH_CONTRACT, trace=trace)
+        if answer is not None:
+            return answer
+    if pasted is not None:
+        return script()
     # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
     # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
     # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
-    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
+    # (a method, drawing, chart type or data series the catalogue names goes to the script turn too: `sc.names_a_method`)
+    # (a built-in with its look changed is the member's own: the script turn builds it, `customised_built_in`)
+    # ⭐ 2026-11-26 (coordinator ruling 1, step 2): a strategy request is WRITTEN as a strategy, on the script lane, first
+    if asks_for_strategy(words):
+        return script()
+    if customised_built_in(words, chart):
+        return script()
+    if (sc.wants_script(words) or sc.names_a_method(words)) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
     if cancelled is not None and cancelled.is_set():
@@ -5964,7 +6348,87 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     if result.get("disposition") != "unsupported" and not by_name:
         return result
     scripted = script()
-    return scripted if scripted.get("ok") else result
+    if scripted.get("ok"):
+        return scripted
+    # ⭐ 2026-11-26 -- BOTH DECLINED: THE SCRIPT TURN'S REASON IS THE ONE THE MEMBER HEARS (coordinator's ruling). The
+    # write-capability probe (live, admin measurement): "Plot annual (fiscal year) net income as columns in a pane
+    # below" -- the formula turn declined with "Fundamental data such as annual net income isn't available here -- I
+    # can only build formulas from the chart's own price and volume bars", the script turn declined as well, and the
+    # member was shown the FORMULA reason: false for the product, which builds quarterly revenue and trailing EPS on
+    # the script lane in the same run. The script turn knows the wider engine (fundamentals, drawings, tables), so its
+    # own sentence is the most specific truthful one. ⛔ Only a decline the script model SAID: a script that failed
+    # for another reason (no answer, a shape refused, the repair rounds spent) says nothing about the request.
+    if said_why(scripted):
+        return scripted
+    return result
+
+
+def said_why(scripted: Mapping[str, Any]) -> bool:
+    """Did the script turn DECLINE the request in its own words (not the default sentence, not another failure)?"""
+    from api.services import script_conversation as sc
+    reason = scripted.get("reason")
+    return (scripted.get("gate") == sc.DECLINED_GATE and isinstance(reason, str) and bool(reason.strip())
+            and reason != sc.REASONS.get(sc.DECLINED_GATE))
+
+
+# ⭐ 2026-11-26 -- A STRATEGY OR A BACKTEST IS NEVER TOLD UCT HAS NO STRATEGY TESTER (coordinator's ruling 1, step 1).
+# The write-capability probe (live, admin measurement): "Backtest a strategy that buys when the 20 EMA crosses above
+# the 50 EMA ..." was answered "I can't backtest here -- this builds indicators ..., not a strategy tester". UCT DOES
+# backtest a strategy script a member pastes, where the broker rules it needs are pinned; what is true is that the
+# assistant does not write strategies yet (`pine_authoring`: a strategy is a different document with its own gates).
+# The sentence is the DOOR'S, never the model's: on such a request a decline is answered with it, and a built signal
+# version carries it, with any sentence claiming UCT cannot backtest taken out. Step 2 (the assistant writes
+# strategy() scripts held to the pinned broker rules) replaces this.
+#: (step 2, 2026-11-26: the assistant writes strategies now. A decline whose every sentence claimed UCT cannot backtest
+#: is answered with this instead.)
+STRATEGY_DECLINE = ("The assistant could not write that as a strategy this chart can run. A strategy script you paste "
+                    "here is backtested, where the broker rules it needs are pinned.")
+_BACKTEST_WORDS = re.compile(r"\bback-?test\w*", re.I)
+_STRATEGY_WORD = re.compile(r"\bstrateg(?:y|ies)\b", re.I)
+_TRADE_WORDS = re.compile(r"\b(?:buys?|buying|sells?|selling|go(?:es)? long|go(?:es)? short|longs?|shorts?|entr(?:y|ies)|"
+                          r"enters?|exits?|stop[- ]loss|take[- ]profit|positions?|trades?)\b", re.I)
+#: a sentence that says UCT cannot backtest (false: it backtests a pasted strategy where its rules are pinned)
+_BACKTEST_CLAIM = re.compile(
+    r"(?:can'?t|cannot|can not|unable to|doesn'?t|does not|won'?t)\s+(?:\w+\s+){0,3}?(?:back-?test|run a strategy)"
+    r"|\bnot\s+(?:a\s+)?(?:strategy tester|back-?test\w*)|\bno\s+(?:strategy tester|back-?test\w*)"
+    r"|\bonly builds indicators\b", re.I)
+
+
+def asks_for_strategy(message: Any) -> bool:
+    """A request for a backtest, or for a strategy with trade rules ("buy when ...", "go long ...", "exit on ...")."""
+    if not isinstance(message, str):
+        return False
+    return bool(_BACKTEST_WORDS.search(message) or (_STRATEGY_WORD.search(message) and _TRADE_WORDS.search(message)))
+
+
+def _without_backtest_claims(reply: Any) -> str:
+    """The reply with every sentence that claims UCT cannot backtest taken out."""
+    if not isinstance(reply, str):
+        return ""
+    kept = [s for s in re.split(r"(?<=[.!?])\s+", reply.strip()) if s and not _BACKTEST_CLAIM.search(s)]
+    return " ".join(kept)
+
+
+def with_strategy_sentence(result: Mapping[str, Any]) -> Dict[str, Any]:
+    """The door's sentence on a strategy request: a decline (the formula turn's `unsupported`, or the script turn's)
+    is answered with `STRATEGY_DECLINE`; a built signal version carries `STRATEGY_NOTE`. Anything else is unchanged.
+    Returns a NEW result."""
+    from api.services import script_conversation as sc
+    out = dict(result)
+    if out.get("gate") == sc.STRATEGY_WALL_GATE:
+        return out                                                     # the broker's refusal, by name: the door's own
+    declined = (out.get("ok") is True and out.get("disposition") == "unsupported") or out.get("gate") == sc.DECLINED_GATE
+    if declined:
+        field = "reply" if out.get("ok") is True else "reason"
+        kept = _without_backtest_claims(out.get(field))
+        out[field] = kept or STRATEGY_DECLINE
+        if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
+            out["envelope"] = {**out["envelope"], "reply": out.get(field, out["envelope"]["reply"])}
+    elif out.get("ok") is True and out.get("turn") in ("patch", "script"):
+        out["reply"] = _without_backtest_claims(out.get("reply"))
+        if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
+            out["envelope"] = {**out["envelope"], "reply": out["reply"]}
+    return out
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -6166,6 +6630,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
+        # BEFORE `mend`: a choice over its limit is a schema error, and `mend` leaves a schema-invalid answer alone
+        candidate, shortened = mend_choice_phrases(candidate, bars_phrases(message, chart))
+        # BEFORE `mend`: an operator named after a function is a schema error, and `mend` leaves those alone
+        candidate, respelled = mend_operator_named_function(candidate)
         try:
             candidate, mended = mend(candidate, view)
         except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
@@ -6173,6 +6641,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             return _refusal(SIZE_GATE, inlined.detail, **extra)
         if from_text:
             mended = [MEND_LIST_AS_TEXT] + list(mended)
+        if shortened:
+            mended = list(mended) + [MEND_CHOICE_PHRASE]
+        if respelled:
+            mended = list(mended) + [MEND_OPERATOR_FUNCTION]
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
@@ -6181,9 +6653,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             envelope = check_envelope(candidate, revision, view)
             check_date_numbers(envelope, date_numbers)         # a date number is the door's, never the assistant's
             check_day_lengths(envelope, message, chart)        # below a day, a length in days is never that many bars
+            check_daily_reads(envelope, message, chart)        # a daily read is for a chart below a day (U-DAILY)
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
+            envelope = with_pine_twins(envelope)              # TradingView's calculation where the engine has it
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
@@ -6197,6 +6671,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             last = refused
             refusals.append({"attempt": attempts, "gate": refused.gate,
                              "detail": refused.detail[:DIAGNOSTIC_MAX_CHARS]})
+            # the attempt itself, for an ADMIN's response only (added after the turn is recorded, below): kept on
+            # the turn's own trace, which `learned_fields` reads by closed names only, so nothing new is stored
+            trace.setdefault("refused_answers", []).append(_refused_answer(attempts, tool_input))
             # the diagnostic (op path, validator text) is for the model and a DEBUG
             # log, never the member; it can echo model output, so not at INFO
             logger.debug("[converse] attempt %d refused at %s: %s", attempts, refused.gate,

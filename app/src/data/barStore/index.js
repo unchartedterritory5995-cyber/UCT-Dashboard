@@ -26,11 +26,16 @@ import { createLiveFeed } from './liveFeed'
 import { appMinuteFeed } from './minuteFeedSwitch'
 import { STATUS } from './types'
 import { onDeskHiddenChange } from '../../lib/deskVisibility'
+import { serverNow } from '../../lib/serverClock'
 
 export { keyOf, parseKey } from './types'
 
 /** How often time-dependent status (provisional → behind, current → updating) is re-derived. */
 export const STATUS_TICK_MS = 15_000
+/** ⭐ THE ROWS AHEAD ON THE LIVE STREAM (2026-11-25): at most this many keys per page ride the bars stream as a neighbour
+ *  (`watchLive`; the watchlist's next 1-2 rows on each of the board's intraday timeframes). One more is refused (its row
+ *  keeps the switch's own rule: it asks after a roll). The mux's own backstop is barsStreamManager.AHEAD_MAX_PAIRS. */
+export const NEIGHBOR_LIVE_MAX_KEYS = 4
 const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
 
 /**
@@ -45,12 +50,15 @@ const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAV
  *                               the store gets its first subscriber (a chart on the page), never before.
  */
 export function createBarStore(o = {}) {
-  const now = o.timers?.now ?? (() => Date.now())
+  // ⭐ (2026-11-25) the server's clock (lib/serverClock.js): the registry's `nowMs` decides every status and bucket roll
+  const now = o.timers?.now ?? serverNow
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
   const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
   /** key → { n, stops: Function[] } for keys with at least one subscriber (declared first: persist's `onScreen` reads it) */
   const active = new Map()
+  /** key → { n, stop } for the rows ahead riding the push stream (`watchLive`), at most NEIGHBOR_LIVE_MAX_KEYS */
+  const watched = new Map()
   // the history lake (per-browser switch until its edge route is live; historyFeed.js)
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
   // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
@@ -103,7 +111,14 @@ export function createBarStore(o = {}) {
       // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
       // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
       // (urgent: a subscriber is a chart on screen, so its device read goes ahead of every warm's)
-      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
+      // ⭐ (review of #2786) A key with no bars (no saved copy, no answer yet; a lone developing bar is not a chart)
+      // paints the lake's newest bars FIRST: that paint waits on the load, so its pieces never yield (network.lakeSeed
+      // `awaited`). A key that already painted a saved copy only deepens: its pieces decode one per task, leaving room for frames.
+      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => {
+        const s = registry.peek(key)
+        const awaited = !s?.bars?.length
+        try { network.lakeSeed?.(key, { awaited }) } catch { /* paint only */ }
+      })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -153,14 +168,14 @@ export function createBarStore(o = {}) {
     subscribeDeveloping: (key, cb) => registry.subscribe(key, cb, { wake: 'dev' }),
     peek: (key) => registry.peek(key),
     // `hydrated`: the caller already hydrated the key (prefetch.js) — never read the caches twice.
-    // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank.
+    // `warm` / `front`: the request's shed-ability (`&warm=1`) and its place in its lane rank. `full`: no `since=` delta.
     // ⭐ An answer is PERSISTED whether or not anyone subscribes: with no subscriber (no
     // watcher) the answer that changed the base is written once through persist.writeOnce —
     // the same monotonic writers, the same server-backed-only rule — so a warm reaches mem +
     // IDB and survives the registry's LRU.
     async ensure(key, {
       depth = 0, until = DEFAULT_UNTIL, signal = null, priority = 'urgent', session = 'rth',
-      hydrated = false, warm = false, front = false,
+      hydrated = false, warm = false, front = false, full = false,
     } = {}) {
       registry.acquire(key)
       try {
@@ -171,7 +186,7 @@ export function createBarStore(o = {}) {
         if (signal?.aborted) return s
         const rev0 = s.baseRev
         const startedAt = now()
-        const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front })
+        const req = network.fetchOnce(key, { priority, depth, session, signal, warm, front, full })
         req.then(() => {
           const cur = registry.peek(key)
           // (after the debounce and at idle, never in the task that handled the answer: persist.writeSoon)
@@ -202,10 +217,13 @@ export function createBarStore(o = {}) {
     primeLake: (key) => network.primeLake?.(key),
     /** Warm the edge's copy of `key`'s whole lake depth, no download (network.lakeEdgeWarm). */
     lakeEdgeWarm: (key, opts) => network.lakeEdgeWarm?.(key, opts) ?? Promise.resolve(0),
-    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed). */
-    lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
+    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed).
+     *  `{ awaited: true }`: the caller waits on it to paint (its pieces then decode without yielding). */
+    lakeSeed: (key, opts) => network.lakeSeed?.(key, opts) ?? Promise.resolve(false),
     /** Is the lake's whole depth still due for `key` (network.lakePending)? */
     lakePending: (key) => !!network.lakePending?.(key),
+    /** The lake load of `key` in flight, or null (network.lakeLoading). Starts nothing. */
+    lakeLoading: (key) => network.lakeLoading?.(key) ?? null,
     /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
     deepPending: (key) => !!network.deepPending?.(key),
     /** D/W/M: fetch `key`'s deep history now, ahead of its join (network.deepPrime). */
@@ -217,8 +235,37 @@ export function createBarStore(o = {}) {
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
     lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
+    NEIGHBOR_LIVE_MAX_KEYS,
+    /**
+     * ⭐ A ROW AHEAD OF THE MEMBER ON THE PUSH STREAM (2026-11-25, prefetch.createNeighborHold `live`). The key is held in
+     * the registry (never evicted while watched) and its push frames land on its copy (liveFeed `pushOnly`: no tick
+     * fallback, no polling, no requests). Refcounted; at most NEIGHBOR_LIVE_MAX_KEYS keys per page, the rest refused (a
+     * no-op release). Returns the release.
+     */
+    watchLive(key, { session = 'rth' } = {}) {
+      let wl = watched.get(key)
+      if (!wl) {
+        // refused: a no-op release that says so (the hold asks again once, later: review of #2721, LOW)
+        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS) { const no = () => {}; no.refused = true; return no }
+        registry.acquire(key)
+        const off = live.attach(key, { session, pushOnly: true })
+        wl = { n: 0, stop: () => { try { off() } catch { /* ignore */ } registry.release(key) } }
+        watched.set(key, wl)
+      }
+      wl.n++
+      let done = false
+      return () => {
+        if (done) return
+        done = true
+        if (--wl.n > 0) return
+        if (watched.get(key) === wl) watched.delete(key)
+        wl.stop()
+      }
+    },
     flush: () => persist.flush(),
     dispose() {
+      for (const wl of [...watched.values()]) wl.stop()
+      watched.clear()
       for (const k of [...active.keys()]) {
         const a = active.get(k)
         for (const f of a.stops.splice(0).reverse()) { try { f?.() } catch { /* ignore */ } }

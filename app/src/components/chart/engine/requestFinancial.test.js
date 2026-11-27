@@ -23,6 +23,12 @@ import { SERIES_UNKNOWN_BEFORE_FIRST } from './ast/interpret'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { computeFor, columnErrors } from './nativeRegistry'
 import { computeRuntimeColumns, runtimeColumnsFor, resetRuntimeSessions, resetRuntimeLedgers } from './runtime/runtimeColumns'
+import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const pine = (lines) => ['//@version=5', 'indicator("financial")', ...lines].join('\n')
 function docOf(src) {
@@ -105,7 +111,10 @@ describe('F1b — the parse rewrite: one data read per id, period and gaps, unde
     expect(why('plot(request.financial("NASDAQ:MSFT", "TOTAL_REVENUE", "FQ"))')).toMatchObject({ code: R.FINANCIAL_SYMBOL })
     expect(why('plot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", currency = currency.EUR))')).toMatchObject({ code: R.FINANCIAL_CURRENCY })
     expect(why('id = "TOTAL_REVENUE"\nplot(request.financial(syminfo.tickerid, id, "FQ"))')).toMatchObject({ code: R.FINANCIAL_ARGUMENT })
-    expect(why('p = "FQ"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toMatchObject({ code: R.FINANCIAL_PERIOD })
+    // ⭐ e98 E4 — a period bound to a constant string (`p = "FQ"`) is that period, as on TradingView (a simple string):
+    // the parse reads one call per catalog period and the resolver folds `p == "FQ"` (`requestFinancialPeriod.test.js`)
+    expect(why('p = "FQ"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toBeNull()
+    expect(why('p = "FY"\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", p))')).toMatchObject({ code: R.FINANCIAL_PERIOD })
     expect(why('g = barmerge.gaps_on\nplot(request.financial(syminfo.tickerid, "TOTAL_REVENUE", "FQ", g))')).toMatchObject({ code: R.FINANCIAL_ARGUMENT })
     // the reference example: another symbol AND an id not served: the id is named first
     expect(why('plot(request.financial("NASDAQ:MSFT", "ACCOUNTS_PAYABLE", "FY"))')).toMatchObject({ code: R.FINANCIAL_FIELD })

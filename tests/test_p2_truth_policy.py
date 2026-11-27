@@ -266,6 +266,7 @@ def test_P2_presentation_vocabulary_equals_the_shared_fixture():
     assert list(ps.PLOT_STYLES) == v["plotStyles"]
     assert list(ps.RESERVED_PLOT_STYLES) == v["reservedPlotStyles"]
     assert list(ps.MARKER_SHAPES) == v["markerShapes"]
+    assert list(ps.PLOT_LINE_STYLES) == v["plotLineStyles"]
     assert list(ps.MARKER_POSITIONS) == v["markerPositions"]
     assert ps.MARKER_SIZE_RANGE == v["markerSizeRange"]
     assert ps.MARKER_TEXT_MAX == v["markerTextMax"]
@@ -292,6 +293,9 @@ def _apply(base: dict, case: dict) -> dict:
                 p[f] = v
     if "paints" in case:
         d["paints"] = case["paints"]
+    # e98 E2 -- a case may APPEND inputs (an input's `activeWhen` is checked against the declared inputs)
+    if isinstance(case.get("inputs"), list):
+        d["inputs"] = list(d.get("inputs") or []) + copy.deepcopy(case["inputs"])
     return d
 
 

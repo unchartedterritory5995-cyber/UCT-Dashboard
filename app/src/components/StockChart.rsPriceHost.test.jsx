@@ -286,6 +286,80 @@ describe('the line-end tag', () => {
     expect(table.getAttribute('data-pane-table')).toBe(container.querySelector('[data-pane-legend]').getAttribute('data-pane-legend'))
   })
 
+  // ⚡ (2026-11-26, the 4h board's switch) A RE-RENDER READS NO BOX FROM THE TAG AND RE-ATTACHES NOTHING. The tag's ref was an
+  // inline arrow, re-attached on every commit of the readout island, and each re-attach pinned it with a fresh
+  // `offsetWidth` read (a forced layout inside the commit: 1.46 ms of a 4h switch). Its box is kept per text now
+  // (chart/pane/endLabelSize.js), its ref is one function per key, and the island's renders queue one pass per task.
+  it('⭐ re-renders read no box from the tag, pin it once per commit at most, and leave it where it was pinned', async () => {
+    const cs = settings(ON_PRICE.id)
+    const view = mount(ON_PRICE.id, 'D', cs)
+    const { container } = view
+    const key = prime(ON_PRICE.id)
+    await act(async () => { notifyColumnsLanded(key) })
+    await vi.waitFor(() => expect(tagOf(container), 'the end tag').not.toBeNull(), { timeout: 8000, interval: 100 })
+    const tag = tagOf(container)
+    await vi.waitFor(() => expect(tag.hasAttribute('data-hidden')).toBe(false), { timeout: 4000 })
+    await settle()
+    expect(tag.style.left).toBe(`${500 - 4 - 40}px`)
+    const top0 = tag.style.top
+    let reads = 0
+    let pins = 0
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get() { if (this === tag) reads += 1; return 40 } })
+    const text = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent')
+    // every pin reads the tag's text once (`el.textContent !== text`): the count of pins
+    Object.defineProperty(tag, 'textContent', { configurable: true, get() { pins += 1; return text.get.call(this) }, set(v) { text.set.call(this, v) } })
+    try {
+      for (const h of [401, 402, 403]) {
+        view.rerender(<MemoryRouter><StockChart sym={SYM} tf="D" barsOverride={bars} settingsOverride={cs} alwaysShowLegend height={h} /></MemoryRouter>)
+        await act(async () => {})
+      }
+    } finally { delete tag.textContent }
+    expect(reads, 'the tag\'s box was read again for the same text').toBe(0)
+    expect(pins, 'pinned more than once per commit (a ref re-attached as well as the queued pass)').toBeLessThanOrEqual(3)
+    expect(tagOf(container)).toBe(tag)
+    expect(tag.textContent).toBe('RS 94')
+    expect(tag.style.left).toBe(`${500 - 4 - 40}px`)
+    expect(tag.style.top).toBe(top0)
+    expect(tag.hasAttribute('data-hidden')).toBe(false)
+  })
+
+  it('⭐ a new rating re-places the tag in the task it lands (its new box), without waiting for the frame loop', async () => {
+    // the tag's box follows its text here (8 px a character): 'RS 94' is 40 wide, 'RS 9' is 32
+    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true,
+      get() { return this.hasAttribute && this.hasAttribute('data-end-label') ? (this.textContent || '').length * 8 : 40 } })
+    const key = prime(ON_PRICE.id)
+    const { container } = mount(ON_PRICE.id)
+    await act(async () => { notifyColumnsLanded(key) })
+    await vi.waitFor(() => expect(tagOf(container), 'the end tag').not.toBeNull(), { timeout: 8000, interval: 100 })
+    const tag = tagOf(container)
+    await vi.waitFor(() => expect(tag.style.left).toBe(`${500 - 4 - 40}px`), { timeout: 4000 })
+    await settle()
+    const key2 = prime(ON_PRICE.id, 'D', { ...RATING, ibd: 9 })
+    expect(key2).toBe(key)
+    await act(async () => { notifyColumnsLanded(key2) })
+    // no waitFor: the readout's render and its queued pass run inside this task, before any animation frame
+    expect(tagOf(container)).toBe(tag)
+    expect(tag.textContent).toBe('RS 9')
+    expect(tag.style.left, 'the tag kept the old box: it was not re-placed in the task the rating landed').toBe(`${500 - 4 - 32}px`)
+  })
+
+  // (review of #2831) the models are recorded, and the pass queued, from a layout effect after the island's commit: a
+  // NEW tag (no model at its ref) is placed and shown by that commit's pass, in the task it mounts
+  it('⭐ a tag that mounts is placed and shown in the task it mounts, by its commit\'s pass', async () => {
+    const { container } = mount(ON_PRICE.id)
+    await vi.waitFor(() => expect(container.querySelector('[data-instance-id="phf-1"]'), 'the legend chip').not.toBeNull(), { timeout: 8000 })
+    expect(tagOf(container), 'nothing has landed: no tag yet').toBeNull()
+    const key = prime(ON_PRICE.id)
+    await act(async () => { notifyColumnsLanded(key) })
+    // no waitFor once it exists: the commit that mounted it placed it
+    await vi.waitFor(() => expect(tagOf(container), 'the end tag').not.toBeNull(), { timeout: 8000, interval: 20 })
+    const tag = tagOf(container)
+    expect(tag.textContent).toBe('RS 94')
+    expect(tag.hasAttribute('data-hidden'), 'mounted but never placed').toBe(false)
+    expect(tag.style.left).toBe(`${500 - 4 - 40}px`)
+    expect(tag.style.top).toBe(`${100 - 8}px`)
+  })
+
   it('⛔ Rating off → no tag (its `when` gate), though the envelope landed', async () => {
     const key = prime(ON_PRICE.id, 'D', RATING, { showRating: false })
     const { container } = mount(ON_PRICE.id, 'D', settings(ON_PRICE.id, { showRating: false }))

@@ -1158,6 +1158,48 @@ export function isBareGetterAt(toks, from, h) {
   return n === 3 && GETTER_METHOD_RE.test(name) && !GETTER_FN_RE.test(name) && h.isPunct(t[from + 2], ')')
 }
 
+/** ⭐⭐ e96 — `toks[from..]` is ARITHMETIC over bare getters on NAMED handles and numeric
+ *  literals: `line.get_y2(ln) - line.get_y1(ln)`, `l.get_y() - 1.0`, `(a.get_top() + 2) * 3`.
+ *  Only those tokens, the four value operators and parentheses, and at least one getter. The
+ *  studio's probes write a label's rise this way (`float rise = line.get_y2(ln) - line.get_y1(ln)`),
+ *  so the local is a getter-fed scalar the object runtime writes at its statement's place, exactly
+ *  as a bare getter's is (`getterScalars`). ⛔ It reads only the SHAPE; whether each getter names a
+ *  real handle, and the arithmetic, are the converter's (`pine.js::scalarNumber`), and a write it
+ *  cannot carry loses the scalar, whose readers are then refused by name. */
+const GETTER_ARITH_PUNCT = new Set(['+', '-', '*', '/', '(', ')'])
+export function isGetterArithAt(toks, from, h) {
+  const t = toks || []
+  if (from >= t.length) return false
+  let getters = 0
+  for (let i = from; i < t.length;) {
+    const tk = t[i]
+    if (tk && tk.kind === 'ident' && h.isPunct(t[i + 1], '(')) {
+      const name = String(tk.value)
+      const a = t[i + 2]
+      if (GETTER_FN_RE.test(name) && a && a.kind === 'ident' && !String(a.value).includes('.') && h.isPunct(t[i + 3], ')')) {
+        getters += 1
+        i += 4
+        continue
+      }
+      if (GETTER_METHOD_RE.test(name) && !GETTER_FN_RE.test(name) && h.isPunct(t[i + 2], ')')) {
+        getters += 1
+        i += 3
+        continue
+      }
+      return false
+    }
+    if (tk && tk.kind === 'number') { i += 1; continue }
+    if (tk && tk.kind === 'punct' && GETTER_ARITH_PUNCT.has(tk.value)) { i += 1; continue }
+    return false
+  }
+  return getters > 0
+}
+
+/** ⭐ e96 — a write a getter-fed scalar may take: one bare getter, or getter arithmetic. */
+export function isGetterValueAt(toks, from, h) {
+  return isBareGetterAt(toks, from, h) || isGetterArithAt(toks, from, h)
+}
+
 /** `toks[from..]` is a numeric literal or `na` → `{init}` (null for `na`), else null. */
 export function literalInit(t, from, h) {
   const rest = t.slice(from)
@@ -1180,7 +1222,8 @@ export function literalInit(t, from, h) {
  * RUNTIME holds them as a scalar written at the statement's place in the bar —
  * the getter answers what the program last set on that object.
  *
- * ⛔ A NAME QUALIFIES ONLY WHEN EVERY WRITE TO IT IS A BARE GETTER. Its one
+ * ⛔ A NAME QUALIFIES ONLY WHEN EVERY WRITE TO IT IS A BARE GETTER (⭐ e96: or arithmetic over
+ * bare getters and numeric literals, `isGetterArithAt`). Its one
  * declaration is `var x = <number | na>` at the top level, or `x = <getter>`
  * itself; every `:=` is a bare getter; none sits in a loop or a function body;
  * it is declared once, and is never a parameter, a loop variable, a
@@ -1225,7 +1268,7 @@ export function getterScalars(stmts, h) {
       for (let i = 1; i < t.length; i += 1) {
         if (!isMutator(t[i]) || !t[i - 1] || t[i - 1].kind !== 'ident') continue
         const d = at(String(t[i - 1].value))
-        if (t[i].value === ':=' && i === 1 && !ctx.inFn && !ctx.inLoop && isBareGetterAt(t, 2, h)) d.getterWrites += 1
+        if (t[i].value === ':=' && i === 1 && !ctx.inFn && !ctx.inLoop && isGetterValueAt(t, 2, h)) d.getterWrites += 1
         else d.bad = true
       }
       const eq = h.findTop(t, (x) => h.isPunct(x, '='))
@@ -1238,7 +1281,8 @@ export function getterScalars(stmts, h) {
           else if (w === 'var') {
             if (ctx.top && lit) d.decls.push({ init: lit.init, persist: true, top: true })
             else d.bad = true
-          } else if (isBareGetterAt(t, eq + 1, h)) {
+          } else if (isGetterValueAt(t, eq + 1, h)) {
+            // ⭐ e96 — a bare getter, or arithmetic over getters and numbers (`isGetterArithAt`).
             // ⭐ C48 — `top`: declared at the top level, so its `[1]` is the value
             // it held at the end of the previous BAR (`vw-getter-history`, G03).
             d.decls.push({ init: null, persist: false, top: !!ctx.top })

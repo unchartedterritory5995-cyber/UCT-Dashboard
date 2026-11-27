@@ -34,6 +34,7 @@ import {
   newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
 } from './authoring'
 import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
+import MessageLength from './authoring/MessageLength'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
 import { settleScript, checkScript, scriptNeedsFixing } from './authoring/scriptAnswer'
 import { preflight } from './authoring/preflight'
@@ -295,7 +296,7 @@ export default function ConverseBox({
       if (turn.outcome === OUTCOMES.ANSWER && res && res.script && opensScripts) {
         const settled = await settleScript(res,
           (refusal) => converse({ message: words, state: before, gateCtx, snippets, scriptRefusal: refusal }),
-          { check: (pine, script) => checkScript(pine, { chart: chartRef.current || null, admission: script && script.admission }),
+          { check: (pine, script, { cancelled } = {}) => checkScript(pine, { chart: chartRef.current || null, admission: script && script.admission, cancelled }),
             // (the sheet closed mid-answer: no more waiting, no more repair calls)
             cancelled: () => !openRef.current })
         if (!openRef.current) return
@@ -567,6 +568,7 @@ export default function ConverseBox({
           placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI under 30 while price is above its 200-day average'}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
+        <MessageLength message={message} testId="converse-length" />
         <div style={S.wellRow}>
           <span style={S.hint}><span style={S.spark} aria-hidden="true">✦</span>The UCT Agent writes it — you check the plain-English read-back</span>
           <span style={S.row}>

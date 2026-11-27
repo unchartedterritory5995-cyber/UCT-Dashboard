@@ -25,15 +25,18 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
+import { forwardWhileShown, useLayerBoard } from './boardVisibility'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
+import { serverNow } from '../../lib/serverClock'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
+import { deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
@@ -124,7 +127,8 @@ export function useBarSnapshotBars({
   const _symU = sym ? sym.toUpperCase() : ''
   const _isCustomTf = !!sym && !isNativeTf(resolvedTf)
   const _customBaseTf = _isCustomTf ? fetchTf(resolvedTf) : null
-  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
+  // (the view's session start anchors the buckets: 04:00 ET extended, 09:30 regular; the base key is the view's session)
+  const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf, { extended: !!showExtended }) : null), [_isCustomTf, resolvedTf, showExtended])
   const _customBaseIntraday = INTRADAY.has(String(_customBaseTf))
   const _intradayLike = isIntraday || (_isCustomTf && _customBaseIntraday)
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
@@ -183,8 +187,10 @@ export function useBarSnapshotBars({
     [_staleSrc],
   )
   // ── custom timeframe: a memoized resample of the NATIVE base key (Writer F's input) ──
+  // ⭐ (2026-11-27) filed under the base rows (customTfRows.deriveCustomTf): the array the idle preparer of this row
+  // asked for, so every value derived from it before the press is found on it (neighbour frames on; off, as before).
   const _customBars = useMemo(
-    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? resampleForSpec(all, _customSpec) : null),
+    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? deriveCustomTf(all, _customSpec) : null),
     [_isCustomTf, all, status, _customSpec],
   )
   // ── W/M while its own key is empty: the same-frame resample of the held DAILY snapshot ──
@@ -192,7 +198,7 @@ export function useBarSnapshotBars({
     ? store.peek(keyOf({ sym, tf: 'D' })) : null
   const _aggBars = useMemo(() => {
     const d = _dSnap ? legacyBars(_dSnap) : null
-    return d?.length ? resample(d, 'D', resolvedTf) : null
+    return d?.length ? deriveWmFromDaily(d, resolvedTf) : null   // filed (customTfRows): the double buffer proves it
   }, [_dSnap, resolvedTf])
   // ⛔ THE DEVICE'S ONE REFUSAL HERE TOO (review of #2554, P3-M2). A chart's FIRST MOUNT (a new widget, a grid cell, the
   // phone workspace) and a same-symbol timeframe change are decided here, not at the switch's doors, and here the status
@@ -208,7 +214,7 @@ export function useBarSnapshotBars({
   const _deviceRefused = snap?.deviceRows === true && _intradayLike && !_hasOverride && !replayCutoff
     && _devicePaintedRef.current !== _deviceView
     // eslint-disable-next-line react-hooks/purity
-    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: Date.now(), killed: deviceStoreKillSeen() })
+    && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: serverNow(), killed: deviceStoreKillSeen() })
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
@@ -228,7 +234,7 @@ export function useBarSnapshotBars({
     // Wall-clock read in render ON PURPOSE: "is the forming bucket in this copy" is a question
     // about now (the legacy selector asked it the same way); the status tick re-renders it.
     // eslint-disable-next-line react-hooks/purity
-    const forming = expectedFormingBar(resolvedTf, Date.now(), { session: showExtended ? 'extended' : 'rth' })
+    const forming = expectedFormingBar(resolvedTf, serverNow(), { session: showExtended ? 'extended' : 'rth' })
     if (forming == null) return true
     const lt = chosen[chosen.length - 1]?.t
     if (typeof lt !== 'number' || lt < forming) return false
@@ -285,7 +291,9 @@ export function useBarSnapshotBars({
     const left = Math.max(0, LAKE_JOIN_WAIT_MS - (Date.now() - _lakeSwitchRef.current.t0))
     const sw = _lakeSwitchRef.current
     const id = setTimeout(() => { sw.done = true; wake() }, left + 1)
-    Promise.resolve().then(() => store.lakeSeed?.(key)).catch(() => {}).then(wake)
+    // (the hold WAITS on this load, LAKE_JOIN_WAIT_MS at most: its pieces never yield, or a per-piece yield could miss the
+    // wait and paint shallow, then deep: network.lakeSeed `awaited`, review of #2786)
+    Promise.resolve().then(() => store.lakeSeed?.(key, { awaited: true })).catch(() => {}).then(wake)
     return () => { alive = false; clearTimeout(id) }
   }, [_lakeHold, key, store])
   const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
@@ -345,7 +353,7 @@ export function useBarSnapshotBars({
   _histMutateRef.current = mutate
 
   // ── compare: the same SWR hook the legacy source uses (P3-S3 moves it to a store key) ──
-  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher })
+  const compareData = useCompareBars({ compareSymbol, resolvedTf, barCount, _gridQ, instFetcher, extended: !!showExtended })
 
   // ── refs the chart reads ───────────────────────────────────────────────────────
   const idbReadyForRef = useRef(null)
@@ -409,9 +417,12 @@ export function useBarSnapshotBars({
     }
   }
   const _heldDevRev = _devHeldRef.current.devRev
+  // (layer keep-alive, boardVisibility.js) a hidden layer board paints no developing bar: the subscription stays, its
+  // flushes are only noted, and the show paints the store's newest in its own task (no re-render at either end)
+  const _layerBoard = useLayerBoard()
   useEffect(() => {
     if (!key || !_storeDevRef) return undefined
-    return store.subscribeDeveloping(key, (s) => {
+    const onDev = (s) => {
       const base = _baseSnapRef.current
       // A flush for a base this hook has not rendered yet is left to that render (fix (a) above).
       if (!base || base.key !== key || s.key !== key || s.baseRev !== base.baseRev || !s.restSeen) return
@@ -420,8 +431,11 @@ export function useBarSnapshotBars({
       _devHeldRef.current = { key, devRev: s.devRev }
       _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
-    })
-  }, [key, store])  // eslint-disable-line react-hooks/exhaustive-deps
+    }
+    const f = forwardWhileShown(_layerBoard, onDev, () => { const s = store.getSnapshot(key); if (s) onDev(s) })
+    const off = store.subscribeDeveloping(key, f.cb)
+    return () => { f.stop(); off() }
+  }, [key, store, _layerBoard])  // eslint-disable-line react-hooks/exhaustive-deps
   // A render that advanced the developing bar (fix (a)) paints it, even when no setData follows
   // (the paint refuses a stale / foreign series and an older frame by itself).
   useEffect(() => {
@@ -536,7 +550,8 @@ export function useBarSnapshotBars({
         if (tf === resolvedTf || tf === activeTfRef.current) continue
         try { keys.push(keyOf({ sym, tf, session: _session })) } catch { /* not a bars symbol */ }
       }
-      storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null })
+      // (`dwell`: what this warm makes goes first out of the registry once no chart shows `sym`: registry _evict)
+      storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null, dwell: true })
       // ⭐ ...and the lake's whole depth for the intraday ones a member flips to (2026-11-18), so a
       // later timeframe click finds it held and paints at once (the hold above never waits). Only on a
       // symbol the member STAYS on (a scan never pays ~100k rows a row), one key at a time, stopping

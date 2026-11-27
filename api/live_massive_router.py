@@ -6356,21 +6356,20 @@ def _classify_side_px(price, bid, ask) -> str:
     return "A" if p > mid else ("B" if p < mid else "")
 
 
+#: How `massive_adapter` stamps the push gate's reads (live option/stock quotes and
+#: trades: the T-01 "quotes" class) and names them in its per-class stats.
+_PUSH_GATE_READ = {"data_class": "quotes", "activity": "live_massive_router.push_gate"}
+
+
 def _massive_rest(path: str, params: dict, timeout: float = 4.0):
-    """One Massive REST GET via stdlib urllib (?apiKey=). None on any failure; the
-    key never enters an exception message."""
-    key = os.environ.get("MASSIVE_API_KEY", "")
-    if not key:
-        return None
-    import urllib.request
-    import urllib.parse
-    q = dict(params)
-    q["apiKey"] = key
-    url = f"https://api.massive.com{path}?{urllib.parse.urlencode(q)}"
+    """One Massive REST GET through `massive_adapter.get` (TERM-022): the shared
+    transport, its per-process budget and its cached-forbidden state; the adapter
+    owns the key and the host. None on any failure, as before (a missing key, a
+    vendor error and a budget denial alike); the key never enters an exception
+    message."""
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "uct-push-gate"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.load(r)
+        from api.services import massive_adapter
+        return massive_adapter.get(path, params=params, timeout=timeout, **_PUSH_GATE_READ).value
     except Exception:
         return None
 
@@ -6518,27 +6517,25 @@ _AGG_SIDE_TTL = 90.0
 
 
 def _massive_pages(path: str, params: dict, max_pages: int = 4, timeout: float = 6.0):
-    """Paginated Massive REST GET (follows next_url, re-appends apiKey). Returns the
-    concatenated results list; whatever was gathered so far on any failure."""
-    key = os.environ.get("MASSIVE_API_KEY", "")
-    if not key:
-        return []
-    import urllib.request
-    import urllib.parse
-    q = dict(params)
-    q["apiKey"] = key
-    url = f"https://api.massive.com{path}?{urllib.parse.urlencode(q)}"
+    """Paginated Massive REST GET through the adapter (TERM-022): page one by
+    `massive_adapter.get`, each next_url by `massive_adapter.get_next` (the same
+    transport and budget; the cursor kept verbatim, the key the adapter's). At most
+    `max_pages` pages. Returns the concatenated results list; whatever was gathered
+    so far on any failure -- this caller's own choice, unchanged (the adapter's
+    `get_pages` would refuse a partial list)."""
     out = []
     try:
+        from api.services import massive_adapter
+        nxt = None
         for _ in range(max_pages):
-            req = urllib.request.Request(url, headers={"User-Agent": "uct-push-gate"})
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                d = json.load(r)
+            if nxt is None:
+                d = massive_adapter.get(path, params=params, timeout=timeout, **_PUSH_GATE_READ).value
+            else:
+                d = massive_adapter.get_next(nxt, timeout=timeout, **_PUSH_GATE_READ).value
             out.extend(d.get("results") or [])
             nxt = d.get("next_url")
             if not nxt:
                 break
-            url = nxt + (("&" if "?" in nxt else "?") + "apiKey=" + urllib.parse.quote(key))
     except Exception:
         return out
     return out

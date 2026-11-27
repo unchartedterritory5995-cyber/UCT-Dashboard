@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
 import { sessionState } from '../lib/marketClock/marketClock'
 
 /**
@@ -19,25 +19,103 @@ import { sessionState } from '../lib/marketClock/marketClock'
  * the same chain. `isOpen`/`isPremarket`/`isExtended` must never be renamed;
  * new fields (like `isHalfDay`) are additive-only.
  */
+// ⚡ (2026-11-26, the board switch) ONE CALENDAR READ PER WALL-CLOCK MINUTE. Every chart pane, header clock and session
+// badge mounts its own copy of this hook, and each read the NYSE calendar on mount (2.1 ms of a board switch on
+// production's build). The session changes only on a minute boundary (04:00, 09:30, 16:00 or the 13:00 early close,
+// 20:00 ET; ET is a whole number of hours from UTC), so the state read in one minute IS that minute's state: read once,
+// frozen, shared by every hook that asks in that minute (useMarketOpen.minuteCache.test.js).
+let _minuteState = { minute: NaN, state: null }
+// ⭐ (2026-11-27) THE SNAPSHOT IS THE MINUTE THE STORE ANNOUNCED, NOT THE MINUTE THE CALL LANDS IN. While the store has
+// subscribers, every read returns the state as of its last tick (or wake): React reads a store's snapshot several
+// times for one render and again at commit, and a snapshot that follows Date.now itself can differ between two of
+// those reads. Under a clock that moves between calls (a test's Date.now that jumps per call) every render then saw a
+// "new" snapshot, forced another, and the chain ended in "Maximum update depth exceeded" inside ChartMarketClock: the
+// agent's replay-plan rail lost its whole chart that way (agentChartReplayPlan, CI shard 4, 2026-11-27). The tick and
+// the wake read the clock and announce; a read with no subscriber reads it as before.
+let _current = null
 function getMarketState() {
-  const s = sessionState(new Date())
-  return {
+  if (_current && _listeners.size) return _current
+  _current = readMarketState()
+  return _current
+}
+function readMarketState() {
+  const now = Date.now()
+  const minute = Math.floor(now / 60_000)
+  if (_minuteState.minute === minute && _minuteState.state) return _minuteState.state
+  const s = sessionState(new Date(now))
+  const state = Object.freeze({
     isOpen: s.isOpen,
     isPremarket: s.isPremarket,
     isExtended: s.isExtended,
     isHalfDay: s.isHalfDay,
+  })
+  _minuteState = { minute, state }
+  return state
+}
+/** Tests: forget the minute's state (a test that mocks the calendar twice within one faked minute gets a fresh read). */
+export function _resetMarketStateCacheForTests() { _minuteState = { minute: NaN, state: null }; _current = null }
+
+// ⚡ (2026-11-27, chart speed; ruling 4c) ONE TIMER, ON THE MINUTE BOUNDARY. Every consumer mounted its own 60 s
+// setInterval (about 1.5 ms of each chart mount on the owner's board), each on the phase of its own mount, so after 09:30
+// one badge could read "open" while another still read "pre" for up to a minute. One timer now fires at each wall-clock
+// minute boundary and every consumer reads that minute's state in the same commit: the same values, at the true
+// boundary. Every consumer still renders once a minute (a clock reading the time in its render keeps ticking). The
+// timer exists only while a consumer does (useMarketOpen.sharedTimer.test.jsx).
+const _listeners = new Set()
+let _timer = null
+let _armedMinute = null
+function _arm() {
+  if (_timer != null || !_listeners.size) return
+  const now = Date.now()
+  _armedMinute = Math.floor(now / 60_000)
+  _timer = setTimeout(_onMinute, 60_000 - (now % 60_000))
+}
+function _onMinute() {
+  _timer = null
+  if (!_listeners.size) return
+  _current = readMarketState()
+  // a wake before the boundary notifies with the same minute's state, which useSyncExternalStore drops (no render);
+  // the re-arm below waits out the rest of the minute
+  for (const cb of [..._listeners]) cb()
+  _arm()
+}
+// ⭐ A WAKE CATCHES UP AT ONCE (review of #2874). A sleeping machine or a hidden tab runs no timer: a laptop opened in
+// the morning would show last night's session until the next boundary. On a page becoming visible, shown again from
+// the back/forward cache, or focused, a minute that changed since the timer was armed is read now and the timer re-armed.
+function _onWake() {
+  if (!_listeners.size || Math.floor(Date.now() / 60_000) === _armedMinute) return
+  if (_timer != null) { clearTimeout(_timer); _timer = null }
+  _current = readMarketState()
+  for (const cb of [..._listeners]) cb()
+  _arm()
+}
+function _wakeListeners(on) {
+  const m = on ? 'addEventListener' : 'removeEventListener'
+  try {
+    if (typeof document !== 'undefined') document[m]('visibilitychange', _onWake)
+    if (typeof window !== 'undefined') { window[m]('pageshow', _onWake); window[m]('focus', _onWake) }
+  } catch { /* no page: the timer alone */ }
+}
+function _subscribe(cb) {
+  if (!_listeners.size) _wakeListeners(true)
+  _listeners.add(cb)
+  // (review of the announced-snapshot fix, LOW) a first reader whose render and subscribe straddle a minute: the state
+  // announced at its render may already be the old minute, and the timer arms for the NEXT one. Read the clock now and
+  // announce a change at once (every reader: they all read the announced state).
+  const fresh = readMarketState()
+  if (fresh !== _current) {
+    _current = fresh
+    for (const l of [..._listeners]) l()
+  }
+  _arm()
+  return () => {
+    _listeners.delete(cb)
+    if (_listeners.size) return
+    if (_timer != null) { clearTimeout(_timer); _timer = null }
+    _wakeListeners(false)
   }
 }
 
 export default function useMarketOpen() {
-  const [state, setState] = useState(getMarketState)
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setState(getMarketState())
-    }, 60_000)
-    return () => clearInterval(id)
-  }, [])
-
-  return state
+  return useSyncExternalStore(_subscribe, getMarketState, getMarketState)
 }

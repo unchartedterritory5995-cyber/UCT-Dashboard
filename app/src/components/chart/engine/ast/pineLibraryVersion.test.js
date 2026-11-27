@@ -518,6 +518,16 @@ describe('⛔ each construct the v6 migration guide changed is refused BY NAME o
       expect(ask(body)).toMatch(new RegExp(`^${family}: `))
     })
   }
+  // ⭐ (2026-11-23, coordinator ruling on mutant V28) a shadowing bool stays held at `==` too. ⚰️ `boolOperand` read a
+  // name declared with another type ANYWHERE in the kept code (`typedNotBool`) as never a bool operand: since the
+  // libchain change a typed name reaches `boolNames` only through a shadowing untyped bool, so that guard decided
+  // nothing anywhere else, and here it linked `k == m.v` of the shadowing bool `k` (V28 survived: no case read it).
+  // ⚠️ The price (until the per-definition scoping): an outer-scope `k == y` of the typed int itself, in a library
+  // that also shadows `k` with a bool, is held too (an over-refusal).
+  it('⛔ the conservative side stays held: a bool that shadows a typed int, compared with `==` to a value nothing types', () => {
+    expect(ask('    int k = 0\n    if x > 0\n        k = x > 1\n        y = k == m.v ? 1.0 : 0.0\n    x'))
+      .toMatch(new RegExp(`^${F.BOOL_NA}: a bool compared with \`==\``))
+  })
   it('end to end: a v5 library binding a typed int to a `?:` with an `na` arm links into a v6 script and equals the v5 script', () => {
     const k = CASES.length + 1
     const libs = fixtureLibraries({ [`tester/changed/${k}`]: { path: `tester/changed/${k}`, licence: 'MPL-2.0', attribution: 'changed (test fixture)',

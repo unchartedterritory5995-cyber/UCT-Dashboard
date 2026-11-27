@@ -37,7 +37,8 @@ def used_by_cases(cases):
 
 
 USED = used_by_cases(SCRIPT)
-WORDED = list(pine_authoring.CAPABILITY_WORDS)
+# e96: the words the assistant reads are `capability_words()` (typed, and gate-worded from the reference)
+WORDED = list(pine_authoring.capability_words())
 
 
 def uncovered(worded, used):
@@ -69,7 +70,7 @@ def test_CONTROL_a_new_wording_with_no_case_is_caught():
 
 
 def test_what_the_recorded_scripts_use_without_a_wording_is_named():
-    unworded = sorted(c for c in USED if c not in pine_authoring.CAPABILITY_WORDS)
+    unworded = sorted(c for c in USED if c not in pine_authoring.capability_words())
     assert unworded == DATA["capabilities_used_without_words"], (
         "the recorded scripts' use of capabilities with no wording changed. Either the assistant now writes with something it was "
         f"never told it may use, or a wording arrived: update capabilities_used_without_words to {unworded} after reading why.")

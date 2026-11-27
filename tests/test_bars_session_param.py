@@ -229,14 +229,14 @@ def test_eth_60m_tail_status_is_judged_on_the_extended_frontier(store):
     store["now"]["t"] = et(2026, 11, 11, 10, 0)     # Wednesday mid-morning: Tuesday's tail is stale
     resp = bars_router.serve_bars("THIN", "60", 50, session="eth")
     assert _body(resp)["tail_status"] == "unverified"
-    assert resp.headers.get("Retry-After") == "3"
+    assert resp.headers.get("Retry-After") in ("3", "4", "5")   # jittered 3-5 s
 
 
 def test_F2_end_to_end_rth_chart_is_not_told_to_fast_poll(store):
     store["now"]["t"] = et(*TUE, 18, 0)
     legacy = bars_router.serve_bars("THIN", "5", 50)
     assert _body(legacy)["tail_status"] == "unverified"
-    assert legacy.headers.get("Retry-After") == "3"
+    assert legacy.headers.get("Retry-After") in ("3", "4", "5")   # jittered 3-5 s
     rth = bars_router.serve_bars("THIN", "5", 50, session="rth")
     assert _body(rth)["tail_status"] == "current"
     assert "Retry-After" not in rth.headers

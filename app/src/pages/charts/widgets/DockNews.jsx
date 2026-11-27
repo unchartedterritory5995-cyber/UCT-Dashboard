@@ -13,6 +13,7 @@
  * segmented filter and the inline accordion rather than from columns.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import UIcon from '../../../components/ui/UIcon'
 import { takeNewsPrefetch } from './dockPrefetch'
 import styles from './dockPanels.module.css'
@@ -199,10 +200,13 @@ export default function DockNews({ sym, sentiment: sentimentProp, onSentiment })
   }, [rawQuery])
 
   // Relative times drift; refresh the clock rather than the data.
+  const layerBoard = useLayerBoard()
+  // (review of #2901, H3) on a hidden layer keep-alive board this does nothing; the show runs it once, in its own task
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 60000)
-    return () => clearInterval(t)
-  }, [])
+    const f = forwardWhileShown(layerBoard, () => setNow(Date.now()))
+    const t = setInterval(f.cb, 60000)
+    return () => { clearInterval(t); f.stop() }
+  }, [layerBoard])
 
   // Panel width drives description clamping. Container queries own the layout;
   // this only decides how many lines of prose survive.

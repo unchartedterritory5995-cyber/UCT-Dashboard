@@ -31,6 +31,16 @@ def other(sym, f='c'):
 SC = other('SPY')
 
 
+def bind(bars):
+    """Compute every rule on `bars` from now on (an EDGE chart, `edges.py`; the plain bars to restore). The same
+    rules, the same words: only the market they are computed on moves."""
+    global BARS, N, O, H, L, C, V, SC
+    BARS = bars
+    N = len(BARS)
+    O = [b['o'] for b in BARS]; H = [b['h'] for b in BARS]; L = [b['l'] for b in BARS]; C = [b['c'] for b in BARS]; V = [b['v'] for b in BARS]  # noqa: E702
+    SC = other('SPY')
+
+
 def sma(x, n):
     out = [NAN] * len(x)
     for i in range(n - 1, len(x)):
@@ -396,8 +406,9 @@ def rules(cid):
             return {'narrowest of 7': [('at the smallest of the last 7 with this bar', flag(lambda i: None if i < 6 else R[i] <= min(R[i - 6:i + 1]))),
                                        ('below the smallest of the 6 before', flag(lambda i: None if i < 6 else R[i] < min(R[i - 6:i])))]}
         if cid == 'g02':
-            return {'inside bar': [('strictly inside', flag(lambda i: None if i == 0 else (H[i] < H[i - 1] and L[i] > L[i - 1]))),
-                                   ('at or inside', flag(lambda i: None if i == 0 else (H[i] <= H[i - 1] and L[i] >= L[i - 1])))]}
+            # ⭐ 2026-11-25 (coordinator's ruling): the words are strict ("the high is BELOW the prior bar's high and the
+            # low is ABOVE the prior bar's low"), so only the strict reading is honest; "at or inside" is gone
+            return {'inside bar': [('strictly inside', flag(lambda i: None if i == 0 else (H[i] < H[i - 1] and L[i] > L[i - 1])))]}
         if cid == 'g03':
             return {'outside bar': [('strictly outside', flag(lambda i: None if i == 0 else (H[i] > H[i - 1] and L[i] < L[i - 1])))]}
         if cid == 'g04':

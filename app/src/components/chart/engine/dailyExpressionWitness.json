@@ -1,0 +1,10 @@
+{
+ "_": "U-DAILY part B (train e96): the capability `request-daily-expression`, a daily EXPRESSION read above an intraday chart on the runtime lane (`request.security(syminfo.tickerid, \"D\", ta.sma(close, 50))` on a 5 minute chart). NOT ADMITTED: `admitted` turns true only beside evidence that meets the capability registry's rule (`api/services/rollout_gate.py::pine_capability_admission`): at least two captures graded MATCH with the runtime pane on, of two distinct scripts, at least one a community script. Until then the run refuses such a read by name (`dailyExpressionGate.js`). The first evidence is queue row Q-DAILY-1 (the probe below, on AMEX:SPY and NYSE:RDDT at 5, 15 and 60 minutes, scheduled for the e96 rig session); a community script's capture is the second half of the rule. Served once admitted: this chart's OWN symbol; with look-ahead off, open / high / low / close / volume through literal-length windows (`ta.sma`, `ta.highest`, `ta.lowest`, `ta.stdev`; `ta.change` is refused inside a request by the run lane, `close - close[1]` is served), literal offsets and arithmetic; with look-ahead on, the same where every read is at least one day back (the previous-day idiom). Never served by this row: a stateful kernel (`ta.ema`, `ta.rma`, `ta.atr`, `ta.rsi`, ...: TradingView's daily-context history start is not captured), a value of the script inside the read, another symbol, look-ahead on with no offset.",
+ "capability": "request-daily-expression",
+ "admitted": false,
+ "status": "ungraded",
+ "queueRow": "Q-DAILY-1",
+ "probe": "tools/visual_conformance/probes/vw-udaily-expr.pine",
+ "probeSha256": "2cb53948cc329196f03eba247ee76a930d1f0a384da18f9def447e34c9ae173a",
+ "evidence": []
+}

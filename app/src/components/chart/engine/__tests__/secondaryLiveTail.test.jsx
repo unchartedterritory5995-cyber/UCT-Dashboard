@@ -199,7 +199,8 @@ describe('the chart runs the tick', () => {
     const src = STOCKCHART_SRC
     // ⭐ RS RATING L12 PR 2 — and the chart's symbol last (its own daily rows, for a run that reads them)
     // (the 4th argument is the held span, `heldSpanFor(_heldLoaded, barCount)`: railed in heldSpanFollowsChart.test.js)
-    expect(src).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,\s*_heldSessions\)/)
+    // (then the chart's own session, review of #2753)
+    expect(src).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,\s*_heldSessions, !!showExtended\)/)
     expect(src).toMatch(/const _chartFormingOf = useCallback\(\(\) => _chartFormingRef\.current, \[\]\)/)
     expect(src).toMatch(/_chartFormingRef\.current = data\?\.newest_bar_is_forming === true/)
   })

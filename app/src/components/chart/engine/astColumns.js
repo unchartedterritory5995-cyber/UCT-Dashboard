@@ -39,6 +39,10 @@ import { runtimeOvernightOf } from './runtime/overnightTail.js'
 /** ⭐ HEADLESS (R6) — the caller's evaluation counter, as `interpret` reads it (`opts.workSink`).
  *  `{}` without one: the options every chart hands are unchanged. */
 const workSinkOf = (ctx) => (ctx && ctx.workSink ? { workSink: ctx.workSink } : {})
+/** ⭐⭐ U-DAILY (e96) — the daily bars a daily read (`tf` of D) is computed on, as `interpret` reads them
+ *  (`opts.frames.D = {bars, symbols, newestFinal, place}`, built by the binder: `dailyReadSupply.js`). `{}` without
+ *  one: every other chart's options are unchanged, and a daily read there is withheld by name. */
+const dailyFramesOf = (ctx) => (ctx && ctx.dailyFrame ? { frames: { D: ctx.dailyFrame } } : {})
 
 /**
  * The ONE data-bearing plot key an `ast` definition declares.
@@ -395,7 +399,7 @@ function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
             ...semanticsOptsFor(def),
             ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
             ...(other ? { symbols: other.symbols } : {}),
-            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
+            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo, ...dailyFramesOf(ctx),
             ...workSinkOf(ctx), chartClockSink: (clock[key] = new Map()), withheldBarsSink: (withheldBars[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
@@ -422,7 +426,7 @@ function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
           newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
           ...listingOptsFor(def, ctx),
           ...semanticsOptsFor(def),
-          ...(other ? { symbols: other.symbols } : {}), crossMemo,
+          ...(other ? { symbols: other.symbols } : {}), crossMemo, ...dailyFramesOf(ctx),
           ...workSinkOf(ctx), chartClockSink: new Map() }))
       if (runsWhy) {
         delete out[key]
@@ -472,7 +476,7 @@ function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
       ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}), ...dailyFramesOf(ctx),
       ...workSinkOf(ctx), chartClockSink: clock[keys[0]], withheldBarsSink: soleWithheld[keys[0]] })
   // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
   // AFTER its tree computed (a tree that cannot keeps its own reason, above).
@@ -483,7 +487,7 @@ function astColumnsUnstopped(savedDef, bars, inputs, ctx) {
       ...semanticsOptsFor(def),
       ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
       ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}), ...dailyFramesOf(ctx),
       ...workSinkOf(ctx), chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
   return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), soleWithheld)

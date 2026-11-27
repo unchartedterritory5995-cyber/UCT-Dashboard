@@ -1386,3 +1386,44 @@ def test_coverage_an_am_for_the_minute_before_m_is_never_overwritten_by_the_tape
     assert b.apply_seed("ZZA", [], gap_trades=tape, fetched_at=M + 12_000, tape_from=T0 + MIN) is True
     st = b._minutes["ZZA"][T0 + MIN]
     assert (st.o, st.h, st.v) == (8.0, 9.0, 1000)
+
+
+# ── the volume rule on the coverage seed's tape (2026-11-25, candle-accuracy audit class 1) ──────────
+# The vendor's trades folded into the gap minute (and into M-1 when it is built from the tape) follow the
+# same rule as the feed: an official open / close report's size is not the minute's volume.
+
+def _pin_fallback_rules(monkeypatch):
+    from api.services import trade_conditions as tc
+    monkeypatch.setattr(tc, "FILTER_ENABLED", True)
+    monkeypatch.setattr(tc, "_hl_ineligible", set(tc._HL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_last_ineligible", set(tc._LAST_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+    monkeypatch.setattr(tc, "_vol_ineligible", set(tc._VOL_INELIGIBLE_FALLBACK) - tc._SESSION_CODES)
+
+
+def test_coverage_gap_tape_official_close_adds_no_volume(monkeypatch):
+    _pin_fallback_rules(monkeypatch)
+    b, now, sent = _bb_cov()
+    now[0] = T0 + 10_000
+    b.trades_started("ZZA")
+    _t(b, now, T0 + 10_500, 6.0)
+    assert b.apply_seed("ZZA", [], gap_trades=[(T0 + 1_000, 5.0, 100, []),
+                                               (T0 + 5_000, 5.5, 4_000, [16]),
+                                               (T0 + 10_500, 6.0, 10, [])]) is True
+    x = b.snapshot_bars("ZZA", "1")[-1]
+    assert (x["o"], x["c"], x["v"]) == (5.0, 6.0, 110)
+
+
+def test_coverage_tape_built_minute_official_close_adds_no_volume(monkeypatch):
+    _pin_fallback_rules(monkeypatch)
+    b, now, sent = _bb_cov()
+    b.subscribe_sink("ZZA", "5", object(), "rth")
+    M = T0 + 2 * MIN
+    now[0] = M
+    b.trades_started("ZZA")
+    _t(b, now, M + 10_000, 7.0, 10)
+    tape = [(T0 + MIN + 5_000, 8.0, 50, []), (T0 + MIN + 30_000, 8.6, 9_000, [15]),
+            (T0 + MIN + 50_000, 9.5, 25, []), (M + 2_000, 7.2, 5, []), (M + 10_000, 7.0, 10, [])]
+    bars = [{"t": T0, "o": 6.0, "h": 6.5, "l": 5.5, "c": 6.2, "v": 30}]
+    assert b.apply_seed("ZZA", bars, gap_trades=tape, fetched_at=M + 12_000, tape_from=T0 + MIN) is True
+    x = [r for r in b.snapshot_bars("ZZA", "5") if r["t"] == T0][0]
+    assert (x["o"], x["h"], x["v"]) == (6.0, 9.5, 120)

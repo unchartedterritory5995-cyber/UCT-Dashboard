@@ -535,6 +535,7 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
     # answered and does not list these tickers" (200, absent).
     _FETCH_STATUS.last = {"answered": False, "held_back": []}
     result = client.get_batch_quotes(tickers)
+    fetched_at_ms = int(time.time() * 1000)
     if result.degraded is not None or result.value is None:
         return {}
     _FETCH_STATUS.last = {"answered": True, "held_back": []}
@@ -563,6 +564,11 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         # (live-validated to agree with lastTrade.t within ~1s -- see
         # massive.py::_ticker_observed_at's own docstring).
         observed_at = t.get("_observed_at")
+        # (2026-11-25, objective 2) the same instants in ms, plus the last trade's OWN time: in the
+        # regular session `price` is lastTrade.p, so this is the time of the shown price.
+        observed_ms = int(round(observed_at * 1000)) if isinstance(observed_at, (int, float)) else None
+        _lt_t = last_trade.get("t") if isinstance(last_trade, dict) else None
+        last_trade_ms = int(_lt_t // 1_000_000) if isinstance(_lt_t, (int, float)) and _lt_t > 0 else None
 
         # Live price. During RTH the actual LAST TRADE is the current price;
         # `day.c` (the day aggregate's close) LAGS the last trade intraday by
@@ -702,6 +708,10 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
             # ticker's quote, when available -- None (never a guess) when
             # the provider omitted both `updated` and `lastTrade.t`.
             "observed_at": observed_at,
+            "observed_ms": observed_ms,
+            "last_trade_ms": last_trade_ms,
+            # this pod's wall ms when the vendor answered: a row served from the 15 s cache keeps it
+            "fetched_at_ms": fetched_at_ms,
             # The PREVIOUS regular session's change (prevDay.c vs the close before it).
             # The header shows this as the "original" regular-hours number during
             # pre-market/overnight, when today's regular session hasn't happened yet.
@@ -737,6 +747,7 @@ def _error_answer(status_code: int, content: dict, response) -> JSONResponse:
     out = JSONResponse(status_code=status_code, content=content)
     if response is not None:
         out.raw_headers.extend(h for h in response.raw_headers if h[0] == b"set-cookie")
+    out.headers["Cache-Control"] = "no-store"    # (see the route: never from a cache, the error answers too)
     return out
 
 
@@ -763,6 +774,11 @@ def get_live_prices(
     if response is not None:
         from api.routers.auth import set_kill_cookies_when_killed
         set_kill_cookies_when_killed(response)
+        # ⭐ (2026-11-25, review of #2733) NEVER FROM A CACHE: this poll's Date header is the page's sample of the server's
+        # clock for every chart roll decision (app/src/lib/serverClock.js), and a cached answer carries its ORIGINAL Date.
+        # The client refuses a cacheable answer as a sample, so a future cache rule here would silently cost every member
+        # the server clock: no-store says so on the wire (merged by FastAPI into every answer it builds from this route).
+        response.headers["Cache-Control"] = "no-store"
     raw_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not raw_list:
         return _error_answer(400, {"error": "No tickers provided"}, response)

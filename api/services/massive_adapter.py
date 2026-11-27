@@ -175,6 +175,29 @@ def get(path: str, *, data_class: str, activity: str,
     return _result(data, data_class=data_class, activity=activity)
 
 
+def get_next(next_url: str, *, data_class: str, activity: str,
+             timeout: Optional[float] = None) -> _pe.ProviderResult:
+    """The page a previous answer's `next_url` names, as one Massive REST object
+    (`.value`) -- for a caller that walks the cursor ITSELF (one that keeps the rows it
+    already has when a later page fails; `get_pages` is all-or-nothing). The cursor's
+    query is kept verbatim and any key it carries is replaced by ours, and a `next_url`
+    that is not on `massive._REST_BASE` over https is refused before any request -- the
+    same rules `get_pages` follows. Raises a `ProviderError` subclass on any failure,
+    exactly like `get`."""
+    _require(data_class, activity)
+    client = _client()
+    base = _massive._REST_BASE.rstrip("/") + "/"
+    route = (next_url[len(base) - 1:].partition("?")[0]
+             if isinstance(next_url, str) and next_url.startswith(base) else "next_url")
+    try:
+        path_qs = _next_path(next_url, client._api_key, route)
+    except _pe.ProviderError:
+        _bump(data_class, "errors")
+        raise
+    data = _fetch(client, path_qs, path=route, data_class=data_class, timeout=timeout)
+    return _result(data, data_class=data_class, activity=activity)
+
+
 def get_pages(path: str, *, data_class: str, activity: str, max_pages: int,
               params: Optional[Mapping[str, Any]] = None,
               results_key: str = "results",

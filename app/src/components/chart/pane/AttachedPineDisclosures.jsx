@@ -62,6 +62,7 @@ import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
 import { withoutGuardIds } from '../engine/ast/guardIdText'
+import { isHouseCopyMeta } from '../house/houseNames'
 import styles from './AttachedPineDisclosures.module.css'
 
 /** The definitions this chart is actually DRAWING, resolved through the registry.
@@ -86,6 +87,19 @@ function drawnMeta(settings, registry) {
     if (def && def.meta) out.push(def.meta)
   }
   return out
+}
+
+/** `settings` without the instances of UCT's own house indicators (`house/houseNames.js`, owner ruling
+ *  2026-11-24): the strip's data notes are read off what this returns. Same object when there is none. */
+export function withoutHouseInstances(settings, registry = defaultRegistry) {
+  const instances = (settings && Array.isArray(settings.indicatorInstances)) ? settings.indicatorInstances : null
+  if (!instances) return settings
+  const keep = instances.filter((inst) => {
+    if (!inst || typeof inst !== 'object') return true
+    const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
+    return !(def && isHouseCopyMeta(def.meta))
+  })
+  return keep.length === instances.length ? settings : { ...settings, indicatorInstances: keep }
 }
 
 /** The instance ids this chart is drawing (a hidden instance draws nothing). */
@@ -242,11 +256,19 @@ export default function AttachedPineDisclosures({
   // ⭐ P2b — the render drops arrive from the binder after a sync: re-read on change.
   const [dropTick, setDropTick] = useState(0)
   useEffect(() => onObjectRenderDropsChange(() => setDropTick((n) => n + 1)), [])
+  // ⭐ (owner ruling 2026-11-24) UCT's own house indicators say nothing here about their data
+  // (`house/houseNames.js`): every note below reads `noted`, the settings without them. A script that STOPPED still
+  // says so (`stopped` reads the full settings): that row explains an empty pane and offers Retry.
+  const noted = useMemo(
+    () => withoutHouseInstances(settings, registry),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings, registry, generation],
+  )
   const rows = useMemo(
-    () => attachedDisclosures(settings, registry, barsLoaded,
+    () => attachedDisclosures(noted, registry, barsLoaded,
       (id) => objectRenderDropsFor(id, noticeScope)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings, registry, barsLoaded, generation, dropTick, noticeScope],
+    [noted, registry, barsLoaded, generation, dropTick, noticeScope],
   )
   // ⭐⭐ R-R — THE ONE DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT.
   // Whether a table had to be scaled depends on the VIEWPORT, so it cannot ride
@@ -282,7 +304,7 @@ export default function AttachedPineDisclosures({
   // timeframe). The binder publishes what `interpret.js::periodAnchorMask`
   // decided; the sentence is `CHART_CLOCK_WITHHELD`'s, never written here.
   // ⛔ ONLY THIS PANE'S INSTANCES, and only the ones it draws (`hidden` is off).
-  const drawnIds = useMemo(() => attachedInstanceIds(settings), [settings])
+  const drawnIds = useMemo(() => attachedInstanceIds(noted), [noted])
   const [clockNotes, setClockNotes] = useState(() => chartClockNotesFor(drawnIds, noticeScope))
   useEffect(() => {
     const read = () => setClockNotes((prev) => {

@@ -29,10 +29,12 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, Dict, Literal, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -391,26 +393,96 @@ def _stamped(row: dict, *, budget: Optional["runtime_definitions.DetectorBudget"
         out["scannable"] = False
         out["scan_refusal"] = {"gate": "requirements", "detail": why}
         return out
+    scannable, refusal = _scan_verdict(row)
+    out["scannable"] = scannable
+    out["scan_refusal"] = dict(refusal) if refusal is not None else None
+    return out
+
+
+def _scan_verdict_uncached(definition: Any) -> tuple:
+    """``((scannable, refusal), cacheable)``: the canonical screening check's answer for one served definition.
+    ⛔ A check that BROKE (any exception but a refusal) is answered fail-closed and never cached: it says the
+    classifier broke, and that must not outlive the break."""
     try:
-        scan_definition.assert_scannable(row.get("definition") or {})
+        scan_definition.assert_scannable(definition or {})
     except scan_definition.ScanRefused as exc:
-        out["scannable"] = False
-        out["scan_refusal"] = {"gate": exc.gate, "detail": exc.detail}
+        return (False, {"gate": exc.gate, "detail": exc.detail}), True
     except Exception as exc:  # noqa: BLE001
         # ⛔ NEVER let one bad row take the list down, and never call an
         # unclassifiable row scannable -- offering it is the failure this
         # function exists to stop. Fail CLOSED, and say the classifier is what
         # broke so the member is not told their formula is wrong when it is ours.
-        out["scannable"] = False
-        out["scan_refusal"] = {
+        return (False, {
             "gate": "tree",
             "detail": "this formula could not be checked for screening "
                       f"({type(exc).__name__}), so it is not offered as a scan.",
-        }
-    else:
-        out["scannable"] = True
-        out["scan_refusal"] = None
-    return out
+        }), False
+    return (True, None), True
+
+
+# ⭐⭐ THE SCANNABILITY ANSWER, ONCE PER STORED VERSION (chart speed, 2026-11-26). Measured locally on 29 definitions,
+# `assert_scannable` was ~74% of the list handler, recomputed for every row of every request; on production the list's
+# server time is that pure-Python work stretched by the interpreter lock it shares with the pod's background threads
+# and the page's other requests. Its input is a pure function of the stored version plus the served stamps:
+#   * the store is append-only, so `(user_id, def_id, version)` (with its `created_at` and `ast_hash`) names ONE
+#     immutable document. The in-place writers touch nothing this check reads: relint rewrites `repaint` /
+#     `requirements` (the requirements gate above stays uncached), the erasure scrub `origin.author_id` (which
+#     `svc.served_row` removes from every served document anyway);
+#   * what differs between requests is only the served stamps on `meta` (`_served_stamps`: the kill list, the
+#     allowlist, the held / known-divergence sentences), and their values are in the key.
+# ⛔ The database path is in the key too, and a hit hands out a fresh `scan_refusal` dict, never the cached one.
+# Process memory only, bounded (`_SCAN_VERDICTS_MAX`), never persisted: a deploy starts empty.
+# Rails: tests/test_user_definitions_list_verdict_cache.py.
+_SCAN_VERDICTS_MAX = 4096
+_SCAN_VERDICTS: "OrderedDict[tuple, tuple]" = OrderedDict()
+_SCAN_VERDICTS_LOCK = threading.Lock()
+
+
+def _served_stamps() -> tuple:
+    from api.services import held_withholds as hw
+    from api.services import host_known_divergence as hkd
+    return tuple(runtime_definitions.RUN_READ_STAMPS) + (hkd.STAMP, hw.STAMP)
+
+
+def _scan_key(row: dict) -> Optional[tuple]:
+    definition = row.get("definition")
+    uid, def_id, version = row.get("user_id"), row.get("def_id"), row.get("version")
+    if (not isinstance(definition, dict) or uid is None or not isinstance(def_id, str)
+            or not isinstance(version, int) or isinstance(version, bool)):
+        return None
+    meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    try:
+        stamps = tuple((k, json.dumps(meta[k], sort_keys=True)) for k in _served_stamps() if k in meta)
+    except (TypeError, ValueError):
+        return None
+    return (svc._DB_PATH, str(uid), def_id, version, row.get("created_at"), row.get("ast_hash"), stamps)
+
+
+def _scan_verdict(row: dict) -> tuple:
+    key = _scan_key(row)
+    if key is None:
+        return _scan_verdict_uncached(row.get("definition"))[0]
+    with _SCAN_VERDICTS_LOCK:
+        hit = _SCAN_VERDICTS.get(key)
+        if hit is not None:
+            _SCAN_VERDICTS.move_to_end(key)
+            return hit
+    verdict, cacheable = _scan_verdict_uncached(row.get("definition"))
+    if not cacheable:
+        return verdict
+    with _SCAN_VERDICTS_LOCK:
+        _SCAN_VERDICTS[key] = verdict
+        _SCAN_VERDICTS.move_to_end(key)
+        while len(_SCAN_VERDICTS) > _SCAN_VERDICTS_MAX:
+            _SCAN_VERDICTS.popitem(last=False)
+    return verdict
+
+
+def _reset_list_caches() -> None:
+    """Tests only: forget every cached per-version answer the list serves."""
+    with _SCAN_VERDICTS_LOCK:
+        _SCAN_VERDICTS.clear()
+    svc._reset_line_identity_cache()
 
 
 #: ⭐ C2D.7 — THE CAPABILITY QUESTION, ASKED ONCE. A caller passes `graph=1` to
@@ -437,6 +509,14 @@ _ENGINE_PARAM = Query(None, ge=1, description="the client's script engine versio
 def list_definitions(user: dict = Depends(require_paid),
                      graph: bool = _GRAPH_PARAM,
                      engine: Optional[int] = _ENGINE_PARAM):
+    # ⭐ ONE database connection for the whole list (`svc.one_connection`: the rows, every row's engine status in one
+    # query, the capability prefetch and the line identities), and the schema statements only once per file
+    # (`svc._ensure`): a busy pod made each of the ~54 round trips one more wait for the interpreter lock.
+    with svc.one_connection():
+        return _list_definitions(user, graph, engine)
+
+
+def _list_definitions(user: dict, graph: bool, engine: Optional[int]):
     # ⛔ The keyword only when asked: an old bundle's read is the call it always was.
     # (`isinstance`, not `is not None`: a direct call leaves the `Query` default in place.)
     asked = isinstance(engine, int) and not isinstance(engine, bool)
@@ -446,7 +526,11 @@ def list_definitions(user: dict = Depends(require_paid),
     # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
     budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
-    stamped = [_stamped(r, budget=budget) for r in rows]
+    # ⭐ the committed kill list, allowlist and capability registry are read ONCE for the whole list (they were
+    # read per row per server lane: ~89% of the list's server time on a member with 26 runtime rows), and still
+    # fresh on every request (`runtime_definitions.read_once`)
+    with runtime_definitions.read_once():
+        stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
     ids = svc.line_identities_many(
         user["id"], [(r.get("def_id"), r.get("version")) for r in stamped

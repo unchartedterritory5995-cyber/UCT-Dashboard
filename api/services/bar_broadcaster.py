@@ -57,14 +57,39 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import threading
 import time as _time
 from typing import Callable, Optional
 
 from api.services.bar_rollup import TF_TO_SECONDS, tv_bucket_bounds  # noqa: F401 (TF_TO_SECONDS re-export)
 from api.services import trade_conditions
+from api.services import extended_session
 
 _logger = logging.getLogger(__name__)
+
+# ⭐ THE PER-PAIR EMIT THROTTLE IS A KNOB (2026-11-25, objective 2, gap 4). Leading edge + one trailing
+# flush per (symbol, series): a trade inside the window waits for the trailing flush (half the window
+# on average under flow). BARS_EMIT_THROTTLE_MS on the service that runs the broadcaster (stream-ingest
+# in production; web in local mode). Unset = 100 ms, the value before the knob; clamped 10..1000.
+EMIT_THROTTLE_DEFAULT_MS = 100
+
+
+def emit_throttle_ms_from_env() -> int:
+    raw = (os.environ.get("BARS_EMIT_THROTTLE_MS") or "").strip()
+    if not raw:
+        return EMIT_THROTTLE_DEFAULT_MS
+    # (review of #2755) read when the broadcaster is BUILT: an exception here stops IngestRuntime (the whole live
+    # feed), so anything unusable is the default: not a number, inf / nan (OverflowError / ValueError), and 0 or
+    # below ("unset", never the most aggressive value).
+    try:
+        v = int(float(raw))
+    except (ValueError, OverflowError):
+        _logger.warning("[bar_broadcaster] BARS_EMIT_THROTTLE_MS=%r is not usable: %d ms", raw[:20], EMIT_THROTTLE_DEFAULT_MS)
+        return EMIT_THROTTLE_DEFAULT_MS
+    if v <= 0:
+        return EMIT_THROTTLE_DEFAULT_MS
+    return min(1000, max(10, v))
 
 ROLLUP_TFS = ("5", "15", "30", "60")  # plus "1"; every tf is derived from the per-minute map.
 
@@ -80,6 +105,23 @@ _MINUTE_MS = 60_000
 # How far back (trade time) a minute stays correctable. 3h covers the developing
 # 60m bucket plus the one before it (a 60m bucket starts <= 60 min before now).
 _RETAIN_MS = 3 * 60 * _MINUTE_MS
+
+# ⭐ THE EXTENDED SESSION, AT THE LIVE GATE (2026-11-25, the follow-up to #2781). A print at 20:00:05 ET used to open a
+# live 20:00 minute (and a 20:00 60m eth bar) that the store's serve path now refuses; the client kept it, because a
+# delta answer never deletes a bar. `_accept_minute` therefore refuses a minute outside its ET trading day's extended
+# session for every name the session governs (`extended_session.applies` / `inside`, the one rule; both cached, so
+# this costs a dict lookup per trade).
+_session_applies: dict[str, bool] = {}
+
+
+def _session_minute_ok(sym: str, m_ms: int) -> bool:
+    try:
+        ap = _session_applies.get(sym)
+        if ap is None:
+            ap = _session_applies[sym] = bool(extended_session.applies(sym))
+        return (not ap) or extended_session.inside(int(m_ms) // 1000)
+    except Exception:                      # noqa: BLE001 - the gate must never stop the tape
+        return True
 
 
 def _key_for(tf: str, session: str = "rth") -> str:
@@ -199,7 +241,7 @@ class BarBroadcaster:
         # (sym, key) -> {bucket start -> last bar sent}: never send an identical
         # frame twice (e.g. the closed bucket re-marked at the boundary).
         self._last_sent: dict[tuple[str, str], dict[int, dict]] = {}
-        self._emit_throttle_ms: int = 100
+        self._emit_throttle_ms: int = emit_throttle_ms_from_env()
         # (sym, key) -> newest contract `rev` dispatched (HLC ms; see `_dispatch`).
         self._rev: dict[tuple[str, str], int] = {}
         self._clock_ms = clock_ms or (lambda: int(_time.time() * 1000))
@@ -499,9 +541,9 @@ class BarBroadcaster:
                     if t0 < self._t_requested.get(sym, 0) - _STRAGGLER_MS:
                         return    # stamped well before T was asked for: a straggler, not the flow
                     self._first_trade(sym, t0)
-                hl_ok, last_ok = trade_conditions.classify(payload.get("c"))
+                hl_ok, last_ok, vol_ok = trade_conditions.classify3(payload.get("c"))
                 minute = self._apply_trade(sym, int(payload["t"]), payload["p"],
-                                           payload.get("s") or 0, hl_ok, last_ok)
+                                           payload.get("s") or 0, hl_ok, last_ok, vol_ok)
             else:
                 minute = self._apply_minute_bar(sym, payload, authoritative=True)
             if minute is None:
@@ -696,8 +738,8 @@ class BarBroadcaster:
                         e = _Minute()
                         for (t, p, s, conds) in gap_trades:
                             if prev <= t < gap[0]:
-                                hl_ok, last_ok = trade_conditions.classify(conds)
-                                self._fold_trade(e, t, p, s, hl_ok, last_ok)
+                                hl_ok, last_ok, vol_ok = trade_conditions.classify3(conds)
+                                self._fold_trade(e, t, p, s, hl_ok, last_ok, vol_ok)
                         e.auth = True
                         mins[prev] = e
                         seen.add(prev)
@@ -724,8 +766,8 @@ class BarBroadcaster:
                 if not st.auth:
                     for (t, p, s, conds) in gap_trades:
                         if m0 <= t <= b0:      # through B's own ms (the feed keeps t > B)
-                            hl_ok, last_ok = trade_conditions.classify(conds)
-                            self._fold_trade(st, t, p, s, hl_ok, last_ok)
+                            hl_ok, last_ok, vol_ok = trade_conditions.classify3(conds)
+                            self._fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok)
                     st.seeded = True
                 self._cover_from.pop(su, None)
                 self._gap.pop(su, None)
@@ -781,7 +823,7 @@ class BarBroadcaster:
 
     def _accept_minute(self, sym: str, m: int) -> bool:
         hwm = self._hwm.get(sym)
-        return hwm is None or m >= hwm - _RETAIN_MS
+        return (hwm is None or m >= hwm - _RETAIN_MS) and _session_minute_ok(sym, m)
 
     def _bump_hwm(self, sym: str, ts: int) -> None:
         cur = self._hwm.get(sym)
@@ -796,7 +838,7 @@ class BarBroadcaster:
                     for old in [x for x in mins if x < floor]:
                         del mins[old]
 
-    def _apply_trade(self, sym, t, p, s, hl_ok, last_ok) -> Optional[int]:
+    def _apply_trade(self, sym, t, p, s, hl_ok, last_ok, vol_ok=True) -> Optional[int]:
         m = t // _MINUTE_MS * _MINUTE_MS
         if not self._accept_minute(sym, m):
             return None
@@ -813,14 +855,19 @@ class BarBroadcaster:
         if st.auth:
             st.last_ts = t if st.last_ts is None else max(st.last_ts, t)
             return None   # the AM / completed REST bar for this minute already includes it
-        self._fold_trade(st, t, p, s, hl_ok, last_ok)
+        self._fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok)
         return m
 
     @staticmethod
-    def _fold_trade(st, t, p, s, hl_ok, last_ok) -> None:
-        """One eligible-classified trade into a minute (the feed's and the seed's alike)."""
+    def _fold_trade(st, t, p, s, hl_ok, last_ok, vol_ok=True) -> None:
+        """One eligible-classified trade into a minute (the feed's and the seed's alike).
+        ⭐ (2026-11-25, candle-accuracy audit class 1) its size counts only when its conditions update
+        consolidated volume (`vol_ok`, trade_conditions.classify3): the vendor's own minute bar (AM, REST)
+        leaves out the official open / close reports and a corrected consolidated close, and the developing
+        bar summed them until that minute's AM replaced it."""
         st.last_ts = t if st.last_ts is None else max(st.last_ts, t)
-        st.v += s
+        if vol_ok:
+            st.v += s
         if last_ok:
             if st.o is None or t < st.o_ts:
                 st.o, st.o_ts = p, t
@@ -1106,3 +1153,10 @@ def reset_broadcaster_for_tests() -> None:
     """Test-only: clear the singleton so init_broadcaster can be called again."""
     global _singleton
     _singleton = None
+
+
+# The live last-price source for readers that must not import this module (`live_price_source`): looked up
+# at call time, so `get_broadcaster`'s own contract (and any stub of it) is what a reader sees.
+from api.services import live_price_source as _live_price_source  # noqa: E402
+
+_live_price_source.register(lambda: get_broadcaster())

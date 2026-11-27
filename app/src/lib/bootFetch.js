@@ -20,6 +20,12 @@ export const BOOT_MAX_AGE_MS = 10_000
 export const ME_URL = '/api/auth/me'
 export const PREFS_URL = '/api/auth/preferences'
 export const SIGNED_IN_HINT = 'uct.signedIn.v1'
+// ⭐ The maintenance check AuthGuard holds the shell for (2026-11-26, chart speed). Asked from AuthGuard's mount
+// it left the browser behind the boot's ~200 chunk requests (production: issued 325, sent 579, answered 672
+// while /me was in at 392), and the shell waited on it. Started here beside /me when this browser was signed
+// in last time; bounded like AuthGuard's own ask, so a hung check is "no answer", never a held splash.
+export const MAINTENANCE_URL = '/api/maintenance'
+export const MAINTENANCE_TIMEOUT_MS = 8_000
 
 const entries = new Map()   // url -> { at, p }
 let bootUser                // undefined: boot /me not read yet; null: signed out; id: that member
@@ -31,14 +37,22 @@ export function startBootFetches({ fetchImpl = (typeof fetch === 'function' ? fe
   if (!fetchImpl || entries.size) return
   // A failure is recorded AS a failure ({ failed }), never as an empty answer (TERM-033's idiom). take()
   // turns it into "no boot answer", and the caller then makes its own request, which reports its own error.
-  const start = (url) => entries.set(url, {
+  const start = (url, init) => entries.set(url, {
     at: now(),
-    p: Promise.resolve().then(() => fetchImpl(url)).then((response) => ({ response }), (error) => ({ failed: error })),
+    p: Promise.resolve().then(() => (init ? fetchImpl(url, init) : fetchImpl(url)))
+      .then((response) => ({ response }), (error) => ({ failed: error })),
   })
   start(ME_URL)
   let signedInLastTime = false
   try { signedInLastTime = storage?.getItem(SIGNED_IN_HINT) === '1' } catch { /* storage blocked */ }
-  if (signedInLastTime) start(PREFS_URL)
+  if (signedInLastTime) {
+    start(PREFS_URL)
+    start(MAINTENANCE_URL, { signal: maintenanceSignal() })
+  }
+}
+
+function maintenanceSignal() {
+  try { return AbortSignal.timeout?.(MAINTENANCE_TIMEOUT_MS) } catch { return undefined }
 }
 
 function take(url) {
@@ -51,6 +65,12 @@ function take(url) {
 
 /** AuthContext's first /api/auth/me: the boot request's Response (or null when there is none or it failed). */
 export function takeBootMe() { return take(ME_URL) }
+
+/** AuthGuard's first maintenance ask: a promise of the boot check's Response (of null when it failed), or
+ *  null when there is no boot check to take (not started, already taken, or too old). Not member data: the
+ *  same answer for everyone, so it needs no member check. ⚠️ Unlike /me and preferences, AuthGuard reads a
+ *  FAILED boot check as "no answer" and does not ask again: that is what a failed check there always meant. */
+export function takeBootMaintenance() { return take(MAINTENANCE_URL) }
 
 /** AuthContext, after reading the BOOT /me response (and only that one): who it named (null = signed
  *  out). Only the first call counts: a later refetch must never re-point the boot preferences at
@@ -68,11 +88,35 @@ export function setSignedInHint(signedIn, storage = safeStorage()) {
 }
 
 /** usePreferences' fetcher: the boot preferences Response, only for the member the boot /me named. */
-export function takeBootPreferences(forUser) {
-  const p = take(PREFS_URL)
+export function takeBootPreferences(forUser) { return takeBootFor(PREFS_URL, forUser) }
+
+/** A member's boot request (`url`): its Response promise, only for the member the boot /me named and only when that
+ *  member is still the one the caller reads for (`forUser`, the /me `user.id`). Taken either way: another member's
+ *  answer is dropped unread. */
+export function takeBootFor(url, forUser) {
+  const p = take(url)
   if (!p) return null
   if (bootUser === undefined || bootUser === null || forUser == null || forUser !== bootUser) return null
   return p
+}
+
+/** ⭐ (e101 S5, 2026-11-27, chart speed) A MEMBER REQUEST STARTED BY THE CHUNK THAT NEEDS IT, AS IT LOADS. The chart's
+ *  definitions list (`hooks/useUserDefinitions.js`) left only when StockChart's first render ran its SWR hook: on
+ *  production (608bd20bf1, AGL 1D, cold) the chunk was in at 751 ms and the list asked at 1797, answered at 2303, 370 ms
+ *  after the candles. Started when the chunk evaluates, it is in flight beside /api/auth/me. The rules above hold: only
+ *  when this browser was signed in last time, one use, fresh only, handed out only for the member the boot /me named
+ *  (`takeBootFor`). Returns whether it was started. */
+export function startBootRequestIfSignedIn(url, { fetchImpl = (typeof fetch === 'function' ? fetch : null), storage = safeStorage() } = {}) {
+  if (!fetchImpl || entries.has(url)) return false
+  let signedInLastTime = false
+  try { signedInLastTime = storage?.getItem(SIGNED_IN_HINT) === '1' } catch { /* storage blocked */ }
+  if (!signedInLastTime) return false
+  entries.set(url, {
+    at: now(),
+    p: Promise.resolve().then(() => fetchImpl(url, { credentials: 'include' }))
+      .then((response) => ({ response }), (error) => ({ failed: error })),
+  })
+  return true
 }
 
 function safeStorage() {

@@ -15,6 +15,12 @@
 # SAFETY. Inputs reach shell ONLY through `env:` (never `${{ inputs.* }}` inside `run:`), and the `plan` job
 # refuses any ref, path or shard count that tools/remote_tests.py (master's copy, the one authority) refuses.
 # Read-only token, no secrets, credentials not persisted. tests/test_remote_tests_lane.py rails this file.
+#
+# VERDICT. Read `python tools/remote_tests.py`'s exit code, never the run badge. A red TEST result leaves this run
+# green on purpose (2026-11-16: a failed run emails the owner). Each test job's "Record the verdict" step runs
+# MASTER'S tools/remote_tests.py --verdict on its own log: green only when the step exited 0 AND the log holds the
+# runner's totals line with a pass and no failure or error; red writes a `::error::` annotation and a step-summary
+# line on this run's page (2026-11-26, after a hand-dispatched run read "success" over "1 failed, 587 passed").
 name: remote tests
 run-name: "remote tests: ${{ inputs.label }} ${{ inputs.ref }}"
 
@@ -101,6 +107,9 @@ jobs:
         env:
           RT_REF: ${{ inputs.ref }}
         run: |
+          # the verdict is decided by MASTER'S tools/remote_tests.py (this checkout, before it moves): a branch cannot
+          # change how its own result is read
+          cp tools/remote_tests.py "$RUNNER_TEMP/remote_tests_master.py"
           # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
           # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
           git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
@@ -153,8 +162,9 @@ jobs:
         env:
           OUTCOME: ${{ steps.t.outcome }}
         run: |
-          echo "$OUTCOME" > remote-pytest-verdict.txt
-          echo "### pytest: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          # never fails the job: an unreadable verdict is written as failure
+          python3 "$RUNNER_TEMP/remote_tests_master.py" --verdict pytest --log remote-pytest.log --outcome "$OUTCOME" --out remote-pytest-verdict.txt \
+            || { echo failure > remote-pytest-verdict.txt; echo "::error title=remote tests: pytest is RED::the verdict helper failed; read python tools/remote_tests.py's exit code, never the run badge"; }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -198,6 +208,9 @@ jobs:
         env:
           RT_REF: ${{ inputs.ref }}
         run: |
+          # the verdict is decided by MASTER'S tools/remote_tests.py (this checkout, before it moves): a branch cannot
+          # change how its own result is read
+          cp tools/remote_tests.py "$RUNNER_TEMP/remote_tests_master.py"
           # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
           # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
           git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
@@ -249,7 +262,7 @@ jobs:
           # a path filter matching nothing must FAIL, never pass vacuously
           if [ "$total" -eq 0 ]; then echo "::error::no vitest files match: $RT_VITEST"; exit 1; fi
           of=$(( RT_OF < total ? RT_OF : total ))
-          if [ "$RT_SHARD" -gt "$of" ]; then echo "::notice::only $total file(s): shard $RT_SHARD has nothing to run"; exit 0; fi
+          if [ "$RT_SHARD" -gt "$of" ]; then echo "::notice::only $total file(s): shard $RT_SHARD has nothing to run"; echo "remote-tests: this shard has nothing to run" > "../remote-vitest-$RT_SHARD.log"; exit 0; fi
           python3 ../tools/agent_vitest_shards.py --files-list ../rt-files.txt --of "$of" --shard "$RT_SHARD" > ../rt-shard.files
           test -s ../rt-shard.files || { echo "::error::shard $RT_SHARD has no files"; exit 1; }
           echo "shard $RT_SHARD/$of: $(wc -l < ../rt-shard.files) of $total files"
@@ -261,8 +274,9 @@ jobs:
           OUTCOME: ${{ steps.t.outcome }}
           RT_SHARD: ${{ matrix.shard }}
         run: |
-          echo "$OUTCOME" > "remote-vitest-verdict-$RT_SHARD.txt"
-          echo "### vitest shard $RT_SHARD: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          # never fails the job: an unreadable verdict is written as failure
+          python3 "$RUNNER_TEMP/remote_tests_master.py" --verdict vitest --log "remote-vitest-$RT_SHARD.log" --outcome "$OUTCOME" --out "remote-vitest-verdict-$RT_SHARD.txt" \
+            || { echo failure > "remote-vitest-verdict-$RT_SHARD.txt"; echo "::error title=remote tests: vitest shard $RT_SHARD is RED::the verdict helper failed; read python tools/remote_tests.py's exit code, never the run badge"; }
       - uses: actions/upload-artifact@v4
         if: always()
         with:

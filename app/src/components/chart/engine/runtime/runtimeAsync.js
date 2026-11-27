@@ -16,6 +16,7 @@
 // ⛔ WITHOUT `Worker` (tests, a non-browser host) nothing is installed and every
 // run is synchronous — the same computation, under the same time budget.
 import { registerRuntimeLane } from '../nativeRegistry.js'
+import { setRuntimeBudgetStopClock } from '../runtimeBudgetStops.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
@@ -30,6 +31,7 @@ import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
 import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
+import { strippedForScan } from '../ast/pine.js'
 
 let _ready = false
 let _worker = null
@@ -44,7 +46,7 @@ let _inFlight = null         // the job the worker is computing
 const _queue = []            // jobs not yet posted, oldest first: at most one per pane, and per key for pane-less jobs
 let _hidden = false          // the tab is hidden: nothing is posted, and the running job was stopped
 let _visibilityBound = false
-const _stats = { posted: 0, cancelled: 0, superseded: 0, hiddenStops: 0 }
+const _stats = { posted: 0, cancelled: 0, superseded: 0, hiddenStops: 0, factsKept: 0 }
 let _watchdog = null
 
 /** ⭐⭐ RF — HOW LONG THE WORKER MAY TAKE TO ANSWER THE JOB AT THE HEAD OF ITS
@@ -276,9 +278,52 @@ function cancelInFlight() {
 function supersede(newer) {
   const run = _inFlight
   if (!run || newer.pane === null || run.pane !== newer.pane || run.coalesce === newer.coalesce) return
+  // ⭐⭐ (e101 S1) ONLY A SYMBOL FACT LANDED (`factsKept`): the run is not stopped, the newer job waits
+  if (!_factsKeepOff && run.factsFree === newer.factsFree && namesNoSymbolFact(newer.def)) {
+    _stats.factsKept += 1
+    return
+  }
   forgetJob(cancelInFlight())
   _stats.superseded += 1
 }
+
+// ─── ⭐⭐ (e101 S1, coordinator GO 2026-11-27) — A SYMBOL FACT LANDING NEVER RESTARTS A RUN ─────────────────────────────
+//
+// ⚰️ MEASURED ON PRODUCTION (608bd20bf1, smoke@, kernel-channel-backquant, cold ticker switches): one switch posted the
+// SAME run (same symbol, timeframe and 12,501 rows) three times, PEP at 18.8 / 174 / 561 ms and KO at 14 / 733 / 896 ms.
+// Each repost came right after `/api/ticker-ipo` (170 / 730 ms: the listing date, '^?' -> '^date') or `/api/ticker-meta`
+// (557 / 893 ms: the exchange, null -> NYSE) answered, so the worker was terminated twice per switch. Each restart
+// fetched and evaluated the worker chunk again and threw away its build memo and sessions. The script reads neither
+// fact. The final run started only when the last fact landed.
+//
+// So when a pane's newer job differs from its running job ONLY in those symbol facts (`coalesceKeyOf` with the facts
+// erased is the same: the same document, ticker, timeframe, forming state and listing flags), the running job is not
+// stopped. The newer job waits in the queue, and the running job finishes and settles under its own key. The newer job
+// is then posted to the SAME worker, where it resumes from that run's session when the run cannot have read the facts
+// (`runtimeColumns.js::factsSessionFor`, proved by the unchanged `resumableFrom`), and otherwise runs in full, as today.
+// ⛔ THIS ONLY DECIDES WHEN A RUN IS STOPPED, NEVER A VALUE: the newer job always gets its own answer (a proven resume,
+// or a full run). ⛔ The gate is static and conservative (`namesNoSymbolFact`): a script that names `syminfo`, a
+// `request.` call, a `ticker.` call or an `import` keeps today's stop, because waiting for a run whose answer cannot be
+// resumed would only delay the newer one.
+
+/** Does the script name nothing that reads a symbol fact? `syminfo.*` (folded at build time), `request.*` (the listing
+ *  date and the other-symbol bind), `ticker.*` and a library `import`: comments and strings stripped. Memoised. */
+const SYMBOL_FACT_NAMES = /\bsyminfo\b|\brequest\s*\.|\bticker\s*\.|^\s*import\b/m
+const _namesFact = new Map()
+function namesNoSymbolFact(def) {
+  const source = def && def.compute && typeof def.compute.source === 'string' ? def.compute.source : null
+  if (source === null) return false
+  let names = _namesFact.get(source)
+  if (names === undefined) {
+    try { names = SYMBOL_FACT_NAMES.test(strippedForScan(source)) } catch { names = true }
+    if (_namesFact.size >= 16) _namesFact.delete(_namesFact.keys().next().value)
+    _namesFact.set(source, names)
+  }
+  return !names
+}
+let _factsKeepOff = false
+/** Tests: stop the running job on a symbol fact too (the identity rails compare both ways). */
+export function __factsKeepOffForTests(off) { _factsKeepOff = !!off }
 
 /** ⭐⭐ (engine 86) — A HIDDEN TAB COMPUTES NOTHING. The run in the worker is stopped (a worker cannot be paused)
  *  and goes back to the head of the queue; nothing is posted while hidden; visible again, the queue runs. A
@@ -443,11 +488,12 @@ function pump() {
  *  timeframe, clock, listing fact). A live chart hands a new bars array per
  *  update; while one run of the pane is in the worker, only the NEWEST waiting
  *  one is kept — an older one would compute bars nobody paints. */
-function coalesceKeyOf(def, ctx) {
+function coalesceKeyOf(def, ctx, facts = true) {
   // ⭐⭐ (2026-11-20) the listing facts too: a run asked before the date landed is not the run asked after it
+  // ⭐⭐ (e101 S1) `facts: false` erases the symbol facts (the exchange, the listing date): `supersede` compares the two
   const s = ctx && ctx.symbol && typeof ctx.symbol === 'object'
-    ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}${typeof ctx.symbol.firstTradeDate === 'string' ? `^${ctx.symbol.firstTradeDate}`
-      : ctx.symbol.firstTradeDatePending === true ? '^?' : ''}` : '-'
+    ? (facts ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}${typeof ctx.symbol.firstTradeDate === 'string' ? `^${ctx.symbol.firstTradeDate}`
+      : ctx.symbol.firstTradeDatePending === true ? '^?' : ''}` : `${ctx.symbol.ticker}`) : '-'
   return `${def && def.id}|${def && def.compute && def.compute.fn}|${ctx && ctx.tf}|${s}|`
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
     + (ctx && ctx.listingStart === true ? '|listingStart' : '')
@@ -463,7 +509,7 @@ export function workerRunner(factory) {
   bindVisibility()
   return (def, rows, ctx, done, forget) => {
     const job = { def, rows, ctx, done, forget: typeof forget === 'function' ? forget : null, factory,
-      coalesce: coalesceKeyOf(def, ctx), pane: paneOf(ctx), settled: false }
+      coalesce: coalesceKeyOf(def, ctx), factsFree: coalesceKeyOf(def, ctx, false), pane: paneOf(ctx), settled: false }
     supersede(job)
     // ⛔ A SUPERSEDED WAITING JOB IS NEVER ANSWERED: its bars array is no longer the chart's (or its pane now asks
     // for another picture). No landing, no repaint, no notice for bars nobody draws; its memo entry is dropped.
@@ -495,6 +541,8 @@ export function resetRuntimeAsync() {
   _beaconed.clear()
   _hashOf.clear()
   _stopReporter = null
+  _factsKeepOff = false
+  _namesFact.clear()
   resetRuntimeRunTelemetry()
   setRuntimeRunner(null)
 }
@@ -504,6 +552,9 @@ const defaultFactory = () => new Worker(new URL('./runtimeWorker.js', import.met
 /** Make runtime documents computable in this client. Idempotent. */
 export function ensureRuntimeLane({ factory } = {}) {
   registerRuntimeLane(runtimeColumnsFor)
+  // the page's wall clock for a remembered time-budget stop's hold (`runtimeBudgetStops.js`: the compute closure reads
+  // no clock of its own, design 2.2 H5)
+  setRuntimeBudgetStopClock(() => Date.now())
   if (_ready) return
   _ready = true
   onRuntimeColumnsLanded((key) => notifyColumnsLanded(key))

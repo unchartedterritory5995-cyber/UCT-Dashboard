@@ -15,9 +15,10 @@
 // report crosses FAITHFULLY (`memberPane/memberDoorProtocol.js`): every non-enumerable property the translator wrote
 // (a parameter's id on a tree literal, a row's handoffs) is put back on the page before PasteBox reads it.
 // ⛔ NEVER A SILENT HANG: a worker that died or did not answer by the member door's watchdog answers the report a
-// throw would have (`controlledErrorReport`: the engine failed, nothing to save), as PasteBox's own catch did.
+// throw would have (`controlledErrorReport`: the engine failed, nothing to save), as PasteBox's own catch did; one that
+// went SILENT (e96: no heartbeat and no answer for `MEMBER_DOOR_SILENCE_MS`) answers it named, `silentReport`.
 // ⛔ WITHOUT `Worker` (tests, a non-browser host) the report is computed here, synchronously, as it always was.
-import { createKeyedWorkerService, memberDoorService } from './memberPane/memberDoorAsync'
+import { createKeyedWorkerService, memberDoorService, doorSilentSentence, MEMBER_DOOR_SILENT_GUARD } from './memberPane/memberDoorAsync'
 import { memberDoorImage } from './memberPane/memberDoorImage'
 import { INSPECT_JOB, INSPECT_LIBRARY_JOB, restoreFaithful, faithfulAnswerOf } from './memberPane/memberDoorProtocol'
 import { inspectSource, inspectPine } from './inspectSource'
@@ -40,6 +41,14 @@ export function inspectKeyOf(args) {
 
 /** What the report says when it could not be computed: what PasteBox's own catch said of a throw. */
 const stopped = (source, why) => controlledErrorReport(source, new Error(`the background check of this text stopped before it answered (${why})`))
+
+/** ⭐⭐ e96 — the report when its worker went silent (`memberDoorAsync.js`, the silence bound): the engine-fault report a
+ *  throw makes (nothing to save), its refusal named `MEMBER_DOOR_SILENT_GUARD` and worded by the one sentence. */
+export function silentReport(source, silenceMs) {
+  const sentence = doorSilentSentence(silenceMs)
+  const report = controlledErrorReport(source, new Error(sentence))
+  return { ...report, refusal: { ...report.refusal, guard: MEMBER_DOOR_SILENT_GUARD, message: sentence } }
+}
 
 /** PasteBox's report of one text, the job (`createKeyedWorkerService`). `landed`: `{report, offThread, ms}`. */
 export const INSPECT_WORKER_JOB = Object.freeze({
@@ -70,6 +79,7 @@ export const INSPECT_WORKER_JOB = Object.freeze({
     return { report: controlledErrorReport(entry.args.source, err), offThread: true }
   },
   failed: (why, entry) => ({ report: stopped(entry.args.source, why), offThread: true }),
+  silent: (entry, version, silenceMs) => ({ report: silentReport(entry.args.source, silenceMs), offThread: true }),
   timedOut: (entry) => ({ report: stopped(entry.args.source, 'it ran past the time allowed'), offThread: true }),
 })
 
@@ -92,6 +102,7 @@ export const INSPECT_LIBRARY_WORKER_JOB = Object.freeze({
     return { report: null, error: { message: (reply.error && reply.error.message) || 'no message' }, offThread: true }
   },
   failed: (why) => ({ report: null, error: { message: why }, offThread: true }),
+  silent: (entry, version, silenceMs) => ({ report: null, error: { message: doorSilentSentence(silenceMs), guard: MEMBER_DOOR_SILENT_GUARD }, offThread: true }),
   timedOut: () => ({ report: null, error: { message: 'it ran past the time allowed' }, offThread: true }),
 })
 

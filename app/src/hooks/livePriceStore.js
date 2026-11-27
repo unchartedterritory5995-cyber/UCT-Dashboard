@@ -13,7 +13,13 @@
 // Deliberately plain module state (not React context) so any component can use
 // useLivePrices with zero provider wiring, exactly as before.
 
-import { sessionState } from '../lib/marketClock/marketClock'
+import { flushSync } from 'react-dom'
+import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
+import { noteServerDate, monoNow } from '../lib/serverClock'
+import { getQuotePush, whenQuotePush } from '../lib/quotePushGate'
+// lib/quotePush.js PUSH_HEALTHY_POLL_MS, restated here because the module is lazy (one number, railed by
+// lib/quotePush.lazy.test.js against the module's own export).
+export const PUSH_HEALTHY_POLL_MS = 15000
 
 // Must match api/routers/live_prices.py::_MAX_TICKERS — the backend hard-rejects
 // (400) any request over this count rather than truncating it. The union here is
@@ -69,7 +75,31 @@ function _marketClosed() {
     return false // an unreadable clock never slows a live market
   }
 }
-const _intervalMs = () => (_marketClosed() ? CLOSED_INTERVAL_MS : _isMobile ? 4000 : 2000) // mobile ×2, as useMobileSWR
+// ⭐ (2026-11-25) While the pushed list prices are healthy (lib/quotePush.js, flag-gated) the poll is only the
+// fallback and the source of prev close / day OHLC / session: it slows to PUSH_HEALTHY_POLL_MS. The push
+// going unhealthy polls at once and the normal cadence returns (the onHealth handler below).
+// Within BOUNDARY_WINDOW_MS of a session boundary (04:00, 09:30, 16:00, 20:00 ET, half days included) the
+// poll keeps its normal cadence even while the push is healthy (review of #2751, C): the REST row is what
+// says which session a pushed print belongs to (regular `price` vs extended `ext_price`).
+export const BOUNDARY_WINDOW_MS = 60000
+function _nearBoundary() {
+  try {
+    const now = new Date()
+    const t = now.getTime()
+    const s = sessionState(now)
+    if (s.boundaryAt && t - s.boundaryAt.getTime() <= BOUNDARY_WINDOW_MS) return true
+    const n = nextBoundary(now)
+    return !!(n && n.at.getTime() - t <= BOUNDARY_WINDOW_MS)
+  } catch {
+    return true // an unreadable clock keeps the normal cadence
+  }
+}
+const _intervalMs = () => {
+  if (_marketClosed()) return CLOSED_INTERVAL_MS
+  const base = _isMobile ? 4000 : 2000 // mobile ×2, as useMobileSWR
+  const qp = getQuotePush()
+  return qp && qp.isHealthy() && !_nearBoundary() ? Math.max(base, PUSH_HEALTHY_POLL_MS) : base
+}
 
 function _union() {
   return [...new Set(_refcounts.keys())].filter(Boolean).sort()
@@ -79,13 +109,20 @@ function _emit() {
   for (const l of _listeners) l()
 }
 
-/** Same flat entry (every field `Object.is`-equal). A nested value compares by reference, so it
- *  reads as changed -- the safe direction: an extra render, never a missed price. */
+// (2026-11-25, review of #2749) /api/live-prices INSTRUMENT fields: times that move on every server
+// refetch while the price does not. They never make an entry "changed" (else every poll after a
+// refetch re-renders every subscriber with identical prices); an unchanged row keeps the entry,
+// and so the fetch time, of the poll that first delivered its price.
+const _INSTRUMENT_FIELDS = new Set(['fetched_at_ms', 'observed_ms', 'last_trade_ms'])
+const _shownKeys = (o) => Object.keys(o).filter((k) => !_INSTRUMENT_FIELDS.has(k))
+
+/** Same flat entry (every field but the instruments `Object.is`-equal). A nested value compares by
+ *  reference, so it reads as changed -- the safe direction: an extra render, never a missed price. */
 function _sameEntry(a, b) {
   if (a === b) return true
   if (!a || !b) return false
-  const ka = Object.keys(a)
-  if (ka.length !== Object.keys(b).length) return false
+  const ka = _shownKeys(a)
+  if (ka.length !== _shownKeys(b).length) return false
   for (const k of ka) if (!Object.is(a[k], b[k])) return false
   return true
 }
@@ -119,9 +156,16 @@ async function _poll() {
     for (let i = 0; i < tickers.length; i += _MAX_TICKERS_PER_REQUEST) {
       chunks.push(tickers.slice(i, i + _MAX_TICKERS_PER_REQUEST))
     }
-    const parts = await Promise.all(chunks.map((chunk) =>
-      fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
+    const parts = await Promise.all(chunks.map((chunk) => {
+      const sentAt = monoNow()
+      return fetch(`/api/live-prices?tickers=${chunk.join(',')}`, _ac ? { signal: _ac.signal } : undefined)
         .then((r) => {
+          // ⭐ (2026-11-25) the poll every member already makes, every few seconds: a sample of the server's clock for
+          // every roll decision (lib/serverClock.js), refused there when the answer could have come from a cache
+          try {
+            const h = r.headers
+            noteServerDate(h?.get?.('date'), { sentAt, receivedAt: monoNow(), age: h?.get?.('age') ?? null, cacheControl: h?.get?.('cache-control') ?? null })
+          } catch { /* a sample only */ }
           // A 401 is the backend answering "no", never a transient blip — treat it
           // as the distinct signal it is (see the OI-17 note above), not silence.
           if (r.status === 401 && !_unauthorizedFired) {
@@ -131,8 +175,8 @@ async function _poll() {
           if (!r.ok) return CHUNK_FAILED
           return r.json().then((body) => ({ ok: true, body }))
         })
-        .catch(chunkFailed),
-    ))
+        .catch(chunkFailed)
+    }))
     // TERM-033: each chunk is a TAGGED outcome, never a null that looks like an empty
     // answer. Every chunk failed → keep last prices, retry next tick.
     if (parts.every((p) => !p.ok)) return
@@ -153,6 +197,8 @@ async function _poll() {
     // on every 2 s poll even after hours (four terminal panels, four headlines, all static), and
     // a reused entry is what lets `useLivePrices` skip a caller whose own slice is unchanged.
     let changed = false
+    const qp = getQuotePush()
+    const pushOn = !!qp && qp.isHealthy()
     for (const sym in next) {
       const nv = next[sym]
       if (!nv || typeof nv !== 'object') continue
@@ -163,9 +209,14 @@ async function _poll() {
       // while nothing actually traded (identical price) — Massive intermittently
       // omits lastTrade on the weekend / after hours. A real new session MOVES the
       // price, so this never pins a stale ext once regular trading resumes.
-      const entry = (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price))
+      let entry = (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price))
         ? { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
         : nv
+      // A healthy push is newer than this (server-cached) answer: keep its price on the row.
+      if (pushOn) {
+        const q = qp.getPushedQuote(sym)
+        if (q) entry = qp.overlayPushed(entry, q)
+      }
       if (_sameEntry(prev, entry)) continue          // keep `prev` (already in `merged`)
       merged[sym] = entry
       changed = true
@@ -228,6 +279,7 @@ export function registerTickers(tickers) {
     _refcounts.set(t, (_refcounts.get(t) || 0) + 1)
   }
   if (_refcounts.size > 0) _startTimer()
+  _pushTickers()
   if (grew) _poll() // new ticker(s) — populate fast instead of waiting a full interval
   return function unregister() {
     for (const t of tickers) {
@@ -235,12 +287,57 @@ export function registerTickers(tickers) {
       if (c <= 0) _refcounts.delete(t)
       else _refcounts.set(t, c)
     }
+    _pushTickers()
     if (_refcounts.size === 0) {
       _stopTimer()
       _prices = {}
       _emit()
     }
   }
+}
+
+// ── pushed list prices (lib/quotePush.js) ──────────────────────────────────
+// A batch arrives on an animation frame (quotePush batches per frame): each row that already has its REST
+// entry (prev close, session) takes the pushed price, and one emit repaints every changed row.
+function _applyPushed(batch) {
+  const qp = getQuotePush()
+  if (!qp || !qp.isHealthy()) return
+  let merged = null
+  for (const sym in batch) {
+    const cur = (merged || _prices)[sym]
+    if (!cur) continue                                // no REST entry yet: the first poll brings it
+    const next = qp.overlayPushed(cur, batch[sym])
+    if (next === cur) continue
+    if (!merged) merged = { ..._prices }
+    merged[sym] = next
+  }
+  if (!merged) return
+  _prices = merged
+  // COMMIT IN THIS FRAME: a setState from a store listener is a default-priority render scheduled as a task,
+  // which runs after the frame paints (one more frame, ~16 ms). flushSync renders the changed rows now.
+  try { flushSync(_emit) } catch { _emit() }
+}
+function _onPushHealth(healthy) {
+  if (healthy || _refcounts.size === 0) return
+  _stopTimer()
+  _poll()
+  _startTimer()
+}
+
+// Wired when lib/quotePush has loaded (only with the client flag on): never at this module's load.
+let _pushWired = false
+function _wirePush(qp) {
+  if (!_pushWired) {
+    _pushWired = true
+    qp.onQuotes(_applyPushed, 'livePriceStore')
+    qp.onHealth(_onPushHealth, 'livePriceStore')
+  }
+  qp.setTickers('rest', _union())
+}
+function _pushTickers() {
+  const qp = getQuotePush()
+  if (qp) _wirePush(qp)
+  else whenQuotePush(_wirePush)
 }
 
 export function subscribe(listener) {

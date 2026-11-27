@@ -41,13 +41,19 @@ FREED = [
 #: indicators the broader rule let through when it was measured; the next four hold a relation word beside
 #: other words; the rest hold a word the product has never used.
 STILL_A_NAME = [
-    ("Range Filter", "Range Filter"), ("Volatility Stop", "Volatility Stop"), ("Pivot Points", "Pivot Points"),
-    ("Three Line Break", "Three Line Break"), ("Arms Index", "Arms Index"), ("Bullish Percent Index", "Bullish Percent Index"),
+    ("Pivot Points", "Pivot Points"), ("Three Line Break", "Three Line Break"),
     ("Add Put Call Ratio", "Put Call Ratio"), ("Count Back Line", "Count Back Line"),
     ("Falling Wedge", "Falling Wedge"), ("Above The Stomach", "Above The Stomach"),
     ("Crossing Guard Oscillator", "Crossing Guard Oscillator"), ("Bars Above Brannock", "Bars Above Brannock"),
     ("Brannock Volume Oscillator", "Brannock Volume Oscillator"), ("Hartwell Trend Cycle", "Hartwell Trend Cycle"),
-    ("Add Gann Fan", "Gann Fan"), ("Price Action Channel", "Price Action Channel"), ("Relative Vigor Index", "Relative Vigor Index"),
+    ("Add Gann Fan", "Gann Fan"), ("Price Action Channel", "Price Action Channel"),
+]
+#: ⭐ 2026-11-25 (coordinator ruling B): five of the measured real names are now KNOWN, as catalogued names that are
+#: one specific calculation: built from what the name computes with the name withheld and the door's note, in any
+#: capitals (`tests/test_catalogued_names_land_honestly.py`). Known by name, they are no longer refused by name.
+KNOWN_SINCE_RULING_B = [
+    ("Range Filter", "range_filter"), ("Volatility Stop", "volatility_stop"), ("Arms Index", "arms_index"),
+    ("Bullish Percent Index", "bullish_percent_index"), ("Relative Vigor Index", "relative_vigor_index"),
 ]
 #: KNOWN AND NOT COVERED, on record so a later change has to say so here: the run holds a word that is no
 #: relation word of the table ("zero", "day", "average", "up", "days").
@@ -80,6 +86,13 @@ def test_a_relation_typed_in_title_case_is_not_a_named_indicator(conv, message, 
 @pytest.mark.parametrize("message, phrase", STILL_A_NAME)
 def test_a_name_is_still_refused_by_name(message, phrase):
     assert _refused(message) == [phrase]
+
+
+@pytest.mark.parametrize("message, row_id", KNOWN_SINCE_RULING_B)
+def test_a_name_known_since_ruling_b_is_withheld_not_refused(conv, message, row_id):
+    assert _refused(message) == []
+    got = conv.understand_turn(message, CHART)
+    assert got["refusal"] is None and [w["id"] for w in got["withheld"]] == [row_id], got
 
 
 @pytest.mark.parametrize("message, phrase", STILL_A_NAME[:6])

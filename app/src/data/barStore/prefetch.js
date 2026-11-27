@@ -59,7 +59,8 @@
 // the list from the app's import graph), plus `peekBars` (the memPeek readers' replacement).
 
 import { getBarStore } from './index'
-import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, unixToDateLabel } from './types'
+import { COVER_ROWS } from './coverRows'
+import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, ACTION, unixToDateLabel } from './types'
 import { bucketOf } from './reducer'
 import { DAILY_POLL_MS } from './network'
 import { legacyBars } from './adapter'
@@ -67,17 +68,19 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, isRthBar } from '../../components/chart/barTime'
+import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
-  tellSymbolWarmers, TYPED_REASK_MS,
+  tellSymbolWarmers, TYPED_REASK_MS, scanTracing, scanTrace,
 } from '../../utils/prefetchBars'
 
 // Lane plumbing the chart imports from the same module — re-exported unchanged so one import
@@ -102,9 +105,13 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 // while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
 // behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** The most linked charts' keys a typed warm fetches beside its own (_fetchLinked): a board's linked group is 2-4 charts. */
+export const LINKED_TYPED_MAX = 3
 /** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
 const ASK_AGAIN = Object.freeze([])
-/** How long the handoff waits for the tail of a copy behind the clock before it paints the copy as it is. */
+/** ⚰️ (2026-11-25) How long the handoff USED to wait for the tail of a copy behind the clock before it painted the copy as
+ *  it is. The switch no longer does (_untilClosed: a copy lacking a closed bar is never painted as it is); kept as a named
+ *  interval for the tests that serve a press for one hold. */
 export const BEHIND_HOLD_MAX_MS = 250
 /** An answer this recent that is still behind the clock is the name not printing: it is not asked again. */
 export const BEHIND_RECHECK_MS = 5000
@@ -256,6 +263,36 @@ export const TAIL_RETRY_MS = 5000
 export const TAIL_ACTIVE_MS = 3 * 60_000
 /** (re-review of #2619 (B)) A HARD cap: at most this many tail asks of one hold in flight at once. */
 export const TAIL_MAX_INFLIGHT = 3
+/**
+ * ⭐ THE ROWS AHEAD STAY RESIDENT UNTIL THE MEMBER REACHES THEM (replay of the minute feed, 2026-11-24, store off, 1m + 15m,
+ * S&P 500, one press per 2.5 s: 55% of next-row presses waited because the row's server answer had been EVICTED before the
+ * press). The registry keeps DEFAULT_MAX_KEYS entries, least recently used out first (registry.js `_evict`). The list
+ * warms a row when it scrolls into view, ~26 rows before the member reaches it, and every press adds the pressed row's
+ * other timeframes and the next rows' keys (~8 a press): a row ahead, last used at its warm, is OLDER than every row
+ * just pressed, so it went first (prefetch.keepAhead.test.js K1: from press 16, one row a press, each just before the
+ * hold's +-6 reached it) and came back as a LOCAL copy the switch refuses and asks for IN FULL. A list's hold now also
+ * PINS the next NEIGHBOR_KEEP_AHEAD rows in the scan direction (`keep`), released as the member passes them, on a reversal
+ * (only the new direction's rows are kept) and on a jump: the eviction takes the rows the member has passed and the keys
+ * no list is about to show, never the ones ahead.
+ * ⛔ ONLY AN ENTRY HOLDING ROWS IS PINNED (the list's warm filled it). `acquire` of an absent key makes an EMPTY entry,
+ * and an entry can exist EMPTY (a hydrate's IndexedDB read in flight, a shed or failed warm: review of #2691, LOW-2); the
+ * first looks that hydrate only a key the registry does not hold (peekBars, holdsBars) would never see that row's mem
+ * and IndexedDB copies past a pinned empty entry. A row not filled yet is pinned at the first `set` after its warm
+ * filled it. Nothing is read or asked for a kept row: the list's own warm fills it.
+ * No cap changes: at most this many more entries per hold (each the warm's first-paint bars, 960-1,199 rows).
+ */
+export const NEIGHBOR_KEEP_AHEAD = 30
+/**
+ * ⛔ ...AND AT MOST THIS MANY IN ALL, ON THE WHOLE PAGE (review of #2691, MEDIUM-1). One hold per timeframe of a list: a
+ * colour with five chart timeframes had five holds pinning 30 rows each, ~185 of the registry's 200 keys with their +-6,
+ * and every warm no list pins (the typed and hover warms, the dwell's, another list's) was evicted within a few later
+ * warms. The holds keeping rows share this total, nearest rows first: 30 each for one or two holds (the 1m + 15m board
+ * unchanged), 20 for three, 15 for four, 12 for five. A hold that joins trims the others at once; one that leaves
+ * (clear, or a `set` with no keep) gives its share back at their next `set`.
+ */
+export const NEIGHBOR_KEEP_TOTAL = 60
+/** Does the entry hold rows (closed or the developing one)? What a kept row must hold to be pinned (see above). */
+const _holdsRows = (s) => !!s && (s.bars.length > 0 || !!s.developing)
 /** (review of fb6fed4328, MEDIUM-1) THE SERVER'S WRITE LAG. A tail answer that lands exactly ONE bucket behind within
  *  TAIL_LAG_WINDOW_MS of the boundary means the server has not stored the bucket that just closed: the hold asks that row
  *  again TAIL_LAG_RETRY_MS after the landing, then twice that, at most TAIL_LAG_RETRIES times per row per bucket, on its
@@ -263,6 +300,20 @@ export const TAIL_MAX_INFLIGHT = 3
 export const TAIL_LAG_RETRY_MS = 1000
 export const TAIL_LAG_RETRIES = 2
 export const TAIL_LAG_WINDOW_MS = 8000
+/** ⭐ (review of #2721; owner: "no lag, proper instant feeling") The longest a switch holds the previous chart for a copy
+ *  lacking a closed bar (_untilClosed): its own ask or the row's push stream, whichever brings the bar first; then what the
+ *  server answered paints, under its honest status (UPDATING while it still lacks the bar). */
+export const ROLL_HOLD_MAX_MS = 400
+/** ⛔ (review of #2721 round 2) Rule a ("no frame for M = no trade") holds for the NEWEST closed bucket only this long after
+ *  its end: until then "no frame" can mean "not delivered yet" (the server's 0.25 s ahead poll plus 100-300 ms delivery). Inside
+ *  it the copy is behind: the roll hold, then UPDATING. (Every missing bucket older than M closed a bucket ago: no margin.) */
+export const RULE_A_MARGIN_MS = 1500
+/** (review of #2721, LOW) How often a hold re-checks its rows ahead on the push stream: released when the page turns hidden
+ *  or the session ends; a row the page cap refused is asked once more. */
+export const LIVE_RECHECK_MS = 10_000
+/** ⭐ (2026-11-25) The travel-direction rows a hold puts on the push stream (`set(..., { live })`), per hold. The page's own
+ *  cap is the store's NEIGHBOR_LIVE_MAX_KEYS. */
+export const NEIGHBOR_LIVE_ROWS = 2
 /** (re-review of #2619 (B)) Selection changes closer than this are a SWEEP (a held arrow repeats every 30-90 ms): the tail
  *  asks nothing while it lasts, and asks its rows this long after the last change (the row the member stops on).
  *  (review of fb6fed4328, LOW-MEDIUM-2) 120 ms, not 250: deliberate tapping is ~150-250 ms between presses and is not a
@@ -302,12 +353,17 @@ export function deviceRefusalOf(s, { extended = false, through = null, nowMs = D
   return null
 }
 
+/** The refusals of a delta answer that only a full read repairs (reducer.applyRest), and that prefetch.ensure repairs. */
+export const FULL_READ_FOR = Object.freeze(new Set(['history_rev', 'cache_key', 'adj_basis', 'restored_seal']))
+
 export function createPrefetch(o = {}) {
   const S = () => o.store ?? getBarStore()
   const tickerMeta = o.tickerMeta ?? _defaultTickerMeta
   const packIngesting = o.packIngesting ?? _packStillIngesting
   const extended = o.extended ?? viewShowExtended
-  const now = o.now ?? (() => Date.now())
+  // ⭐ (2026-11-25) THE SERVER'S CLOCK (lib/serverClock.js): every roll and bucket decision below reads it, never the
+  // member's own clock (6 s slow on the session-open test PC: copies a closed bar short painted in the key task).
+  const now = o.now ?? serverNow
   const setTimer = o.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.clearTimer ?? ((h) => clearTimeout(h))
   const deepNeighbors = o.deepNeighbors ?? deepNeighborsEnabled
@@ -326,7 +382,23 @@ export function createPrefetch(o = {}) {
   let batch = null
   /** key → AbortController of the latest urgent prefetchBars call. */
   const urgentCtl = new Map()
+  /** key → the bucket a next row was asked again in after a roll (_reaskNext: once per row per bucket). */
+  const nextReasked = new Map()
+  /** The opt-in scan-warm trace's urgent call counter (utils/prefetchBars scanTrace; 0: not traced). */
+  let traceCalls = 0
+  /** What the trace says of a copy: held at all, its status, server answer or local, rows, tail, buckets behind the clock. */
+  function _traceCopy(key, s) {
+    if (!s) return { held: false }
+    const rows = s.bars?.length ?? 0
+    return {
+      held: true, status: s.status ?? null, rest: !!s.restSeen, rows,
+      tail: rows ? s.bars[rows - 1].t : null, dev: s.developing?.t ?? null, behind: _bucketsBehind(key, s),
+    }
+  }
   const intentTimers = new Map()
+  /** The neighbour holds keeping rows ahead now (`keep`): they share NEIGHBOR_KEEP_TOTAL. */
+  const keepers = new Set()
+  const _keepShare = () => Math.min(NEIGHBOR_KEEP_AHEAD, Math.floor(NEIGHBOR_KEEP_TOTAL / Math.max(1, keepers.size)))
   /** key -> when this module last got an answer for an intraday key (the short-series stand-down) */
   const shortFullAt = new Map()
   function _noteFull(key) {
@@ -440,27 +512,45 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _trace = 0,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
-    if (_satisfied(s0, until, depth) && (local || s0.restSeen)) return s0
-    if (signal?.aborted) return S().peek(key)
+    if (_satisfied(s0, until, depth) && (local || s0.restSeen)) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'held', copy: _traceCopy(key, s0) })
+      return s0
+    }
+    if (signal?.aborted) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'aborted-before-ask' })
+      return S().peek(key)
+    }
+    if (_trace) scanTrace({ ev: 'warm-ask', call: _trace, key, priority, front })
     const prev = asked.get(key)   // (the row's last record: an aborted ask gives it back, see below)
     const a = _noteAsked(key)
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
     if (own) a.own = true
-    const s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front })
+    let s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    // ⭐ (2026-11-25) A DELTA REFUSED FOR A NEW HISTORY IS READ IN FULL, NOW, ONCE (live session-open test: the biggest wait
+    // class, 12 presses, was a FULL ask at the press on rows warmed 5 s before). The warm's own since= answer carried a
+    // higher history_rev (the open's gap fills bump it), another cache_key or price basis, or voided restored seals:
+    // reducer.applyRest refused the delta, marked the entry `needsFull` and applied nothing. A key no chart subscribes to
+    // has nobody to repair it, and this answer would start its cooldown: the press then asked in full itself. So the same
+    // ask is made again here, in the same lane, without since= (`until: []`: asked whatever the entry's status says).
+    if (s && !full && s.needsFull && FULL_READ_FOR.has(s.invalidatedFor) && !signal?.aborted && !s.error) {
+      s = await S().ensure(key, { until: [], depth, priority, signal, session: sess, hydrated: true, warm, front, full: true })
+    }
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
     // ⭐ (review of fb6fed4328, LOW) AN ABORTED ASK WAS NEVER AN ASK: the row keeps the record it had before (its last
     // answer's cooldown, neither lost nor restarted). A tail ask aborted when its row left the tail used to delete it, so
     // a list or urgent warm re-asked a row answered seconds before.
     if (signal?.aborted || (s?.error && s.error !== 'no_data')) {
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: signal?.aborted ? 'aborted' : 'error', error: s?.error ?? null })
       if (asked.get(key) === a) { if (signal?.aborted && prev) asked.set(key, prev); else asked.delete(key) }
     } else if (s) {
       a.gen = s.gen   // the gen the answer landed under
       a.answered = true
+      if (_trace) scanTrace({ ev: 'warm-done', call: _trace, key, outcome: 'answered', copy: _traceCopy(key, s) })
       a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
       // ...and a waiter reads the rules that key on this answer (`_behindClock`) only from here on: wake it (see watch)
@@ -473,23 +563,41 @@ export function createPrefetch(o = {}) {
    * Warm `keys` to DISPLAYABLE at `priority` (default background). Deduped within a tick,
    * skips keys a prepare owns, respects the re-ask cooldown. Resolves when every warm settles.
    */
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false } = {}) {
+  // `dwell`: the dwell's all-timeframes warm (registry `_evict`): an entry this warm MAKES is marked once it has its
+  // answer, so it goes first out of the registry once no chart shows its symbol; any other warm of the key makes it
+  // ordinary.
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0 } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
-      const s0 = await _hydrate(key)
-      const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
-      const flip = _flipPaints(key, s0)
-      if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
-      if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
-      // A local copy the flip would refuse never satisfies the warm: only a server answer does
-      // (`local: false`, exactly as prepareForDisplay asks).
-      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
+      const R = S().registry
+      const made = !!dwell && !R?.has?.(key)
+      if (!dwell) R?.setDwell?.(key, false)
+      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace })
+      if (made) R?.setDwell?.(key, true)
+      return s
     }))
+  }
+  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0 }) {
+    const s0 = await _hydrate(key)
+    const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
+    const flip = _flipPaints(key, s0)
+    // (the opt-in scan-warm trace: what the warm read, hydrated, and what it decided; see utils/prefetchBars scanTrace)
+    const decide = _trace ? (d, extra) => scanTrace({ ev: 'warm-decide', call: _trace, key, decision: d, copy: _traceCopy(key, s0), short: full, flip, ...extra }) : null
+    if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) { decide?.('satisfied'); return s0 }
+    const prep = preparing.get(key)
+    if (prep || _cooling(key, s0)) {
+      decide?.(prep ? 'preparing' : 'cooling', prep ? null : { answeredAgoMs: now() - (asked.get(key)?.at ?? now()) })
+      return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
+    }
+    decide?.('ensure')
+    // A local copy the flip would refuse never satisfies the warm: only a server answer does
+    // (`local: false`, exactly as prepareForDisplay asks).
+    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace })
   }
 
   /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
    *  if any asker wanted it, warm only if every asker sent warm (a non-warm ask is not shed). */
   const RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
-  function _defer(key, priority, { depth = 0, warm = false, front = false } = {}) {
+  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false } = {}) {
     if (!key) return
     if (!batch) {
       batch = new Map()
@@ -500,11 +608,12 @@ export function createPrefetch(o = {}) {
       })
     }
     const have = batch.get(key)
-    if (!have) { batch.set(key, { priority, depth, warm, front }); return }
+    if (!have) { batch.set(key, { priority, depth, warm, front, dwell }); return }
     if (RANK[priority] < RANK[have.priority]) have.priority = priority
     have.depth = Math.max(have.depth, depth)
     have.warm = have.warm && warm
     have.front = have.front || front
+    have.dwell = have.dwell && dwell   // a dwell's only if every asker was the dwell
   }
 
   // ⚡ A COPY IS JUDGED ON THE CLOCK, NOT ON ITS SAVED STATUS (owner 2026-11-20: typing SPY / QQQ / IWM on a 1m
@@ -512,8 +621,8 @@ export function createPrefetch(o = {}) {
   // derived when its answer landed, and a key off screen is never polled, so a 1m answer from minutes ago still
   // read CURRENT and Enter painted it as it was; a saved copy passed on its one-bucket tolerance. A copy whose
   // newest CLOSED row is a bucket or more behind the session frontier is behind here: the typed warm asks it
-  // again while the member types, and the handoff waits for that answer (at most BEHIND_HOLD_MAX_MS) before it
-  // paints. An answer that landed within BEHIND_RECHECK_MS and is still behind is the name not printing (an
+  // again while the member types, and the handoff waits for that answer before it paints (_untilClosed, 2026-11-25:
+  // never the copy as it is). An answer that landed within BEHIND_RECHECK_MS and is still behind is the name not printing (an
   // illiquid minute, a late seal): it paints as it is and is not asked again on every keystroke.
   // ⛔ 60m / 1h on an EXTENDED view buckets on the clock grid, which expectedBarsBehind does not measure (it
   // walks the 09:30 session grid): those keys keep the status rule.
@@ -528,13 +637,114 @@ export function createPrefetch(o = {}) {
     const ext = session(showExtended) === 'eth'
     if (ext && Number(p.tf) >= 60) return 0
     // the DEVELOPING row counts too: at a bucket roll the just-closed bucket is still the forming row until its
-    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind)
-    const tailT = Math.max(rows[rows.length - 1].t, s.developing?.t ?? -Infinity)
-    const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
-    return n == null || n < 1 ? 0 : n
+    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind).
+    // ⛔ ...ONLY A COPY READ AFTER THAT BUCKET CLOSED (live session 2026-11-24, 6 of 146 presses). A copy read BEFORE the
+    // roll (the urgent next-row warm's answer, ~5 s before the press) holds that bucket as it was while it formed, and
+    // its sealed close is missing: counted as the frontier, the press showed it in the key task one closed bar short
+    // (the chart draws no forming bar of a bucket that has closed) and the minute came 34-250 ms later.
+    // ⭐ ...OR A COPY THE PUSH STREAM KEPT CURRENT THROUGH THE ROLL (2026-11-25; owner's standard for a switch's first frame:
+    // "as current as the chart on screen"). A row ahead rides the stream (createNeighborHold `live`); when its stream has
+    // delivered without a break since BEFORE the current bucket opened, its developing bar is what the chart on screen
+    // shows at this instant: bar M with the server's own push values, provisional until the push final. It holds the
+    // frontier. A copy WITHOUT bar M is still behind (bar M absent is never "current")...
+    let tailT = rows[rows.length - 1].t
+    const dev = s.developing
+    const live = _pushState(key, showExtended)
+    if (dev && Number.isFinite(dev.t) && (_devHoldsFrontier(dev, p.tf) || (live && live.since <= _rollMs(p.tf)))) tailT = Math.max(tailT, dev.t)
+    let n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
+    if (n == null || n < 1) {
+      // ⭐ (2026-11-25, #2733) THE SESSION'S FIRST BUCKET. The count above walks CLOSED buckets only, so inside the session's
+      // first bucket (09:30-09:45 on 15m; 5m, 30m and 60m alike) a copy ending yesterday read 0 behind and painted
+      // yesterday's bar as the newest (live session-open test, p-1 press 71, GLW 15m: the 'one chart only' frame). Once the
+      // view's session has opened, a copy with no row and no developing bar at or after today's open is behind: one bucket
+      // (then judged by rule a below, like any other copy behind).
+      const opened = _sessionOpenUnix(now(), ext)
+      if (!(opened != null && tailT < opened)) return 0
+      n = 1
+    }
+    // ⭐ ...UNLESS THE STREAM PROVES NO TRADE PRINTED THERE (review of #2721, rule a; it rests on lib/barsStreamManager's
+    // `liveSince` breaking across a roll inside a rebuild gap, 1-A). The stream has delivered without a break since BEFORE the
+    // first bucket the copy lacks opened, and sent no frame for that bucket or later (`lastBarT`): every trade there would
+    // have been one. The copy is complete, as the chart on screen would show it (a thin minute).
+    // ...ONLY RULE_A_MARGIN_MS AFTER THE ROLL: the newest closed bucket M is always among the missing (the copy's tail is its
+    // newest row), and right after M's end its last prints may still be on the way. (Merge of #2721 into #2733: `now` is
+    // the server's clock, lib/serverClock, and so is the stream's `liveSince`; the first bucket a copy from an EARLIER
+    // session lacks is today's open, never the bucket after its tail: the overnight gap is not buckets.)
+    if (live && now() - _rollMs(p.tf) >= RULE_A_MARGIN_MS) {
+      let first = bucketEndUnix(tailT, p.tf)
+      const opened = _sessionOpenUnix(now(), ext)
+      // ⛔ (review of the merge) ONLY A COPY THAT REACHED THE PREVIOUS SESSION'S CLOSE skips the overnight gap: one whose tail
+      // stopped mid-session yesterday (14:00) still lacks 14:01-15:59, and a stream live since this morning proves
+      // nothing about them. Reached = its last bucket ends at that close, or the server's proof / seal covers it.
+      if (opened != null && Number.isFinite(first) && first < opened) {
+        const prevClose = _prevSessionCloseUnix(opened, ext)
+        const covered = prevClose != null && (first >= prevClose
+          || (Number.isFinite(s.verifiedThrough) && s.verifiedThrough >= prevClose)
+          || (Number.isFinite(s.completeThrough) && s.completeThrough >= prevClose))
+        if (covered) first = opened
+      }
+      if (Number.isFinite(first) && live.since <= first * 1000 && !(Number.isFinite(live.lastBarT) && live.lastBarT >= first * 1000)) return 0
+    }
+    return n
   }
+  /** Today's open (unix s) of the view's session (09:30 regular, 04:00 extended) once it has opened on a trading day; else
+   *  null (a weekend, a holiday, before the open). */
+  function _sessionOpenUnix(nowMs, ext) {
+    const sec = Math.floor(nowMs / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    if (dow === 0 || dow === 6 || isHolidayISO(iso)) return null
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    if (m < open) return null
+    return (Math.floor(sec / 60) - (m - open)) * 60
+  }
+  /** The close (unix s) of the trading session before the one that opened at `opened` (16:00, the half-day 13:00, or the
+   *  extended 20:00), or null when none is found within ten days. */
+  function _prevSessionCloseUnix(opened, ext) {
+    for (let back = 1; back <= 10; back++) {
+      const probe = opened - back * 86400
+      const iso = etDateOf(probe)
+      const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+      if (dow === 0 || dow === 6 || isHolidayISO(iso)) continue
+      const closeMin = ext ? 1200 : rthCloseMinuteOf(probe)
+      let c = probe - etMinuteOfDay(probe) * 60 + closeMin * 60
+      c += (closeMin - etMinuteOfDay(c)) * 60      // (a DST change in between)
+      return c
+    }
+    return null
+  }
+  /** `key`'s push stream while it delivers without a break: { since, lastBarT } (liveFeed pushState), else null. */
+  function _pushState(key, showExtended) {
+    try {
+      const st = S().live?.pushState?.(key, session(showExtended)) ?? null
+      return st && Number.isFinite(st.since) ? st : null
+    } catch { return null }
+  }
+  /** Does the developing bar `dev` hold the frontier: its bucket still open, or the bar itself written at or after its
+   *  bucket's end (its `rev`, ms: the store's write of a server bar, a tick's time)? ⛔ Not "an answer of the key landed
+   *  after the roll": an answer with no developing bar (the store's closed buckets only) leaves the OLD one in place, and
+   *  it vouches for nothing. A `rev` that is not a time (absent, a counter) never passes: the copy is then behind and
+   *  the switch asks, which is the safe side. */
+  function _devHoldsFrontier(dev, tf) {
+    const end = bucketEndUnix(dev.t, tf)
+    if (!(end <= now() / 1000)) return true
+    return Number.isFinite(dev.rev) && dev.rev >= end * 1000
+  }
+  /** When the current bucket of `tf` opened (ms): the roll the server's write lag is measured from. */
+  // ⛔ THE CURRENT BUCKET'S START, NOT "ITS END MINUS THE PERIOD" (review of #2708, round 3): on the 60m session grid the
+  // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
+  // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
+  const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
+  /** When the newest CLOSED bucket of `tf` opened (ms): what `_markShort` stamps a short copy as lacking (#2721). */
+  const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
-    if (_bucketsBehind(key, s, showExtended) < 1) return false
+    const n = _bucketsBehind(key, s, showExtended)
+    if (n < 1) return false
+    return !_ownGrace(key, s, n)
+  }
+  /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
+  function _ownGrace(key, s, n) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -542,9 +752,133 @@ export function createPrefetch(o = {}) {
     // neighbour hold's tail) can come back still behind (the server has not stored the bucket that just closed). Taken as
     // "the name is not printing", it let a press in the next BEHIND_RECHECK_MS paint that copy at once, MISSING the newest
     // closed bar, which then appeared (the owner's 2026-11-20 complaint, at every boundary). So such an answer stays behind
-    // here: the press asks for itself (at most BEHIND_HOLD_MAX_MS, then the copy paints as it is). Its own answer, still
+    // here: the press asks for itself and holds for the closed bar (_untilClosed). Its own answer, still
     // behind, is what says the name is not printing: the next presses inside BEHIND_RECHECK_MS paint it at once.
-    return !(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)
+    if (!(a?.answered && a.own && now() - a.at < BEHIND_RECHECK_MS)) return false
+    if (s?.tailStatus === 'unverified') return false
+    // ⭐ ...AND BY EVIDENCE (review of #2708, MEDIUM-1): the server's proof that nothing newer existed says the name did not
+    // trade, at ANY number of buckets behind: a thin name's complete copy paints at once with one ask, not the hold and a
+    // full read on every press. ⛔ BUT NEVER FOR THE BUCKET THAT JUST CLOSED (round 2): the server can stamp that proof at
+    // or past the roll before the closed bucket is stored (a provider heal asked at roll+1 s, before the provider
+    // published it; the live stream's market-wide watermark, flushed mid-burst). So the proof counts only once
+    // TAIL_LAG_WINDOW_MS has passed since the roll, and (review of #2733) only when it reaches the roll itself, the newest
+    // closed bucket's end. A thin name therefore paints at once from roll+8 s on (once the server's proof is stamped past
+    // the roll) and holds only in the first 8 s of each bucket.
+    const tf0 = parseKey(key)?.tf
+    if (tf0 && Number.isFinite(s?.verifiedThrough)) {
+      const roll = _rollMs(tf0)
+      // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
+      // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
+      // through the roll the client proves the newest closed bucket itself, in either deploy order.
+      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll) return true
+    }
+    // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
+    // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
+    //   * one bucket behind inside TAIL_LAG_WINDOW_MS of the roll: the server has not stored the bucket that just closed
+    //     (its since= path reads the store, the heal lands later); that is the server's lag, not the name;
+    //   * two buckets or more behind (a server that lags or failed, until it proves otherwise);
+    //   * (above) the server itself marked the tail `unverified` (it served the store without its pending repair).
+    // The press then asks again (_askOwn) and holds for the closed bar (_untilClosed, #2721), inside the window.
+    // ⛔ (2026-11-25, #2733) AND WITHOUT THAT PROOF, NEVER (live session-open test, p-1 press 51: at the open the server's store
+    // lagged its stream by 7-42 s, so an answer one bucket behind 8 s after the roll was the server's lag, not the name).
+    // The bucket-count fallback (one bucket behind, past TAIL_LAG_WINDOW_MS: the name not printing) is gone; only
+    // `verified_through` says a name did not trade (the server now stamps it with proof only: bars.py _apply_tail_status).
+    return false
+  }
+
+  /**
+   * The switch's own ask of a copy behind the clock, and ONE more WITHOUT since= when its answer is still behind and no
+   * grace says the name is not printing (live session 2026-11-24, RDDT: the since= answer came back three minutes short,
+   * racing the server's heal; the full read 130 ms later was current). Resolves with the last answer.
+   */
+  function _askOwn(key, { signal = null, s0 = null, showExtended, until = ASK_AGAIN } = {}) {
+    const sess = session(showExtended)
+    return ensure(key, { until, priority: 'visible', signal, warm: false, local: false, _s0: s0 || S().peek(key) || {}, session: sess, own: true })
+      .then((s1) => (_reaskWhole(key, s1, { signal, showExtended }) ?? s1))
+  }
+  /** The switch's own answer `s` (no copy painted meanwhile): still behind with no grace, it is asked once more in full,
+   *  inside the roll hold (_untilClosed). */
+  async function _wholeUntilClosed(key, s, { signal = null, showExtended } = {}) {
+    const again = _reaskWhole(key, s, { signal, showExtended })
+    const first = again ? again.then((s2) => s2 || S().peek(key) || s) : Promise.resolve(s)
+    return _untilClosed(key, first, { signal, showExtended })
+  }
+
+  /**
+   * ⭐ THE ROLL HOLD (review of #2721; owner: "no lag, proper instant feeling"). The switch's own ask `first` (with its one
+   * full re-ask, `_askOwn`) and the row's push stream race for at most ROLL_HOLD_MAX_MS: whichever brings the closed bar first
+   * ends the hold. An answer that comes back still without it paints at once, except on a row the stream delivers (a push
+   * frame may still bring the bar inside the bound). What paints then is what the server answered, under its HONEST status:
+   * a copy still lacking a closed bar is marked (ACTION.AWAIT_CLOSED) and reads UPDATING until it holds the bar or the next
+   * answer lands, never 'current'. The next press (`signal`) ends the hold at once and asks nothing more. Resolves with the
+   * copy.
+   */
+  async function _untilClosed(key, first, { signal = null, showExtended } = {}) {
+    const t0 = now()
+    const left = () => ROLL_HOLD_MAX_MS - (now() - t0)
+    const s = await Promise.race([_bounded(first, left(), signal), _untilCurrent(key, left(), signal, showExtended)])
+    if (!signal?.aborted && left() > 0 && _short(key, showExtended) && _pushState(key, showExtended)) {
+      await _untilCurrent(key, left(), signal, showExtended)
+    }
+    if (!signal?.aborted) _markShort(key, showExtended)
+    return S().peek(key) || s
+  }
+  /** The copy of `key` lacks a closed bar (behind the clock, no grace). */
+  function _short(key, showExtended) {
+    const cur = S().peek(key)
+    return !!cur && _behindClock(key, cur, showExtended)
+  }
+  /** A copy painted while it lacks a closed bar reads UPDATING until it holds the newest closed bucket (ACTION.AWAIT_CLOSED). */
+  function _markShort(key, showExtended) {
+    if (!_short(key, showExtended)) return
+    const tf = parseKey(key)?.tf
+    if (!tf || !isIntradayTf(tf)) return
+    try { S().registry?.dispatch?.(key, { type: ACTION.AWAIT_CLOSED, key, payload: { t: Math.floor(_prevRollMs(tf) / 1000) } }) } catch { /* a status only */ }
+  }
+  /** What the switch reports after painting `key`: 'updating' while its copy is marked short (see _markShort). */
+  function _paintedOutcome(key) {
+    return S().peek(key)?.status === STATUS.UPDATING ? 'updating' : 'current'
+  }
+  /** `p` (a failure counts as no answer), at most `ms`, or until `signal` aborts: undefined when it did not settle. */
+  function _bounded(p, ms, signal) {
+    return new Promise((resolve) => {
+      let done = false
+      const fin = (v) => { if (done) return; done = true; clearTimer(t); signal?.removeEventListener?.('abort', onAbort); resolve(v) }
+      const onAbort = () => fin(undefined)
+      const t = setTimer(() => fin(undefined), Math.max(0, ms))
+      if (signal?.aborted) { fin(undefined); return }
+      signal?.addEventListener?.('abort', onAbort, { once: true })
+      Promise.resolve(p).then((v) => fin(v), () => fin(undefined))
+    })
+  }
+  /** Wait `ms`, or until the copy of `key` is no longer behind (any change of its entry: an answer, a push frame), or `signal`. */
+  function _untilCurrent(key, ms, signal, showExtended) {
+    return new Promise((resolve) => {
+      let done = false
+      let off = null
+      const fin = () => {
+        if (done) return
+        done = true
+        clearTimer(t)
+        signal?.removeEventListener?.('abort', fin)
+        try { off?.() } catch { /* ignore */ }
+        resolve()
+      }
+      const t = setTimer(fin, Math.max(0, ms))
+      if (signal?.aborted) { fin(); return }
+      signal?.addEventListener?.('abort', fin, { once: true })
+      try {
+        off = S().registry?.subscribe?.(key, () => { const cur = S().peek(key); if (cur && !_behindClock(key, cur, showExtended)) fin() }) ?? null
+      } catch { off = null }
+    })
+  }
+  /** The one full re-ask (see _askOwn), or null when the answer `s1` needs none. */
+  function _reaskWhole(key, s1, { signal = null, showExtended } = {}) {
+    const cur = S().peek(key)
+    if (signal?.aborted || !s1 || !cur || s1.error || !_behindClock(key, cur, showExtended)) return null
+    // only after a `since=` delta: a full read would meet the same serve path again (review of #2708, LOW a)
+    if (S().network?.askedDelta?.(key) === false) return null
+    return ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: cur, session: session(showExtended), own: true, full: true })
   }
 
   /** The key's last answer (ANY ask's) landed less than BEHIND_RECHECK_MS ago: a warm asking again now would most likely
@@ -633,12 +967,28 @@ export function createPrefetch(o = {}) {
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
    *  handoff asks it after its own peek, which already did. */
-  function heldRows(sym, tf, { showExtended, answered = false } = {}) {
+  function heldRows(sym, tf, { showExtended, answered = false, upTo = COVER_ROWS } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
-    return s.bars.length + (s.developing ? 1 : 0)
+    return _viewRows(s, key, extOf(showExtended), upTo)
+  }
+  /**
+   * ⭐ (2026-11-26, review of #2871) THE ROWS THE VIEW DRAWS. A regular-hours view of an intraday key both sessions share
+   * (1/5/15/30: `parseKey().session` null) draws only its regular-session rows (barTime.isRthBar, the chart's own test):
+   * ~40% of the raw rows on a 5m key with extended hours, so COVER_ROWS raw rows were ~244 bars on screen, short of the
+   * visible bars plus the longest average's lookback, and the later join changed visible values. Counted from the newest
+   * row back and no further than COVER_ROWS (the only question asked of it: does it cover?). Any other view: every row.
+   */
+  function _viewRows(s, key, ext, upTo = COVER_ROWS) {
+    if (!s) return 0
+    const p = key ? parseKey(key) : null
+    const all = s.bars.length + (s.developing ? 1 : 0)
+    if (ext || !p || p.session != null || p.window || !isIntradayTf(p.tf)) return all
+    let n = s.developing && isRthBar(s.developing.t) ? 1 : 0
+    for (let i = s.bars.length - 1; i >= 0 && n < upTo; i--) if (isRthBar(s.bars[i].t)) n++
+    return n
   }
 
   function _own(key) { preparing.set(key, (preparing.get(key) || 0) + 1) }
@@ -709,15 +1059,16 @@ export function createPrefetch(o = {}) {
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended), own: true })
-        // a local copy behind the clock paints after BEHIND_HOLD_MAX_MS if the answer has not won by then
+        // a local copy behind the clock paints after ROLL_HOLD_MAX_MS if the answer has not won by then (UPDATING: _markShort)
         const localFirst = hyd.then((h) => {
           if (!_localPaints(h, fetchTf(String(tf)), showExtended)) return new Promise(() => {})
           if (!_behindClock(key, h, showExtended)) return LOCAL_PAINTS
-          return new Promise((resolve) => setTimer(() => resolve(LOCAL_PAINTS), BEHIND_HOLD_MAX_MS))
+          return new Promise((resolve) => setTimer(() => resolve(LOCAL_PAINTS), ROLL_HOLD_MAX_MS))
         })
-        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
-        if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
+        let won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+        if (won === LOCAL_PAINTS) { _markShort(key, showExtended); await _joined(lake); return _paintedOutcome(key) }
         if (won === LAKE_PAINTS) return 'lake'
+        if (!date) won = await _wholeUntilClosed(key, won, { signal, showExtended })
         return _whole(_outcome(won, { aborted: !!signal?.aborted, date }), lake)
       }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
@@ -727,11 +1078,11 @@ export function createPrefetch(o = {}) {
       const localPaints = !heldPaints && _localPaints(s0, fetchTf(String(tf)), showExtended)
       if ((heldPaints || localPaints) && !date && _behindClock(key, s0, showExtended)) {
         // A paintable copy behind the clock: ask for the tail first (one request, ~50-110 ms) and paint the
-        // answer; past BEHIND_HOLD_MAX_MS the copy paints as it is and the answer lands on the chart.
-        const req = ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
-        await Promise.race([req, new Promise((resolve) => setTimer(resolve, BEHIND_HOLD_MAX_MS))])
+        // answer (its answer still behind with no grace: one more ask, in full: _askOwn); the roll hold (_untilClosed) is at
+        // most ROLL_HOLD_MAX_MS, its push stream racing the ask, and what paints after it says UPDATING while it lacks a bar.
+        await _untilClosed(key, _askOwn(key, { signal, s0, showExtended }), { signal, showExtended })
         await _joined(lake)
-        return 'current'
+        return _paintedOutcome(key)
       }
       if (heldPaints) { await _joined(lake); return 'current' }
       if (localPaints) { await _joined(lake); return 'current' }   // legacy: no request
@@ -744,8 +1095,9 @@ export function createPrefetch(o = {}) {
       // for the same URL joins it.
       const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
       // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
-      const s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+      let s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
       if (s === LAKE_PAINTS) return 'lake'
+      if (!date) s = await _wholeUntilClosed(key, s, { signal, showExtended })
       return _whole(_outcome(s, { aborted: !!signal?.aborted, date }), lake)
     } catch {
       return 'error'
@@ -794,7 +1146,7 @@ export function createPrefetch(o = {}) {
       new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
     ])
     return bounded
-      .then(() => S().lakeSeed?.(key) ?? false)
+      .then(() => S().lakeSeed?.(key, { awaited: true }) ?? false)   // a paint waits on it: its pieces never yield
       .catch(() => false)
   }
 
@@ -970,6 +1322,16 @@ export function createPrefetch(o = {}) {
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
    *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
    *  prepare waits for the join (bounded) so the first paint is the whole chart. */
+  /** ⭐ (2026-11-26, review of #2868) Resolves once no lake load of the key `sym` / `tf` is in flight (true when one was
+   *  waited for, false when none was running). Starts nothing; never rejects. The typed ticker's frame is prepared on
+   *  the bars Enter will read, so the pane names it only after the typed warm's lake join has landed (a frame prepared on
+   *  the rows before the join is filed under an array the switch no longer reads). */
+  function lakeJoined(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? S().lakeLoading?.(key) : null
+    return p ? Promise.resolve(p).then(() => true, () => true) : Promise.resolve(false)
+  }
+
   function lakePending(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     return !!key && !!S().lakePending?.(key)
@@ -1061,24 +1423,61 @@ export function createPrefetch(o = {}) {
     tellSymbolWarmers(syms, tf, { priority: priority || urgent })
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
+      const call = scanTracing() ? ++traceCalls : 0   // the opt-in scan-warm trace (utils/prefetchBars scanTrace)
       // Only the LATEST urgent call stays urgent: rows the member already passed are aborted
       // (a waiting lane request never reaches the network). ⛔ PER TIMEFRAME (2026-11-19): a list
       // linked to a daily AND an hourly chart warms both on every press; aborting every other key
       // made the second call cancel the first timeframe's next rows.
       const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf)))
       const callTf = parseKey([...keep][0] || '')?.tf
-      for (const [k, c] of urgentCtl) if (!keep.has(k) && parseKey(k)?.tf === callTf) { c.abort(); urgentCtl.delete(k) }
+      for (const [k, c] of urgentCtl) {
+        if (!keep.has(k) && parseKey(k)?.tf === callTf) {
+          c.abort(); urgentCtl.delete(k)
+          if (call) scanTrace({ ev: 'warm-abort', key: k, by: call })
+        }
+      }
       for (const sym of syms.slice(0, nUrgent)) {
         const k = keyFor(sym, tf)
         if (!k) continue
         if (!urgentCtl.has(k)) urgentCtl.set(k, new AbortController())
         const c = urgentCtl.get(k)
-        // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
-        prefetch([k], { priority: 'urgent', signal: c.signal, front: true }).finally(() => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) })
+        const done = () => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) }
+        const held = S().peek(k)
+        const reask = _reaskNext(k, held)
+        if (call) scanTrace({ ev: 'warm', call, key: k, path: reask ? 'reask' : 'warm', reg: _traceCopy(k, held) })
+        if (reask) {
+          // (a next row whose copy predates the current bucket: asked again, once per bucket, see _reaskNext)
+          ensure(k, { until: ASK_AGAIN, priority: 'urgent', signal: c.signal, front: true, local: false, _s0: held, _trace: call }).catch(() => {}).finally(done)
+        } else {
+          // Legacy: the chart's own URL (no `&warm`), at the head of the queue.
+          prefetch([k], { priority: 'urgent', signal: c.signal, front: true, _trace: call }).finally(done)
+        }
         tickerMeta(sym)
       }
     }
     _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
+  }
+
+  /**
+   * ⭐ A NEXT ROW READ BEFORE THE ROLL IS ASKED AGAIN AFTER IT (live session 2026-11-24). The urgent next-row warm answers a
+   * row ~5 s before the member reaches it, and its answer cools the row for a bucket; a press right after a minute roll then
+   * found that copy one closed bar short (_bucketsBehind) and waited for its own ask. Here the next rows whose copy is
+   * behind the clock and whose last answer predates the current bucket are asked again: ONCE per row per bucket (a re-ask
+   * the server answered still behind is the server's lag, left to the switch's own ask), intraday, in the session.
+   */
+  function _reaskNext(k, s) {
+    if (!s?.bars?.length || preparing.get(k) || !inSession()) return false
+    const tf = parseKey(k)?.tf
+    if (!tf || !isIntradayTf(tf) || _bucketsBehind(k, s) < 1) return false
+    const b = bucketEndUnix(Math.floor(now() / 1000), tf) - 1
+    if (nextReasked.get(k) === b) return false
+    const a = asked.get(k)
+    if (a && !a.answered) return false                           // its ask is in flight
+    if (a?.answered && a.at >= _rollMs(tf)) return false          // already answered in this bucket
+    nextReasked.delete(k)
+    nextReasked.set(k, b)
+    if (nextReasked.size > COOLDOWN_MAX_KEYS) nextReasked.delete(nextReasked.keys().next().value)
+    return true
   }
 
   function prefetchBar(sym, tf = 'D') {
@@ -1087,15 +1486,17 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false } = {}) {
     if (!tickers?.length) return
     tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
-    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority }, showExtended)
+    _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
+  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first
+   *  once no chart shows `sym` (registry `_evict`). */
   function prefetchAllTimeframes(sym) {
     if (!sym) return
-    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf)
+    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf, { dwell: true })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
@@ -1161,8 +1562,10 @@ export function createPrefetch(o = {}) {
   // when it is asked for (and a tail answer still behind lends no grace: only the switch's own answer does, `_behindClock`).
   // BOUNDED (review of #2619, MEDIUM-2):
   //   * ONLY WHILE THE MEMBER NAVIGATES: the boundary timer runs for TAIL_ACTIVE_MS after the last CHANGE of `selected`
-  //     (a key press, a click on a row; the list's first selection, a live re-sort or a new list of visible rows open
-  //     nothing). Outside that window: no timer and no ask. The first press after a rest asks at its own `set`.
+  //     (a key press, a click on a row, and ⭐ since 2026-11-25 the list's FIRST selection: live session 2026-11-24, the
+  //     first press of both runs waited 76-97 ms on a next row the list warm had read 60-100 s before; a live re-sort or a
+  //     new list of visible rows open nothing). Outside that window: no timer and no ask. The first press after a rest
+  //     asks at its own `set`.
   //   * NEVER WHILE HIDDEN: no ask, and the timer is not armed (lib/deskVisibility.isAppVisible); the next `set` arms it.
   //   * NEVER A HERD: each boundary's ask waits a lag drawn per hold per boundary, uniform in TAIL_LAG_MIN_MS to
   //     TAIL_LAG_MAX_MS after the boundary, so a fleet's holds spread their asks over seconds.
@@ -1184,13 +1587,24 @@ export function createPrefetch(o = {}) {
   // and two lists on one colour group that both hold the symbol both open theirs (each bounded as above).
   function createNeighborHold() {
     let held = new Map()   // key → true
+    let kept = new Map()   // key → true: the rows ahead pinned against the registry's LRU (`keep`), nearest first
+    // this hold in the page's keep budget (NEIGHBOR_KEEP_TOTAL): trims its kept rows to `n`, the farthest released first
+    const keeper = {
+      trim(n) {
+        if (kept.size <= n) return
+        const st = S()
+        const next = new Map()
+        for (const k of kept.keys()) { if (next.size < n) next.set(k, true); else st.registry.release(k) }
+        kept = next
+      },
+    }
     let deepTimer = null
     let dateTimer = null
     let deepGen = 0
     let tailTimer = null
     let tail = []          // the keys kept current across a boundary (see above)
     let tailExt = undefined
-    let selSeen = false         // a `selected` was given before (the list's first selection opens no window)
+    let selSeen = false         // a `selected` was given before (the list's first selection opens the window too)
     let lastSel = undefined
     let activeUntil = -Infinity // the boundary timer runs until then (TAIL_ACTIVE_MS after the last selection change)
     let lastChangeAt = -Infinity // the last selection CHANGE (a sweep: changes closer than TAIL_SWEEP_MS)
@@ -1199,6 +1613,36 @@ export function createPrefetch(o = {}) {
     const lagged = new Map()    // key → { b: the bucket, n: lag retries in it, due: when the next one is (0: none) }
     let lagTimer = null
     let lagTimerAt = Infinity
+    // ⭐ THE ROWS AHEAD ON THE PUSH STREAM (2026-11-25, `live`): the travel-direction next NEIGHBOR_LIVE_ROWS rows ride the
+    // bars stream as `ahead` pairs (the store's watchLive: held, push frames only, page cap NEIGHBOR_LIVE_MAX_KEYS), so the
+    // first press after a roll finds the row as current as the chart on screen (_bucketsBehind, _pushLiveAtRoll). Only
+    // while the member navigates (the selection window), in the session, on a visible page; released when the window ends.
+    // (review of #2721) The rows change only with the SELECTION (a press, the first selection): a live re-sort would rebuild
+    // the chart's own stream connection for nothing. Every LIVE_RECHECK_MS (and at the window's end) the hold re-checks: a
+    // hidden page or the session's end releases them; a row the page cap refused is asked once more.
+    const liveOff = new Map()   // key → its release
+    const liveRefused = new Map()   // key → asked again already (a refused row is asked once more, at the next re-check)
+    let liveTimer = null
+    const stopLive = () => { if (liveTimer != null) { clearTimer(liveTimer); liveTimer = null } }
+    const releaseLive = (keep = null) => {
+      for (const [k, off] of [...liveOff]) if (!keep || !keep.includes(k)) { liveOff.delete(k); try { off() } catch { /* ignore */ } }
+      for (const k of [...liveRefused.keys()]) if (!keep || !keep.includes(k)) liveRefused.delete(k)
+    }
+    const watchRow = (k) => {
+      const off = S().watchLive?.(k, { session: session(tailExt) }) ?? null
+      if (off && !off.refused) { liveOff.set(k, off); liveRefused.delete(k); return true }
+      return false
+    }
+    function armLive() {
+      stopLive()
+      if (!liveOff.size && !liveRefused.size) return
+      liveTimer = setTimer(() => { liveTimer = null; liveCheck() }, Math.max(0, Math.min(LIVE_RECHECK_MS, activeUntil - now())))
+    }
+    function liveCheck() {
+      if (!inSession() || !_active() || _hidden()) { releaseLive(); return }
+      for (const [k, again] of [...liveRefused]) { if (again || !watchRow(k)) { if (again) liveRefused.delete(k); else liveRefused.set(k, true) } }
+      armLive()
+    }
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
@@ -1211,7 +1655,7 @@ export function createPrefetch(o = {}) {
     }
     const _bucketOfNow = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) - 1
     /** The boundary that opened the current bucket of `tf` (ms). */
-    const _boundaryMs = (tf) => bucketEndUnix(Math.floor(now() / 1000), tf) * 1000 - Number(tf) * 60_000
+    const _boundaryMs = (tf) => _rollMs(tf)   // (the same roll: the 60m last bar opens at 15:30, not 15:00)
     const stopLag = () => { if (lagTimer != null) { clearTimer(lagTimer); lagTimer = null; lagTimerAt = Infinity } }
     const _hidden = () => { try { return visible() === false } catch { return false } }
     const _active = () => now() < activeUntil
@@ -1366,18 +1810,38 @@ export function createPrefetch(o = {}) {
       }
     }
     return {
-      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined } = {}) {
+      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined, keep: keepSyms = null, live: liveSyms = null } = {}) {
         const st = S()
         const want = new Map()
         for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
         for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
+        // the rows ahead: pinned only (no read, no ask: the list's warm fills them), released once the member is past them;
+        // only an entry holding rows (an empty pin would hide the row's copies from the first looks: see NEIGHBOR_KEEP_AHEAD)
+        // this hold's share of the page's budget: joining trims the others to the new share at once (the total never
+        // passes NEIGHBOR_KEEP_TOTAL), and a `set` with no keep leaves the budget
+        if (keepSyms?.length) {
+          if (!keepers.has(keeper)) { keepers.add(keeper); const n = _keepShare(); for (const h of keepers) if (h !== keeper) h.trim(n) }
+        } else keepers.delete(keeper)
+        const share = keepers.has(keeper) ? _keepShare() : 0
+        const keepWant = new Map()
+        for (const sym of (keepSyms || []).slice(0, share)) {
+          const k = keyFor(sym, tf, { showExtended })
+          if (!k || keepWant.has(k)) continue
+          if (kept.has(k)) keepWant.set(k, true)
+          else if (_holdsRows(st.peek(k))) { st.registry.acquire(k); keepWant.set(k, true) }
+        }
+        for (const k of kept.keys()) if (!keepWant.has(k)) st.registry.release(k)
+        kept = keepWant
         stopDeep()
-        // the selection window (TAIL_ACTIVE_MS): opened by a CHANGE of the member's selection, never by any other `set`
+        // the selection window (TAIL_ACTIVE_MS): opened by the member's first selection and by every CHANGE of it, never by
+        // any other `set` (a live re-sort keeps the same selection)
         let sweeping = false
+        let selChanged = false
         if (selected !== undefined) {
-          if (selSeen && selected !== lastSel) {
+          if (!selSeen || selected !== lastSel) {
+            selChanged = true
             activeUntil = now() + TAIL_ACTIVE_MS
             sweeping = now() - lastChangeAt < TAIL_SWEEP_MS   // a held arrow: the tail waits for the row it stops on
             lastChangeAt = now()
@@ -1397,6 +1861,20 @@ export function createPrefetch(o = {}) {
         if (!tail.length) stopTail()
         else if (sweeping) armTail(parseKey(tail[0]).tf, 'settle')
         else { keepTailCurrent(); armTail(parseKey(tail[0]).tf) }
+        // the rows ahead on the push stream (see liveOff): chosen again only when the selection changed
+        if (selChanged) {
+          const liveKeys = []
+          for (const sym of liveSyms || []) {
+            if (liveKeys.length >= NEIGHBOR_LIVE_ROWS) break
+            const k = keyFor(sym, tf, { showExtended })
+            const p = k ? parseKey(k) : null
+            if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !liveKeys.includes(k)) liveKeys.push(k)
+          }
+          const liveOk = liveKeys.length > 0 && inSession() && _active() && !_hidden()
+          releaseLive(liveOk ? liveKeys : null)
+          if (liveOk) for (const k of liveKeys) if (!liveOff.has(k) && !watchRow(k)) liveRefused.set(k, false)
+          armLive()
+        }
         if (!deep?.length || !deepNeighbors()) return
         const next = []
         const dates = []
@@ -1416,12 +1894,18 @@ export function createPrefetch(o = {}) {
         stopDeep()
         stopTail()
         stopLag()
+        stopLive()
+        releaseLive()
+        liveRefused.clear()
         lagged.clear()
         abortTail()
         tail = []
         const st = S()
         for (const k of held.keys()) st.registry.release(k)
         held = new Map()
+        for (const k of kept.keys()) st.registry.release(k)
+        kept = new Map()
+        keepers.delete(keeper)
       },
       keys: () => [...held.keys()],
     }
@@ -1572,6 +2056,57 @@ export function createPrefetch(o = {}) {
     }
   }
 
+  /** ⭐ (2026-11-26) ...AND THE LINKED CHARTS' KEYS. Enter shows the typed ticker on every chart of the linked group (the
+   *  host's `alsoTfs`), and each of those keys that is already held with its lake depth still due had it joined only after
+   *  Enter, by that chart's own subscribe: the same rule as the typing chart's held key (above), per linked intraday key.
+   *  Starts nothing for a key not held (no entry to join into) or not carried by the lake. */
+  function _joinLinked(T, tf, alsoTfs) {
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k0 = String(t)
+      if (!t || seen.has(k0)) continue
+      seen.add(k0)
+      const k = keyFor(T, t)
+      const p = k ? parseKey(k) : null
+      if (!p || p.window || !isIntradayTf(p.tf) || !S().peek(k)) continue
+      if (S().lakePending?.(k)) _joinLake(k)
+    }
+  }
+
+  /** ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...AND THE LINKED CHARTS' KEYS ARE FETCHED, not only
+   *  joined when held (`_joinLinked`) or told to the column warmers (`_tellTyped`). Enter shows the typed ticker on every
+   *  chart of the linked group; a cold page takes 100-350 ms, so a linked key not asked before Enter cannot paint in the
+   *  key's task. Each linked key not already held in a painting state is asked now (its first page, at `visible` rank so
+   *  it never queues behind background work), then joined: the lake's depth for intraday, the deep sealed history for
+   *  D/W/M. At most LINKED_TYPED_MAX keys; `signal` is the typed warm's own (a newer text aborts it, Enter keeps it). */
+  function _fetchLinked(T, tf, alsoTfs, signal) {
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    let n = 0
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k0 = String(t)
+      if (!t || seen.has(k0)) continue
+      seen.add(k0)
+      if (n >= LINKED_TYPED_MAX) break
+      const k = keyFor(T, t)
+      const p = k ? parseKey(k) : null
+      if (!p || p.window) continue
+      const held = S().peek(k)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)) continue
+      n++
+      const date = !isIntradayTf(p.tf)
+      Promise.resolve().then(async () => {
+        if (signal?.aborted) return
+        if (date) { _joinDeepDate(k, { priority: 'visible' }).catch(() => {}); return }
+        try { S().primeLake?.(k) } catch { /* a warm only */ }
+        const s = await ensure(k, { until: DISPLAYABLE, priority: 'visible', signal, local: false, _s0: S().peek(k) || {} })
+        if (!signal?.aborted && s?.restSeen && !s.error) _joinLake(k)
+      }).catch(() => {})
+    }
+    return n
+  }
+
   function _warmTypedIntraday(sym, tf, alsoTfs) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
@@ -1587,7 +2122,19 @@ export function createPrefetch(o = {}) {
     const closedBehind = (s) => _behindClock(key, s)
     const held = S().peek(key)
     // the flip paints it as it is; or, behind, it was answered a moment ago (Enter asks for itself: prepareForDisplay)
-    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) return null
+    // ⭐ ...WITH ITS WHOLE DEPTH (2026-11-26, typed vs arrow on a board with a list). A typed LIST member is held this way
+    // (the list's warm answered it, ~500-1,100 bars) and nothing joined its lake depth before Enter: the first frame drew
+    // the answer's rows and the chart's own subscribe loaded the lake after it (pieces asked +31 ms, the whole chart drawn
+    // a second time +85-400 ms), where an arrow onto the next row paints the whole depth at once (the neighbour hold's
+    // join). So a held key whose lake depth is still due (store.lakePending: never loaded on this page, or loaded at a
+    // smaller depth) has it joined now, the same load the chart's subscribe makes after Enter (store.lakeSeed: the same
+    // rows, the same reducer rule), while the member is still typing. No bar request; nothing for a key already whole.
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) {
+      if (S().lakePending?.(key)) _joinLake(key)
+      _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, null)
+      return null
+    }
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }
@@ -1616,8 +2163,15 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       _tellTyped(T, tf, alsoTfs)
+      _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, ctl.signal)
       const behind = closedBehind(s0)
-      if (!behind && _localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
+      // ⭐ (2026-11-26, the owner's cold typed Enter) A local copy that paints answers from memory ONLY when it covers the
+      // view (COVER_ROWS: the switch then paints it at once and the depth joins behind the view). The device's copy of a
+      // never-opened ticker holds ~300 newest 5m rows: it painted no request, the switch then waited for the lake's join
+      // after Enter (owner board: 51-110 ms, the newest lake piece landing late), so a short copy is now asked from the
+      // server too, here, like a ticker with no copy at all: by Enter its answer covers the view and the switch paints it.
+      if (!behind && _localPaints(s0, fetchTf(String(tf))) && _viewRows(s0, key, extOf(undefined)) >= COVER_ROWS) { _joinLake(key); return 'cache' }
       // a copy behind the clock is asked even when its status says it is satisfied (ASK_AGAIN: no status is)
       const s = await ensure(key, { until: behind ? ASK_AGAIN : DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
@@ -1645,6 +2199,7 @@ export function createPrefetch(o = {}) {
     const typedSym = String(sym).trim().toUpperCase()
     if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       _tellTyped(typedSym, tf, alsoTfs)   // a known name, bars current: its companions may not be
+      _fetchLinked(typedSym, tf, alsoTfs, null)
       return null
     }
     if (typed && typed.key === key) return null
@@ -1663,6 +2218,7 @@ export function createPrefetch(o = {}) {
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         _tellTyped(typedSym, tf, alsoTfs)
+        _fetchLinked(typedSym, tf, alsoTfs, ctl.signal)
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
@@ -1672,13 +2228,13 @@ export function createPrefetch(o = {}) {
       const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
-      if (answered && !s0?.depth && typed === mine) _tellTyped(typedSym, tf, alsoTfs)   // the authority just said it is real
+      if (answered && !s0?.depth && typed === mine) { _tellTyped(typedSym, tf, alsoTfs); _fetchLinked(typedSym, tf, alsoTfs, ctl.signal) }   // the authority just said it is real
       return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
@@ -1702,6 +2258,7 @@ export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, o
 export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
+export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }

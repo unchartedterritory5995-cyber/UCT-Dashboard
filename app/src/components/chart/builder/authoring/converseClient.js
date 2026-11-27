@@ -24,12 +24,39 @@
 
 import { compactView } from './compactView'
 import { isNamingClause } from './derivedName'
+import { codeKindOf, IMPORT_MAX_CHARS } from './codePaste'
 
 export const CONVERSE_ENDPOINT = '/api/user-definitions/converse'
 /** The server's bounds (`definition_conversation.py`), mirrored so the client
  *  never sends a body the server must refuse for size. */
 export const CONVERSE_LIMITS = Object.freeze({ maxMessage: 2000, maxSnippets: 6, maxSnippetChars: 1200 })
 export const DISPOSITIONS = Object.freeze(['change', 'answer', 'clarify', 'unsupported'])
+
+/** From this share of the limit the composer shows the count. */
+export const LENGTH_NOTE_FROM = 0.8
+
+/**
+ * ⭐ 2026-11-25 -- the composer's own count of a message against the server's limit, so a member knows before sending.
+ * null below `LENGTH_NOTE_FROM` of the limit; `{over, text}` from there. Nothing is ever shortened: over the limit the
+ * message is still sent whole and the server refuses it in the member's words.
+ */
+export function messageLengthNote(message) {
+  const text = String(message || '')
+  const n = text.length
+  const fmt = (x) => x.toLocaleString('en-US')
+  // ⭐ C (2026-11-25): PASTED CODE meets the import door's own cap (`codePaste.js`, the server's `code_paste`), and is
+  // counted against that from the chat limit up; below it, it is a message like any other
+  if (n > Math.floor(CONVERSE_LIMITS.maxMessage * LENGTH_NOTE_FROM) && codeKindOf(text) !== null) {
+    return n > IMPORT_MAX_CHARS
+      ? { over: true, text: `${fmt(n)} characters of pasted code: the limit for pasted code is ${fmt(IMPORT_MAX_CHARS)}. Shorten it to send it.` }
+      : { over: false, text: `${fmt(n)} of ${fmt(IMPORT_MAX_CHARS)} characters of pasted code` }
+  }
+  const max = CONVERSE_LIMITS.maxMessage
+  if (n < Math.floor(max * LENGTH_NOTE_FROM)) return null
+  return n > max
+    ? { over: true, text: `${fmt(n)} characters: the limit is ${fmt(max)}. Shorten it to send it.` }
+    : { over: false, text: `${fmt(n)} of ${fmt(max)} characters` }
+}
 
 const NETWORK = 'Could not reach the server — check your connection and try again.'
 
@@ -129,7 +156,13 @@ export function builtInIds(list) {
 export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null, scriptRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
-    message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
+    // ⛔ 2026-11-25 -- THE MESSAGE GOES WHOLE, NEVER SHORTENED HERE. This line was `.slice(0, maxMessage)`: any
+    // request over the limit was CUT before it left the window, the member saw their whole paste in the transcript,
+    // and the assistant answered the first 2,000 characters as if they were all of it (measured: two pasted Deepvue
+    // indicators of 3,262 and 2,039 characters were answered from cut code). The server is the one authority on
+    // the limit and says so in the member's words ("your request is N characters; the limit is 2,000"); the
+    // composer counts as the member types (`messageLengthNote`).
+    message: String(message || ''),
     view,
     accepts: [...ACCEPTS, ...(gateCtx && gateCtx.showsScripts === true ? [ACCEPTS_SCRIPT] : [])],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },

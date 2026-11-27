@@ -34,11 +34,13 @@ export class DoorDeadlineError extends Error {
   }
 }
 
-/** Opens a window of `budgetMs` on `clock` (a function returning ms) inside whatever window is open; returns it. */
-export function openDoorWindow(budgetMs, clock) {
+/** Opens a window of `budgetMs` on `clock` (a function returning ms) inside whatever window is open; returns it.
+ *  `pulse` (optional, e96): called at each of the window's clock reads (`doorDeadlinePassed`), so the walks this window
+ *  bounds drive the member door's worker's heartbeat (`../workPulse.js`, handed in by `pine.js::withDoorDeadline`). */
+export function openDoorWindow(budgetMs, clock, pulse = null) {
   const win = {
     deadline: Number.isFinite(budgetMs) && budgetMs > 0 ? clock() + budgetMs : Infinity,
-    budgetMs, clock, tripped: false, parent: DOOR,
+    budgetMs, clock, tripped: false, parent: DOOR, pulse: typeof pulse === 'function' ? pulse : null,
   }
   DOOR = win
   return win
@@ -61,6 +63,9 @@ export const openDoor = () => DOOR
 /** The first open window whose deadline has passed, marking it (and every window opened inside it) tripped, or
  *  null. ⛔ Reads no clock while no window is open. */
 export function doorDeadlinePassed() {
+  // ⭐⭐ e96 — the door's clock read is a pulse of the work it bounds (`openDoorWindow`'s `pulse`): it never changes a
+  // value and never throws, so a walk answers exactly as it would without it
+  if (DOOR !== null && DOOR.pulse !== null) DOOR.pulse()
   for (let w = DOOR; w !== null; w = w.parent) {
     if (w.tripped || (w.deadline !== Infinity && w.clock() > w.deadline)) {
       // every window opened inside the one that ran out is part of its call, so it stops too

@@ -108,6 +108,7 @@ import { paneTableFor } from './paneTable'
 import { endLabelChipModel } from './endLabel'
 import { inputsAsRead } from './legacyInputs'
 import { identityTextFor } from './defSchema'
+import { plotHiddenAt } from './knobBind.js'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -1107,7 +1108,9 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
       // exactly as designed and was never meant to draw.
       // The two flags mean the same thing to a reader — "nobody looked" — so
       // they answer the same way (see the `computed` note below).
-      const isHidden = instHidden || plot.hidden === true
+      // ⭐ e97 U6 — through the binder's one answer (`knobBind.js::plotHiddenAt`): a plot its display hides at THIS
+      // instance's settings has no series, so it prints no value (and no "no value on these bars" notice)
+      const isHidden = instHidden || plotHiddenAt(plot, def, inputs)
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
       const sparse = plot.sparse === true
       if (bound) { out.push({ ...bound, hidden: false, computed: true, sparse }); continue }

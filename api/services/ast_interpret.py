@@ -219,6 +219,28 @@ TF_LADDER = ("1", "5", "15", "30", "60", "D", "W", "M")
 #: rejected: declaring it took the corpus 43 → 44.
 TF_RESAMPLABLE = ("W", "M")
 
+#: ⭐⭐ U-DAILY (e96, part A) -- the one `tf` code that is NOT a resample: ``'D'`` on a stated chart below a day, the
+#: child computed on the symbol's DAILY bars (handed in ``opts["frames"]["D"]``) and placed on each chart bar as THE
+#: LAST FINISHED DAY. Mirrors ``interpret.js::DAILY_READ`` (the reasoning lives there); evaluated by
+#: ``_interpret_daily_reads`` only, its placement by ``daily_read_placement``, which is held equal to the JS lane's
+#: ``mtfProjection.projectFrameColumns`` by GENERATED fixtures (``tests/fixtures/ast/daily_read_placement.json``).
+DAILY_READ = "D"
+DAILY_READ_DAY_NOT_HELD = "daily-read:day-not-held"
+DAILY_READ_NO_DAILY_BARS = "daily-read:no-daily-bars"
+#: the ``opts`` key a daily read's placed columns ride under, and the leaf names no formula can spell
+DAILY_READ_COLUMNS = "dailyReadColumns"
+_DAILY_LEAF_PREFIX = "\u0001daily-read:"
+
+
+def is_daily_read(node: Any) -> bool:
+    """Is this node a daily read (`tf` of D)? Mirrors ``interpret.js::isDailyRead``."""
+    return isinstance(node, dict) and node.get("type") == "tf" and str(node.get("value")) == DAILY_READ
+
+
+def is_below_a_day(code: Any) -> bool:
+    """A chart timeframe below a day: a whole number of minutes. Mirrors ``interpret.js::isBelowADay``."""
+    return code is not None and re.fullmatch(r"[1-9][0-9]*", str(code)) is not None
+
 #: How many BASE bars one higher-timeframe bar spans, for the lookback sum.
 #: ⚠️ TRADING days, not calendar: 5 to a week, 21 to a month. These are the
 #: numbers `max_lookback` multiplies by, and a lookback that is too SMALL is
@@ -286,12 +308,25 @@ def _assert_sym_placement(root: Any) -> None:
     refused — the control in `test_the_nesting_guard_does_NOT_refuse_the_shapes_
     that_are_fine` is what keeps this from quietly becoming "no `sym` at all".
     """
-    stack = [(root, False, False, False)]
+    stack = [(root, False, False, False, False)]
     while stack:
-        node, under_tf, under_request, under_ltf = stack.pop()
+        node, under_tf, under_request, under_ltf, under_daily = stack.pop()
         if not isinstance(node, dict):
             continue
         kind = node.get("type")
+        # ⭐⭐ U-DAILY (e96) -- a daily read sits at the chart's own level and holds no other timeframe; a `sym` inside
+        # it is served (that symbol's DAILY bars). The JS lane's rule (``interpret.js::assertSymPlacement``), sentence
+        # for sentence.
+        if is_daily_read(node) and under_request:
+            _refuse("interpret:timeframe",
+                    "— a daily read (`tf` of D) cannot sit inside another read (`sym`, `tf`, `tf_live` or `ltf`): it is "
+                    "placed on the chart's own bars, day by day. Put the other symbol inside it instead: "
+                    "tf(sym('SPY', close), 'D').")
+        if under_daily and kind in ("tf", "tf_live", "tf_merge", "ltf"):
+            _refuse("interpret:timeframe",
+                    "— a `%s` read cannot sit inside a daily read (`tf` of D): the daily read is computed on daily bars "
+                    "and placed on this chart day by day, and a second timeframe inside it is not one this engine "
+                    "places." % kind)
         # ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE, the JS lane's rule
         # (``interpret.js::assertSymPlacement``) sentence for sentence: under
         # another request its answer is not mapped onto the bars that request
@@ -318,11 +353,12 @@ def _assert_sym_placement(root: Any) -> None:
                     "sym('%s', tf(…))." % (ticker, ticker, ticker))
         args = node.get("args")
         if isinstance(args, list):
-            is_tf = kind in ("tf", "tf_live", "tf_merge")
+            daily = is_daily_read(node)
+            is_tf = not daily and kind in ("tf", "tf_live", "tf_merge")
             for a in args:
                 stack.append((a, under_tf or is_tf,
-                              under_request or is_tf or kind in ("sym", "ltf"),
-                              under_ltf or kind == "ltf"))
+                              under_request or is_tf or daily or kind in ("sym", "ltf"),
+                              under_ltf or kind == "ltf", under_daily or daily))
 
 
 def _assert_lower_code(code):
@@ -4410,6 +4446,11 @@ def max_lookback(ast: Any) -> int:
             # pre-flight — refuses the definition ONCE, by name, instead of
             # accepting it and then failing every symbol in the universe.
             code = str(node.get("value"))
+            # ⭐⭐ U-DAILY (e96) -- a daily read counts its child's reach in DAILY bars plus the finished day it steps
+            # back to (``interpret.js::maxLookback``'s arm): its child runs on the daily bars handed beside the chart's.
+            if kind == "tf" and code == DAILY_READ:
+                seen[id(node)] = seen[id(node["args"][0])] + 1
+                continue
             _assert_resamplable(code)
             span = TF_BASE_BARS[code]
             seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
@@ -5122,6 +5163,10 @@ def interpret(ast: Any, bars: List[dict],
     # a refused knob arm (``refusedArm``) the member's setting does not pick is never evaluated. Identity otherwise.
     from api.services.ast_bind import prune_knob_arms  # noqa: PLC0415 (ast_bind imports this module)
     ast = prune_knob_arms(ast, {k: v for k, v in (inputs or {}).items() if _is_number(v)})
+    # ⭐⭐ U-DAILY -- a tree that reads a daily value is evaluated by the one function that places it
+    # (``interpret.js::interpret``)
+    if tree_reads_daily(ast):
+        return _interpret_daily_reads(ast, bars, inputs, budget, scalars, opts)
     probe = (opts or {}).get("prefixProbe")
     probing = isinstance(probe, (int, float)) and not isinstance(probe, bool)
     # C36 -- a tree whose ``time(<tf>)`` / ``time_close(<tf>)`` cannot be answered
@@ -5233,6 +5278,191 @@ def interpret(ast: Any, bars: List[dict],
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
+    return [None if math.isnan(v) else v for v in column]
+
+
+# ─── ⭐⭐ U-DAILY (e96, part A) -- A DAILY READ ON A CHART BELOW A DAY ─────────────────────────────────────────────────
+# The port of ``interpret.js::interpretDailyReads`` (the reasoning lives there). ``tf(x, 'D')`` on a stated chart below
+# a day is ``x`` computed on the symbol's DAILY bars (``opts["frames"]["D"] = {"bars", "symbols", "newestFinal"}``) and
+# placed on each chart bar as THE LAST FINISHED DAY; the read is replaced by a leaf holding the placed column and the
+# tree is evaluated as any other; a bar whose daily read has no value is withheld by name, with every root bar within
+# the tree's reach of it. ⛔ A daily or higher chart refuses by name; no daily bars handed (every server lane today)
+# withholds the whole column by name.
+
+
+def tree_reads_daily(tree: Any) -> bool:
+    """Does this tree read a daily value (`tf` of D) anywhere? Iterative. Mirrors ``interpret.js::treeReadsDaily``."""
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if is_daily_read(node):
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def daily_read_symbols(tree: Any) -> List[str]:
+    """Every `sym` ticker a daily read's child reads (``interpret.js::dailyReadSymbols``)."""
+    out: set = set()
+    stack = [(tree, False)]
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, Mapping):
+            continue
+        if under and node.get("type") == "sym" and isinstance(node.get("value"), str):
+            out.add(node["value"].upper())
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, under or is_daily_read(node)))
+    return sorted(out)
+
+
+def _et_date_of(t: Any) -> Optional[str]:
+    """The America/New_York date ('YYYY-MM-DD') of a bar time: an ISO date, a YYYYMMDD int, or unix seconds (or ms).
+    The port of ``mtfProjection.etDateOf``."""
+    if isinstance(t, str):
+        if re.match(r"^\d{4}-\d{2}-\d{2}", t):
+            return t[:10]
+        if re.fullmatch(r"\d{8}", t):
+            return "%s-%s-%s" % (t[0:4], t[4:6], t[6:8])
+        return None
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or not math.isfinite(t):
+        return None
+    if 19000101 <= t <= 21001231:
+        s = str(int(t))
+        return "%s-%s-%s" % (s[0:4], s[4:6], s[6:8])
+    sec = int(t // 1000) if t > 1e11 else int(t)
+    # ET offsets change only on whole hours, so the date of the hour is the date of the instant (the JS lane's memo key);
+    # the zone and the day are the engine's own ET helpers (``indicator_compute``), never a calendar written here
+    from api.services.indicator_compute import _et_ymd, _et_zone                # noqa: PLC0415
+    ymd = _et_ymd((sec // 3600) * 3600, _et_zone())
+    return "%04d-%02d-%02d" % (ymd // 10000, (ymd // 100) % 100, ymd % 100)
+
+
+def daily_read_placement(frame_bars: List[dict], chart_bars: List[dict], chart_tf: Any,
+                         newest_final: bool) -> Tuple[List[int], bool]:
+    """``(at, stale)``: the daily bar each chart bar shows (-1: none), the port of ``mtfProjection.projectFrameColumns``
+    at frame ``'D'`` (its ``dwmIndices`` and its newest-bar rule). A chart bar shows the last day that had closed before
+    the chart bar's own day began; never a day the bars handed skip past (the chart's previous day is the witness), and
+    never the newest daily bar unless it is proven final. ⛔ A TWIN, NOT A SECOND AUTHORITY: held equal to the JS lane
+    by fixtures GENERATED from it (``tools/value_cases/daily_read_placement_fixture.mjs``)."""
+    m = len(frame_bars or [])
+    n = len(chart_bars or [])
+    at = [-1] * n
+    if not n or not m:
+        return at, False
+    fk = [_et_date_of(b.get("t") if isinstance(b, Mapping) else None) for b in frame_bars]
+    stale = False
+    j = -1
+    cur_key = None
+    prev_key = None
+    for i in range(n):
+        b = chart_bars[i]
+        ck = _et_date_of(b.get("t") if isinstance(b, Mapping) else None)
+        if not ck:
+            continue
+        if ck != cur_key:
+            if cur_key is not None and cur_key < ck:
+                prev_key = cur_key
+            cur_key = ck
+        while j + 1 < m and fk[j + 1] is not None and fk[j + 1] < ck:
+            j += 1
+        if j < 0:
+            continue
+        if prev_key is not None and fk[j] < prev_key:
+            stale = True
+            continue
+        if j == m - 1 and not newest_final:
+            stale = True
+            continue
+        at[i] = j
+    return at, stale
+
+
+def daily_read_key(node: Any) -> str:
+    """A daily read's identity: the same read written twice is ONE read, one column and one series of the budget's
+    count (``ast_budget.series_refs``). Mirrors ``interpret.js::dailyReadKey`` (keys sorted at every level)."""
+    import json                                                             # noqa: PLC0415
+    return _DAILY_LEAF_PREFIX + json.dumps(node, sort_keys=True, separators=(",", ":"))
+
+
+def _with_daily_leaves(tree: Any, reads: List[Tuple[Any, str]], named: Optional[Dict[str, str]] = None) -> Any:
+    """The tree with each top-level daily read replaced by a leaf (path copy); the same read written twice is one leaf
+    and one column. Mirrors ``withDailyLeaves``."""
+    named = {} if named is None else named
+    if not isinstance(tree, dict):
+        return tree
+    if is_daily_read(tree):
+        key = daily_read_key(tree)
+        if key not in named:
+            named[key] = "%s%d" % (_DAILY_LEAF_PREFIX, len(reads))
+            reads.append((tree, named[key]))
+        return {"type": "series", "name": named[key]}
+    args = tree.get("args")
+    if not isinstance(args, list) or not tree_reads_daily(tree):
+        return tree
+    return dict(tree, args=[_with_daily_leaves(a, reads, named) for a in args])
+
+
+def _interpret_daily_reads(ast, bars, inputs, budget, scalars, opts) -> List[MaybeNum]:
+    _assert_sym_placement(ast)
+    n = len(bars) if isinstance(bars, list) else 0
+    base = (opts or {}).get("tf")
+    stated = base is not None and str(base) != ""
+    if stated and not is_below_a_day(base):
+        _refuse("interpret:timeframe",
+                "'%s' is not above '%s' — a daily read (`tf` of D) is made on a chart below a day, where each bar "
+                "shows the last finished day. On this chart every bar is a day or longer, so it is not drawn; read "
+                "the value itself here (`close` is the day's own close on a daily chart)." % (DAILY_READ, base))
+    frames = (opts or {}).get("frames")
+    supply = frames.get(DAILY_READ) if stated and isinstance(frames, Mapping) else None
+    if not (isinstance(supply, Mapping) and isinstance(supply.get("bars"), list) and supply["bars"]):
+        supply = None
+    reads: List[Tuple[Any, str]] = []
+    leaf_tree = _with_daily_leaves(ast, reads)
+    columns: Dict[str, List[float]] = {}
+    for node, name in reads:
+        child_bars = supply["bars"] if supply else (bars if isinstance(bars, list) else [])
+        child_opts = dict(opts or {})
+        for k in ("frames", DAILY_READ_COLUMNS, "historyFromListing", "listingStart", "barIndexAbsolute",
+                  "lowerTf", "prefixProbe", "chartClockSink"):
+            child_opts.pop(k, None)
+        child_opts["tf"] = DAILY_READ
+        child_opts["symbols"] = (supply.get("symbols") or None) if supply else None
+        child_opts["newestBarIsForming"] = (False if supply.get("newestFinal") is True else None) if supply else None
+        child_clock: Dict[str, Any] = {}
+        child_opts["chartClockSink"] = child_clock
+        child = [NAN if v is None else float(v) for v in interpret(node["args"][0], child_bars, inputs, budget, scalars,
+                                                                     child_opts)]
+        col = [NAN] * n
+        if supply:
+            at, _stale = daily_read_placement(supply["bars"], bars, base, supply.get("newestFinal") is True)
+            col = [child[j] if j >= 0 else NAN for j in at]
+        columns[name] = col
+        _name_chart_clock(opts, list(child_clock))
+    out = interpret(leaf_tree, bars, inputs, budget, scalars,
+                    dict(opts or {}, **{DAILY_READ_COLUMNS: {"bars": bars if isinstance(bars, list) else [],
+                                                              "columns": columns}}))
+    column = [NAN if v is None else float(v) for v in out]
+    reach = max_lookback(leaf_tree)
+    mask = [0] * n
+    for c in columns.values():
+        last = -math.inf
+        for i in range(n):
+            if math.isnan(c[i]):
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+    if any(mask):
+        _name_chart_clock(opts, [DAILY_READ_DAY_NOT_HELD if supply else DAILY_READ_NO_DAILY_BARS])
+        column = [NAN if mask[i] else v for i, v in enumerate(column)]
     return [None if math.isnan(v) else v for v in column]
 
 
@@ -8481,6 +8711,19 @@ def _interpret_column(ast: Any, bars: List[dict],
             # compute on.
             col[i] = _number(v) if _is_number(v) else NAN
         scope[name] = col
+    # ⭐⭐ U-DAILY -- the placed columns of a tree's daily reads (``_interpret_daily_reads``), under leaf names no
+    # formula can spell; a prefix of the chart's bars is handed the same prefix, and a pass over other bars none
+    # (``interpret.js::interpretOnce``'s seeding, rule for rule).
+    daily = (opts or {}).get(DAILY_READ_COLUMNS)
+    if isinstance(daily, dict) and isinstance(daily.get("columns"), dict):
+        chart = daily.get("bars") if isinstance(daily.get("bars"), list) else []
+        prefix = length <= len(chart) and (length == 0 or (bars[0] is chart[0] and bars[length - 1] is chart[length - 1]))
+        for name, c in daily["columns"].items():
+            if not (isinstance(name, str) and name.startswith(_DAILY_LEAF_PREFIX)) or not isinstance(c, list) \
+                    or len(c) != len(chart):
+                _refuse("interpret:node", "— %r is not a daily read's placed column" % (name,))
+            if bars is chart or prefix:
+                scope[name] = list(c[:length])
 
     # ⭐ THE CLOCK (tableVersion 2). Seeded from ``compute_clock`` exactly the
     # way the indicator functions bind to ``compute_rsi_raw``: not one line of

@@ -70,7 +70,23 @@ async function referenceRun(doc, listing) {
 
 const b64Bytes = (text) => new Uint8Array(Buffer.from(text, 'base64'))
 
-for (const [label, history, listing] of [['off the listing (the warm-up curtain runs)', 'listing', false], ['from the listing', null, true]]) {
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (#2893, `runtimeCurtainOff.rail.test.js`), and this
+// rail runs the REAL server bundle: an off-listing run is withheld by name (runtime:history-start), sealed with the
+// digest of its refusal and no warm-up, the same re-pin #2893 gave the host-parity file and the result-integrity pytest.
+test('real bundle, off the listing (the curtain is off): withheld by name, sealed with its refusal, no warm-up', async () => {
+  const doc = docOf('listing')
+  const req = wireRequest(door.identity, { doc, jobs: [{ name: 'AAPL|D', n: N }] })
+  req.jobs[0].ctx.historyFromListing = false
+  const { status, json } = await post(req)
+  assert.equal(status, 200)
+  const [r] = json.results
+  assert.equal(r.status, 'withheld', JSON.stringify(r))
+  assert.ok((r.refusals || []).some((x) => x.guard === 'runtime:history-start'), JSON.stringify(r.refusals))
+  assert.equal(r.warmup, undefined)
+  assert.equal(r.digest, CODEC.columnDigest({ engine: json.engine, columns: {}, refusals: r.refusals }))
+})
+
+for (const [label, history, listing] of [['from the listing', null, true]]) {
   test(`real bundle, ${label}: the ok answer carries the T3 digest of its own bytes and the run's warm-up`, async () => {
     const doc = docOf(history)
     const req = wireRequest(door.identity, { doc, jobs: [{ name: 'AAPL|D', n: N }] })

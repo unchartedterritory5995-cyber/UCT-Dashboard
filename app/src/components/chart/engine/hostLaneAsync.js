@@ -455,7 +455,10 @@ function answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extra
 // and the full answer replaces it. ⛔ A page that lands AFTER its full answer (or after any picture of its signature)
 // is DISCARDED, never painted over it.
 export { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE } from './firstPage.js'
-let _firstPageOn = true
+// ⛔⛔ (e101, coordinator ruling 2026-11-27) OFF FOR EVERY MEMBER until the reach rule lands (fix/e101-first-page-exact).
+// MEASURED (`firstPageCensus`, every corpus script on the host lane, SPY 1D and SPY 60): 571 plots drawn on a first page,
+// 3 of them WRONG against the full history (support-and-resistance-multi-time-frame, D). A slower paint beats a wrong one.
+let _firstPageOn = false
 /** Test seam / kill switch: turn the first page off (the pane is blank until the full answer, as before). */
 export function setFirstPageEnabled(on) { _firstPageOn = on !== false }
 
@@ -498,6 +501,10 @@ function settleFirstPage(job, reply) {
  */
 export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   if (!ctx || typeof ctx.hostPane !== 'string' || !ctx.hostPane) return null
+  // ⭐⭐ U-DAILY (e96) — a document handed DAILY bars for its daily reads (`ctx.dailyFrame`, whose `place` is the
+  // chart's projection, a function no worker message can carry) is computed on this thread, as every request that
+  // is not a chart's is (`nativeRegistry` falls through to `astLaneColumns`)
+  if (ctx.dailyFrame) return null
   const plan = astLanePlan(def, bars, inputs, ctx)
   if (plan.done) return plan.done
   const pane = ctx.hostPane

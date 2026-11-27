@@ -28,8 +28,9 @@
 // (getLastResume) and changes nothing else.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { rebuildLeft } from './streamRebuildDelay'
 import * as realtimeCandle from './realtimeCandle'
+import { getQuotePush, whenQuotePush } from './quotePushGate'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
 } from '../utils/streamStatus'
@@ -99,9 +100,11 @@ export function subscribe(tickers, listener) {
   const id = _nextId++
   _subscribers.set(id, { tickers: [...new Set((tickers || []).filter(Boolean))], listener })
   _scheduleRebuild()
+  _pushTickers()   // pushed list prices: loads lib/quotePush only when flagged on
   return () => {
     _subscribers.delete(id)
     _scheduleRebuild()
+    _pushTickers()
   }
 }
 
@@ -118,8 +121,13 @@ function _scheduleRebuild() {
   // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
   _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
   _lastActivityAt = t
-  if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
+  // ⚡ one timer per burst: a later change moves the deadline, not the timer (streamRebuildDelay.rebuildLeft)
+  if (!_rebuildTimer) _rebuildTimer = setTimeout(_rebuildDue, rebuildLeft(_gathering, t, REBUILD_DEBOUNCE_MS))
+}
+function _rebuildDue() {
+  const left = rebuildLeft(_gathering, _lastActivityAt, REBUILD_DEBOUNCE_MS)
+  if (left > 0) _rebuildTimer = setTimeout(_rebuildDue, left)
+  else _rebuild()
 }
 
 function _rebuild() {
@@ -205,6 +213,11 @@ function _connectBucket(bucket) {
       const data = JSON.parse(event.data)
       const prev = _streamPrices
       _streamPrices = { ...prev, ...data }
+      // A pushed quote (lib/quotePush.js, `push_ts`) is never replaced by an OLDER trade from this stream.
+      for (const k of Object.keys(data)) {
+        const p = prev[k]
+        if (p && p.push_ts != null && _entryMs(data[k]) < p.push_ts) _streamPrices[k] = p
+      }
       // A CHANGED price/volume IS freshness — clear any stale flag for that
       // symbol. The server's 'fresh' event only fires on a stale→fresh
       // transition seen by the SAME connection; a flag raised before a
@@ -321,6 +334,81 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) _watchdogSweep()
   })
+}
+
+// ── pushed list prices (lib/quotePush.js) ─────────────────────────────────────
+// The push hands a batch per animation frame. Each quote overlays this snapshot's entry unless the stream
+// already holds a newer trade, and only the subscribers holding a changed symbol are told: at once, not
+// on this pool's 1 s throttle (the push batches per frame already). A push that stops being healthy takes
+// its quotes back out, so a frozen pushed price can never outlive it (REST and this stream remain).
+
+function _entryMs(e) {
+  if (!e || typeof e !== 'object') return 0
+  const t = Number(e.trade_ts)
+  if (Number.isFinite(t) && t > 0) return t
+  const u = Number(e.updated_at)
+  if (Number.isFinite(u) && u > 0) return u * 1000
+  const s = Number(e.timestamp)
+  if (Number.isFinite(s) && s > 0) return s > 1e12 ? s : s * 1000
+  return 0
+}
+
+export function applyPushedQuotes(batch) {
+  let next = null
+  const changed = new Set()
+  for (const sym in batch) {
+    const q = batch[sym]
+    if (!q || !(q.price > 0)) continue
+    const prev = (next || _streamPrices)[sym]
+    if (prev && q.trade_ts != null && _entryMs(prev) > q.trade_ts) continue   // the stream is already newer
+    if (prev && prev.price === q.price && prev.volume === q.volume) continue
+    if (!next) next = { ..._streamPrices }
+    const at = q.trade_ts != null ? q.trade_ts : Date.now()
+    next[sym] = { ...(prev || {}), price: q.price, volume: q.volume ?? prev?.volume, trade_ts: at,
+      updated_at: Math.floor(at / 1000), push_ts: at }
+    changed.add(sym)
+  }
+  if (!next) return
+  _streamPrices = next
+  _refreshSnapshot()
+  for (const sub of _subscribers.values()) {
+    if (!sub.tickers.some((t) => changed.has(String(t).toUpperCase()))) continue
+    try { sub.listener() } catch { /* one bad listener never breaks fanout */ }
+  }
+}
+
+export function clearPushedQuotes() {
+  let next = null
+  for (const sym in _streamPrices) {
+    if (_streamPrices[sym]?.push_ts == null) continue
+    if (!next) next = { ..._streamPrices }
+    delete next[sym]
+  }
+  if (!next) return
+  _streamPrices = next
+  _publish()
+}
+
+/** The pushed list prices' connection (lib/quotePush.js, loaded lazily) is constructed HERE, by this pool
+ *  entry point (lib/panelContract.rail.test.js: transports belong to the pools). */
+export function openQuotesEventSource(url) {
+  if (typeof EventSource === 'undefined') return null
+  return new EventSource(url)
+}
+
+let _pushWired = false
+function _wirePush(qp) {
+  if (!_pushWired) {
+    _pushWired = true
+    qp.onQuotes(applyPushedQuotes, 'priceStreamManager')
+    qp.onHealth((healthy) => { if (!healthy) clearPushedQuotes() }, 'priceStreamManager')
+  }
+  qp.setTickers('stream', _union())
+}
+function _pushTickers() {
+  const qp = getQuotePush()
+  if (qp) _wirePush(qp)
+  else whenQuotePush(_wirePush)
 }
 
 // ── recovery (lib/recovery.js) ──────────────────────────────────────────────

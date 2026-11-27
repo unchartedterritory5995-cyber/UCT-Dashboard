@@ -181,10 +181,34 @@ export function isRthChartTime(chartSec) {
   return m >= RTH_OPEN_MIN && m < _rthCloseOfEtDay(Math.floor(c / 86400))
 }
 
+// ⭐ PERF (smoothness trace 2026-11-26: `keepRthBars` and the 60m off-grid fold, `sessionBarsOf`, each a pass over tens of
+// thousands of bars for every new bars array, 2-3.5 ms a flip): ONE DAY'S WINDOW, KEPT. Inside a stretch of unix seconds
+// [_rLo, _rHi) where the ET offset (`etOffsetSec`, one number for a whole UTC day that has no DST change) and the ET date
+// are both constant, "regular session" is exactly `_rOpen <= t < _rClose`: two unix seconds of that date (its 09:30 and
+// its close, `_rthCloseOfEtDay`), offsets being whole seconds. A series walks its bars in time order, so every bar of the
+// day after its first pays two compares. Built from the very reads the slow path makes, so the same answer for every `t`;
+// a UTC day with a DST change keeps no window (each of its seconds takes the slow path).
+let _rLo = NaN, _rHi = NaN, _rOpen = NaN, _rClose = NaN
+function _keepRthWindow(unixSec) {
+  const s = Math.floor(unixSec)
+  const u = Math.floor(s / 86400)
+  const e = u === _lastOffsetDay ? _lastOffset : _offsetByDay.get(u)   // read by toChartTime just before
+  if (typeof e !== 'number') { _rLo = NaN; _rHi = NaN; return }
+  const day = Math.floor((s + e) / 86400)                                 // the ET date (as a day number)
+  _rLo = Math.max(u * 86400, day * 86400 - e)
+  _rHi = Math.min((u + 1) * 86400, (day + 1) * 86400 - e)
+  _rOpen = day * 86400 + RTH_OPEN_MIN * 60 - e
+  _rClose = day * 86400 + _rthCloseOfEtDay(day) * 60 - e
+}
+
 /** True when unix second `unixSec` is regular session (half-day aware). */
 export function isRthBar(unixSec) {
-  if (typeof unixSec !== 'number' || !Number.isFinite(unixSec)) return false
-  return isRthChartTime(toChartTime(unixSec))
+  if (typeof unixSec !== 'number') return false
+  if (unixSec >= _rLo && unixSec < _rHi) return unixSec >= _rOpen && unixSec < _rClose
+  if (!Number.isFinite(unixSec)) return false
+  const rth = isRthChartTime(toChartTime(unixSec))
+  _keepRthWindow(unixSec)
+  return rth
 }
 
 /** The regular-session view of a bar series: every bar whose `t` is a regular-session unix second,

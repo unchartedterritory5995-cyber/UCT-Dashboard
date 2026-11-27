@@ -174,7 +174,11 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // [644, 495146, '5013c426d180b036'] / manifest [644, 495154, '1dfc1e096e164f4f'].
         // ⭐ ENGINE 58 COLOURS (landing train 1, bisected to the colour-reader merge): +2 steps, the same 918
         // Resolvers. Pre-colours: plain [918, 495420, '59ff1f72cf67d49f'] / manifest [918, 495428, '33cdbd16923ad35a'].
-        plain: [918, 495422, '3c24ec306ce0a5a8'], manifest: [918, 495430, '0026f4b004a7fe78'] },
+        // ⭐ e96 (hline drawn as the level it is): artemis writes three `hline`s, each read once after the walk by a
+        // Resolver of its own (`pine.js::resolveHlineLevels`): +3 Resolvers, +11 steps in each lane; every output and
+        // the object program byte-identical. Pre-e96: plain [918, 495422, '3c24ec306ce0a5a8'] / manifest [918, 495430,
+        // '0026f4b004a7fe78'].
+        plain: [921, 495433, '7e1baffe7253eb79'], manifest: [921, 495441, '8d57525eb9f9798a'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

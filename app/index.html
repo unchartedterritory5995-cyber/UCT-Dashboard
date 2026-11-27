@@ -23,6 +23,27 @@
         } catch (e) {}
       })();
     </script>
+    <!-- (2026-11-26, Fred RS load time) THE OTHER-SYMBOL BARS WINDOWS this page's charts needed last time (SP:SPX for Fred RS),
+         asked as the document parses, before any bundle loads: src/lib/bootSecondaryBars.js writes the record and holds the
+         rules (the SAME page, a browser signed in last time, a record under SECONDARY_NEEDS_MAX_AGE_MS, at most
+         SECONDARY_NEEDS_MAX windows, /api/bars/ only; a failed request is "no answer"); secondaryBars.js adopts the answers
+         (takeBootSecondaryBars). Inline, not in the entry bundle: no chunk bytes, and it leaves ~0.3 s earlier. -->
+    <script id="uct-boot-secondary">
+      (function () {
+        try {
+          if (localStorage.getItem('uct.signedIn.v1') !== '1') return;
+          var r = JSON.parse(localStorage.getItem('uct.secondaryNeeds.v1') || 'null');
+          var age = r ? Date.now() - r.at : -1;
+          if (!r || r.path !== location.pathname || !(age >= 0 && age < 259200000) || !Array.isArray(r.urls)) return;
+          var o = window.__uctBootSecondary = {};
+          r.urls.filter(function (u) { return typeof u === 'string' && u.indexOf('/api/bars/') === 0 }).slice(0, 4).forEach(function (u) {
+            o[u] = { at: performance.now(), p: fetch(u, { credentials: 'same-origin' })
+              .then(function (x) { return x && x.ok ? x.json() : null })
+              .then(function (j) { return j && typeof j === 'object' ? j : null }, function () { return null }) };
+          });
+        } catch (e) {}
+      })();
+    </script>
     <!-- interactive-widget=resizes-content: when the soft keyboard opens it shrinks
          the layout viewport (and 100dvh) instead of overlaying content, so sticky
          footers / submit buttons in forms stay above the keyboard on mobile. -->

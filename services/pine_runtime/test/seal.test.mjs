@@ -219,7 +219,13 @@ test('loadBundle refuses a bundle that carries no T3 codec: the service never di
       writeFileSync(join(dir, name), text)
       await assert.rejects(loadBundle(join(dir, name)), re)
     }
-    writeFileSync(join(dir, 'both.mjs'), `${base}export function columnDigest() { return 'd' }\nexport function decodeColumn() { return [] }\n`)
+    const codec = "export function columnDigest() { return 'd' }\nexport function decodeColumn() { return [] }\n"
+    // e99 server budget (2026-11-26): a bundle with the codec but no budget rule is refused too (server.mjs budgetOfBundle)
+    writeFileSync(join(dir, 'nobudget.mjs'), `${base}${codec}`)
+    await assert.rejects(loadBundle(join(dir, 'nobudget.mjs')), /exports no budget rule/)
+    const budget = 'export const RUNTIME_PANE_TIME_BUDGET_MS = 1000\nexport const RUNTIME_PANE_BUDGET_CEILING_MS = 12000\n'
+      + 'export const RUNTIME_PANE_BUDGET_FLOOR_BARS = 5000\nexport function runtimePaneBudgetFor() { return 1000 }\n'
+    writeFileSync(join(dir, 'both.mjs'), `${base}${codec}${budget}`)
     const door = await loadBundle(join(dir, 'both.mjs'))
     assert.equal(door.codec.columnDigest(), 'd', "the codec the seal uses is the bundle's own export")
   } finally { rmSync(dir, { recursive: true, force: true }) }

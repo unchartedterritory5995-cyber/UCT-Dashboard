@@ -138,7 +138,7 @@ def test_CONTROL_a_script_that_does_not_build_and_a_formula_where_a_script_belon
 #: mostly widths and counts of things kept), so a case whose window is that short names it here and the slip raises
 #: that number too. ⚰️ MEASURED 2026-11-23: cap-04's swing is "the 3 bars before it and the 3 bars after it", its
 #: recorded script holds no number from 5 to 300 that is a window, and the slip left it exactly as it was.
-SHORT_WINDOWS = {"cap-04": 3}
+SHORT_WINDOWS = {"cap-03": 3, "cap-04": 3}          # cap-03 back on the script lane 2026-11-25
 
 
 def _every_window_one_longer(source, short=None):
@@ -155,6 +155,49 @@ def _every_window_one_longer(source, short=None):
             hits += n + k
         lines.append(code + sep + comment)
     return "\n".join(lines), hits > 0
+
+
+SHORT_WORDS = re.compile(r"\bthe (\d) bars before it and the \1 bars after it\b")
+
+
+def test_every_short_window_the_words_name_is_in_the_table():
+    """DERIVED from the words, both ways (`test_a_short_window_is_the_one_the_request_names` holds the other): a
+    window under 5 bars is invisible to the slip below unless SHORT_WINDOWS names it. ⚰️ 2026-11-25: with cap-03 left
+    out, the slip still lengthened its OTHER number (the 5 swing highs averaged), went wrong, and passed: the 3-bar
+    window itself was never tried."""
+    named = {c["id"]: int(m.group(1)) for c in SCRIPT for m in [SHORT_WORDS.search(c["words"])] if m and int(m.group(1)) < 5}
+    assert named and named == SHORT_WINDOWS, (named, SHORT_WINDOWS)
+
+
+#: a line that sets the bars on each side of the swing (its title or its name says so): ONLY those are slipped. cap-04's
+#: words also keep "the last 3 swing lows", so raising every 3 would lengthen the count kept too, and a wrong answer
+#: would prove nothing about the window.
+SIDE_LINE = re.compile(r"\b(before|after|each side|left|right)\b", re.IGNORECASE)
+
+
+def _only_the_short_window_one_longer(source, short):
+    """The same script with ONLY the short window raised by one (3 written as 4), on the lines that set the bars on
+    each side; everything else as it was."""
+    lines, hits = [], 0
+    for line in source.splitlines():
+        code, sep, comment = line.partition("//")
+        if not code.lstrip().startswith(("indicator(", "strategy(")) and SIDE_LINE.search(code):
+            code, n = re.subn(r"(?<![\w.\"#\[])" + str(int(short)) + r"(?![\w.\"%\]])", str(int(short) + 1), code)
+            hits += n
+        lines.append(code + sep + comment)
+    return "\n".join(lines), hits > 0
+
+
+def test_a_short_window_alone_one_bar_longer_is_caught():
+    """The slip the table exists for, on its own: each short window raised by one, nothing else moved, is WRONG."""
+    cases = [c for c in SCRIPT if c["id"] in SHORT_WINDOWS]
+    answers = {}
+    for case in cases:
+        source, hit = _only_the_short_window_one_longer(case["answer"]["script"]["pine"], SHORT_WINDOWS[case["id"]])
+        assert hit, case["id"]
+        answers[case["id"]] = {"turn": "script", "script": {"pine": source}}
+    got = _lane(script_grade.grade_all, cases, answers)
+    assert sorted(cid for cid, r in got.items() if r["verdict"] == "wrong") == sorted(SHORT_WINDOWS), {k: v["verdict"] for k, v in got.items()}
 
 
 def test_a_script_with_every_window_one_longer_is_caught():
@@ -186,15 +229,74 @@ def test_a_short_window_is_the_one_the_request_names():
     assert _every_window_one_longer(source, 3) == ('left = input.int(4, "Bars before")\npl = ta.pivotlow(low, left, 4)', True)
 
 
+#: ⭐ 2026-11-24 (coordinator's ruling): ONE phrasing counts its window back from the bar BEFORE the newest, "looking
+#: back at most N bars" (cap-01), so the bar just outside it is N + 1 back. Only that exact phrasing reads so.
+AT_MOST = re.compile(r"\blooking back at most (\d+) bars\b")
+
+
+def _edge_is_in_the_words(case):
+    """The window an edge sits outside is the one the member's words name: "the last 252 bars" does not reach the bar
+    252 bars before the newest; "looking back at most 250 bars" does not reach the bar 251 before it."""
+    edge, words = case["edge"], case["words"]
+    if re.search(rf"(?<!\d){edge['back']}(?!\d)", words):
+        return True
+    said = AT_MOST.search(words)
+    return bool(said) and int(said.group(1)) + 1 == edge["back"]
+
+
 def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
     edged = [c for c in SCRIPT if c.get("edge")]
-    assert len(edged) >= 4
+    assert len(edged) >= 5
     for case in edged:
         edge = case["edge"]
-        assert set(edge) <= {"back", "high", "low", "othersClose"} and isinstance(edge["back"], int), case["id"]
-        assert edge.get("high") or edge.get("low") or edge.get("othersClose"), case["id"]
-        # the window is IN the member's words: "the last 252 bars" does not reach the bar 252 bars before the newest
-        assert re.search(rf"(?<!\d){edge['back']}(?!\d)", case["words"]), (case["id"], case["words"])
+        assert set(edge) <= {"back", "high", "low", "othersClose", "close", "ties"}, case["id"]
+        for t in edge.get("ties") or []:                                   # 2026-11-25: exact ties, for strict words
+            assert {"field", "back", "as"} <= set(t) <= {"field", "back", "as", "from", "shift"}, (case["id"], t)
+            assert t.get("shift", True) is True, (case["id"], t)                   # present means the whole bar moves
+            assert t["field"] in "ohlcv" and t.get("from", t["field"]) in "ohlcv" and t["back"] != t["as"], (case["id"], t)
+        if set(edge) == {"ties"}:
+            continue                                                       # a tie names no window: it tells > from >=
+        assert isinstance(edge["back"], int), case["id"]
+        assert edge.get("high") or edge.get("low") or edge.get("othersClose") or edge.get("close"), case["id"]
+        assert _edge_is_in_the_words(case), (case["id"], case["words"])
+
+
+def test_only_the_looking_back_at_most_phrasing_reads_its_window_from_the_bar_before():
+    """Control (coordinator 2026-11-24): the words check does not loosen for every case."""
+    ordinary = {"edge": {"back": 252, "high": True}, "words": "Draw a horizontal line at the highest high of the last 252 bars"}
+    assert _edge_is_in_the_words(ordinary)
+    assert not _edge_is_in_the_words({**ordinary, "edge": {"back": 253, "high": True}})     # N + 1 is not N
+    at_most = {"edge": {"back": 251, "close": True},
+               "words": "plot how many bars back the most recent close above today's close was, looking back at most 250 bars"}
+    assert _edge_is_in_the_words(at_most)
+    assert not _edge_is_in_the_words({**at_most, "edge": {"back": 252, "close": True}})    # N + 2 is not N + 1
+    for other in ("plot how many bars back, at most 250 bars back", "within the last 250 bars", "looking back 250 bars"):
+        assert not _edge_is_in_the_words({**at_most, "words": other}), other              # only that exact phrasing
+
+
+def test_the_close_edge_makes_cap01s_window_decisive_on_the_newest_bar():
+    """The edge works only if, ON IT, the recorded script and the same script one bar longer differ on the newest bar
+    (coordinator 2026-11-24); on the plain bars they cannot be told apart, which is why the edge exists."""
+    from tools.value_cases import script_lane
+    case = next(c for c in SCRIPT if c["id"] == "cap-01")
+    assert case["edge"] == {"back": 251, "close": True}
+    source = case["answer"]["script"]["pine"]
+    longer, hit = _every_window_one_longer(source, SHORT_WINDOWS.get(case["id"]))
+    assert hit and "251" in longer and "251" not in source
+    # "above" is strict in the words; the same script counting a close AT LEAST today's (coordinator 2026-11-24)
+    at_least = source.replace("if close[i] > close", "if close[i] >= close")
+    assert at_least != source
+    run = _lane(script_lane.run, [{"id": "recorded@edge", "source": source, "chart": "daily", "edge": case["edge"]},
+                                  {"id": "longer@edge", "source": longer, "chart": "daily", "edge": case["edge"]},
+                                  {"id": "at-least@edge", "source": at_least, "chart": "daily", "edge": case["edge"]},
+                                  {"id": "recorded@plain", "source": source, "chart": "daily"},
+                                  {"id": "longer@plain", "source": longer, "chart": "daily"},
+                                  {"id": "at-least@plain", "source": at_least, "chart": "daily"}])
+    column = lambda job: next(iter(run["scripts"][job]["columns"].values()))   # noqa: E731 -- the script's one plot
+    assert column("recorded@edge")[-1] is None and column("longer@edge")[-1] == 251
+    assert column("at-least@edge")[-1] == 2                                   # the tie, 2 bars back
+    # on the plain bars neither slip can be told apart: why the edge exists
+    assert column("recorded@plain") == column("longer@plain") == column("at-least@plain")
 
 
 # ── the rules stand apart from the product ──

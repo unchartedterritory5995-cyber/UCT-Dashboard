@@ -25,6 +25,7 @@ import { presentationLines, vocabularyLines } from '../authoring'
 import { colorRuleWords, outputNamer } from '../authoring/readback'
 import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
+import MessageLength from '../authoring/MessageLength'
 import { offerableBuiltIns, applyOffer } from '../authoring/builtInOffer'
 import { isDefinitionOffered, subscribeServerDefinitions, serverDefinitionsVersion } from '../../engine/serverCompute'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
@@ -784,6 +785,7 @@ export default function CreateIndicatorPanel({
         <button type="button" className={styles.gold} data-testid="create-indicator-send"
           disabled={busy || saving || blocked || !message.trim()} onClick={() => submit()}>Send</button>
       </div>
+      <MessageLength message={message} testId="create-indicator-length" style={{ padding: '0 12px' }} />
 
       {/* ⭐ V1 — HISTORY: every earlier step of this draft, newest first, each one press away.
           What a step WAS is the read-back's own sentence for that step. Nothing here saves:

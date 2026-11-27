@@ -12,9 +12,9 @@ from datetime import datetime
 
 import orjson
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Cookie, Depends, Header, HTTPException, Query, Request
 from api.middleware.auth_middleware import get_current_user, require_admin
-from api.bars_auth import require_bars_access, bars_service_headers
+from api.bars_auth import require_bars_access, require_bars_access_on, bars_service_headers
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -650,16 +650,102 @@ def get_today_pack(_access: dict = Depends(require_bars_access)):
     return out
 
 
+# ⛔ (2026-11-25, scale and reliability) /api/bars NEVER HOLDS THE DEFAULT POOL, AND WARMS NEVER TAKE THE INTERACTIVE
+# SHARE. The route's thread hops (the sync `require_bars_access` dependency and the sync serve) went through anyio's
+# DEFAULT limiter, shared by EVERY sync route on the pod (auth, notebook, screener...; 64 tokens on the web, `main.py`
+# sets `total_tokens`). A flood of chart warms, each waiting on a provider fetch, could hold all of it, and an
+# interactive chart ask and any unrelated route queued behind it (#2741 measured the same queue on /api/bars-history).
+# Now the route has its own limiters, one set per event loop, three lanes:
+#   * interactive serves (BARS_THREADS);
+#   * warms (`warm=1`, BARS_WARM_THREADS): a warm's gate hop and its serve wait only behind warms;
+#   * the QUICK lane (BARS_QUICK_THREADS): an interactive ask's gate hop and the tier-down shed check
+#     (`_tier_down_cold_tail`), cheap reads that never wait behind a serve (review of #2752, MEDIUM-1: with the tier
+#     down every ask serves locally, the interactive lane fills with provider fetches, and the fast shed that exists
+#     for exactly that moment queued behind them).
+# ⛔ (review of #2752, HIGH-1) THE WARM LANE IS WIDER THAN THE WARM-SERVE SLOTS (`bars_fetch._WARM_SERVE_MAX`), never
+# equal. The serve's warm path takes a slot without blocking and, when every slot is held, serves a cheap cache hit or
+# sheds a fast 503 the client retries. With the lane equal to the slots, the warms holding the slots held every warm
+# thread too: the cache-hit and shed branches could never run, and the 7th warm (the instant list warm at the open
+# included) queued behind six provider fetches. Derived from the slots, so the two cannot drift back together.
+# This tier only: bars-api serves `serve_bars_http` from its own route on its own pool (see the PR's deploy note).
+# Server-Timing carries the wait (`bars-wait`, ms: the gate's hop plus the serve's). Rail: tests/test_bars_own_pool.py.
+BARS_THREADS = max(2, int(os.environ.get("BARS_THREADS", "24") or 24))
+BARS_WARM_THREADS = max(_bars_fetch._WARM_SERVE_MAX + 1, min(BARS_THREADS - 1, int(
+    os.environ.get("BARS_WARM_THREADS", "") or (_bars_fetch._WARM_SERVE_MAX + 4))))
+BARS_QUICK_THREADS = max(1, int(os.environ.get("BARS_QUICK_THREADS", "8") or 8))
+QUICK = "quick"
+_bars_limiters = __import__("weakref").WeakKeyDictionary()
+
+
+def _bars_limiter(lane):
+    """This route's own limiter for a lane (one set per event loop): QUICK, a warm (truthy) or an interactive ask."""
+    import asyncio as _asyncio
+    import anyio as _anyio
+    loop = _asyncio.get_running_loop()
+    lanes = _bars_limiters.get(loop)
+    if lanes is None:
+        lanes = _bars_limiters[loop] = (_anyio.CapacityLimiter(BARS_THREADS), _anyio.CapacityLimiter(BARS_WARM_THREADS),
+                                        _anyio.CapacityLimiter(BARS_QUICK_THREADS))
+    return lanes[2] if lane == QUICK else (lanes[1] if lane else lanes[0])
+
+
+async def _bars_thread(lane, fn, *args, **kwargs):
+    """`fn(*args, **kwargs)` on the route's own limiter for `lane`: (its result, the ms it waited for a thread)."""
+    import anyio as _anyio
+    t0 = _time.perf_counter()
+    waited = [0.0]
+
+    def run():
+        waited[0] = (_time.perf_counter() - t0) * 1000.0
+        return fn(*args, **kwargs)
+    out = await _anyio.to_thread.run_sync(run, limiter=_bars_limiter(lane))
+    return out, waited[0]
+
+
+def _is_warm_request(request) -> bool:
+    try:
+        return (request.query_params.get("warm") or "") == "1"
+    except Exception:
+        return False
+
+
+def _bars_gate_limiter(request):
+    """The gate's hop: a warm's on the warm lane (it waits only behind warms), an interactive ask's on the QUICK lane
+    (never behind a serve)."""
+    return _bars_limiter(True if _is_warm_request(request) else QUICK)
+
+
+def _note_gate_wait(request, ms: float):
+    request.state.bars_wait_ms = ms           # read by get_bars for Server-Timing `bars-wait`
+
+
+# `require_bars_access` on /api/bars' own lanes. Built by `bars_auth.require_bars_access_on`, never by hand: the factory
+# calls the gate itself in a thread on the lane it is given, and the auth auditors recognise its products by identity.
+require_bars_access_bars = require_bars_access_on(_bars_gate_limiter, "require_bars_access_bars", on_wait=_note_gate_wait)
+
+
+def _stamp_bars_wait(resp, ms: float):
+    """Add `bars-wait;dur=<ms>` to the response's Server-Timing (the thread waits this request paid)."""
+    try:
+        entry = f"bars-wait;dur={ms:.1f}"
+        st = resp.headers.get("server-timing")
+        resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
+    except Exception:
+        pass
+    return resp
+
+
 @router.get("/api/bars/{ticker}")
 async def get_bars(
     ticker: str,
-    _access: dict = Depends(require_bars_access),
+    _access: dict = Depends(require_bars_access_bars),
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
     session: str = Query(default="", description="Chart session: 'rth' | 'eth' (intraday only). eth on tf=60 serves TradingView's extended 60m grid (clock hours); tail_status is judged against this session. Absent = legacy behaviour."),
+    request: Request = None,
 ):
     """HTTP route → the dedicated bars-serving tier (Path B Phase 2) or the local
     `serve_bars` core.
@@ -680,10 +766,12 @@ async def get_bars(
     # a pair back here with 501) and never the stock/index serve below. `serves` is False for
     # every other symbol and for everyone while the switch is off, so they fall through
     # to exactly the lines that follow.
+    _warm = isinstance(warm, int) and warm == 1
+    _gate_ms = float(getattr(getattr(request, "state", None), "bars_wait_ms", 0.0) or 0.0)
     from api.routers import crypto as _crypto
     if _crypto.serves(ticker, _access):
-        from starlette.concurrency import run_in_threadpool as _pair_pool
-        return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
+        _resp, _ms = await _bars_thread(_warm, _crypto.pair_bars_response, ticker, tf, bars, since, to)
+        return _stamp_bars_wait(_resp, _gate_ms + _ms)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
@@ -693,16 +781,17 @@ async def get_bars(
         except Exception:
             # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
             # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
-            from starlette.concurrency import run_in_threadpool as _shed_pool
-            _shed = await _shed_pool(_tier_down_cold_tail, ticker, tf, to)
+            _shed, _ms = await _bars_thread(QUICK, _tier_down_cold_tail, ticker, tf, to)   # never behind a serve
+            _gate_ms += _ms
             if _shed is not None:
-                return _shed
+                return _stamp_bars_wait(_shed, _gate_ms)
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
-    from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm,
-                                   *((session,) if session else ()))
+    # (2026-11-25) ...on this route's OWN limiter, a warm on the smaller warm share (see BARS_THREADS).
+    _resp, _ms = await _bars_thread(_warm, serve_bars_http, ticker, tf, bars, since, to, warm,
+                                    *((session,) if session else ()))
+    return _stamp_bars_wait(_resp, _gate_ms + _ms)
 
 
 @router.get("/api/adjustment-basis/{ticker}")
@@ -891,6 +980,8 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
     headers to add, or None when there is no tail to judge (an empty full answer).
     `contract_vt`: the proof the bar contract attached to THIS payload (judged as is)."""
     rows = payload.get("bars")
+    # the since path served a stale store whose repair has not landed (bars_fetch `_get_bars_since_response`)
+    pending = bool(payload.pop("tail_pending", False))
     if payload.get("delta"):
         from api.services import bars_sqlite as _bs
         tail = _bs.get_last_ts(ticker.upper(), tf)
@@ -911,11 +1002,32 @@ def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None 
               else _bars_fetch.intraday_tail_status(ticker, tf, tail))
     payload["tail_status"] = st["tail_status"]
     payload["verified_through"] = st["verified_through"]
+    # ⭐ A PENDING TAIL IS NEVER `current` (2026-11-24): the one-bucket tolerance is for a name with no print in the newest
+    # bucket, not for a store this answer knows is stale. A provider-`verified` tail stays verified.
+    # ⭐ NOR IS AN UNPROVEN ONE, on ANY answer — full, since= and to= alike (2026-11-25): a tail one bucket short is
+    # `current` only when `verified_through` reaches the end of the newest closed bucket (`tolerance_unproven`,
+    # `intraday_tail_status`). Without that proof "the name printed nothing" and "the store has not landed it yet" read
+    # the same, and the client painted 1m charts one closed bar short at the open. A tail AT the frontier needs no proof.
+    if st["tail_status"] == "current" and (pending or st.get("tolerance_unproven")):
+        payload["tail_status"] = "unverified"
     headers = {}
-    if st["tail_status"] == "unverified":
-        payload["retry_after"] = 3
-        headers["Retry-After"] = "3"
+    if payload["tail_status"] == "unverified":
+        ra = _tail_retry_after_s()
+        payload["retry_after"] = ra
+        headers["Retry-After"] = str(ra)
     return headers
+
+
+#: The `unverified` re-poll: 3 s plus 0-2 s of jitter (review #2732, 2026-11-25). At the open every chart whose tail is
+#: one short is told to come back; a fixed 3 s lines those polls up into synchronized bursts. ⛔ The floor stays 3 s,
+#: >= `bars_fetch.TAIL_PROOF_LAG_S`, so the retry can always heal a tail the provider has published.
+_TAIL_RETRY_AFTER_MIN_S = 3
+_TAIL_RETRY_AFTER_JITTER_S = 2
+
+
+def _tail_retry_after_s() -> int:
+    import random
+    return _TAIL_RETRY_AFTER_MIN_S + random.randint(0, _TAIL_RETRY_AFTER_JITTER_S)
 
 
 def _since_key(since, tf: str):
@@ -978,6 +1090,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
                 headers = _apply_tail_status(payload, ticker, tf, session) or {}
         except Exception:
             headers = {}
+    payload.pop("tail_pending", None)      # the since path's marker is the router's to read, never a client's
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
     for h in ("retry-after", "x-bars-shed"):
         if h in response.headers:
@@ -1760,11 +1873,45 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
     return resp
 
 
+# ⛔ (2026-11-25 wide sweep) /api/bars-history NEVER WAITS BEHIND /api/bars. A pure SQLite read of 173 sealed rows took
+# 6.3 s of app time (Server-Timing `app=6325`; another of 8,454 rows took 294 ms): queueing, not work. The route took TWO
+# hops through anyio's DEFAULT thread limiter (40 tokens), shared by every sync route: the sync `require_bars_access`
+# dependency (FastAPI runs a sync dependency there) and the read itself. Under a warm flood that pool is full of
+# `/api/bars` serves waiting on provider fetches, and the cheapest read on the pod queued behind them. Both hops, and the
+# gzip (which ran on the event loop), now take this route's OWN limiter. Rail: tests/test_bars_history_own_pool.py.
+BARS_HISTORY_THREADS = max(2, int(os.environ.get("BARS_HISTORY_THREADS", "8") or 8))
+_history_limiters = __import__("weakref").WeakKeyDictionary()
+
+
+def _history_limiter():
+    """This route's own CapacityLimiter, one per event loop (a limiter belongs to the loop that made it)."""
+    import asyncio as _asyncio
+    import anyio as _anyio
+    loop = _asyncio.get_running_loop()
+    lim = _history_limiters.get(loop)
+    if lim is None:
+        lim = _history_limiters[loop] = _anyio.CapacityLimiter(BARS_HISTORY_THREADS)
+    return lim
+
+
+async def _history_thread(fn, *args, **kwargs):
+    import anyio as _anyio
+    from functools import partial as _partial
+    return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
+
+
+# `require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). Built by
+# `bars_auth.require_bars_access_on`, never by hand here: the factory calls the gate itself in a thread on the
+# limiter it is given, and the auth auditors recognise its products by identity (a hand-built wrapper, which they
+# could not see, turned master red with #2741).
+require_bars_access_history = require_bars_access_on(lambda request: _history_limiter(), "require_bars_access_history")
+
+
 @router.get("/api/bars-history/{ticker}")
 async def get_bars_history(
     ticker: str,
     request: Request,
-    _access: dict = Depends(require_bars_access),
+    _access: dict = Depends(require_bars_access_history),
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
     v: str = Query(default="", description="Version tag — for CDN cache-keying; the current value rides on the /api/bars response and this endpoint's body"),
@@ -1805,16 +1952,18 @@ async def get_bars_history(
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
             resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
-            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+            return await _history_thread(gzip_with_length, resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
-    from starlette.concurrency import run_in_threadpool
-    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
-                                   if_none_match=request.headers.get("if-none-match", ""))
-    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+    # (2026-11-25) ...on this route's OWN limiter, never the default pool every sync route shares (see
+    # BARS_HISTORY_THREADS), and gzipped there too, off the event loop.
+    def _serve_and_pack(accept_encoding: str, inm: str):
+        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm), accept_encoding)
+    return await _history_thread(_serve_and_pack, request.headers.get("accept-encoding", ""),
+                                 request.headers.get("if-none-match", ""))
 
 
 # ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
@@ -2001,42 +2150,10 @@ def disk_status(live: bool = False,
     return out
 
 
-@router.get("/api/admin/bars-stream-status")
-def bars_stream_status():
-    """Push-feed (Phase C) health (no auth — read-only). The ONLY way to answer, without an
-    SSH: is the Massive WS connected, how many (sym,tf) are fanning out, is anyone subscribed,
-    and — the key signal — is it actually EMITTING (bars_emitted_total climbing / last_emit_age
-    small) vs silently dead while users invisibly fell back to Finnhub. `bars_dropped_total` > 0
-    = slow-consumer data loss. `enabled=false` = the whole rail is off (STREAM_BARS_ENABLED)."""
-    enabled = os.environ.get("STREAM_BARS_ENABLED") == "1"
-    out = {"enabled": enabled}
-    if not enabled:
-        return out
-    try:
-        from api.services.bar_broadcaster import get_broadcaster
-        out["broadcaster"] = get_broadcaster().get_status()
-    except Exception as e:  # noqa: BLE001
-        out["broadcaster_error"] = str(e)[:200]
-    try:
-        from api.services import bar_stream
-        out["websocket"] = bar_stream.get_status()
-    except Exception as e:  # noqa: BLE001
-        out["websocket_error"] = str(e)[:200]
-    try:
-        from api.services import bar_stream
-        # Per-channel subscription counts + each owner's channels (STREAM_SCOPED_CHANNELS).
-        out["websocket_channels"] = bar_stream.get_channel_counts()
-    except Exception as e:  # noqa: BLE001
-        out["websocket_channels_error"] = str(e)[:200]
-    try:
-        from api.services import feed_client
-        out["feed_source"] = feed_client.feed_source()
-        st = feed_client.status()
-        if st is not None:
-            out["feed_client"] = st
-    except Exception as e:  # noqa: BLE001
-        out["feed_client_error"] = str(e)[:200]
-    return out
+# ⭐ `GET /api/admin/bars-stream-status` lives in `api/routers/bars_stream_status.py` (2026-11-26): it is this file's only
+# reader of the stream modules (bar_broadcaster, bar_stream, feed_client), and six callers import this module for
+# `serve_bars`, which put the stream into flow-worker's import closure
+# (tests/test_alert_taxonomy_price_level_projection.py).
 
 
 @router.post("/api/admin/bars/regraft")

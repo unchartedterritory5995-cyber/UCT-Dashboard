@@ -27,7 +27,8 @@ const DECLARED = Object.freeze({
   'components/chart/engine/ast/pineRuntimeFrontend.js': { role: 'pine', calls: 1 },
   'components/chart/engine/runtime/runtimeColumns.js': { role: 'inherits', calls: 2 },
   // e95 unit 2: +1, `builtinWitnessMask` reads an anchored VWAP's anchor as the chart can know it (`{ ...inner }`)
-  'components/chart/engine/ast/interpret.js': { role: 'inherits', calls: 4 },
+  // ⭐⭐ U-DAILY (e96): +2, a daily read's child on the daily bars and the tree with its leaves, both on the caller's opts
+  'components/chart/engine/ast/interpret.js': { role: 'inherits', calls: 6 },
   'components/chart/engine/lowerTf.js': { role: 'inherits', calls: 1 },
   'components/chart/engine/runtime/lower.js': { role: 'inherits', calls: 1 },
   'components/chart/builder/criteria.js': { role: 'native', calls: 2 },

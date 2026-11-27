@@ -234,6 +234,11 @@ export function createLiveFeed({
   onReconnect = null, onReanchor = null, now = () => Date.now(), pushEnabled = realtimeBarsEnabled,
 } = {}) {
   const attached = new Map()   // key → { refs, off: Function[], fold? }
+  // ⭐ A ROW AHEAD OF THE MEMBER (2026-11-25): its PUSH frames only, as an `ahead` pair (lib/barsStreamManager), so its copy
+  // is as current as the chart on screen when the member reaches it (prefetch.createNeighborHold `live`). No tick fallback:
+  // the trade feed and the price stream are the chart's, and a row ahead is not on screen. Beside a chart's full attach of
+  // the same key, the chart's subscription dispatches and this one stays silent: each frame reaches the store once.
+  const pushOnly = new Map()   // key → { refs, off }
 
   function streamTf(p) { return isDateTf(p.tf) ? '1' : p.tf }
   function streamSession(p, session) { return p.session || session || 'rth' }
@@ -370,9 +375,36 @@ export function createLiveFeed({
     return a
   }
 
+  function _attachPushOnly(key, session) {
+    const p = parseKey(key)
+    const off = []
+    if (p && !p.window && isIntradayTf(p.tf) && pushEnabled()) {
+      off.push(stream.subscribe(p.sym, streamTf(p), {
+        session: streamSession(p, session),
+        ahead: true,
+        onBar: (data) => { if (!attached.has(key)) _dispatchFrame(key, data) },
+      }))
+    }
+    return { refs: 0, off }
+  }
+
   return {
-    /** Start the live subscriptions of `key` (refcounted). Returns its detach function. */
-    attach(key, { session = 'rth' } = {}) {
+    /** Start the live subscriptions of `key` (refcounted). Returns its detach function.
+     *  `pushOnly`: a row ahead of the member (its push frames only, as an `ahead` pair; see `pushOnly` above). */
+    attach(key, { session = 'rth', pushOnly: ahead = false } = {}) {
+      if (ahead) {
+        let b = pushOnly.get(key)
+        if (!b) { b = _attachPushOnly(key, session); pushOnly.set(key, b) }
+        b.refs++
+        let gone = false
+        return () => {
+          if (gone) return
+          gone = true
+          if (--b.refs > 0) return
+          for (const f of b.off) { try { f?.() } catch { /* ignore */ } }
+          pushOnly.delete(key)
+        }
+      }
       let a = attached.get(key)
       if (!a) { a = _attach(key, session); attached.set(key, a) }
       a.refs++
@@ -386,8 +418,25 @@ export function createLiveFeed({
       }
     },
     isStreamLive,
+    /** Since when (ms) the push stream has delivered `key` without a break (lib/barsStreamManager `liveSince`), or null:
+     *  not delivering, push off, or not an intraday key. prefetch._bucketsBehind: a copy the stream kept current through a
+     *  bucket roll is as current as the chart on screen. */
+    pushLiveSince(key, session) {
+      return this.pushState(key, session)?.since ?? null
+    },
+    /** { since, lastBarT } of `key`'s push stream while it delivers without a break, else null. `lastBarT`: the bucket
+     *  start (ms) of the newest frame the stream delivered (null: none) — a bucket after it had NO frame (prefetch rule a). */
+    pushState(key, session) {
+      const p = parseKey(key)
+      if (!p || p.window || !isIntradayTf(p.tf) || !stream?.getStatus || !pushEnabled()) return null
+      try {
+        const st = stream.getStatus(p.sym, streamTf(p), streamSession(p, session))
+        if (!(st?.delivering && finite(st.liveSince))) return null
+        return { since: st.liveSince, lastBarT: finite(st.lastBarT) ? st.lastBarT : null }
+      } catch { return null }
+    },
     /** Feed one push frame (tests / an external consumer). */
     applyFrame: _dispatchFrame,
-    stats() { return { keys: attached.size } },
+    stats() { return { keys: attached.size, ahead: pushOnly.size } },
   }
 }

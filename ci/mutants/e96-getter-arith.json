@@ -1,0 +1,156 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "e96 getter-arithmetic unit (feat/e96-getter-arith-labels): a label whose text is arithmetic on a value read back from a drawing is drawn by value (inline and through a local written where it stands), every text a drawing loses is refused by name (a create's, a setter's, a table cell's), and the assistant's conditional-ta words are the block gate's own. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "G1",
+      "mutant": "a text reads object state only WHOLE again: arithmetic on a getter is not computed",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "const live = stateOperand(arg0) || (readsState(arg0) ? stateNumber(arg0) : null)",
+      "to": "const live = stateOperand(arg0)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "probe 05"
+    },
+    {
+      "id": "G2",
+      "mutant": "the reader admits only a bare getter as a scalar's write: a local set from getter arithmetic is lost",
+      "file": "app/src/components/chart/engine/ast/objectFnInline.js",
+      "from": "return isBareGetterAt(toks, from, h) || isGetterArithAt(toks, from, h)",
+      "to": "return isBareGetterAt(toks, from, h)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "probe 06"
+    },
+    {
+      "id": "G3",
+      "mutant": "the converter plans a scalar's write only from a bare getter: the arithmetic write is lost",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "getterRef(node) || scalarNumber(node)) : null",
+      "to": "getterRef(node)) : null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "probe 10"
+    },
+    {
+      "id": "G4",
+      "mutant": "the validator admits a scalar written from a graph column (wider than the converter builds)",
+      "file": "app/src/components/chart/engine/ast/objectProgram.js",
+      "from": "if (x.v === 'const') return typeof x.value === 'number'",
+      "to": "if (x.v === 'const' || x.v === 'graph') return true",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "anything wider is refused"
+    },
+    {
+      "id": "G5",
+      "mutant": "the validator narrows back to a bare getter: a stored arithmetic scalar is refused",
+      "file": "app/src/components/chart/engine/ast/objectProgram.js",
+      "from": "!(op.value?.v === 'get' || arith)",
+      "to": "!(op.value?.v === 'get')",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js"
+    },
+    {
+      "id": "G6",
+      "mutant": "a text's unary minus is not read",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "const a = stateNumber(node.arg, depth + 1)",
+      "to": "const a = null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "unary minus"
+    },
+    {
+      "id": "G7",
+      "mutant": "a text's arithmetic reads its left operand twice (a wrong number, not a refusal)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "    const b = a && stateNumber(node.right, depth + 1)",
+      "to": "    const b = a && stateNumber(node.left, depth + 1)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "probe 05"
+    },
+    {
+      "id": "G8",
+      "mutant": "a lost text that reads a drawing is not named as one (the shape-only sentence instead)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "    if (drawn) return drawn\n",
+      "to": "    if (false) return drawn\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "a value read back from the chart's drawings"
+    },
+    {
+      "id": "G9",
+      "mutant": "`pine:drawing`'s \"answers with no number\" names a getter's text again",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "if (recorded && recorded.guard && !(drawn && recorded.guard === 'pine:drawing')) return recorded",
+      "to": "if (recorded && recorded.guard) return recorded",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "answers with no number"
+    },
+    {
+      "id": "G10",
+      "mutant": "a create's lost text is not named where it drops (\"no refusal recorded\" again)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "noteCreateDrop(op, k, TEXT_SLOTS.has(k) ? noteTextDrop(op, op.family, k, node, recorded) : recorded)",
+      "to": "noteCreateDrop(op, k, recorded)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js src/components/chart/engine/__tests__/e96TextDropCorpus.test.js",
+      "expectRed": "every text a drawing loses carries a guard and a sentence"
+    },
+    {
+      "id": "G11",
+      "mutant": "a table cell's lost text is not named where it drops",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "const r = noteTextDrop(op, 'table', k, node,",
+      "to": "const r = ((o, f, s, n, rec) => rec || { guard: 'refused', message: 'no refusal recorded' })(op, 'table', k, node,",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js src/components/chart/engine/__tests__/e96TextDropCorpus.test.js"
+    },
+    {
+      "id": "G12",
+      "mutant": "a setter's lost text withholds its label in silence",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "              noteTextDrop(op, op.family, name, node, lastCanonRefusal !== canonBefore ? lastCanonRefusal",
+      "to": "              void (op, op.family, name, node, lastCanonRefusal !== canonBefore ? lastCanonRefusal",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "setter"
+    },
+    {
+      "id": "G13",
+      "mutant": "the member's drawing note does not name the drawing whose text was lost",
+      "file": "app/src/components/chart/engine/ast/objectLoss.js",
+      "from": "if (named) parts.push(named)",
+      "to": "if (false) parts.push(named)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "whose text is written at line"
+    },
+    {
+      "id": "G14",
+      "mutant": "the named sentence loses the local the read-back value is reached through",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "return opened ? drawingReadIn(opened.node, opened.env, depth + 1, via || String(node.name)) : null",
+      "to": "return opened ? drawingReadIn(opened.node, opened.env, depth + 1, via) : null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96GetterArithLabels.test.js",
+      "expectRed": "through `rise`"
+    },
+    {
+      "id": "W1",
+      "mutant": "the reference stops carrying the block gate's own words for conditional-ta",
+      "file": "app/src/components/chart/supportLoop/assistantPineReference.js",
+      "from": "export const GATE_WORDS = Object.freeze({ 'conditional-ta': BLOCK_RUNS_ADMITS })",
+      "to": "export const GATE_WORDS = Object.freeze({})",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96BlockRunsWords.test.js"
+    },
+    {
+      "id": "W2",
+      "mutant": "the gate's sentence stops naming the refused shape",
+      "file": "app/src/components/chart/engine/blockRuns.js",
+      "from": "  + '`input.string`). A block that skips a bar and runs again later, as an `if` on a price condition such as '",
+      "to": "  + '`input.string`). A block, as an `if` on a price condition such as '",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96BlockRunsWords.test.js",
+      "expectRed": "skips a bar and runs again later"
+    },
+    {
+      "id": "W3",
+      "mutant": "the server ignores the reference's gate words: conditional-ta goes unworded",
+      "file": "api/services/pine_authoring.py",
+      "from": "            words[cap] = said",
+      "to": "            pass",
+      "rail": "python -B -m pytest tests/test_pine_authoring.py -q -p no:cacheprovider",
+      "expectRed": "conditional-ta"
+    }
+  ]
+}

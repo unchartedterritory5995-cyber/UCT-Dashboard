@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { FIRST_CANDLES_MARK, MAX_API, REPORT_AFTER_MS, apiTemplate, buildReport, pageTemplate, startPerfBeacon } from './perfBeacon'
+import { FIRST_CANDLES_MARK, MAX_API, MAX_SWITCH_SENDS, REPORT_AFTER_MS, SWITCH_SEND_GAP_MS, SWITCH_SPEED_GLOBAL, apiTemplate, buildReport, pageTemplate, startPerfBeacon, switchesField } from './perfBeacon'
 import { FIRST_CHART_PAINT_EVENT } from './barsPackClient'
+import { SWITCH_SPEED_GLOBAL as INSTRUMENT_GLOBAL } from './switchSpeed'
 
 const O = 'https://uctintelligence.com'
 
@@ -145,5 +146,145 @@ describe('startPerfBeacon', () => {
     delete env.win.navigator.sendBeacon
     startPerfBeacon({ ...env, desktop: false })
     expect(env.beacons).toHaveLength(0)
+  })
+})
+
+// ── chart-switch speed (2026-11-23): the counts lib/switchSpeed.js keeps are sent when the page is hidden or left ──
+const COUNTS = () => ({ v: 1, cells: [[0, 1, 0, 1, 1, 2, 14, 9, 3, 0, 0, 0, 0, 0, 0, 0]], counters: [4, 0, 2, 0, 0, 0] })
+/** A page whose instrument hands over `next()` each time it is asked (null: nothing counted since the last send). */
+function switchEnv(next) {
+  const env = fakeEnv()
+  let now = 1000
+  env.perf.now = () => now
+  env.at = (t) => { now = t }
+  env.peeks = 0
+  env.takes = 0
+  env.win.location.pathname = '/charts'
+  // the instrument: `peek` reads the counts, `take` reads AND forgets them
+  env.win[SWITCH_SPEED_GLOBAL] = { peek: () => { env.peeks += 1; return next() }, take: () => { env.takes += 1; return next() } }
+  env.hide = () => { env.doc.visibilityState = 'hidden'; env.listeners['doc:visibilitychange']() }
+  env.show = () => { env.doc.visibilityState = 'visible'; env.listeners['doc:visibilitychange']() }
+  env.bodies = () => Promise.all(env.beacons.map(async (b) => JSON.parse(await b.blob.text())))
+  return env
+}
+
+describe('the chart-switch counts ride the same door', () => {
+  it('the name the instrument is found under is the one it leaves itself under', () => {
+    expect(SWITCH_SPEED_GLOBAL).toBe(INSTRUMENT_GLOBAL)
+  })
+
+  it('a hidden page sends ONE switches report beside its page-load report, and the page-load report carries none', async () => {
+    const env = switchEnv(COUNTS)
+    startPerfBeacon({ ...env, desktop: true })
+    env.hide()
+    const [load, sw] = await env.bodies()
+    expect(env.beacons).toHaveLength(2)
+    expect(env.beacons[1].url).toBe('/api/perf/beacon')
+    expect(load.kind).toBeUndefined()
+    expect(load.switches).toBeUndefined()
+    expect(sw).toEqual({ page: '/charts', client: 'desktop', kind: 'switches', switches: COUNTS() })
+    expect([env.peeks, env.takes]).toEqual([1, 1])       // read to build the report; forgotten once it was queued
+  })
+
+  it('a report the browser REFUSES keeps its counts: they are forgotten only once a report is queued', async () => {
+    const env = switchEnv(COUNTS)
+    let accept = false
+    env.win.navigator.sendBeacon = vi.fn((url, blob) => { if (accept) env.beacons.push({ url, blob }); return accept })
+    startPerfBeacon({ ...env, desktop: false })
+    env.hide()                                           // the browser's queue is full: nothing goes
+    expect(env.beacons).toHaveLength(0)
+    expect([env.peeks, env.takes]).toEqual([1, 0])       // the counts stay with the instrument
+    accept = true
+    env.show()
+    env.at(1000 + 5)                                     // nothing was sent, so there is no gap to wait out
+    env.hide()
+    expect(env.beacons).toHaveLength(1)
+    expect((await env.bodies())[0]).toMatchObject({ kind: 'switches', switches: COUNTS() })
+    expect([env.peeks, env.takes]).toEqual([2, 1])
+    // a sendBeacon that THROWS is a refusal too
+    const thrower = switchEnv(COUNTS)
+    thrower.win.navigator.sendBeacon = vi.fn(() => { throw new Error('no') })
+    startPerfBeacon({ ...thrower, desktop: false })
+    thrower.hide()
+    expect([thrower.peeks, thrower.takes]).toEqual([1, 0])
+  })
+
+  it('nothing counted: nothing sent, however often the page is hidden', () => {
+    const env = switchEnv(() => null)
+    startPerfBeacon({ ...env, desktop: false })
+    env.hide()
+    env.show()
+    env.at(1000 + SWITCH_SEND_GAP_MS + 1)
+    env.hide()
+    env.listeners.pagehide()
+    expect(env.beacons).toHaveLength(1)                  // the page-load report alone
+  })
+
+  it('a page hidden again inside the gap keeps its counts; past the gap, or as it is left, it sends them', () => {
+    const env = switchEnv(COUNTS)
+    startPerfBeacon({ ...env, desktop: false })
+    env.hide()                                           // the page-load report + the first switches report
+    expect(env.beacons).toHaveLength(2)
+    env.show()
+    env.at(1000 + SWITCH_SEND_GAP_MS - 1)
+    env.hide()
+    expect(env.beacons).toHaveLength(2)
+    expect([env.peeks, env.takes]).toEqual([1, 1])       // not even asked: the counts stay with the instrument
+    env.show()
+    env.at(1000 + SWITCH_SEND_GAP_MS)
+    env.hide()
+    expect(env.beacons).toHaveLength(3)
+    env.show()
+    env.at(1000 + SWITCH_SEND_GAP_MS + 5)
+    env.listeners.pagehide()                             // leaving: the gap does not hold the last counts back
+    expect(env.beacons).toHaveLength(4)
+  })
+
+  it('a page sends at most MAX_SWITCH_SENDS switches reports in its life', () => {
+    const env = switchEnv(COUNTS)
+    startPerfBeacon({ ...env, desktop: false })
+    for (let i = 0; i < MAX_SWITCH_SENDS + 5; i++) env.listeners.pagehide()
+    expect(env.beacons).toHaveLength(1 + MAX_SWITCH_SENDS)
+  })
+
+  it('the field is REBUILT from whole numbers: anything else, anywhere in it, and nothing is sent', () => {
+    expect(switchesField(COUNTS())).toEqual(COUNTS())
+    const built = switchesField({ ...COUNTS(), sym: 'NVDA', cells: Object.assign([[0, 1, 0, 1, 1, 2]], { note: 'x' }) })
+    expect(built).toEqual({ v: 1, cells: [[0, 1, 0, 1, 1, 2]], counters: [4, 0, 2, 0, 0, 0] })   // only the three keys, rebuilt
+    const bad = [
+      null, undefined, 'x', 7, [],
+      { ...COUNTS(), v: '1' },
+      { ...COUNTS(), cells: [[0, 1, 0, 1, 1, 'NVDA']] },
+      { ...COUNTS(), cells: [[0, 1, 0, 1, 1, 2.5]] },
+      { ...COUNTS(), cells: [[0, 1, 0, 1, 1, -1]] },
+      { ...COUNTS(), cells: [[0, 1, 0, 1, 1, NaN]] },
+      { ...COUNTS(), cells: [[0, 1, 0, 1, 1, 1e9]] },
+      { ...COUNTS(), cells: [{ 0: 1 }] },
+      { ...COUNTS(), cells: 'cells' },
+      { ...COUNTS(), cells: Array.from({ length: 65 }, () => [0]) },
+      { ...COUNTS(), cells: [Array.from({ length: 33 }, () => 0)] },
+      { ...COUNTS(), counters: [1, 'two'] },
+      { ...COUNTS(), counters: Array.from({ length: 17 }, () => 0) },
+      { v: 1, cells: [] },
+    ]
+    for (const raw of bad) expect(switchesField(raw), JSON.stringify(raw)).toBeUndefined()
+    const env = switchEnv(() => ({ ...COUNTS(), cells: [[0, 1, 0, 1, 1, 'NVDA']] }))
+    startPerfBeacon({ ...env, desktop: false })
+    env.hide()
+    expect(env.beacons).toHaveLength(1)
+    // an instrument that throws costs nothing either
+    const thrower = switchEnv(() => { throw new Error('no') })
+    startPerfBeacon({ ...thrower, desktop: false })
+    thrower.hide()
+    expect(thrower.beacons).toHaveLength(1)
+  })
+
+  it('a page with no instrument (no chart was ever loaded) sends only its page-load report', () => {
+    const env = fakeEnv()
+    startPerfBeacon({ ...env, desktop: false })
+    env.doc.visibilityState = 'hidden'
+    env.listeners['doc:visibilitychange']()
+    env.listeners.pagehide()
+    expect(env.beacons).toHaveLength(1)
   })
 })

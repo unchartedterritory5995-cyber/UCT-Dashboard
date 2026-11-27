@@ -121,6 +121,7 @@ def test_frames_queued_behind_each_other_keep_their_order_and_all_leave(isolated
 
     _req, frames = _run(isolated, script)
     import json
-    ts = [json.loads(c.split("data: ", 1)[1].split("\n", 1)[0])["bar"]["t"]
-          for _t, c in frames if "event: bar" in c]
+    # a wake's frames leave in ONE chunk (serialise-once, 2026-11-25): read each SSE event in it
+    ts = [json.loads(e.split("data: ", 1)[1].split("\n", 1)[0])["bar"]["t"]
+          for _t, c in frames for e in c.split("\n\n") if "event: bar" in e]
     assert ts == [0, 1, 2, 3, 4], ts

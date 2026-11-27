@@ -217,6 +217,10 @@ class Job:
     #: ``bars_window.HISTORY_WINDOW_BARS`` (design 3.4). None sends no window (every job as before;
     #: a broker run told none refuses ``runtime:strategy-start``). Never defaulted here.
     history_window_bars: Optional[int] = None
+    #: (e100, 2026-11-26) the depth a run from the listing is served at without the deep-start rule ([B-START-DEEP]):
+    #: the chart's own ``listingDepthBars`` (``bars_window.HISTORY_WINDOW_BARS`` beside the strategy window), stated by
+    #: the single-symbol strategy route ONLY on a run from the listing. None sends none (every job as before).
+    listing_depth_bars: Optional[int] = None
 
 
 class _Refuse(Exception):
@@ -324,6 +328,13 @@ def _ctx_of(job: Job) -> Dict[str, Any]:
         if isinstance(w, bool) or not isinstance(w, int) or w < 1:
             raise _Refuse(INTEGRITY, "the history window is not a positive whole number of bars")
         ctx["historyWindowBars"] = w
+    # (e100) the served depth, only when the caller states one (protocol.mjs: an optional positive int; job.mjs forwards
+    # it as the browser does), so every existing request body and cache key is byte-unchanged.
+    d = job.listing_depth_bars
+    if d is not None:
+        if isinstance(d, bool) or not isinstance(d, int) or d < 1:
+            raise _Refuse(INTEGRITY, "the listing depth is not a positive whole number of bars")
+        ctx["listingDepthBars"] = d
     return ctx
 
 

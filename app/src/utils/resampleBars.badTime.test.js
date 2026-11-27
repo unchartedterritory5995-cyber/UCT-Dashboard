@@ -16,7 +16,7 @@ describe('a bad bar time never takes the chart down', () => {
   const spec = resampleSpec('47')
 
   it('47m is the path that crashed: it resamples from 1m as a session bucket', () => {
-    expect(spec).toEqual({ base: '1', kind: 'intradaySession', minutes: 47 })
+    expect(spec).toEqual({ base: '1', kind: 'intradaySession', minutes: 47, anchorMin: 570 })
   })
 
   it('daily-shaped bars on a 47m interval yield no bars instead of throwing', () => {

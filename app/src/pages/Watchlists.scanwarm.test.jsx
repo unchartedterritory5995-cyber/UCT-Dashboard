@@ -41,9 +41,11 @@ const WL = {
   id: 'wl1', name: 'Momentum Plays', description: '',
   items: SYMS.map((sym, i) => ({ id: `i${i}`, sym, notes: '' })),
 }
+// more of the member's lists, per test (empty by default: every other test sees Momentum Plays alone)
+const EXTRA_LISTS = []
 vi.mock('swr', () => ({
   default: (key) => {
-    if (key === '/api/watchlists') return { data: [WL], mutate: () => {} }
+    if (key === '/api/watchlists') return { data: [WL, ...EXTRA_LISTS], mutate: () => {} }
     if (key === '/api/watchlists/public') return { data: [], mutate: () => {} }
     return { data: [], mutate: () => {} }
   },
@@ -133,6 +135,146 @@ test('the next two rows are warmed URGENTLY (not held behind the daily pack inge
   expect(u.syms).toEqual(['DDD', 'EEE'])
 })
 
+// ⭐ (2026-11-25 wide sweep) A member jumping through the list outran the urgent next-row warm: the jump's stride, in
+// its direction, is warmed urgently too, and kept resident by the hold.
+// ⛔ (review of #2739) URGENT ONLY INSIDE THE CAP: prefetchBars makes only the first URGENT_MAX_PER_CALL symbols of a call
+// urgent (store facade and legacy alike); a third one leaves as a shed-able `warm=1` background warm that is never
+// re-asked after a roll. A jump is [the next row, the jump target], read against the real cap.
+test('a jump warms the row one stride further, urgently, inside the per-call urgent cap', async () => {
+  const { URGENT_MAX_PER_CALL } = await vi.importActual('../utils/prefetchBars')
+  expect(URGENT_MAX_PER_CALL).toBeGreaterThanOrEqual(2)
+  hub.sym = 'CCC'
+  const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findByText('CCC')
+  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+  calls.urgent = []
+  hub.sym = 'FFF'                                            // a jump of 3 rows down
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('GGG'))).toBe(true))
+  const u = calls.urgent.find(c => c.syms.includes('GGG'))
+  expect(u.tf).toBe('5')
+  expect(u.syms.slice(0, URGENT_MAX_PER_CALL), 'the jump target was past the urgent cap').toContain('III')
+  // ⛔ CHANGED (2026-11-26, jump replay): THE TARGET FIRST, then the next row. Both sit inside the cap, but the lane
+  // starts a call's rows in order: on the jump replay the target, second, started ~0.4-0.5 s after landing.
+  expect(u.syms).toEqual(['III', 'GGG'])
+  calls.urgent = []
+  hub.sym = 'GGG'                                            // control: one row on is no jump
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'HHH')).toBe(true))
+  expect(calls.urgent.find(c => c.syms[0] === 'HHH').syms).toEqual(['HHH', 'III'])
+})
+
+// ⭐ (2026-11-26, jump replay) THE EFFECT RUNS AGAIN FOR THE SAME SELECTION whenever the list's rows change identity (a
+// list or tag refresh), and that run took the PREVIOUS selection from the ref the first run had just written: the
+// selection itself. So it saw no jump (and no direction: "down"), and its urgent call, the latest one, aborted the jump
+// target's queued ask (only the latest urgent call keeps its rows). A re-run keeps what the press landed with.
+async function _rerunSameSelection(rerender) {
+  calls.urgent = []
+  WL.items = WL.items.map((it) => ({ ...it }))               // the same rows, new identities: the effect runs again
+  rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await waitFor(() => expect(calls.urgent.length).toBeGreaterThan(0))
+  return calls.urgent[calls.urgent.length - 1]
+}
+
+test('a re-run for the same selection keeps the jump target urgent (it never aborts it)', async () => {
+  const items0 = WL.items
+  try {
+    hub.sym = 'CCC'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    calls.urgent = []
+    hub.sym = 'FFF'                                          // a jump of 3 rows down: the next one lands on III
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('III'))).toBe(true))
+    globalThis.__uctScanWarmTrace = []
+    const last = await _rerunSameSelection(rerender)
+    expect(last.tf).toBe('5')
+    expect(last.syms, 'a re-run for the same selection dropped the jump target from the latest urgent call').toContain('III')
+    // the opt-in trace a replay harness reads: the re-run is recorded as one, with the jump it kept
+    expect(globalThis.__uctScanWarmTrace.at(-1)).toMatchObject({ sym: 'FFF', rerun: true, stride: 3, jump: 'III' })
+  } finally {
+    WL.items = items0
+    delete globalThis.__uctScanWarmTrace
+  }
+})
+
+// (review of #2768, LOW) A LIST SWITCH WITH THE SAME SYMBOL SELECTED IS NOT A RE-RUN: the old list's stride and
+// direction mean nothing in the new list's order, so the press is read afresh there (no jump: nothing moved).
+test('switching lists with the same symbol selected is not a re-run (the old stride is not carried over)', async () => {
+  const items0 = WL.items
+  // 7 rows: a stride of 3 is not half this list, so strideTarget's came-from guard cannot answer for this rail
+  EXTRA_LISTS.push({ id: 'wl2', name: 'Other', description: '',
+    items: ['FFF', 'KKK', 'LLL', 'MMM', 'NNN', 'OOO', 'PPP'].map((sym, i) => ({ id: `o${i}`, sym, notes: '' })) })
+  try {
+    hub.sym = 'CCC'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    hub.sym = 'FFF'                                          // a jump of 3 rows down in Momentum Plays
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('III'))).toBe(true))
+    calls.urgent = []
+    rerender(<Watchlists embedded pickList="user:wl2" pickName="Other" />)   // FFF stays selected, another list
+    await screen.findByText('KKK')
+    await waitFor(() => expect(calls.urgent.some(c => c.syms.includes('KKK'))).toBe(true))
+    const last = calls.urgent[calls.urgent.length - 1]
+    expect(last.syms, "the old list's stride was applied in the new list").toEqual(['KKK', 'LLL'])
+  } finally {
+    WL.items = items0
+    EXTRA_LISTS.length = 0
+  }
+})
+
+test('a re-run for the same selection keeps the direction the member is moving', async () => {
+  const items0 = WL.items
+  try {
+    hub.sym = 'FFF'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('FFF')
+    await waitFor(() => expect(calls.urgent.length).toBeGreaterThan(0))
+    calls.urgent = []
+    hub.sym = 'EEE'                                          // one row UP: the next rows are DDD, CCC
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(calls.urgent.some(c => c.syms[0] === 'DDD')).toBe(true))
+    const last = await _rerunSameSelection(rerender)
+    expect(last.syms, 'a re-run for the same selection turned a member moving up around').toEqual(['DDD', 'CCC'])
+  } finally {
+    WL.items = items0
+  }
+})
+
+// ⛔ (review of #2739) KEPT ONLY INSIDE THE SHARE: a hold pins `keep.slice(0, share)`, share = min(NEIGHBOR_KEEP_AHEAD,
+// NEIGHBOR_KEEP_TOTAL / holds): 30 on a 1m + 15m board, 20 on three. A jump target appended after 30 rows ahead is cut.
+test('a jump target is kept inside the hold share of a two- and a three-hold board', async () => {
+  const { NEIGHBOR_KEEP_AHEAD, NEIGHBOR_KEEP_TOTAL } = await vi.importActual('../data/barStore/prefetch')
+  const share = (holds) => Math.min(NEIGHBOR_KEEP_AHEAD, Math.floor(NEIGHBOR_KEEP_TOTAL / holds))
+  const sets = []
+  const items0 = WL.items
+  WL.items = Array.from({ length: 80 }, (_, i) => ({ id: `j${i}`, sym: `S${String(i).padStart(3, '0')}`, notes: '' }))
+  globalThis.__uctStoreWarmers = {
+    prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
+    warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, selected: opts?.selected, keep: opts?.keep ? [...opts.keep] : null }), clear: () => {} }),
+  }
+  try {
+    hub.sym = 'S000'
+    const { rerender } = render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('S000')
+    await waitFor(() => expect(sets.some(s => s.selected === 'S000')).toBe(true))
+    hub.sym = 'S035'                                         // a jump of 35 rows: the next one lands on S070
+    rerender(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await waitFor(() => expect(sets.some(s => s.selected === 'S035')).toBe(true))
+    const s = sets.filter(x => x.selected === 'S035').pop()
+    expect(s.keep).toContain('S070')
+    expect(s.keep.slice(0, share(2)), 'the jump target was cut by a two-hold share').toContain('S070')
+    expect(s.keep.slice(0, share(3)), 'the jump target was cut by a three-hold share').toContain('S070')
+  } finally {
+    WL.items = items0
+    delete globalThis.__uctStoreWarmers
+  }
+})
+
 test('the store hold holds the rows around the selection and deepens the next two (scan direction)', async () => {
   const sets = []
   globalThis.__uctStoreWarmers = {
@@ -170,6 +312,26 @@ test('the hold keeps the next row, the one after and the previous row current ac
     expect(s.tf).toBe('5')
     expect(s.tail).toEqual(['DDD', 'EEE', 'BBB'])            // next, the one after (scan direction), previous
     expect(s.selected).toBe('CCC')                           // the selection: a CHANGE of it opens the hold's window
+  } finally {
+    delete globalThis.__uctStoreWarmers
+  }
+})
+
+test('the hold keeps the rows AHEAD resident until the member reaches them (keep)', async () => {
+  const sets = []
+  globalThis.__uctStoreWarmers = {
+    prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
+    warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ tf, keep: opts?.keep ? [...opts.keep] : null }), clear: () => {} }),
+  }
+  try {
+    hub.sym = 'CCC'
+    render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(sets.length).toBeGreaterThan(0))
+    const s = sets[sets.length - 1]
+    expect(s.keep?.slice(0, 2)).toEqual(['DDD', 'EEE'])     // the rows ahead, nearest first, in the scan direction
+    expect(s.keep).not.toContain('CCC')                      // never the selected row (the hold's own window pins it)
   } finally {
     delete globalThis.__uctStoreWarmers
   }

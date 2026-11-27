@@ -15,9 +15,11 @@
 // ⛔ The SAVED document keeps every arm (its formula text, its trees): only the bound copy is pruned, and a document
 // with no knob ternary binds to ITSELF (the same object), so nothing else moves.
 
-import { pruneKnobArms, REFUSED_ARM_CALL, bindConstsFor } from './ast/bind.js'
+import { pruneKnobArms, REFUSED_ARM_CALL, bindConstsFor, knobTestValue } from './ast/bind.js'
 import { resolveInputs, treeScalars } from './knobInputs.js'
 import { symTickersOf } from './otherSymbols.js'
+// ⭐ e98 E2 — the readout's condition reader asks THIS evaluator for a knob test (registered below, never re-implemented)
+import { registerKnobTestEvaluator } from './readoutSchema.js'
 
 const isPlainObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -102,6 +104,103 @@ export function boundDocument(def, consts) {
 export function boundAtInputs(def, inputs) {
   if (!isPlainObject(def) || !isPlainObject(def.compute)) return def
   return boundDocument(def, bindConstsFor({ inputs: treeScalars(def, resolveInputs(def, inputs || {})) }))
+}
+
+/** ⭐⭐ e97 U6 — IS THIS PLOT HIDDEN FOR THIS INSTANCE? The ONE answer every binder site asks (a source rail holds every
+ *  `plots[].hidden` read to this function): `plot.hidden === true` (computed, never drawn: the author's literal
+ *  `display.none`, a display off the pane at every setting), or `plot.hiddenWhen` (a knob tree, true = hidden,
+ *  `pine.js::outputDisplayOf`) evaluated at the instance's inputs over the declared defaults, the same constants the
+ *  chart lane binds its trees with (`boundAtInputs`). A document saved before `hiddenWhen` existed reads exactly as it
+ *  always did: `hidden === true` and nothing else.
+ *  ⛔ A `hiddenWhen` this binding cannot evaluate (a tree that is not a knob test any more) is HIDDEN: never guessed
+ *  as drawn.
+ *  @param {object} plot  a `def.plots[]` entry
+ *  @param {object} def   its definition (for the declared inputs and their defaults)
+ *  @param {object} [inputs]  the instance's stored inputs */
+/** ⭐ e97 U6 — the binding constants `plotHiddenAt` evaluates a `hiddenWhen` with, memoised per definition and inputs
+ *  inputs CONTENT (the binder asks per plot and per site on every sync: measured 2.7 µs a call unmemoised).
+ *  A runtime document declares a yes/no setting as a `bool` (true / false); a knob test reads numbers, as the host
+ *  lane's `int` 0 / 1 already are. */
+const DISPLAY_CONSTS = new WeakMap()
+function displayConstsFor(def, inputs) {
+  const given = inputs && typeof inputs === 'object' ? inputs : EMPTY_INPUTS
+  // ⛔ keyed by the inputs' CONTENT, never their object identity: an inputs object changed in place must not read stale
+  let sig
+  try { sig = JSON.stringify(given) } catch { sig = null }
+  let byInputs = DISPLAY_CONSTS.get(def)
+  if (!byInputs) { byInputs = new Map(); DISPLAY_CONSTS.set(def, byInputs) }
+  let consts = sig === null ? null : byInputs.get(sig)
+  if (!consts) {
+    const scalars = { ...treeScalars(def, resolveInputs(def, given)) }
+    for (const [k, v] of Object.entries(scalars)) if (typeof v === 'boolean') scalars[k] = v ? 1 : 0
+    consts = bindConstsFor({ inputs: scalars })
+    if (sig !== null) {
+      if (byInputs.size >= 16) byInputs.clear()
+      byInputs.set(sig, consts)
+    }
+  }
+  return consts
+}
+const EMPTY_INPUTS = Object.freeze({})
+
+/** ⭐ e97 U6 (shared since e98 E1) — THE VALUE OF ONE KNOB TEST FOR THIS INSTANCE: the tree (the grammar
+ *  `defSchema.hiddenWhenProblem` checks) evaluated by `knobTestValue` at the instance's inputs over the declared
+ *  defaults (`displayConstsFor`); a bare number is itself. null when this binding cannot evaluate it. The ONE evaluator
+ *  `hiddenWhen` (`plotHiddenAt`) and `lineStyleWhen` (`plotLineStyleAt`) are asked through. */
+export function knobTestAt(tree, def, inputs) {
+  if (!tree || typeof tree !== 'object') return null
+  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null
+  return knobTestValue(tree, displayConstsFor(def, inputs))
+}
+
+registerKnobTestEvaluator(knobTestAt)
+
+export function plotHiddenAt(plot, def, inputs) {
+  if (!plot || typeof plot !== 'object') return false
+  if (plot.hidden === true) return true
+  const when = plot.hiddenWhen
+  if (!when || typeof when !== 'object') return false
+  const v = knobTestAt(when, def, inputs)
+  if (v === null) return true
+  return !!v
+}
+
+/** ⭐⭐ e98 E1 — THE LINE STYLE THIS INSTANCE DRAWS A PLOT WITH: the first `plots[].lineStyleWhen` arm whose knob test
+ *  holds at the instance's inputs (`knobTestAt`, the evaluator `hiddenWhen` is asked through), else the plot's own
+ *  `lineStyle` (the style at the settings' defaults, `pine.js::outputLineStyleOf`). A plot with no `lineStyleWhen` is
+ *  returned AS IS (the same object), so every document saved before it draws exactly as it did.
+ *  ⛔ An arm this binding cannot evaluate is skipped, never taken: the defaults' style stands.
+ *  @returns {object} the plot, or a copy whose `lineStyle` is the instance's */
+export function plotLineStyleAt(plot, def, inputs) {
+  if (!plot || typeof plot !== 'object' || !Array.isArray(plot.lineStyleWhen) || !plot.lineStyleWhen.length) return plot
+  const hit = plot.lineStyleWhen.find((a) => a && typeof a.lineStyle === 'string' && !!knobTestAt(a.when, def, inputs))
+  const lineStyle = hit ? hit.lineStyle : plot.lineStyle
+  return lineStyle === plot.lineStyle ? plot : { ...plot, lineStyle }
+}
+
+/** ⭐ e97 U6 — a `hiddenWhen` tree decided at its settings' DEFAULTS (the non-enumerable `inputDefault` each knob leaf
+ *  of a translation carries): true = hidden. ⛔ A tree it cannot evaluate is HIDDEN (never guessed as drawn). */
+export function hiddenAtLeafDefaults(tree) {
+  const v = knobTestAtLeafDefaults(tree)
+  return v === null ? true : !!v
+}
+
+/** ⭐ e97 U6 (shared since e98 E2) — THE VALUE OF A KNOB TEST AT ITS SETTINGS' DEFAULTS (the non-enumerable
+ *  `inputDefault` each knob leaf of a translation carries); a bare number is itself; null when it cannot be evaluated.
+ *  `hiddenAtLeafDefaults` and an input's `active` decided at its defaults (`memberPaneDefinition.js::withInputActive`)
+ *  ask this one function. */
+export function knobTestAtLeafDefaults(tree) {
+  if (!tree || typeof tree !== 'object') return null
+  if (tree.type === 'num') return typeof tree.value === 'number' && Number.isFinite(tree.value) ? tree.value : null
+  const consts = {}
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) consts[n.name] = n.inputDefault
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return knobTestValue(tree, consts)
 }
 
 /** The refused knob arm a BOUND tree still holds (the member's setting picked it): `{guard, message}` quoting the

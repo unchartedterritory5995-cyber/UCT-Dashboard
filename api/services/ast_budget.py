@@ -42,7 +42,7 @@ from __future__ import annotations
 from typing import Any, Dict, Mapping, Optional
 
 from api.services.ast_interpret import (
-    SESSION_MAX_BARS, TableRefusal, max_lookback, node_count, session_anchored_in,
+    SESSION_MAX_BARS, TableRefusal, daily_read_key, is_daily_read, max_lookback, node_count, session_anchored_in,
 )
 
 # --------------------------------------------------------------------------- #
@@ -237,6 +237,11 @@ def series_refs(ast: Any) -> int:
             # make a broken tree look CHEAPER than a working one.
             name = node.get("name")
             found.add(name if isinstance(name, str) else repr(name))
+        # ⭐⭐ U-DAILY (e96) -- a daily read is a column of its own: each DISTINCT one counts once, beside the series its
+        # child reads, so the tree evaluated on the chart's bars (each read a leaf) never counts more than this
+        # (``budget.js::seriesRefs``)
+        if is_daily_read(node):
+            found.add(daily_read_key(node))
         args = node.get("args")
         if isinstance(args, list):
             stack.extend(args)

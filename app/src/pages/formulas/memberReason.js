@@ -29,10 +29,11 @@ const LEFT_OUT = [
 ]
 
 const NOT_FILLED = 'Not filled in yet, so a formula cannot read it. It becomes available once the nightly data carries it.'
+const A_DATE = 'A date, not a number, so a formula cannot read it. Filter by it in the Screener.'
 
 /** The member's sentence, by how the engine's reason opens. First match wins. */
 const SENTENCES = [
-  [/^TEXT, for the same reason as `snapshot_d/, 'A date, not a number, so a formula cannot read it. Filter by it in the Screener.'],
+  [/^TEXT, for the same reason as `snapshot_d/, A_DATE],
   [/^TEXT\b/, 'Text, not a number, so a formula cannot read it. Filter or sort by it in the Screener.'],
   [/^Wave 7\b/, NOT_FILLED],
   [/^HELD BACK BECAUSE IT IS EMPTY/, NOT_FILLED],
@@ -41,6 +42,11 @@ const SENTENCES = [
   // ⛔ Matched on the R8 re-admit clause too, so an entry of that family held back for any OTHER reason falls
   // through to the fallback and the "known kind" rail asks for its own sentence.
   [/^FUNDAMENTAL TRENDS\b[\s\S]*\bRE-ADMIT WHEN THE ARTIFACT SHOWS THE COLUMN FILLED\b/, NOT_FILLED],
+  // the Screener column families of 2026-11-23 and 2026-11-24 (34 columns, #2696 and the waves before it): the same R8
+  // hold, so the same sentence, matched the same way (the family's heading AND the re-admit clause). The one date of
+  // them says it is a date: it is text, not a number, whether or not it is filled.
+  [/^HELD-STORE COLUMNS\b[^\n]*?-- TEXT, for the same reason as `next_earnings_date`/, A_DATE],
+  [/^(?:VOLUME & VOLATILITY|BEATS, INSIDERS & FUNDS|HELD-STORE COLUMNS|ROW COLUMNS)\b[\s\S]*\bRE-ADMIT WHEN THE ARTIFACT SHOWS THE COLUMN FILLED\b/, NOT_FILLED],
   [/^NOT GRANTED YET/, 'A Screener filter, not a formula name yet. Use it as a filter in the Screener; on a chart, describe it and the UCT Agent writes the formula.'],
   [/^LIVE-ONLY/, 'A live extended-hours value. Formulas read the nightly snapshot, so it is a Screener column and not a formula name.'],
   [/^holds letter grades/, 'A letter grade, not a number. Filter by it in the Screener.'],

@@ -1157,7 +1157,28 @@
       "signature": {
         "verdict": "MATCH",
         "reason": null,
-        "plots": [],
+        "plots": [
+          [
+            "Heatmap Candles open",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles high",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles low",
+            "MATCH",
+            1800
+          ],
+          [
+            "Heatmap Candles close",
+            "MATCH",
+            1800
+          ]
+        ],
         "objects": [
           "MATCH",
           []
@@ -1871,64 +1892,9 @@
       "script": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
       "state": "on",
       "signature": {
-        "verdict": "INCONCLUSIVE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "OR Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-          ],
-          [
-            "OR Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"OR Low\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "IB Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-          ],
-          [
-            "IB Low",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"IB Low\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
-          [
-            "Shapes",
-            "INCONCLUSIVE",
-            "UNMAPPED — vendor title \"Shapes\" is not unique in the study"
-          ],
           [
             "Opening price",
             "MATCH",
@@ -1941,6 +1907,61 @@
           ],
           [
             "IB High",
+            "MATCH",
+            1800
+          ],
+          [
+            "OR Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "OR Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "IB Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "IB Low",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
+            "MATCH",
+            1800
+          ],
+          [
+            "Shapes",
             "MATCH",
             1800
           ]
@@ -2354,8 +2375,29 @@
       "state": "on",
       "signature": {
         "verdict": "INCONCLUSIVE",
-        "reason": "1 of 1 items could not be compared",
-        "plots": [],
+        "reason": null,
+        "plots": [
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for va"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ],
+          [
+            null,
+            "INCONCLUSIVE",
+            "our side produced no column for this plot — computeFor returned no column for ou"
+          ]
+        ],
         "objects": [
           "INCONCLUSIVE",
           [

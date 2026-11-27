@@ -12,6 +12,19 @@
 // and default value, and the floor every intraday budget is measured against.
 export const FIRST_PAINT_BARS = 600
 
+/**
+ * ⭐⭐ (2026-11-27, owner: a daily chart zoomed out to ~1,000 bars, a cold ticker typed, "a small portion right away and
+ * then the rest") THE FIRST PAGE OF A D/W/M TAIL COVERS A ZOOMED-OUT VIEW ON ITS OWN. The tail was FIRST_PAINT_BARS
+ * (600) and everything older waited on the deep history, so a view of 1,000 daily bars could only be drawn whole after
+ * that second join. Daily rows are tiny (production, cold names as bench@: 600 rows ~41 KB in 133-312 ms, 2,000 rows
+ * ~135 KB in 123-358 ms, before compression), so the store's tail now asks this many: 1,000 visible plus the averages'
+ * lookback in one answer. The deep history still joins older rows behind the left edge. Store path only (data/barStore
+ * network: barsCountFor, the split tail, deepPending); the legacy warmers keep FIRST_PAINT_BARS.
+ */
+export const DATE_FIRST_PAGE = Object.freeze({ D: 2000, W: 2000, M: 1200 })
+/** The first page of a D/W/M tail (DATE_FIRST_PAGE); FIRST_PAINT_BARS for anything else. */
+export function dateFirstPageFor(tf) { return DATE_FIRST_PAGE[String(tf)] ?? FIRST_PAINT_BARS }
+
 // ── Intraday first paint is budgeted in VISIBLE bars, not fetched ones ──────
 // ⛔⛔ THE RTH FILTER DISCARDS ~60% OF AN INTRADAY PAYLOAD, AND NOTHING USED TO
 // ACCOUNT FOR IT. `StockChart.sessionBars` keeps only 09:30-16:00 ET when the

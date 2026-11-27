@@ -1,0 +1,33 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "engine 96 (train e96), HLINE_DEFAULTS[3|4|5] returned to e96 from e97 (coordinator ruling 2026-11-24): #2548's band grading needs them, or #2596's witnessed captures fall MATCH -> INCONCLUSIVE. Each version's default (colour #808080, line style dashed, width 1) is its own claim with its own capture (vw-hline-defaults-v{3,4,5}-rddt-1d-2026-11-23-preopen, bandState of the unstyled D0_nothing and the colour D3 leaves out), so each is broken once here and turns its OWN rail case red by name (e96HlineLevels.test.js, `v<N> unstyled: TradingView's witnessed default`).",
+  "mutants": [
+    {
+      "id": "HD3",
+      "mutant": "v3's witnessed default colour is dropped (an unstyled v3 hline falls back to the neutral ink, named)",
+      "file": "app/src/components/chart/engine/hlineLevels.js",
+      "from": "  3: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen' }),",
+      "to": "  3: Object.freeze({ lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v3-rddt-1d-2026-11-23-preopen' }),",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+      "expectRed": "v3 unstyled: TradingView's witnessed default"
+    },
+    {
+      "id": "HD4",
+      "mutant": "v4's witnessed default colour is dropped (an unstyled v4 hline falls back to the neutral ink, named)",
+      "file": "app/src/components/chart/engine/hlineLevels.js",
+      "from": "  4: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen' }),",
+      "to": "  4: Object.freeze({ lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v4-rddt-1d-2026-11-23-preopen' }),",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+      "expectRed": "v4 unstyled: TradingView's witnessed default"
+    },
+    {
+      "id": "HD5",
+      "mutant": "v5's witnessed default line style is wrong (solid, where TradingView's bandState says 2 = dashed)",
+      "file": "app/src/components/chart/engine/hlineLevels.js",
+      "from": "  5: Object.freeze({ color: '#808080', lineStyle: 'dashed', width: 1, witness: 'vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen' }),",
+      "to": "  5: Object.freeze({ color: '#808080', lineStyle: 'solid', width: 1, witness: 'vw-hline-defaults-v5-rddt-1d-2026-11-23-preopen' }),",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/e96HlineLevels.test.js",
+      "expectRed": "v5 unstyled: TradingView's witnessed default"
+    }
+  ]
+}

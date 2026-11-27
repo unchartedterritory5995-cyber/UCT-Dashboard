@@ -26,6 +26,7 @@ import { keyOf, ACTION } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { etUnix } from './__fixtures__/seededSeries'
+import { isHolidayISO } from '../../utils/marketSession'
 import { memClear } from '../../utils/barsMemCache'
 
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
@@ -33,7 +34,8 @@ vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 function sessions(days) {
   const dates = []
   for (let d = new Date(Date.UTC(2026, 10, 10)); dates.length < days; d = new Date(d.getTime() - 86400000)) {
-    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.unshift(d.toISOString().slice(0, 10))
+    // a trading day only: a weekday that is not an NYSE holiday (the store never holds a bar on one)
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isHolidayISO(d.toISOString().slice(0, 10))) dates.unshift(d.toISOString().slice(0, 10))
   }
   const out = []
   for (const iso of dates) for (let m = 570; m < 960; m += 5) { const i = out.length; const c = 50 + (i % 37) * 0.01; out.push({ t: etUnix(iso, m), o: c, h: c + 0.05, l: c - 0.05, c, v: 100 + i }) }

@@ -57,7 +57,7 @@ def grade_all(cases: List[Dict[str, Any]], answers: Optional[Dict[str, Any]] = N
             result = _one(rule, cid, sources[cid], run)
             if case.get("edge") and result["verdict"] == "right":
                 edged = _one(rule, cid + EDGE, sources[cid], run)
-                result = {**edged, "lines": result["lines"] + ["  -- on the edge chart (a strict extreme one bar outside the window) --"] + edged["lines"]}
+                result = {**edged, "lines": result["lines"] + ["  -- on the edge chart --"] + edged["lines"]}
             out[cid] = {**result, "lane": "script"}
     return out
 

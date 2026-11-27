@@ -265,8 +265,23 @@ def _guard_names_for(route) -> set[str]:
         name = getattr(call, "__name__", None)
         if name:
             found.add(name)
+        if call is not None and _runs_bars_gate_off_tree(call):
+            found.add("require_bars_access")
         stack.extend(getattr(d, "dependencies", []) or [])
     return found
+
+
+def _runs_bars_gate_off_tree(call) -> bool:
+    """(2026-11-25) True for a `bars_auth.require_bars_access_on(...)` product, by IDENTITY: it runs
+    `require_bars_access` in a thread on its route's own limiter (#2741, `/api/bars-history`), so the gate is
+    called rather than `Depends`-ed and its name is absent from the tree. Never a name rule: a function merely
+    called `require_bars_access_*` stays an open route. Fails CLOSED: if `bars_auth` cannot be imported, nothing
+    is recognised and the route reports open (rail: `tests/test_auth_surface_reads.py`)."""
+    try:
+        from api.bars_auth import is_bars_access_on_limiter
+    except Exception:                          # pragma: no cover - defensive
+        return False
+    return is_bars_access_on_limiter(call)
 
 
 def _is_proxy_forwarder(route) -> bool:

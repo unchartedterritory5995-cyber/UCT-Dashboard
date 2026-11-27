@@ -219,6 +219,10 @@ class Batch:
     nhnl_rt: dict = field(default_factory=dict)
     tas: dict = field(default_factory=dict)      # {sym: tuple[TasPrint | TasGap, ...]}
     status: Optional[dict] = None
+    # (2026-11-25) ONE optional object of instruments, validated like nhnl/status (bounded, string
+    # keys, finite values): today {"ts": ingest's wall ms when this batch was drained}. A new
+    # instrument goes INSIDE ext, so it never needs a deploy order again; the top level stays strict.
+    ext: Optional[dict] = None
 
     def is_empty(self) -> bool:
         return not (self.bars or self.prices or self.agg or self.nhnl or self.nhnl_rt
@@ -485,7 +489,7 @@ def _parse_patch(m: dict) -> Patch:
 
 def _parse_batch(m: dict) -> Batch:
     _exact_fields(m, ("v", "k", "epoch", "seq"),
-                  ("bars", "prices", "agg", "nhnl", "nhnl_rt", "tas", "status"), "batch")
+                  ("bars", "prices", "agg", "nhnl", "nhnl_rt", "tas", "status", "ext"), "batch")
     bars = []
     seen = set()
     for i, e in enumerate(_list(m.get("bars", []), "bars")):
@@ -518,6 +522,7 @@ def _parse_batch(m: dict) -> Batch:
         nhnl=_opaque_obj(m.get("nhnl", {}), "nhnl"),
         nhnl_rt=_opaque_obj(m.get("nhnl_rt", {}), "nhnl_rt"),
         tas=tas,
+        ext=_opaque_obj(m["ext"], "ext") if "ext" in m else None,
         status=status,
     )
 
@@ -607,6 +612,8 @@ def to_wire(msg: Message) -> dict:
                "nhnl": msg.nhnl, "nhnl_rt": msg.nhnl_rt,
                "tas": {s: [_tas_wire(i) for i in items] for s, items in msg.tas.items()},
                "status": msg.status}
+        if msg.ext is not None:
+            out["ext"] = msg.ext
         return out
     raise MalformedMessage(f"cannot encode {type(msg).__name__}")
 

@@ -48,7 +48,7 @@
 // two edges, same call-time resolution, different mechanism — stated here so
 // nobody reads the asymmetry as two different designs.
 
-import { maxLookback, nodeCount, sessionAnchoredIn, TableRefusal } from './interpret.js'
+import { maxLookback, nodeCount, sessionAnchoredIn, TableRefusal, isDailyRead, dailyReadKey } from './interpret.js'
 // ⭐ THE CAP READS THE SESSION CONSTANT FROM THE TABLE'S OWN READER, not from a
 // digit of its own — see `DEFAULT_BUDGET`. `parse.js` is already in this module's
 // graph through `interpret.js`, so this adds no reach: it names what was implicit.
@@ -268,6 +268,10 @@ export function seriesRefs(ast) {
     // cannot account for, and dropping it would make a broken tree look CHEAPER
     // than a working one.
     if (node.type === 'series') found.add(typeof node.name === 'string' ? node.name : JSON.stringify(node.name))
+    // ⭐⭐ U-DAILY (e96) — a daily read is a column of its own (computed on daily bars and placed on the chart's), so
+    // each DISTINCT one counts once, beside the series its child reads. The tree its evaluation walks on the chart's
+    // bars (each read a leaf) therefore never counts MORE than this, so nothing this admits is refused there.
+    if (isDailyRead(node)) found.add(dailyReadKey(node))
     if (Array.isArray(node.args)) for (const arg of node.args) stack.push(arg)
   }
   return found.size

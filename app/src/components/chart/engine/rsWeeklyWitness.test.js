@@ -304,10 +304,12 @@ describe('the fetch: on a weekly chart SP:SPX and the seed are fetched at D, dee
     expect(heldFetchOf('SPX', 'W')).toEqual({ symbol: 'SPX', tf: 'D', key: 'SPX@D' })
     expect(heldFetchOf('SPX', 'D')).toBe(null)
     // ⭐ L13 — a monthly chart holds SPX at D too (`periods.M`); ⭐ L12 — an intraday chart holds it at its own
-    // timeframe under the plain key (`rsIntradayWitness.test.js`); an unwitnessed timeframe holds nothing
+    // timeframe under the plain key (`rsIntradayWitness.test.js`; ⭐ e98 a 4h chart too, `rsFourHourWitness.test.js`); an
+    // unwitnessed timeframe holds nothing
     expect(heldFetchOf('SPX', 'M')).toEqual({ symbol: 'SPX', tf: 'D', key: 'SPX@D' })
     expect(heldFetchOf('SPX', '60')).toEqual({ symbol: 'SPX', tf: '60', key: 'SPX' })
-    expect(heldFetchOf('SPX', '240')).toBe(null)
+    expect(heldFetchOf('SPX', '240')).toEqual({ symbol: 'SPX', tf: '240', key: 'SPX' })
+    expect(heldFetchOf('SPX', '120')).toBe(null)
   })
 
   it('the chart asks /api/bars at D, seven calendar days a week deep plus two weeks, capped at the index door\'s 12,500', async () => {
@@ -337,8 +339,8 @@ describe('the fetch: on a weekly chart SP:SPX and the seed are fetched at D, dee
 describe('a DAILY chart is untouched', () => {
   it('the rows carry a weekly block and nothing else moved: on D the series is the daily read, under the plain key', () => {
     const rows = requestWitnessRows()
-    // ⭐ L13 adds M, ⭐ L12 the intraday timeframes (each its own block)
-    expect(rows['SP:SPX'].timeframes).toEqual(['D', 'W', 'M', '1', '5', '15', '30', '60'])
+    // ⭐ L13 adds M, ⭐ L12 the intraday timeframes, ⭐ e98 the 4h one (each its own block)
+    expect(rows['SP:SPX'].timeframes).toEqual(['D', 'W', 'M', '1', '5', '15', '30', '60', '240'])
     expect(rows['SP:SPX'].alignment).toBe('previous-session')
     const def = { compute: { kind: 'ast', ast: { type: 'sym', value: 'SPX', args: [{ type: 'series', name: 'close' }] } },
       meta: { recurrenceOrigin: 'pine', otherSymbols: [{ ticker: 'SPX', spellings: ['SP'] }] } }

@@ -21,7 +21,9 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX, eventsNeeded, financialNeeded } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX, eventsNeeded, financialNeeded,
+  heldFetchOf, CHART_SESSION_KEY, chartSessionEntryOf } from './otherSymbols'
+import { resampleSpec } from '../timeframes'
 // ⭐⭐ T4 E2 — the chart's own corporate events: one door (`/api/pine/events/<symbol>`), never `/api/bars`
 import { EVENTS_KEY } from './pineEvents'
 import { ensureEvents, subscribeEvents } from './eventSupply'
@@ -34,7 +36,8 @@ import { ensureBreadth, subscribeBreadth } from './breadthSupply'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { runtimeReadsOwnDailyOffThread, ownDailyKeyOf, onOwnDailyAnswer } from './runtime/ownDailyAsync'
 import { instanceDocumentForFetch } from './symbolInputs'
-import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
+import { ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail, secondaryFetchOf } from './secondaryBars'
+import { noteSecondaryNeeds, forgetSecondaryNeeds } from '../../../lib/bootSecondaryBars'
 
 /** ⭐⭐ RS RATING L11 — every key this chart needs, asked once each: an ordinary key at the chart's
  *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
@@ -61,11 +64,71 @@ export function heldSpanFor(loaded, requested) {
   return Math.min(HELD_SPAN_MAX, Math.max(rung, req))
 }
 
-export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0) {
+/** ⭐⭐ e98 (the 4h grid follows the chart's spec) — the session a plain key is fetched on for this chart: the chart's own
+ *  (`extended`, review of #2753: a listing's custom-timeframe bars sit on the chart's grid and project by time), EXCEPT a
+ *  key a witness row HOLDS at this chart's timeframe (`heldFetchOf`: SP:SPX on a 4h chart), whose bars TradingView
+ *  builds on the index's own 09:30-anchored session whatever the chart's view (Q-FRED-4H: the in-session 12:00 bar of
+ *  an EXTENDED chart read the index's [09:30, 13:30) bar, built from `/api/bars/SPX?tf=60` rows): the REGULAR session.
+ *  The grid that bar is read on follows the CHART's spec (`CHART_SESSION_KEY`). ONE answer for the fetch and the tail. */
+function plainKeyExtended(k, tf, extended) {
+  const held = heldFetchOf(k, tf)
+  return held && held.key === k ? false : extended
+}
+/** ⭐⭐ (2026-11-26, Fred RS load time) THE BARS WINDOWS a chart's needed keys fetch, in the order `ensureChartSources` asks
+ *  them: the ordinary keys at the chart's own timeframe and depth first, then this chart symbol's own daily rows and every
+ *  held key, in list order. One plan, read by `ensureChartSources` (the asks) and by `secondaryNeedUrls` (what the page
+ *  remembers for its next load, `lib/bootSecondaryBars.js`), so the two can never name different windows. Breadth, events
+ *  and financial keys have their own doors and are not bars windows. */
+export function chartBarsWindows(keys, tf, barCount, chartSymbol = null, heldSessions = 0, extended = false) {
   const list = Array.isArray(keys) ? keys : []
+  const out = []
   // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
-  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),
-    tf, barCount, fetcher)
+  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753;
+  // ⭐ e98: a key a witness row holds at this timeframe on the index's own regular session, `plainKeyExtended`)
+  for (const k of list) {
+    if (heldKeyParts(k) || k === OWN_DAILY_KEY || k === EVENTS_KEY || k === FINANCIAL_KEY || isBreadthKey(k)) continue
+    out.push({ key: k, symbol: k, tf, bars: barCount, opts: { extended: plainKeyExtended(k, tf, extended) }, ordinary: true })
+  }
+  for (const k of list) {
+    if (isBreadthKey(k) || k === EVENTS_KEY || k === FINANCIAL_KEY) continue
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
+    if (k === OWN_DAILY_KEY) {
+      if (!chartSymbol) continue
+      out.push({ key: k, symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D', bars: heldDepthOf(barCount, tf, heldSessions), opts: {} })
+      continue
+    }
+    const held = heldKeyParts(k)
+    if (!held) continue
+    out.push({ key: k, symbol: held.symbol, tf: held.tf, bars: heldDepthOf(barCount, tf, heldSessions), opts: {} })
+  }
+  return out
+}
+
+/** The URLs those windows fetch (`secondaryFetchOf(...).fetchUrl`), for the page's boot record. */
+export function secondaryNeedUrls(keys, tf, barCount, chartSymbol = null, heldSessions = 0, extended = false) {
+  const urls = []
+  for (const w of chartBarsWindows(keys, tf, barCount, chartSymbol, heldSessions, extended)) {
+    const wire = secondaryFetchOf(w.symbol, w.tf, w.bars, w.opts)
+    if (wire && wire.fetchUrl && !urls.includes(wire.fetchUrl)) urls.push(wire.fetchUrl)
+  }
+  return urls
+}
+
+export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0, extended = false) {
+  const list = Array.isArray(keys) ? keys : []
+  const windows = chartBarsWindows(list, tf, barCount, chartSymbol, heldSessions, extended)
+  const out = new Map()
+  const ordinary = windows.filter((w) => w.ordinary)
+  for (const w of ordinary) {
+    const entry = ensureSecondaryBars(w.symbol, w.tf, w.bars, fetcher, w.opts)
+    if (entry) out.set(w.key, entry)
+  }
+  // ⭐⭐ e98 — a custom intraday chart's map carries the chart's own session, so every lane lays its grid where the
+  // CHART's spec starts its bars (`otherSymbols.js::atOrBeforeGridOf`)
+  if (out.size && resampleSpec(String(tf == null ? '' : tf))?.kind === 'intradaySession') {
+    out.set(CHART_SESSION_KEY, chartSessionEntryOf(extended === true))
+  }
+  const windowOf = new Map(windows.filter((w) => !w.ordinary).map((w) => [w.key, w]))
   for (const k of list) {
     // ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows, from the breadth door (`breadthSupply.js`), at every chart timeframe
     // (a weekly or monthly chart holds them at D: the same rows under the held key)
@@ -87,16 +150,10 @@ export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = nu
       if (fin) out.set(k, fin)
       continue
     }
-    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
-    if (k === OWN_DAILY_KEY) {
-      if (!chartSymbol) continue
-      const own = ensureSecondaryBars(String(chartSymbol).trim().toUpperCase(), 'D', heldDepthOf(barCount, tf, heldSessions), fetcher)
-      if (own) out.set(k, own)
-      continue
-    }
-    const held = heldKeyParts(k)
-    if (!held) continue
-    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf, heldSessions), fetcher)
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows, and ⭐ L11 every held key (`chartBarsWindows`)
+    const w = windowOf.get(k)
+    if (!w) continue
+    const entry = ensureSecondaryBars(w.symbol, w.tf, w.bars, fetcher, w.opts)
     if (entry) out.set(k, entry)
   }
   return out
@@ -113,7 +170,7 @@ export const LIVE_TAIL_MS = 60000
  *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
  *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
  *  reports `visible`; speed rule 6). Exported for its rail. */
-export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null, heldSessions = 0) {
+export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null, heldSessions = 0, extended = false) {
   if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
@@ -127,10 +184,12 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSym
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
     const depth = held ? heldDepthOf(barCount, tf, heldSessions) : barCount
-    const e = cachedBars(symbol, at, depth)
+    // ⭐ e98 — the session its entry was fetched on (`plainKeyExtended`), so the tail re-reads THAT entry
+    const ext = held ? extended : plainKeyExtended(k, tf, extended)
+    const e = cachedBars(symbol, at, depth, { extended: ext })
     if (!e || e.status !== 'available') continue
     if (e.newestBarIsForming !== true && chartForming !== true) continue
-    if (refreshSecondaryTail(symbol, at, depth, fetcher)) started += 1
+    if (refreshSecondaryTail(symbol, at, depth, fetcher, { extended: ext })) started += 1
   }
   return started
 }
@@ -207,10 +266,13 @@ export function ownDailyNeeded(instances, defOf, tf, symbol = null, ask = runtim
 }
 
 export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null,
-  chartSymbolMeta = null, heldSessions = 0) {
+  chartSymbolMeta = null, heldSessions = 0, extended = false) {
   const [state, setState] = useState(EMPTY)
   // ⭐⭐ (switch smoothness) bumped when a question asked off this thread answers NO: the needed set is read again
   const [ownDailyGen, setOwnDailyGen] = useState(0)
+  // ⭐⭐ (2026-11-26, Fred RS load time) this chart's slot in the page's boot record (`lib/bootSecondaryBars.js`)
+  const [needSlot] = useState(() => ({}))
+  useEffect(() => () => forgetSecondaryNeeds(needSlot), [needSlot])
 
   useEffect(() => {
     let alive = true
@@ -236,7 +298,11 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     const offAnswer = askedOff.size
       ? onOwnDailyAnswer((k, yes) => { if (alive && yes === false && askedOff.has(k)) setOwnDailyGen((n) => n + 1) })
       : null
-    const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}`
+    const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}|${extended ? 'eth' : 'rth'}`
+    // ⭐⭐ (2026-11-26, Fred RS load time) the page remembers the bars windows its charts need NOW, and its next load asks
+    // for them as the entry bundle runs (`lib/bootSecondaryBars.js`): Fred RS's SP:SPX no longer waits for the chart, the
+    // layout and the definitions to land before its round trip starts
+    noteSecondaryNeeds(needSlot, secondaryNeedUrls(symbols, tf, barCount, chartSymbol, heldSessions, extended))
 
     const apply = () => {
       if (!alive) return
@@ -245,7 +311,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol, heldSessions) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol, heldSessions, extended) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
@@ -267,14 +333,14 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
       liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol,
-        heldSessions)
+        heldSessions, extended)
     }, LIVE_TAIL_MS)
     return () => {
       alive = false; unsub(); if (unsubEvents) unsubEvents(); if (unsubFinancial) unsubFinancial()
       if (unsubBreadth) unsubBreadth(); clearInterval(timer)
       if (offAnswer) offAnswer()
     }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions])
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions, extended, needSlot])
 
   return state.map
 }

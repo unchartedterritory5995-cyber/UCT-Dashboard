@@ -155,10 +155,13 @@ class TestVerificationIsEarnedNotInferred:
 
     def test_a_provider_answer_that_persists_verifies(self, monkeypatch):
         monkeypatch.setattr(bars_fetch, "_delta_intraday", self._ok_delta([]))
+        # the market has published through now (review #2732: an empty answer proves only what was PUBLISHED)
+        monkeypatch.setattr(bars_fetch, "market_published_through", lambda now=None: time.time())
         t0 = time.time()
         bars_fetch._heal_intraday_tail("AVGO", "5", FRI_1955)
         vt = bars_fetch.tail_verified_through("AVGO", "5")
-        assert vt is not None and vt >= t0 - 1
+        # the proof lags the provider's publication (`TAIL_PROOF_LAG_S`, 2026-11-25), never more
+        assert vt is not None and vt >= t0 - 1 - bars_fetch.TAIL_PROOF_LAG_S
 
     def test_a_failed_provider_verifies_nothing(self, monkeypatch):
         # The real `_delta_intraday` swallows provider errors into [] — identical to
@@ -293,7 +296,7 @@ class TestServeContract:
         assert body["bars"][-1]["t"] == FRI_1955, "the history is still served"
         assert body["tail_status"] == "unverified"
         assert body["verified_through"] is None
-        assert resp.headers.get("Retry-After") == "3"
+        assert resp.headers.get("Retry-After") in ("3", "4", "5")   # jittered 3-5 s
 
     def test_since_path_shed_is_also_UNVERIFIED(self, avgo, monkeypatch):
         monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
@@ -307,7 +310,7 @@ class TestServeContract:
         body = _body(resp)
         assert body["delta"] is True
         assert body["tail_status"] == "unverified"
-        assert resp.headers.get("Retry-After") == "3"
+        assert resp.headers.get("Retry-After") in ("3", "4", "5")   # jittered 3-5 s
 
     def test_INTERACTIVE_RESERVE_repairs_while_background_holds_every_shared_slot(self, avgo, monkeypatch):
         monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: _monday_delta(status))
@@ -352,7 +355,7 @@ class TestServeContract:
         monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda t, tf, lt, status=None, **_kw: [])
         resp = bars_router.serve_bars("AVGO", "5", 50)
         assert _body(resp)["tail_status"] == "unverified"
-        assert resp.headers.get("Retry-After") == "3"
+        assert resp.headers.get("Retry-After") in ("3", "4", "5")   # jittered 3-5 s
 
 
 class TestWarmCacheAuthority:

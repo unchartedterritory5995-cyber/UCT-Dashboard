@@ -116,11 +116,12 @@ def test_a_held_name_refused_is_recorded_by_its_entry_with_no_call(store, conv, 
 
 def test_a_well_known_name_the_door_refuses_is_recorded_by_its_catalogue_id_and_not_its_words(store, conv, clean_env, model):
     client = model([])
-    r = conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
+    # (the McClellan Oscillator was this example until 2026-11-25: it is withheld now, ruling B)
+    r = conv.converse(f"Add the Elliott Wave {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and client.calls == []
-    assert learned(last_turn()) == {"unknown_name": "mcclellan_oscillator"}
+    assert learned(last_turn()) == {"unknown_name": "elliott_wave"}
     dump = raw_dump()
-    assert SECRET not in dump and "McClellan" not in dump and "Oscillator" not in dump
+    assert SECRET not in dump and "Elliott" not in dump and "Wave" not in dump
 
 
 def test_a_refused_name_in_no_catalogue_row_is_other_and_its_words_are_dropped(store, conv, clean_env, model):
@@ -473,7 +474,7 @@ def test_an_empty_store_reports_zeros_and_nones_never_raises(store):
 
 def test_the_report_holds_no_words_only_ids_names_from_the_repo_and_counts(store, conv, clean_env, model):
     model([])
-    conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
+    conv.converse(f"Add the Elliott Wave {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     conv.converse(f"Add the Zorblat Wiggle Line {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     text = json.dumps(tel.weekly_report(7))
     assert SECRET not in text and "orblat" not in text

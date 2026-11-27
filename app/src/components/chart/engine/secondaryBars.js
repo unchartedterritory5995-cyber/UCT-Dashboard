@@ -26,7 +26,7 @@
 /** The canonical bars route — the SAME endpoint the primary chart and Compare
  *  Symbols already use. A second browser bars client would be a second answer to
  *  "what are QQQ's bars", and the two would drift. */
-const BARS_PATH = '/api/bars/'
+export const BARS_PATH = '/api/bars/'
 
 // ─── ⭐⭐ (e95, 2026-11-22) A CUSTOM TIMEFRAME IS BUILT HERE, THE WAY THE CHART BUILDS ITS OWN ─────────────────────────────
 // ⚰️ Measured on production 2026-11-22 (the every-timeframe Fred RS run): on a 4h chart the Fred RS legend was ABSENT.
@@ -44,7 +44,10 @@ const BARS_PATH = '/api/bars/'
 // futures, a clock-hour series) is REFUSED by name (`UNSUPPORTED` + note), never resampled on a grid it does not have,
 // until a capture witnesses how TradingView builds it.
 import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
-import { resampleForSpec } from '../../../utils/resampleBars'
+import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
+import { isRthBar, toChartTime, etMinuteOfDay } from '../barTime'
+import { viewShowExtended } from '../../../utils/viewSession'
+import { takeBootSecondaryBars } from '../../../lib/bootSecondaryBars'
 
 /**
  * The request URL for one (symbol, timeframe, count).
@@ -64,12 +67,22 @@ import { resampleForSpec } from '../../../utils/resampleBars'
  *
  * @returns {string|null} null when there is nothing to ask for.
  */
-export function secondaryBarsUrl(symbol, tf, bars) {
+export function secondaryBarsUrl(symbol, tf, bars, { session = null, extended } = {}) {
   const s = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
   if (!s) return null
   const count = askedBarsOf(bars)
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}`
+  // ⭐ (2026-11-25) a CUSTOM intraday code on the extended view is its own answer (its buckets start at 04:00 ET, not
+  // 09:30): keyed with the session, and its base asked on the extended grid where that grid differs (`secondaryFetchOf`)
+  const sess = session ?? (_extendedCustom(code, extended) ? 'eth' : null)
+  return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}${sess ? `&session=${sess}` : ''}`
+}
+
+/** Is `code` a custom intraday timeframe drawn on the extended view? `extended`: the CHART's own session (review of
+ *  #2753: two charts of one board can differ); a caller that names none reads the page's view (utils/viewSession). */
+function _extendedCustom(code, extended) {
+  if (!(extended ?? viewShowExtended())) return false
+  return resampleSpec(code)?.kind === 'intradaySession'
 }
 
 /** The `bars=` a window asks for (what `secondaryBarsUrl` puts in its URL). */
@@ -92,41 +105,71 @@ export function baseAskOf(tf, bars) {
  * `baseAskOf` rows. One function, so the fetch and the tail fetch can never disagree about the base.
  * @returns {{url: string, fetchUrl: string, spec: object|null, baseAsk: number}|null}
  */
-export function secondaryFetchOf(symbol, tf, bars) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
+export function secondaryFetchOf(symbol, tf, bars, { extended } = {}) {
+  const url = secondaryBarsUrl(symbol, tf, bars, { extended })
   if (!url) return null
   const code = tf == null || tf === '' ? 'D' : String(tf)
-  const spec = resampleSpec(code)
+  const ext = _extendedCustom(code, extended)
+  const spec = resampleSpec(code, { extended: ext })
   if (!spec) return { url, fetchUrl: url, spec: null, baseAsk: askedBarsOf(bars) }
   const baseAsk = baseAskOf(code, bars)
-  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk), spec, baseAsk }
+  // (the base asks the extended grid only where it differs: 60m's clock grid; 1/5/15/30m are one grid in both views)
+  return { url, fetchUrl: secondaryBarsUrl(symbol, fetchTf(code), baseAsk, { session: ext && spec.base === '60' ? 'eth' : null, extended: false }), spec, baseAsk }
 }
 
-const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
-})
-/** ET weekday + minutes after midnight of unix seconds. */
+// ET weekday names by ET calendar day (chart time / 86400): day 0 of the epoch, 1970-01-01, was a Thursday.
+const _ET_WEEKDAY = ['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed']
+/** ET weekday + minutes after midnight of unix seconds.
+ *  ⭐ (2026-11-26, #2801's upgrade capture) one `formatToParts` PER ROW was 29 ms of a 19,200-row benchmark page's
+ *  landing task. It now reads barTime's ET offset, memoised per UTC day (`toChartTime` / `etMinuteOfDay`): the same
+ *  weekday and minute (the formatter's `hour12: false` midnight 24 already read as 0 here), at most two Intl reads a day. */
 function _etWhen(t) {
-  const parts = _ET_PARTS.formatToParts(new Date(t * 1000))
-  const get = (type) => (parts.find((p) => p.type === type) || {}).value
-  const h = Number(get('hour')) % 24
-  return { wd: get('weekday'), min: h * 60 + Number(get('minute')) }
+  const day = Math.floor(Math.floor(toChartTime(t)) / 86400)
+  return { wd: _ET_WEEKDAY[((day % 7) + 7) % 7], min: etMinuteOfDay(t) }
 }
 const _WEEKEND = new Set(['Sat', 'Sun'])
+
+/** The intraday judgement's state over a page, so it can be run over the whole page at once or over its slices in
+ *  turn (`_readCustomIdle`) with the same answer: ONE scan, `_offSessionScan`. */
+function _offSessionState(spec) {
+  return {
+    step: Number(spec.base),
+    regular: isRegularSessionSpec(spec),
+    anchor: Number.isFinite(spec.anchorMin) ? spec.anchorMin : 570,   // the spec's session start (09:30 / 04:00 ET)
+    pending: null,      // a regular spec's first off-session EXTENDED weekday row: refuses only a page with no regular row
+    sawRegular: false,
+    words: null,        // the first row that refuses the page outright
+  }
+}
+function _offSessionScan(rows, st) {
+  const { step, regular, anchor } = st
+  for (const b of rows) {
+    if (st.words) return st
+    if (!b || typeof b.t !== 'number') continue
+    const { wd, min } = _etWhen(b.t)
+    if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - anchor) % step) + step) % step !== 0) {
+      const words = `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
+      if (regular && !_WEEKEND.has(wd) && !isRthBar(b.t)) { if (st.pending === null) st.pending = words; continue }
+      st.words = words
+      return st
+    }
+    if (regular && isRthBar(b.t)) st.sawRegular = true
+  }
+  return st
+}
+const _offSessionWords = (st) => st.words || (st.regular && !st.sawRegular ? st.pending : null)
 
 /** The first base row OFF the US equity session the chart's resample anchors (above), as words, or null. */
 export function offSessionRowOf(baseBars, spec) {
   if (!spec || !Array.isArray(baseBars)) return null
   if (spec.kind === 'intradaySession') {
-    const step = Number(spec.base)
-    for (const b of baseBars) {
-      if (!b || typeof b.t !== 'number') continue
-      const { wd, min } = _etWhen(b.t)
-      if (_WEEKEND.has(wd) || min < 240 || min >= 1200 || (((min - 570) % step) + step) % step !== 0) {
-        return `a ${step}-minute bar at ${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')} ET on a ${wd}`
-      }
-    }
-    return null
+    // ⭐ (2026-11-26) A REGULAR spec is built from the regular-session rows only (resampleForSpec). On a page that holds
+    // regular-session rows on the grid (a US stock's), the weekday extended rows beside them (on the 60m session grid,
+    // 04:00-09:00 and 16:00-20:00 clock hours, off the 09:30 grid) are never resampled, so they cannot make the window
+    // unbuildable: they are not judged. A regular-session row off the grid, or any weekend row, still refuses it; and a
+    // page with NO regular-session row on the grid is judged on its extended rows as before (a lone clock-hour or
+    // overnight row is another session, coordinator ruling 2026-11-22). An extended spec judges every row, as before.
+    return _offSessionWords(_offSessionScan(baseBars, _offSessionState(spec)))
   }
   for (const b of baseBars) {
     const day = b && typeof b.t === 'string' ? b.t.slice(0, 10) : null
@@ -149,6 +192,11 @@ export function offSessionRowOf(baseBars, spec) {
 function _readCustom(payload, symbol, tf, wire, trimFirst = true) {
   const base = payload && Array.isArray(payload.bars) ? payload.bars : []
   const off = offSessionRowOf(base, wire.spec)
+  return _customEntry(payload, symbol, tf, wire, base, off, off ? null : resampleForSpec(base, wire.spec), trimFirst)
+}
+
+/** `_readCustom`'s entry, from the page's judgement (`off`) and its resampled rows. */
+function _customEntry(payload, symbol, tf, wire, base, off, resampled, trimFirst) {
   if (off) {
     return {
       bars: [],
@@ -158,11 +206,75 @@ function _readCustom(payload, symbol, tf, wire, trimFirst = true) {
     }
   }
   const filled = base.length >= wire.baseAsk && wire.baseAsk < BASE_ASK_MAX
-  let rows = resampleForSpec(base, wire.spec)
+  let rows = resampled
   if (filled && trimFirst && rows.length) rows = rows.slice(1)
   const entry = _read({ ...(payload || {}), bars: rows })
   if (filled && entry.status === SOURCE_STATUS.AVAILABLE) entry.askedBars = rows.length
   return entry
+}
+
+// ─── ⭐ (2026-11-26, #2801) A DEEP PAGE NEVER COSTS A FRAME ─────────────────────────────────────────────────────────
+// A benchmark page for a deep custom-timeframe line can hold ~19,000 base rows (the 4h ladder's top rung). Judged and
+// resampled in one go that is one long task in the fetch's continuation, whatever the per-row cost. `idleRead` (asked
+// by `serverCompute`'s deep lane) does the same two steps in slices of whole ET days, one slice per idle callback, and
+// lands only after the last. The SAME answer: the judgement is one resumable scan (`_offSessionScan`), and a session
+// bucket never spans an ET day on a page it accepts (an extended page's rows are 04:00-20:00, a regular spec takes
+// regular-session rows only), so resampling whole days apart and joining them in order is resampling the page.
+export const IDLE_READ_SLICE_ROWS = 2000
+const _idleTurn = () => new Promise((resolve) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(() => resolve(), { timeout: 1000 })
+  else setTimeout(resolve, 0)
+})
+const _etDayOf = (t) => Math.floor(Math.floor(toChartTime(t)) / 86400)
+/** An ascending page's slices of at least `n` rows (the last may hold fewer), each ending where an ET day does. */
+function _daySlices(base, n) {
+  const out = []
+  let i = 0
+  while (i < base.length) {
+    let j = Math.min(base.length, i + n)
+    if (j < base.length) {
+      let k = j - 1
+      while (k > i && typeof (base[k] && base[k].t) !== 'number') k--
+      const day = typeof (base[k] && base[k].t) === 'number' ? _etDayOf(base[k].t) : null
+      while (j < base.length && (typeof (base[j] && base[j].t) !== 'number' || _etDayOf(base[j].t) === day)) j++
+    }
+    out.push(base.slice(i, j))
+    i = j
+  }
+  return out
+}
+function _ascendingTimes(base) {
+  let last = -Infinity
+  for (const b of base) {
+    if (!b || typeof b.t !== 'number') continue
+    if (b.t < last) return false
+    last = b.t
+  }
+  return true
+}
+/** `_readCustom`'s entry, built off the landing task: the judgement, then the resample, one ET-day slice per idle
+ *  callback. A page that is not intraday, small, or not ascending is read whole, in one idle callback. */
+async function _readCustomIdle(payload, symbol, tf, wire, trimFirst = true) {
+  await _idleTurn()
+  const base = payload && Array.isArray(payload.bars) ? payload.bars : []
+  const spec = wire.spec
+  if (!spec || spec.kind !== 'intradaySession' || base.length <= IDLE_READ_SLICE_ROWS || !_ascendingTimes(base)) {
+    return _readCustom(payload, symbol, tf, wire, trimFirst)
+  }
+  const slices = _daySlices(base, IDLE_READ_SLICE_ROWS)
+  const st = _offSessionState(spec)
+  for (const s of slices) {
+    await _idleTurn()
+    if (_offSessionScan(s, st).words) break
+  }
+  const off = _offSessionWords(st)
+  if (off) return _customEntry(payload, symbol, tf, wire, base, off, null, trimFirst)
+  const rows = []
+  for (const s of slices) {
+    await _idleTurn()
+    for (const r of resampleForSpec(s, spec)) rows.push(r)
+  }
+  return _customEntry(payload, symbol, tf, wire, base, null, rows, trimFirst)
 }
 
 // ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — WHAT DEPTH AN ENTRY WAS ASKED AT ───────────────────────────────────
@@ -410,11 +522,42 @@ function _read(payload, asked) {
  * that fetches cannot be called from a test or a probe without paying for a
  * request.
  */
-export function cachedBars(symbol, tf, bars) {
-  const url = secondaryBarsUrl(symbol, tf, bars)
+export function cachedBars(symbol, tf, bars, opts = {}) {
+  const url = servingUrlOf(symbol, tf, bars, opts)
   if (!url) return null
   const hit = _cache.get(url)
   return hit === undefined ? null : hit
+}
+
+// ─── ⭐⭐ (2026-11-26, Fred RS load time) A SHALLOWER WINDOW IS SERVED BY A DEEPER ONE THAT HOLDS ALL ITS ROWS ──────────
+// ⚰️ Measured on production (ecc0bb94, AGL, Fred RS): a 1D -> 1W switch took 1,223 ms to draw Fred RS, and SP:SPX was
+// fetched AGAIN although the page already held it. The 1D chart asks SPX's daily rows at its held span
+// (`/api/bars/SPX?tf=D&bars=20000`); the 1W chart asks the same series under its held key at `heldDepthOf`
+// (`?tf=D&bars=12500`). Two URLs, one answer: the store holds 12,500 sessions of SPX, so the deeper ask came back NOT
+// FILLED (12,500 rows < 20,000 asked: every row the store has) and the shallower ask can only return those same rows.
+// So a native window with no entry of its own is served by an entry of the SAME symbol, timeframe and session that was
+// asked DEEPER and holds NO MORE rows than this window asks (nothing to slice: the very same object, so the chart's
+// identity checks see no change). ⛔ Never a FILLED deeper entry with more rows than asked (that would need a slice, and
+// a slice is a new answer), never a custom timeframe (`spec`: its entry is built from a base page, keyed by its own
+// ask), never an entry that is not AVAILABLE. The live tail follows the serving entry (`refreshSecondaryTail`).
+/** The cache URL that answers this window: its own, or a deeper one that holds all of its rows. Exported for its rail. */
+export function servingUrlOf(symbol, tf, bars, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
+  if (!wire) return null
+  const own = wire.url
+  if (wire.spec || _cache.has(own)) return own
+  const want = askedBarsOf(bars)
+  const stem = _stemOf(own)
+  for (const [u, e] of _cache) {
+    if (!e || e.status !== SOURCE_STATUS.AVAILABLE || !Array.isArray(e.bars)) continue
+    if (!Number.isFinite(e.askedBars) || !(e.askedBars > want) || e.bars.length > want) continue
+    if (_stemOf(u) === stem) return u
+  }
+  return own
+}
+/** A window's URL without its depth: two windows with one stem are one symbol, timeframe and session. */
+function _stemOf(url) {
+  return String(url).replace(/([?&])bars=\d+/, '$1bars=')
 }
 
 /**
@@ -455,17 +598,29 @@ export function anyCachedBars(symbol) {
  * which is the PAINT path and runs on every tick; this is the primitive that
  * means "ask now", and a caller reaching for it directly has already decided to.
  */
-export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function fetchSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   if (!wire) return Promise.resolve(null)
   const { url } = wire
   const existing = _inflight.get(url)
   if (existing) return existing
 
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  // ⭐⭐ (2026-11-26, Fred RS load time) the request this page started as it loaded, when it remembered needing this
+  // window (`lib/bootSecondaryBars.js`); a failed boot request ("no answer") is asked again here, as before
+  const boot = takeBootSecondaryBars(wire.fetchUrl)
   const p = Promise.resolve()
-    .then(() => get(wire.fetchUrl))
+    .then(() => (boot ? boot.then((payload) => payload || get(wire.fetchUrl)) : get(wire.fetchUrl)))
     .then((payload) => {
+      // ⭐ (2026-11-26, #2801) `opts.idleRead`: a custom-timeframe page is judged and resampled OFF this landing task,
+      // in ET-day slices across idle callbacks (`_readCustomIdle`), and lands (cache, notification) only then
+      if (wire.spec && opts.idleRead) {
+        return _readCustomIdle(payload, symbol, tf, wire).then((entry) => {
+          _cache.set(url, entry)
+          _clearRetry(url)
+          return entry
+        })
+      }
       const entry = wire.spec ? _readCustom(payload, symbol, tf, wire) : _read(payload, bars)
       _cache.set(url, entry)
       // ⭐ A SUCCESS RESETS THE BACKOFF. Otherwise one bad afternoon leaves the
@@ -553,17 +708,17 @@ function _defaultFetch(url) {
  * chart runs this on every tick, so "ask again next time" and "ask again
  * hundreds of times a minute" are the same sentence written twice.
  */
-export function ensureSecondaryBars(symbol, tf, bars, fetcher) {
-  const hit = cachedBars(symbol, tf, bars)
+export function ensureSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const hit = cachedBars(symbol, tf, bars, opts)
   if (hit) return hit
-  const url = secondaryBarsUrl(symbol, tf, bars)
+  const url = secondaryBarsUrl(symbol, tf, bars, { extended: opts.extended })
   if (!url) return null
   // ⭐ A FAILING URL ANSWERS ERROR AND ASKS FOR NOTHING until its wait elapses —
   // the same object every paint, so the hook's identity check sees no change.
   // The wake-up is the ONE notification `_armRetry`'s timer fires.
   const waiting = _retry.get(url)
   if (waiting && !waiting.ready && !_inflight.has(url)) return waiting.entry
-  if (!_inflight.has(url)) fetchSecondaryBars(symbol, tf, bars, fetcher)
+  if (!_inflight.has(url)) fetchSecondaryBars(symbol, tf, bars, fetcher, opts)
   return { bars: [], status: SOURCE_STATUS.LOADING }
 }
 
@@ -576,10 +731,10 @@ export function ensureSecondaryBars(symbol, tf, bars, fetcher) {
  *
  * @returns {Map<string, {bars, status}>} keyed by canonical symbol
  */
-export function ensureAll(symbols, tf, bars, fetcher) {
+export function ensureAll(symbols, tf, bars, fetcher, opts = {}) {
   const out = new Map()
   for (const symbol of (Array.isArray(symbols) ? symbols : [])) {
-    const entry = ensureSecondaryBars(symbol, tf, bars, fetcher)
+    const entry = ensureSecondaryBars(symbol, tf, bars, fetcher, opts)
     if (entry) out.set(symbol, entry)
   }
   return out
@@ -595,8 +750,8 @@ export function ensureAll(symbols, tf, bars, fetcher) {
  * it to get that saving. `primeServerColumns` exists for exactly this reason and
  * for exactly these stakes.
  */
-export function primeSecondaryBars(symbol, tf, bars, payload) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function primeSecondaryBars(symbol, tf, bars, payload, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   if (!wire) return null
   const { url } = wire
   // ⛔ (e95) a custom timeframe is never primed: the payload a caller holds is not known to be this window's base page
@@ -651,10 +806,12 @@ export function mergeTail(held, tail) {
  * ⛔ Throttled per window (`REFRESH_MIN_MS`, shared with `refreshSecondaryBars`) and deduped in flight.
  * @returns {boolean} whether a fetch was started
  */
-export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
-  const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS)
-  const url = wire && wire.url
+export function refreshSecondaryTail(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
+  const tailWire = secondaryFetchOf(symbol, tf, TAIL_BARS, opts)
+  // ⭐ (2026-11-26) the entry that SERVES this window (`servingUrlOf`: a deeper one that holds all its rows) is the one
+  // kept current
+  const url = wire && servingUrlOf(symbol, tf, bars, opts)
   // ⭐ (e95) a custom timeframe's tail is its base's newest rows, resampled: its first bucket may be partial and is
   // dropped (`_readCustom`), so the merged tail starts on a whole bucket the held rows already hold
   const tailUrl = tailWire && tailWire.fetchUrl
@@ -675,7 +832,7 @@ export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
       const merged = mergeTail(cur.bars, tail.bars)
       if (!merged) {
         _lastRefresh.delete(url)
-        refreshSecondaryBars(symbol, tf, bars, fetcher)
+        refreshSecondaryBars(symbol, tf, bars, fetcher, opts)   // the same chart's session (review of #2753, round 2)
         return cur
       }
       const flagged = Object.prototype.hasOwnProperty.call(tail, 'newestBarIsForming')
@@ -738,8 +895,8 @@ const _lastRefresh = new Map()   // url -> ms
  *
  * @returns {boolean} whether a fetch was started
  */
-export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
-  const wire = secondaryFetchOf(symbol, tf, bars)
+export function refreshSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
+  const wire = secondaryFetchOf(symbol, tf, bars, opts)
   const url = wire && wire.url
   if (!url || _inflight.has(url)) return false
   const now = Date.now()

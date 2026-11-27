@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
 import { useMemberDoor } from './memberPane/useMemberDoor'
+import { useElapsedSince } from './memberPane/useElapsedSince'
 import { useHubStatus } from './useHubStatus'
 import { memberDoorKeyOf } from './memberPane/memberDoorAsync'
 import {
@@ -34,6 +35,34 @@ import { useIsTouch } from '../../../hooks/useBreakpoint'
 import styles from './PineEditorStatus.module.css'
 
 export const CHECKING_TEXT = 'Checking your script...'
+
+/** ⭐ e96: a running check's elapsed time as a clock: `m:ss` (0:42, 3:07, 24:59). */
+export function elapsedClock(ms) {
+  const s = Math.max(0, Math.floor((Number.isFinite(ms) ? ms : 0) / 1000))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/** ⭐⭐ e96: THE CHECKING LINE, AND FOR HOW LONG: while a check runs, the member reads that it is still working and how
+ *  long it has run ("Checking your script... 0:42"), so a slow script never looks like nothing is happening. The time
+ *  shows from the first whole second (a check that answers at once just says it is checking). `elapsedMs` null: the
+ *  line alone. Every "checking" surface (this panel, the member pane) says it in these words. */
+export function checkingText(elapsedMs) {
+  if (!(Number.isFinite(elapsedMs) && elapsedMs >= 1000)) return CHECKING_TEXT
+  return `${CHECKING_TEXT} ${elapsedClock(elapsedMs)}`
+}
+
+/** `checkingText`, rendered: the clock that changes every second is `aria-hidden`, so the live region it sits in says
+ *  "Checking your script..." once to a screen reader instead of every second. */
+export function CheckingLine({ elapsedMs = null }) {
+  const tail = checkingText(elapsedMs).slice(CHECKING_TEXT.length)
+  return (
+    <>
+      {CHECKING_TEXT}
+      {tail ? <span aria-hidden="true" data-testid="pine-checking-elapsed">{tail}</span> : null}
+    </>
+  )
+}
+
 export const POLICY_TEXT = 'Anything we cannot compute the way TradingView does is withheld and named '
   + 'here, never guessed.'
 
@@ -449,10 +478,12 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   // ⭐ THE PASTE WORKER: while the chart door's build of this text runs, the panel says it is checking
   // (`paneChecking`): nothing it would list or record yet is about the chart door's answer
   const checking = paneChecking || statusChecking
+  // ⭐ e96: when the chart door's build of this text began (the panel counts "Checking your script... 0:42" from it)
+  const checkingSince = paneChecking && typeof door.since === 'number' ? door.since : null
   return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason || checking)
     ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}),
-      ...(checking ? { paneChecking: true } : {}) }
-    : status), [status, run, lostDrawings, admissionPending, pendingReason, checking])
+      ...(checking ? { paneChecking: true } : {}), ...(checkingSince != null ? { checkingSince } : {}) }
+    : status), [status, run, lostDrawings, admissionPending, pendingReason, checking, checkingSince])
 }
 
 /**
@@ -462,11 +493,18 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
  * @param {string} props.inspectedSource the text that report was computed on
  * @param {string} props.currentText   the editor's text now
  * @param {(line: number) => void} [props.onGoToLine]
+ * @param {number|null} [props.reportSince] e96: when PasteBox's report of the newest text began (`useWorkerJob.since`)
  */
 export default function PineEditorStatus({
-  status, report, inspectedSource = '', currentText = '', sym = null, tf = null, onGoToLine = null,
+  status, report, inspectedSource = '', currentText = '', sym = null, tf = null, onGoToLine = null, reportSince = null,
 }) {
   const isTouch = useIsTouch()
+  // ⭐ e96: how long the check on screen has run: the earliest of the report of the newest text (while the panel is a
+  // text behind) and the chart door's build of it (while that runs)
+  const textBehind = currentText !== inspectedSource
+  const sinces = [textBehind ? reportSince : null, status && status.paneChecking === true ? status.checkingSince : null]
+    .filter((x) => typeof x === 'number' && Number.isFinite(x))
+  const elapsed = useElapsedSince(sinces.length ? Math.min(...sinces) : null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
   const isPine = !!status
@@ -487,7 +525,7 @@ export default function PineEditorStatus({
   if (!isPine || !status || !String(currentText || '').trim()) return null
   const checking = currentText !== inspectedSource || status.paneChecking === true
   const shown = shownStatus(status)
-  const headline = checking ? CHECKING_TEXT : shown.headline
+  const headline = checking ? <CheckingLine elapsedMs={elapsed} /> : shown.headline
   const state = checking ? PANEL_STATE.CHECKING : shown.state
   const reportOffered = !!(cfg && cfg.reportsEnabled)
   const goTo = (n) => {

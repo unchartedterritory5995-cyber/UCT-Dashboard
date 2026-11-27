@@ -134,6 +134,7 @@ import {
   READOUT_FORMATS, READOUT_ENTRY_FIELDS, READOUT_CARD_FIELDS, READOUT_SOURCE_PREFIXES,
   READOUT_CONDITION_OPS, parseReadoutSource, parseReadoutGate,
   READOUT_ACTION_KINDS, READOUT_ACTION_FIELDS, READOUT_ACTION_INPUT_TYPE,
+  activeWhenShape,
 } from './readoutSchema'
 // ⭐ THE PRESET FIELDS' VOCABULARIES ARE OWNED BY THEIR WRITERS (Phase 2a, unit
 // 2a-15). `applyPresetFields` (`instanceControls.js`) hands a preset's `dotSize`
@@ -1020,6 +1021,71 @@ function validateAstCompute(compute, errors, inputScope) {
  * make the compute section depend on `plots[]` order, a second authority over
  * which tree the scan runs.
  */
+/** ⭐ e97 U6 — the KNOB TEST grammar `plots[].hiddenWhen` holds (the shape `ast/bind.js::knobTestValue` evaluates):
+ *  `{type:'series', name}` (a setting), `{type:'num', value}`, `{type:'op', name: '==' | '!=', args: [two]}`,
+ *  `{type:'op', name: '&&' | '||', args: [two]}`, `{type:'op', name: '!', args: [one]}`; at most 64 nodes. The first
+ *  problem as a sentence, or null. Mirrored by `api/services/presentation_schema.py::_check_hidden_when`. */
+export const HIDDEN_WHEN_MAX_NODES = 64
+export function hiddenWhenProblem(tree) {
+  let nodes = 0
+  const walk = (n, depth) => {
+    if (depth > 16) return 'is nested too deeply'
+    if (!isPlainObject(n)) return `expected a setting test (a tree), got ${fmt(n)}`
+    nodes += 1
+    if (nodes > HIDDEN_WHEN_MAX_NODES) return `holds more than ${HIDDEN_WHEN_MAX_NODES} nodes`
+    if (n.type === 'series') return isNonEmptyString(n.name) ? null : 'a setting needs its `name`'
+    if (n.type === 'num') return typeof n.value === 'number' && Number.isFinite(n.value) ? null : 'a number needs a finite `value`'
+    if (n.type !== 'op' || !Array.isArray(n.args)) return `\`${n.type}\` is not part of a setting test`
+    const arity = n.name === '!' ? 1 : ['==', '!=', '&&', '||'].includes(n.name) ? 2 : null
+    if (arity === null) return `the operator \`${n.name}\` is not part of a setting test`
+    if (n.args.length !== arity) return `\`${n.name}\` takes ${arity} argument${arity === 1 ? '' : 's'}`
+    for (const a of n.args) {
+      const w = walk(a, depth + 1)
+      if (w) return w
+    }
+    return null
+  }
+  return walk(tree, 0)
+}
+
+/** ⭐ e98 E3 — `plots[].displaceInput` (`{key, scale, add}`): the first problem as a sentence, or null. `key` a declared
+ *  `int` input (`inputsByKey`, the plot's document's own inputs), `scale` 1 or -1, `add` a whole number, no other
+ *  field. Mirrored by `api/services/presentation_schema.py::displace_input_problem`. */
+export function displaceInputProblem(di, inputsByKey) {
+  if (!isPlainObject(di)) return `expected {key, scale, add}, got ${fmt(di)}`
+  const extra = Object.keys(di).filter((k) => !['key', 'scale', 'add'].includes(k))
+  if (extra.length) return `unknown field(s) ${extra.map(fmt).join(', ')}`
+  if (!isNonEmptyString(di.key)) return `.key: expected the key of an int input, got ${fmt(di.key)}`
+  const input = inputsByKey && inputsByKey.get(di.key)
+  if (!input) return `.key: ${fmt(di.key)} is not a declared input, so the displacement can never be read`
+  if (input.type !== 'int') return `.key: ${fmt(di.key)} is ${fmt(input.type)}, and a displacement counts whole bars (an int input)`
+  if (di.scale !== 1 && di.scale !== -1) return `.scale: expected 1 or -1, got ${fmt(di.scale)}`
+  if (!Number.isInteger(di.add)) return `.add: expected a whole number of bars, got ${fmt(di.add)}`
+  return null
+}
+
+/** ⭐ e98 E1 — `plots[].lineStyleWhen`, the line style a plot's settings choose: a non-empty list of at most
+ *  PLOT_LINE_STYLES.length `{when, lineStyle}` entries, each `when` THE knob test `hiddenWhenProblem` checks (one
+ *  grammar, one checker), each `lineStyle` one of PLOT_LINE_STYLES and none twice, no other field. The first problem as
+ *  a sentence, or null. Mirrored by `api/services/presentation_schema.py::line_style_when_problem`. */
+export function lineStyleWhenProblem(arms) {
+  if (!Array.isArray(arms) || !arms.length) return `expected a non-empty list of {when, lineStyle}, got ${fmt(arms)}`
+  if (arms.length > PLOT_LINE_STYLES.length) return `holds more than ${PLOT_LINE_STYLES.length} entries (one per line style)`
+  const seen = new Set()
+  for (let i = 0; i < arms.length; i += 1) {
+    const a = arms[i]
+    if (!isPlainObject(a)) return `[${i}]: expected {when, lineStyle}, got ${fmt(a)}`
+    const extra = Object.keys(a).filter((k) => k !== 'when' && k !== 'lineStyle')
+    if (extra.length) return `[${i}]: unknown field(s) ${extra.map(fmt).join(', ')}`
+    if (!PLOT_LINE_STYLES.includes(a.lineStyle)) return `[${i}].lineStyle: expected one of ${list(PLOT_LINE_STYLES)}, got ${fmt(a.lineStyle)}`
+    if (seen.has(a.lineStyle)) return `[${i}].lineStyle: ${fmt(a.lineStyle)} is chosen twice`
+    seen.add(a.lineStyle)
+    const why = hiddenWhenProblem(a.when)
+    if (why) return `[${i}].when: ${why}`
+  }
+  return null
+}
+
 function validateTrees(compute, storedHash, errors, inputScope) {
   const { trees, scanPlot, sources } = compute
   if (trees === undefined) {
@@ -2796,6 +2862,10 @@ function activeWhenEnumFault(aw, inputsByKey) {
   return null
 }
 
+// ⭐ e98 E2 — `activeWhenShape` lives with the condition reader (`readoutSchema.js`, imported above), re-exported here.
+export { activeWhenShape }
+export const ACTIVE_WHEN_UNKNOWN_SHAPE = 'is neither a `{key, …}` condition nor a setting test (a tree with a `type`)'
+
 function validateActiveWhen(input, index, inputsByKey, errors) {
   const aw = input?.activeWhen
   if (aw === undefined || aw === null) return
@@ -2804,7 +2874,34 @@ function validateActiveWhen(input, index, inputsByKey, errors) {
     errors.push(`${path}: expected an object describing the condition, got ${fmt(aw)}`)
     return
   }
-  if (typeof aw.key !== 'string') return   // a future shape we do not yet parse — left alone
+  // ⭐⭐ e98 E2 — EXACTLY TWO SHAPES, AND A THIRD IS REFUSED BY NAME (coordinator ruling 2026-11-25). ⚰️ This line read
+  // `if (typeof aw.key !== 'string') return // a future shape`, and `evalActiveWhen` read such a shape as ACTIVE: a
+  // validator and an evaluator that both failed OPEN, harmless with one shape and a real hazard with two.
+  //   * the KNOB TEST (`type` present): a Pine input's `active =` (`pine.js::resolveInputActives`), U6's grammar,
+  //     checked by the ONE checker (`hiddenWhenProblem`), every setting it reads a declared input other than itself;
+  //   * the `{key, …}` condition (below, unchanged): the native definitions' grammar.
+  const shape = activeWhenShape(aw)
+  if (shape === 'knob') {
+    const why = hiddenWhenProblem(aw)
+    if (why) { errors.push(`${path}: ${why}`); return }
+    const names = []
+    const stack = [aw]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!isPlainObject(n)) continue
+      if (n.type === 'series') names.push(n.name)
+      if (Array.isArray(n.args)) stack.push(...n.args)
+    }
+    for (const n of names) {
+      if (!inputsByKey.has(n)) errors.push(`${path}: the setting ${fmt(n)} is not a declared input, so the test can never be evaluated`)
+      else if (n === input.key) errors.push(`${path}: ${fmt(n)} refers to its own input — the condition can never be evaluated`)
+    }
+    return
+  }
+  if (shape !== 'key') {
+    errors.push(`${path}: ${ACTIVE_WHEN_UNKNOWN_SHAPE}, got ${fmt(aw)}`)
+    return
+  }
   if (!inputsByKey.has(aw.key)) {
     errors.push(
       `${path}.key: unresolvable reference ${fmt(aw.key)} — no input declares that key ` +
@@ -2868,6 +2965,16 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       `${fmt(plot.displace)}. A rightward displacement belongs in the tree as a bar offset ` +
       `(\`x[N]\`), never here — carrying it on the plot too would draw it twice as far.`,
     )
+  }
+  // ⭐⭐ e98 E3 — `plots[].displaceInput: {key, scale, add}`: a displacement the member's SETTING decides (Pine
+  // `offset = <input>`), drawn at `scale * inputs[key] + add` bars either side by the one reader
+  // (`binder.drawShiftOf`); the column is never shifted. `key` a declared `int` input, `scale` 1 or -1, `add` a whole
+  // number, no other field, and never beside `displace` (two authorities over one drawing). Mirrored by
+  // `presentation_schema.py::_check_displace_input`.
+  if (plot.displaceInput !== undefined) {
+    const why = displaceInputProblem(plot.displaceInput, inputsByKey)
+    if (why) errors.push(`${path}.displaceInput: ${why}`)
+    else if (plot.displace !== undefined) errors.push(`${path}.displaceInput: a plot drawn at a setting's displacement carries no \`displace\` too`)
   }
   // ⭐ rsLine rev 5 (2026-11-08) — `plots[].autoscaleInclude: {min, max}`: a range the
   // plot's own autoscale always WIDENS to include while the plot has data on screen
@@ -3055,6 +3162,7 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
   // guaranteed error). A ref that fails to resolve is already reported by
   // `substitute`; there is nothing left to vet, so the vocabulary check is
   // skipped rather than run on a sentinel.
+  const lineStyleLiteral = PLOT_LINE_STYLES.includes(plot.lineStyle)
   if (plot.lineStyle !== undefined) {
     const styleRef = refKeyOf(plot.lineStyle)
     const lineStyle = substitute(plot.lineStyle, inputsByKey, `${path}.lineStyle`, errors, 'lineStyle')
@@ -3062,6 +3170,17 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       noteRef(plot, 'lineStyle', styleRef)
       checkVocabulary(lineStyle, PLOT_LINE_STYLES, [], `${path}.lineStyle`, 'line style', errors)
       plot.lineStyle = lineStyle
+    }
+  }
+  // ⭐ e98 E1 — `lineStyleWhen`: the line style the instance's settings choose (`knobBind.js::plotLineStyleAt`), each
+  // `when` the ONE knob-test grammar (`lineStyleWhenProblem` -> U6's `hiddenWhenProblem`); beside the plot's own LITERAL
+  // `lineStyle` (the style at the defaults; a `$ref` there would be a second authority over the same value). Mirrored
+  // by `presentation_schema.py::_check_line_style_when`.
+  if (plot.lineStyleWhen !== undefined) {
+    const why = lineStyleWhenProblem(plot.lineStyleWhen)
+    if (why) errors.push(`${path}.lineStyleWhen: ${why}`)
+    else if (!lineStyleLiteral) {
+      errors.push(`${path}.lineStyleWhen: needs the plot's own literal \`lineStyle\`, the style at the settings' defaults`)
     }
   }
   // `legend` — the crosshair chip this plot contributes. See LEGEND_FIELDS.
@@ -3192,6 +3311,12 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
       `${path}.fill: expected {with: "<plotKey>"} naming the plot this one fills to, got ${fmt(plot.fill)}`,
     )
   }
+  // ⭐ e97 U7 — `fill.hiddenWhen`: the BAND hidden as the instance's settings decide, by the same knob-test grammar a
+  // plot's `hiddenWhen` holds (`hiddenWhenProblem`, mirrored by `presentation_schema.py::_check_hidden_when`)
+  if (isPlainObject(plot.fill) && plot.fill.hiddenWhen !== undefined) {
+    const why = hiddenWhenProblem(plot.fill.hiddenWhen)
+    if (why) errors.push(`${path}.fill.hiddenWhen: ${why}`)
+  }
   // ⭐ 2026-10-01 — `sparse`: this plot is BLANK BY DESIGN on some bars
   // (SuperTrend's up and down halves, each drawn only while its trend holds). A
   // sparse connected line is drawn as one render series per valued run — the
@@ -3206,6 +3331,14 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors, presentationKe
     errors.push(
       `${path}.hidden: expected true or false (a hidden plot is COMPUTED and never drawn), got ${fmt(plot.hidden)}`,
     )
+  }
+  // ⭐ e97 U6 — `hiddenWhen`: hidden as the instance's settings decide (`knobBind.js::plotHiddenAt`). A knob test
+  // and nothing else (`hiddenWhenProblem`, mirrored by `presentation_schema.py::_check_hidden_when`): a setting, a
+  // setting compared with a number, `&&` / `||` / `!` of those. Never beside `hidden: true` (which already decides).
+  if (plot.hiddenWhen !== undefined) {
+    const why = hiddenWhenProblem(plot.hiddenWhen)
+    if (why) errors.push(`${path}.hiddenWhen: ${why}`)
+    else if (plot.hidden === true) errors.push(`${path}.hiddenWhen: a plot with \`hidden: true\` is hidden at every setting; it carries no \`hiddenWhen\``)
   }
   // And never HIDDEN on a guide: an `hlines` plot returns no column, so there is
   // nothing to compute and nothing to hide. Keeping `hidden ⇒ data-bearing`
@@ -4080,6 +4213,12 @@ function validatePaints(paints, columnKeys, errors) {
     // ⭐ F1 — render-time placement (`binder.js::paintRenderColours`).
     if (p.offset !== undefined && !Number.isInteger(p.offset)) errors.push(`${path}.offset: expected a whole number, got ${fmt(p.offset)}`)
     if (p.showLast !== undefined && !(Number.isInteger(p.showLast) && p.showLast >= 0)) errors.push(`${path}.showLast: expected a non-negative whole number, got ${fmt(p.showLast)}`)
+    // ⭐ e97 U7 — `hiddenWhen`: the paint drawn only while the instance's settings show it (`knobBind.js::plotHiddenAt`),
+    // the knob-test grammar and nothing else (`hiddenWhenProblem`)
+    if (p.hiddenWhen !== undefined) {
+      const why = hiddenWhenProblem(p.hiddenWhen)
+      if (why) errors.push(`${path}.hiddenWhen: ${why}`)
+    }
     if (p.colorMode === undefined) {
       if (!isColour(p.color)) errors.push(`${path}: a paint must declare a colour (color, or colorMode "column:<key>")`)
       return

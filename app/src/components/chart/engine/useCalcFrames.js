@@ -24,6 +24,8 @@ import { ensureSecondaryBars, refreshSecondaryBars, subscribe } from './secondar
 import { orderByDependency, sourceInputsOf, parseSource } from './sourceRef'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { etDateOf, frameKey } from './mtfProjection'
+import { dailyReadNeeds } from './dailyReadSupply'
+import { isBelowADay } from './ast/interpret'
 
 export { frameKey }
 
@@ -102,6 +104,12 @@ export function framesNeeded(instances, defOf, sym, chartTf) {
   for (const inst of ordered) {
     if (!needed.has(inst.instanceId)) continue
     const f = frames.get(inst.instanceId)
+    // ⭐⭐ U-DAILY (e96) — a formula that reads a daily value (`tf` of D) on a chart below a day needs the DAILY bars of
+    // the chart symbol and of every symbol its daily reads name (`dailyReadSupply.js`), on the same window ladder
+    if ((!f || !f.frame) && isBelowADay(chartTf)) {
+      // (train e96 x e95 2b) the document this instance's inputs bind: an unpicked knob arm's daily read fetches nothing
+      for (const s of dailyReadNeeds(defOf(inst.defId), sym, inst.inputs || {})) out.set(frameKey('D', s), { frame: 'D', symbol: s })
+    }
     if (!f || !f.frame) continue
     out.set(frameKey(f.frame, sym), { frame: f.frame, symbol: String(sym).toUpperCase() })
     const def = defOf(inst.defId)
@@ -136,7 +144,7 @@ const EMPTY = Object.freeze({ key: '', map: null })
  * @returns {{frames: Map<string, {bars, status, newestBarIsForming?, depth}>|null,
  *            refreshFrame: (frame: string, symbol: string) => void}}
  */
-export function useCalcFrames(instances, defOf, sym, chartTf, chartBars, fetcher, revalidate) {
+export function useCalcFrames(instances, defOf, sym, chartTf, chartBars, fetcher, revalidate, extended = false) {
   const [state, setState] = useState(EMPTY)
   // ⛔ NOT WHILE THE CHART'S BARS ARE STILL THE PREVIOUS TIMEFRAME'S. For one render
   // after a timeframe switch the chart hands over its OLD bars; sizing a window
@@ -161,7 +169,7 @@ export function useCalcFrames(instances, defOf, sym, chartTf, chartBars, fetcher
       }
       const map = new Map()
       for (const p of plan) {
-        const entry = ensureSecondaryBars(p.symbol, p.frame, p.depth, fetcher)
+        const entry = ensureSecondaryBars(p.symbol, p.frame, p.depth, fetcher, { extended })   // the chart's own session
         if (entry) map.set(frameKey(p.frame, p.symbol), entry)
       }
       setState((prev) => (prev.key === planKey && sameEntries(prev.map, map) ? prev : { key: planKey, map }))
@@ -172,13 +180,13 @@ export function useCalcFrames(instances, defOf, sym, chartTf, chartBars, fetcher
     return () => { alive = false; unsub() }
     // ⛔ `planKey` IS the plan's identity; `plan` itself is rebuilt every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, fetcher, revalidate])
+  }, [planKey, fetcher, revalidate, extended])
 
   const refreshFrame = useCallback((frame, symbol) => {
     const p = plan.find((x) => x.frame === frame && x.symbol === String(symbol || '').toUpperCase())
-    if (p) refreshSecondaryBars(p.symbol, p.frame, p.depth, fetcher)
+    if (p) refreshSecondaryBars(p.symbol, p.frame, p.depth, fetcher, { extended })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planKey, fetcher])
+  }, [planKey, fetcher, extended])
 
   return { frames: state.map, refreshFrame }
 }

@@ -25,6 +25,12 @@ import { symAlignmentMask, SERIES_UNKNOWN_BEFORE_FIRST } from './ast/interpret'
 import { symbolsNeeded } from './sourceRef'
 import { clearSecondaryBars } from './secondaryBars'
 import WITNESSES from './requestWitnesses.json'
+import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 vi.setConfig({ testTimeout: 120000 })
 
@@ -217,7 +223,9 @@ describe('which intraday timeframes are served, and what the chart fetches', () 
       expect(rows['SP:SPX'].periods[tf].alsoHeld).toBe('D')
       expect(rows['SP:SPX'].periods[tf].witness, tf).toMatch(/2026-11-18/)
     }
-    for (const tf of ['3', '45', '120', '240']) {
+    // (⭐ e98 — 240 is witnessed too, Q-FRED-4H: `rsFourHourWitness.test.js`)
+    expect(heldFetchOf('SPX', '240')).toEqual({ symbol: 'SPX', tf: '240', key: 'SPX' })
+    for (const tf of ['3', '45', '120']) {
       expect(heldFetchOf('SPX', tf), tf).toBe(null)
       const r = resolveOtherSymbols(symDef, { ...ctx5(), tf })
       expect(r.served, tf).toEqual([])

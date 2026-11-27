@@ -21,7 +21,7 @@ describe('registry.feed', () => {
     const r = reg()
     expect(r.feed(k('AAA'), final6('AAA'))).toBe(null)
     expect(r.has(k('AAA'))).toBe(false)
-    expect(r.stats()).toEqual({ keys: 0, bars: 0 })
+    expect(r.stats()).toEqual({ keys: 0, bars: 0, dwell: 0 })   // dwell: #2695 (29aadb5327) added the count
   })
 
   it('R2 a held key: the action applies and its subscribers hear it', () => {

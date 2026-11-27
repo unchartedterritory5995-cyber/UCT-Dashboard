@@ -68,7 +68,8 @@ function colFor(built, cols, title) {
 describe('⭐ the bar length is the vendor\'s, and one number per code', () => {
   it('agrees with the translator\'s `timeframe.in_seconds(<code>)` for every code the clock declares', () => {
     const codes = Object.keys(CLOCK_PERIOD_SECONDS)
-    expect(codes.sort()).toEqual(['1', '15', '30', '5', '60', 'D', 'M', 'W'])
+    // ⭐ e98 — and `240`, the one custom intraday code the clock answers (`CLOCK_CUSTOM_INTRADAY_TFS`)
+    expect(codes.sort()).toEqual(['1', '15', '240', '30', '5', '60', 'D', 'M', 'W'])
     for (const code of codes) expect(CLOCK_PERIOD_SECONDS[code], code).toBe(timeframeSeconds(code))
   })
 

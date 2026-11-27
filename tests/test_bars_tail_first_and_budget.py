@@ -274,11 +274,20 @@ def test_ONON_partial_key_first_answer_reaches_the_live_bucket(onon):
 
 def test_deep_partial_key_repairs_the_tail_even_when_the_deep_fetch_is_shed(onon, monkeypatch):
     monkeypatch.setattr(bars_fetch, "_start_bounded_fetch_intraday", lambda *a, **k: None)
+    # the boundary cut (#2732) measured at a MID-bucket instant, so the rail tells the shed 5 s from the full 10 s
+    # on every run (review #2736); only the cut sees the pinned instant
+    _cut = bars_fetch._bucket_capped_ttl
+    _mid = (int(time.time()) // 900) * 900 + 450
+    monkeypatch.setattr(bars_fetch, "_bucket_capped_ttl", lambda tf, ttl, now=None: _cut(tf, ttl, _mid))
     bars_fetch.set_request_interactive(True)
     resp = bars_fetch._get_bars_inner("UPST", "15", 2000)        # deep + partial
     body = orjson.loads(resp.body)
     assert body["bars"][-1]["t"] == NEW_TAIL
-    assert onon["ttls"]["bars_UPST_15_2000"] == 5, "a shed deep fetch must not pin for a full TTL"
+    # 2026-11-25: the 15m mem-cache TTL is also cut at the next 15m boundary (#2732 _bucket_capped_ttl), so within
+    # 5 s of :00/:15/:30/:45 it is below 5 (merge-queue run 45664248014 recorded 0.328 s and failed). The rail is "short,
+    # never the full TTL": the boundary cut is the expected value, computed on the same clock.
+    got = onon["ttls"]["bars_UPST_15_2000"]
+    assert got == 5, "a shed deep fetch must not pin for a full TTL (the full 15m TTL is 10)"
     assert bars_fetch.get_serve_layer() == "deep-deadline"
 
 
@@ -483,11 +492,36 @@ def test_F3_in_process_callers_do_not_get_the_edge_budget(monkeypatch):
     assert seen == {"active": False, "done": True}
 
 
-def test_F3_http_routes_start_the_edge_budget():
-    import inspect
+def test_F3_http_routes_start_the_edge_budget(monkeypatch):
+    """Both HTTP doors into the serve core (the web pod's /api/bars and the bars-api tier's) run it UNDER the edge
+    budget (serve_bars_http), never bare: measured by driving each route and reading the budget from inside the
+    core. (2026-11-26: this read the source text `run_in_threadpool(serve_bars_http,`, which the web route's own
+    thread lane, #2752, no longer spells; the property is the budget, so the property is what is asserted.)"""
+    import asyncio
+    import httpx
+    from fastapi import FastAPI
     from api import bars_api_main
-    assert "serve_bars_http(ticker" in inspect.getsource(bars_api_main)
-    assert "run_in_threadpool(serve_bars_http," in inspect.getsource(bars_router.get_bars)
+    from tests.authclients import sign_in_bars_caller
+    sign_in_bars_caller(monkeypatch)
+    monkeypatch.delenv("BARS_ORIGIN_URL", raising=False)
+    seen = []
+
+    def _impl(*a, **k):
+        seen.append(bars_fetch._budget_active())
+        return bars_router.JSONResponse(content={"bars": []})
+    monkeypatch.setattr(bars_router, "_serve_bars_impl", _impl)
+    web = FastAPI()
+    web.include_router(bars_router.router)
+    tier = bars_api_main._build_app()          # no lifespan runs: the ASGI transport sends no startup event
+
+    async def ask(app):
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            r = await c.get("/api/bars/AAPL?tf=D&bars=10")
+            assert r.status_code == 200, (r.status_code, r.text[:200])
+    for name, app in (("web /api/bars", web), ("bars-api /api/bars", tier)):
+        seen.clear()
+        asyncio.run(ask(app))
+        assert seen == [True], f"{name} ran the serve core without the edge budget: {seen}"
 
 
 def test_F4_replay_deep_DWM_pulls_share_the_replay_concurrency_cap():

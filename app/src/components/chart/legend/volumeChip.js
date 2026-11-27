@@ -37,12 +37,19 @@ export const VOLUME_DISPLAY_OPTIONS = Object.freeze([
   Object.freeze({ value: 'price', label: 'Overlay on price', group: 'Price' }),
 ])
 
+/** What our volume counts, said where members read volume (owner ruling 2026-11-25: "keep the full volume with the
+ *  note"). Our volume is the consolidated tape's, odd-lot trades included; TradingView's intraday history leaves odd
+ *  lots out, so its volume reads lower. VOLUME ONLY: under the SIP rules an odd lot (condition 37) does not update a
+ *  bar's high, low or last, so it says nothing about prices. Static text: the Volume row's tooltip and the About card. */
+export const VOLUME_SOURCE_NOTE = "Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView's."
+
 /** The About card — Volume has no engine definition, so its words live here. */
 export const VOLUME_ABOUT = Object.freeze({
   title: 'Volume',
   text: 'The number of shares traded in each bar. Up bars take the up color and down bars the down color. '
     + 'Volume can sit in its own pane or overlay the bottom of the price pane, and it can carry its own moving average '
-    + '(Edit in Indicators…). Bars that set a 52-week volume high can be highlighted.',
+    + '(Edit in Indicators…). Bars that set a 52-week volume high can be highlighted. '
+    + 'Volume includes odd-lot trades (TradingView excludes them), so it can read higher than TradingView\'s.',
   category: 'Volume',
 })
 
