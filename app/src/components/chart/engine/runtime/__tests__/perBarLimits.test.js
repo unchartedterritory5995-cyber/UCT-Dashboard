@@ -140,7 +140,9 @@ describe('every whole-run count scales with the bars a run covers', () => {
   }
   for (const [limit, [src, n]] of Object.entries(RUNAWAY)) {
     it(`5. ⛔ a ${limit} runaway still stops BY NAME at the scaled ceiling, naming its ${n} bars`, () => {
-      const r = vmRun(src, n)
+      // ⭐ TRAIN e99: WALL_TIME named out (it does not scale; naming it opts only it out, as deepRun does): on a CI runner
+      // the CALL_COUNT runaway (~20M calls) met the VM's 5,000 ms backstop before its count (pine heavy 45916377247)
+      const r = vmRun(src, n, { WALL_TIME: 600000 })
       expect(r.err, `${limit}: stopped`).toBeInstanceOf(RuntimeLimitError)
       expect(r.err.limit).toBe(limit)
       expect(r.err.ceiling).toBe(scaledCeiling(limit, DEFAULT_LIMITS[limit], n))
