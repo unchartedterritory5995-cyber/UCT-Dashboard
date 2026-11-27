@@ -126,6 +126,18 @@ describe('an unchanged list is not validated twice; every live gate is asked eve
     for (const id of runtimeIds) expect(off.defs.map((d) => d.id)).not.toContain(id)
   })
 
+  it('V7 an EDITED document under the same id is installed as edited (the same-object shortcut is for the same object only)', () => {
+    paneOn()
+    registry.installUserDefinitions(clone())
+    const edited = clone()
+    const target = edited.find((d) => d.compute.kind === 'ast')
+    target.name = `${target.name || 'x'} (edited)`
+    const gen = registry.registryGeneration()
+    registry.installUserDefinitions(edited)
+    expect(registry.registryGeneration()).toBeGreaterThan(gen)
+    expect(registry.getDefinition(target.id).name).toBe(target.name)
+  })
+
   it('V6 the verdicts are byte-identical to the unmemoised path on all 27 documents (cold, and on a hit)', () => {
     paneOn()
     registry.__validationMemoOffForTests(true)
