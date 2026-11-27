@@ -9,10 +9,13 @@
 //   P4 the <Activity> mode's handle changes nothing
 //   P5 (red first) a poll landing while the board is hidden (another board keeps the ticker polled) re-renders nothing;
 //      after the show's first paint the hook reads it once
+//   P6 (red first; review of #2901, M2) a stream tick landing while the board is hidden re-renders nothing (the stream
+//      stays subscribed); the show reads the current stream price in its own task
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-const reg = vi.hoisted(() => ({ live: new Map(), stream: new Map(), snap: { AAPL: { price: 1 } }, subs: new Set() }))
+const reg = vi.hoisted(() => ({ live: new Map(), stream: new Map(), snap: { AAPL: { price: 1 } }, subs: new Set(),
+  ssnap: { prices: {}, staleSymbols: new Set(), connected: true }, ssubs: new Set() }))
 const bump = (m, list, d) => { for (const t of list) m.set(t, (m.get(t) || 0) + d) }
 vi.mock('./livePriceStore', () => ({
   registerTickers: (list) => { bump(reg.live, list, 1); return () => bump(reg.live, list, -1) },
@@ -20,19 +23,19 @@ vi.mock('./livePriceStore', () => ({
   getSnapshot: () => reg.snap,
   pollNow: () => {},
 }))
-vi.mock('../lib/priceStreamManager', () => {
-  const snap = { prices: {}, staleSymbols: new Set(), connected: true }
-  return {
-    subscribe: (list) => { bump(reg.stream, list, 1); return () => bump(reg.stream, list, -1) },
-    getSnapshot: () => snap,
-  }
-})
+vi.mock('../lib/priceStreamManager', () => ({
+  subscribe: (list, fn) => { bump(reg.stream, list, 1); reg.ssubs.add(fn); return () => { bump(reg.stream, list, -1); reg.ssubs.delete(fn) } },
+  getSnapshot: () => reg.ssnap,
+}))
 
 import useLivePrices from './useLivePrices'
 import useRealtimePrices from './useRealtimePrices'
 import { BoardVisibilityContext, createBoardVisibility } from '../components/chart/boardVisibility'
 
-beforeEach(() => { reg.live.clear(); reg.stream.clear(); reg.snap = { AAPL: { price: 1 } } })
+beforeEach(() => {
+  reg.live.clear(); reg.stream.clear(); reg.snap = { AAPL: { price: 1 } }
+  reg.ssubs.clear(); reg.ssnap = { prices: {}, staleSymbols: new Set(), connected: true }
+})
 let renders = 0
 const mount = (hook, vis) => renderHook(() => { renders++; return hook(['AAPL']) }, {
   wrapper: ({ children }) => <BoardVisibilityContext.Provider value={vis}>{children}</BoardVisibilityContext.Provider>,
@@ -98,6 +101,27 @@ describe('price hooks on a hidden layer board', () => {
     act(() => { vis.set('visible') })
     await afterPaint()
     expect(view.result.current.prices.AAPL.price, 'the show did not read the poll that landed while hidden').toBe(3)
+    view.unmount()
+  })
+
+  it('P6 (red first) a stream tick while hidden re-renders nothing; the show reads it in its own task', async () => {
+    const vis = createBoardVisibility({ layer: true })
+    const view = mount(useRealtimePrices, vis)
+    await afterPaint()
+    const tick = (price) => act(() => {
+      reg.ssnap = { ...reg.ssnap, prices: { AAPL: { price, updated_at: Date.now() } } }
+      for (const f of [...reg.ssubs]) f()
+    })
+    tick(5)
+    expect(view.result.current.prices.AAPL?.price, 'NON-VACUITY: a shown board takes a stream tick').toBe(5)
+    act(() => { vis.set('hidden') })
+    const before = renders
+    tick(6)
+    tick(7)
+    expect(renders - before, 'a stream tick re-rendered a hidden board').toBe(0)
+    expect(reg.stream.get('AAPL'), 'the hidden board left the shared stream').toBe(1)
+    act(() => { vis.set('visible') })
+    expect(view.result.current.prices.AAPL?.price, 'the show did not read the stream in its own task').toBe(7)
     view.unmount()
   })
 
