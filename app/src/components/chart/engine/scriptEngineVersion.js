@@ -220,9 +220,11 @@
  *  (coordinator ruling 2026-11-27). With the off-listing curtain off (#2893) Fred RS's run half was refused whole on every
  *  chart whose history does not reach the listing. Its RS line and default new-high dot are start-free once 502 bars
  *  stand behind them; its rating latches the first seed values the run meets (`var float[] different_values`). So, keyed
- *  on the script's exact sha256, at its defaults, on a chart of >= 502 bars (`runtime/startLatched.js`,
- *  `runtimeColumns.js::computeStartFree`): the dots are drawn, every run column is NaN before bar 501, and the rating
- *  labels are withheld by name, `runtime:start-latched-state`. Changes the drawings served for Fred RS off the listing. */
+ *  on the script's exact sha256, at its defaults, on a daily chart of >= 502 bars or any other chart (`runtime/startLatched.js`,
+ *  `runtimeColumns.js::computeStartFree`): the dots are drawn, every run column is NaN before bar 501; on a DAILY chart the
+ *  rating labels are withheld by name, `runtime:start-latched-state`; off a daily chart (no number printed) the two
+ *  constant labels are drawn on any chart length, and a chart under 502 bars withholds the dot by name. Changes the
+ *  drawings served for Fred RS off the listing. */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.

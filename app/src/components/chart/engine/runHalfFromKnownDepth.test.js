@@ -26,7 +26,6 @@ import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHas
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
 import { OWN_DAILY_KEY } from './otherSymbols'
 import { clearSecondaryBars } from './secondaryBars'
-import { RUNTIME_START_LATCHED_GUARD, isStartFreeDot } from './runtime/startLatched'
 import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
 // ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
@@ -166,10 +165,7 @@ async function realWorkerFactory() {
 }
 
 describe('the product path: Fred RS\'s run half through the real runtime worker, on a 5m chart deeper than its SPX', () => {
-  // ⭐⭐ (e103, coordinator ruling 2026-11-27) off the listing (this run starts at the depth cut) Fred RS draws only its
-  // start-free dots: the rating labels latch the run's first seed values and are withheld by name
-  // (`runtime:start-latched-state`, `runtimeColumns.js::computeStartFree`); they were "RS Rating" and '' here before
-  it('SERVED: the start-free drawings only, the rating labels withheld by name (was: refused runtime:request, the whole chart)', async () => {
+  it('SERVED: "RS Rating" and the empty rating text on the newest bar (was: refused runtime:request, the whole chart)', async () => {
     setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(RS), captures: [
       { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
       { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }] }])
@@ -193,11 +189,11 @@ describe('the product path: Fred RS\'s run half through the real runtime worker,
       }
       expect(states[states.length - 1], states.join(' > ')).toBe('served:null')
       const n = RS_CHART.length
-      const payload = runtimeObjectsOf(cols)
-      const labels = payload.live.filter((o) => o.family === 'label' && o.createdBar === n - 1)
-      expect(labels.filter((o) => typeof o.props.text === 'string' && o.props.text !== '')).toEqual([])
-      expect(payload.live.every(isStartFreeDot), JSON.stringify(payload.live).slice(0, 400)).toBe(true)
-      expect(payload.startLatched).toMatchObject({ guard: RUNTIME_START_LATCHED_GUARD, count: 2 })
+      const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === n - 1)
+      expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
+      // (e103) off a daily chart Fred RS's two labels are constant: the start-free release (`computeStartFree`), which
+      // answers before the curtain this file turns on, draws them and withholds nothing
+      expect(runtimeObjectsOf(cols).startLatched).toBeUndefined()
     } finally {
       registry.uninstallUserDefinition(def.id)
     }

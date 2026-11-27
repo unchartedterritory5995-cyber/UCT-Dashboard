@@ -32,7 +32,6 @@ import { OWN_DAILY_KEY } from './otherSymbols'
 import { clearSecondaryBars } from './secondaryBars'
 import { useSecondarySources, ownDailyNeeded } from './useSecondarySources'
 import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
-import { RUNTIME_START_LATCHED_GUARD, START_FREE_MIN_BARS, isStartFreeDot } from './runtime/startLatched.js'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
 // ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
 // test its machinery, so they turn it on for this file
@@ -232,21 +231,6 @@ async function runHalfStates(tf, rows, map, { pin = true } = {}) {
   return { cols, states }
 }
 
-// (e103, coordinator ruling 2026-11-27) these charts do not start at the listing: Fred RS's rating labels latch the
-// run's first seed values and are withheld by name (`runtime:start-latched-state`, `runtimeColumns.js::computeStartFree`);
-// they read "RS Rating" and '' here before. Only its start-free dots are drawn.
-// A chart short of `START_FREE_MIN_BARS` keeps the curtain's answer this file turns on (the two labels, as before).
-function expectStartFreeOnly(payload, n) {
-  const newest = payload.live.filter((o) => o.family === 'label' && o.createdBar === n - 1)
-  if (n < START_FREE_MIN_BARS) {
-    expect(newest.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
-    return
-  }
-  expect(newest.filter((o) => typeof o.props.text === 'string' && o.props.text !== '')).toEqual([])
-  expect(payload.live.every(isStartFreeDot), JSON.stringify(payload.live).slice(0, 400)).toBe(true)
-  expect(payload.startLatched).toMatchObject({ guard: RUNTIME_START_LATCHED_GUARD, count: 2 })
-}
-
 describe('the product path: the chart\'s hook assembles the entries, the REAL worker runs Fred RS\'s run half', () => {
   for (const tf of ['5', '30', '60']) {
     it(`${tf}: OWN_DAILY_KEY is handed to the worker and the run half SERVES (was: refused, not handed the daily rows)`, async () => {
@@ -257,8 +241,8 @@ describe('the product path: the chart\'s hook assembles the entries, the REAL wo
       expect(handed.length, 'the worker was asked').toBeGreaterThan(0)
       for (const keys of handed) expect(keys, 'every worker request carries the own daily rows').toContain(OWN_DAILY_KEY)
       expect(states[states.length - 1], states.join(' > ')).toBe('served:null')
-      // (e103) off the listing the rating labels are withheld by name; only the start-free dots are drawn
-      expectStartFreeOnly(runtimeObjectsOf(cols), rows.length)
+      const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === rows.length - 1)
+      expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
     })
   }
 })
@@ -277,8 +261,8 @@ describe('⛔⛔ THE VERDICT IS THE WORK, NOT THE RUNNER (2026-11-20): the budge
     saturatedHost()
     const { cols, states } = await runHalfStates('5', rows, map)
     expect(states[states.length - 1], states.join(' > ')).toBe('served:null')
-    // (e103) off the listing the rating labels are withheld by name; only the start-free dots are drawn
-    expectStartFreeOnly(runtimeObjectsOf(cols), rows.length)
+    const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === rows.length - 1)
+    expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
   })
 })
 

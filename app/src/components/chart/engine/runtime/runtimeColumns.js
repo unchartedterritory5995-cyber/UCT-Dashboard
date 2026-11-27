@@ -28,7 +28,7 @@ import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pin
 import { interpret, isIntradayTf } from '../ast/interpret.js'
 import { TABLE, BAR_READERS, sha256Hex } from '../ast/parse.js'
 import { RUNTIME_START_LATCHED_GUARD, START_LATCHED_REASON, FRED_RS_SOURCE_SHA256, START_FREE_MIN_BARS,
-  START_FREE_FROM_BAR, isStartFreeDot } from './startLatched.js'
+  START_FREE_FROM_BAR, isStartFreeOnChart, isNonDailyTf, START_FREE_DOT_SHORT_REASON } from './startLatched.js'
 import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
@@ -1165,7 +1165,8 @@ function computeOffListing(def, rows, ctx, opts) {
 //   · the run is the document's own program over every bar (the curtain's `plain`: built exactly as the document is);
 //   · every column is `NaN` before `START_FREE_FROM_BAR`, recorded as the warm-up (`withheldBars`), so the run half's
 //     column rail (`nativeRegistry.js::withRunHalf`) compares only the bars served;
-//   · its drawings keep only the start-free dots (`isStartFreeDot`); the rest ride out NAMED on the payload
+//   · its drawings keep only the start-free dots and, off a daily chart, the constant rating labels
+//     (`isStartFreeOnChart`); the rest ride out NAMED on the payload
 //     (`startLatched`: the code, the sentence, how many, and the calls they were made at), which the binder says in the
 //     drawing note. ⛔ Never `payload.withheld`: a family named there that the host also draws refuses the whole run half
 //     (`run-half:family-withheld`).
@@ -1183,11 +1184,11 @@ export function startFreeEligible(def, rows, ctx, opts = {}) {
   if (_startFreeOff) return false
   const compute = (def && def.compute) || {}
   if (compute.objects !== true || typeof compute.source !== 'string') return false
-  if (!Array.isArray(rows) || rows.length < START_FREE_MIN_BARS) return false
+  // a daily chart needs the dot's look-back (its only start-free drawing); off a daily chart the constant labels are
+  // start-free on any bar, and a chart short of the dot's look-back withholds the dot by name (`computeStartFree`)
+  const nonDaily = isNonDailyTf(ctx && ctx.tf)
+  if (!Array.isArray(rows) || rows.length < (nonDaily ? 1 : START_FREE_MIN_BARS)) return false
   if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return false
-  // ⛔ a chart that DOES start at the listing on a timeframe a listing run is not checked on (W / M) is not off the
-  // listing: it keeps its own answer (`runtime:listing-unverified`)
-  if (listingUnserved(ctx)) return false
   const given = ctx && ctx.runtimeInputs
   if (given && (typeof given !== 'object' || Object.keys(given).length)) return false
   return sourceSha256Of(compute.source) === FRED_RS_SOURCE_SHA256
@@ -1206,11 +1207,17 @@ function computeStartFree(def, rows, ctx, opts) {
   if (p && typeof p === 'object' && p.status === 'ok' && Array.isArray(p.live)) {
     const live = []
     const latched = []
-    for (const o of p.live) (isStartFreeDot(o) ? live : latched).push(o)
+    const tf = ctx && ctx.tf
+    for (const o of p.live) (isStartFreeOnChart(o, tf) ? live : latched).push(o)
     const sites = [...new Set(latched.map((o) => o && o.site).filter((s) => typeof s === 'string'))]
+    // a chart short of the dot's look-back: whether TradingView's longer run draws the dot is not known here, so it is
+    // said whether or not this run made one
+    const short = rows.length < START_FREE_MIN_BARS
+    const reasons = [...(latched.some((o) => !(o && o.family === 'label' && o.props && /circle$/.test(String(o.props.style))))
+      ? [START_LATCHED_REASON] : []), ...(short ? [START_FREE_DOT_SHORT_REASON] : [])]
     withRuntimeObjects(a, { ...p, live,
-      ...(latched.length ? { startLatched: { guard: RUNTIME_START_LATCHED_GUARD, reason: START_LATCHED_REASON,
-        count: latched.length, sites } } : {}) })
+      ...(latched.length || short ? { startLatched: { guard: RUNTIME_START_LATCHED_GUARD, reason: reasons.join('; ')
+        || START_FREE_DOT_SHORT_REASON, count: latched.length, sites } } : {}) })
   }
   return a
 }

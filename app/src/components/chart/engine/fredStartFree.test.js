@@ -19,12 +19,13 @@ import {
 import { runHalfOf, runtimeObjectsOf, runtimeWarmupOf, RUNTIME_OBJECTS_KEY } from './runtime/runtimeObjects'
 import {
   RUNTIME_START_LATCHED_GUARD, START_LATCHED_REASON, FRED_RS_SOURCE_SHA256, START_FREE_MIN_BARS, START_FREE_FROM_BAR,
-  isStartFreeDot,
+  isStartFreeDot, isNonDailyTf, isConstantRatingLabel, FRED_RS_HEADING_TEXT, START_FREE_DOT_SHORT_REASON,
 } from './runtime/startLatched'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
 import { clearSecondaryBars } from './secondaryBars'
+import { OWN_DAILY_KEY } from './otherSymbols'
 
 vi.setConfig({ testTimeout: 300000 })
 
@@ -141,6 +142,78 @@ describe('⛔ every gate refuses as before (`runtime:history-start`)', () => {
     __startFreeReleaseOffForTests(true)
     const rows = chartOf(N)
     expect(guardOf(() => computeRuntimeColumns(runDef(), rows, ctxOf(rows), { now: () => 0 }))).toBe('runtime:history-start')
+  })
+})
+
+// (coordinator ruling 2026-11-27, second pass) OFF A DAILY CHART THE RATING LABELS ARE START-FREE: Fred RS prints the
+// number only when `timeframe.isdaily`; elsewhere its two labels are the constant heading and an empty label at
+// (bar_index, rs). TradingView draws exactly these (FRED's fredgaps captures: ADT 1m / 15m / 1M, SPY 1m).
+const ET = (day, hh, mm) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d, hh + 5, mm) / 1000 }
+const SESS = weekdays('2026-11-02', 10)
+const CHART5 = SESS.flatMap((d, k) => Array.from({ length: 192 }, (_, j) => {
+  const c = 90 + k + Math.sin(j / 9)
+  return { t: ET(d, 4, 0) + j * 300, o: c - 0.1, h: c + 0.3, l: c - 0.3, c, v: 1000 }
+}))
+const SPX5 = SESS.flatMap((d, k) => Array.from({ length: 78 }, (_, j) => {
+  const c = 7300 + k * 5 + Math.cos(j / 7) * 3
+  return { t: ET(d, 9, 30) + j * 300, o: c, h: c + 1, l: c - 1, c, v: 1 }
+}))
+const PREV = '2026-10-30'
+const SPXD = [PREV, ...SESS].map((d, k) => ({ t: Date.parse(`${d}T00:00:00Z`) / 1000, o: 1, h: 1, l: 1, c: 7290 + k * 5, v: 1 }))
+const OWND = [PREV, ...SESS].map((d, k) => ({ t: d, o: 1, h: 1, l: 1, c: 89 + k, v: 1 }))
+const SEED_D = []
+for (let d = '2026-10-13', k = 0; d <= '2026-11-16'; d = isoPlus(d, 1), k += 1) {
+  SEED_D.push({ t: d, o: 0, h: 1000, l: 0, c: [190.9, 123.49, 75, 39.88, 12.98, 5, 2][Math.floor(k / 5) % 7], v: 0 })
+}
+const ctx5 = (over = {}) => ({ tf: '5', newestBarIsForming: false, historyFromListing: false, symbol: RDDT,
+  secondary: new Map([['SPX', { bars: SPX5, status: 'available' }], ['SPX@D', { bars: SPXD, status: 'available' }],
+    [OWN_DAILY_KEY, { bars: OWND, status: 'available' }], [`${SEED}@D`, { bars: SEED_D, status: 'available' }]]),
+  exchangeOf: (t) => (t === 'SPX' ? 'SP' : null), ...over })
+const newestLabelsOf = (cols, n) => runtimeObjectsOf(cols).live
+  .filter((o) => o.family === 'label' && o.createdBar === n - 1 && !isStartFreeDot(o))
+
+describe('off a daily chart: the two constant labels are released, exactly as TradingView draws them', () => {
+  it('which timeframes print no number: intraday, weekly, monthly; never a daily or unknown spelling', () => {
+    for (const tf of ['1', '5', '60', '240', '30S', 'W', '2W', 'M', '3M']) expect(isNonDailyTf(tf), tf).toBe(true)
+    for (const tf of ['D', '1D', '2D', '', 'X', undefined, null]) expect(isNonDailyTf(tf), String(tf)).toBe(false)
+  })
+  it("a constant label: the heading or the empty label, its own size, centred, left-aligned, at the price, in the script's blue", () => {
+    const base = { family: 'label', createdBar: 7, props: { text: FRED_RS_HEADING_TEXT, size: 'normal', style: 'label_center',
+      textalign: 'left', yloc: 'price', textcolor: '#0000FF', color: '#00000000', x: 7, y: 1 } }
+    expect(isConstantRatingLabel(base)).toBe(true)
+    expect(isConstantRatingLabel({ ...base, props: { ...base.props, text: '', size: 'large' } })).toBe(true)
+    for (const [k, v] of [['text', '\n\n       89'], ['size', 'large'], ['style', 'label_left'], ['textalign', 'center'],
+      ['yloc', 'abovebar'], ['textcolor', '#FF0000'], ['color', '#000000FF']]) {
+      expect(isConstantRatingLabel({ ...base, props: { ...base.props, [k]: v } }), `${k} = ${v}`).toBe(false)
+    }
+  })
+  it("SERVED on a 5m chart: the heading and the empty label on the newest bar, at (bar_index, rs), nothing withheld", () => {
+    const n = CHART5.length
+    const cols = computeRuntimeColumns(runDef(), CHART5, ctx5(), { now: () => 0 })
+    const labels = newestLabelsOf(cols, n)
+    expect(labels.map((o) => [o.props.text, o.props.size, o.props.style])).toEqual([
+      [FRED_RS_HEADING_TEXT, 'normal', 'label_center'], ['', 'large', 'label_center']])
+    for (const o of labels) {
+      expect(o.props.x, 'x is the newest bar (bar_index)').toBe(n - 1)
+      expect(Number.isFinite(cols.rs[n - 1])).toBe(true)
+      expect(o.props.y, 'y is the RS line on the newest bar, a start-free value').toBe(cols.rs[n - 1])
+    }
+    expect(cols[RUNTIME_OBJECTS_KEY].startLatched).toBeUndefined()
+    expect(runtimeWarmupOf(cols).startFree).toBe(RUNTIME_START_LATCHED_GUARD)
+  })
+  it("a chart short of the dot's look-back (a monthly chart's size): the labels released, the dot withheld by name", () => {
+    const rows = CHART5.slice(-300)
+    const cols = computeRuntimeColumns(runDef(), rows, ctx5(), { now: () => 0 })
+    expect(newestLabelsOf(cols, rows.length).map((o) => o.props.text)).toEqual([FRED_RS_HEADING_TEXT, ''])
+    expect(cols[RUNTIME_OBJECTS_KEY].live.some(isStartFreeDot)).toBe(false)
+    expect(cols[RUNTIME_OBJECTS_KEY].startLatched).toMatchObject({ guard: RUNTIME_START_LATCHED_GUARD, reason: START_FREE_DOT_SHORT_REASON })
+    for (let i = 0; i < rows.length; i += 1) expect(Number.isNaN(cols.rs[i]), `bar ${i}`).toBe(true)
+  })
+  it('⛔ on a DAILY chart off the listing both labels are withheld by name (the number latches the start)', () => {
+    const rows = chartOf(N)
+    const cols = computeRuntimeColumns(runDef(), rows, ctxOf(rows), { now: () => 0 })
+    expect(newestLabelsOf(cols, N)).toEqual([])
+    expect(cols[RUNTIME_OBJECTS_KEY].startLatched).toMatchObject({ reason: START_LATCHED_REASON, count: 2 })
   })
 })
 

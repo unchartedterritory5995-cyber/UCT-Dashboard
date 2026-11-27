@@ -42,6 +42,37 @@ export function isStartFreeDot(o) {
   return text === undefined || text === null || text === ''
 }
 
+/** ⭐⭐ (coordinator ruling 2026-11-27, second pass) — THE RATING LABELS OFF A DAILY CHART ARE START-FREE TOO. Fred RS
+ *  writes the number only when `timeframe.isdaily` (`labelText2 := ... str.tostring(totalRsRating)` under `isDaily`); on
+ *  every other timeframe, at its defaults (`ratingOnly` false), its two labels are the constant "RS Rating" heading and an
+ *  empty label, made on the newest bar (`barstate.islast`) at `(bar_index, rs)`: nothing in them reads the latched levels.
+ *  TradingView draws exactly these two there (FRED's fredgaps captures, ADT 1m / 15m / 1M and SPY 1m, 2026-11-27: text,
+ *  style `label_center`, size normal / large, left-aligned, at the price, in the script's blue). Each property is checked
+ *  here, so a label the run makes any other way stays withheld. */
+export const FRED_RS_HEADING_TEXT = '                RS Rating'
+const CONSTANT_LABELS = Object.freeze({ [FRED_RS_HEADING_TEXT]: 'normal', '': 'large' })
+const FRED_RS_BLUE = '#0000ff'
+/** Is `tf` (the chart's `ctx.tf`) a timeframe on which `timeframe.isdaily` is false: intraday (`'5'`, `'60'`, `'30S'`),
+ *  weekly or monthly (`'W'`, `'3M'`)? An unknown or daily spelling is not (fail closed: the number may be printed). */
+export function isNonDailyTf(tf) {
+  return typeof tf === 'string' && /^(\d+S?|\d*W|\d*M)$/.test(tf)
+}
+/** Is `o` one of Fred RS's two constant rating labels, drawn exactly as its defaults draw them off a daily chart? */
+export function isConstantRatingLabel(o) {
+  if (!o || o.family !== 'label' || !o.props || typeof o.props !== 'object' || !Number.isInteger(o.createdBar)) return false
+  const p = o.props
+  if (typeof p.text !== 'string' || !Object.prototype.hasOwnProperty.call(CONSTANT_LABELS, p.text)) return false
+  return p.size === CONSTANT_LABELS[p.text] && p.style === 'label_center' && p.textalign === 'left' && p.yloc === 'price'
+    && typeof p.textcolor === 'string' && p.textcolor.toLowerCase() === FRED_RS_BLUE
+    && typeof p.color === 'string' && /^#[0-9a-f]{6}00$/i.test(p.color)
+}
+/** What a run off the listing keeps on this chart: the start-free dots, and off a daily chart the constant labels. */
+export function isStartFreeOnChart(o, tf) {
+  return isStartFreeDot(o) || (isNonDailyTf(tf) && isConstantRatingLabel(o))
+}
+/** The words for a chart too short for the new-high dot's look-back (it may draw one TradingView's longer run would). */
+export const START_FREE_DOT_SHORT_REASON = `the RS new-high dot needs ${START_FREE_MIN_BARS} bars on this chart; it's shown once the chart holds them`
+
 /** The record a run that withheld its start-latched drawings carries on its payload (`startLatched`), or null. */
 export function startLatchedOf(payload) {
   const r = payload && typeof payload === 'object' ? payload.startLatched : null
