@@ -1106,12 +1106,21 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // A refusal describes a full board; once a widget is closed it is no longer true.
   useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom, boardCount])
 
+  // ⛔ (2026-11-27, the live sweep's S3b) THE LAYOUT THE BOARD ON SCREEN WAS OPENED FROM, as THIS tab set it, and the
+  // only layout the named save may write the board into. `undefined`: the board was taken from the stored preferences
+  // (the first load, a version restore, a re-read after a conflict), so the stored pointer is its origin.
+  // Measured on production: a preferences read that began before a dock switch answered after it and put the OLD
+  // `charts_active_template` back into the cache, under the NEW board. The auto-save 400 ms later wrote the new board
+  // into the old layout's row by name (flip-tab-B's row took flip-tab-A's three widgets), and every later switch
+  // between the two opened the same board. The pointer in the cache can be stale; the board's own origin cannot.
+  const boardOriginRef = useRef(undefined)
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
   useEffect(() => {
     if (loadedFromPrefsRef.current) return
     const parsed = parseLayout(prefs?.charts_workspace_layout)
     if (parsed) {
+      boardOriginRef.current = undefined
       switchLayout(parsed)
       loadedFromPrefsRef.current = true
     }
@@ -2491,6 +2500,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
     const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
     const beforeLayout = layoutRef.current
+    const beforeOrigin = boardOriginRef.current
     // the board in front before this switch: a put-back is a switch back to it (the kept board, keep-alive on)
     const back = { user: true, key: currentBoardRef.current.key ?? dockActiveIdRef.current }
     let beforeCols = null
@@ -2512,7 +2522,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const latest = seq === boardCommitSeqRef.current
     if (latest) boardCommitInFlightRef.current = false
     // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
-    if (op.stale()) { if (latest) { putColsBack(); switchLayout(beforeLayout, back) } return 'stale' }
+    if (op.stale()) { if (latest) { putColsBack(); boardOriginRef.current = beforeOrigin; switchLayout(beforeLayout, back) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
       onCommitted?.()
@@ -2526,6 +2536,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
       putColsBack()
+      // the board is re-seeded from the preferences just read: their pointer is its origin (or the one before)
+      boardOriginRef.current = current ? undefined : beforeOrigin
       switchLayout(current || beforeLayout, back)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
@@ -2533,6 +2545,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // failed: put back exactly what was on screen before the switch
     for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
     putColsBack()
+    boardOriginRef.current = beforeOrigin
     switchLayout(beforeLayout, back)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
@@ -2568,7 +2581,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => { switchLayout(boardLayout, { user: true, key: tpl.id }); setOpenMenuOpen(false) },
+      applyLocal: () => { boardOriginRef.current = tpl.id; switchLayout(boardLayout, { user: true, key: tpl.id }); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2724,7 +2737,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => { if (!keepBoard) switchLayout(normalized, { user: !quiet, key: UCT_DEFAULT_ID }) },
+      applyLocal: () => {
+        // the pointer this apply writes (below): the default's sentinel, or none
+        boardOriginRef.current = UCT_DEFAULT_OFFERED ? UCT_DEFAULT_ID : null
+        if (!keepBoard) switchLayout(normalized, { user: !quiet, key: UCT_DEFAULT_ID })
+      },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
@@ -2819,7 +2836,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const blank = { widgets: [], cols: GRID_COLS }
     const g = { A: null, B: null, C: null, D: null }
     commitBoard({
-      applyLocal: () => { switchLayout(blank); setGroupSymsState(g) },
+      applyLocal: () => { boardOriginRef.current = activeTemplate?.id ?? null; switchLayout(blank); setGroupSymsState(g) },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(blank))
         setPref('charts_workspace_groups', JSON.stringify(g))
@@ -2874,6 +2891,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // The just-saved template becomes the active one, so "Save current
     // arrangement" updates it going forward.
     if (saved?.id != null) {
+      if (!op.stale()) boardOriginRef.current = saved.id   // the board on screen now belongs to the copy just saved
       setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || nm, scope: saved.scope || scope }), op)
     }
     return saved
@@ -2899,6 +2917,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // + chart settings, so reopening it reflects the edits. Only updates a template
   // the user can write (their own, or a global one when admin); a stale/deleted
   // active ref is ignored (just saves the working board).
+  const crossWriteWarnedRef = useRef(false)
   const handleSaveLayout = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
     // ⛔ REVISION SAFETY: the named layout is written ONLY after the board itself was accepted.
@@ -2913,6 +2932,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (boardOk === false || groupsOk === false) return { ok: false, named: 'none' }
     let named = 'none'
     const active = parsePref(prefs?.charts_active_template, null)
+    // ⛔ the board on screen is written only into the layout it was opened from (boardOriginRef): a pointer that
+    // names another layout (a stale read put it back) gets nothing, and the next save, once they agree, writes it
+    const origin = boardOriginRef.current
+    if (active?.id != null && origin !== undefined && String(origin) !== String(active.id)) {
+      if (!crossWriteWarnedRef.current) {
+        crossWriteWarnedRef.current = true
+        console.warn('[layout-dock] named save skipped: the open-layout pointer names a different layout than the board on screen was opened from. Neither layout was written.')
+      }
+      flashSaved()
+      return { ok: true, named: 'none' }
+    }
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
       if (list.some(t => t.id === active.id)) {
@@ -3186,6 +3216,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     const restoredLayout = parseLayout(fresh.charts_workspace_layout)
     if (restoredLayout) {
+      boardOriginRef.current = undefined
       switchLayout(restoredLayout)
       loadedFromPrefsRef.current = true
     }
