@@ -117,6 +117,22 @@ export function rowSizeCacheKey({ kind, id, fontSize, logoPx, columns, touch, vi
   return `${kind}:${id}|f${fontSize ?? ''}|l${logoPx || 0}|c${(columns || []).join(',')}|${touch ? 't' : 'p'}|${band}`
 }
 /**
+ * The remembered scroll offset, clamped to the list as it is now (review of #2916): a list that comes back SHORTER than
+ * it was scrolled would otherwise start past its end, a first frame of blank space. The rows' height is estimated as
+ * the first render will place them (each row's remembered size, else the 30 px estimate), and the offset may go no
+ * further than its last screenful.
+ */
+export function rememberedOffsetFor(record, items) {
+  const offset = record.offset || 0
+  if (!(offset > 0)) return 0
+  let total = 0
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]
+    total += record.sizes.get(it?.id || it?.sym || i) ?? 30
+  }
+  return Math.min(offset, Math.max(0, total - (record.rect?.height || 0)))
+}
+/**
  * The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
  * size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit.
  * `mem` is one mount's view of the memory: `{ sizes, seeded, corrections, dropped, onCorrection }`.
@@ -794,7 +810,7 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
       record, sizes: record.sizes, seeded: new Set(), corrections: 0, dropped: false, flushQueued: false,
       // a warm mount's first render (see `initialRect` below): the window's rows only, the overscan joins after it
       firstFrame: !!record.rect,
-      offset: record.rect ? record.offset || 0 : 0,
+      offset: record.rect ? rememberedOffsetFor(record, items) : 0,
     }
     // ⭐ (review of #2907, D1) EVERY CORRECTION OF ONE OBSERVER PASS, ONE COMMIT, BEFORE PAINT. The observer delivers all
     // the rows of a pass in one callback; a correction (`measureRememberedRow`) only queues this, and the microtask runs
