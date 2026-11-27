@@ -14,6 +14,10 @@ export const SWITCH_MARK_CLASS = 'charts-switching'
 // later drag would lose react-grid-layout's transition. After this long without its commit, the switch arms the frames.
 export const SWITCH_MARK_FALLBACK_MS = 250
 
+/** A member's switch lane is on for a render only while the layout it renders IS the switch's target: a switch React
+ *  bailed out of (to X and back in one batch) leaves a target that never renders (review of the warm admission). */
+export const userSwitchRenders = (target, layout) => target != null && target === layout
+
 const defaultRaf = (f) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16))
 
 /**

@@ -964,6 +964,15 @@ export function createPrefetch(o = {}) {
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
    *  handoff asks it after its own peek, which already did. */
+  /** SYNCHRONOUS, NO HYDRATE: does the store's memory hold SEALED bars for the key the chart `sym` / `tf` shows? A
+   *  developing bar alone is not a chart, and an unseen key is not hydrated here (the board asks during its render,
+   *  where a store write would reach subscribers mid-render): the board's warm admission (STORE_HOLDS_KEY). */
+  function peekSealedBars(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const s = key ? S().peek(key) : null
+    return !!s && s.bars.length > 0
+  }
+
   function heldRows(sym, tf, { showExtended, answered = false } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const s = key ? S().peek(key) : null
@@ -2133,7 +2142,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, peekSealedBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
@@ -2154,6 +2163,7 @@ export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayable(sym, tf, opts) }
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, opts) }
+export function peekSealedBars(sym, tf, opts = {}) { return _f().peekSealedBars(sym, tf, opts) }
 export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
@@ -2192,8 +2202,9 @@ export const STORE_WARMERS = Object.freeze({
   createNeighborHold,   // store only: the legacy caches have no LRU to pin against
 })
 if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS
-// ⚡ (2026-11-26, the board switch) the board asks whether a chart's bars are HELD before it mounts that chart in the
-// switch's own commit (ChartsWorkspace, useStaggeredMount `admitNowFor`). Registered like the warmers, never imported
-// by the board (an import edge would pull this module out of the chart chunk).
+// ⚡ (2026-11-26, the board switch) the board asks whether a chart's SEALED bars are in memory before it mounts that chart
+// in the switch's own commit (ChartsWorkspace, useStaggeredMount `admitNowFor`): peekSealedBars, which never hydrates
+// (the board asks during its render). Registered like the warmers, never imported by the board (an import edge would
+// pull this module out of the chart chunk).
 export const STORE_HOLDS_KEY = '__uctStoreHoldsBars'
-if (BARSTORE && typeof globalThis !== 'undefined') globalThis[STORE_HOLDS_KEY] = holdsBars
+if (BARSTORE && typeof globalThis !== 'undefined') globalThis[STORE_HOLDS_KEY] = peekSealedBars

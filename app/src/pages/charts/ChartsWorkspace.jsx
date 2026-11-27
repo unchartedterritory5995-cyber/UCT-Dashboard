@@ -49,7 +49,8 @@ import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import useStaggeredMount from './grid/useStaggeredMount'
-import { createBoardSwitchMark } from './boardSwitchMark'
+import { createBoardSwitchMark, userSwitchRenders } from './boardSwitchMark'
+import { chartWarmKey } from './chartWarmKey'
 import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
@@ -912,15 +913,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // ⚡ (2026-11-26, the board switch; owner: "never a lone chart") A MEMBER'S SWITCH (`user`: a dock or template open,
   // UCT Default chosen, New Layout, a version restore; never the first load or a revert) marks the render that shows the
   // new board, so the staggered mount below admits every chart whose bars are already held in that same commit, and
-  // the switch's other widgets one frame later (useStaggeredMount's switch lanes). Cleared once that board committed.
-  const userSwitchRef = useRef(false)
+  // the switch's other widgets one frame later (useStaggeredMount's switch lanes). It keeps the TARGET board: a render
+  // uses the lanes only while the layout it renders IS that board, so a switch React bails out of (to X and back in one
+  // batch) never leaves them on for a later render (review of the warm admission, finding 5). Cleared once committed.
+  const userSwitchRef = useRef(null)
   const switchLayout = useCallback((next, { user = false } = {}) => {
     const grid = bodyRef.current?.querySelector?.('.react-grid-layout')
     if (grid && next !== layoutRef.current) switchMarkRef.current.mark(grid)
-    if (user && next !== layoutRef.current) userSwitchRef.current = true
+    if (user && next !== layoutRef.current) userSwitchRef.current = next
     setLayout(next)
   }, [])
-  useLayoutEffect(() => { switchMarkRef.current.committed(); userSwitchRef.current = false }, [layout])
+  useLayoutEffect(() => { switchMarkRef.current.committed(); userSwitchRef.current = null }, [layout])
 
   // TERM-001 — THE ONE GROWTH GATE. Every path that puts a NEW widget on the board (the
   // WIDGETS menu, the float-on-create submenu, ?ensure= seeding, a confirmed ghost) asks this
@@ -1205,17 +1208,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // switch's own commit, together (nothing to fetch, so no herd); its other widgets one frame later. Cold charts, first
   // loads and reverts keep the paced admission below. The store answers through its registered reader, no import edge
   // (data/barStore/prefetch STORE_HOLDS_KEY): no reader yet (no chart loaded on this page) reads as cold.
-  const userSwitchRender = userSwitchRef.current
+  const userSwitchRender = userSwitchRenders(userSwitchRef.current, layout)
   const warmChartNow = (id) => {
     const holds = typeof globalThis !== 'undefined' ? globalThis.__uctStoreHoldsBars : null
     if (typeof holds !== 'function') return false
     const w = layout.widgets.find(x => x.id === id)
     if (!w) return false
-    const tab = resolveActiveTab(w)
-    if (tab.type !== 'chart') return false
-    const sym = groupSymsStore.get()?.[tab.color]
-    if (!sym) return false
-    try { return !!holds(sym, String(tab.opts?.tf || 'D')) } catch { return false }
+    // the key the chart will show, by ChartWidget's own rules (chartWarmKey.js): active chart tab, its colour, its
+    // extended-hours view; unlinked or suspended reads as cold
+    const k = chartWarmKey(resolveActiveTab(w), groupSymsStore.get(), parsePref(prefs?.chart_settings, null), extraGroupsOn)
+    if (!k) return false
+    try { return !!holds(k.sym, k.tf, { showExtended: k.showExtended }) } catch { return false }
   }
   const nonChartSoon = (id) => {
     const w = layout.widgets.find(x => x.id === id)

@@ -15,8 +15,10 @@
 // ⚡ (2026-11-26, the board switch; owner: "never a lone chart") TWO SWITCH LANES, both opt-in per render:
 //  · `admitNowFor(id)`: a new id it answers true for is mounted in THIS render, so in the switch's own commit, beside
 //    every other such id, outside the limit and the pacing (the board passes it only on a member's switch, for charts
-//    whose bars are already held: nothing to fetch, so no herd). The admission is recorded after the commit and holds a
-//    slot until released, as any admission does.
+//    whose bars are already held: no history to fetch, so no herd; their small freshness reads go out together). The
+//    admission is recorded after the commit and holds NO slot (it was admitted outside the limit): a warm chart reports
+//    ready in its own mount effect, which runs before this board's, and a slot it held would wait for the 5 s timer and
+//    keep a mixed board's cold charts out (review of the warm admission, finding 1).
 //  · `nextFrameFor(id)`: a new id it answers true for is admitted one animation frame after the switch instead of
 //    waiting its turn in the paced queue (the board: a switch's non-chart widgets).
 // Everything else (cold charts, first loads, the board's own reverts) queues exactly as before.
@@ -121,8 +123,8 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // The ids admitted at once (the switch lane) are recorded after the commit that mounted them, each holding a slot until
-  // released like any admission. Declared before the reconcile below, which then finds them mounted, not new.
+  // The ids admitted at once (the switch lane) are recorded after the commit that mounted them, as mounted only: they
+  // hold no slot (see the header). Declared before the reconcile below, which then finds them mounted, not new.
   useEffect(() => {
     const sticky = stickyNowRef.current
     if (!sticky.size) return
@@ -131,8 +133,6 @@ export default function useStaggeredMount(ids, { limit = 3, slotTimeoutMs = 5000
     for (const id of sticky) {
       if (!idsNow.has(id) || mountedRef.current.has(id)) continue
       mountedRef.current.add(id)
-      pendingRef.current.add(id)
-      armTimer(id)
       changed = true
     }
     sticky.clear()
