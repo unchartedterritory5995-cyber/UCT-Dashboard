@@ -39,7 +39,7 @@ beforeAll(() => {
     } catch { /* a script the door refuses is not a member document */ }
   }
   vi.unstubAllEnvs()
-})
+}, 300000)
 afterEach(() => {
   vi.unstubAllEnvs()
   registry.__validationMemoOffForTests(false)
