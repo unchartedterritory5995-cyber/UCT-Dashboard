@@ -13,6 +13,7 @@ import { useWatchlistLibrary, countOf, readLastList, rememberList, flaggedPick }
 import UIcon from '../../../components/ui/UIcon'
 import railStyles from './LibraryRail.module.css'
 import { useUctControlsSlot } from '../uctHeaderSlot'
+import { WidgetDoorContext } from '../widgetDoors'
 
 // Default column layout for a prebuilt (curated UCT) list. Prebuilt lists ALWAYS open in
 // their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
@@ -33,6 +34,19 @@ const PREBUILT_COL_FALLBACK = { order: ['flag', 'sym', 'chg', 'price', 'dolvol']
 // COV-10 — the picker sits under the subscribe offer in a column; the picker keeps the rest.
 // Below this width the library rail slides over the list instead of sitting beside it.
 const RAIL_SIDE_MIN_W = 520
+// ⚡ (2026-11-26, the board switch) THE RAIL NEVER MOUNTS IN A PANE TOO NARROW FOR IT. `narrow` started false, so every
+// mount on a board rendered the side rail (175 elements on the owner's TEST board) and took it away again once the
+// pane's ResizeObserver reported it narrow: a wasted mount and removal on every board switch. Now the width is known
+// before the rail can mount: what THIS widget (its WidgetDoorContext id) measured last time, else a measure in a layout
+// effect before the first paint, with no side rail until then. Bounded; a forgotten widget measures once again.
+const _lastNarrow = new Map()
+const LAST_NARROW_MAX = 64
+function rememberNarrow(key, n) {
+  if (key == null) return
+  _lastNarrow.delete(key)
+  _lastNarrow.set(key, n)
+  if (_lastNarrow.size > LAST_NARROW_MAX) _lastNarrow.delete(_lastNarrow.keys().next().value)
+}
 
 const OFFER_WRAP = { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }
 const OFFER_BODY = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }
@@ -72,7 +86,12 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // hid it — opts.libraryRail === false), sliding over the list on a narrow one (closed until
   // asked, and closing again after a pick).
   const [splitEl, setSplitEl] = useState(null)
-  const [narrow, setNarrow] = useState(false)
+  const doorKey = useContext(WidgetDoorContext)
+  // null: not measured yet (no side rail until it is, see RAIL_SIDE_MIN_W)
+  const [narrow, setNarrow] = useState(() => (doorKey != null && _lastNarrow.has(doorKey) ? _lastNarrow.get(doorKey) : null))
+  const narrowRef = useRef(narrow)
+  narrowRef.current = narrow
+  useEffect(() => { if (narrow !== null) rememberNarrow(doorKey, narrow) }, [doorKey, narrow])
   const [overlayOpen, setOverlayOpen] = useState(false)
   // Closing plays the opening slide in reverse (owner 11-13), then the rail unmounts.
   const [railClosing, setRailClosing] = useState(false)
@@ -80,7 +99,10 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   useEffect(() => () => clearTimeout(closeTimerRef.current), [])
   useLayoutEffect(() => {
     const view = splitEl?.ownerDocument?.defaultView
-    if (!splitEl || !view?.ResizeObserver) return undefined
+    if (!splitEl) return undefined
+    // not known yet: measured now, before the first paint (the ResizeObserver reports only after layout, a frame later)
+    if (narrowRef.current === null) setNarrow(splitEl.clientWidth < RAIL_SIDE_MIN_W)
+    if (!view?.ResizeObserver) return undefined
     const ro = new view.ResizeObserver(() => setNarrow(splitEl.clientWidth < RAIL_SIDE_MIN_W))
     ro.observe(splitEl)
     return () => ro.disconnect()
@@ -259,7 +281,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   // ── Library rail (UCT frame only) ──
   // the saved-screen offer, now the last row of the library's My Lists (owner 11-15)
   const screenOffer = subOn && !opts?.source ? <ScreenSourceOffer onSubscribe={subscribe} /> : null
-  const railShown = uctFrame && (narrow ? (overlayOpen || freshOpen || railClosing) : opts?.libraryRail !== false)
+  const railShown = uctFrame && narrow !== null && (narrow ? (overlayOpen || freshOpen || railClosing) : opts?.libraryRail !== false)
   const RAIL_OUT_MS = 170
   const closeOverlay = (after) => {
     if (railClosing) return
