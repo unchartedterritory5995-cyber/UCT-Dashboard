@@ -1956,6 +1956,20 @@ export function runtimeIrOptions(def, rows, ctx, { sessionKey = null, slides = f
   }
 }
 
+// ⛔⛔ (e102, coordinator ruling 2026-11-27) THE OFF-LISTING CURTAIN RELEASES NOTHING, until it is PROVED exact.
+// MEASURED (`vendorHarness/curtainCensus.*.measure.test.js`, every corpus script the member door puts on the runtime lane,
+// its off-listing run held to a run from an earlier start on SPY 1D, AAPL 1D, JPM 1D, SPY 60, SPY 1W and NVDA 1W): two
+// starts agreeing is not a proof. order-block-finder's `var latest_bull_high = 0.0`, written only when an order block
+// forms, held its INITIAL value in both runs and was released as 0 where a run from an earlier start holds 5.7; the census
+// found such releases on every daily chart (plots, colours and drawings). So a listing document on a chart whose history
+// does not start at the listing is refused by name again (R-W, as before UIE phase 2), never drawn from two starts.
+// The curtain's code is kept for its re-enable (a provable reach/state bound, wrong == 0 on every census series); the
+// rails that test it turn it on themselves (`setOffListingCurtainEnabled(true)`); `runtimeCurtainOff.rail.test.js`
+// holds this switch off.
+let _offListingCurtainOn = false
+/** Tests, and the re-enable once proved: does an off-listing listing document run the curtain (`computeOffListing`)? */
+export function setOffListingCurtainEnabled(on) { _offListingCurtainOn = on !== false }
+
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
   const outputs = compute.outputs || {}
@@ -1968,7 +1982,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
     // the bars whose values do not depend on where the chart starts are drawn; the
     // ones before them are withheld; a script that never forgets its start is refused.
-    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    // ⛔⛔ (e102) OFF until proved exact: refused by name below (`_offListingCurtainOn`)
+    if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
     throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
       + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
