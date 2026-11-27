@@ -2919,6 +2919,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // active ref is ignored (just saves the working board).
   const crossWriteWarnedRef = useRef(false)
   const handleSaveLayout = useCallback(async () => {
+    // the origin of THIS render's board, read before the first await: the flush a switch runs (applyTemplate) calls
+    // this before the switch replaces the board and its origin, and its `layout` and pointer are the leaving board's
+    const origin = boardOriginRef.current
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
     // ⛔ REVISION SAFETY: the named layout is written ONLY after the board itself was accepted.
     // A board the server refused as stale (another tab or device changed it) must never be
@@ -2934,7 +2937,6 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     const active = parsePref(prefs?.charts_active_template, null)
     // ⛔ the board on screen is written only into the layout it was opened from (boardOriginRef): a pointer that
     // names another layout (a stale read put it back) gets nothing, and the next save, once they agree, writes it
-    const origin = boardOriginRef.current
     if (active?.id != null && origin !== undefined && String(origin) !== String(active.id)) {
       if (!crossWriteWarnedRef.current) {
         crossWriteWarnedRef.current = true
