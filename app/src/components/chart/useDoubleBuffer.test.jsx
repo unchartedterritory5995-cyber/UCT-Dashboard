@@ -20,6 +20,7 @@
 //   H15 (review of #2932) a hidden chart of the same width, more than half a bar off its own pin, is re-pinned
 //   H16 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock): the hidden chart is given the front's lock at the frame
 //      the lock gives it, and then a press flips
+//   H17 (N4) the mirror writes the pane's shared lock key only with the lock the front STILL holds at the write
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -306,6 +307,21 @@ describe('useDoubleBuffer', () => {
     press(h, 'CCC', { cutoff: c })
     expect(h.result.current.front).toBe(1)
     expect(db.doubleBufferStats().why.cutoff).toBe(1)
+  })
+
+  it('H17 (N4) the mirror writes only the lock the front still holds at the write (the pane key both layers share)', async () => {
+    const h = await ready()
+    await idle()
+    const lockA = { anchorFrac: 0.95, width: 3000, tf: 'D', top: null, bottom: null }
+    const mA = { ...meta(160), frame: { fromRight: 2850, toRight: -150, locked: true, lock: lockA }, rows: 6000 }
+    const mB = { ...meta(160), frame: { fromRight: 2700, toRight: -300, locked: true, lock: { ...lockA, anchorFrac: 0.9 } }, rows: 6000 }
+    let n = 0
+    panes[0].getDateMeta = () => (n++ === 0 ? mA : mB)   // the member moved the lock between the mirror's read and its write
+    const spy = vi.spyOn(panes[1], 'viewDo')
+    act(() => { h.result.current.viewChanged(0) })
+    await idle()
+    expect(n).toBeGreaterThanOrEqual(2)
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('H16 (owner, 2026-11-27) zoomed out 2014-2026: the hidden chart is given the front lock at its frame; then a press flips', async () => {
