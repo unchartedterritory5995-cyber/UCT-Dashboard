@@ -11,6 +11,8 @@
 //   4. a run RESUMED from a checkpoint has a full run's ceiling (the bars it covers, not the bars it executes);
 //   5. a stop names the ceiling that applied and the bars it was set for.
 // A caller that NAMES the ceiling (a measurement, the acceptance rail's lowered ceilings) gets exactly that number.
+// ⭐⭐ (e100, coordinator ruling 2026-11-26) THE RATE IS 2,500 A BAR (machine-learning-moving-average-backquant makes
+// 788 a bar over JPM 1D's 14,546 bars), so the floor holds up to 800 bars; the rails below read that.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -55,12 +57,12 @@ const doc = (source) => ({ id: 'u_aopb', compute: { kind: 'runtime', fn: 'runtim
 const dctx = (forming = false) => ({ tf: 'D', newestBarIsForming: forming, historyFromListing: true, symbol: { ticker: 'SPY', exchange: 'AMEX' } })
 
 describe('the array-operation ceiling scales with the bars a run covers', () => {
-  it('the ceiling: the 2,000,000 floor up to 4,000 bars, 500 a bar above it', () => {
-    expect(ARRAY_OPERATIONS_PER_BAR).toBe(500)
-    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 3999)).toBe(2000000)
-    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 4000)).toBe(2000000)
-    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 11520)).toBe(5760000)
-    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 32768)).toBe(16384000)
+  it('the ceiling: the 2,000,000 floor up to 800 bars, 2,500 a bar above it', () => {
+    expect(ARRAY_OPERATIONS_PER_BAR).toBe(2500)
+    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 799)).toBe(2000000)
+    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 800)).toBe(2000000)
+    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 11520)).toBe(28800000)
+    expect(arrayOperationsCeiling(DEFAULT_LIMITS.ARRAY_OPERATIONS, 32768)).toBe(81920000)
   })
 
   it("1. Fred RS's run half over 11,520 5m extended-hours bars is drawn, past the old 2,000,000", () => {
@@ -119,15 +121,15 @@ describe('the array-operation ceiling scales with the bars a run covers', () => 
   })
 
   it('3. below the floor a script stops on the same bar, with the same numbers and sentence, as under the old fixed ceiling', () => {
-    const src = perBar(600)
-    const now = vmRun(src, 3999)
-    const before = vmRun(src, 3999, { ARRAY_OPERATIONS: 2000000 })   // named: exactly the old fixed ceiling
+    const src = perBar(3000)
+    const now = vmRun(src, 799)
+    const before = vmRun(src, 799, { ARRAY_OPERATIONS: 2000000 })   // named: exactly the old fixed ceiling
     expect(now.err).toBeInstanceOf(RuntimeLimitError)
     expect([now.err.limit, now.err.ceiling, now.err.reached, now.stoppedOn]).toEqual([before.err.limit, before.err.ceiling, before.err.reached, before.stoppedOn])
     expect(now.err.ceiling).toBe(2000000)
     expect(now.err.coveredBars, 'the floor names no bars').toBeUndefined()
     // and through the product: the same member sentence
-    const bars = daily(3999)
+    const bars = daily(799)
     let a = null
     let b = null
     try { computeRuntimeColumns(doc(src), bars, dctx(), { now: () => 0 }) } catch (e) { a = e.message }
@@ -137,7 +139,7 @@ describe('the array-operation ceiling scales with the bars a run covers', () => 
   })
 
   it('4. a run resumed from a checkpoint has a full run\'s ceiling: the bars it covers, not the bars it executes', () => {
-    const src = perBar(450)    // 2.7 M over 6,000 bars: past the floor, under 3 M
+    const src = perBar(450)    // 2.7 M over 6,000 bars: past the 2 M floor, under the 15 M ceiling
     const bars = daily(6000)
     const cold = computeRuntimeColumns(doc(src), bars, dctx(true), { now: () => 0 })
     expect(runtimeIncrementalOf(cold).resumedFrom).toBe(null)
@@ -151,7 +153,7 @@ describe('the array-operation ceiling scales with the bars a run covers', () => 
 
   it('5. a stop names the ceiling that applied and the bars it was set for', () => {
     let msg = null
-    try { computeRuntimeColumns(doc(perBar(700)), daily(8000), dctx(), { now: () => 0 }) } catch (e) { msg = e.message }
-    expect(msg).toMatch(/array operations a script may make over the whole chart \(at most 4,000,000 for 8,000 bars, it reached 4,000,\d{3}\) on bar 5,71\d of 8,000/)
+    try { computeRuntimeColumns(doc(perBar(3000)), daily(8000), dctx(), { now: () => 0 }) } catch (e) { msg = e.message }
+    expect(msg).toMatch(/array operations a script may make over the whole chart \(at most 20,000,000 for 8,000 bars, it reached 20,00\d,\d{3}\) on bar 6,66\d of 8,000/)
   })
 })

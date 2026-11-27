@@ -130,6 +130,9 @@ export const DEFAULT_LIMITS = Object.freeze({
   // that runs away inside one bar (a bound it never reaches, `by 0`) meets 200,000
   // instructions on that bar and stops by name there. Nesting is `LOOP_NESTING`, one
   // `while` entry is `WHILE_ITERATIONS`, time is `WALL_TIME` and the pane budget.
+  // ⭐⭐ (e100, coordinator ruling 2026-11-26) NOW THE FLOOR OF A CEILING THAT SCALES WITH THE BARS A RUN COVERS
+  // (`LOOP_ITERATIONS_PER_BAR`): the "NOT RAISED" reasoning above leaned on the 1,000 ms pane clock, which is no
+  // member's clock above 5,000 bars since the worker's budget scales (`runtimePaneBudgetFor`).
   LOOP_ITERATIONS: 5000000,
   // ⛔⛔ AN ENGINE LIMIT, NOT A PINE CLAIM. TradingView stops a runaway loop on
   // ELAPSED TIME, and no capture or document in this repo pins that limit, so no
@@ -154,6 +157,8 @@ export const DEFAULT_LIMITS = Object.freeze({
   // script but delta-rsi at 32,000. NOT RAISED: the 1,000 ms pane budget stops delta-rsi
   // at ~bar 610 long before this count, so a raise moves no member's chart. A loop of
   // calls that runs away is bounded here at the same ~100 M instructions as LOOP_ITERATIONS.
+  // ⭐⭐ (e100) NOW THE FLOOR OF A CEILING THAT SCALES WITH THE BARS A RUN COVERS (`CALL_COUNT_PER_BAR`), for the
+  // same reason as `LOOP_ITERATIONS`.
   CALL_COUNT: 5000000,
   ARRAY_ELEMENTS: 100000,
   // ⭐ MEASURED 2026-11-09 with CALL_COUNT (same sweep): counted on every array WRITE
@@ -182,6 +187,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // `HISTORY` ceiling since UIE Phase 3: 1,638,400)
   // calls and is an honest dashboard; 2,000,000 admits it and still bounds a runaway
   // well inside `TOTAL_INSTRUCTIONS`.
+  // ⭐⭐ (e100) NOW THE FLOOR OF A CEILING THAT SCALES WITH THE BARS A RUN COVERS (`OBJECT_OPERATIONS_PER_BAR`).
   OBJECT_OPERATIONS: 2000000,
   // ⛔⛔ OWNER RULING D5 (2026-10-02, `docs/pine/runtime-pane-switch-on-plan.md`) kept 20,000.
   // ⭐⭐ UIE PHASE 3 (M2, 2026-10-11) — REVISITED, AS THE OWNER AUTHORIZED FOR THIS MILESTONE,
@@ -206,6 +212,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   // runaway long before it can matter.
   HISTORY_SLOTS: 512,
   HISTORY_VALUES: 262144,
+  // ⭐⭐ (e100) NOW THE FLOOR OF A CEILING THAT SCALES WITH THE BARS A RUN COVERS (`WINDOW_CELLS_PER_BAR`).
   WINDOW_CELLS: 100000000,
   // ⚠️ MEASURED, and deliberately small. Every member of `CARRIED` holds THREE
   // scalars, so 4,096 instances is 12,288 doubles — 98 KB — which is already far
@@ -245,8 +252,14 @@ export const DEFAULT_LIMITS = Object.freeze({
  *  a few bars of the floor's stop. The time it takes is bounded by the pane budget and `WALL_TIME`, its memory by
  *  `ARRAY_ELEMENTS` and `MEMORY`, one bar by `INSTRUCTIONS_PER_BAR`: none of those changed.
  *    ⛔ THE BARS THE RUN COVERS (`ctx.bars`), set once by the top-level `execute`, never the bars it executes: a
- *  run resumed from a checkpoint has a full run's ceiling, and a request's sub-run shares its caller's. */
-export const ARRAY_OPERATIONS_PER_BAR = 500
+ *  run resumed from a checkpoint has a full run's ceiling, and a request's sub-run shares its caller's.
+ *    ⭐⭐ (e100, coordinator ruling 2026-11-26) RAISED 500 -> 2,500, MEASURED FIRST (deep daily census, every whole-run
+ *  count lifted: SPY 1D 8,509 / JPM 1D 14,546 bars): machine-learning-moving-average-backquant makes 669 a bar on 2,000
+ *  bars and 788 on 14,546 (stopped here at SPY bar 5,602 / JPM 9,357), delta-rsi 459 constant, bollinger-band-width-
+ *  percentile 303. 2,500 is ~3x the heaviest and 1/40 of `TOTAL_INSTRUCTIONS_PER_BAR`, the ratio the loop and call
+ *  counts keep; below 800 bars the floor is unchanged. TradingView counts no array operation (only 100,000 elements a
+ *  collection, `ARRAY_ELEMENTS`). A runaway of thousands of element operations a bar still stops BY NAME here. */
+export const ARRAY_OPERATIONS_PER_BAR = 2500
 /** The array-operation ceiling of a run over `bars` bars, `floor` the per-chart number (`ARRAY_OPERATIONS`). */
 export function arrayOperationsCeiling(floor, bars) {
   return scaledCeiling('ARRAY_OPERATIONS', floor, bars)
@@ -263,12 +276,55 @@ export function arrayOperationsCeiling(floor, bars) {
  *    WHAT IT STILL BOUNDS: a loop that runs away inside one bar meets `INSTRUCTIONS_PER_BAR` (200,000) on that bar,
  *  unchanged; a script that spends 200,000 a bar on every bar still stops BY NAME, here, at about bar
  *  `30,000 × bars / 200,000` (bar ~1,276 of 8,509). The time any run takes is still bounded by the pane's budget and
- *  `WALL_TIME`, neither of which changed. ⛔ THE BARS THE RUN COVERS (`Budget.coverBars`), as for array operations. */
-export const TOTAL_INSTRUCTIONS_PER_BAR = 30000
+ *  `WALL_TIME`, neither of which changed. ⛔ THE BARS THE RUN COVERS (`Budget.coverBars`), as for array operations.
+ *    ⭐⭐ (e100, coordinator ruling 2026-11-26) RAISED 30,000 -> 100,000, MEASURED FIRST: 30,000 was itself tighter
+ *  than an honest script. delta-rsi-oscillator-strategy takes a CONSTANT 44,471 a bar (its own 21x3 least-squares
+ *  solve, rebuilt every bar, as in Pine) and would have stopped here at SPY bar 5,740 / JPM 9,811, where TradingView
+ *  draws it. 100,000 is ~2.2x it and HALF of `INSTRUCTIONS_PER_BAR`, so a script that spends 200,000 on every bar
+ *  still stops BY NAME, here, at about bar `bars / 2` (and one bar's runaway on that bar, unchanged). Floor below
+ *  2,000 bars. On a member's chart the worker's clock (`runtimePaneBudgetFor`, at most 12,000 ms) is met long before
+ *  100,000 x 32,768 instructions. */
+export const TOTAL_INSTRUCTIONS_PER_BAR = 100000
+/** ⭐⭐ (e100, coordinator ruling 2026-11-26) — THE LOOP PASSES A RUN MAY MAKE PER BAR IT COVERS: `max(5,000,000, 2,500
+ *  x bars)`, the floor below 2,000 bars. A whole-chart count was crossed by honest scripts through chart LENGTH alone:
+ *  kernel-channel-backquant makes a CONSTANT 403 a bar (stopped at JPM bar ~12,400 once instructions scaled),
+ *  delta-rsi-oscillator-strategy 1,163 (stopped at ~4,299). Every other committed runtime script makes <=130.
+ *  TradingView counts no loop pass: "The execution time for any loop on any single bar is limited to 500
+ *  milliseconds" (https://www.tradingview.com/pine-script-docs/writing/limitations/), and a per-plan time per run.
+ *    WHY 2,500: ~2.1x delta-rsi, and 1/40 of `TOTAL_INSTRUCTIONS_PER_BAR` as 5 M was of 200 M, so this stays the
+ *  ceiling a loop meets first (the smallest body is ~21 instructions a pass).
+ *    WHAT IT STILL BOUNDS: a loop that runs away within one bar meets `INSTRUCTIONS_PER_BAR` / `WHILE_ITERATIONS` on
+ *  that bar, unchanged; a run that makes more than 2,500 passes on every bar stops BY NAME, here, deterministically.
+ *  It protects TIME only (a pass allocates nothing that `MEMORY`, `ARRAY_ELEMENTS` or `HISTORY_*` do not bound). */
+export const LOOP_ITERATIONS_PER_BAR = 2500
+/** ⭐⭐ (e100) — THE USER-FUNCTION CALLS A RUN MAY MAKE PER BAR IT COVERS: `max(5,000,000, 2,500 x bars)`. delta-rsi
+ *  makes a CONSTANT 1,201 a bar (its matrix helpers, as in Pine; stopped at bar 4,164 of SPY 1D and of JPM 1D),
+ *  kernel-channel 304 (the 5 M floor would stop it at bar 16,447 of a 32k-bar chart); every other committed runtime
+ *  script <=42. Same rate and ratio as `LOOP_ITERATIONS_PER_BAR`; `CALL_DEPTH` bounds recursion, unchanged. TIME only:
+ *  a frame is reused, not allocated. TradingView counts no call. */
+export const CALL_COUNT_PER_BAR = 2500
+/** ⭐⭐ (e100) — THE DRAWING CALLS A RUN MAY MAKE PER BAR IT COVERS: `max(2,000,000, 5,000 x bars)`, the floor below
+ *  400 bars. TradingView limits drawings by COUNT (`max_lines_count` etc., at most 500 a family; that is
+ *  `LIVE_OBJECTS` here), never by operations. trendline-pivots-quantvue walks an array of every pivot line it has
+ *  drawn on every bar, so its demand GROWS with the chart: 366 a bar over 2,000 bars, 1,564 over 8,509 (stopped here
+ *  at SPY bar 3,166), 2,608 over 14,546 (stopped at JPM 3,405). 5,000 admits it over JPM's 14,546 bars (1.9x) and meets
+ *  it only near 27,000 bars, past where the worker's clock stops it (~13,000 on a CI runner). TIME only: what a
+ *  drawing holds is `LIVE_OBJECTS` and `MEMORY`, unchanged. */
+export const OBJECT_OPERATIONS_PER_BAR = 5000
+/** ⭐⭐ (e100) — THE WINDOW CELLS A RUN MAY READ PER BAR IT COVERS: `max(100,000,000, 25,000 x bars)`, the floor
+ *  below 4,000 bars. machine-learning-moving-average-backquant reads a CONSTANT 5,500 a bar (the 100 M floor would
+ *  stop it at bar 18,181 of a 32k-bar chart); linear-regression-channel 700. 25,000 admits five windows at
+ *  TradingView's 5,000-bar `max_bars_back` on every bar. TIME only: a window's ring is sized statically and bounded
+ *  by `HISTORY_VALUES`. `CARRIED_STEPS` stays a fixed count: its heaviest is 16 a bar (6 M bars to reach it). */
+export const WINDOW_CELLS_PER_BAR = 25000
 /** ⭐ THE ONE TABLE of the ceilings that scale with the bars a run covers, and each one's per-bar rate. */
 export const PER_BAR_LIMITS = Object.freeze({
   ARRAY_OPERATIONS: ARRAY_OPERATIONS_PER_BAR,
   TOTAL_INSTRUCTIONS: TOTAL_INSTRUCTIONS_PER_BAR,
+  LOOP_ITERATIONS: LOOP_ITERATIONS_PER_BAR,
+  CALL_COUNT: CALL_COUNT_PER_BAR,
+  OBJECT_OPERATIONS: OBJECT_OPERATIONS_PER_BAR,
+  WINDOW_CELLS: WINDOW_CELLS_PER_BAR,
 })
 /** The ceiling of `limit` for a run over `bars` bars: `max(floor, rate × bars)`, or `floor` for a limit that does
  *  not scale or a bar count that is not a positive whole number. */
