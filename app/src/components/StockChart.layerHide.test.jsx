@@ -236,7 +236,7 @@ describe('StockChart on a layer keep-alive board', () => {
     view.unmount()
   })
 
-  it('S9 (red first) a pass on a hidden layer is no group member's paint; on a shown one it is', async () => {
+  it("S9 (red first) a pass on a hidden layer is no group member's paint; on a shown one it is", async () => {
     const { PaintMemberContext, onChartPaint } = await import('./chart/paintLog')
     const seen = []
     onChartPaint((member, sym, bars, mode) => { seen.push({ member, sym, mode }) })

@@ -7,7 +7,7 @@
 //   W3 STALE REFUSED: the row's base snapshot moved after the shadow was set: the front pane switches as before
 //   W4 FALLBACK: a press to another row switches the front pane, exactly as before
 import { render, screen, act } from '@testing-library/react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
@@ -62,6 +62,7 @@ vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false
 
 
 import ChartWidget from './ChartWidget'
+import { createGroupSymsStore } from '../groupSymsStore'
 import * as nf from '../../../components/chart/neighborFrames'
 import * as dbm from '../../../components/chart/doubleBuffer'
 import { __setDoubleBufferSnapSourceForTests } from '../../../components/chart/useDoubleBuffer'
@@ -73,18 +74,18 @@ const snapOf = (sym) => { if (!snaps.has(sym)) snaps.set(sym, Object.freeze({ sy
 
 let setGroup = null
 function Wrap({ initial = 'AAA', scoped = true }) {
+  const [store] = useState(() => createGroupSymsStore({ A: initial, B: null, C: null, D: null }))
   const [groupSyms, setGroupSyms] = useState({ A: initial, B: null, C: null, D: null })
-  const [store] = useState(() => ({}))
-  setGroup = (s) => setGroupSyms(p => ({ ...p, A: s }))
-  const value = {
-    groupSyms,
+  setGroup = scoped ? (s) => store.set((p) => ({ ...p, A: s })) : (s) => setGroupSyms((p) => ({ ...p, A: s }))
+  const value = useMemo(() => ({
+    groupSyms: scoped ? store.get() : groupSyms,
     groupSymsStore: scoped ? store : undefined,
-    setGroupSym: (c, s) => setGroupSyms(p => ({ ...p, [c]: s })),
+    setGroupSym: scoped ? (c, s) => store.set((p) => ({ ...p, [c]: s })) : (c, s) => setGroupSyms((p) => ({ ...p, [c]: s })),
     chartsTheme: 'default',
     crosshairBus: { emit: () => {}, subscribe: () => () => {} },
     aiSearchBus: { subscribe: () => () => {}, request: () => false },
     activeChartRef: { current: null },
-  }
+  }), [scoped, store, groupSyms])
   return (
     <MemoryRouter>
       <WorkspaceContext.Provider value={value}>
