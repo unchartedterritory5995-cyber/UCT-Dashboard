@@ -104,6 +104,8 @@ export const DEEP_PRIME_TTL_MS = 120_000
 export const DEEP_PRIME_MAX = 4
 /** The newest rows the origin answers for a daily view's cover whose deep history the edge brings (`_tailJob`). */
 export const EDGE_TAIL_BARS = 30
+/** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */
+export const EDGE_FALLBACK_MS = 600
 
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
@@ -322,8 +324,14 @@ export function createNetwork({
     // is asked, the history is due and will be joined (more is wanted than the tail page), the origin answers only the
     // newest EDGE_TAIL_BARS rows: a few ms of server work. The display waits for the join (the daily hold), which brings
     // every covering row in the same frame. A history that fails turns the split off: the full depth from /api/bars.
-    if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && api.deepPending(r.key)) {
+    // ⛔ (review of #2938, T1) ...BUT NEVER A HOLD ON A COLD EDGE. The history URL carries the sealed date, so a name's
+    // first view per POP per trading day is an edge MISS the origin builds (seconds); a 30-row tail then left the hold to
+    // the hang guard, which painted 30 bars and filled: the two-phase paint again. So the ask arms a fallback: still
+    // unlanded EDGE_FALLBACK_MS later, the origin is asked the view's cover as well, and whichever covers the view first
+    // is what the hold commits on (the join then lands behind the left edge).
+    if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
+      _armEdgeFallback(r)
     }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
@@ -413,7 +421,23 @@ export function createNetwork({
   }
 
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
+  /** (review of #2938, T1) The cover's fallback: the origin is asked the view's cover when the edge history has not landed. */
+  function _armEdgeFallback(r) {
+    if (r.edgeTimer != null) return
+    r.edgeTimer = setTimer(() => {
+      r.edgeTimer = null
+      if (keys.get(r.key) !== r || !api.deepPending(r.key)) return   // gone, or the history joined in time
+      r.edgeFallback = true
+      _queueTail(r, r.priority)
+      _drain(r)
+    }, EDGE_FALLBACK_MS)
+  }
+
+  /** History answers slower than EDGE_FALLBACK_MS (most likely an edge MISS), newest last: `{ key, ms }`. */
+  const slowHistory = []
+
   function _historyJob(r) {
+    const askedAt = now()
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -450,6 +474,13 @@ export function createNetwork({
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
       if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // (review of #2938, T1) a slow history names itself: the edge MISS rate is what the fallback above pays for
+      const ms = now() - askedAt
+      if (ms > EDGE_FALLBACK_MS && !res?.aborted) {
+        slowHistory.push({ key: r.key, ms: Math.round(ms) })
+        if (slowHistory.length > 50) slowHistory.shift()
+        try { console.info(`[bars-history] slow ${r.key} ${Math.round(ms)} ms`) } catch { /* diagnostics only */ }
+      }
       return res
     })
   }
@@ -718,6 +749,8 @@ export function createNetwork({
   const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
 
   const api = {
+    /** (review of #2938, T1) the slow history answers of this page (diagnostics; the rig reads it). */
+    slowHistory: () => slowHistory.slice(),
     /** Start (refcount) the loop for `key`. First start requests immediately. */
     start(key, { session = 'rth', priority = 'visible', depth = 0 } = {}) {
       const r = _rec(key)

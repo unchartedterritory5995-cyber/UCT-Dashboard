@@ -11,7 +11,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
 
-from fastapi import APIRouter, Cookie, Query
+from fastapi import APIRouter, Cookie, Query, Response
 
 from api.middleware.auth_middleware import PAID_PLANS, meets_plan_gate
 from api.services.auth_service import get_user_plan, validate_session
@@ -291,6 +291,7 @@ def ticker_search(
     limit: int = Query(20, ge=1, le=50),
     type: str = Query("", max_length=16),
     uct_session: Optional[str] = Cookie(None),
+    response: Response = None,
 ):
     """Predictive symbol search ranked across ticker AND name: exact symbol > symbol
     prefix > symbol contains > name contains. So "AAPL" returns AAPL then AAPU/AAPD/…
@@ -309,6 +310,13 @@ def ticker_search(
     scope) and while the rich index is still building. Purely additive — a
     client that ignores this field behaves exactly as before.
     """
+    # (review of #2938) the universe the browser holds is checked against this list on every search: a different
+    # version makes it fetch the new one (lib/tickerUniverse noteTickerUniverseVersion). In-process callers pass none.
+    if isinstance(response, Response):
+        try:
+            response.headers["X-Ticker-Universe"] = _universe_version()
+        except Exception:  # noqa: BLE001
+            pass
     qq = (q or "").strip().upper()
     if not qq:
         return {"results": []}

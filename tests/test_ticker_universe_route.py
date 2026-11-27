@@ -41,3 +41,17 @@ def test_the_version_names_the_list():
     finally:
         ticker_search._UNIVERSE.remove("ZZZZTEST")
         ticker_search._UNIVERSE_VERSION = saved
+
+
+def test_every_search_names_the_universe_version_so_a_browser_copy_can_refresh():
+    c = _client()
+    v = c.get("/api/ticker-universe").json()["v"]
+    r = c.get("/api/ticker-search?q=AAPL&limit=3")
+    assert r.status_code == 200
+    assert r.headers.get("x-ticker-universe") == v
+
+
+def test_an_in_process_call_still_works_without_a_response():
+    out = ticker_search.ticker_search(q="AAPL", limit=3, type="", uct_session=None)
+    assert "results" in out
+

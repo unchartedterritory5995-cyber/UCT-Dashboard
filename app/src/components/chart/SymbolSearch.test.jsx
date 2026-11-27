@@ -5,7 +5,7 @@
 // empty-symbol state (the actual bug) and the normal ticker-chosen state.
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { test, expect, vi, beforeEach } from 'vitest'
-import SymbolSearch from './SymbolSearch'
+import SymbolSearch, { EXACT_PREFIX_SETTLE_MS } from './SymbolSearch'
 
 // The open dialog fires a `/api/breadth-symbols` prefetch regardless of query;
 // stub it so opening the picker in the tests below never touches a real network.
@@ -228,7 +228,7 @@ test('typing GOOGL at a typist pace (~70 ms/key) reports ONE intent, for GOOGL �
 // ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") THE UNIVERSE AT THE KEYSTROKE (lib/tickerUniverse): the
 // ticker typed to its last key is told at once, a prefix with ONE completion names that completion at once, and a prefix
 // that is itself a ticker (GOOG on the way to GOOGL) is told too. Text the universe does not know waits for the pause.
-const UNIVERSE = ['CRBG', 'CRBN', 'GOOG', 'GOOGL', 'NVDA', 'NVO']
+const UNIVERSE = ['A', 'AM', 'AMZN', 'CRBG', 'CRBN', 'GOOG', 'GOOGL', 'NVDA', 'NVO']
 const universeFetch = () => vi.fn(async (url) => ({
   ok: true,
   json: async () => (String(url).includes('/api/ticker-universe') ? { v: 't', symbols: UNIVERSE } : { symbols: [] }),
@@ -251,15 +251,27 @@ test('universe: a prefix with one completion names it at once, and the prefix it
   expect(onTypedIntent.mock.calls).toEqual([['NVDA']])  // NVD itself never (it would abort NVDA's warm)
 })
 
-test('universe: a ticker typed to its last key is told at once; a ticker prefix (GOOG) too, then GOOGL', async () => {
+test('universe: a ticker typed to its last key is told at once; a ticker prefix (GOOG) after a short settle, then GOOGL', async () => {
   const onTypedIntent = vi.fn()
   const input = await openWithUniverse(onTypedIntent)
   for (const v of ['G', 'GO', 'GOO']) { fireEvent.change(input, { target: { value: v } }); await wait(20) }
   expect(onTypedIntent).not.toHaveBeenCalled()           // ambiguous prefixes: nothing yet
   fireEvent.change(input, { target: { value: 'GOOG' } }); await wait(20)
+  expect(onTypedIntent).not.toHaveBeenCalled()           // a ticker that can still grow (GOOGL) settles briefly first
+  await wait(EXACT_PREFIX_SETTLE_MS)
   expect(onTypedIntent.mock.calls).toEqual([['GOOG']])
   fireEvent.change(input, { target: { value: 'GOOGL' } }); await wait(20)
-  expect(onTypedIntent.mock.calls).toEqual([['GOOG'], ['GOOGL']])
+  expect(onTypedIntent.mock.calls).toEqual([['GOOG'], ['GOOGL']])   // nothing longer: at once
+})
+
+// ⛔ (review of #2938, T2) an exact ticker that still has longer completions fired on single letters (A, AM, AMZN, each with
+// up to three linked fetches): typed through at a typist's pace, only the finished ticker is told
+test('universe: typing through A and AM to AMZN tells AMZN alone', async () => {
+  const onTypedIntent = vi.fn()
+  const input = await openWithUniverse(onTypedIntent)
+  for (const v of ['A', 'AM', 'AMZ']) { fireEvent.change(input, { target: { value: v } }); await wait(30) }
+  fireEvent.change(input, { target: { value: 'AMZN' } }); await wait(20)
+  expect(onTypedIntent.mock.calls).toEqual([['AMZN']])
 })
 
 test('CONTROL universe: text it does not know still waits for the typing pause', async () => {

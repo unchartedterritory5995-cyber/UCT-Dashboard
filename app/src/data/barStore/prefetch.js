@@ -1159,12 +1159,13 @@ export function createPrefetch(o = {}) {
    *  display waiting (network.deepPrime beside a tail asked for the chart's full depth; the key's
    *  history job takes the primed answer). Resolves once joined, not due, or after `ms`; never
    *  rejects. The neighbor hold's next rows and a row the pointer rests on. */
-  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS, cover = 0 } = {}) {
+  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS, cover = 0, signal = null } = {}) {
     await _hydrate(key)                           // a copy saved whole in this browser is not due
+    if (signal?.aborted) return false             // (review of #2938) a linked join the next text cancelled
     if (!S().deepPending?.(key)) return false     // already whole here (or saved whole), or the split is off
     const p = parseKey(key)
     S().deepPrime?.(key, { priority })
-    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false, cover })
+    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false, cover, signal })
     return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
   }
 
@@ -2112,7 +2113,7 @@ export function createPrefetch(o = {}) {
       const date = !isIntradayTf(p.tf)
       Promise.resolve().then(async () => {
         if (signal?.aborted) return
-        if (date) { _joinDeepDate(k, { priority: 'visible', cover }).catch(() => {}); return }
+        if (date) { _joinDeepDate(k, { priority: 'visible', cover, signal }).catch(() => {}); return }
         try { S().primeLake?.(k) } catch { /* a warm only */ }
         const s = await ensure(k, { until: DISPLAYABLE, priority: 'visible', signal, local: false, _s0: S().peek(k) || {} })
         if (!signal?.aborted && s?.restSeen && !s.error) _joinLake(k)

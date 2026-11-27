@@ -36,6 +36,7 @@ function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-1
     if (tailGate && url.startsWith('/api/bars/')) await tailGate   // the tail answers when the test says
     if (url.startsWith('/api/bars-history/')) {
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
+      if (history === 'hang') return new Promise(() => {})   // a cold edge (MISS) still building it
       if (history === 'unsealed') return { ticker: 'SIM', tf: 'D', bars: [], sealed: false }
       if (history === 'other-basis') return { ticker: 'SIM', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t, 50)) }
       if (history === 'foreign') return { ticker: 'OTHER', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
@@ -91,6 +92,29 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
     expect(histCalls(w)).toEqual([`/api/bars-history/SIM?tf=D&bars=${fullBarsFor('D')}&d=2026-11-09`])
     expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+  })
+
+  // ⛔ (review of #2938, T1) A COLD EDGE: the history URL carries the sealed date, so a name's first view per POP per trading
+  // day is an edge MISS the origin builds; a hold on it with a 30-row tail hit the hang guard (> 4 s), which painted 30
+  // bars and then filled: the two-phase paint again. Unlanded EDGE_FALLBACK_MS after the ask, the origin is asked the
+  // view's cover too, and whichever covers the view first is painted.
+  it('a history still unlanded EDGE_FALLBACK_MS after the ask: the origin is asked the cover page too', async () => {
+    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang' })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
+    expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(1399)   // the view's rows, without the edge
+  })
+
+  it('CONTROL: a history that lands in time asks no second tail', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const w = world()
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 100)
+    expect(tailBars(w)).toHaveLength(1)
   })
 
   it('CONTROL: the edge failing turns the split off and the full depth comes from the origin, as before', async () => {

@@ -15,6 +15,7 @@ const FRESH_MS = 24 * 60 * 60 * 1000
 const URL = '/api/ticker-universe'
 
 let _list = null        // sorted upper-case symbols, or null (not loaded)
+let _v = null           // the held list's version (the server's `v`)
 let _set = null
 let _loading = null
 let _checkedAt = 0
@@ -48,7 +49,7 @@ function _writeCache(v, symbols) {
 export function ensureTickerUniverse({ fetchImpl } = {}) {
   if (!_list) {
     const c = _readCache()
-    if (c) { _adopt(c.symbols); _checkedAt = Number(c.at) || 0 }
+    if (c) { _adopt(c.symbols); _checkedAt = Number(c.at) || 0; _v = c.v ?? null }
   }
   if (_list && Date.now() - _checkedAt < FRESH_MS) return Promise.resolve(true)
   if (_loading) return _loading
@@ -59,7 +60,7 @@ export function ensureTickerUniverse({ fetchImpl } = {}) {
     .then((r) => (r && r.ok ? r.json() : null))
     .then((j) => {
       _checkedAt = Date.now()
-      if (j && _adopt(j.symbols)) _writeCache(j.v ?? null, _list)
+      if (j && _adopt(j.symbols)) { _v = j.v ?? null; _writeCache(_v, _list) }
       return !!_list
     })
     .catch(() => !!_list)
@@ -88,8 +89,26 @@ export function uniqueCompletion(prefix) {
   return _list[lo]
 }
 
+/** (review of #2938) The server named its list's version (every /api/ticker-search answer carries it): a held list of
+ *  another version is replaced now, not after its day. Never throws. */
+export function noteTickerUniverseVersion(v, opts = {}) {
+  if (!v || !_list || v === _v || _loading) return
+  _checkedAt = 0
+  ensureTickerUniverse(opts)
+}
+
+/** Does a LONGER ticker start with `text` (AM: AMZN)? null while no list is held. */
+export function hasLongerCompletion(text) {
+  if (!_list) return null
+  const p = String(text || '').trim().toUpperCase()
+  if (!p) return false
+  let lo = 0, hi = _list.length
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (_list[mid] <= p) lo = mid + 1; else hi = mid }
+  return lo < _list.length && _list[lo].startsWith(p)
+}
+
 /** Tests: forget the list (and, with `cache`, this browser's copy). */
 export function __resetTickerUniverseForTests({ cache = true } = {}) {
-  _list = null; _set = null; _loading = null; _checkedAt = 0
+  _list = null; _set = null; _loading = null; _checkedAt = 0; _v = null
   if (cache) { try { localStorage.removeItem(STORE_KEY) } catch { /* */ } }
 }
