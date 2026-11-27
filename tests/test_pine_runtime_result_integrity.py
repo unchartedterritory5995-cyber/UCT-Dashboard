@@ -252,15 +252,13 @@ def test_a_digest_dropped_from_an_ok_answer_is_refused(service):
 
 
 def test_the_reply_carries_the_runs_warm_up_and_those_bars_are_na(service):
+    # (e102, coordinator ruling 2026-11-27) the off-listing curtain releases nothing until it is proved exact
+    # (`runtimeColumns.js::_offListingCurtainOn`, `runtimeCurtainOff.rail.test.js`): a listing document off the
+    # listing is REFUSED BY NAME on the service too (server alerts run this bundle), never a warm-up and values.
+    # The warm-up wire shape below is dormant until the curtain's re-enable; re-pin it then.
     res, raw = _run(service, _for_this_client(service), history="listing", listing=False)
-    assert res.status == "ok", res.refusals
-    [r] = raw["results"]
-    n = r["warmup"]["withheldBars"]
-    assert set(r["warmup"]) == {"withheldBars"}
-    assert isinstance(n, int) and 0 < n < N
-    col = res.columns["value"]
-    assert all(math.isnan(x) for x in col[:n])
-    assert not math.isnan(col[n])
+    assert res.status == "withheld", res.refusals
+    assert res.run_refusal().guard == "runtime:history-start"
     # from the listing the run withholds none, and says so
     _, raw2 = _run(service, _for_this_client(service), history=None, listing=True)
     assert raw2["results"][0]["warmup"] == {"withheldBars": 0}

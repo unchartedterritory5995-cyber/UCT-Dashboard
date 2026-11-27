@@ -634,6 +634,27 @@ export default function PatternOverlay({
   const svgRef = useRef(null)
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [, setRedrawTick] = useState(0)
+  // ⚡ (2026-11-27, the board switch) MEASURED ONLY WHEN IT DRAWS; AN UNCHANGED SIZE IS NOT A NEW STATE. The mount
+  // effect read `clientWidth` / `clientHeight` inside the commit on every chart (a forced layout of the freshly
+  // committed board: 4-9 ms a click in untraced profiles) although the overlay drew nothing on most charts, and every
+  // size it was handed, the same one included, was a new object: another render and another pass of the pattern
+  // pipeline for an unchanged pattern set. Now the ResizeObserver's deliveries (after layout, before paint, where the
+  // read is free) keep the size; the commit reads it only when this render draws and no size is known for its pane yet,
+  // which is the old first frame of a drawing overlay. Rail: PatternOverlay.mountMeasure.test.jsx.
+  const measuredElRef = useRef(null)   // the pane `size` was read from
+  const drawsRef = useRef(false)       // this render draws (set below, where it returns the drawing)
+  drawsRef.current = false
+  // the size last handed to state: an unchanged one schedules nothing (an updater returning the previous object
+  // still re-runs this component once whenever React cannot bail out eagerly, and that run is the pattern pipeline)
+  const sizeRef = useRef(size)
+  const measure = useCallback((el) => {
+    measuredElRef.current = el
+    const width = el.clientWidth
+    const height = el.clientHeight
+    if (sizeRef.current.width === width && sizeRef.current.height === height) return
+    sizeRef.current = { width, height }
+    setSize(sizeRef.current)
+  }, [])
 
   // Force a re-render so coordinate conversions re-run with the chart's latest visible range.
   const forceRedraw = useCallback(() => {
@@ -645,12 +666,7 @@ export default function PatternOverlay({
     if (!chart || !containerRef?.current) return
 
     const el = containerRef.current
-    const updateSize = () => {
-      setSize({ width: el.clientWidth, height: el.clientHeight })
-    }
-    updateSize()
-
-    const ro = new ResizeObserver(updateSize)
+    const ro = new ResizeObserver(() => measure(el))
     ro.observe(el)
 
     const timeScale = chart.timeScale()
@@ -662,7 +678,14 @@ export default function PatternOverlay({
       try { timeScale.unsubscribeVisibleTimeRangeChange(forceRedraw) } catch {}
       try { timeScale.unsubscribeVisibleLogicalRangeChange(forceRedraw) } catch {}
     }
-  }, [chart, containerRef, forceRedraw])
+  }, [chart, containerRef, forceRedraw, measure])
+
+  // A render that draws, on a pane with no size read yet (a mount that draws at once, or drawing that began before the
+  // observer's first delivery): read it now, as the mount always did.
+  useEffect(() => {
+    const el = containerRef?.current
+    if (drawsRef.current && chart && el && measuredElRef.current !== el) measure(el)
+  })
 
   // Pending acquisition (server deal_status, DEAL_STATUS_ENABLED): the server withheld every
   // drawing and buy-point label; say why instead of drawing nothing silently.
@@ -741,6 +764,7 @@ export default function PatternOverlay({
     levelsSr: hasSr ? levelsSr : null,
   })
 
+  drawsRef.current = true
   return (
     <LabelLayoutContext.Provider value={labelLayout}>
     <svg
