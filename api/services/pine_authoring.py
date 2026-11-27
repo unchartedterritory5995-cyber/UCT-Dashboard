@@ -728,7 +728,8 @@ def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[s
 
     examples: List[str] = []
     for e in worked_examples(ref):
-        examples += [f"### {e['title']}", f"Shows: {e['shows']}.", "```pine", e["source"].rstrip("\n"), "```", ""]
+        examples += [f"### {e['title']}", f"Shows: {e['shows']}.", "```pine", e["source"].rstrip("\n"), "```"]
+        examples += ([scope_line(e)] if scope_line(e) else []) + [""]
     out += _lines("WORKED EXAMPLES (each runs on this engine as written)", examples)
     return "\n".join(out).rstrip("\n") + "\n"
 
@@ -1036,6 +1037,22 @@ def _fit(text: str, room: int) -> str:
 LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep its `if barstate.islast`. UCT tells the "
                         "member when it is drawn; do not describe that yourself.)")
 
+#: ⭐⭐ (e102, coordinator ruling 2026-11-27) THE SCOPE OF A SCRIPT THAT CARRIES STATE BAR TO BAR. With the engine's
+#: off-listing curtain off, such a script is refused BY NAME (`runtime:history-start`) on a chart whose history does not
+#: reach the symbol's first trading day (every intraday chart) and computes exactly on one that does. A recipe or worked
+#: example marked `historyScope: 'fromListing'` (the generator's answer, held to a real run) is OFFERED with this line,
+#: never dropped and never promised on an intraday chart.
+FROM_LISTING_SCOPE = "fromListing"
+FROM_LISTING_SCOPE_LINE = ("(SCOPE: this works on daily, weekly and monthly charts whose history reaches the symbol's first "
+                           "trading day. On an intraday chart, or one whose history starts later, UCT refuses it by name "
+                           "until history parity lands. Never say it runs on an intraday chart; when the member's chart may "
+                           "be intraday, say this in `reply`.)")
+
+
+def scope_line(item: Mapping[str, Any]) -> Optional[str]:
+    """The scope sentence an offered recipe or example carries, or None."""
+    return FROM_LISTING_SCOPE_LINE if isinstance(item, Mapping) and item.get("historyScope") == FROM_LISTING_SCOPE else None
+
 
 def _request_calls(script: Any) -> Optional[List[str]]:
     """Every `request.security(...)` of a script, WHOLE (symbol, timeframe, expression and options), with
@@ -1082,4 +1099,6 @@ def recipes_text(found: List[Mapping[str, Any]]) -> str:
         out += [f"### {r['title']}", f"How it works: {r['shows']}.", "```pine", r["source"].rstrip("\n"), "```"]
         if r.get("finishedBarsOnly") is True:
             out += [LAST_BAR_RECIPE_LINE]
+        if scope_line(r):
+            out += [scope_line(r)]
     return "\n".join(out)

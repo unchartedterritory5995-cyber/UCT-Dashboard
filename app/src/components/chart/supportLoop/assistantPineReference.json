@@ -1806,7 +1806,8 @@
    "ok": true,
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart, with 1 note"
+   "headline": "Runs on the chart, with 1 note",
+   "historyScope": "fromListing"
   },
   {
    "id": "pivots-with-labels",
@@ -1846,7 +1847,8 @@
    "ok": true,
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart, with 2 notes"
+   "headline": "Runs on the chart, with 2 notes",
+   "historyScope": "fromListing"
   },
   {
    "id": "heikin-ashi-candles",
@@ -1856,7 +1858,8 @@
    "ok": true,
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart and in alerts, with 1 note"
+   "headline": "Runs on the chart and in alerts, with 1 note",
+   "historyScope": "fromListing"
   },
   {
    "id": "average-by-type",

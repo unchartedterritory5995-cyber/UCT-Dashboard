@@ -35,7 +35,8 @@
    "id": "loops-and-arrays",
    "title": "A calculation that needs a loop and a list",
    "shows": "a for loop with +=, an array kept with var, array.push / array.shift / array.max",
-   "file": "loops-and-arrays.pine"
+   "file": "loops-and-arrays.pine",
+   "historyScope": "fromListing"
   },
   {
    "id": "pivots-with-labels",
@@ -59,13 +60,15 @@
    "id": "levels-from-a-list",
    "title": "Several levels drawn from a list, with a label on each",
    "shows": "array.from, for ... in, each level's price kept in an array, the lines and labels made once (kept in arrays) and MOVED on every bar with line.set_xy1, line.set_xy2 and label.set_xy, and one value from that array PLOTTED so the run owns the drawings",
-   "file": "levels-from-a-list.pine"
+   "file": "levels-from-a-list.pine",
+   "historyScope": "fromListing"
   },
   {
    "id": "heikin-ashi-candles",
    "title": "Heikin Ashi candles",
    "shows": "candles drawn from computed values with plotcandle; ALL THREE colours (color, wickcolor, bordercolor) are written, each a fixed colour chosen by ?:, which is the shape this engine draws as candles",
-   "file": "heikin-ashi-candles.pine"
+   "file": "heikin-ashi-candles.pine",
+   "historyScope": "fromListing"
   },
   {
    "id": "average-by-type",

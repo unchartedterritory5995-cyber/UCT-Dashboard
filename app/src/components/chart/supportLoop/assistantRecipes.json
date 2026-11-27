@@ -99,7 +99,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "volume-profile",
@@ -146,7 +147,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false,
+   "served": true,
+   "historyScope": "fromListing",
    "finishedBarsOnly": true
   },
   {
@@ -188,7 +190,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "rsi-divergence",
@@ -276,7 +279,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "gap-zones",
@@ -323,7 +327,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "regression-channel",
@@ -363,7 +368,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "schaff-trend-cycle",
@@ -402,7 +408,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "weekday-returns-table",
@@ -449,7 +456,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false,
+   "served": true,
+   "historyScope": "fromListing",
    "finishedBarsOnly": true
   },
   {
@@ -532,7 +540,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "opening-range",
@@ -573,7 +582,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "fibonacci-swings",
@@ -620,7 +630,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "auto-trendlines",
@@ -668,7 +679,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "heikin-ashi-candles",
@@ -709,7 +721,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "average-cloud",
@@ -792,7 +805,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "distribution-days",
@@ -831,7 +845,8 @@
      "finished": "stopped: runtime:history-start"
     }
    },
-   "served": false
+   "served": true,
+   "historyScope": "fromListing"
   },
   {
    "id": "follow-through-day",

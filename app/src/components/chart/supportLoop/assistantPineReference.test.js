@@ -265,15 +265,16 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
       + 'WRITE_ASSISTANT_PINE_REFERENCE=1; a recipe that stopped running must be fixed or removed.').toBe(true)
   }, 600_000)
 
-  // ⛔⛔ (e102, coordinator ruling 2026-11-27) THE OFF-LISTING CURTAIN IS OFF (`runtimeColumns.js::_offListingCurtainOn`):
+  // ⛔⛔ (e102, coordinator rulings 2026-11-27) THE OFF-LISTING CURTAIN IS OFF (`runtimeColumns.js::_offListingCurtainOn`):
   // a recipe that carries state bar to bar is REFUSED BY NAME (`runtime:history-start`) on a chart whose history does not
-  // reach the listing, so it is NOT SERVED (the assistant never promises an intraday run that will be refused). These are
-  // named, so each one comes back only through the start-taint rule (step 3) proving it start-free.
+  // reach the listing, and computes exactly on one that does. It is SERVED WITH ITS SCOPE (`historyScope: 'fromListing'`):
+  // the assistant offers it and says where it runs, and never promises an intraday run (`pine_authoring.recipes_text`).
+  // Named, so each one loses its scope only through the start-taint rule (step 3) proving it start-free.
   const OFF_LISTING_REFUSED_E102 = Object.freeze(['anchored-vwap-date', 'auto-trendlines', 'distribution-days', 'fibonacci-swings',
     'gap-zones', 'heikin-ashi-candles', 'market-structure', 'opening-range', 'regression-channel', 'schaff-trend-cycle',
     'supply-demand-zones', 'time-of-day-volume', 'volume-profile', 'vwap-deviation-bands', 'weekday-returns-table'])
 
-  it('every recipe in the folder is SERVED today, on both histories, or refused off the listing BY NAME and not served', () => {
+  it('every recipe in the folder is SERVED today: on both histories, or from the listing WITH ITS SCOPE (refused off it by name)', () => {
     const out = recipes()
     const offRefused = out.recipes.filter((r) => r.runs.offListing.ok === false && r.runs.offListing.guard === 'runtime:history-start')
     expect(offRefused.map((r) => r.id).sort()).toEqual([...OFF_LISTING_REFUSED_E102])
@@ -300,7 +301,8 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
         })
       }
       expect(r.draws, r.id).toBe(drawsObjects(r.source))
-      expect(r.served, r.id).toBe(!refusedOff)
+      expect(r.served, r.id).toBe(true)
+      expect(r.historyScope, r.id).toBe(refusedOff ? 'fromListing' : undefined)
     }
     // the generator left the grant as it found it
     expect(runtimeAllowList()).toEqual(['*'])
@@ -460,10 +462,12 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     // ⛔ ONE IS NAMED, NOT SKIPPED: it reads another symbol, whose bars the CHART fetches and hands the run.
     // This harness hands none, and the engine says exactly that; any other answer for it is a change to look at.
     const NEEDS_THE_CHARTS_OTHER_SYMBOL = { 'another-symbol': 'other-symbol:bare' }
-    // ⛔ (e102, the curtain off) these carry state bar to bar: off the listing they are refused BY NAME, never guessed.
-    // They still teach the forms; each comes back off the listing through the start-taint rule (step 3) or not at all.
-    const REFUSED_OFF_THE_LISTING = { 'loops-and-arrays': 'runtime:history-start', 'levels-from-a-list': 'runtime:history-start',
-      'heikin-ashi-candles': 'runtime:history-start' }
+    // ⛔ (e102, the curtain off) an example DECLARED `historyScope: 'fromListing'` in the folder's index carries state bar to
+    // bar: off the listing it is refused BY NAME, never guessed, and the assistant is told its scope. The declaration is held
+    // to the engine both ways: declared exactly where the run refuses off the listing by that name.
+    const REFUSED_OFF_THE_LISTING = Object.fromEntries(EXAMPLES.filter((e) => e.historyScope === 'fromListing')
+      .map((e) => [e.id, 'runtime:history-start']))
+    expect(Object.keys(REFUSED_OFF_THE_LISTING).sort()).toEqual(['heikin-ashi-candles', 'levels-from-a-list', 'loops-and-arrays'])
     const refused = []
     for (const e of EXAMPLES) {
       for (const history of RECIPE_HISTORIES) {
