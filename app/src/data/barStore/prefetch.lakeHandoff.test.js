@@ -124,7 +124,7 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
   // ⭐ (2026-11-26) ...and the LINKED charts' keys (the host's alsoTfs): each held one with its depth still due joins too
   const linkedLake = () => ({
     olderBars: vi.fn(async (key, beforeT) => {
-      const step = String(key).includes('|15|') || /:15(|:|$)/.test(String(key)) ? 900 : 300
+      const step = /(^|[^0-9])15([^0-9]|$)/.test(String(key)) ? 900 : 300
       const out = []
       for (let t = OPEN - step * 200; t <= OPEN + 600; t += step) out.push({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
       return { bars: out.filter((b) => b.t < beforeT) }
