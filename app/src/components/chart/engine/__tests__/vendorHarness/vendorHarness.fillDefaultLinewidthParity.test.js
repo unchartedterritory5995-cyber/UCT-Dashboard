@@ -179,3 +179,28 @@ describe('set F — a document SAVED before this change', () => {
     expect(run('f1-fill-v6').def.plots.filter((p) => p.fill && typeof p.fill.with === 'string').map((p) => p.fillOpacity).slice(0, 2)).toEqual([1, 1])
   })
 })
+
+// ⭐ 2026-11-27 — PINE v5, MEASURED (FRED's pixel probe, SPY 1D; the capture is vendor data, kept local). Set F
+// captured v6 and v4; v5 sits between them and is where a version cut could slip. TradingView painted a `fill` given a
+// plain colour and no transparency EXACTLY rgb(41,98,255) at alpha 1.0 (its model: `{color: "#2962ff"}`, no
+// transparency field). `FILL_DEFAULT_OPACITY`
+// (0.15) is the look of a band UCT authors (Builder, the words door) and never reaches an imported script.
+describe('set F — Pine v5 (FRED\'s pixel probe, 2026-11-27)', () => {
+  const V5 = [
+    '//@version=5', 'indicator("UCT F v5 fill", overlay=false)',
+    'p1 = plot(100, "p1", color=color.gray)', 'p2 = plot(80, "p2", color=color.gray)', 'fill(p1, p2, color=#2962ff)',
+    'p3 = plot(60, "p3", color=color.gray)', 'p4 = plot(40, "p4", color=color.gray)',
+    'fill(p3, p4, color=color.new(#2962ff, 90))', '',
+  ].join('\n')
+  const fills = translatePine(V5, { strict: true }).presentation.fills
+  it('NON-VACUITY: both fills translated, each with a stated opacity', () => {
+    expect(fills).toHaveLength(2)
+    fills.forEach((f) => expect(Number.isFinite(f.opacity)).toBe(true))
+  })
+  it('⭐ a plain colour paints OPAQUE (byte 255), as TradingView measured — never 0.15 (byte 38)', () => {
+    expect(Math.round(fills[0].opacity * 255)).toBe(255)
+  })
+  // ⚠️ The probe's control, `color.new(#2962ff, 90)` on a STATIC band, painted byte 26 on TradingView; this engine
+  // paints 25 (`colourHelperAlpha`, the floating `1 - t/100` of capture A's per-bar colours). Not pinned here: an
+  // open parity question put to the coordinator 2026-11-27, ruled separately.
+})
