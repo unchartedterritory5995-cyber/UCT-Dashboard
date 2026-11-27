@@ -34,10 +34,26 @@ vi.mock('../../../utils/prefetchBars', () => ({
 
 // Every identity-bearing child reports the symbol IT was given, so a mixed
 // state is directly observable rather than inferred.
-const renders = vi.hoisted(() => ({ bySym: {} }))
+const renders = vi.hoisted(() => ({ bySym: {}, props: {} }))
 vi.mock('../../../components/StockChart', () => ({
-  default: ({ sym }) => { renders.bySym[sym] = (renders.bySym[sym] || 0) + 1; return <span data-testid="chart-sym">{sym}</span> },
+  default: (props) => {
+    const { sym } = props
+    renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
+    ;(renders.props[sym] = renders.props[sym] || []).push(props)
+    return <span data-testid="chart-sym">{sym}</span>
+  },
 }))
+/** The props that changed between a symbol's chart renders (what made the memo render it). */
+const changedProps = (sym) => {
+  const list = renders.props[sym] || []
+  const out = []
+  for (let i = 1; i < list.length; i++) {
+    const a = list[i - 1], b = list[i]
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+    out.push([...keys].filter((k) => !Object.is(a[k], b[k])))
+  }
+  return JSON.stringify(out)
+}
 vi.mock('./ChartDetailDock', () => ({
   default: ({ sym, children }) => (<><span data-testid="dock-sym">{sym}</span>{children}</>),
 }))
@@ -117,6 +133,7 @@ beforeEach(() => {
   nf.publishScanNeighbors('AAA', ['BBB', 'CCC'], [])
   nf.publishScanNeighbors('BBB', ['CCC'], ['AAA'])
   for (const k of Object.keys(renders.bySym)) delete renders.bySym[k]
+  for (const k of Object.keys(renders.props)) delete renders.props[k]
 })
 afterEach(() => {
   vi.useRealTimers(); vi.unstubAllGlobals()
@@ -153,7 +170,7 @@ test('W2 THE FLIP: the layer that held the row is shown, every surface agrees, n
   expect(screen.getByTestId('dock-sym').textContent).toBe('BBB')
   expect(layer('front').hasAttribute('inert')).toBe(false)
   expect(layer('shadow').hasAttribute('inert')).toBe(true)
-  expect(renders.bySym.BBB).toBe(before)                    // the flip rendered no chart
+  expect(renders.bySym.BBB, `the flip rendered the chart: props changed ${changedProps('BBB')}`).toBe(before)   // no chart render
   expect(dbm.doubleBufferStats().flips).toBe(1)
 })
 
