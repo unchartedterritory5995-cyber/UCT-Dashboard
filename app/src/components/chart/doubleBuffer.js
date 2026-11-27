@@ -142,18 +142,31 @@ function gapFracOf(plotWidthPx) {
 }
 /**
  * The frame that gives the hidden chart the front's WIDTH, pinned as the switch pins it (StockChart restoreView), or null
- * when the widths already match or nothing may be mirrored (a range, a lock, a hand-set price scale, replay). The hidden
- * chart's own developing slot (`reserve`) is read back from its current pin: its right edge minus its width's margin.
+ * when nothing needs moving or nothing may be (a range, a lock, a hand-set price scale, replay). The hidden chart's own
+ * developing slot (`reserve`) is the one its chart says a switch would use now (`pinReserve`, StockChart getDateMeta), or
+ * else is read back from its current pin: its right edge minus its width's margin.
+ * (review of #2932) The widths alike, the hidden chart is still re-pinned when its right edge is more than half a bar off
+ * that pin: the widget was resized while it was hidden (a new plot width, a new margin), or a D/W/M chart got today's
+ * first bar while pinned (its reserve went, the library moved the range). Only with its own plot width and pinReserve:
+ * without them the pin is not known.
  */
 export function mirrorFrameFor(front, shadow) {
   if (viewBlocked(front) || viewBlocked(shadow)) return null
   const w = spanOf(front.frame)
   const ws = spanOf(shadow.frame)
-  if (near(w, ws) || !(w > 0)) return null
+  if (!(w > 0)) return null
+  const own = Number.isFinite(shadow.pinReserve) ? Math.max(0, shadow.pinReserve) : null
+  if (near(w, ws)) {
+    const g = gapFracOf(shadow.plotWidthPx)
+    if (g == null || own == null) return null
+    const pin = -(own + ws * g)
+    if (Math.abs(shadow.frame.toRight - pin) <= 0.5) return null
+    return { fromRight: pin + ws, toRight: pin, activeRange: null, locked: false, lock: null }
+  }
   const gf = gapFracOf(shadow.plotWidthPx) ?? gapFracOf(front.plotWidthPx)
   // without a plot width, the margin is read from the hidden chart itself (its whole right edge, no reserve)
   const gap = gf != null ? gf : (ws > 0 ? Math.max(0, -shadow.frame.toRight) / ws : 0)
-  const reserve = gf != null ? Math.max(0, Math.round(-shadow.frame.toRight - ws * gap)) : 0
+  const reserve = gf == null ? 0 : own != null ? own : Math.max(0, Math.round(-shadow.frame.toRight - ws * gap))
   const toRight = -(reserve + w * gap)
   return { fromRight: toRight + w, toRight, activeRange: null, locked: false, lock: null }
 }

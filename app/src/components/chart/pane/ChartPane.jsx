@@ -1,6 +1,7 @@
 import {
-  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useContext, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
+import { LayerFrontFocusContext } from '../layerPaint'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
 import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
@@ -1054,6 +1055,7 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  const focusFront = useContext(LayerFrontFocusContext)
   // ⭐ 2026-11-18 — WHEN THE STAT MENU CLOSES, FOCUS RETURNS TO THE CHART, the rule this pane keeps for
   // every chart menu ("so type-to-search works immediately — else the first keypress hits a global
   // drawing-tool hotkey, not the search"). A stat is a focusable button since 11-17, and the menu
@@ -1116,13 +1118,18 @@ function ChartPane({
   // ref.changeSymbol) goes through this. After the sym updates we refocus the
   // chart container so the user can immediately start typing again for the next
   // ticker without re-clicking the chart.
+  // ⭐ (review of #2932) IN A DOUBLE-BUFFERED WIDGET THE CHANGE CAN FLIP THE LAYERS: this pane is then the hidden,
+  // INERT old front by the time the frame runs, its focus() a no-op, and the keys would reach nothing until a click.
+  // The pane shown now takes the focus instead (chart/useDoubleBuffer.js focusFront, through chart/layerPaint.js).
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
     onSymbolChange?.(s)
     requestAnimationFrame(() => {
-      focusableRef.current?.focus({ preventScroll: true })
+      const el = focusableRef.current
+      if (focusFront && el?.closest?.('[inert]')) focusFront()
+      else el?.focus({ preventScroll: true })
     })
-  }, [onSymbolChange])
+  }, [onSymbolChange, focusFront])
   // The header's search (a ticker typed and entered, or one of its results picked): the same handler, with the
   // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a pointer event, and
   // the event alone would file it under `click`). Set, switch, cleared: one task.

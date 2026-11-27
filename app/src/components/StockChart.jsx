@@ -20262,6 +20262,9 @@ function StockChartBody({
       // the plot's width (px): the right margin the newest candle is pinned at scales with it (chart/rightMargin.js); the
       // double buffer's zoom mirror re-pins a hidden chart at a new width with it (chart/doubleBuffer.js mirrorFrameFor)
       plotWidthPx: (() => { try { return plotWidthOf(chartRef.current, containerRef.current) } catch { return null } })(),
+      // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
+      // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
+      pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
