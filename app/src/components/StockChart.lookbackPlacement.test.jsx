@@ -9,7 +9,7 @@
 //    or `LOOKBACK_REVEAL_MAX_MS` passes. After: one position, first paint, at every one of those.
 // 2. ITS WIDTH CAP COMES FROM THE MEASURED PRICE SCALE. The hub's scrolling bar was capped at a
 //    guessed `100% - 96px`; StockChart now publishes `priceScale('right').width()` as
-//    `--price-axis-w` on its wrapper, and the cap reads that (StockChart.module.css).
+//    `--price-axis-w` on the bar itself, and the cap reads that (StockChart.module.css).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -274,14 +274,42 @@ describe('the chrome sampler measures in the frame, not inside the commit', () =
 })
 
 describe('the price-scale width is published for the hub range bar cap', () => {
-  it('the wrapper carries --price-axis-w = priceScale("right").width(), and follows it', async () => {
+  // ⚡ (2026-11-27) ON ITS TWO READERS, NOT THE WRAPPER: a custom property on the wrapper is inherited by the whole chart,
+  // so every new width restyled all of it (trace: 311 elements, 1.9-3.8 ms a switch). Same value, same element, same pixels.
+  it('the lookback bar and the scale toggle carry --price-axis-w = priceScale("right").width(), and follow it', async () => {
     const { container } = mount()
     await vi.waitFor(() => expect(S.sizeSubs.length).toBeGreaterThan(0), { timeout: 5000 })
-    const wrapper = container.firstElementChild
-    await vi.waitFor(() => expect(wrapper.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    const toggle = () => container.querySelector('[aria-label="Price scale"]')
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    expect(toggle(), 'the scale toggle is drawn').not.toBeNull()
+    expect(toggle().style.getPropertyValue('--price-axis-w')).toBe('76px')
     S.axisW = 93 // a four-digit price widens the scale
     act(() => { S.sizeSubs.forEach((fn) => fn()) })
-    expect(wrapper.style.getPropertyValue('--price-axis-w')).toBe('93px')
+    expect(rangeBar().style.getPropertyValue('--price-axis-w')).toBe('93px')
+    expect(toggle().style.getPropertyValue('--price-axis-w')).toBe('93px')
+  })
+
+  it('(red first) the wrapper does not carry it: a new width restyles two small subtrees, not the whole chart', async () => {
+    const { container } = mount()
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    expect(container.firstElementChild.style.getPropertyValue('--price-axis-w')).toBe('')
+  })
+
+  it('every reader of --price-axis-w is one of the two elements that carry it (nothing else inherited it)', () => {
+    const css = readFileSync(join(process.cwd(), 'src/components/StockChart.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => m[2].includes('var(--price-axis-w')).map((m) => m[1].trim())
+    expect(rules.length).toBeGreaterThan(0)
+    for (const sel of rules) expect(sel, sel).toMatch(/\.(rangeBar|scaleToggle)$/)
+  })
+
+  it('a bar that mounts after the width is known takes it at mount (its ref), as it inherited it before', async () => {
+    const { container, rerender } = mount()
+    await vi.waitFor(() => expect(rangeBar()?.style.getPropertyValue('--price-axis-w')).toBe('76px'), { timeout: 5000 })
+    rerender(<StockChart sym="ENPH" tf="D" barsOverride={bars} showRangeSelector={false} volumeSeparatePane />)
+    expect(rangeBar()).toBeNull()
+    rerender(<StockChart sym="ENPH" tf="D" barsOverride={bars} showRangeSelector volumeSeparatePane />)
+    expect(rangeBar().style.getPropertyValue('--price-axis-w')).toBe('76px')
+    expect(container).toBeTruthy()
   })
 
   it('the hub cap reads that variable, not a guessed width', () => {
