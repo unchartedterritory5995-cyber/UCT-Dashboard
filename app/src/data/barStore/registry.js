@@ -5,7 +5,10 @@
 //
 //   • An entry with refs > 0 (a mounted chart / a pending ensure) is PINNED: never evicted.
 //   • Unpinned entries are evicted least-recently-used first whenever the registry holds
-//     more than `maxKeys` entries or more than `barBudget` bars in total.
+//     more than `maxKeys` entries or more than `barBudget` bars in total (the page budget's
+//     registry share, lib/barBudget.js); the entries of the `recentSymbols` most recently
+//     SHOWN symbols go last. Every eviction is announced (`noteKeyEvicted`): the caches keyed
+//     by the same key let it go with it.
 //   • Every dispatch passes the tf's depth cap to the reducer (it trims the OLDEST bars).
 //   • `invalidate(key | predicate, reason)` resets matching entries (S2's only exception);
 //     subscribers stay attached and are notified.
@@ -24,6 +27,7 @@
 
 import { reduce, initialState, invalidate as invalidateState, refreshStatus, isDevOnlyChange } from './reducer'
 import { parseKey } from './types'
+import { BAR_BUDGET_DESKTOP, noteKeyEvicted } from '../../lib/barBudget'
 
 /** One frame (requestAnimationFrame; a 16 ms timer where there is none). */
 export function defaultFrame(fn) {
@@ -37,24 +41,41 @@ export const DEFAULT_DEPTH_CAPS = Object.freeze({
   '1': 20000, '5': 32000, '15': 32000, '30': 40000, '60': 50000, D: 12000, W: 4000, M: 1200,
 })
 export const DEFAULT_MAX_KEYS = 200
-export const DEFAULT_BAR_BUDGET = 2_500_000
+/** ⛔ (2026-11-27, the heap check) was 2,500,000: it never bound on a 1m + 15m board, so every symbol pressed stayed decoded
+ *  (133.7 MB of rows after 50 presses on production's build). Now the page budget's registry share (lib/barBudget.js: its
+ *  arithmetic); the app's store passes the tier's (the touch tier keeps less). */
+export const DEFAULT_BAR_BUDGET = BAR_BUDGET_DESKTOP.registry
+/** The symbols most recently shown whose entries the budget evicts last (lib/barBudget.js). */
+export const DEFAULT_RECENT_SYMBOLS = BAR_BUDGET_DESKTOP.recentSymbols
 
 /**
  * @param {object} [opts]
  * @param {number} [opts.maxKeys]
  * @param {number} [opts.barBudget]
+ * @param {number} [opts.recentSymbols]  the most recently shown symbols whose idle entries go last
  * @param {Record<string, number>} [opts.depthCaps]
  * @param {() => object} [opts.ctx]  the reducer ctx at call time (clock, streamLive…)
  * @param {(fn: Function) => any} [opts.frame]  the dev-channel coalescing tick (default: one frame)
  */
 export function createRegistry({
-  maxKeys = DEFAULT_MAX_KEYS, barBudget = DEFAULT_BAR_BUDGET,
+  maxKeys = DEFAULT_MAX_KEYS, barBudget = DEFAULT_BAR_BUDGET, recentSymbols = DEFAULT_RECENT_SYMBOLS,
   depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}), frame = defaultFrame,
 } = {}) {
   /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
   let clock = 0
   let totalBars = 0
+  /** The symbols most recently shown (a subscriber came or went), the newest first, at most `recentSymbols`. */
+  const recent = []
+  function _noteShown(key) {
+    const sym = parseKey(key)?.sym
+    if (!sym || recentSymbols <= 0) return
+    const i = recent.indexOf(sym)
+    if (i === 0) return
+    if (i > 0) recent.splice(i, 1)
+    recent.unshift(sym)
+    if (recent.length > recentSymbols) recent.length = recentSymbols
+  }
 
   const ctxFor = (key, extra) => {
     const p = parseKey(key)
@@ -104,7 +125,14 @@ export function createRegistry({
   // one whose symbol no subscriber shows is evicted before every other idle entry (oldest first), and while a chart
   // shows the symbol it is ordinary (a timeframe switch there is exactly as today). A pin (`acquire`: a list's hold,
   // a read) or a subscriber makes it ordinary for good.
-  function _evict() {
+  // ⭐ (2026-11-27, the heap check) ...AND THE RECENTLY SHOWN GO LAST. An entry a chart showed (`e.shown`: it had a
+  // subscriber) of one of the `recentSymbols` symbols shown most recently is evicted only once every other idle entry is
+  // gone: with the budget now sized to the board (lib/barBudget.js), arrowing back to the rows just left is still a held
+  // key. Ranks: 0 the dwell's of a symbol no chart shows, 1 every other idle entry, 2 a recent symbol's shown entry;
+  // oldest first within a rank. A pinned or subscribed entry is never evicted, nor the entry the call that evicts just
+  // wrote (`keep`: an answer that lands is never dropped by its own landing, however far over the budget the page is).
+  // Each eviction is announced (`noteKeyEvicted`), so no cache keyed by the key keeps its rows alive.
+  function _evict(keep = null) {
     if (entries.size <= maxKeys && totalBars <= barBudget) return
     const idle = []
     let shown = null
@@ -112,12 +140,18 @@ export function createRegistry({
       if (e.subs.size) (shown ??= new Set()).add(parseKey(key)?.sym)
       if (e.refs === 0 && e.subs.size === 0) idle.push([key, e])
     }
-    const rank = (key, e) => (e.dwell && !shown?.has(parseKey(key)?.sym) ? 0 : 1)
+    const rank = (key, e) => {
+      const sym = parseKey(key)?.sym
+      if (e.dwell && !shown?.has(sym)) return 0
+      return e.shown && recent.includes(sym) ? 2 : 1
+    }
     idle.sort((a, b) => rank(a[0], a[1]) - rank(b[0], b[1]) || a[1].used - b[1].used)
     for (const [key, e] of idle) {
       if (entries.size <= maxKeys && totalBars <= barBudget) break
+      if (key === keep) continue
       totalBars -= e.state.depth
       entries.delete(key)
+      noteKeyEvicted(key)
     }
   }
 
@@ -145,14 +179,21 @@ export function createRegistry({
       e.subs.add(sub)
       e.used = ++clock
       e.dwell = false
-      return () => { e.subs.delete(sub); _evict() }
+      e.shown = true
+      _noteShown(key)
+      return () => {
+        if (!e.subs.delete(sub)) return
+        // the last subscriber gone: the symbol is one just shown, its entry as recent as the moment it left the screen
+        if (!e.subs.size) { e.used = ++clock; _noteShown(key) }
+        _evict()
+      }
     },
     /** Apply one reducer action to `key`; returns the (possibly unchanged) snapshot. */
     dispatch(key, action, extraCtx) {
       const e = _entry(key)
       e.used = ++clock
       _set(key, e, reduce(e.state, action, ctxFor(key, extraCtx)))
-      _evict()
+      _evict(key)
       return entries.get(key)?.state ?? e.state
     },
     /**
@@ -166,7 +207,7 @@ export function createRegistry({
       const e = entries.get(key)
       if (!e) return null
       _set(key, e, reduce(e.state, action, ctxFor(key, extraCtx)))
-      _evict()
+      _evict(key)
       return entries.get(key)?.state ?? null
     },
     /** Re-derive time-dependent status for every held entry (one clock tick). */
@@ -192,10 +233,12 @@ export function createRegistry({
       return e.dwell
     },
     isDwell(key) { return !!entries.get(key)?.dwell },
+    /** The symbols most recently shown, the newest first (their entries are evicted last). */
+    recentSymbols() { return recent.slice() },
     stats() {
       let dwell = 0
       for (const e of entries.values()) if (e.dwell) dwell++
-      return { keys: entries.size, bars: totalBars, dwell }
+      return { keys: entries.size, bars: totalBars, dwell, budget: barBudget, maxKeys, recent: recent.slice() }
     },
   }
 }

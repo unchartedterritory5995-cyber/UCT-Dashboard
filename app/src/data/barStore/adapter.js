@@ -30,6 +30,14 @@
 // soak, 30 flips, 1.37M legacy bars in the memo (856k of them old revisions) and 856k old store
 // bars. Two bounds now: BASE_MEMO_MAX entries and MEMO_BAR_BUDGET bars (the newest entry always
 // stays, however large). Tested in adapter.test.js.
+// ⛔ (2026-11-27, the heap check) ...AND ONE SLOT HOLDS BOTH ARRAYS OF A KEY. The sealed copy (legacySealed) and the
+// array legacyBars hands out (sealed + developing) had a memo EACH, each with its own 600,000-bar budget, while the second
+// array is the first one's objects plus one: either memo kept the same copies alive, so the copies retained were bounded
+// by neither (68 MB of legacy copies after 50 presses on production's build). One memo now (`_legacyMemo`), one slot per
+// `${key}|${tf}` holding the sealed copy and the newest handed-out array, weighed by the bar objects the copy made (a slot
+// whose rows are the store's own costs none: the registry counts them), under the page budget's adapter share
+// (lib/barBudget.js). And a key the registry drops takes its slot with it (`onKeyEvicted`): the slot held the store's
+// rows (`src`) strongly, so a dropped key's rows outlived the registry's budget for as long as the slot did.
 
 import { toChartTime, isRthBar, etDateLabel } from '../../components/chart/barTime'
 import { foldOffGridBars } from '../../components/chart/offGridBars'
@@ -37,16 +45,18 @@ import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
 import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
 import { neighborFramesOn } from '../../components/chart/neighborFrames'
+import { BAR_BUDGET_DESKTOP, barBudget, onKeyEvicted, registerBarHolder } from '../../lib/barBudget'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
 
 export const BASE_MEMO_MAX = 32
-/** Bars the slots of one memo may hold together (each memo on its own). Two on-screen keys
- *  (D ~8k, 60m up to ~56k with the lake) and a watchlist's prepared neighbours fit with room;
- *  over it, least recently used slots go first. */
-export const MEMO_BAR_BUDGET = 600_000
-let _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
+/** Copied bars the slots of one memo may hold together: the page budget's adapter share (lib/barBudget.js; the touch
+ *  tier's is smaller). Two on-screen keys (D ~8k, 60m up to ~56k with the lake), their shadows and a watchlist's
+ *  prepared neighbours fit with room; over it, least recently used slots go first. */
+export const MEMO_BAR_BUDGET = BAR_BUDGET_DESKTOP.adapter
+let _limits = null
+const _lim = () => (_limits ??= { maxEntries: BASE_MEMO_MAX, maxBars: barBudget().adapter })
 
 /** The chart time of a legacy-shaped bar `t` — StockChart's `adjustTime`. */
 export function chartTimeOf(t) {
@@ -93,7 +103,7 @@ function tfOfSnapshot(snapshot, view) {
 
 /** A memo of one slot per key: `get` refreshes recency; `set` REPLACES the key's slot, then
  *  evicts least recently used slots while over the entry cap or the bar budget (never the one
- *  just set). `n` is the bars the slot holds. */
+ *  just set). `n` is the bars the slot holds. `forget(prefix)` drops every slot whose key starts with it. */
 function slotMemo() {
   const map = new Map()   // k → { v, n }
   let bars = 0
@@ -109,32 +119,38 @@ function slotMemo() {
       if (old) { bars -= old.n; map.delete(k) }
       map.set(k, { v, n })
       bars += n
-      while (map.size > 1 && (map.size > _limits.maxEntries || bars > _limits.maxBars)) {
+      const lim = _lim()
+      while (map.size > 1 && (map.size > lim.maxEntries || bars > lim.maxBars)) {
         const [ok, oe] = map.entries().next().value
         map.delete(ok)
         bars -= oe.n
       }
       return v
     },
+    forget(prefix) {
+      for (const [k, e] of [...map]) if (k.startsWith(prefix)) { map.delete(k); bars -= e.n }
+    },
     clear() { map.clear(); bars = 0 },
     stats() { return { slots: map.size, bars, keys: [...map.keys()] } },
   }
 }
 
-const _legacyBaseMemo = slotMemo()   // `${key}|${tf}` → { baseRev, src (the store's bars), out (legacy sealed bars) }
+// `${key}|${tf}` → { baseRev, src (the store's bars), out (legacy sealed bars), bars (the newest array legacyBars handed
+// out for them: sealed + developing, or `out` itself) }. Weighed by the bar objects `out` copied (0 when it IS `src`).
+const _legacyMemo = slotMemo()
 
-function legacySealed(snapshot, tf) {
+function _legacySlot(snapshot, tf) {
   const bars = snapshot?.bars || []
   const k = `${snapshot?.key}|${tf}`
-  const hit = _legacyBaseMemo.get(k)
-  if (hit && hit.src === bars && hit.baseRev === snapshot?.baseRev) return hit.out
+  const hit = _legacyMemo.get(k)
+  if (hit && hit.src === bars && hit.baseRev === snapshot?.baseRev) return hit
   let out = bars
   for (let i = 0; i < bars.length; i++) {
     if (toLegacyBar(bars[i], tf) !== bars[i]) { out = bars.map(b => toLegacyBar(b, tf)); break }
   }
-  _legacyBaseMemo.set(k, { baseRev: snapshot?.baseRev, src: bars, out }, out.length)
-  return out
+  return _legacyMemo.set(k, { baseRev: snapshot?.baseRev, src: bars, out, bars: null }, out === bars ? 0 : out.length)
 }
+function legacySealed(snapshot, tf) { return _legacySlot(snapshot, tf).out }
 
 function legacyDeveloping(snapshot, tf, sealed) {
   const d = snapshot?.developing
@@ -180,7 +196,7 @@ export function newestBarIsFormingOf(snapshot) {
 // A static snapshot (a caller-owned array, no store key) keeps the strong per-snapshot memo: it lives exactly as long
 // as its caller's bars.
 const _legacyBarsRefs = new WeakMap()     // snapshot → Map(tf → WeakRef(out))
-const _legacyBarsSlots = slotMemo()       // `${key}|${tf}` → out: the newest array, held strongly, under the budget
+// (the strong hold of the newest array is its key's `_legacyMemo` slot, `slot.bars`, under the one budget)
 const _legacyBarsStatic = new WeakMap()   // static snapshot → Map(tf → out)
 const _weakOf = typeof WeakRef === 'function' ? (v) => new WeakRef(v) : (v) => ({ deref: () => v })
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `uct.neighborframes`) — sealed array → `{tf, dev, out}`: the last
@@ -220,14 +236,14 @@ export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   let byTf = _legacyBarsRefs.get(snapshot)
   if (!byTf) { byTf = new Map(); _legacyBarsRefs.set(snapshot, byTf) }
   const hit = byTf.get(tf)?.deref()
-  if (hit) { _legacyBarsSlots.get(k); return hit }   // (a read refreshes the slot's recency)
-  const out = _legacyBarsOf(snapshot, tf)
+  if (hit) { _legacyMemo.get(k); return hit }   // (a read refreshes the slot's recency)
+  const slot = _legacySlot(snapshot, tf)
+  const out = _legacyBarsOf(snapshot, tf, slot.out)
+  slot.bars = out   // held strongly by the slot (its weight is the copy it shares with `slot.out`)
   byTf.set(tf, _weakOf(out))
-  _legacyBarsSlots.set(k, out, out.length)
   return out
 }
-function _legacyBarsOf(snapshot, tf) {
-  const sealed = legacySealed(snapshot, tf)
+function _legacyBarsOf(snapshot, tf, sealed = legacySealed(snapshot, tf)) {
   const dev = legacyDeveloping(snapshot, tf, sealed)
   return dev ? withDeveloping(sealed, dev, tf) : sealed
 }
@@ -297,6 +313,14 @@ function cutoffKeep(cutoff) {
 }
 
 const _baseMemo = slotMemo()   // `${key}|${vtid}` → the base series of the key's newest revision read
+
+// ⭐ A KEY THE REGISTRY DROPS TAKES ITS SLOTS WITH IT (lib/barBudget.js: every registry announces its evictions). A slot is
+// a cache: dropping it is never wrong, a later read rebuilds the same rows.
+onKeyEvicted((key) => { if (key != null) { _legacyMemo.forget(`${key}|`); _baseMemo.forget(`${key}|`) } })
+registerBarHolder('adapter', () => {
+  const st = _legacyMemo.stats()
+  return { bars: st.bars, entries: st.slots, budget: _lim().maxBars }
+})
 function computeBase(snapshot, view, tf, vtid) {
   const sealed = legacySealed(snapshot, tf)
   const k = `${snapshot?.key}|${vtid}`
@@ -395,11 +419,12 @@ function composeBars(base, tail) {
 /** Test-only: drop the memos (they are bounded caches; never needed for correctness) and
  *  restore their bounds. */
 export function _resetAdapterMemos() {
-  _baseMemo.clear(); _legacyBaseMemo.clear(); _legacyBarsSlots.clear()
-  _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
+  _baseMemo.clear(); _legacyMemo.clear()
+  _limits = null
 }
-/** Test-only: what the memos hold — slots, bars, slot keys. */
-export function _adapterMemoStats() { return { legacy: _legacyBaseMemo.stats(), base: _baseMemo.stats(), legacyBars: _legacyBarsSlots.stats() } }
+/** Test-only: what the memos hold — slots, bars, slot keys. `legacy` and `legacyBars` are the ONE legacy memo (a slot
+ *  holds a key's sealed copy and its newest handed-out array). */
+export function _adapterMemoStats() { const legacy = _legacyMemo.stats(); return { legacy, base: _baseMemo.stats(), legacyBars: legacy } }
 /** Test-only: smaller bounds, so a test can reach them with small series. */
 export function _setAdapterMemoLimits({ maxEntries = BASE_MEMO_MAX, maxBars = MEMO_BAR_BUDGET } = {}) {
   _limits = { maxEntries, maxBars }

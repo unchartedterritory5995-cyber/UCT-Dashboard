@@ -27,6 +27,7 @@ import { appMinuteFeed } from './minuteFeedSwitch'
 import { STATUS } from './types'
 import { onDeskHiddenChange } from '../../lib/deskVisibility'
 import { serverNow } from '../../lib/serverClock'
+import { barBudget, registerBarHolder } from '../../lib/barBudget'
 
 export { keyOf, parseKey } from './types'
 
@@ -54,7 +55,11 @@ export function createBarStore(o = {}) {
   const now = o.timers?.now ?? serverNow
   const setTimer = o.timers?.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
   const clearTimer = o.timers?.clearTimer ?? ((h) => clearTimeout(h))
-  const registry = o.registry ?? createRegistry({ ctx: () => ({ nowMs: now() }), ...(o.frame ? { frame: o.frame } : {}) })
+  // (the page budget's registry share and recent-symbol tier, lib/barBudget.js: the touch tier keeps less)
+  const registry = o.registry ?? createRegistry({
+    ctx: () => ({ nowMs: now() }), barBudget: barBudget().registry, recentSymbols: barBudget().recentSymbols,
+    ...(o.frame ? { frame: o.frame } : {}),
+  })
   /** key → { n, stops: Function[] } for keys with at least one subscriber (declared first: persist's `onScreen` reads it) */
   const active = new Map()
   /** key → { n, stop } for the rows ahead riding the push stream (`watchLive`), at most NEIGHBOR_LIVE_MAX_KEYS */
@@ -309,7 +314,15 @@ function _wireFlush() {
 export function getBarStore() {
   // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
   // The minute feed into the registry is the app store's alone, and off unless its switch says on (minuteFeedSwitch.js).
-  if (!_default) { _default = createBarStore({ history: appHistoryFeed(), minuteFeed: appMinuteFeed }); _wireFlush() }
+  if (!_default) {
+    _default = createBarStore({ history: appHistoryFeed(), minuteFeed: appMinuteFeed })
+    _wireFlush()
+    // (what the app's registry holds, next to the other caches' shares: `window.__uctBarBudget()`, lib/barBudget.js)
+    registerBarHolder('registry', () => {
+      const st = _default?.registry.stats()
+      return st ? { bars: st.bars, entries: st.keys, budget: st.budget, recent: st.recent } : null
+    })
+  }
   return _default
 }
 /** Test hook. */
