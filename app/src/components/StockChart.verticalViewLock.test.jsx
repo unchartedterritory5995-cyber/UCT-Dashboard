@@ -740,3 +740,19 @@ describe('⭐ HEAL v2 (2026-11-26) — every stored vertical half goes ONCE, on 
     expect(stored()).toMatchObject({ top: 0.3223, bottom: 0.3057 })
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ⭐ (2026-11-27, #2934) THE CHART TELLS ITS MEMBER THE VIEW IT SHOWS: a linked chart's next symbol switch paints at once
+// only on rows that cover this view (paintLog.viewNeed), so the span the chart shows must reach the member token. This
+// harness answers a real visible logical range ({0, 200}), which is why the rail lives here.
+describe('⭐ the view a member shows reaches its paint token (viewNeed)', () => {
+  it('mounting under a member records the visible span; another member records nothing', async () => {
+    const { PaintMemberContext, memberViewSpan } = await import('./chart/paintLog')
+    const member = {}
+    const other = {}
+    render(<PaintMemberContext.Provider value={member}>{view()}</PaintMemberContext.Provider>)
+    await waitFor(() => expect(rig.state.provider).toBeTruthy(), { timeout: 5000 })
+    await waitFor(() => expect(memberViewSpan(member)).toBe(200))
+    expect(memberViewSpan(other)).toBe(null)
+  })
+})
