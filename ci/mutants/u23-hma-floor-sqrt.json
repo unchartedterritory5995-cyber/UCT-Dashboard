@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "UNIT 23 (fix/hma-floor-sqrt, engine e100): Hull's root window is floor(sqrt(n)), as TradingView computes ta.hma (FRED's Q-HMA capture, AMEX:SPY 1D: at n = 21 floor exact on 8,482/8,482 bars, round on none). Three Hull paths carry the rule: the engine's hullWindows (formula and runtime lanes), the Python twin _hma_col, and the native overlay's movingAverages hma. Each, put back to round, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "H1",
+   "mutant": "round-js: the engine's hullWindows rounds the root window again (both JS lanes)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  root: Math.max(1, Math.floor(Math.sqrt(n))),",
+   "to": "  root: Math.max(1, Math.round(Math.sqrt(n))),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/runtimeRsiHma.test.js",
+   "expectRed": "hullWindows"
+  },
+  {
+   "id": "H2",
+   "mutant": "round-py: the Python twin _hma_col rounds the root window again (floor(x + 0.5))",
+   "file": "api/services/ast_interpret.py",
+   "from": "    root = max(1, int(math.floor(math.sqrt(float(n)))))",
+   "to": "    root = max(1, int(math.floor(math.sqrt(float(n)) + 0.5)))",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_hma_root_window_is_floored.py",
+   "expectRed": "test_hma_is_the_floored_composition"
+  },
+  {
+   "id": "H3",
+   "mutant": "round-ma: the native moving-average overlay's hma rounds the root window again",
+   "file": "app/src/components/chart/movingAverages.js",
+   "from": "  const root = Math.max(1, Math.floor(Math.sqrt(p)))",
+   "to": "  const root = Math.max(1, Math.round(Math.sqrt(p)))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/movingAverages.test.js",
+   "expectRed": "first('hma')"
+  }
+ ]
+}
