@@ -93,10 +93,11 @@ describe('C1 — what stays refused, by name', () => {
     refused(body('timestamp(2024, 3, 10, 2, 30)'), /skips or repeats/)
     refused(body('timestamp(2024, 11, 3, 1, 30)'), /skips or repeats/)
   })
-  it('a zone with an offset (its sign is CR-S1\'s) and every other spelling (Q-D2)', () => {
+  // ⚰️ COV-TIME u2: `"1 Jan 2024 00:00 +0300"` and `"2024-01-01T00:00:00"` were refused here (Q-D2); capmatrix C3e / C3d
+  // hold both shapes, so the one date-string reader serves them (`runtimeInputKinds.test.js`, `covTimeU2.test.js`).
+  it('a zone NAMED as `timestamp(timezone, …)` with an offset (its sign is CR-S1\'s), and a date string no capture holds', () => {
     refused(body('timestamp("GMT+3", 2024, 1, 1, 0, 0)'), /no capture holds this form/)
-    refused(body('timestamp("1 Jan 2024 00:00 +0300")'), /not written in the captured form/)
-    refused(body('timestamp("2024-01-01T00:00:00")'), /not written in the captured form/)
+    refused(body('timestamp("1 Jan 2024 00:00 EST")'), /not a date this pane reads exactly/)
   })
   it('the shared reader with no symbol (settings, translator): the exchange form stays skipped; the others serve', () => {
     expect(readerOf('timestamp(2024, 1, 2, 9, 30)').skip).toMatch(/New York symbol/)

@@ -310,7 +310,9 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
     expect(r.guard).toBe('pine:builtin')
     expect(r.message).toMatch(/timeframe\.in_seconds/)
     // An unrecognised code likewise — and NOT a guessed length.
-    expect(refusal('plot(timeframe.in_seconds("3") > 0 ? close : open)').guard).toBe('pine:builtin')
+    // ⚰️ `"3"` stood here. COV-TIME u2 answers n minutes as n × 60 (`pine.js::multipleSeconds`; capmatrix C1 reads
+    // "480" and "120" so), so a code past a day of minutes is the unrecognised one now.
+    expect(refusal('plot(timeframe.in_seconds("1441") > 0 ? close : open)').guard).toBe('pine:builtin')
   })
 
   it('⛔ an unrecognised BASE refuses rather than answering', () => {
@@ -357,8 +359,10 @@ describe('`timeframe.change` is SERVED where it was measured, and REFUSED — te
   it('⛔⛔ by name, with the reason, on a SCREEN and for an unmeasured period', () => {
     const cases = [
       ['plot(timeframe.change("D") ? close : open)', {}, /this is a screen/],
-      ['plot(timeframe.change("60") ? close : open)', { strict: true }, /"60" is not one of the three measured/],
-      ['plot(timeframe.change("3M") ? close : open)', { strict: true }, /"3M" is not one of the three measured/],
+      ['plot(timeframe.change("60") ? close : open)', { strict: true }, /"60" is not one of those measured/],
+      // ⚰️ "3M" stood here; COV-TIME u2 serves it (capmatrix C2) as the change of `time("3M")`. "6M" was asked by no capture.
+      ['plot(timeframe.change("6M") ? close : open)', { strict: true }, /"6M" is not one of those measured/],
+      ['plot(timeframe.change("3M") ? close : open)', {}, /this is a screen/],
       ['plot(timeframe.change(timeframe.period) ? close : open)', { strict: true }, /does not fold to a literal/],
     ]
     for (const [body, opts, why] of cases) {

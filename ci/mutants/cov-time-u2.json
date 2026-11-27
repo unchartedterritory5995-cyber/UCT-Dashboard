@@ -1,0 +1,123 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "COV-TIME u2 (feat/cov-time-u2): FRED's capmatrix C1-C9 admission gaps. C3 ONE date-string reader (clockFns.dateStringMs) for the input.time default, the runtime bare call and the host-lane fold: month-first, GMT+N east, no zone GMT+0 (vw-cap-c3-timestamp-{a..e}-spy-{1d,15}-2026-11-26); C2 timeframe.change(\"3M\"|\"12M\") = ta.change(time(tf)) != 0 (vw-cap-c2-change-qy-spy-{1d,1w,1m}); C9 bars_back = the call N chart bars back, time_close(\"\") = time_close (vw-cap-c9-time-close-bars-back-spy-1d); C1 in_seconds n x unit (vw-cap-c1-from-seconds-spy-1d). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "U1",
+   "mutant": "the month-first date shape is not read (C3a/C3b refused again)",
+   "file": "app/src/components/chart/engine/runtime/clockFns.js",
+   "from": "      m = MONTH_FIRST_DATE.exec(s)",
+   "to": "      m = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "Jan 01 2023 00:00:00"
+  },
+  {
+   "id": "U2",
+   "mutant": "a GMT+N / +hhmm zone is read WEST of UTC (the Etc/GMT sign)",
+   "file": "app/src/components/chart/engine/runtime/clockFns.js",
+   "from": "  return (sign === '-' ? -1 : 1) * (h * 60 + mi)",
+   "to": "  return (sign === '-' ? 1 : -1) * (h * 60 + mi)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "GMT+10"
+  },
+  {
+   "id": "U3",
+   "mutant": "a date string with no zone is read in New York standard time, not GMT+0",
+   "file": "app/src/components/chart/engine/runtime/clockFns.js",
+   "from": "  if (tz === undefined || tz === 'Z' || tz === 'GMT' || tz === 'UTC') return 0",
+   "to": "  if (tz === undefined) return -300\n  if (tz === 'Z' || tz === 'GMT' || tz === 'UTC') return 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "no zone is GMT+0"
+  },
+  {
+   "id": "U4",
+   "mutant": "the input default's reader restates its own grammar again (drops GMT+N), so the input and the bare call disagree",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "  return typeof str === 'string' ? dateStringMs(str) : null",
+   "to": "  return typeof str === 'string' && !/GMT[+-]/.test(str) ? dateStringMs(str) : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "GMT+10"
+  },
+  {
+   "id": "U5",
+   "mutant": "the RULING-0927 one-spelling gate comes back as a second authority over a date the reader reads",
+   "file": "app/src/components/chart/engine/runtime/runtimeInputs.js",
+   "from": "  if (args.length === 1 && args[0].value && args[0].value.type === 'string') return null",
+   "to": "  if (args.length === 1 && args[0].value && args[0].value.type === 'string') return args[0].value.value.endsWith('+0000') ? null : 'not written in the captured form'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "input and bare call are one instant"
+  },
+  {
+   "id": "U6",
+   "mutant": "the host lane stops folding the bare timestamp(dateString)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const ms = typeof text === 'string' ? dateStringMs(text) : null",
+   "to": "    const ms = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "host lane folds the bare call"
+  },
+  {
+   "id": "U7",
+   "mutant": "timeframe.change(\"3M\") reads the anchor itself, not its change",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        return cOp('?:', [clockLeaf('isfirst'), cNum(0), cOp('!=', [cCall('change', [anchor]), cNum(0)])])",
+   "to": "        return cOp('?:', [clockLeaf('isfirst'), cNum(0), cOp('!=', [anchor, cNum(0)])])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "equal to its control on every bar"
+  },
+  {
+   "id": "U8",
+   "mutant": "timeframe.change(\"3M\" | \"12M\") is derived from the MONTH anchor",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "          anchor = this.periodAnchorOf(quarterOrYear, 'time', node.tok)",
+   "to": "          anchor = this.periodAnchorOf('M', 'time', node.tok)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "equal to its control on every bar"
+  },
+  {
+   "id": "U9",
+   "mutant": "bars_back is accepted and dropped (the call on the current bar)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return n === 0 ? call : { type: 'offset', value: n, args: [call] }",
+   "to": "    return call",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "each column is its base column shifted"
+  },
+  {
+   "id": "U10",
+   "mutant": "a negative bars_back (the expected time of a future bar) is accepted",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (n === null || !Number.isInteger(n) || n < 0) {",
+   "to": "    if (n === null || !Number.isInteger(n)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "a negative bars_back"
+  },
+  {
+   "id": "U11",
+   "mutant": "time_close(\"\") is read as the bar's OPEN time",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (lit === '' && raw && raw.type === 'string') return this.resolve({ type: 'name', name: 'time_close', tok: node.tok })",
+   "to": "    if (lit === '' && raw && raw.type === 'string') return this.resolve({ type: 'name', name: 'time', tok: node.tok })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "each column is its base column shifted"
+  },
+  {
+   "id": "U12",
+   "mutant": "in_seconds(\"<n>D\") is measured in weeks",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (m[2] === 'D') return n >= 1 && n <= 365 ? n * TF_SECONDS_DAILY_AND_ABOVE.D : null",
+   "to": "  if (m[2] === 'D') return n >= 1 && n <= 365 ? n * TF_SECONDS_DAILY_AND_ABOVE.W : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "in_seconds(\"2D\")"
+  },
+  {
+   "id": "U13",
+   "mutant": "a minute count past a day is answered (no bound)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  if (m[2] === '') return n >= 1 && n <= 1440 ? n * 60 : null",
+   "to": "  if (m[2] === '') return n >= 1 ? n * 60 : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/covTimeU2.test.js",
+   "expectRed": "1441"
+  }
+ ]
+}

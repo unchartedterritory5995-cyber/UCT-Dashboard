@@ -112,6 +112,7 @@ import { memberNumber } from './memberValue.js'
 // ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
 import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
 import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
+import { dateStringMs } from '../runtime/clockFns.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
@@ -821,6 +822,21 @@ const monthsSeconds = (text) => {
   const m = /^([0-9]+)M$/.exec(String(text).trim().toUpperCase())
   const n = m ? Number(m[1]) : 0
   return n >= 1 && n <= 12 ? n * TF_SECONDS_DAILY_AND_ABOVE.M : null
+}
+
+/** ⭐⭐ COV-TIME u2 (capmatrix C1) — `timeframe.in_seconds("<n>")` / `"<n>D"` / `"<n>W"`: n minutes, days or weeks,
+ *  measured as n × the unit's own length (the units `TF_SECONDS_DAILY_AND_ABOVE` and the minute already hold).
+ *  Capture `vw-cap-c1-from-seconds-spy-1d-2026-11-26` reads "480" 28,800, "120" 7,200, "2D" 172,800 and "3W"
+ *  1,814,400 on every bar (8,515): the arithmetic, no calendar. Like `monthsSeconds`, a LENGTH, not a timeframe
+ *  the charts hold. ⛔ Bounded to a day of minutes, a year of days, a year of weeks; written in capitals as
+ *  TradingView spells them; seconds ("30S") and anything else answer null and keep their refusal. */
+const multipleSeconds = (text) => {
+  const m = /^([0-9]+)([DW]?)$/.exec(String(text).trim())
+  if (!m) return null
+  const n = Number(m[1])
+  if (m[2] === '') return n >= 1 && n <= 1440 ? n * 60 : null
+  if (m[2] === 'D') return n >= 1 && n <= 365 ? n * TF_SECONDS_DAILY_AND_ABOVE.D : null
+  return n >= 1 && n <= 52 ? n * TF_SECONDS_DAILY_AND_ABOVE.W : null
 }
 
 /** `timeframe.multiplier` for a code, or `null` when this engine does not hold
@@ -2123,7 +2139,8 @@ export const BUILTIN_TIMEFRAME_RULED = Object.freeze({
   'timeframe.change': 'it is true on the FIRST BAR OF EACH NEW PERIOD, so it is decided '
     + 'bar by bar by a CLOCK COLUMN — and this engine holds one for "D", "W" and "M" '
     + '(and their spellings "1D", "1W", "1M"), measured against TradingView, on a '
-    + 'CHART PANE. Any other period, a timeframe that does not fold to one of those, '
+    + 'CHART PANE, and reads "3M" and "12M" as the change of `time("3M")` / `time("12M")` '
+    + '(capture `vw-cap-c2-change-qy-spy-{1d,1w,1m}-2026-11-26`). Any other period, a timeframe that does not fold to one of those, '
     + 'and a screen (whose stored daily bars carry no clock) are not served; folding '
     + 'it to a constant would answer the same thing on every bar, which is the one '
     + 'answer it is never allowed to give.',
@@ -14131,9 +14148,23 @@ export class Resolver {
     // for the forms the vendor was measured on, and REFUSED BY NAME for every
     // other one, inside `clockCloseCallOf`. It yields to a user definition of
     // the same name, like every carve-out in this file.
+    // ⭐⭐ COV-TIME u2 (capmatrix C9) — `time(<tf>, bars_back = N)` / `time_close(<tf>, bars_back = N)` (v6) is
+    // the same call N CHART bars back (`barsBackClockOf`), so the tree is the served call's own, shifted.
+    if ((name === 'time' || name === 'time_close') && !this.shadowedByDefinition(name)
+        && (node.args || []).some((a) => a && a.name === 'bars_back')) {
+      return this.barsBackClockOf(name, node)
+    }
     if ((name === 'timeframe.change' || name === 'time_close')
         && !this.shadowedByDefinition(name)) {
       return this.clockCloseCallOf(name, node)
+    }
+    // ⭐⭐ COV-TIME u2 — `timestamp(dateString)` over a date FIXED BEFORE BAR 0 is one number on every bar:
+    // UNIX milliseconds, read by THE ONE date-string reader (`clockFns.js::dateStringMs`, which the runtime
+    // lane's bare call and every `input.time` default already read). Anything it cannot read falls through
+    // to the refusal it always had.
+    if (name === 'timestamp' && !this.shadowedByDefinition(name)) {
+      const folded = this.dateStringTimestampOf(node)
+      if (folded) return folded
     }
     // ⛔ A RULED `timeframe.*` CALL GETS ITS RULING, not the namespace shrug —
     // `timeframe.change(tf)` reaches the door as a CALL, so the check in
@@ -14616,6 +14647,8 @@ export class Resolver {
       if (code === null && lit !== null) {
         const months = monthsSeconds(lit)
         if (months !== null) return cNum(months)
+        const multiple = multipleSeconds(lit)
+        if (multiple !== null) return cNum(multiple)
       }
     }
     if (code === null) return null
@@ -14655,6 +14688,47 @@ export class Resolver {
    *  "240", "3M", the chart's own `timeframe.period`, "" …), a timeframe that
    *  does not fold to a literal, any second argument (`session`, `timezone`,
    *  `bars_back`), and a named argument other than `timeframe`. */
+  /** ⭐⭐ COV-TIME u2 (capmatrix C3) — `timestamp("<date>")` as a number node, or null.
+   *  Captures `vw-cap-c3-timestamp-{a..e}-spy-{1d,15}-2026-11-26`: the bare call and `input.time` over the same
+   *  text read the same instant on every bar. ⛔ Only a script that declares a `//@version` (Pine's `time` is
+   *  milliseconds there, as here), only ONE argument (Pine's single-argument form), and only text this
+   *  translation reads as fixed (`stringValueOf`; Pine requires a `const string`). */
+  dateStringTimestampOf(node) {
+    if (this.pineVersion === null) return null
+    const args = (node.args || []).filter(Boolean)
+    if (args.length !== 1 || (args[0].name && args[0].name !== 'dateString')) return null
+    const raw = args[0].value !== undefined ? args[0].value : args[0]
+    const text = this.stringValueOf(raw)
+    const ms = typeof text === 'string' ? dateStringMs(text) : null
+    return ms === null ? null : cNum(ms)
+  }
+
+  /** ⭐⭐ COV-TIME u2 (capmatrix C9) — `time(<tf>, …, bars_back = N)` and `time_close(<tf>, …, bars_back = N)`.
+   *  The v6 reference: "the function calculates the timestamp from the bar N bars back, relative to the current
+   *  bar on its timeframe". Capture `vw-cap-c9-time-close-bars-back-spy-1d-2026-11-26` (AMEX:SPY 1D, 8,515 bars)
+   *  reads it as the call WITHOUT `bars_back`, N chart bars back, on every bar: `time_close("W", bars_back = 1)` on
+   *  Monday 2026-11-23 is the PREVIOUS week's close (Friday's bar's week), `time("M", bars_back = 2)` on
+   *  2026-11-25 is 2026-11-02, the month of the bar two back. So it is the served call's own tree, offset N bars
+   *  (`bars_back = 0` is the call itself): every chart, mask and refusal of that call applies unchanged.
+   *  ⛔ REFUSED BY NAME: a `bars_back` that is not a whole-number literal (a series count is not read here), and a
+   *  NEGATIVE one, which asks for a bar that has not opened yet (the expected time of a future bar). */
+  barsBackClockOf(name, node) {
+    const at = locate(node.tok)
+    const args = (node.args || []).filter(Boolean)
+    const bb = args.find((a) => a.name === 'bars_back')
+    const raw = bb.value !== undefined ? bb.value : bb
+    const negative = !!raw && raw.type === 'unary' && raw.op === '-' && !!raw.arg && raw.arg.type === 'number'
+    const n = raw && raw.type === 'number' ? Number(raw.value) : negative ? -Number(raw.arg.value) : null
+    if (n === null || !Number.isInteger(n) || n < 0) {
+      throw new PineRefusal('pine:function', `${REFUSALS['pine:function']} — \`${name}(…, bars_back)\`: `
+        + (n !== null && Number.isInteger(n) && n < 0
+          ? `\`bars_back = ${n}\` asks for the expected time of a bar that has not opened yet, which no capture measured`
+          : '`bars_back` is read here only as a whole number written in the script (0, 1, 2 …)'), at)
+    }
+    const call = this.resolveCall({ ...node, args: args.filter((a) => a !== bb) })
+    return n === 0 ? call : { type: 'offset', value: n, args: [call] }
+  }
+
   clockCloseCallOf(name, node) {
     const at = locate(node.tok)
     const isChange = name === 'timeframe.change'
@@ -14678,10 +14752,30 @@ export class Resolver {
     if (isChange) {
       const col = code === 'D' ? 'sessionfirst' : code === 'W' ? 'weekfirst'
         : code === 'M' ? 'monthfirst' : null
+      // ⭐⭐ COV-TIME u2 (capmatrix C2) — `timeframe.change("3M" | "12M")` IS `ta.change(time(<tf>)) != 0`,
+      // false on the oldest bar: TradingView reads the two equal on every bar of
+      // `vw-cap-c2-change-qy-spy-{1d,1w,1m}-2026-11-26` (8,515 / 1,766 / 407 bars, "M" and "W" too, bar 0 false).
+      // DERIVED from the anchor `time(<tf>)` already serves (`periodAnchorOf`, its charts, its refusals and its
+      // mask), never a second calendar: the change of that anchor is the new period.
+      const quarterOrYear = col === null && lit !== null ? timeAnchorPeriodOf(lit) : null
+      if (quarterOrYear === '3M' || quarterOrYear === '12M') {
+        if (!this.strict) throw no('this is a screen, not a chart pane')
+        let anchor
+        try {
+          anchor = this.periodAnchorOf(quarterOrYear, 'time', node.tok)
+        } catch (e) {
+          if (e instanceof PineRefusal) {
+            throw no(`it is read as \`ta.change(time(${JSON.stringify(lit)})) != 0\`, and that anchor is not served `
+              + `here: ${e.message}`)
+          }
+          throw e
+        }
+        return cOp('?:', [clockLeaf('isfirst'), cNum(0), cOp('!=', [cCall('change', [anchor]), cNum(0)])])
+      }
       if (col === null) {
         throw no(lit === null
           ? 'its timeframe does not fold to a literal this translation can read'
-          : `the period ${JSON.stringify(lit)} is not one of the three measured`)
+          : `the period ${JSON.stringify(lit)} is not one of those measured ("D", "W", "M", "3M" and "12M")`)
       }
       if (!this.strict) throw no('this is a screen, not a chart pane')
       // ⭐ FALSE ON THE OLDEST BAR, THE COLUMN EVERYWHERE ELSE — the vendor's
@@ -14702,6 +14796,12 @@ export class Resolver {
     // `time(<tf>)` reads (`timeAnchorPeriodOf`).
     const period = lit === null ? null : timeAnchorPeriodOf(lit)
     if (period !== null) return this.periodCloseOf(period, node.tok)
+    // ⭐⭐ COV-TIME u2 (capmatrix C9) — `time_close("")`: Pine's empty timeframe is the CHART'S, so this is the bare
+    // `time_close`, resolved as that name (one tree, never a copy). Capture
+    // `vw-cap-c9-time-close-bars-back-spy-1d-2026-11-26` C905 (`time_close("", bars_back = 1)`) reads the previous
+    // bar's own close on every bar. ⛔ Only the literal `""`: `timeframe.period` and an `input.timeframe("")` were
+    // not asked.
+    if (lit === '' && raw && raw.type === 'string') return this.resolve({ type: 'name', name: 'time_close', tok: node.tok })
     if (code !== 'D') {
       throw no(lit === null
         ? 'its timeframe does not fold to a literal this translation can read'
@@ -18214,7 +18314,7 @@ export class Resolver {
     // `input.time(timestamp("18 May 2022 00:00 +0000"))` / 86 400 000 reads 19130 on every
     // bar — the timestamp itself, in ms. The default is read by the RUNTIME lane's own
     // reader (`runtimeInputs.js::timeInputDefaultOf`), which since r1 serves only that
-    // form (`WITNESSED_TIME_DEFAULT`, no `confirm = true`) and refuses every other by
+    // form (`clockFns.js::dateStringMs`, no `confirm = true`) and refuses every other by
     // name, so the two lanes agree on what is served and with which sentence.
     // ⭐ r1 (N5): asked BEFORE `knobReads`, so a v4 `input(…, type = input.time)` is never
     // recorded as a knob this lane does not offer.

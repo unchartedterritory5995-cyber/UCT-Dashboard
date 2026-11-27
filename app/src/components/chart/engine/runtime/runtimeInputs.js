@@ -63,7 +63,7 @@ import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, bound
 import { KEY_RE } from '../ast/parse.js'
 import { pineColourHex } from '../pinePalette.js'
 import { isSessionString, TIME_INPUT_MAX_ABS_MS } from '../defSchema.js'
-import { instantField } from './clockFns.js'
+import { instantField, dateStringMs } from './clockFns.js'
 
 /** The bar series a member may pick for a source input. */
 export const RUNTIME_SOURCES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
@@ -294,9 +294,6 @@ export function isTimeInputCall(node) {
  *  validator, the run and this module answer one question). */
 export { isSessionString }
 
-const MONTHS = Object.freeze(['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct',
-  'nov', 'dec'])
-
 /** A zone written after a date: `Z`/`UTC`/`GMT`/`UT`, `±hhmm`, `±hh:mm`, `±h`, optionally
  *  prefixed `GMT`/`UTC` (`GMT+10`, `UTC-5`). Minutes EAST of UTC, or null. */
 function zoneMinutes(z) {
@@ -320,26 +317,13 @@ function utcMs(y, mo, d, h, mi, sec, zone) {
   return ms - zone * 60000
 }
 
-/** ⭐ `timestamp(dateString)` — UNIX milliseconds, or null for a string this cannot read
- *  EXACTLY. The reference (v6): the string is IETF RFC 2822 or ISO 8601 ("DD MMM YYYY
- *  hh:mm:ss ±hhmm" or "YYYY-MM-DDThh:mm:ss±hh:mm"); no time means 00:00; **no zone means
- *  GMT+0** — unlike every other `timestamp` form, which reads the exchange's zone.
- *  ⚠️ `GMT+10` / `UTC-5` after the date is not RFC 2822 grammar; TradingView compiles it
- *  (the corpus writes it) and it is read here as an offset EAST of UTC — NEEDS CAPTURE. */
+/** ⭐ `timestamp(dateString)` — UNIX milliseconds, or null for a string this cannot read EXACTLY.
+ *  ⭐⭐ COV-TIME u2 — DERIVED, NEVER RESTATED: this IS `clockFns.js::dateStringMs`, the reader the bare
+ *  `timestamp("…")` call already used on the runtime lane. Two grammars stood here (this one read
+ *  `GMT+10` and `±h`, that one read neither, and neither read the month-first `"Jan 01 2023"` the C3
+ *  captures hold), so an input's default and the same text written as an expression could disagree. */
 export function timestampOfDateString(str) {
-  if (typeof str !== 'string') return null
-  const s = str.trim()
-  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?\s*(Z|[+-]\d{2}(?::?\d{2})?)?$/i.exec(s)
-  if (m) {
-    return utcMs(+m[1], +m[2], +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, m[6] ? +m[6] : 0, zoneMinutes(m[7]))
-  }
-  m = /^(?:[A-Za-z]{3},\s*)?(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?(?:\s+(.+))?$/.exec(s)
-  if (m) {
-    const mo = MONTHS.indexOf(m[2].toLowerCase())
-    if (mo < 0) return null
-    return utcMs(+m[3], mo + 1, +m[1], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0, m[6] ? +m[6] : 0, zoneMinutes(m[7]))
-  }
-  return null
+  return typeof str === 'string' ? dateStringMs(str) : null
 }
 
 /** ⭐ A time input's DEFAULT as UNIX milliseconds (`{ ms }`), or `{ skip }` saying why not.
@@ -365,10 +349,8 @@ export function timeInputDefaultOf(node, lookup, opts = {}) {
   return why ? { skip: why } : r
 }
 
-/** The one default form a capture holds: an RFC 2822 date string, minutes, zone written `+0000`. */
-export const WITNESSED_TIME_DEFAULT = /^\d{1,2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2} \+0000$/
 const TIME_NEEDS_CAPTURE = ' — no capture holds this form yet (RULING-0927 r1, '
-  + '`docs/pine/capture-queue-2026-09-27.md`); the one captured form is `timestamp("D MMM YYYY hh:mm +0000")`'
+  + '`docs/pine/capture-queue-2026-09-27.md`); the captured forms are the date strings `clockFns.js::dateStringMs` reads'
 export const TIME_CONFIRM_SKIP = 'it asks the member to pick the time on the chart (`confirm = true`), so the '
   + "author's default is not what TradingView runs" + TIME_NEEDS_CAPTURE
 
@@ -404,12 +386,11 @@ function unwitnessedTimeDefault(v) {
     return null
   }
   if (args.length >= 5 && literalNumber(args[0].value) !== null) return null
-  if (args.length === 1 && args[0].value && args[0].value.type === 'string') {
-    const text = args[0].value.value
-    return WITNESSED_TIME_DEFAULT.test(text)
-      ? null
-      : `its default \`timestamp("${text}")\` is not written in the captured form` + TIME_NEEDS_CAPTURE
-  }
+  // ⭐⭐ COV-TIME u2 — a date string is served whenever THE ONE READER reads it (`constTimeOf` has already
+  // refused the text it cannot): that reader reads only the shapes a capture holds (T16, C3a-e) or the
+  // reference states. ⚰️ `WITNESSED_TIME_DEFAULT` (one regex for T16's spelling) stood here as a second
+  // gate over the same text; it refused C3's five captured spellings the reader could already read.
+  if (args.length === 1 && args[0].value && args[0].value.type === 'string') return null
   return 'its default is `timestamp(timezone, year, …)`' + TIME_NEEDS_CAPTURE
 }
 

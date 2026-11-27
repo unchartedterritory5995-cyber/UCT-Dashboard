@@ -79,7 +79,7 @@ describe('⭐⭐ timestamp(dateString) — the documented forms, read exactly', 
     ['20 Feb 2020', Date.UTC(2020, 1, 20)], // no time → 00:00, no zone → GMT+0 (reference)
     ['20 Feb 2020 15:30', Date.UTC(2020, 1, 20, 15, 30)],
     ['Thu, 20 Feb 2020 15:30:10 -0500', Date.UTC(2020, 1, 20, 20, 30, 10)],
-    ['01 Jan 2000 00:00:00 GMT+10', Date.UTC(1999, 11, 31, 14)], // ⚠️ needs capture (not RFC 2822)
+    ['01 Jan 2000 00:00:00 GMT+10', Date.UTC(1999, 11, 31, 14)], // capmatrix C3c: GMT+10 is 10 hours EAST
     ['2020-02-20', Date.UTC(2020, 1, 20)],
     ['2020-02-20T15:30+02:00', Date.UTC(2020, 1, 20, 13, 30)],
     ['2020-02-20T15:30:45Z', Date.UTC(2020, 1, 20, 15, 30, 45)],
@@ -125,18 +125,17 @@ ${RT}plot(acc * (time >= startDate ? 1 : 0))
     expect(specOf(built, 'startDate').default).toBe(Date.UTC(2000, 0, 1))
   })
 
-  // ⚰️ RULING-0927 r1 (2026-11-07): the kNN shape's own spelling, `'… GMT+10'`, was SERVED here
-  // as UTC+10. No capture holds that zone grammar (`timestampOfDateString` says NEEDS CAPTURE),
-  // and `Etc/GMT+10` means the opposite sign, so it is refused by name until one does.
-  it('⛔ RULING-0927 r1 — a name bound to an UNCAPTURED date string is refused by name', () => {
-    const { specs, skipped } = runtimeInputSpecsOf(`//@version=5
+  // ⚰️ RULING-0927 r1 (2026-11-07) refused the kNN shape's own spelling, `'… GMT+10'`, until a capture held it.
+  // COV-TIME u2: capmatrix C3c (`vw-cap-c3-timestamp-c-spy-{1d,15}-2026-11-26`) reads exactly this text as
+  // 1999-12-31 14:00 UTC (GMT+10 is 10 hours EAST; `Etc/GMT+10`'s opposite sign is not TradingView's reading).
+  it('⭐ COV-TIME u2 — a name bound to the captured `GMT+10` date string is that instant', () => {
+    const { specs } = runtimeInputSpecsOf(`//@version=5
 indicator("t2")
 int sd = timestamp('01 Jan 2000 00:00:00 GMT+10')
 startDate = input.time(sd, "Start")
 plot(close)
 `)
-    expect(specs.find((x) => x.key === 'startDate')).toBeUndefined()
-    expect(skipped.find((x) => x.key === 'startDate').reason).toMatch(/not written in the captured form.*RULING-0927 r1/)
+    expect(specs.find((x) => x.key === 'startDate').default).toBe(Date.UTC(1999, 11, 31, 14))
   })
 
   it('v4: `input(defval = timestamp(…), type = input.time)` is the same setting', () => {
