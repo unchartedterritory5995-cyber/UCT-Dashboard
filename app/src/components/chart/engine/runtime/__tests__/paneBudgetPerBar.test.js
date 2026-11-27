@@ -13,8 +13,8 @@
 //   3. a runaway past the ceiling is refused `runtime:time-budget`, naming 12,000 ms;
 //   4. the synchronous door (the main thread) keeps 1,000 ms where the worker scales, and the worker draws a run of
 //      8,000 ms that the VM's 5,000 would have stopped;
-//   5. the bars a run COVERS: a chart of 20,000 bars cut at its depth to fewer than 5,000 keeps 1,000 ms, and the
-//      curtain's first run is held to the scaled number;
+//   5. the bars a run COVERS: a chart of 20,000 bars cut at its depth to 3,900 is held to the budget of the bars its
+//      curtain's two runs cover (e102), and over the whole chart to the ceiling;
 //   6. only the worker (and, e99 2026-11-26, the pine-runtime service, which holds a run to the member's own budget)
 //      hands the VM its budget as `WALL_TIME`: every other caller keeps 5,000, each by name.
 //   7. (e102, coordinator ruling 2026-11-27, option A) the off-listing curtain runs the script twice, and its budget
@@ -192,7 +192,7 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     expect(posted[1].ok).toBe(true)
   })
 
-  it('5. the bars a run COVERS: cut at its depth to fewer than 5,000, a 20,000-bar chart keeps 1,000 ms', () => {
+  it('5. the bars a run COVERS: cut at its depth to 3,900 bars, a 20,000-bar chart is held to the bars its curtain covers', () => {
     // a 5m chart of 20,000 regular-session bars whose SP:SPX bars our store holds only for the last 50 sessions
     // (trading sessions only: a session on an NYSE holiday reads as a HOLE, not a depth; each day's own DST offset)
     const HOLIDAYS = new Set(['2025-01-01', '2025-01-09', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26', '2025-06-19',
@@ -222,7 +222,10 @@ describe('the budget of a run in the worker scales with the bars it covers', () 
     steppingClock(1)
     const err = refusedWith(() => computeRuntimeColumns(def, chart, ctx, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true }))
     expect(err && err.guard, err && err.message).toBe(RUNTIME_TIME_BUDGET_GUARD)
-    expect(err.message, '50 x 78 = 3,900 bars covered: the 1,000 ms floor').toMatch(/took more than 1000 ms/)
+    // ⭐⭐ (e102, the 2026-11-27 amendment) cut at its depth, the run is the off-listing curtain over 50 x 78 = 3,900 bars:
+    // its two runs cover 3,900 + 3,649 = 7,549 bars, so 3,549 ms (one run's 3,900 alone kept the 1,000 ms floor)
+    expect(runtimePaneBudgetFor(3900 + 3900 - 251)).toBeCloseTo(3549, 6)
+    expect(err.message, 'the curtain over 3,900 bars: both runs covered').toMatch(/took more than 3549 ms/)
     // and over the whole chart (no request: no cut) the curtain's first run is held to the scaled number
     vi.restoreAllMocks()
     steppingClock(1)
