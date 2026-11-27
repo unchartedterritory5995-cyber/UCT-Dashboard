@@ -31,6 +31,7 @@ import { STATUS } from '../../data/barStore/types'
 import { chartKeyFor } from './useBarSnapshotBars'
 import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC, volExtremesOf } from './chartDerived'
 import { toHeikinAshi } from './indicators'
+import { deriveCustomTf, customSpecOf } from './customTfRows'
 import {
   neighborFramesOn, scanNeighborsFor, subscribeScanNeighbors, scheduleIdle, cancelIdleFor,
   deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported, linkDerivedSource,
@@ -111,12 +112,14 @@ export function deriveVolMa(sessionApplied, r) {
  * Is the chart on the PLAIN path, the one the preparer walks (`recipes.plain`)? No replay, override, framed range or
  * session candle, and the chain bars → session → applied is the chart's own (nothing between them the preparer does
  * not do). StockChart asks this every render; off it, the rows around the chart are not prepared.
+ * ⭐ (2026-11-27) A CUSTOM TIMEFRAME IS PLAIN: its bars are the filed resample of its base rows (customTfRows), which
+ * `prepareRow` asks for too, so its rows are prepared like a native chart's.
  */
 export function neighborPlainOf({
-  hasOverride, isCustomTf, replayMode, replayIndex, replayCutoff, exactDateRange, sessionCandleActive,
+  hasOverride, replayMode, replayIndex, replayCutoff, exactDateRange, sessionCandleActive,
   sessionBars, filteredBars, sessionAppliedBars,
 }) {
-  return !hasOverride && !isCustomTf && !replayMode && replayIndex == null && !replayCutoff
+  return !hasOverride && !replayMode && replayIndex == null && !replayCutoff
     && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
 }
 
@@ -141,8 +144,13 @@ export function* prepareRow(sym, rank, c) {
   // the row the next press lands on: its derived values stay until then, whatever the budget (neighborFrames.holdRow)
   if (rank === 0 && c.owner) holdRow(c.owner, 'next', all)
   yield
+  // a custom timeframe's bars: its base rows resampled, the very array the chart's hook asks for (customTfRows)
+  const spec = customSpecOf(v.tf, v.showExtended)
+  const bars = spec ? deriveCustomTf(all, spec) : all
+  if (!bars || !bars.length) { nfCount('barsSkipped'); return }
+  if (spec) yield
   // the chart's own chain, in the chart's own order (StockChart: sessionBars → filteredBars → sessionAppliedBars → displayBars)
-  const filtered = deriveSession(all, r)
+  const filtered = deriveSession(bars, r)
   if (!filtered || !filtered.length) return
   yield
   const display = deriveDisplay(filtered, r)

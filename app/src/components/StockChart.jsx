@@ -11282,11 +11282,12 @@ function StockChartBody({
     return _nfRecipes ? deriveVolMa(__heavy.sessionAppliedBars, _nfRecipes) : volMaDataOf(__heavy.sessionAppliedBars, volMaPeriodEff, adjustTime)
   }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])  // eslint-disable-line react-hooks/exhaustive-deps
   // ⭐⭐ NEIGHBOR FRAMES — the rows a linked list names around this symbol, prepared after each paint. Only
-  // on the plain path (no replay, override, custom timeframe, framed range or session candle), where the
-  // chain above is bars → session → the very arrays the binder and the series are handed.
+  // on the plain path (no replay, override, framed range or session candle; a custom timeframe is plain since
+  // 2026-11-27, chart/customTfRows.js), where the chain above is bars → session → the very arrays the binder and
+  // the series are handed.
   if (_nfRecipes) {
     _nfRecipes.plain = neighborPlainOf({
-      hasOverride: _hasOverride, isCustomTf: _isCustomTf, replayMode, replayIndex, replayCutoff, exactDateRange,
+      hasOverride: _hasOverride, replayMode, replayIndex, replayCutoff, exactDateRange,
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
