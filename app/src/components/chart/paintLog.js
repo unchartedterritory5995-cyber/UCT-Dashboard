@@ -12,6 +12,20 @@ import { createContext } from 'react'
 /** The identity a chart paints under (an opaque token), or null: this chart is no group's member. */
 export const PaintMemberContext = createContext(null)
 
+// ⭐ (2026-11-27, owner: "it loads a small portion of the candles right away and then shortly after the rest") THE VIEW
+// A MEMBER SHOWS. The chart painting under a member identity writes the logical width it shows (bars across the plot, the
+// right margin included) on every visible-range change, and the member's switch reads it: a new symbol's first paint
+// must already hold the bars that view will show (hooks/useSymbolHandoff `viewNeed`). Kept per identity, weakly.
+const _views = new WeakMap()
+/** The chart painting under `member` shows `span` bars across (the right margin included). */
+export function noteMemberView(member, span) {
+  if (member && typeof member === 'object' && Number.isFinite(span) && span > 0) _views.set(member, span)
+}
+/** The logical width the chart painting under `member` last showed, or null (none written yet). */
+export function memberViewSpan(member) {
+  return member && typeof member === 'object' ? (_views.get(member) ?? null) : null
+}
+
 let _onPaint = null
 /** The one listener of member charts' passes: `fn(member, sym, bars, mode)`, or null for none. */
 export function onChartPaint(fn) { _onPaint = typeof fn === 'function' ? fn : null }

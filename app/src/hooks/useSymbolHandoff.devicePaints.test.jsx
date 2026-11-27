@@ -6,7 +6,8 @@ import { renderHook, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
-const st = { displayable: true, lake: true, deep: true, device: true, held: true }
+// (rows: the device copy covers the default view, COVER_ROWS; a SHORT copy is useSymbolHandoff.viewNeed.test.jsx's)
+const st = { displayable: true, lake: true, deep: true, device: true, held: true, rows: 600 }
 const devicePaints = vi.fn(() => st.device)
 const prepareMock = vi.fn(() => new Promise(() => {}))
 const dailyMock = vi.fn(() => new Promise(() => {}))
@@ -19,7 +20,7 @@ vi.mock('../data/barStore/prefetch', () => ({
   prepareForDisplay: (...a) => prepareMock(...a),
   prepareDailyForDisplay: (...a) => dailyMock(...a),
   prefetchBarsToIDB: () => {},
-  heldRows: () => 0,   // rows unknown here: the cover rule (COVER_ROWS) is useSymbolHandoff.coverRows.test.jsx's
+  heldRows: (sym, tf, opts = {}) => (opts.answered ? 0 : (st.device ? st.rows : 0)),   // the device copy's rows (no answer)
 }))
 vi.mock('../utils/prefetchBars', () => ({ prefetchBarsToIDB: () => {}, prepareForDisplay: () => new Promise(() => {}), prepareDailyForDisplay: () => new Promise(() => {}) }))
 vi.mock('../components/chart/engine/serverCompute', () => ({
@@ -36,14 +37,14 @@ async function load() {
 
 beforeEach(() => {
   vi.useFakeTimers()
-  Object.assign(st, { displayable: true, lake: true, deep: true, device: true, held: true })
+  Object.assign(st, { displayable: true, lake: true, deep: true, device: true, held: true, rows: 600 })
   sw.on = true
   devicePaints.mockClear(); prepareMock.mockClear(); dailyMock.mockClear()
 })
 afterEach(() => { vi.useRealTimers() })
 
 describe('the switch and a current device copy', () => {
-  it('intraday: the lake depth still due, a current device copy commits AT ONCE, no prepare', async () => {
+  it('intraday: the lake depth still due, a current device copy that COVERS the view commits AT ONCE, no prepare', async () => {
     await load()
     const { result, rerender } = renderHook(({ s }) => useSymbolHandoff(s, '5'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })

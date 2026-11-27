@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { recordPaint, PaintMemberContext } from './chart/paintLog'
+import { recordPaint, PaintMemberContext, noteMemberView } from './chart/paintLog'
 import { LayerPaintContext } from './chart/layerPaint'
 import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
@@ -4308,6 +4308,8 @@ function StockChartBody({
   // The identity this chart paints under when it is a member of a linked group (chart/paintLog.js: the switch-speed
   // instrument reads its paint record). Null everywhere else; a stable token, read by no rendering decision.
   const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
   // the double buffer's proof (chart/layerPaint.js): each pass reports what it committed; null outside a buffered widget
   const layerPaint = useContext(LayerPaintContext)
   const ownNoticeScope = useId()
@@ -10826,6 +10828,8 @@ function StockChartBody({
     const apply = () => {
       let lr = null
       try { lr = ts.getVisibleLogicalRange() } catch { return }
+      // the view this member shows, for its next switch (chart/paintLog noteMemberView: a first paint holds this many bars)
+      if (lr) noteMemberView(paintMemberRef.current, lr.to - lr.from)
       const N = barCountRef.current
       if (!lr || N < 1) return
       const lastIdx = N - 1
