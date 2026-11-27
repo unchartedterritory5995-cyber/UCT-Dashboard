@@ -48,11 +48,16 @@ def conn(tmp_path, monkeypatch):
 
 
 def _today_et_noon():
-    """Noon ET today as a UTC ISO stamp. Pinned to the ET session day, never the wall clock: base
-    pre-trade matches `substr(exit_date, 1, 10)` to the ET day, so a raw UTC "now" after 8pm ET
-    lands on tomorrow and the daily-loss check reads no trade (a function of the hour)."""
+    """A UTC ISO stamp on the ET session day that is never in the future. Pinned to the ET session
+    day, never the wall clock: base pre-trade matches `substr(exit_date, 1, 10)` to the ET day, so a
+    raw UTC "now" after 8pm ET lands on tomorrow and the daily-loss check reads no trade (a function
+    of the hour). And never AFTER now: 16:00 UTC is still ahead until 11am EST / noon EDT, and the
+    simulator reads trades in [now - days, now), so a future stamp read no trade and it returned its
+    no-trades shape, without `account_size` (red 2026-11-27 05:25 UTC and 12:48 UTC). Now, cut to the
+    second, is on the ET day (at or after ET midnight) and on the same UTC date as the ET day."""
     from api.services.journal_two.calendar import et_today
-    return f"{et_today()}T16:00:00+00:00"
+    noon = datetime.fromisoformat(f"{et_today()}T16:00:00+00:00")
+    return min(noon, datetime.now(timezone.utc).replace(microsecond=0)).isoformat()
 
 
 def _trade(conn, uid, aid):
