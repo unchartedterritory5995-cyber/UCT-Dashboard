@@ -139,7 +139,6 @@ export function uncheckedJsonFetches(src) {
  * ⛔ Do not add a file here to make a build green. Import `utils/jsonFetcher`.
  */
 export const STILL_UNCHECKED = [
-  'components/AuthGuard.jsx',
   'components/MoversSidebar.jsx',
   'components/admin/CatalystRulesPanel.jsx',
   'components/tiles/CatalystFlow.jsx',

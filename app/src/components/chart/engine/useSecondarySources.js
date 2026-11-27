@@ -36,7 +36,8 @@ import { ensureBreadth, subscribeBreadth } from './breadthSupply'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { runtimeReadsOwnDailyOffThread, ownDailyKeyOf, onOwnDailyAnswer } from './runtime/ownDailyAsync'
 import { instanceDocumentForFetch } from './symbolInputs'
-import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
+import { ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail, secondaryFetchOf } from './secondaryBars'
+import { noteSecondaryNeeds, forgetSecondaryNeeds } from '../../../lib/bootSecondaryBars'
 
 /** ⭐⭐ RS RATING L11 — every key this chart needs, asked once each: an ordinary key at the chart's
  *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
@@ -73,32 +74,61 @@ function plainKeyExtended(k, tf, extended) {
   const held = heldFetchOf(k, tf)
   return held && held.key === k ? false : extended
 }
-/** The plain keys of a chart, split by the session each is fetched on (`plainKeyExtended`): the chart's own, and the
- *  regular session's (a witness-held index on a chart whose own session is not regular). */
-function plainKeysBySession(plain, tf, extended) {
-  const own = []
-  const regular = []
-  for (const k of plain) (plainKeyExtended(k, tf, extended) === extended ? own : regular).push(k)
-  return { own, regular }
+/** ⭐⭐ (2026-11-26, Fred RS load time) THE BARS WINDOWS a chart's needed keys fetch, in the order `ensureChartSources` asks
+ *  them: the ordinary keys at the chart's own timeframe and depth first, then this chart symbol's own daily rows and every
+ *  held key, in list order. One plan, read by `ensureChartSources` (the asks) and by `secondaryNeedUrls` (what the page
+ *  remembers for its next load, `lib/bootSecondaryBars.js`), so the two can never name different windows. Breadth, events
+ *  and financial keys have their own doors and are not bars windows. */
+export function chartBarsWindows(keys, tf, barCount, chartSymbol = null, heldSessions = 0, extended = false) {
+  const list = Array.isArray(keys) ? keys : []
+  const out = []
+  // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
+  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753;
+  // ⭐ e98: a key a witness row holds at this timeframe on the index's own regular session, `plainKeyExtended`)
+  for (const k of list) {
+    if (heldKeyParts(k) || k === OWN_DAILY_KEY || k === EVENTS_KEY || k === FINANCIAL_KEY || isBreadthKey(k)) continue
+    out.push({ key: k, symbol: k, tf, bars: barCount, opts: { extended: plainKeyExtended(k, tf, extended) }, ordinary: true })
+  }
+  for (const k of list) {
+    if (isBreadthKey(k) || k === EVENTS_KEY || k === FINANCIAL_KEY) continue
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
+    if (k === OWN_DAILY_KEY) {
+      if (!chartSymbol) continue
+      out.push({ key: k, symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D', bars: heldDepthOf(barCount, tf, heldSessions), opts: {} })
+      continue
+    }
+    const held = heldKeyParts(k)
+    if (!held) continue
+    out.push({ key: k, symbol: held.symbol, tf: held.tf, bars: heldDepthOf(barCount, tf, heldSessions), opts: {} })
+  }
+  return out
+}
+
+/** The URLs those windows fetch (`secondaryFetchOf(...).fetchUrl`), for the page's boot record. */
+export function secondaryNeedUrls(keys, tf, barCount, chartSymbol = null, heldSessions = 0, extended = false) {
+  const urls = []
+  for (const w of chartBarsWindows(keys, tf, barCount, chartSymbol, heldSessions, extended)) {
+    const wire = secondaryFetchOf(w.symbol, w.tf, w.bars, w.opts)
+    if (wire && wire.fetchUrl && !urls.includes(wire.fetchUrl)) urls.push(wire.fetchUrl)
+  }
+  return urls
 }
 
 export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null, heldSessions = 0, extended = false) {
   const list = Array.isArray(keys) ? keys : []
-  // ⛔⛔ T4 B2 — a breadth key (held or not: `USI~ADVN.NY`, `USI~ADVN.NY@D`) never reaches the bars fetch
-  // (`extended`: the chart's own session; a custom intraday timeframe's other-symbol bars sit on ITS grid, review of #2753;
-  // ⭐ e98: a key a witness row holds at this timeframe on the index's own regular session, `plainKeyExtended`)
-  const { own, regular } = plainKeysBySession(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY && k !== EVENTS_KEY && k !== FINANCIAL_KEY && !isBreadthKey(k)),
-    tf, extended)
-  const out = ensureAll(own, tf, barCount, fetcher, { extended })
-  for (const k of regular) {
-    const entry = ensureSecondaryBars(k, tf, barCount, fetcher, { extended: false })
-    if (entry) out.set(k, entry)
+  const windows = chartBarsWindows(list, tf, barCount, chartSymbol, heldSessions, extended)
+  const out = new Map()
+  const ordinary = windows.filter((w) => w.ordinary)
+  for (const w of ordinary) {
+    const entry = ensureSecondaryBars(w.symbol, w.tf, w.bars, fetcher, w.opts)
+    if (entry) out.set(w.key, entry)
   }
   // ⭐⭐ e98 — a custom intraday chart's map carries the chart's own session, so every lane lays its grid where the
   // CHART's spec starts its bars (`otherSymbols.js::atOrBeforeGridOf`)
   if (out.size && resampleSpec(String(tf == null ? '' : tf))?.kind === 'intradaySession') {
     out.set(CHART_SESSION_KEY, chartSessionEntryOf(extended === true))
   }
+  const windowOf = new Map(windows.filter((w) => !w.ordinary).map((w) => [w.key, w]))
   for (const k of list) {
     // ⭐⭐ T4 B2 — a `USI:` breadth spelling's rows, from the breadth door (`breadthSupply.js`), at every chart timeframe
     // (a weekly or monthly chart holds them at D: the same rows under the held key)
@@ -120,16 +150,10 @@ export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = nu
       if (fin) out.set(k, fin)
       continue
     }
-    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
-    if (k === OWN_DAILY_KEY) {
-      if (!chartSymbol) continue
-      const own = ensureSecondaryBars(String(chartSymbol).trim().toUpperCase(), 'D', heldDepthOf(barCount, tf, heldSessions), fetcher)
-      if (own) out.set(k, own)
-      continue
-    }
-    const held = heldKeyParts(k)
-    if (!held) continue
-    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf, heldSessions), fetcher)
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows, and ⭐ L11 every held key (`chartBarsWindows`)
+    const w = windowOf.get(k)
+    if (!w) continue
+    const entry = ensureSecondaryBars(w.symbol, w.tf, w.bars, fetcher, w.opts)
     if (entry) out.set(k, entry)
   }
   return out
@@ -246,6 +270,9 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
   const [state, setState] = useState(EMPTY)
   // ⭐⭐ (switch smoothness) bumped when a question asked off this thread answers NO: the needed set is read again
   const [ownDailyGen, setOwnDailyGen] = useState(0)
+  // ⭐⭐ (2026-11-26, Fred RS load time) this chart's slot in the page's boot record (`lib/bootSecondaryBars.js`)
+  const [needSlot] = useState(() => ({}))
+  useEffect(() => () => forgetSecondaryNeeds(needSlot), [needSlot])
 
   useEffect(() => {
     let alive = true
@@ -272,6 +299,10 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       ? onOwnDailyAnswer((k, yes) => { if (alive && yes === false && askedOff.has(k)) setOwnDailyGen((n) => n + 1) })
       : null
     const key = `${symbols.join(',')}|${tf}|${barCount}|${heldSessions}|${extended ? 'eth' : 'rth'}`
+    // ⭐⭐ (2026-11-26, Fred RS load time) the page remembers the bars windows its charts need NOW, and its next load asks
+    // for them as the entry bundle runs (`lib/bootSecondaryBars.js`): Fred RS's SP:SPX no longer waits for the chart, the
+    // layout and the definitions to land before its round trip starts
+    noteSecondaryNeeds(needSlot, secondaryNeedUrls(symbols, tf, barCount, chartSymbol, heldSessions, extended))
 
     const apply = () => {
       if (!alive) return
@@ -309,7 +340,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       if (unsubBreadth) unsubBreadth(); clearInterval(timer)
       if (offAnswer) offAnswer()
     }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions, extended])
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol, chartSymbolMeta, ownDailyGen, heldSessions, extended, needSlot])
 
   return state.map
 }

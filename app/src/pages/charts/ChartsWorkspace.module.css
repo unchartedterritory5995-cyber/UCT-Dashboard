@@ -1669,6 +1669,9 @@
    so the active widget tracks the cursor 1:1 and neighbours shrink crisply (RGL
    only disables this for its own drags via .resizing; our resize sets this class). */
 :global(.charts-resizing) > :global(.react-grid-item) { transition: none !important; }
+/* ⚡ (2026-11-26, the board switch) ...and while a LAYOUT SWITCH commits (ChartsWorkspace `switchLayout`): a widget that keeps
+   its id across two layouts must land on its new size and place at once, never animate there over 200 ms. */
+:global(.charts-switching) > :global(.react-grid-item) { transition: none !important; }
 
 /* Drag (via the 6-dot handle): tint the WHOLE dragged widget gold — the same look
    as resizing (.rzPlaceholder) — instead of RGL's separate placeholder box that
