@@ -73,7 +73,7 @@ function mount(vis) {
 }
 
 describe('the developing-bar channel on a hidden layer board', () => {
-  it('DV1 (red first) a hidden layer board is handed no developing bar; the show resumes after its first paint', async () => {
+  it('DV1 (red first) a hidden layer board is handed no developing bar; the show paints the newest in its own task', async () => {
     const vis = createBoardVisibility({ layer: true })
     const { painted, devRef } = mount(vis)
     const t0 = Date.now()

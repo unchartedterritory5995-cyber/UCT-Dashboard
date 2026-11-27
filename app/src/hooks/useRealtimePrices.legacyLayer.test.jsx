@@ -29,7 +29,7 @@ const mount = (vis) => renderHook(() => useRealtimePrices(['AAPL']), {
 const afterPaint = () => act(async () => { await new Promise((r) => setTimeout(r, 60)) })
 
 describe('the legacy price stream on a hidden layer board', () => {
-  it('LS1 (red first) a hidden layer board closes its stream; the show opens it after its first paint', async () => {
+  it('LS1 (red first) a hidden layer board closes its stream; the show opens it in its own task', async () => {
     const vis = createBoardVisibility({ layer: true })
     const view = mount(vis)
     expect(es.open.size, 'NON-VACUITY: the kill-switch path opens its own stream').toBe(1)

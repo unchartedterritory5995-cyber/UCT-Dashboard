@@ -13,8 +13,8 @@
  * Review of #2901:
  *   LK7 (red first, H2) a key both boards read: mutate() from the board in front fetches once and the front board shows
  *       it, though the kept board's hook was mounted first (a paused first hook swallowed it)
- *   LK8 (red first, M3) a board hidden 2 s or more revalidates its SWR reads after its show's first paint; a quick
- *       back-and-forth does not
+ *   LK8 (red first, M3 + D2) a board hidden 3 s: its show re-reads each POLLED key once (three hooks on one key make
+ *       ONE request) and never a static key (no refresh interval); a quick back-and-forth re-reads nothing
  *   LK9 (red first, M4) a group TIMEFRAME changed on the board in front waits for the kept board's show, like a symbol
  *   LK10 (red first, H1) a layer hide leaves no chart or watchlist "active" (the key handlers follow those refs)
  *   LK11 (red first, M5) a menu the hidden board opened into document.body (a portal) is closed by the hide
@@ -27,7 +27,7 @@ import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 // every WidgetHost INSTANCE: its mount (a state initialiser), its effect runs and cleanups, and what each render read
-const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null }))
+const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {} }))
 vi.mock('./WidgetHost', async () => {
   const { useState, useEffect, useContext } = await import('react')
   const { createPortal } = await import('react-dom')
@@ -56,6 +56,14 @@ vi.mock('./WidgetHost', async () => {
       const sym = ws.groupSyms?.[widget.color] ?? null
       const cfg = useSWRConfig()
       const { data } = useSWR(hosts.swrKey, async () => { hosts.fetches++; return hosts.fetches })
+      // LK8: a widget's own reads (three hooks on one polled key, one static key)
+      const own = hosts.swrFor[widget.id] || null
+      const read = (k) => async () => { hosts.byKey[k] = (hosts.byKey[k] || 0) + 1; return hosts.byKey[k] }
+      const polled = { refreshInterval: own?.interval || 0, dedupingInterval: 500 }
+      useSWR(own ? own.key : null, read(own?.key), polled)
+      useSWR(own ? own.key : null, read(own?.key), polled)
+      useSWR(own ? own.key : null, read(own?.key), polled)
+      useSWR(own ? own.staticKey : null, read(own?.staticKey), { dedupingInterval: 500 })
       hosts.ws[widget.id] = ws
       hosts.swr[widget.id] = cfg
       hosts.vis[widget.id] = useContext(BoardVisibilityContext)
@@ -117,7 +125,7 @@ import ChartsWorkspace from './ChartsWorkspace'
 
 let swrSeq = 0
 beforeEach(() => {
-  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null })
+  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {} })
   try { localStorage.clear() } catch { /* */ }
   globalThis.fetch = vi.fn(async (url) => {
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -237,22 +245,26 @@ test('LK7 (red first, H2) mutate() of a key both boards read fetches once and re
   expect(last.data, 'the board in front does not show the refetch').toBe(hosts.fetches)
 })
 
-test('LK8 (red first, M3) a board hidden 2 s or more revalidates its reads after its show; a quick return does not', async () => {
-  hosts.swrKey = `/api/kept-${++swrSeq}`
+test('LK8 (red first, M3 + D2) a show re-reads each polled key once, never a static one; a quick return nothing', async () => {
+  const key = `/api/polled-${++swrSeq}`, staticKey = `/api/static-${swrSeq}`
+  hosts.swrFor = { 'watchlist-1': { key, interval: 1000, staticKey } }
+  const reads = () => ({ polled: hosts.byKey[key] || 0, fixed: hosts.byKey[staticKey] || 0 })
   mount()
   await settle()
+  await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
+  expect(reads().polled, 'NON-VACUITY: the three hooks read their key once at mount').toBe(1)
   await go('Two Charts')
   await go('Main Trading')            // back at once
-  await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
-  const quick = hosts.fetches
+  await act(async () => { await new Promise((r) => setTimeout(r, 300)) })
+  expect(reads(), 'a quick return re-read').toEqual({ polled: 1, fixed: 1 })
   await go('Two Charts')
-  await act(async () => { await new Promise((r) => setTimeout(r, 2100)) })
-  const before = hosts.fetches
-  expect(before, 'NON-VACUITY: no revalidation after a quick return').toBe(quick)
+  await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
+  expect(reads(), 'a hidden board polled').toEqual({ polled: 1, fixed: 1 })
   await go('Main Trading')
-  await act(async () => { await new Promise((r) => setTimeout(r, 100)) })
-  expect(hosts.fetches - before, 'a board hidden 2 s was not revalidated at its show').toBeGreaterThan(0)
-}, 10000)
+  await act(async () => { await new Promise((r) => setTimeout(r, 400)) })
+  expect(reads().polled - 1, 'the show re-read the polled key once per HOOK, or not at all').toBe(1)
+  expect(reads().fixed - 1, 'the show re-read a static key').toBe(0)
+}, 15000)
 
 test('LK9 (red first, M4) a group timeframe change waits for the kept board\'s show', async () => {
   mount()
