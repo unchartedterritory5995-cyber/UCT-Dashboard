@@ -188,17 +188,20 @@ export const ANCHORS = Object.freeze([
     (m) => `${m}    taint: { outputs: outT, persist: tp, iters: iterT },\n`],
 ])
 
+/** The tag algebra's functions the rules call (`taintTags.js`), bound to locals once per run (see `generateVmTaint`). */
+const TAINT_FNS = ['tStrict', 'tAdd', 'tSub', 'tCmp', 'tVal', 'tRange', 'branchTableOf', 'taintBranch']
+
 const SIGNATURE = 'export function execute(program, ctx, limits, opts) {\n'
 const CASE = /case (\d+) \/\* OP\.([A-Z0-9_]+) \*\/:/g
 
-/** `vm.js`'s own top-level names: `[name, declaredWithExport]`. */
+/** `vm.js`'s own top-level names: `[name, declaredWithExport, 'const' | 'let' | 'function' | 'class']`. */
 function topLevelNamesOf(src) {
   const names = []
   const re = /^(export )?(const|let|function|class) ([A-Za-z_$][\w$]*)(.*)$/gm
   for (let m; (m = re.exec(src));) {
-    names.push([m[3], !!m[1]])
+    names.push([m[3], !!m[1], m[2]])
     // `const A = x, B = y` on one line
-    if (m[2] === 'const') for (const more of m[4].matchAll(/,\s*([A-Za-z_$][\w$]*)\s*=/g)) names.push([more[1], !!m[1]])
+    if (m[2] === 'const') for (const more of m[4].matchAll(/,\s*([A-Za-z_$][\w$]*)\s*=/g)) names.push([more[1], !!m[1], m[2]])
   }
   return names
 }
@@ -280,6 +283,18 @@ export function generateVmTaint(vmSource) {
     throw new Error(`gen-vm-taint: execute reads ${missing.join(', ')} from vm.js, and vm.js's export list for vmTaint.js does not name it`)
   }
   const fromVm = [...new Set(needed.map(([name]) => name))].sort()
+  // ⭐ PERF (e105): what `execute` reads as a MODULE-LOCAL constant (`ADD`, `LT`, `PW`, ... declared in `vm.js`) this
+  // file can only IMPORT, and an import is not a local everywhere it runs: under vitest every read of an imported name
+  // is a property read on the module's namespace object (an accessor; a Proxy when a test mocks `vm.js`), once per
+  // arithmetic opcode. Measured (GitHub runner, 44 scripts, 5,000 bars): the loop with NO tag rules at all ran 6.5x
+  // `execute` when its `ADD` went through a mocked namespace. So each such name, and each function the tag rules
+  // call, is imported under an alias and bound ONCE per run to a local of its own name at the top of
+  // `executeTainted`: the loop reads a register, as `execute` does. A `let` (a live binding a test helper flips:
+  // `_regionScopeOff`) stays an import, read live.
+  const kindOf = new Map(top.map(([name, , kind]) => [name, kind]))
+  const constFromVm = fromVm.filter((name) => kindOf.get(name) !== 'let')
+  const liveFromVm = fromVm.filter((name) => kindOf.get(name) === 'let')
+  const LOCALS = `  const ${[...constFromVm, ...TAINT_FNS].map((n) => `${n} = ${n}$`).join(', ')}\n`
 
   return [
     '// app/src/components/chart/engine/runtime/vmTaint.js',
@@ -295,12 +310,12 @@ export function generateVmTaint(vmSource) {
     '// explain the value code are in `vm.js`, line for line.',
     '/* eslint-disable */',
     ...importsOf(src),
-    "import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf, taintBranch } from './taintTags.js'",
-    `import { ${fromVm.join(', ')} } from './vm.js'`,
+    `import { TAG, ${TAINT_FNS.map((n) => `${n} as ${n}$`).join(', ')} } from './taintTags.js'`,
+    `import { ${[...constFromVm.map((n) => `${n} as ${n}$`), ...liveFromVm].join(', ')} } from './vm.js'`,
     '',
     'export { TAG }',
     '',
-    `export function executeTainted(program, ctx, limits, opts) {\n${PROLOGUE}${body}}`,
+    `export function executeTainted(program, ctx, limits, opts) {\n${LOCALS}${PROLOGUE}${body}}`,
     '',
   ].join('\n')
 }

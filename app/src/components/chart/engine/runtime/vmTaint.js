@@ -29,12 +29,13 @@ import { workPulse } from '../workPulse.js'
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
-import { TAG, tStrict, tAdd, tSub, tCmp, tVal, tRange, branchTableOf, taintBranch } from './taintTags.js'
-import { ADD, AND, CLOCK_GETTER, CUMULATIVE_LIMITS, DISARMED_NO_OPS, DIV, DisarmedBrokerRead, EQ, GE, GT, LE, LT, MUL, NE, NEG, NOT, NO_OUTPUT, OP_HALT, OR, PW, SUB, VmError, _regionScopeOff, chargedSince, countsOf, requestRegionScopeOf, runNow, runRequest } from './vm.js'
+import { TAG, tStrict as tStrict$, tAdd as tAdd$, tSub as tSub$, tCmp as tCmp$, tVal as tVal$, tRange as tRange$, branchTableOf as branchTableOf$, taintBranch as taintBranch$ } from './taintTags.js'
+import { ADD as ADD$, AND as AND$, CLOCK_GETTER as CLOCK_GETTER$, CUMULATIVE_LIMITS as CUMULATIVE_LIMITS$, DISARMED_NO_OPS as DISARMED_NO_OPS$, DIV as DIV$, DisarmedBrokerRead as DisarmedBrokerRead$, EQ as EQ$, GE as GE$, GT as GT$, LE as LE$, LT as LT$, MUL as MUL$, NE as NE$, NEG as NEG$, NOT as NOT$, NO_OUTPUT as NO_OUTPUT$, OP_HALT as OP_HALT$, OR as OR$, PW as PW$, SUB as SUB$, VmError as VmError$, chargedSince as chargedSince$, countsOf as countsOf$, requestRegionScopeOf as requestRegionScopeOf$, runNow as runNow$, runRequest as runRequest$, _regionScopeOff } from './vm.js'
 
 export { TAG }
 
 export function executeTainted(program, ctx, limits, opts) {
+  const ADD = ADD$, AND = AND$, CLOCK_GETTER = CLOCK_GETTER$, CUMULATIVE_LIMITS = CUMULATIVE_LIMITS$, DISARMED_NO_OPS = DISARMED_NO_OPS$, DIV = DIV$, DisarmedBrokerRead = DisarmedBrokerRead$, EQ = EQ$, GE = GE$, GT = GT$, LE = LE$, LT = LT$, MUL = MUL$, NE = NE$, NEG = NEG$, NOT = NOT$, NO_OUTPUT = NO_OUTPUT$, OP_HALT = OP_HALT$, OR = OR$, PW = PW$, SUB = SUB$, VmError = VmError$, chargedSince = chargedSince$, countsOf = countsOf$, requestRegionScopeOf = requestRegionScopeOf$, runNow = runNow$, runRequest = runRequest$, tStrict = tStrict$, tAdd = tAdd$, tSub = tSub$, tCmp = tCmp$, tVal = tVal$, tRange = tRange$, branchTableOf = branchTableOf$, taintBranch = taintBranch$
   // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
   if (opts && (opts.resume || opts.probe || opts.realtime || Number.isInteger(opts.checkpointAt) || opts.entry !== undefined)) {
     throw new VmError('runtime:taint — a taint run is a whole top-level run (no resume, probe, checkpoint, realtime or request entry)')
