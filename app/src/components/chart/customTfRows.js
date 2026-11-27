@@ -21,7 +21,7 @@
 // ⛔ A LEAF BESIDE neighborFrames.js: useBarSnapshotBars and useNeighborFrames both import it (useNeighborFrames imports
 // useBarSnapshotBars, so the derivation cannot live in either without a cycle).
 
-import { resampleForSpec } from '../../utils/resampleBars'
+import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { resampleSpec } from './timeframes'
 import { neighborFramesOn, deriveFrom, linkDerivedSource, stableSig } from './neighborFrames'
 
@@ -40,5 +40,18 @@ export function deriveCustomTf(all, spec) {
   if (!neighborFramesOn() || !Array.isArray(all) || !spec) return resampleForSpec(all, spec)
   const out = deriveFrom(all, 'customTf', stableSig(spec), () => resampleForSpec(all, spec))
   linkDerivedSource(out, all)
+  return out
+}
+
+/**
+ * ⭐ (2026-11-27, review of #2922, N2) A WEEKLY OR MONTHLY CHART WHOSE OWN KEY IS STILL EMPTY shows the same-frame
+ * resample of the held DAILY rows (useBarSnapshotBars `_aggBars`). Filed under those daily rows like a custom timeframe,
+ * so the double buffer can prove a shadow's W/M bars are the ones the store would give now (useDoubleBuffer.barsNowFor).
+ * With the neighbour frames off, exactly the old `resample(daily, 'D', tf)`.
+ */
+export function deriveWmFromDaily(daily, tf) {
+  if (!neighborFramesOn() || !Array.isArray(daily)) return resample(daily, 'D', tf)
+  const out = deriveFrom(daily, 'wmFromDaily', stableSig(String(tf)), () => resample(daily, 'D', tf))
+  linkDerivedSource(out, daily)
   return out
 }

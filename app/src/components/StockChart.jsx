@@ -3,6 +3,7 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext } from './chart/paintLog'
+import { LayerPaintContext } from './chart/layerPaint'
 import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
@@ -4307,6 +4308,8 @@ function StockChartBody({
   // The identity this chart paints under when it is a member of a linked group (chart/paintLog.js: the switch-speed
   // instrument reads its paint record). Null everywhere else; a stable token, read by no rendering decision.
   const paintMember = useContext(PaintMemberContext)
+  // the double buffer's proof (chart/layerPaint.js): each pass reports what it committed; null outside a buffered widget
+  const layerPaint = useContext(LayerPaintContext)
   const ownNoticeScope = useId()
   const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
@@ -12240,7 +12243,11 @@ function StockChartBody({
     // re-apply below.
     const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
-    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full', paintMember)
+    // (2026-11-27) a pass on a hidden layer (the double buffer's shadow pane) is no group member's paint: the member is
+    // the chart on screen, and a flip records its own (chart/useDoubleBuffer.js)
+    recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full',
+      boardHiddenNow(boardVisibilityRef.current) ? null : paintMember)
+    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -12503,7 +12510,10 @@ function StockChartBody({
           userLockedViewRef, userViewLockedRef, vertMarginsRef,
         })
         chartDebugHandleRef.current = _dbg
-        window.__uctChartDebug[chartId || 'main'] = _dbg
+        // ⭐ (2026-11-27, the double-buffered next row) a chart CREATED on a hidden layer (a shadow pane, a board laid
+        // out hidden) takes no handle: the chart of the same id in front holds it. Its show takes it (the layer follow
+        // effect below, `_layerRegisteredRef`).
+        if (!boardHiddenNow(boardVisibilityRef.current)) window.__uctChartDebug[chartId || 'main'] = _dbg
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
@@ -12525,10 +12535,12 @@ function StockChartBody({
       // treats a non-array as "no bindings" and would report every series' `key` as
       // null, which reads identically to a chart whose engine drew nothing.
       // Un-registering is the cleanup effect's job, beside `chart.remove()`.
-      unregisterManifestRef.current = registerManifestChart(
+      // (2026-11-27) …and no manifest slot while it is created on a hidden layer: the one slot is the shown chart's
+      _layerRegisteredRef.current = !boardHiddenNow(boardVisibilityRef.current)
+      unregisterManifestRef.current = _layerRegisteredRef.current ? registerManifestChart(
         chart,
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
-      )
+      ) : null
       setChartGen((g) => g + 1)
       setChartReady(true)
       // The page's first chart exists (it is created only once its bars are in): the background
@@ -15225,7 +15237,7 @@ function StockChartBody({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, paintMember])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, paintMember, layerPaint])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
@@ -19652,6 +19664,9 @@ function StockChartBody({
   // when the device-pixel ratio changed while hidden. No provider (the flag off): exactly as before.
   // (`boardVisibility` / `boardVisibilityRef`: read at the top of the body)
   const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
+  // the chart holds its manifest slot and `window.__uctChartDebug` handle now (false while created on, or moved to, a
+  // hidden layer: the layer follow effect below)
+  const _layerRegisteredRef = useRef(false)
   const keptDisposerRef = useRef(null)      // the handle's unregister of this chart's teardown, while kept
   // This chart's own `window.__uctChartDebug` handle: a kept (hidden) board's chart may share its widget id with one on
   // the board in front, so a handle is removed only while it is still THIS chart's, and re-registered at the show.
@@ -19778,17 +19793,19 @@ function StockChartBody({
   useEffect(() => {
     const vis = boardVisibilityRef.current
     if (!vis || !vis.layer) return undefined
-    let away = false
+    // ⭐ (2026-11-27, the double-buffered next row) WHAT THE CHART HOLDS, not what the board last was: a chart created on
+    // a hidden layer took nothing at creation (above), so its first show must take both even though no hide preceded it.
     const follow = () => {
       const chart = chartRef.current
+      if (!chart) return
       const hidden = boardHiddenNow(vis)
-      if (!chart || hidden === away) return
-      away = hidden
-      if (hidden) {
+      if (hidden && _layerRegisteredRef.current) {
+        _layerRegisteredRef.current = false
         dropOwnDebugHandle()
         try { unregisterManifestRef.current?.() } catch { /* disposed */ }
         unregisterManifestRef.current = null
-      } else if (vis.state === 'visible') {
+      } else if (!hidden && vis.state === 'visible' && !_layerRegisteredRef.current) {
+        _layerRegisteredRef.current = true
         unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
         if (chartDebugHandleRef.current && typeof window !== 'undefined') {
           window.__uctChartDebug = window.__uctChartDebug || {}
