@@ -393,16 +393,16 @@ describe('ScanRows: corrections in one commit; a remembered offset; the warm fir
       vi.stubGlobal('requestAnimationFrame', () => 0)
       vi.stubGlobal('cancelAnimationFrame', () => {})
       // what the FIRST commit holds (the Profiler reports after its subtree's layout effects, before any later render)
-      let first = null
+      let atFirst = null
       const onCommit = () => {
-        if (first) return
+        if (atFirst) return
         const sc = document.querySelector('[data-scroller]')
-        first = { top: sc.scrollTop, row20: !!sc.querySelector('[data-index="20"]'), row0: !!sc.querySelector('[data-index="0"]') }
+        atFirst = { top: sc.scrollTop, row20: !!sc.querySelector('[data-index="20"]'), row0: !!sc.querySelector('[data-index="0"]') }
       }
       render(<List cacheKey="list:R17" onCommit={onCommit} />) // one commit, as the switch mounts it
-      expect(first.row20, 'the remembered window (rows 20-29) in the first commit').toBe(true)
-      expect(first.row0, 'the top rows instead').toBe(false)
-      expect(first.top, 'the scroller restored in the same commit').toBe(800)
+      expect(atFirst.row20, 'the remembered window (rows 20-29) in the first commit').toBe(true)
+      expect(atFirst.row0, 'the top rows instead').toBe(false)
+      expect(atFirst.top, 'the scroller restored in the same commit').toBe(800)
     } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop; if (realTop) Object.defineProperty(Element.prototype, 'scrollTop', realTop) }
   })
 
