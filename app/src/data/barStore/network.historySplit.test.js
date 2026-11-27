@@ -7,7 +7,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork, barsHistoryUrl } from './network'
 import { keyOf } from './types'
-import { FIRST_PAINT_BARS, fullBarsFor } from '../../utils/barsBackfill'
+import { dateFirstPageFor, fullBarsFor } from '../../utils/barsBackfill'
+// (2026-11-27) the D tail's first page covers a zoomed-out view on its own (barsBackfill DATE_FIRST_PAGE)
+const FIRST_PAINT_BARS = dateFirstPageFor('D')
 import { lastSealedDate, etPeriodStartISO, calendarSealedDate, historySealedDate } from '../../utils/barsHistorySplit'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET

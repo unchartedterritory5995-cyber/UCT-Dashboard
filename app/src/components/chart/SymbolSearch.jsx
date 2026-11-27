@@ -20,6 +20,10 @@ export { POPULAR_RESULTS }
 // ticker (G, GO, GOO, GOOG) is not intent, and warming it is cache churn plus, when the
 // today-pack is unusable, a wasted /api/bars request.
 export const TYPED_INTENT_SETTLE_MS = 140
+// ⭐ (2026-11-27, owner: "fully instant like deepvue") How long the HIGHLIGHTED suggestion must stay highlighted before the
+// host is told it (the same warm as the settled text: the chart fetches its covering page before Enter). Shorter than the
+// text's settle: a highlighted row is a real ticker from the search, never a prefix being typed through.
+export const HIGHLIGHT_INTENT_MS = 70
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -266,6 +270,24 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     intentTimerRef.current = t
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
+  // ⭐ (2026-11-27) ...AND THE HIGHLIGHTED SUGGESTION: the row Enter would open (the top result as the member types, or the
+  // one the arrow keys moved to), once it has stayed highlighted for HIGHLIGHT_INTENT_MS. A new highlight cancels the
+  // pending one, and the chart's typed warm itself keeps one warm at a time (a newer symbol aborts the older one), so a
+  // member arrowing down the list starts at most one fetch per pause. Once per symbol per open search, shared with the
+  // settled text (lastIntentRef): the same ticker is never told twice.
+  const highlighted = open ? results?.[activeIdx] : null
+  const highlightedTicker = highlighted && !highlighted.econ && typeof highlighted.ticker === 'string' ? highlighted.ticker.toUpperCase() : null
+  useEffect(() => {
+    // (only once the member has typed: the empty search's popular list is no intent)
+    if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth' || !highlightedTicker || !query.trim()) return undefined
+    if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(highlightedTicker) || highlightedTicker === String(sym || '').toUpperCase()) return undefined
+    if (lastIntentRef.current === highlightedTicker) return undefined
+    const t = setTimeout(() => {
+      lastIntentRef.current = highlightedTicker
+      try { onTypedIntent(highlightedTicker) } catch { /* a warm never breaks search */ }
+    }, HIGHLIGHT_INTENT_MS)
+    return () => clearTimeout(t)
+  }, [highlightedTicker, open, chip, onTypedIntent, sym, query])
   // A new search session may warm the same text again.
   useEffect(() => { if (!open) lastIntentRef.current = null }, [open])
 
