@@ -93,6 +93,10 @@ function settleLocalWrite(key, seq, { ok = false, op = null } = {}) {
     if (!prev || typeof prev !== 'object' || prev[key] === value) return prev
     return derive(prev, value === undefined ? (() => { const n = { ...prev }; delete n[key]; return n })() : { ...prev, [key]: value })
   }, { revalidate: false })
+  // (review of #2929) and a read that begins now: what the server holds after this write (another tab's or device's
+  // newer value included) lands at once, not at the next 5-minute read (the board apply re-reads the same way)
+  if (op.stale()) return
+  mutateGlobal(PREFS_URL)
 }
 /** The write a caller merged with `{ pending: true }` reached the server, or was given up: settle it. */
 export function settlePreferenceWrites(keys) {
