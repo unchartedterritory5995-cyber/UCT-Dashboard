@@ -168,6 +168,19 @@ describe('useDoubleBuffer', () => {
     expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
   })
 
+  it("H6b (delta 2, D2-1) a show before the hide's idle drop keeps the shadow pane", async () => {
+    const board = createBoardVisibility({ layer: true })
+    const h = mount({ parentVis: board })
+    report(h.result, 0, 'AAA')
+    await idle()
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
+    act(() => { board.set('hidden') })             // committed: the shadow given back, its idle drop scheduled
+    // shown again, and the idle drop fires BEFORE the show's transition commits (inside one act: React waits for its end)
+    act(() => { board.set('visible'); vi.advanceTimersByTime(80) })
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])  // the pane was kept
+    expect(db.shadowsHeld(board)).toBe(1)
+  })
+
   it('H7 (F1) a zoomed front refuses the flip; the shadow mirrors the zoom in idle time; then a press flips', async () => {
     const h = await ready()
     await idle()                                         // (whatever mirror the shadow's report scheduled has run)
