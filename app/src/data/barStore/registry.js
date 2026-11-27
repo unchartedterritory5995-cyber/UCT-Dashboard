@@ -29,6 +29,23 @@ import { reduce, initialState, invalidate as invalidateState, refreshStatus, isD
 import { parseKey, isDateTf } from './types'
 import { BAR_BUDGET_DESKTOP, noteKeyEvicted } from '../../lib/barBudget'
 
+// ⭐ (review of #2935, E1) EVERY ENTRY LIFE HAS ITS OWN GENERATIONS. An action carries the `gen` read when its work began
+// (a request, a read) and the reducer refuses another (`staleReason` 'gen'). A new entry started at gen 0, and so had
+// the entry an eviction dropped: an answer in flight across the eviction (a `since=` delta asked of the old life) was
+// accepted by the new, EMPTY entry, which then held only the rows since `since`, "answered". Each new entry now starts
+// at a page-unique base (LIFE_STRIDE apart: a life's own invalidations count up from it, never into the next life's).
+const LIFE_STRIDE = 2 ** 20
+let _lives = 0
+const _lifeGen = () => (++_lives) * LIFE_STRIDE
+/** The first generation of an entry made now (tests). */
+export function _nextLifeGenForTests() { return (_lives + 1) * LIFE_STRIDE }
+
+/** One idle moment (requestIdleCallback; a 50 ms timer where there is none). */
+export function defaultIdle(fn) {
+  if (typeof requestIdleCallback === 'function') return requestIdleCallback(() => fn(), { timeout: 1000 })
+  return setTimeout(fn, 50)
+}
+
 /** One frame (requestAnimationFrame; a 16 ms timer where there is none). */
 export function defaultFrame(fn) {
   if (typeof requestAnimationFrame === 'function') return requestAnimationFrame(() => fn())
@@ -56,15 +73,25 @@ export const DEFAULT_RECENT_SYMBOLS = BAR_BUDGET_DESKTOP.recentSymbols
  * @param {Record<string, number>} [opts.depthCaps]
  * @param {() => object} [opts.ctx]  the reducer ctx at call time (clock, streamLive…)
  * @param {(fn: Function) => any} [opts.frame]  the dev-channel coalescing tick (default: one frame)
+ * @param {(fn: Function) => any} [opts.idle]   where the eviction a LAST UNSUBSCRIBE asks for runs (default: idle time;
+ *                                              never in the press's task that unmounted the old row's chart)
  */
 export function createRegistry({
   maxKeys = DEFAULT_MAX_KEYS, barBudget = DEFAULT_BAR_BUDGET, recentSymbols = DEFAULT_RECENT_SYMBOLS,
-  depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}), frame = defaultFrame,
+  depthCaps = DEFAULT_DEPTH_CAPS, ctx = () => ({}), frame = defaultFrame, idle = defaultIdle,
 } = {}) {
   /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
   let clock = 0
   let totalBars = 0
+  /** This registry's own eviction listeners (its network aborts the dropped key's request in flight). */
+  const evictSubs = new Set()
+  let idleEvict = false
+  function _evictSoon() {
+    if (idleEvict) return
+    idleEvict = true
+    idle(() => { idleEvict = false; _evict() })
+  }
   /** The symbols most recently shown (a subscriber came or went), the newest first, at most `recentSymbols`. */
   const recent = []
   function _noteShown(key) {
@@ -85,7 +112,7 @@ export function createRegistry({
   function _entry(key) {
     let e = entries.get(key)
     if (!e) {
-      const state = initialState(key, ctxFor(key))
+      const state = Object.freeze({ ...initialState(key, ctxFor(key)), gen: _lifeGen() })
       e = { state, base: state, refs: 0, subs: new Set(), used: ++clock }
       entries.set(key, e)
     }
@@ -160,6 +187,7 @@ export function createRegistry({
         gone.add(it.key)
         totalBars -= it.e.state.depth
         entries.delete(it.key)
+        for (const cb of [...evictSubs]) { try { cb(it.key) } catch { /* a listener's failure never blocks the rest */ } }
         noteKeyEvicted(it.key)
       }
     }
@@ -204,7 +232,9 @@ export function createRegistry({
         if (!e.subs.delete(sub)) return
         // the last subscriber gone: the symbol is one just shown, its entry as recent as the moment it left the screen
         if (!e.subs.size) { e.used = ++clock; _noteShown(key) }
-        _evict()
+        // (review of #2935, L1) a press unmounts the old row's chart in its own task: the eviction it allows waits for
+        // idle (every dispatch, release and feed still evicts at once, and holds the budget)
+        _evictSoon()
       }
     },
     /** Apply one reducer action to `key`; returns the (possibly unchanged) snapshot. */
@@ -243,6 +273,8 @@ export function createRegistry({
       return n
     },
     keys() { return [...entries.keys()] },
+    /** `cb(key)` whenever THIS registry drops an entry. Returns the unsubscribe. */
+    onEvict(cb) { evictSubs.add(cb); return () => { evictSubs.delete(cb) } },
     /** Mark (`on`) an entry a dwell warm made, or make it ordinary; a pinned or subscribed entry is never marked (see
      *  _evict). Returns whether the entry is marked now. */
     setDwell(key, on = true) {

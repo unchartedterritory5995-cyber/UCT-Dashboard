@@ -36,6 +36,10 @@
 //
 // The touch tier (<= 1024 px or a coarse pointer: one chart, a phone's memory) keeps less.
 //
+// ⛔ WHAT THE ADAPTER'S SHARE COUNTS: the bar objects its copies MADE. A slot whose rows ARE the store's own objects (an
+// intraday key whose bars carry nothing the legacy shape drops) weighs 0: the registry already counts them. So the
+// adapter's share bounds the D/W/M label copies, the copies of rows that carry rev/src/fin, and nothing twice.
+//
 // ⭐⭐ BY BYTES, AND THE DAILY BASES STAY (2026-11-27, owner: instant full loads at any zoom or date; D/W/M load the
 // whole daily history since listing in one request, intraday the view's actual range). A bar costs the same bytes in
 // every timeframe (one object per bar: BYTES_PER_BAR), so the shares are bounds in bytes too (`shareBytes`, the ledger's
@@ -58,9 +62,13 @@ export const BAR_BUDGET_TOUCH = Object.freeze({
   registry: 250_000, adapter: 120_000, mem: 80_000, derived: 200_000, recentSymbols: 3,
 })
 
-/** Estimated bytes one bar costs in each cache (Chrome, pointer compression; measured shape costs in V8: a store bar
- *  carries rev/src/fin, a copy is {t,o,h,l,c,v} with boxed doubles, a derived element is a point or a reference). */
-export const BYTES_PER_BAR = Object.freeze({ registry: 96, adapter: 72, mem: 72, derived: 40 })
+/** Estimated bytes one bar costs in each cache (Chrome, pointer compression: every non-Smi number is its own 12 B
+ *  HeapNumber, and a unix-seconds `t` (~1.7e9) is past the 31-bit Smi range, so it is boxed too). A store bar
+ *  {t,o,h,l,c,v,rev,src,fin} ~120 B; a legacy or saved copy {t,o,h,l,c,v} 12 B header + 6 x 4 B fields + 6 x 12 B boxes +
+ *  its array slot ~110 B; a derived element (a point {time,value} or a reference) ~40 B (review of #2935, L2).
+ *  ⛔ ESTIMATES FOR THE LEDGER ONLY (`barsHeld().bytes`, `shareBytes`): every cache EVICTS BY BARS, so a wrong weight
+ *  misreports, never mis-evicts. Calibrate against a heap snapshot's retained size per cache. */
+export const BYTES_PER_BAR = Object.freeze({ registry: 120, adapter: 110, mem: 110, derived: 40 })
 /** A cache's share in bytes (its bar share x what a bar costs there). */
 export function shareBytes(name, shares = barBudget()) { return (shares[name] || 0) * (BYTES_PER_BAR[name] || 0) }
 /** D / W / M: a symbol's daily-class base (small: kept before any intraday array). */

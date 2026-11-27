@@ -379,3 +379,86 @@ describe('B7 an evicted symbol reloads its full history exactly', () => {
     })
   }
 })
+
+// ── B10 (review of #2935, E1): an answer in flight across its key's eviction never lands on the new life ───────────────
+describe('B10 an answer in flight when its key is evicted: the entry is absent or full, never delta-only', () => {
+  beforeAll(() => { fakeDb = fakeDb || installFakeIndexedDB() })
+  beforeEach(() => { memClear(); fakeDb._clear(); vi.useFakeTimers(); vi.setSystemTime(NOW); _resetAdapterMemos() })
+  afterEach(() => { vi.useRealTimers(); memClear() })
+
+  it('acquire, ask a since= delta, release, evict, land: the request was aborted at the eviction and nothing lands', async () => {
+    const full = { ...answerFor('SIM'), bars: LAKE }   // the key's first life: deep
+    const asked = []
+    let landDelta = null
+    const request = vi.fn((url, { signal } = {}) => {
+      asked.push({ url: String(url), signal })
+      if (!String(url).includes('SIM')) return Promise.resolve({ ...answerFor('OTH'), bars: today(2), cache_key: 'b1:OTH:5:session' })
+      if (!String(url).includes('since=')) return Promise.resolve(full)
+      // the delta: answered LATE, and by a server that ignores the abort (the landing must still drop it)
+      return new Promise((res) => { landDelta = () => res({ ...answerFor('SIM'), bars: today().slice(-2) }) })
+    })
+    const registry = createRegistry({ barBudget: LAKE.length + 20, recentSymbols: 0, ctx: () => ({ nowMs: Date.now() }), idle: (fn) => fn() })
+    const store = createBarStore({
+      request, history: null, stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
+      isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), registry,
+    })
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    await store.ensure(key, { priority: 'urgent' })
+    expect(store.getSnapshot(key).depth).toBe(LAKE.length)
+    const firstGen = store.peek(key).gen
+    // a warm asks the key again (a since= delta of what it holds), and lets go before the answer (an aborted ensure)
+    registry.acquire(key)
+    store.network.fetchOnce(key, { priority: 'background' })
+    registry.release(key)
+    await vi.advanceTimersByTimeAsync(10)
+    const delta = asked.find((a) => a.url.includes('SIM') && a.url.includes('since='))
+    expect(delta, 'a since= delta is in flight').toBeTruthy()
+    // other keys push SIM out of the registry
+    for (let i = 0; i < 3; i++) registry.dispatch(keyOf({ sym: `OTH${i}`, tf: '5' }), { type: 'rest-full', payload: { bars: LAKE } })
+    expect(registry.has(key), 'SIM evicted').toBe(false)
+    expect(delta.signal?.aborted, 'the eviction aborted its request in flight').toBe(true)
+    landDelta()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(registry.has(key), 'the late answer created no entry').toBe(false)
+    // the next life starts at its own generation: an action of the old life is refused there
+    const s = registry.getSnapshot(key)
+    expect(s.gen).not.toBe(firstGen)
+    const after = registry.dispatch(key, { type: 'rest-delta', key, gen: firstGen, payload: { ...answerFor('SIM'), bars: today().slice(-2), since: today().at(-3).t } })
+    expect(after.restSeen, "an old life's delta on the new, empty entry").toBe(false)
+    expect(after.depth).toBe(0)
+    store.dispose()
+  })
+})
+
+describe('B10b the landing alone: a registry whose evictions no network hears still gets no entry from a late answer', () => {
+  beforeAll(() => { fakeDb = fakeDb || installFakeIndexedDB() })
+  beforeEach(() => { memClear(); fakeDb._clear(); vi.useFakeTimers(); vi.setSystemTime(NOW); _resetAdapterMemos() })
+  afterEach(() => { vi.useRealTimers(); memClear() })
+
+  it('the request is not aborted (nobody heard the eviction), lands, and is dropped: the key stays absent', async () => {
+    let landDelta = null
+    const request = vi.fn((url) => {
+      if (!String(url).includes('since=')) return Promise.resolve({ ...answerFor('SIM'), bars: LAKE })
+      return new Promise((res) => { landDelta = () => res({ ...answerFor('SIM'), bars: today().slice(-2) }) })
+    })
+    const registry = createRegistry({ barBudget: LAKE.length + 20, recentSymbols: 0, ctx: () => ({ nowMs: Date.now() }), idle: (fn) => fn() })
+    registry.onEvict = undefined   // (a registry without per-instance eviction listeners: only the landing can refuse)
+    const store = createBarStore({
+      request, history: null, stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
+      isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), registry,
+    })
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    await store.ensure(key, { priority: 'urgent' })
+    registry.acquire(key)
+    store.network.fetchOnce(key, { priority: 'background' })
+    registry.release(key)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(typeof landDelta).toBe('function')
+    for (let i = 0; i < 3; i++) registry.dispatch(keyOf({ sym: `OTH${i}`, tf: '5' }), { type: 'rest-full', payload: { bars: LAKE } })
+    expect(registry.has(key)).toBe(false)
+    landDelta()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(registry.has(key), 'the late answer created no entry').toBe(false)
+    store.dispose()
+  })
+})
