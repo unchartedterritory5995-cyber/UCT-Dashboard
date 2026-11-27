@@ -1,7 +1,8 @@
 # START-TAINT: serving a run off the listing only where its value cannot depend on the chart's first bar
 
 Status: DESIGN APPROVED (e103, coordinator 2026-11-27). Built in the order below, one reviewable PR each (PR 1: the CFG /
-write-set pass, `runtime/taintCfg.js`). Supersedes the two-start curtain (`computeOffListing`, off since #2893) as the
+write-set pass, `runtime/taintCfg.js`, #2924; PR 2: the VM's tags, `runtime/vmTaint.js` GENERATED from `vm.js` by
+`app/scripts/gen-vm-taint.mjs`, the algebra in `runtime/taintTags.js`). Supersedes the two-start curtain (`computeOffListing`, off since #2893) as the
 way an off-listing runtime run is released.
 
 **Taint and history parity are complementary.** History parity (#2902, `docs/pine/HISTORY-PARITY.md`) makes our run
@@ -31,9 +32,12 @@ touched: taint runs only on an off-listing run, which today serves nothing, so t
 | `T` tainted | may differ for another start | a `var` before it is overwritten from clean values, `ta.ema`, `close[k]` before bar k, `bar_index * 2` |
 
 `O` exists because drawings are placed by `bar_index`: `label.new(bar_index, rs)` lands on the same bar whatever the
-start. Rules: `O +- C -> O`; `O - O -> C`; `O cmp O -> C`; `O` as an `xloc.bar_index` coordinate or a history offset
--> fine; every other use of `O` (`*`, `%`, compared with a `C` number, `str.tostring`, plotted) -> `T`. Join = max
-(`C < O < T`) with the `O` exceptions above.
+start. Rules: `O +- C -> O`; `O - O -> C`; `O cmp O -> C`; `O` as an `xloc.bar_index` coordinate -> fine; an `O` moved
+(stored, loaded, read back from history: `bar_index[k]`) stays `O`; every other use of `O` (`*`, `%`, compared with a
+`C` number, `str.tostring`, plotted, a branch condition) -> `T`. Join = max (`C < O < T`) with the `O` exceptions above.
+⛔ An `O`-tagged history OFFSET is `T` (ruling 5): `close[bar_index]` and `close[bar_index - 5]` reach back to the run's
+first bar, which another start does not hold; only a `C` offset (`bar_index - bar_index[1]`, an `O - O`, included) is
+clean. ⚰️ This line said "`O` as ... a history offset -> fine" until part 2 (2026-11-27).
 
 ## Sources (where taint enters)
 
@@ -104,7 +108,14 @@ the untouched dispatch loop (a separate taint-enabled loop, chosen once per run,
 ## Build order
 
 1. CFG + write-set pass over the lowered program (pure, railed on its own).
-2. VM tags: stack, slots, history rings, sources 1-3, implicit flow; outputs' tag columns.
+2. VM tags: stack, slots, history rings, sources 1-3, implicit flow; outputs' tag columns. BUILT (e104): the taint run is
+   `vmTaint.js::executeTainted`, generated from `vm.js::execute` (tag statements inserted after every case label and at
+   five anchors; a case with no tag rule stops the generator; `vmTaintGenerated.test.js` requires the committed file
+   to be the generated one, so the two loops cannot drift). `execute` is untouched: the listing run pays nothing. The
+   taint run computes `execute`'s values bit for bit over the runtime corpus (`taintDifferential.test.js`). Until
+   their own parts, built-ins, collections, records, drawings, requests and broker reads answer `T` (fail closed), and
+   a column's tag is one per column (`taintTags.js::columnTagsOf`: a bare `bar_index` / `last_bar_index` is `O`, a
+   pointwise tree over the bar's prices is `C`, anything else `T`). Nothing consumes the tags yet (part 6).
 3. Built-ins: `WINDOW` / `CARRIED` / `CARRIED2` table, the columns' static `cleanFrom`.
 4. Collections, records; then drawings in `objectStore.js`.
 5. `request.*` sub-runs; broker.
@@ -115,9 +126,12 @@ the untouched dispatch loop (a separate taint-enabled loop, chosen once per run,
 
 1. EXACT. No tolerance rule: a recurrence (`ta.ema`, `rma`, `cum`, ...) whose state is `T` stays `T`. Recurrences are
    recovered by history parity (#2902), not by taint.
-2. `O` is approved, with the rule as written: `O` only as an `xloc.bar_index` x or a history offset; `O` shown as a
-   value, in text or plotted is `T`. Rails: `bar_index` in a label's TEXT is `T`; `bar_index` plotted is `T`.
+2. `O` is approved, with the rule as written: `O` only as an `xloc.bar_index` x (corrected by ruling 5: NOT as a history
+   offset); `O` shown as a value, in text or plotted is `T`. Rails: `bar_index` in a label's TEXT is `T`; `bar_index` plotted is `T`.
 3. A new code, `runtime:start-tainted`, for the general rule. Task B's `runtime:start-latched-state` stays until the
    census proves the general rule covers B; B is retired in the same PR that switches.
 4. Smallest reviewable PRs, each based on master, each a DRAFT until green; a PR that changes the VM is NUMBER PENDING.
    The 1.3-2x off-listing cost is acceptable; the measured number is recorded per census series.
+5. (2026-11-27, part 2) An `O`-tagged history offset is `T`: `close[bar_index]`, `close[bar_index - 5]` reach back to
+   the run's first bar. Only `C` offsets (an `O - O` included) are clean; `bar_index[k]` read back stays `O`. Rail:
+   `taintVm.test.js` (close[bar_index] is T), mutant E104-OFF.
