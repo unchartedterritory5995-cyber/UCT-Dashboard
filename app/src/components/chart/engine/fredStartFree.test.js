@@ -193,6 +193,11 @@ describe('off a daily chart: the two constant labels are released, exactly as Tr
     const labels = newestLabelsOf(cols, n)
     expect(labels.map((o) => [o.props.text, o.props.size, o.props.style])).toEqual([
       [FRED_RS_HEADING_TEXT, 'normal', 'label_center'], ['', 'large', 'label_center']])
+    // TradingView's text byte for byte (FRED's captures): SIXTEEN leading spaces, then "RS Rating"; nothing trims them
+    expect(FRED_RS_HEADING_TEXT).toBe(`${' '.repeat(16)}RS Rating`)
+    expect(labels[0].props.text).toBe(`${' '.repeat(16)}RS Rating`)
+    expect(labels[0].props.text.length).toBe(25)
+    expect(labels[1].props.text).toBe('')
     for (const o of labels) {
       expect(o.props.x, 'x is the newest bar (bar_index)').toBe(n - 1)
       expect(Number.isFinite(cols.rs[n - 1])).toBe(true)
