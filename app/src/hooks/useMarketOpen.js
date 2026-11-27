@@ -60,8 +60,9 @@ function _arm() {
 function _onMinute() {
   _timer = null
   if (!_listeners.size) return
-  // still the minute it was armed in: it woke before the boundary, so it waits for it (a late wake still notifies)
-  if (Math.floor(Date.now() / 60_000) !== _armedMinute) for (const cb of [..._listeners]) cb()
+  // a wake before the boundary notifies with the same minute's state, which useSyncExternalStore drops (no render);
+  // the re-arm below waits out the rest of the minute
+  for (const cb of [..._listeners]) cb()
   _arm()
 }
 // ⭐ A WAKE CATCHES UP AT ONCE (review of #2874). A sleeping machine or a hidden tab runs no timer: a laptop opened in
