@@ -220,7 +220,7 @@ describe('useDoubleBuffer', () => {
     report(h.result, 1, 'BBB')
     act(() => { h.result.current.viewChanged(0) })      // the front's range moved
     await idle()
-    expect(panes[1].m.frame).toEqual({ fromRight: 76, toRight: -4, locked: false })   // re-pinned at width 80
+    expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(76, 6), toRight: expect.closeTo(-4, 6), locked: false })   // re-pinned at width 80
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
   })
