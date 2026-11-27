@@ -193,8 +193,8 @@ describe('a remembered stop is asked again: after its hold, or on a return, at m
 // ⛔ (e103, the closure fix) the compute closure reads no wall clock of its own (design 2.2 H5,
 // `hostNeutralClosure.rail.test.js`): the page's host injects the hold's clock. Without one, the hold never releases a
 // stop by itself (the engine 86 rule); a return still asks it again.
-describe('the hold's clock is the page host's', () => {
-  it('⭐ the page's host injects it: ensureRuntimeLane hands the store Date.now', () => {
+describe("the hold's clock is the page host's", () => {
+  it("⭐ the page's host injects it: ensureRuntimeLane hands the store Date.now", () => {
     expect(runtimeBudgetStopClock()).toBeNull()
     try {
       ensureRuntimeLane({ factory: () => ({ postMessage() {}, terminate() {} }) })
