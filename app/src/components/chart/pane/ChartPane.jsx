@@ -112,13 +112,11 @@ function ladderFitAt(chartId, width) {
  *  reads layout only when the signature moved since its last read, but that memory was the pane instance's: every
  *  remount (a board return, a paced chart) forced a layout on a row identical in every part of the signature, about
  *  6 ms of each pane mount (profiled on the owner's board). The same signature on the same chart gives the same answer,
- *  as within one pane; a font that finished loading since can change a row's width without changing its signature, so
- *  each 'loadingdone' starts a new generation (nothing measured before it is reused). The newest LADDER_CLIPS_MAX. */
+ *  as within one pane (the signature is the row's content and the page's layout generation: `rowFitSig`). The newest
+ *  LADDER_CLIPS_MAX. */
 const LADDER_CLIPS_MAX = 512
 const _ladderClips = new Map()
-let _fontGen = 0
-try { globalThis.document?.fonts?.addEventListener?.('loadingdone', () => { _fontGen++ }) } catch { /* no font events */ }
-const _ladderClipKey = (chartId, sig) => `${chartId}|${_fontGen}|${sig}`
+const _ladderClipKey = (chartId, sig) => `${chartId}|${sig}`
 function ladderClipAt(chartId, sig) {
   return chartId ? _ladderClips.get(_ladderClipKey(chartId, sig)) : undefined
 }
@@ -130,15 +128,36 @@ function rememberLadderClip(chartId, sig, clipped) {
   if (_ladderClips.size > LADDER_CLIPS_MAX) _ladderClips.delete(_ladderClips.keys().next().value)
 }
 
+// ⚡ (2026-11-27, review of #2873) THE PAGE'S LAYOUT GENERATION: what can change a row's width with its content the same.
+// A font that finished loading (document.fonts 'loadingdone'), and a style change of the page: an attribute on <html>
+// (the theme, `data-theme`) or a stylesheet added or changed in <head> (a density or font-size rule). Each starts a new
+// generation, so no fit measured before it is reused.
+let _fontGen = 0
+let _styleGen = 0
+try { globalThis.document?.fonts?.addEventListener?.('loadingdone', () => { _fontGen++ }) } catch { /* no font events */ }
+try {
+  const doc = globalThis.document
+  if (typeof globalThis.MutationObserver === 'function' && doc?.documentElement) {
+    const mo = new globalThis.MutationObserver(() => { _styleGen++ })
+    mo.observe(doc.documentElement, { attributes: true })
+    if (doc.head) mo.observe(doc.head, { childList: true, subtree: true, characterData: true })
+  }
+} catch { /* no observer: generation 0 */ }
+
+/** FNV-1a, 32 bits, base 36. */
+function _hash32(s) {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return (h >>> 0).toString(36)
+}
+/** What can change a header row's width WITHOUT asking for a layout: its CONTENT (the row's markup: text, classes,
+ *  inline styles, icons; serialised, not laid out) and the page's layout generation. ⚰️ It recorded sizes (text length,
+ *  element count, class-name lengths) until the review of #2873: an equal-length change (NVDA -> MSFT, an equal-length
+ *  class swap, another icon) reused a "fits" measured on other content and could leave the header clipped. */
 export function rowFitSig(el) {
   if (!el) return '-'
-  const all = el.getElementsByTagName('*')
-  let cls = 0
-  for (let i = 0; i < all.length; i++) {
-    const c = all[i].className
-    cls += typeof c === 'string' ? c.length : (c && typeof c.baseVal === 'string' ? c.baseVal.length : 0)
-  }
-  return `${el.textContent.length}:${all.length}:${cls}`
+  const html = el.innerHTML
+  return `${_fontGen}.${_styleGen}:${html.length}:${_hash32(html)}`
 }
 
 // S2 CP3 — this pane is the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx,
