@@ -129,4 +129,13 @@ describe('a prepend behind the window hands the library nothing', () => {
     expect(sets.candles).toBe(1)
     expect(rawOf(b.candles).data().at(-1).time).toBe(T(500))
   })
+
+  // (review of #2903) a re-hand of the SAME rows (new objects, equal values, no older history: the chart re-merging the
+  // axis after another series joined it, StockChart.symSwitchPinned's compare series) is handed as before
+  it('control: equal rows handed again WITHOUT older history at the front still reach the library', async () => {
+    const b = board(); load(b)
+    const sets = spySets(b)
+    b.candles.setData(copy(BARS))
+    expect(sets.candles).toBe(1)
+  })
 })

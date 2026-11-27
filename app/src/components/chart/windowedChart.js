@@ -394,6 +394,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     rec.upd = (item, ...rest) => { rec.updated = true; return origUpdate(item, ...rest) }
     /** The series' setData: keep `rows`, hand the library the cut (painted when `paint` is given). */
     function setFull(rows, paint) {
+      const prev = rec.full
       rec.full = rows
       rec.paint = paint
       rec.tail.clear()
@@ -407,7 +408,13 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       // library's setData (each series re-set in its model, its time points redone) changed nothing it draws. Handed only
       // when a row differs, or when an update() reached the library since (it then holds a bar the cut does not).
       // (never the very array last handed: a caller that changed it in place and hands it again must reach the library)
-      if (!rec.updated && cut !== rec.handed && sameRows(rec.handed, cut)) rec.handed = cut
+      // ⛔ ONLY FOR OLDER HISTORY JOINED AT THE FRONT (review of #2903: symSwitchPinned's compare series). A re-hand of the
+      // same rows (the chart re-merging the axis after another series joined it, a re-colour) is a request to the library
+      // in its own right: it is handed as before. So the skip needs this series' whole array to have GROWN AT ITS FRONT
+      // (more rows, an older first time) with the window where it was.
+      const grewAtFront = !!prev && prev.length > 0 && rows.length > prev.length && rows.length > 0
+        && cmpTime(rows[0].time, prev[0].time) === -1
+      if (grewAtFront && st.wsTime === before && !rec.updated && cut !== rec.handed && sameRows(rec.handed, cut)) rec.handed = cut
       else rec.set(cut)
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
