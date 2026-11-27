@@ -409,7 +409,13 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // test that reads the stop, which the RANGE window decides — so its fill edge
     // sits beside real columns and ruling 1.2 has nothing to refuse. Constructed
     // cases in `pine.hiddenOnly.test.js` still rail the guard.
-    expect(fired.size).toBe(9)
+    // ⭐ 9 → 10 ON 2026-11-26 (COV-TIME B2), AND UP IS THE HONEST DIRECTION. `pine:window` JOINS:
+    // 14-bollinger is a versionless (v1) script, and its bare `interval` is now `timeframe.multiplier`
+    // (the v3 reference's definition), so its four BB outputs stop at the bare name no longer and reach
+    // what actually blocks them: `bblen_f = round(bblen * _t / interval)` is a window length this door
+    // cannot fix before bar 0 (`pine:window`). Its whole-script refusal moved to `pine:plot-offset`
+    // (line 39, `offset=_offset`). Still refused, by the sentences that name the constructs.
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {

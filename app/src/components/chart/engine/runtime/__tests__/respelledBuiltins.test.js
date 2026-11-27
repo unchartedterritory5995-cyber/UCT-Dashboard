@@ -87,6 +87,9 @@ const alma = (xs, n, offset, sigma, floor = false) => xs.map((_, i) => {
   }
   return sum / norm
 })
+// TradingView's published `pine_swma`, verbatim in its arithmetic and its order
+const swma = (xs) => xs.map((_, i) => (i < 3 ? NaN
+  : xs[i - 3] * 1 / 6 + xs[i - 2] * 2 / 6 + xs[i - 1] * 2 / 6 + xs[i] * 1 / 6))
 
 describe('⭐⭐ admitted, and equal to Pine\'s own definition', () => {
   it('`iff` (v4) is the ternary over runtime state', () => {
@@ -114,10 +117,30 @@ describe('⭐⭐ admitted, and equal to Pine\'s own definition', () => {
     near(run(5, `plot(${call})\n`), alma(X, 9, 0.85, 6, floor), 1e-12)
   })
 
+  // ⭐⭐ COV-TIME B3 — `ta.swma` / v4 `swma` over runtime state: TradingView's published `pine_swma`,
+  // `x[3] * 1 / 6 + x[2] * 2 / 6 + x[1] * 2 / 6 + x[0] * 1 / 6`, in that order, so EXACT (tolerance 0).
+  it('`ta.swma(src)` (v5, v6) and `swma(src)` (v4) are `pine_swma`, exactly; na until four bars exist', () => {
+    const ref = swma(X)
+    near(run(5, 'plot(ta.swma(x))\n'), ref, 0)
+    near(run(6, 'plot(ta.swma(x))\n'), ref, 0)
+    near(run(4, 'plot(swma(x))\n'), ref, 0)
+    // over an expression of runtime state, which the lane gives its own committed series
+    near(run(5, 'plot(ta.swma(x * 2 - 1))\n'), swma(X.map((x) => x * 2 - 1)), 0)
+    // the first three bars have no x[3]: na, as Pine's arithmetic over na is
+    const ours = run(5, 'plot(ta.swma(x))\n')
+    expect(ours.slice(0, 3).every(Number.isNaN)).toBe(true)
+    expect(Number.isNaN(ours[3])).toBe(false)
+  })
+
   it('control: the references are not each other (a wrong formula would be seen)', () => {
     const a = linreg(X, 9, 0); const b = sma(X, 9); const c = alma(X, 9, 0.85, 6)
     expect(a.slice(20).some((v, i) => Math.abs(v - b[20 + i]) > 1e-3)).toBe(true)
     expect(c.slice(20).some((v, i) => Math.abs(v - b[20 + i]) > 1e-3)).toBe(true)
+    // swma is not a plain 4-bar mean, nor its weights read the other way round in time
+    const s = swma(X); const m4 = sma(X, 4)
+    expect(s.slice(4).some((v, i) => Math.abs(v - m4[4 + i]) > 1e-3)).toBe(true)
+    const flipped = X.map((_, i) => (i < 3 ? NaN : X[i] * 1 / 6 + X[i - 1] * 2 / 6 + X[i - 2] * 2 / 6 + X[i - 3] * 1 / 6))
+    expect(s.slice(4).some((v, i) => v !== flipped[4 + i])).toBe(true)
   })
 })
 
@@ -136,5 +159,14 @@ describe('⛔ still refused, by name', () => {
     expect(() => run(5, 'plot(ta.alma(x, 9, 0.85, 6))\n')).not.toThrow()
     expect(() => run(4, 'plot(iff(x > open, x, open))\n')).not.toThrow()
     expect(() => run(4, 'plot(vwma(x, 6))\n')).not.toThrow()
+    expect(() => run(5, 'plot(ta.swma(x))\n')).not.toThrow()
+  })
+
+  it.each([
+    ['`swma` with a second argument (Pine declares one)', 5, 'plot(ta.swma(x, 4))\n'],
+    ['a `ta.swma` spelling in a v4 script', 4, 'plot(ta.swma(x))\n'],
+    ['the bare `swma` in v5 (Pine renamed it `ta.swma`)', 5, 'plot(swma(x))\n'],
+  ])('COV-TIME B3 still refuses: %s', (_, version, body) => {
+    expect(refusalOf(version, body).guard).toMatch(/^runtime:|^pine:/)
   })
 })

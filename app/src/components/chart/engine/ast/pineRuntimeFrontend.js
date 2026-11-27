@@ -7392,6 +7392,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  - `alma(src, n, offset, sigma[, floor])` — TradingView's published
    *    `pine_alma`: a Gaussian-weighted sum over the last `n` bars, weights
    *    computed in the reference's own order; every parameter must fold.
+   *  - `swma(src)` (COV-TIME B3) — TradingView's published `pine_swma`, the host
+   *    lane's own four-tap tree, term for term.
    *
    *  ⛔ Positional arguments only, exactly the arity Pine declares, never a
    *  name the script defines itself, and every length/offset must fold before
@@ -7498,6 +7500,20 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       }
       if (!Number.isFinite(norm) || norm === 0) return null
       return { type: 'binary', op: '/', tok, left: sum, right: { type: 'number', value: norm, tok } }
+    }
+    // ⭐⭐ COV-TIME B3 — `swma(src)`: TradingView's published `pine_swma`, verbatim in its arithmetic and
+    // its order, the tree the host lane writes (`pine.js::BUILTIN_CALL_TREE.swma`):
+    //   x[3] * 1 / 6 + x[2] * 2 / 6 + x[1] * 2 / 6 + x[0] * 1 / 6
+    // (`* 1` dropped there and here: multiplying by one is exact). `na` in any of the four bars is `na`,
+    // by plain arithmetic. The offsets are read exactly as `alma`'s above are.
+    if (bare === 'swma' && given.length === 1) {
+      const lit = (value) => ({ type: 'number', value, tok })
+      const at = (k) => (k === 0 ? given[0] : { type: 'offset', arg: given[0], n: k, tok })
+      const term = (k, w) => (w === 1
+        ? { type: 'binary', op: '/', tok, left: at(k), right: lit(6) }
+        : { type: 'binary', op: '/', tok, left: { type: 'binary', op: '*', tok, left: at(k), right: lit(w) }, right: lit(6) })
+      const plus = (left, right) => ({ type: 'binary', op: '+', tok, left, right })
+      return plus(plus(plus(term(3, 1), term(2, 2)), term(1, 2)), term(0, 1))
     }
     return null
   }
