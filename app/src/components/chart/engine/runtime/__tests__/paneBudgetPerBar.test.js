@@ -35,8 +35,6 @@ import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefi
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
 import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
-// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
-// test its machinery, so they turn it on for this file
 __e102BeforeAll(() => { __e102Curtain(true) })
 __e102AfterAll(() => { __e102Curtain(false) })
 
