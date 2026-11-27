@@ -1,5 +1,7 @@
 // The only module that knows the /api/agent/* wire shapes.
 
+import { noteAgentDoorConfig, _resetAgentDoor } from './agentFlag'
+
 const FAILED = "UCT Agent couldn't complete that request. No changes were made."
 
 async function post(url, body) {
@@ -93,7 +95,11 @@ export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
   if (serverStream.at && Date.now() - serverStream.at < CONFIG_TTL_MS) return Promise.resolve(serverStream.on)
   serverStream.inflight = fetch('/api/agent/config', { credentials: 'include', cache: 'no-store' })
-    .then(r => (r.ok ? r.json() : null))
+    .then((r) => {
+      // the member door's config half (agentFlag.js): a refused read (403) closes it in this tab, the emergency off
+      if (r.status === 403) noteAgentDoorConfig(false)
+      return r.ok ? r.json() : null
+    })
     .then((c) => {
       serverStream.on = !!(c && c.stream === true); serverStream.nl1 = !!(c && c.nl1 === true)
       serverStream.data = !!(c && c.data === true); serverStream.scan = !!(c && c.scan === true)
@@ -102,6 +108,7 @@ export function loadAgentConfig() {
       serverStream.planner = c && c.planner === 'v2' ? 'v2' : 'v1'
       serverStream.coach = !!(c && c.coach === true)          // Wave 3 (UCT_AGENT_COACH): false unless the server says true
       serverStream.routingV2 = !!(c && c.routing_v2 === true)  // NLM-1 (UCT_AGENT_ROUTING_V2): false unless the server says true
+      if (c && typeof c.members === 'boolean') noteAgentDoorConfig(c.members)  // UCT_AGENT_MEMBERS_ENABLED: the door's config half
       serverStream.at = Date.now(); return serverStream.on
     })
     .catch(() => { serverStream.failed = true; return serverStream.on })
@@ -121,7 +128,7 @@ export const serverDataKinds = () => (serverStream.data === true && Array.isArra
 // News -> Agent (UCT_AGENT_NEWS): true / false once the config has answered (false on any error, or an Agent this
 // server does not serve), null while it has not.
 export const serverNewsState = () => (serverStream.at ? serverStream.news === true : (serverStream.failed ? false : null))
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 } }
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 }; _resetAgentDoor() }
 // Wave 3 COACH (UCT_AGENT_COACH -> config `coach`): false until the config has answered true, and on any error.
 export const serverServesCoach = () => serverStream.coach === true
 // NLM-1 D1 (UCT_AGENT_ROUTING_V2 -> config `routing_v2`): false until the config has answered true, and on any error.

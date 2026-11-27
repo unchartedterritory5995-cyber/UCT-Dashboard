@@ -1,9 +1,11 @@
 // ── UCT Agent APP-LEVEL HOST (W2-C1, 2026-11-03): one provider, one panel, a host per page ─────────────
 //
 // Mounted ONCE in App.jsx (inside the router and the auth provider). It owns:
-//   • the render gate — the same two keys as /charts: the per-browser `uct.feature.agent` switch AND the
-//     admin role (agentFlag.js; every /api/agent/* route is admin-only on the server whatever this says).
-//     Dark for everyone else: nothing renders, nothing is fetched.
+//   • the render gate — the same as /charts (agentFlag.js useAgentAccess): an admin with the per-browser
+//     `uct.feature.agent` switch, or, while the member door is open (UCT_AGENT_MEMBERS_ENABLED=1, read from
+//     /api/auth/me), a paid member whose switch is not off. Every /api/agent/* route is admin-only on the server
+//     unless UCT_AGENT_MEMBERS_ENABLED=1, whatever this says. Dark for everyone else: nothing renders, nothing
+//     is fetched. It also publishes the door for readers outside React (usePublishAgentDoor).
 //   • the OPEN state (`uct.agent.open`, the key /charts already keeps, so the panel stays open across pages)
 //   • the PAGE HOST the current page registered (`useAgentPageHost(surface, host)`): what the Agent can
 //     read and write HERE, through that page's own hooks and writers. A page that registers nothing has
@@ -22,7 +24,7 @@
 import { Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useInRouterContext } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useAgentFlag, AGENT_OPEN_KEY, AGENT_OPEN_EVENT, readLocal, writeLocal } from './agentFlag'
+import { useAgentAccess, usePublishAgentDoor, AGENT_OPEN_KEY, AGENT_OPEN_EVENT, readLocal, writeLocal } from './agentFlag'
 import { readAgentWidth } from './agentWidth'
 import AgentNavBridge from './AgentNavBridge'
 import ErrorBoundary from '../components/ErrorBoundary'
@@ -34,7 +36,7 @@ const AgentPanel = lazy(loadAgentPanel)
 
 // The dock on a page that is not /charts: a fixed column at the right edge, the member's own Agent width
 // (agentWidth.js — the width they chose on /charts). It overlays the page rather than re-tiling it: these
-// pages have no grid to re-measure, and the Agent is admin-dark here.
+// pages have no grid to re-measure.
 function AgentPageDock({ host, surface, request, onClose }) {
   const width = readAgentWidth()
   return (
@@ -62,8 +64,8 @@ function AgentDockCrashed({ onClose }) {
 
 export default function AgentProvider({ children }) {
   const auth = useAuth()
-  const flag = useAgentFlag()
-  const allowed = flag && auth?.user?.role === 'admin'
+  usePublishAgentDoor(auth)
+  const allowed = useAgentAccess(auth)
   const inRouter = useInRouterContext()
   const [page, setPage] = useState(null)             // { surface, host, owned } | null
   const [open, setOpenState] = useState(() => readLocal(AGENT_OPEN_KEY) === '1')
@@ -127,8 +129,8 @@ export default function AgentProvider({ children }) {
 
 /**
  * The "UCT Agent" button a page puts in its header — the same gate and look as the /charts toolbar
- * button (data-testid agent-launch). Renders nothing unless the Agent may show on THIS page: admin +
- * switch, and the page registered a host it does not render itself.
+ * button (data-testid agent-launch). Renders nothing unless the Agent may show on THIS page (the provider's
+ * gate: useAgentAccess), and the page registered a host it does not render itself.
  */
 export function AgentDockButton({ className = '', style = null }) {
   const app = useContext(AgentContext)
