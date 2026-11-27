@@ -178,6 +178,27 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   const on = () => st.wanted != null && !disabled()
   const anchorStart = anchor === 'index' ? (rows, wanted) => renderWindowStart(rows.length, wanted) : renderWindowStartFor
 
+  /** Do two row arrays hold the same rows (each row's own fields equal; a time compared by value)? O(rows). */
+  function sameRows(a, b) {
+    if (a === b) return Array.isArray(a)
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i]
+      const y = b[i]
+      if (x === y) continue
+      if (!x || !y || typeof x !== 'object' || typeof y !== 'object') return false
+      const kx = Object.keys(x)
+      if (kx.length !== Object.keys(y).length) return false
+      for (const k of kx) {
+        const u = x[k]
+        const v = y[k]
+        if (u === v || (u !== u && v !== v)) continue   // (NaN equals NaN here)
+        if (k === 'time' && u != null && v != null && typeof u === 'object' && cmpTime(u, v) === 0) continue
+        return false
+      }
+    }
+    return true
+  }
   function cutFor(w, rows) {
     if (!Array.isArray(rows) || !rows.length) return rows
     const paint = series.get(w)?.paint || null   // (SET_DATA_PAINTED: the rows handed over, transformed)
@@ -368,8 +389,9 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     const origUpdate = typeof raw.update === 'function' ? raw.update.bind(raw) : null
     const origSetDataFn = raw.setData
     const origUpdateFn = raw.update
-    rec.set = (rows) => origSetData(rows)
-    rec.upd = (item, ...rest) => origUpdate(item, ...rest)
+    // (`handed`: the rows the library was last handed; `updated`: an update() reached the library since)
+    rec.set = (rows) => { rec.handed = rows; rec.updated = false; return origSetData(rows) }
+    rec.upd = (item, ...rest) => { rec.updated = true; return origUpdate(item, ...rest) }
     /** The series' setData: keep `rows`, hand the library the cut (painted when `paint` is given). */
     function setFull(rows, paint) {
       rec.full = rows
@@ -379,7 +401,13 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       if (w === primary) placeWindow()
       const cut = cutFor(w, rows)
       rec.cutFirst = cut && cut.length ? cut[0].time : null
-      rec.set(cut)
+      // ⭐ (2026-11-27, the second full draw after a typed Enter) THE SAME ROWS ARE NOT HANDED AGAIN. The history deepening
+      // joins older rows behind the view and the chart re-sets every series with its whole new array; the window starts at
+      // the same TIME (the anchor of the same load), so the cut is the rows the library already holds, as new objects. The
+      // library's setData (each series re-set in its model, its time points redone) changed nothing it draws. Handed only
+      // when a row differs, or when an update() reached the library since (it then holds a bar the cut does not).
+      if (!rec.updated && sameRows(rec.handed, cut)) rec.handed = cut
+      else rec.set(cut)
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
       if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
