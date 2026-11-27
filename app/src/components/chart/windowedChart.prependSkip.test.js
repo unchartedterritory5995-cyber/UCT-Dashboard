@@ -167,4 +167,22 @@ describe('a prepend behind the window hands the library nothing', () => {
     expect(sets.candles).toBe(0)
     expect(sets.ma).toBe(1)
   })
+
+  // (review of #2903's delta, F1) skipped, then the chart update()s the developing candle and its volume bar, then a
+  // compare series moves the axis in the same pass: the re-hand at the pass's end keeps the developing bars
+  it('a skip, update() of the developing bars, then a compare series: the library still ends with the developing bars', async () => {
+    const b = board(); load(b)
+    await tick()
+    const dev = { time: T(N), open: 200, high: 205, low: 199, close: 204 }
+    const devVol = { time: T(N), value: 77777 }
+    b.candles.setData([...OLDER, ...copy(BARS)])                       // skipped (older history at the front)
+    b.vol.setData([...OLDER.map((r) => ({ time: r.time, value: 5 })), ...copy(VOL)])
+    b.candles.update(dev)                                              // the developing candle, live
+    b.vol.update(devVol)
+    const cmp = b.chart.addSeries(LineSeries, {})
+    cmp.setData([...BARS.slice(-20).map((r) => ({ time: r.time + 3600, value: 1 })), { time: T(N) + 3600, value: 1 }])
+    await tick()                                                       // the pass's end: the axis moved, re-handed
+    expect(rawOf(b.candles).data().at(-1)).toMatchObject({ time: T(N), close: 204 })
+    expect(rawOf(b.vol).data().at(-1)).toMatchObject({ time: T(N), value: 77777 })
+  })
 })

@@ -193,7 +193,13 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       const skipped = st.passSkipped
       st.passStart = null
       st.passSkipped = []
-      if (moved) for (const k of skipped) if (k.rec.handed === k.cut && series.get(k.w) === k.rec) k.rec.set(k.cut)
+      // (applyOne, not a bare setData: it replays what update() planted since the skip, the developing candle and its
+      // volume bar, review of #2903's delta F1)
+      if (moved) {
+        for (const k of skipped) {
+          try { if (k.rec.handed === k.cut && series.get(k.w) === k.rec) applyOne(k.w) } catch { /* one series */ }
+        }
+      }
     })
   }
   /** Do two row arrays hold the same times, in order (values aside)? O(rows). */
