@@ -108,6 +108,25 @@ describe('a background deepening lands in idle time', () => {
     expect(w.request.mock.calls.length).toBe(asked)       // no server window instead
   })
 
+  // (review of #2904) a lake load joining deeper rows while the window waits makes it redundant: done, no server window
+  it('a window made redundant while it waited (a deeper join landed) adds nothing and asks no server window', async () => {
+    const w = world()
+    w.registry.acquire(key)
+    w.net.fetchOnce(key)
+    await vi.advanceTimersByTimeAsync(20)
+    const bg = w.net.scrollBack(key, { priority: 'grid' })
+    await vi.advanceTimersByTimeAsync(20)               // the window's bytes are in, waiting for idle
+    const gen = w.registry.getSnapshot(key).gen
+    w.registry.dispatch(key, { type: 'scroll-back', key, gen, payload: { bars: lakeMeets(OPEN, 10) } })   // a deeper join
+    expect(oldest(w)).toBe(OPEN - 3000)
+    const serverAsks = w.request.mock.calls.filter((c) => /to=/.test(String(c[0]))).length
+    w.runIdle()
+    await expect(bg).resolves.toMatchObject({ ok: true, added: 0 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.request.mock.calls.filter((c) => /to=/.test(String(c[0]))).length).toBe(serverAsks)
+    expect(oldest(w)).toBe(OPEN - 3000)
+  })
+
   it('a window for a key no chart held (a neighbour row, a warm) is never dropped', async () => {
     const w = world()
     w.registry.acquire(key)

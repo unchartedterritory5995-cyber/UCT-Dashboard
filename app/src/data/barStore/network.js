@@ -507,12 +507,12 @@ export function createNetwork({
     const want = Math.max(opts.bars ?? HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS)
     return _send(r, 'scroll', `lake:${r.key}<${oldest}`, opts.priority || 'urgent', async (got) => {
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
-      return _landBackground(r, opts.priority || 'urgent', () => _joinLakeWindow(r, gen, got))
+      return _landBackground(r, opts.priority || 'urgent', () => _joinLakeWindow(r, gen, got, oldest))
     }, { fetch: (signal) => history.olderBars(r.key, oldest, { bars: want, signal }) })
   }
 
   /** A lake window's join (the store's SCROLL_BACK), read against the entry as it is when it lands. */
-  function _joinLakeWindow(r, gen, got) {
+  function _joinLakeWindow(r, gen, got, askedAt = null) {
     {
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
       const before = registry.getSnapshot(r.key)
@@ -525,6 +525,9 @@ export function createNetwork({
       // contains the chart's oldest bar (proof the two meet); otherwise the server's window answers this
       // scroll (no hole), and a later scroll, once the chart reaches back into the lake, uses the lake.
       const joinT = before.bars.length ? before.bars[0].t : null
+      // (review of #2904) a window made redundant while it waited for idle (a lake load joined deeper rows meanwhile:
+      // every row of it is at or after the oldest bar held) adds nothing: done, and no server window in its place
+      if (joinT != null && askedAt != null && joinT < askedAt && got.bars.every((b) => b.t >= joinT)) return { ok: true, added: 0, source: 'lake' }
       if (joinT == null || !got.bars.some((b) => b.t === joinT)) return { fallback: true, gap: true }
       // the same seam rule as the server's window: another price basis at the join is refused whole
       if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
