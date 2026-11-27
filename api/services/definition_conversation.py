@@ -6310,7 +6310,8 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
 
     def script(refused=None):
         return sc.script_turn(words, user_id=user_id, chart=chart, cap_usd=cap_usd, calls=calls, revision=revision,
-                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled)
+                              contract=PATCH_CONTRACT, trace=trace, refused=refused, cancelled=cancelled,
+                              strategy=asks_for_strategy(words))
 
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
@@ -6330,6 +6331,9 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
     # (a method, drawing, chart type or data series the catalogue names goes to the script turn too: `sc.names_a_method`)
     # (a built-in with its look changed is the member's own: the script turn builds it, `customised_built_in`)
+    # ⭐ 2026-11-26 (coordinator ruling 1, step 2): a strategy request is WRITTEN as a strategy, on the script lane, first
+    if asks_for_strategy(words):
+        return script()
     if customised_built_in(words, chart):
         return script()
     if (sc.wants_script(words) or sc.names_a_method(words)) and not door_answers_by_name(words, chart, can_add):
@@ -6375,11 +6379,10 @@ def said_why(scripted: Mapping[str, Any]) -> bool:
 # The sentence is the DOOR'S, never the model's: on such a request a decline is answered with it, and a built signal
 # version carries it, with any sentence claiming UCT cannot backtest taken out. Step 2 (the assistant writes
 # strategy() scripts held to the pinned broker rules) replaces this.
-STRATEGY_DECLINE = ("The assistant doesn't write strategies yet. A strategy script you paste here is backtested, "
-                    "where the broker rules it needs are pinned. Ask for the entry and exit rules as an indicator and "
-                    "the assistant will mark each signal on your chart.")
-STRATEGY_NOTE = (" The assistant doesn't write strategies yet, so this marks the signals; a strategy script you paste "
-                 "here is backtested, where the broker rules it needs are pinned.")
+#: (step 2, 2026-11-26: the assistant writes strategies now. A decline whose every sentence claimed UCT cannot backtest
+#: is answered with this instead.)
+STRATEGY_DECLINE = ("The assistant could not write that as a strategy this chart can run. A strategy script you paste "
+                    "here is backtested, where the broker rules it needs are pinned.")
 _BACKTEST_WORDS = re.compile(r"\bback-?test\w*", re.I)
 _STRATEGY_WORD = re.compile(r"\bstrateg(?:y|ies)\b", re.I)
 _TRADE_WORDS = re.compile(r"\b(?:buys?|buying|sells?|selling|go(?:es)? long|go(?:es)? short|longs?|shorts?|entr(?:y|ies)|"
@@ -6412,14 +6415,17 @@ def with_strategy_sentence(result: Mapping[str, Any]) -> Dict[str, Any]:
     Returns a NEW result."""
     from api.services import script_conversation as sc
     out = dict(result)
+    if out.get("gate") == sc.STRATEGY_WALL_GATE:
+        return out                                                     # the broker's refusal, by name: the door's own
     declined = (out.get("ok") is True and out.get("disposition") == "unsupported") or out.get("gate") == sc.DECLINED_GATE
     if declined:
         field = "reply" if out.get("ok") is True else "reason"
-        out[field] = STRATEGY_DECLINE
+        kept = _without_backtest_claims(out.get(field))
+        out[field] = kept or STRATEGY_DECLINE
         if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
             out["envelope"] = {**out["envelope"], "reply": out.get(field, out["envelope"]["reply"])}
     elif out.get("ok") is True and out.get("turn") in ("patch", "script"):
-        out["reply"] = _without_backtest_claims(out.get("reply")) + STRATEGY_NOTE
+        out["reply"] = _without_backtest_claims(out.get("reply"))
         if isinstance(out.get("envelope"), Mapping) and "reply" in out["envelope"]:
             out["envelope"] = {**out["envelope"], "reply": out["reply"]}
     return out
