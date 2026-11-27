@@ -1,5 +1,5 @@
 import { mergeMonotonic } from './barsMerge'
-import { BAR_BUDGET_DESKTOP, barBudget, registerBarHolder } from '../lib/barBudget'
+import { BAR_BUDGET_DESKTOP, barBudget, registerBarHolder, isDailyTf } from '../lib/barBudget'
 // Synchronous in-memory LRU cache of chart bars, keyed by `${SYM}_${TF}`.
 // This is the FAST layer in front of IndexedDB: a switch to a (sym, tf) that's
 // in here paints in the SAME synchronous frame — no async idbGet hop, no
@@ -80,9 +80,14 @@ export function memPut(sym, tf, bars, { savedAt, meta } = {}) {
   _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp, ...(meta ? { meta } : {}) })
   _rows += bars.length
   while (_map.size > 1 && (_map.size > MEM_CACHE_MAX || _rows > _max())) {
-    const [oldK, oldE] = _map.entries().next().value   // least-recently-used (oldest)
+    // the least recently used INTRADAY entry first (lib/barBudget.js: a daily history is small and the base of every
+    // zoom); a daily one only when no other is left. Never the entry just written.
+    let oldK = null
+    for (const mk of _map.keys()) { if (mk !== k && !isDailyTf(mk.slice(mk.lastIndexOf('_') + 1))) { oldK = mk; break } }
+    if (oldK == null) oldK = _map.keys().next().value
+    if (oldK === k) break
+    _rows -= _map.get(oldK).bars.length
     _map.delete(oldK)
-    _rows -= oldE.bars.length
   }
 }
 

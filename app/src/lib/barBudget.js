@@ -36,6 +36,16 @@
 //
 // The touch tier (<= 1024 px or a coarse pointer: one chart, a phone's memory) keeps less.
 //
+// ⭐⭐ BY BYTES, AND THE DAILY BASES STAY (2026-11-27, owner: instant full loads at any zoom or date; D/W/M load the
+// whole daily history since listing in one request, intraday the view's actual range). A bar costs the same bytes in
+// every timeframe (one object per bar: BYTES_PER_BAR), so the shares are bounds in bytes too (`shareBytes`, the ledger's
+// `bytes`), and what costs is the intraday arrays (20,000-50,000 bars a key) while a symbol's WHOLE daily history is a few
+// thousand to ~12,000 bars. So every cache lets the intraday arrays go first (`isDailyTf`): the registry's order is
+// the dwell's intraday warms of a symbol no chart shows, every other idle intraday entry, the idle daily entries, the
+// recently shown symbols' intraday entries, and LAST the recent symbols' daily bases; the adapter's slots and the mem
+// cache's entries likewise drop their oldest INTRADAY slot first and a daily one only when none is left. A recently
+// visited symbol is never made cold by an older one's: it is evicted only after every non-recent entry is gone.
+//
 // ⛔ A LEAF: it imports styles/breakpoints.js only, so the registry, the adapter, the mem cache and neighborFrames can all
 // read it without pulling each other into a chunk.
 
@@ -47,6 +57,14 @@ export const BAR_BUDGET_DESKTOP = Object.freeze({
 export const BAR_BUDGET_TOUCH = Object.freeze({
   registry: 250_000, adapter: 120_000, mem: 80_000, derived: 200_000, recentSymbols: 3,
 })
+
+/** Estimated bytes one bar costs in each cache (Chrome, pointer compression; measured shape costs in V8: a store bar
+ *  carries rev/src/fin, a copy is {t,o,h,l,c,v} with boxed doubles, a derived element is a point or a reference). */
+export const BYTES_PER_BAR = Object.freeze({ registry: 96, adapter: 72, mem: 72, derived: 40 })
+/** A cache's share in bytes (its bar share x what a bar costs there). */
+export function shareBytes(name, shares = barBudget()) { return (shares[name] || 0) * (BYTES_PER_BAR[name] || 0) }
+/** D / W / M: a symbol's daily-class base (small: kept before any intraday array). */
+export function isDailyTf(tf) { return tf === 'D' || tf === 'W' || tf === 'M' }
 
 /** The page's shares for a tier. */
 export function barBudgetFor({ touch = false } = {}) { return touch ? BAR_BUDGET_TOUCH : BAR_BUDGET_DESKTOP }
@@ -82,18 +100,21 @@ export function registerBarHolder(name, held) {
   _holders.set(name, held)
   _expose()
 }
-/** What each cache holds now, and the sum: `{ total, byCache: { name: { bars, entries, budget } } }`. */
+/** What each cache holds now, and the sums: `{ total, bytes, byCache: { name: { bars, bytes, entries, budget } } }`
+ *  (`bytes`: the bars x BYTES_PER_BAR estimate, the page's retained-heap share of bar data). */
 export function barsHeld() {
   const byCache = {}
-  let total = 0
+  let total = 0, bytes = 0
   for (const [name, held] of _holders) {
     let h = null
     try { h = held() } catch { h = null }
     if (!h) continue
-    byCache[name] = h
+    const b = (Number(h.bars) || 0) * (BYTES_PER_BAR[name] || 0)
+    byCache[name] = { ...h, bytes: b }
     total += Number(h.bars) || 0
+    bytes += b
   }
-  return { total, byCache, budget: barBudget() }
+  return { total, bytes, byCache, budget: barBudget() }
 }
 function _expose() {
   try { if (typeof window !== 'undefined') window.__uctBarBudget = barsHeld } catch { /* no window */ }

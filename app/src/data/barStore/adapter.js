@@ -45,7 +45,7 @@ import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
 import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
 import { neighborFramesOn } from '../../components/chart/neighborFrames'
-import { BAR_BUDGET_DESKTOP, barBudget, onKeyEvicted, registerBarHolder } from '../../lib/barBudget'
+import { BAR_BUDGET_DESKTOP, barBudget, onKeyEvicted, registerBarHolder, isDailyTf } from '../../lib/barBudget'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
@@ -121,9 +121,13 @@ function slotMemo() {
       bars += n
       const lim = _lim()
       while (map.size > 1 && (map.size > lim.maxEntries || bars > lim.maxBars)) {
-        const [ok, oe] = map.entries().next().value
-        map.delete(ok)
-        bars -= oe.n
+        // the oldest INTRADAY slot first (lib/barBudget.js: a daily copy is small, the base of every zoom); never the one set
+        let victim = null
+        for (const vk of map.keys()) { if (vk !== k && !isDailyTf(vk.slice(vk.lastIndexOf('|') + 1))) { victim = vk; break } }
+        if (victim == null) victim = map.keys().next().value
+        if (victim === k) break
+        bars -= map.get(victim).n
+        map.delete(victim)
       }
       return v
     },

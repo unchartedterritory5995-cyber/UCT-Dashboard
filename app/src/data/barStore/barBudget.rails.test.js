@@ -18,6 +18,10 @@
 //   B6 the mem cache (saved copies in front of IndexedDB) holds at most the page budget's mem share.
 //   B7 an evicted symbol reloads its FULL history exactly (the server's answer and the lake's depth, one join) and its
 //      chart reads the same rows as before the eviction.
+//   B8 BY BYTES, THE DAILY BASES STAY (owner: instant full loads at any zoom or date; D/W/M carry the whole history since
+//      listing): the registry evicts the intraday arrays first, every visited symbol's daily base stays while any
+//      intraday array can go, and among daily bases a non-recent one goes before a recent one.
+//   B9 the adapter's slots and the mem cache's entries drop an intraday one before a daily one.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import v8 from 'node:v8'
 import vm from 'node:vm'
@@ -25,8 +29,8 @@ import { createRegistry, DEFAULT_BAR_BUDGET } from './registry'
 import { createBarStore } from './index'
 import { keyOf } from './types'
 import { legacyBars, _adapterMemoStats, _resetAdapterMemos, _setAdapterMemoLimits } from './adapter'
-import { BAR_BUDGET_DESKTOP, BAR_BUDGET_TOUCH, barsHeld } from '../../lib/barBudget'
-import { memPut, memClear, _memStats, MEM_CACHE_MAX_ROWS } from '../../utils/barsMemCache'
+import { BAR_BUDGET_DESKTOP, BAR_BUDGET_TOUCH, BYTES_PER_BAR, barsHeld } from '../../lib/barBudget'
+import { memPut, memPeek, memClear, _memStats, MEM_CACHE_MAX_ROWS } from '../../utils/barsMemCache'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 
@@ -244,6 +248,73 @@ describe('B6 the mem cache holds at most the page budget\'s mem share', () => {
     for (let i = 0; i < 20; i++) memPut(SYMS[i], '1', rows, { savedAt: NOW })
     expect(_memStats().rows).toBeLessThanOrEqual(BAR_BUDGET_DESKTOP.mem)
     expect(barsHeld().byCache.mem.bars).toBe(_memStats().rows)
+    expect(barsHeld().byCache.mem.bytes).toBe(_memStats().rows * BYTES_PER_BAR.mem)
+  })
+})
+
+// ── B8/B9: by bytes, the daily bases stay (owner: instant full loads at any zoom or date) ────────────────────────────
+describe('B8 the registry lets the intraday arrays go first; the daily bases stay', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('a D + 1m board scanned past the budget: every visited D base stays while any intraday array can go', () => {
+    const D = (s) => keyOf({ sym: s, tf: 'D' })
+    // a whole daily history since listing (~20 years) is 5,000 bars; a 1m key 20,000
+    const reg = createRegistry({ barBudget: 120_000, recentSymbols: 2, ctx: () => ({ nowMs: NOW }) })
+    const subs = []
+    for (let i = 0; i < 12; i++) {
+      for (const off of subs.splice(0)) off()
+      const s = SYMS[i]
+      subs.push(reg.subscribe(D(s), () => {}), reg.subscribe(K1(s), () => {}))
+      reg.dispatch(D(s), full(5000, DAY, 1))
+      reg.dispatch(K1(s), full(20000, 60, 1))
+      expect(reg.stats().bars, `press ${i}`).toBeLessThanOrEqual(120_000)
+      // every daily base visited so far is held (12 x 5,000 = 60,000 fit; the intraday arrays paid for the room)
+      for (let j = 0; j <= i; j++) expect(reg.has(D(SYMS[j])), `press ${i}: ${SYMS[j]} D base`).toBe(true)
+      // ...and the recent symbols (the row on screen, the one just left) keep their intraday array too
+      for (let j = Math.max(0, i - 1); j <= i; j++) expect(reg.has(K1(SYMS[j])), `press ${i}: ${SYMS[j]} 1m (recent)`).toBe(true)
+    }
+    expect(reg.has(K1(SYMS[0])), 'the oldest 1m array went').toBe(false)
+  })
+
+  it('under pressure only daily bases can relieve: a non-recent one goes before a recent one', () => {
+    const D = (s) => keyOf({ sym: s, tf: 'D' })
+    const reg = createRegistry({ barBudget: 9000, recentSymbols: 1, ctx: () => ({ nowMs: NOW }) })
+    for (const s of ['OLD', 'RECENT']) { const off = reg.subscribe(D(s), () => {}); reg.dispatch(D(s), full(4000, DAY, 1)); off() }
+    reg.dispatch(D('NEW'), full(4000, DAY, 2))
+    expect(reg.has(D('OLD'))).toBe(false)
+    expect(reg.has(D('RECENT')) && reg.has(D('NEW'))).toBe(true)
+  })
+})
+
+describe('B9 the adapter and the mem cache drop an intraday slot before a daily one', () => {
+  beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW); _resetAdapterMemos(); memClear() })
+  afterEach(() => { vi.useRealTimers(); _resetAdapterMemos(); memClear() })
+
+  it('adapter: the daily copy read FIRST outlives every newer intraday copy', () => {
+    _setAdapterMemoLimits({ maxEntries: 32, maxBars: 30_000 })
+    const reg = createRegistry({ ctx: () => ({ nowMs: NOW }) })
+    const D = keyOf({ sym: 'BASE', tf: 'D' })
+    reg.dispatch(D, full(5000, DAY, 1))
+    legacyBars(reg.peek(D), 'D')
+    // four 15m keys of 9,000 bars each: their legacy copies (the store's rows carry rev/src/fin) need 36,000 > 30,000
+    for (let i = 0; i < 4; i++) {
+      const k = K15(SYMS[i])
+      reg.dispatch(k, { type: 'rest-full', payload: { bars: rowsOf(9000, 900, 3) } })
+      const s = reg.peek(k)
+      expect(legacyBars(s, '15')).not.toBe(s.bars)   // a copy: it weighs
+    }
+    expect(_adapterMemoStats().legacy.keys).toContain(`${D}|D`)
+    expect(_adapterMemoStats().legacy.bars).toBeLessThanOrEqual(30_000)
+  })
+
+  it('mem: a daily history written first outlives newer intraday entries over the share', () => {
+    const daily = rowsOf(5000, DAY, 1)
+    memPut('BASE', 'D', daily, { savedAt: NOW })
+    const rows = rowsOf(20000, 60, 1)
+    for (let i = 0; i < 20; i++) memPut(SYMS[i], '1', rows, { savedAt: NOW })
+    expect(_memStats().rows).toBeLessThanOrEqual(BAR_BUDGET_DESKTOP.mem)
+    expect(memPeek('BASE', 'D')).toBe(daily)
   })
 })
 
