@@ -6,6 +6,7 @@
 // 9:30 AM ET"). Reuses useMarketOpen + sessionModel/nextOpenHint so the status
 // can never disagree with the Dashboard's session pill.
 import { useEffect, useRef, useState } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import { createPortal } from 'react-dom'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { sessionModel, nextOpenHint } from '../../../components/dashboard/sessionModel'
@@ -55,10 +56,13 @@ export default function ChartMarketClock() {
     return Object.keys(out).length ? out : undefined
   }
 
+  const layerBoard = useLayerBoard()
+  // (review of #2901, H3) on a hidden layer keep-alive board this does nothing; the show runs it once, in its own task
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
+    const f = forwardWhileShown(layerBoard, () => setNow(new Date()))
+    const id = setInterval(f.cb, 1000)
+    return () => { clearInterval(id); f.stop() }
+  }, [layerBoard])
 
   const { label, tone } = sessionModel(session)
   const time = now.toLocaleTimeString('en-US', {

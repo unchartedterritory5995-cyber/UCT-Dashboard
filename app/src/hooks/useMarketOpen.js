@@ -99,6 +99,14 @@ function _wakeListeners(on) {
 function _subscribe(cb) {
   if (!_listeners.size) _wakeListeners(true)
   _listeners.add(cb)
+  // (review of the announced-snapshot fix, LOW) a first reader whose render and subscribe straddle a minute: the state
+  // announced at its render may already be the old minute, and the timer arms for the NEXT one. Read the clock now and
+  // announce a change at once (every reader: they all read the announced state).
+  const fresh = readMarketState()
+  if (fresh !== _current) {
+    _current = fresh
+    for (const l of [..._listeners]) l()
+  }
   _arm()
   return () => {
     _listeners.delete(cb)

@@ -261,7 +261,10 @@ describe('the chrome sampler measures in the frame, not inside the commit', () =
   it('the sampler writes --lookback-bottom AFTER its layout reads (a changed value is not flushed mid-pass)', () => {
     const src = readFileSync(join(process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
     const start = src.indexOf('const revealRangeBar = (rb) =>')
-    const end = src.indexOf('const loop = createAdaptiveFrameLoop({ tick })', start)
+    // the chrome loop's line, with or without the board keep-alive's pause gate (#2901)
+    const loopAt = src.slice(start).search(/const loop = createAdaptiveFrameLoop\(\{ tick(, gate: boardLoopGate\(boardVisibilityRef\.current\))? \}\)/)
+    expect(loopAt, 'the chrome loop line after revealRangeBar').toBeGreaterThan(0)
+    const end = start + loopAt
     const body = src.slice(start, end)
     const write = body.indexOf("setProperty('--lookback-bottom'")
     expect(write).toBeGreaterThan(0)

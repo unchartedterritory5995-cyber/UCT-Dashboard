@@ -3,7 +3,7 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext } from './chart/paintLog'
-import { BoardVisibilityContext, boardIsHiding } from './chart/boardVisibility'
+import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 // (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
@@ -4293,6 +4293,11 @@ function StockChartBody({
   // The shell's per-chart metadata store (`chart/chartMetaStore.js`): READ in render, never subscribed.
   metaStore,
 }) {
+  // The board this chart sits on (board keep-alive, boardVisibility.js): its handle, or null (no keep-alive). Read at the
+  // top: the frame loops, intervals and key shortcuts below pause on a hidden layer board.
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   // ⛔⛔ Heavy locals are read through `__heavy` by every closure below (StockChart.closureChains.test.jsx):
   // a closure that captured them kept them on this render's context, and chained renders kept them all.
   // Render-time code (memo factories, the body) reads `__heavy.x`; code that runs after a commit (handlers,
@@ -8167,6 +8172,7 @@ function StockChartBody({
     }
     const cancelAfterPaint = (h) => { if (!h) return; if (h.f) cancelAnimationFrame(h.f); if (h.t) clearTimeout(h.t) }
     const fl = createAdaptiveFrameLoop({
+      gate: boardLoopGate(boardVisibilityRef.current),
       tick: () => { if (!alive) return null; position(); const el = presentBtnElRef.current; return el ? `${el.style.left}|${el.style.top}` : null },
       raf: afterPaint, caf: cancelAfterPaint,
     })
@@ -10317,6 +10323,8 @@ function StockChartBody({
       // the ACTIVE cell handles a keypress (otherwise 'D' retimes all N cells
       // and settings toggles fire N duplicate pref POSTs). Read via latest-ref
       // so the callback form costs zero re-subscribes and zero re-renders.
+      // a hidden layer board (board keep-alive) answers no key: the board in front may hold a chart of the same id
+      if (boardHiddenNow(boardVisibilityRef.current)) return
       const ha = hotkeysActiveRef.current
       if (typeof ha === 'function' ? !ha(e) : ha === false) return
       // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
@@ -10704,6 +10712,7 @@ function StockChartBody({
     if (!replayPlaying || !replayMode) return
     const intervalMs = replaySpeed === 20 ? 50 : replaySpeed === 5 ? 100 : 500
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       setReplayIndex(idx => {
         const maxIdx = (__heavy.committed.sessionBars?.length || 1) - 1
         if (idx >= maxIdx) { setReplayPlaying(false); return idx }
@@ -15519,7 +15528,7 @@ function StockChartBody({
       }
       return String(px)
     }
-    const loop = createAdaptiveFrameLoop({ tick })
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
     loop.start()
     const wake = () => loop.wake()
     const s = candleSeriesRef.current
@@ -15618,7 +15627,7 @@ function StockChartBody({
       el.style.lineHeight = `${style.height}px`
       return key
     }
-    const loop = createAdaptiveFrameLoop({ tick })
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
     loop.start()
     const wake = () => loop.wake()
     const chart = chartRef.current
@@ -16923,6 +16932,7 @@ function StockChartBody({
   useEffect(() => {
     if (!effAlwaysShow || !chartReady) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       // Hover, a synced crosshair — or a bar PINNED by 'on click' mode — owns the
       // readout; don't fight it. ⛔ The pin clause is load-bearing: this fires
       // twice a second, so without it a user's clicked bar is replaced by the
@@ -16959,6 +16969,7 @@ function StockChartBody({
   useEffect(() => {
     if (!chartReady || !liveUpdates) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       if (replayMode || replayCutoffRef.current || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
@@ -17940,6 +17951,7 @@ function StockChartBody({
     const chart = chartRef.current
     if (!chart) return undefined
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       try {
         const mainPane = candleSeriesRef.current?.getPane?.()
         const volPane = volumeSeriesRef.current?.getPane?.()
@@ -18724,7 +18736,7 @@ function StockChartBody({
       }
       return settled ? sig : null
     }
-    const loop = createAdaptiveFrameLoop({ tick })
+    const loop = createAdaptiveFrameLoop({ tick, gate: boardLoopGate(boardVisibilityRef.current) })
     // ⚡ (2026-11-27, the board switch) THE FIRST PASS RUNS IN THE NEXT FRAME, before it paints, not here. This effect
     // runs inside the mount's commit: a pass here forced the freshly committed board's style and layout mid-task
     // (`container.clientHeight`, 4.6 ms in a trace), and its wrapper writes made the next effect's read restyle the
@@ -19638,9 +19650,7 @@ function StockChartBody({
   // the cleanup keeps the instance and every latch describing it, and turns autoSize off (a hidden box is 0 x 0, which
   // must not resize the chart); the layout effect after it turns autoSize back on at the show, after one forced resize
   // when the device-pixel ratio changed while hidden. No provider (the flag off): exactly as before.
-  const boardVisibility = useContext(BoardVisibilityContext)
-  const boardVisibilityRef = useRef(boardVisibility)
-  boardVisibilityRef.current = boardVisibility
+  // (`boardVisibility` / `boardVisibilityRef`: read at the top of the body)
   const keptThroughHideRef = useRef(null)   // { dpr } while the chart is kept through a hide
   const keptDisposerRef = useRef(null)      // the handle's unregister of this chart's teardown, while kept
   // This chart's own `window.__uctChartDebug` handle: a kept (hidden) board's chart may share its widget id with one on
@@ -19761,6 +19771,34 @@ function StockChartBody({
       window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
     }
   }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- a show only: the refs and chartId are read at that moment
+  // ⭐ The LAYER keep-alive (boardVisibility.js): a hidden layer board's chart keeps its instance and every effect, but
+  // holds no manifest slot and no `window.__uctChartDebug` handle while hidden (the board in front may hold a chart of
+  // the same id); the show takes both back. An unmount while hidden (or disposed) takes nothing back.
+  // (read through the handle, never as React state: neither the hide nor the show re-renders the chart)
+  useEffect(() => {
+    const vis = boardVisibilityRef.current
+    if (!vis || !vis.layer) return undefined
+    let away = false
+    const follow = () => {
+      const chart = chartRef.current
+      const hidden = boardHiddenNow(vis)
+      if (!chart || hidden === away) return
+      away = hidden
+      if (hidden) {
+        dropOwnDebugHandle()
+        try { unregisterManifestRef.current?.() } catch { /* disposed */ }
+        unregisterManifestRef.current = null
+      } else if (vis.state === 'visible') {
+        unregisterManifestRef.current = registerManifestChart(chart, () => (engineRef.current ? engineRef.current.binder.bindings() : []))
+        if (chartDebugHandleRef.current && typeof window !== 'undefined') {
+          window.__uctChartDebug = window.__uctChartDebug || {}
+          window.__uctChartDebug[chartId || 'main'] = chartDebugHandleRef.current
+        }
+      }
+    }
+    follow()
+    return vis.subscribe(follow)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps -- one board for life; the refs and chartId are read when it fires
 
   // ── Clear drawing selection on symbol/tf change ──
   useEffect(() => {

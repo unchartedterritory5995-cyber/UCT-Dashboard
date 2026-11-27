@@ -1,6 +1,7 @@
 // app/src/components/chart/ChartDrawingOverlay.jsx — Canvas overlay for chart annotations
 import { watchChartView } from './chartViewWatcher'
-import React, { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { BoardVisibilityContext, boardHiddenNow, boardLoopGate } from './boardVisibility'
 import { isHiddenDeskKey } from '../../pages/charts/deskKeyGate'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
@@ -407,6 +408,10 @@ export default function ChartDrawingOverlay({
   quickBarInset = 10,        // px above the chart's bottom edge for the touch quick-action
                              //   bar — the phone shell raises it above its docked draw bar.
 }) {
+  // the board this overlay's chart sits on (board keep-alive, boardVisibility.js): a hidden layer board answers no key
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   // ⭐ ONE TIME BASE (drawingTimeBase.js): every numeric point time this overlay reads or writes is
   // RAW UNIX — the raw bars' own `t`. Legacy Agent points (chart time) are re-expressed on the way in;
   // every write is stamped `tb:'unix'`; LWC (keyed by CHART time) is only ever asked via pointChartTime.
@@ -1097,6 +1102,7 @@ export default function ChartDrawingOverlay({
     const watcher = watchChartView({
       chartRef,
       seriesRef,
+      gate: boardLoopGate(boardVisibilityRef.current),   // parked on a hidden layer board (boardVisibility.js)
       onRange: () => redrawRef.current?.(),
       // Include the text-fade value so the fade renders frame-by-frame even at the very end of the
       // zoom, where the range barely changes.
@@ -1736,6 +1742,7 @@ export default function ChartDrawingOverlay({
   useEffect(() => {
     let last = null
     const id = setInterval(() => {
+      if (boardHiddenNow(boardVisibilityRef.current)) return   // a hidden layer board: paused (boardVisibility.js)
       const chart = chartRef?.current
       if (!chart) return
       let sig = null
@@ -2725,6 +2732,8 @@ export default function ChartDrawingOverlay({
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
       // A drawing on a popped desk does not answer keys typed on the page in the main window.
       if (isHiddenDeskKey(e)) return
+      // ...nor one on a hidden layer board (board keep-alive): Ctrl+Z on the board in front is not its undo
+      if (boardHiddenNow(boardVisibilityRef.current)) return
       // ⭐ THE THIRD KEY HANDLER THAT IS NOT SCOPED TO THE CHART.
       //
       // This listener is on `window`, so it fires wherever focus is. The

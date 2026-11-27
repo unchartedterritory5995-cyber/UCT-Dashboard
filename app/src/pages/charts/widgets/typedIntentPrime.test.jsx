@@ -189,7 +189,14 @@ describe('ChartWidget wires it', () => {
         walk(n.init, (c) => { if (c.type === 'CallExpression' && c.callee?.name === 'primeTypedIntent') calls.push(c.arguments.map((a) => a.name ?? a.type)) })
       }
     })
-    expect(calls).toEqual([['groupSymsStore', 'activeColor', expect.any(String)]])
+    // the board is `groupScope` since #2901: the store itself, or (a layer keep-alive slot reading through a view) the
+    // view's `scope`, which IS the store, so a typed intent primes the same group the board's setGroupSym decides
+    expect(calls).toEqual([['groupScope', 'activeColor', expect.any(String)]])
+    let scopeInit = null
+    walk(ast, (n) => { if (n.type === 'VariableDeclarator' && n.id?.name === 'groupScope') scopeInit = n.init })
+    const names = []
+    walk(scopeInit, (c) => { if (c.type === 'Identifier') names.push(c.name) })
+    expect(names, 'groupScope is not read from the board store').toContain('groupSymsStore')
   })
 
   it('(review of #2624 2d) hands ChartPane the linked charts\' timeframes: typedIntentTfs from groupTfSets[activeColor]', () => {
