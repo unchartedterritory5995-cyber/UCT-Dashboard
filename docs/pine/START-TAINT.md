@@ -112,8 +112,14 @@ Only off-listing runs pay. Expected 1.3-2x VM time there (a tag load and an `or`
 the untouched dispatch loop (a separate taint-enabled loop, chosen once per run, never a flag test per opcode).
 
 MEASURED (`taintDifferential.test.js`, `RUNTIME_PERF_CENSUS=taint`: the runtime corpus through the product path, SPY
-1D, 5,000 bars, fastest of 3 each, a GitHub runner; per-script ratios over scripts of 5 ms or more): see the table
-in the e105 note of PR #2925. Two causes of the first measurement (2.95x total), both in how the loop is generated,
+1D, 5,000 bars, fastest of 3 each, a GitHub runner; per-script ratios over scripts of 5 ms or more):
+
+| loop | total | median | p75 | max |
+|---|---|---|---|---|
+| e104 (048b1c4303) | 2.95x | 2.78x | 3.45x | 4.32x |
+| e105 (b521879259) | 1.68x | 1.70x | 1.88x | 2.67x (a 5.7 ms script; the worst above 50 ms: 2.33x) |
+
+Two causes of the first measurement (2.95x total), both in how the loop is generated,
 neither in the tag rules: (1) `vm.js`'s module constants (`ADD`, `LT`, `PW`, ...) reached the generated loop by
 import, and under vitest an import is a namespace property read (a Proxy where a test mocks `vm.js`) on every
 arithmetic opcode: the generator now binds them to locals once per run; (2) the joins were calls (`tAdd(...)`) that
