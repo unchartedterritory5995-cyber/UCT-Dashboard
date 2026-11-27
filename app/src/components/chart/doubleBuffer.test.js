@@ -50,27 +50,39 @@ describe('F1 the flip rule (the shadow PROVES what it shows: review of #2922, F3
   })
 })
 
-describe('F1b the views (review of #2922, F1)', () => {
-  const meta = (fromRight, toRight, extra = {}) => ({ frame: { fromRight, toRight, locked: false }, activeRange: null, priceAuto: true, replay: { on: false }, ...extra })
-  it('alike: the same span at the same right edge', () => {
-    expect(viewParity(meta(160, -5), meta(160, -5))).toBe('ok')
+describe('F1b the views (review of #2922, F1; the typed-Enter dry run)', () => {
+  // a frame pinned as the switch pins it on a 1000 px plot (gap 5 %): toRight = -(reserve + width x 0.05)
+  const pinned = (width, reserve = 0, extra = {}) => {
+    const toRight = -(reserve + width * 0.05)
+    return { frame: { fromRight: toRight + width, toRight, locked: false }, activeRange: null, priceAuto: true, replay: { on: false }, plotWidthPx: 1000, ...extra }
+  }
+  it('alike: the same width, whatever the right edges (each chart pins its own symbol; the margin scales with the width)', () => {
+    expect(viewParity(pinned(160), pinned(160))).toBe('ok')
+    expect(viewParity(pinned(160), pinned(160, 1))).toBe('ok')                       // the hidden symbol's own reserve
+    const panned = { ...pinned(160), frame: { fromRight: 400, toRight: 240, locked: false } }   // the front scrolled back
+    expect(viewParity(panned, pinned(160))).toBe('ok')                               // the switch re-pins at present
   })
   it.each([
-    ['view-zoom', meta(80, -5), meta(160, -5)],
-    ['view-offset', meta(260, 95), meta(160, -5)],           // the front panned back: the normal switch re-anchors
-    ['view-range', meta(160, -5, { activeRange: '1Y' }), meta(160, -5)],
-    ['view-locked', { ...meta(160, -5), frame: { fromRight: 160, toRight: -5, locked: true } }, meta(160, -5)],
-    ['view-price', meta(160, -5, { priceAuto: false }), meta(160, -5)],
-    ['replay', meta(160, -5, { replay: { on: true } }), meta(160, -5)],
-    ['view-unknown', null, meta(160, -5)],
-    ['view-unknown', meta(160, -5), { frame: null }],
+    ['view-zoom', pinned(80), pinned(160)],
+    ['view-range', pinned(160, 0, { activeRange: '1Y' }), pinned(160)],
+    ['view-locked', { ...pinned(160), frame: { ...pinned(160).frame, locked: true } }, pinned(160)],
+    ['view-price', pinned(160, 0, { priceAuto: false }), pinned(160)],
+    ['replay', pinned(160, 0, { replay: { on: true } }), pinned(160)],
+    ['view-unknown', null, pinned(160)],
+    ['view-unknown', pinned(160), { frame: null }],
   ])('%s', (why, f, sh) => { expect(viewParity(f, sh)).toBe(why) })
-  it("the mirror gives the shadow the front's span at its own right edge; nothing to mirror, or nothing that may be: null", () => {
-    expect(mirrorFrameFor(meta(80, -5), meta(160, -5))).toEqual({ fromRight: 80, toRight: -5, activeRange: null, locked: false, lock: null })
-    expect(mirrorFrameFor(meta(160, -5), meta(160, -5))).toBe(null)
-    expect(mirrorFrameFor(meta(260, 95), meta(160, -5))).toBe(null)
-    expect(mirrorFrameFor(meta(80, -5, { activeRange: '1Y' }), meta(160, -5))).toBe(null)
-    expect(viewParity(meta(80, -5), { ...meta(160, -5), frame: mirrorFrameFor(meta(80, -5), meta(160, -5)) })).toBe('ok')
+  it('the mirror re-pins the hidden chart at the front's width, keeping its own reserve; then the views are alike', () => {
+    expect(mirrorFrameFor(pinned(80), pinned(160))).toEqual({ fromRight: 76, toRight: -4, activeRange: null, locked: false, lock: null })
+    expect(mirrorFrameFor(pinned(80), pinned(160, 1))).toEqual({ fromRight: 75, toRight: -5, activeRange: null, locked: false, lock: null })
+    const noWidth = (m) => ({ ...m, plotWidthPx: null })
+    expect(mirrorFrameFor(noWidth(pinned(80)), noWidth(pinned(160)))).toEqual({ fromRight: 76, toRight: -4, activeRange: null, locked: false, lock: null })
+    const mirrored = { ...pinned(160), frame: { ...mirrorFrameFor(pinned(80), pinned(160)), locked: false } }
+    expect(viewParity(pinned(80), mirrored)).toBe('ok')
+  })
+  it('nothing to mirror, or nothing that may be: null', () => {
+    expect(mirrorFrameFor(pinned(160), pinned(160))).toBe(null)
+    expect(mirrorFrameFor(pinned(80, 0, { activeRange: '1Y' }), pinned(160))).toBe(null)
+    expect(mirrorFrameFor({ ...pinned(80), frame: { ...pinned(80).frame, locked: true } }, pinned(160))).toBe(null)
   })
 })
 
