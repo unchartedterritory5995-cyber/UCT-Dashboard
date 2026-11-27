@@ -969,6 +969,42 @@ export function localCopyAddsNothing(state, raw) {
   return true
 }
 
+/**
+ * ⚡ (2026-11-27, the keep-alive A/B on master) DOES A LAKE LOAD'S RAW ROWS PROVABLY CHANGE NOTHING ON THIS ENTRY? An
+ * ANSWERED entry: `localCopyAddsNothing` (a local copy there can only add rows older than everything held). An entry NO
+ * server answered (the lake's own rows, a saved or pack copy): true only when every row the load carries is a bar the
+ * entry already holds, value for value (t, o, h, l, c, v), on its grid (an off-grid row would move to its bucket's
+ * start), so the join could add, replace or move nothing. A malformed row is dropped by `toBar` and adds nothing. Used by
+ * network.lakeSeed: the chart's background warm re-reads the lake on every visit of a board (about 40-48 ms a click,
+ * profiled). O(rows log held), no allocation. False is always safe (the load is applied as before).
+ */
+export function lakeCopyAddsNothing(state, raw) {
+  if (!state || !Array.isArray(raw)) return false
+  if (state.restSeen) return localCopyAddsNothing(state, raw)
+  const held = state.bars
+  if (!held || !held.length || !raw.length) return false
+  const tf = String(state.tf)
+  const intraday = !isDateTf(tf)
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue
+    const t = normT(r.t ?? r.time, tf)
+    const o = Number(r.o ?? r.open), h = Number(r.h ?? r.high), l = Number(r.l ?? r.low), c = Number(r.c ?? r.close)
+    if (!finite(t) || !isCompleteOhlc({ open: o, high: h, low: l, close: c })) continue
+    if (intraday && offGrid(t, tf)) return false
+    let lo = 0, hi = held.length - 1, at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const mt = held[mid].t
+      if (mt === t) { at = mid; break }
+      if (mt < t) lo = mid + 1; else hi = mid - 1
+    }
+    if (at < 0) return false
+    const b = held[at]
+    if (b.o !== o || b.h !== h || b.l !== l || b.c !== c || b.v !== _vol(r.v ?? r.volume)) return false
+  }
+  return true
+}
+
 /** A server answer's result no longer holds the lake's rows alone. */
 function _notLakeOnly(state, out) {
   return out === state || !out.lakeOnly ? out : Object.freeze({ ...out, lakeOnly: false })
