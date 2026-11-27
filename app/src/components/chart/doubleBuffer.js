@@ -77,24 +77,69 @@ export function nextShadowSym(sym) {
 // ─── the flip rule ──────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Show the shadow, or switch the front as today?
- * @param {{sym, tf, showExtended, settings}} want   what the front would show now (`settings`: the pane's stored
- *   settings object, compared by identity: the board hands both layers the same object)
- * @param {{sym, tf, showExtended, settings, snap, set}|null} shadow  what the shadow was set to (`set`: it committed
- *   that render; `snap`: the base snapshot its bars came from)
- * @param {(sym) => object|null} snapNow  the store's base snapshot of the key the shadow reads, NOW
+ * ⭐ (review of #2922, F3) THE SHADOW PROVES WHAT IT SHOWS: its chart REPORTS every pass it committed (chart/layerPaint.js:
+ * the symbol, its resolved timeframe and session, and the very bars array it handed the library), and the flip asks the
+ * store what that array would be NOW. Nothing is inferred from when a render happened.
+ * @param {{sym, tf, ext, settings, replay}} want  what the front would show now: the symbol pressed to; the front chart's
+ *   OWN last report's timeframe and session (its resolved values); the pane's stored settings (identity: the board hands
+ *   both layers the same object); a replay cutoff (no flip while one is set: F6)
+ * @param {{sym, tf, ext, bars, settings}|null} report  the shadow chart's last committed pass (`settings`: the widget's
+ *   settings when it reported)
+ * @param {(report) => any} barsNow  the bars array the store's base snapshot of that key gives NOW (null: none)
+ * @param {() => string} view  'ok', or why the two charts' views differ (F1: viewParity)
  * @returns {{flip: boolean, why: string}}
  */
-export function flipDecision(want, shadow, snapNow) {
-  if (!shadow) return { flip: false, why: 'no-shadow' }
-  if (!shadow.set) return { flip: false, why: 'not-set' }
-  if (!want || shadow.sym !== want.sym) return { flip: false, why: 'sym' }
-  if (shadow.tf !== want.tf) return { flip: false, why: 'tf' }
-  if (!!shadow.showExtended !== !!want.showExtended) return { flip: false, why: 'session' }
-  if (shadow.settings !== want.settings) return { flip: false, why: 'settings' }
+export function flipDecision(want, report, barsNow, view) {
+  if (!want) return { flip: false, why: 'no-front' }
+  if (want.replay) return { flip: false, why: 'replay' }
+  if (!report) return { flip: false, why: 'no-shadow' }
+  if (report.sym !== want.sym) return { flip: false, why: 'sym' }
+  if (want.tf == null || report.tf !== want.tf) return { flip: false, why: 'tf' }
+  if (!!report.ext !== !!want.ext) return { flip: false, why: 'session' }
+  if (report.settings !== want.settings) return { flip: false, why: 'settings' }
   let now = null
-  try { now = snapNow ? snapNow(shadow) : null } catch { now = null }
-  if (!shadow.snap || now !== shadow.snap) return { flip: false, why: 'stale' }
+  try { now = barsNow ? barsNow(report) : null } catch { now = null }
+  if (!report.bars || now !== report.bars) return { flip: false, why: 'stale' }
+  let v = 'view-unknown'
+  try { v = view ? view() : 'ok' } catch { v = 'view-unknown' }
+  if (v !== 'ok') return { flip: false, why: v }
   return { flip: true, why: 'flip' }
+}
+
+// ─── the view (review of #2922, F1) ──────────────────────────────────────────────────────────────────────────────
+// The normal switch on /charts keeps the zoom LEVEL and re-anchors the newest bar at the right (ChartPane
+// `keepPresentOnSymbolChange`). A shadow framed itself when IT switched, from its own view. So a flip is allowed only when
+// the two charts' views say the same thing, read from each chart's own date-nav meta (StockChart getDateMeta: `frame`
+// = bars from the right edge to the view's left and right ends, the Time Navigator's active range, the view lock, the
+// price scale's auto state, the replay bar): no range, no lock, no hand-set price scale, no replay on either, the SAME
+// span and the SAME right edge. Anything else is the normal switch. And the shadow MIRRORS the front's span in idle time
+// (mirrorFrameFor), so after a zoom the flips come back.
+const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 0.5
+const spanOf = (f) => f.fromRight - f.toRight
+function viewBlocked(m) {
+  if (!m || !m.frame || !Number.isFinite(m.frame.fromRight) || !Number.isFinite(m.frame.toRight)) return 'view-unknown'
+  if (m.activeRange != null) return 'view-range'
+  if (m.frame.locked) return 'view-locked'
+  if (m.priceAuto === false) return 'view-price'
+  if (m.replay && m.replay.on) return 'replay'
+  return null
+}
+/** 'ok' when the front's and the shadow's views would frame a symbol alike, else why not. */
+export function viewParity(front, shadow) {
+  const b = viewBlocked(front) || viewBlocked(shadow)
+  if (b) return b
+  if (!near(front.frame.toRight, shadow.frame.toRight)) return 'view-offset'
+  if (!near(spanOf(front.frame), spanOf(shadow.frame))) return 'view-zoom'
+  return 'ok'
+}
+/** The frame that gives the shadow the front's span at its own right edge (StockChart restoreView), or null when there
+ *  is nothing to mirror or nothing may be (a range, a lock, a hand-set price scale, replay, or a front panned away from
+ *  the right edge: the normal switch re-anchors, so the flip is refused there instead). */
+export function mirrorFrameFor(front, shadow) {
+  if (viewBlocked(front) || viewBlocked(shadow)) return null
+  if (!near(front.frame.toRight, shadow.frame.toRight)) return null
+  if (near(spanOf(front.frame), spanOf(shadow.frame))) return null
+  return { fromRight: shadow.frame.toRight + spanOf(front.frame), toRight: shadow.frame.toRight, activeRange: null, locked: false, lock: null }
 }
 
 // ─── what happened (diagnostics: window.__uctDoubleBuffer, the flip proof's peek) ────────────────────────────────

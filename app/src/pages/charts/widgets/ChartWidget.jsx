@@ -32,6 +32,7 @@ import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
+import { LayerPaintContext } from '../../../components/chart/layerPaint'
 import { SWRConfig } from 'swr'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
@@ -798,16 +799,30 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // <Activity> keep-alive, the touch tier, the store off, or the board's shadows all taken -> one pane, as before.
   const boardVisAny = useContext(BoardVisibilityContext)   // any board handle (the <Activity> one too): it must be a layer
   const [dbEligible] = useState(() => isMainTab && doubleBufferEligible({ scope: groupScope, color: activeColor, parentVis: boardVisAny }))
-  const db = useDoubleBuffer({
-    eligible: dbEligible, sym, tf, extRef: paneExtRef, settings: activeStoredSettings,
-    scope: groupScope, member: switchMember, parentVis: layerBoard,
-  })
-  // each layer's pane instance; `paneRef` (the agent's, the date nav's, the symbol menu's door) is the FRONT one
   const layerInstRef = useRef([null, null])
+  const layerElRef = useRef([null, null])
+  const db = useDoubleBuffer({
+    eligible: dbEligible, sym, settings: activeStoredSettings, replay: !!replayCutoff,
+    scope: groupScope, member: switchMember, parentVis: layerBoard,
+    panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
+  })
+  // each layer's pane instance; `paneRef` (the agent's, the symbol menu's door) is the FRONT one, and each layer's own
+  // Time Navigator is bound to ITS pane (review of #2922, F7b)
+  const [layerPaneRefs] = useState(() => [{ current: null }, { current: null }])
+  const [layerElFns] = useState(() => [0, 1].map((i) => (el) => { layerElRef.current[i] = el }))
+  // each layer's time range: the front's moves the shadow's zoom (useDoubleBuffer, F1)
+  const [layerTimeRange] = useState(() => [0, 1].map((i) => () => { dbViewChangedRef.current?.(i) }))
+  const dbViewChangedRef = useRef(null)
+  dbViewChangedRef.current = db.viewChanged
+  // the workspace's mount queue is released ONCE per widget, whichever layer's chart is ready first (F7)
+  const [barsReadyOnce] = useState(() => { let done = false; return () => { if (!done) { done = true; panelSlotReadyRef.current?.() } } })
+  const panelSlotReadyRef = useRef(panelSlotReady)
+  panelSlotReadyRef.current = panelSlotReady
   const dbFrontRef = useRef(0)
   dbFrontRef.current = db.front
   const [layerRefFns] = useState(() => [0, 1].map((i) => (inst) => {
     layerInstRef.current[i] = inst
+    layerPaneRefs[i].current = inst
     if (i === dbFrontRef.current) paneRef.current = inst
   }))
   useLayoutEffect(() => {
@@ -825,7 +840,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   // ⭐ THE PANE, rendered once (one pane) or per layer (the double buffer, chart/useDoubleBuffer.js): every prop the
   // same for both layers except the symbol, the ref and the crosshair subscription (each layer's own handle gates it).
-  const renderPane = (paneSym, paneRefArg, paneSubscribeCrosshair) => (
+  const renderPane = (paneSym, paneRefArg, paneSubscribeCrosshair, layerIdx = null) => (
         <ChartPane
           ref={paneRefArg}
           sym={paneSym}
@@ -848,7 +863,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           onResetWatermark={resetWatermark}
           watermarkCustomized={!!wmPos}
           stockChartProps={{
-            ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
+            // (F4) a host's price lines for THIS pane's symbol
+            ...((paneSym === sym ? hostPriceLines : (hostOverlay?.priceLinesFor?.(paneSym) || null))?.length
+              ? { priceLines: paneSym === sym ? hostPriceLines : hostOverlay.priceLinesFor(paneSym) } : {}),
+            ...(layerIdx != null ? { onTimeRangeChange: layerTimeRange[layerIdx] } : {}),
             onCrosshairMove: reportCrosshair,
             subscribeCrosshair: paneSubscribeCrosshair,
             hotkeysActive: hotkeysIsActive,
@@ -872,7 +890,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             chartId: paneChartId,
             // The workspace's mount queue: this panel's bars are up, so the next queued one may
             // start. Once per mount (StockChart's latch); null outside the main board.
-            onBarsReady: panelSlotReady || undefined,
+            onBarsReady: panelSlotReady ? (layerIdx != null ? barsReadyOnce : panelSlotReady) : undefined,
             // Custom-Period Sort: drag-to-highlight mode + the completed selection,
             // tagged with THIS chart's symbol for the config popover's % readout.
             periodSelect: !!periodSortMode,
@@ -912,7 +930,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // widget's title bar — link dot left, window controls right, drag handle.
             headerLeft: widgetChrome?.left ?? null,
             headerRight: widgetChrome?.right ?? null,
-            symbolActions: widgetChrome && (symHasLeverage || symIsFund) ? (
+            // (F4) the symbol menu's actions are the widget symbol's: only the pane showing it carries them
+            symbolActions: widgetChrome && paneSym === sym && (symHasLeverage || symIsFund) ? (
               <>
                 {symHasLeverage && !isThemeIndex && (
                   <div className={styles.symActRow}>
@@ -952,7 +971,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ) : null,
             // Time Navigator — seated right after the timeframe buttons, before the
             // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
-            tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
+            tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars} />,
             tfBarRight: (
               <>
                 {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
@@ -1018,10 +1037,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       {db.on ? (
         <div className={dbStyles.slot} data-double-buffer="">
           {[0, 1].map((i) => (db.syms[i] ? (
-            <div key={i} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
+            <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
                 <SWRConfig value={layerSwr[i]}>
-                  {renderPane(db.syms[i], layerRefFns[i], layerSubscribeCrosshair[i])}
+                  <LayerPaintContext.Provider value={db.reporters[i]}>
+                    {renderPane(db.syms[i], layerRefFns[i], layerSubscribeCrosshair[i], i)}
+                  </LayerPaintContext.Provider>
                 </SWRConfig>
               </BoardVisibilityContext.Provider>
             </div>
