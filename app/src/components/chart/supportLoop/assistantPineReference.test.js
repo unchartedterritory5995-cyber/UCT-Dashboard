@@ -46,12 +46,6 @@ import { probeScript, refusalsOf } from './doorNameCoverage'
 import {
   buildAssistantPineReference, servedOutputs, outputProbeScript, OUTPUT_PROBES, PITFALL_PROBES, RUNS_STATES, DRAWING_FAMILIES,
 } from './assistantPineReference'
-import { setOffListingCurtainEnabled as __e102Curtain } from '../engine/runtime/runtimeColumns.js'
-import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
-// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
-// test its machinery, so they turn it on for this file
-__e102BeforeAll(() => { __e102Curtain(true) })
-__e102AfterAll(() => { __e102Curtain(false) })
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -271,8 +265,18 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
       + 'WRITE_ASSISTANT_PINE_REFERENCE=1; a recipe that stopped running must be fixed or removed.').toBe(true)
   }, 600_000)
 
-  it('every recipe in the folder is SERVED today, on both histories', () => {
+  // ⛔⛔ (e102, coordinator ruling 2026-11-27) THE OFF-LISTING CURTAIN IS OFF (`runtimeColumns.js::_offListingCurtainOn`):
+  // a recipe that carries state bar to bar is REFUSED BY NAME (`runtime:history-start`) on a chart whose history does not
+  // reach the listing, so it is NOT SERVED (the assistant never promises an intraday run that will be refused). These are
+  // named, so each one comes back only through the start-taint rule (step 3) proving it start-free.
+  const OFF_LISTING_REFUSED_E102 = Object.freeze(['anchored-vwap-date', 'auto-trendlines', 'distribution-days', 'fibonacci-swings',
+    'gap-zones', 'heikin-ashi-candles', 'market-structure', 'opening-range', 'regression-channel', 'schaff-trend-cycle',
+    'supply-demand-zones', 'time-of-day-volume', 'volume-profile', 'vwap-deviation-bands', 'weekday-returns-table'])
+
+  it('every recipe in the folder is SERVED today, on both histories, or refused off the listing BY NAME and not served', () => {
     const out = recipes()
+    const offRefused = out.recipes.filter((r) => r.runs.offListing.ok === false && r.runs.offListing.guard === 'runtime:history-start')
+    expect(offRefused.map((r) => r.id).sort()).toEqual([...OFF_LISTING_REFUSED_E102])
     expect(out.recipes.map((r) => r.id)).toEqual(RECIPE_INDEX.recipes.map((r) => r.id))
     expect(new Set(out.recipes.map((r) => r.id)).size).toBe(out.recipes.length)
     for (const r of out.recipes) {
@@ -281,7 +285,12 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
       expect(r.asks.every((a) => a === a.toLowerCase() && a.trim() === a && a.length > 2), r.id).toBe(true)
       expect(r.source.startsWith('//@version=5'), r.id).toBe(true)
       expect(RUNS_STATES, `${r.id}: ${r.headline}`).toContain(r.state)
+      const refusedOff = OFF_LISTING_REFUSED_E102.includes(r.id)
       for (const h of RECIPE_HISTORIES) {
+        if (refusedOff && h === 'offListing') {
+          expect(r.member[h].finished, `${r.id} on a chart ${h}, as a member`).toBe('stopped: runtime:history-start')
+          continue
+        }
         expect(r.runs[h].ok, `${r.id} on a chart ${h}: ${r.runs[h].guard} ${r.runs[h].why || ''}`).toBe(true)
         expect(r.runs[h].values, `${r.id} on a chart ${h} has no value anywhere`).toBeGreaterThan(0)
         if (r.draws) expect(drawingsMade(r.runs[h].drawings), `${r.id} on a chart ${h}: its drawings ${JSON.stringify(r.runs[h].drawings)}`).toBe(true)
@@ -291,7 +300,7 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
         })
       }
       expect(r.draws, r.id).toBe(drawsObjects(r.source))
-      expect(r.served, r.id).toBe(true)
+      expect(r.served, r.id).toBe(!refusedOff)
     }
     // the generator left the grant as it found it
     expect(runtimeAllowList()).toEqual(['*'])
@@ -335,6 +344,9 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
 
   it('CONTROL: a recipe the run refuses is not served, whatever the paste check says', () => {
     const pasteOk = () => ({ ok: true, lane: 'runtime', state: 'runs-with-notes', headline: 'Runs' })
+    // (e102) a member who sees exactly what the fake run computes: this CONTROL is about the run's answer, and the real
+    // doors refuse every listing recipe off the listing now (the folder test above holds that)
+    const honestMember = (_s, _c, _h, waits) => ({ forming: waits ? 'waits' : 'runs', finished: 'runs' })
     const refusedOffListing = recipes({
       verdictOf: pasteOk,
       computeOf: (_s, _c, history) => (history === 'offListing'
@@ -346,7 +358,7 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     // lane ("runs, with 1 note"), withheld by the run, made in part, or none made at all
     const made = { made: 3, lost: false, withheld: null, partial: false }
     const drawing = (bad, history = 'offListing') => recipes({
-      verdictOf: pasteOk,
+      verdictOf: pasteOk, memberOf: honestMember,
       computeOf: (_s, _c, h) => ({ ok: true, values: 10, drawings: h === history ? { ...made, ...bad } : made }),
     }).recipes.filter((r) => r.draws)
     expect(drawing({}).length).toBeGreaterThan(5)
@@ -356,13 +368,13 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
       expect(drawing(bad, 'fromListing').every((r) => r.served === false), JSON.stringify(bad)).toBe(true)
     }
     // a recipe that only plots is not asked about drawings
-    const plotsOnly = recipes({ verdictOf: pasteOk, computeOf: () => ({ ok: true, values: 10 }) }).recipes.filter((r) => !r.draws)
+    const plotsOnly = recipes({ verdictOf: pasteOk, memberOf: honestMember, computeOf: () => ({ ok: true, values: 10 }) }).recipes.filter((r) => !r.draws)
     expect(plotsOnly.length).toBeGreaterThan(3)
     expect(plotsOnly.every((r) => r.served === true && !('drawings' in r.runs.offListing))).toBe(true)
     expect(drawsObjects('// label.new(1, 2)' + LF + 'plot(close)')).toBe(false)             // a comment is not a drawing
     expect(drawsObjects('if x' + LF + '    label.new(bar_index, high, "a")')).toBe(true)
     // a run with no refusal and no value anywhere is not served either
-    const empty = recipes({ verdictOf: pasteOk, computeOf: () => ({ ok: true, values: 0 }) })
+    const empty = recipes({ verdictOf: pasteOk, memberOf: honestMember, computeOf: () => ({ ok: true, values: 0 }) })
     expect(empty.recipes.every((r) => r.served === false)).toBe(true)
     // and a recipe the paste check does not pass is never computed
     let computed = 0
@@ -373,7 +385,7 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     })
     expect(computed).toBe(0)
     expect(notPasted.recipes.every((r) => r.served === false && r.runs.fromListing.guard === 'not-computed')).toBe(true)
-    const all = recipes({ verdictOf: pasteOk, computeOf: () => ({ ok: true, values: 3, drawings: made }) })
+    const all = recipes({ verdictOf: pasteOk, memberOf: honestMember, computeOf: () => ({ ok: true, values: 3, drawings: made }) })
     expect(all.recipes.every((r) => r.served === true)).toBe(true)
   })
 
@@ -388,7 +400,8 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     // byte-for-byte test above: regenerate after an engine change); these lines follow the file.
     const by = Object.fromEntries(out.stops.map((s) => [s.id, s]))
     const GUARD = {
-      'running-total': 'runtime:warmup-never-converges', 'timestamp-clock': 'runtime:clock-zone',
+      // (e102) off the listing a running total is refused by the curtain-off rule's own name
+      'running-total': 'runtime:history-start', 'timestamp-clock': 'runtime:clock-zone',
       'delete-in-one-call': WRONG_VALUE_GUARD, 'higher-timeframe-newest-bar': NEWEST_BAR_BLANK_GUARD,
       'higher-timeframe-one-bar-back': NEWEST_BAR_BLANK_GUARD,
     }
@@ -447,12 +460,18 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     // ⛔ ONE IS NAMED, NOT SKIPPED: it reads another symbol, whose bars the CHART fetches and hands the run.
     // This harness hands none, and the engine says exactly that; any other answer for it is a change to look at.
     const NEEDS_THE_CHARTS_OTHER_SYMBOL = { 'another-symbol': 'other-symbol:bare' }
+    // ⛔ (e102, the curtain off) these carry state bar to bar: off the listing they are refused BY NAME, never guessed.
+    // They still teach the forms; each comes back off the listing through the start-taint rule (step 3) or not at all.
+    const REFUSED_OFF_THE_LISTING = { 'loops-and-arrays': 'runtime:history-start', 'levels-from-a-list': 'runtime:history-start',
+      'heikin-ashi-candles': 'runtime:history-start' }
     const refused = []
     for (const e of EXAMPLES) {
       for (const history of RECIPE_HISTORIES) {
         const c = computeOf(e.source, 'daily', history)
         if (e.id in NEEDS_THE_CHARTS_OTHER_SYMBOL) {
           expect(c.ok ? 'computed' : c.guard, `${e.id} on a chart ${history}`).toBe(NEEDS_THE_CHARTS_OTHER_SYMBOL[e.id])
+        } else if (e.id in REFUSED_OFF_THE_LISTING && history === 'offListing') {
+          expect(c.ok ? 'computed' : c.guard, `${e.id} on a chart ${history}`).toBe(REFUSED_OFF_THE_LISTING[e.id])
         } else if (!c.ok) refused.push(`${e.id} on a chart ${history}: ${c.guard}`)
         else if (drawsObjects(e.source) && !drawingsMade(c.drawings)) refused.push(`${e.id} on a chart ${history}: its drawings ${JSON.stringify(c.drawings)}`)
       }
