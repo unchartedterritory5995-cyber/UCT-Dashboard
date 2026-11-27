@@ -173,11 +173,7 @@ describe('the first page: drawn at once, byte-equal to the full history where it
   it('⛔⛔ (e101) TWO STARTS THAT AGREE ARE NOT ENOUGH: a plot whose reach is not proved within the probe is withheld', () => {
     // `bar_index >= 2000`: the page (1,500 rows) and the probe (1,751) both read 0 on every page bar and AGREE, while the
     // full history reads 1 there. Before e101 the page drew 0: a WRONG value until the full answer landed.
-    const src = '//@version=5
-indicator("fp-reach")
-plot(close * 2, "exact")
-plot(bar_index >= 2000 ? 1 : 0, "late")
-'
+    const src = '//@version=5\nindicator("fp-reach")\nplot(close * 2, "exact")\nplot(bar_index >= 2000 ? 1 : 0, "late")\n'
     const stored = JSON.parse(JSON.stringify(memberPaneDefinition({ source: src, name: 'fp-reach', id: 'u_fp-reach' }).definition))
     const { installed } = registry.installUserDefinitions([stored])
     const def = installed[0]; fredId = def.id
@@ -185,9 +181,9 @@ plot(bar_index >= 2000 ? 1 : 0, "late")
     const ctx = { sym: 'RDDT', tf: '5', newestBarIsForming: false, symbol: RDDT }
     const full = registry.computeFor(def, chart, {}, { ...ctx })
     __routeEveryHostDocumentForTests(true)
-    expect(isHostLanePending(registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fpr' })), 'routed to the worker').toBe(true)
+    expect(isHostLanePending(registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fp\u0001r' })), 'routed to the worker').toBe(true)
     expect(workers.answerOne()).toBe(true)                                          // the page job
-    const first = registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fpr' })
+    const first = registry.computeFor(def, chart, {}, { ...ctx, hostPane: 'fp\u0001r' })
     const [exactKey, lateKey] = Object.keys(full)
     // non-vacuity: the full history reads 1 on every page bar
     expect(Array.from(full[lateKey]).slice(-FIRST_PAGE_ROWS).every((v) => v === 1)).toBe(true)
