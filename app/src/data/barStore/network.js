@@ -693,8 +693,10 @@ export function createNetwork({
       const running = lakeSeeds.get(key)
       // ⭐ (2026-11-26, review of #2866) AN ANSWERED ENTRY WHOSE LOAD SETTLED AT WHAT IT HOLDS IS NOT LOADED AGAIN: the typed
       // warm, a hover or a neighbour joined it, and Enter's subscribe (index._start) and the handoff would re-read and
-      // re-decode the same pieces to add nothing. A new answer that grows the entry past the settled depth loads again.
-      if (!running && held0?.restSeen && (lakeSettled.get(key) ?? -1) >= held0.bars.length) return Promise.resolve(false)
+      // re-decode the same pieces to add nothing. EXACTLY `!lakePending` (review of #2871): an entry holding LESS than its
+      // settled depth (a basis / cache_key / history_rev reset, an eviction rebuilt shallow) is due and is loaded.
+      const settled0 = lakeSettled.get(key)
+      if (!running && held0?.restSeen && settled0 != null && held0.bars.length >= settled0) return Promise.resolve(false)
       if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())

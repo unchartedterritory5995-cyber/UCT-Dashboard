@@ -61,9 +61,8 @@ function rowsOf(sym, tf) {
   _rows.set(id, out)
   return out
 }
-const ANSWER = 1800   // the server's newest raw rows (~9 sessions with extended hours: ~700 regular-session rows)
 
-async function run() {
+async function run(ANSWER) {
   S.calls = []
   S.n = 0
   S.ids = new Map()
@@ -87,12 +86,14 @@ async function run() {
     chartKeyFor: (await import('./chart/useBarSnapshotBars')).chartKeyFor,
     ACTION: (await import('../data/barStore/types')).ACTION,
     COVER_ROWS: (await import('../data/barStore/coverRows')).COVER_ROWS,
+    heldRows: (await import('../data/barStore/prefetch')).heldRows,
   }))
   installRecordingCanvas()
   const key = M.chartKeyFor({ sym: 'RB', resolvedTf: '5', showExtended: false, replayCutoff: null, hasOverride: false })
   M.store.registry.acquire(key)
   await act(async () => { await M.store.ensure(key, { priority: 'urgent' }) })
   const held = M.store.peek(key).bars.length
+  const viewRows = M.heldRows('RB', '5', { showExtended: false })   // what the switch's `covers` reads
   const candleOf = (chart) => [...S.live.values()].find((x) => x.chart === chart && x.kind === 'candle')
   const candleRows = () => (S.charts.length ? candleOf(S.charts[S.charts.length - 1])?.s.data().length || 0 : 0)
   async function settle(pred) {
@@ -145,18 +146,19 @@ async function run() {
   cleanup()
   M.store.registry.release(key)
   vi.unstubAllGlobals()
-  return { before, after, held, joined, cover: M.COVER_ROWS }
+  return { before, after, held, joined, cover: M.COVER_ROWS, viewRows }
 }
 
 describe('a covering copy paints now; the lake join after it moves nothing on screen', () => {
   let r
   beforeAll(async () => {
-    r = await run()
+    r = await run(1800)   // the server's newest raw rows (~9 sessions with extended hours: ~700 regular-session rows)
     console.log('[covering join]', JSON.stringify({ held: r.held, joined: r.joined, before: { ...r.before, onScreen: r.before.onScreen.length }, after: { ...r.after, onScreen: r.after.onScreen.length } }))
   }, 300_000)
 
   it('1. the same visible window (edges from the newest bar, times) and the same price scale on every series', () => {
     expect(r.before.rows).toBeGreaterThanOrEqual(r.cover)
+    expect(r.viewRows).toBeGreaterThanOrEqual(r.cover)               // the switch reads it as covering
     expect(r.after.edge).toEqual(r.before.edge)
     expect(r.after.times).toBe(r.before.times)
     expect(r.after.scales).toBe(r.before.scales)
@@ -172,5 +174,22 @@ describe('a covering copy paints now; the lake join after it moves nothing on sc
   it('2. non-vacuous: the older rows joined, and the candle series holds more rows after it', () => {
     expect(r.joined).toBeGreaterThan(r.held)
     expect(r.after.rows).toBeGreaterThan(r.before.rows)
+  })
+})
+
+// (review of #2871, MEDIUM) COVER_ROWS RAW rows of a key both sessions share are ~40% regular-session rows: on a
+// regular-hours view that copy does NOT cover (the averages' lookback is short on the left of the screen), the lake's
+// join then changes values on screen. So the switch must not read it as covering: `covers` counts the view's rows.
+describe('control: COVER_ROWS raw rows with extended hours do not cover a regular-hours view', () => {
+  let r
+  beforeAll(async () => { r = await run(600) }, 300_000)
+
+  it('the switch does not read it as covering (heldRows counts the regular-session rows of the view)', () => {
+    expect(r.held).toBeGreaterThanOrEqual(r.cover)                     // raw rows: enough by the old count
+    expect(r.viewRows).toBeLessThan(r.cover)                          // the view's rows: not enough
+  })
+
+  it('...and rightly: painted alone, the later lake join changes what is on screen', () => {
+    expect(r.after.onScreen).not.toBe(r.before.onScreen)
   })
 })

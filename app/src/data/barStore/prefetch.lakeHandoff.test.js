@@ -167,20 +167,27 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(lake.olderBars.mock.calls.length).toBe(loads)
   })
 
-  it('...but a NEW answer that grew the entry past the settled depth is loaded again', async () => {
+  // (review of #2871, HIGH) ...but an entry that LOST depth since its load settled (a basis / cache_key / history_rev
+  // reset, an eviction rebuilt shallow) is exactly what lakePending says is due: it is loaded again, at once
+  it('an answered entry reset below its settled depth is loaded again (lakePending and lakeSeed agree)', async () => {
     const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
     const w = await boot({ lake })
+    const { ACTION } = await import('./types')
     const key = w.k('REAL', '5')
     w.store.ensure(key, { priority: 'grid', warm: true })
     await w.server.drain()
     await vi.advanceTimersByTimeAsync(20)
-    await w.store.lakeSeed(key)
-    const loads = lake.olderBars.mock.calls.length
-    await vi.advanceTimersByTimeAsync(10 * 60 * 1000)                    // two buckets later
-    w.store.ensure(key, { priority: 'grid', warm: true, until: [] })
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
+    const settledAt = w.store.peek(key).bars.length
+    w.store.registry.dispatch(key, { type: ACTION.INVALIDATE, key, reason: 'history_rev' })   // a reset
+    w.store.ensure(key, { priority: 'grid', warm: true, until: [] })                        // answered again, shallow
     await w.server.drain()
     await vi.advanceTimersByTimeAsync(20)
-    await w.store.lakeSeed(key)
+    expect(w.store.peek(key).restSeen).toBe(true)
+    expect(w.store.peek(key).bars.length).toBeLessThan(settledAt)
+    expect(w.store.lakePending(key)).toBe(true)
+    const loads = lake.olderBars.mock.calls.length
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
     expect(lake.olderBars.mock.calls.length).toBe(loads + 1)
   })
 
