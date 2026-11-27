@@ -198,12 +198,13 @@ import {
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
   historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
   resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD, defaultBoundDocument,
+  astLanePlan,
 } from './astColumns.js'
 import { FIRST_PAGE_CODE, FIRST_PAGE_NOTE } from './firstPage.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
-import { hostLaneColumns } from './hostLaneAsync.js'
+import { hostLaneColumns, isHostLanePending } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -3030,19 +3031,14 @@ function copyColumns(out) {
 /** The run half's state code while its run waits for another symbol's bars (not a refusal). */
 export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
 
-function withRunHalf(def, out, bars, inputs, ctx) {
-  if (!ctx) return out
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — THE RUN HALF'S GATES AND ITS ASK, without the rails: what `withRunHalf`
+ *  reads before it compares anything. `{refused: code}`, `{pending: code, waitingFor?}`, or `{cols, runIn}` (the run's
+ *  columns, its drawings riding them). Asking twice for the same bars is one run (`runtimeColumnsFor`'s memo), so
+ *  `primeRunHalf` can ask it EARLY and `withRunHalf` finds the run already started, or already landed. */
+function askRunHalf(def, bars, inputs, ctx, out = null) {
   const ro = def.compute.runtimeObjects
-  const res = copyColumns(out)
-  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
-  // a code per document session, a hash-prefixed beacon; never the source)
-  const src = ro && typeof ro.source === 'string' ? ro.source : null
-  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
-  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
-  const answered = (state, code, waitingFor = null) => {
-    noteRunHalfAnswer(def, src, null)
-    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
-  }
+  const refused = (code) => ({ refused: code })
+  const answered = (_state, code, waitingFor = null) => ({ pending: code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
   if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
     return refused('run-half:malformed')
   }
@@ -3071,7 +3067,9 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
     return refused(RUNTIME_FORMING_GUARD)
   }
-  const stop = runtimeErrorStopOf(out)
+  // the host's own `runtime.error` stop, read where the host values are in hand (`withRunHalf`); an early ask
+  // (`primeRunHalf`) has none yet, and the later ask refuses on it exactly here
+  const stop = out ? runtimeErrorStopOf(out) : null
   if (stop && stop.reached) return refused('runtime:runtime.error')
   // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
   // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
@@ -3105,6 +3103,46 @@ function withRunHalf(def, out, bars, inputs, ctx) {
     if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
     return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
   }
+  return { cols, runIn }
+}
+
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — START THE RUN HALF BESIDE ITS HOST JOB, NOT AFTER IT.
+ *  ⚰️ Measured (production-flag bundle, smoke@ AGL 1D, n=20, 2026-11-26): the run half was asked only when the host
+ *  lane's values LANDED (`astLaneFinish` → `astRunExtras` → `withRunHalf`), so a chart whose host values went to the
+ *  host worker posted its run 170-300 ms after the bars were in hand, and the RS label waited for both in series. The
+ *  run reads the bars, the settings and the other-symbol cache, never the host's values (only the rails compare them,
+ *  after both have landed), so it is asked here, the moment the host job goes out, with exactly the arguments
+ *  `astLaneFinish` will hand `withRunHalf` (`plan.def`, `plan.rows`): the same run, found by its memo when the host
+ *  lands. ⛔ A `calc_bars_count` window or a whole answer (`plan.done`) is left to `withRunHalf`, as before; nothing
+ *  here is drawn, noted or refused. */
+function primeRunHalf(def, bars, inputs, ctx) {
+  try {
+    const plan = astLanePlan(def, bars, inputs, ctx)
+    if (plan.done || plan.win || !plan.def.compute || !plan.def.compute.runtimeObjects) return false
+    askRunHalf(plan.def, plan.rows, inputs, ctx)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function withRunHalf(def, out, bars, inputs, ctx) {
+  if (!ctx) return out
+  const ro = def.compute.runtimeObjects
+  const res = copyColumns(out)
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
+  const answered = (state, code, waitingFor = null) => {
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  }
+  const asked = askRunHalf(def, bars, inputs, ctx, out)
+  if (asked.refused) return refused(asked.refused)
+  if (asked.pending) return answered('pending', asked.pending, asked.waitingFor || null)
+  const { cols } = asked
   const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
   // ⛔ A run that owns its drawings always attaches them when it finishes
   // (`runtimeColumns.js`): nothing attached is a run still in flight.
@@ -3193,6 +3231,9 @@ export function computeFor(def, bars, inputs, ctx) {
     // answer with the pane's last picture until they land). Every request that is not a chart's is
     // answered here exactly as before.
     const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    // ⭐⭐ (Fred RS run half, 2026-11-26) — the host values are in the worker: its run half is asked NOW, beside
+    // them, so the drawings land with the values instead of a run after them (`primeRunHalf`)
+    if (pane && def.compute.runtimeObjects && isHostLanePending(pane)) primeRunHalf(def, bars, inputs, ctx)
     if (pane) return pane
     return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
