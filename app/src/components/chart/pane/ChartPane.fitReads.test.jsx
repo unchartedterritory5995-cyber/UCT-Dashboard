@@ -14,12 +14,18 @@ import { render, cleanup } from '@testing-library/react'
 import { vi, test, expect, afterEach } from 'vitest'
 
 const { stockChartSpy } = vi.hoisted(() => ({ stockChartSpy: vi.fn() }))
-vi.mock('../../StockChart', () => ({
-  default: (props) => {
-    stockChartSpy(props)
-    return <div><span data-testid="chart-sym">{props.sym}</span></div>
-  },
-}))
+// (2026-11-27) the chart reports what it drew inside its pass (StockChart onSymbolPainted), as the real one does: the
+// pane's header follows the drawn symbol
+vi.mock('../../StockChart', async () => {
+  const { useLayoutEffect } = await import('react')
+  return {
+    default: (props) => {
+      stockChartSpy(props)
+      useLayoutEffect(() => { props.onSymbolPainted?.(props.sym) }, [props.sym])   // eslint-disable-line react-hooks/exhaustive-deps
+      return <div><span data-testid="chart-sym">{props.sym}</span></div>
+    },
+  }
+})
 vi.mock('../SymbolSearch', async () => {
   const { forwardRef, useImperativeHandle } = await import('react')
   return {

@@ -7,7 +7,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork, barsHistoryUrl } from './network'
 import { keyOf } from './types'
-import { FIRST_PAINT_BARS, fullBarsFor } from '../../utils/barsBackfill'
+import { dateFirstPageFor, fullBarsFor } from '../../utils/barsBackfill'
+// (2026-11-27) the D tail's first page covers a zoomed-out view on its own (barsBackfill DATE_FIRST_PAGE)
+const FIRST_PAINT_BARS = dateFirstPageFor('D')
 import { lastSealedDate, etPeriodStartISO, calendarSealedDate, historySealedDate } from '../../utils/barsHistorySplit'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET
@@ -62,6 +64,20 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(new Date(s.bars.at(-1).t * 1000).toISOString().slice(0, 10)).toBe('2026-11-09')
     expect(new Date(s.developing.t * 1000).toISOString().slice(0, 10)).toBe('2026-11-10')
     expect(new Date(s.bars[0].t * 1000).toISOString().slice(0, 10)).toBe(weekdays(3000, '2026-11-09')[0])
+  })
+
+  // ⭐ (2026-11-27, #2934, the owner's repro: a daily chart zoomed out to ~1,000 bars, a cold ticker typed) the tail's first
+  // page alone covers that view (its 1,000 bars plus the lookback, paintLog.viewNeed), so the chart paints ONCE on it and
+  // the deep history lands behind the left edge. A 600-row tail painted short and the history then filled the screen in.
+  it('the first daily page alone covers a ~1,000-bar zoomed-out view (viewNeed), not the default 600', async () => {
+    const { viewNeed, noteMemberView } = await import('../../components/chart/paintLog')
+    const member = {}
+    noteMemberView(member, 1000)
+    const w = world()
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)[0]).toBeGreaterThanOrEqual(viewNeed(member))
+    expect(viewNeed(member)).toBe(1400)
   })
 
   it('the history URL is the one the legacy chart builds (same cache object at the edge)', () => {
