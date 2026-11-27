@@ -264,6 +264,26 @@ describe('StockChart on a layer keep-alive board', () => {
     onChartPaint(null)
   })
 
+  it('S10 (review of #2922, F3) each pass reports what it committed: the symbol, timeframe, session and the bars handed in', async () => {
+    const { LayerPaintContext } = await import('./chart/layerPaint')
+    const seen = []
+    const vis = createBoardVisibility({ layer: true })
+    vis.state = 'hidden'
+    const view = render(
+      <LayerPaintContext.Provider value={(r) => { seen.push(r) }}>
+        <Host vis={vis} />
+      </LayerPaintContext.Provider>,
+    )
+    await waitFor(() => expect(lw.setData).toBeGreaterThan(0))
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0))
+    const last = seen[seen.length - 1]
+    expect(last.sym).toBe('AAPL')
+    expect(last.tf).toBe('D')
+    expect(typeof last.ext).toBe('boolean')
+    expect(last.bars, 'the report names the very bars array the pass committed').toBe(FIXTURE_BARS)
+    view.unmount()
+  })
+
   it('S7 (red first) a hide and a show with nothing new re-render nothing under the chart', async () => {
     const vis = createBoardVisibility({ layer: true })
     let commits = 0

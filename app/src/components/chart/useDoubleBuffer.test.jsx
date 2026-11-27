@@ -1,60 +1,84 @@
-// The double-buffered next row, the widget's two layers (chart/useDoubleBuffer.js, 2026-11-27):
-//   H1 after the front shows a symbol, the hidden layer is set (in idle time) to the row ahead, and marked SET when the
-//      store still holds the snapshot it read
-//   H2 THE FLIP: a press to that row swaps the layers' roles (no layer's symbol changes), the handles follow (the shown
-//      one mirrors the board, the other hidden), and the group member's paint is recorded as a 'flip'
-//   H3 STALE REFUSED: the row's base snapshot moved after the shadow was set -> the normal switch of the front
+// The double-buffered next row, the widget's two layers (chart/useDoubleBuffer.js, 2026-11-27; review of #2922):
+//   H1 after the front shows a symbol, the hidden layer is set (in idle time) to the row ahead
+//   H2 THE FLIP: a press to that row, the shadow's chart having REPORTED it, swaps the layers' roles (no layer's symbol
+//      changes), the handles follow (the shown one visible, the other hidden), the paint is recorded as a 'flip'
+//   H3 STALE REFUSED (F3): the store's bars for the row moved on since the shadow's chart reported -> the normal switch;
+//      once the shadow's chart reports the new bars (its current feed re-rendered it), a press flips
 //   H4 FALLBACK: a press to any other row is the normal switch of the front, exactly as before
 //   H5 a widget the board cannot give a shadow (its budget taken) never flips
-//   H6 the board handle hidden: the shown layer is hidden through the nesting, the shadow stays hidden
-//   H7 the shadow FOLLOWS its row: a base change unsets it at once; once its current feed re-rendered it (idle), it is
-//      set again on that snapshot, and a press flips
+//   H6 (F2) the board hidden: the shown layer is hidden through the nesting, the widget gives its shadow back and drops
+//      the hidden pane; the board shown again: the shadow comes back. The budget is the board SLOT's.
+//   H7 (F1) the views: a zoomed front refuses the flip; the shadow mirrors the front's span in idle time, then a press flips
+//   H8 (F5) focus inside the old front moves to the new front at the flip
+//   H9 (F6) no flip while a replay cutoff is set
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-const snaps = new Map()
-const subs = new Map()
-const fakeStore = {
-  registry: { has: (k) => snaps.has(k), subscribe: (k, cb) => { subs.set(k, cb); return () => { if (subs.get(k) === cb) subs.delete(k) } } },
-  getBaseSnapshot: (k) => snaps.get(k) ?? null,
-}
-vi.mock('../../data/barStore/index', () => ({ getBarStore: () => fakeStore }))
 vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return () => false } }))
 const painted = vi.hoisted(() => [])
 vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) => { painted.push(a) } }))
 
-const { useDoubleBuffer } = await import('./useDoubleBuffer')
+const { useDoubleBuffer, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
+const { createBoardVisibility } = await import('./boardVisibility')
 const db = await import('./doubleBuffer')
 const nf = await import('./neighborFrames')
 
+const SYMS = ['AAA', 'BBB', 'CCC']
 const keyOf = (sym) => chartKeyFor({ sym, resolvedTf: 'D', showExtended: false, replayCutoff: null, hasOverride: false })
-const put = (sym) => { const s = Object.freeze({ key: keyOf(sym), bars: [1, 2, 3] }); snaps.set(keyOf(sym), s); return s }
+const bars = {}
+const fresh = (sym) => { bars[sym] = Object.freeze([sym, Math.random()]); return bars[sym] }
 const settings = { look: 1 }
-const extRef = { current: false }
 let scope
 const member = { m: 1 }
-const idle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(80) }) }
-
+const idle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(400) }) }
+// each layer's pane: its date-nav meta (a frame at the right edge) and a restoreView that writes it, a focus spy
+const meta = (fromRight = 160, toRight = -5) => ({ frame: { fromRight, toRight, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } })
+let panes
+let els
+const base = () => ({ eligible: true, sym: 'AAA', settings, replay: false, scope, member, parentVis: null, panes: () => panes, layerEls: () => els })
 function mount(over = {}) {
-  return renderHook((p) => useDoubleBuffer(p), {
-    initialProps: { eligible: true, sym: 'AAA', tf: 'D', extRef, settings, scope, member, parentVis: null, ...over },
-  })
+  return renderHook((p) => useDoubleBuffer(p), { initialProps: { ...base(), ...over } })
 }
+// a layer's chart commits a pass of `sym` (StockChart's report through LayerPaintContext)
+const report = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym] }) })
 
 beforeEach(() => {
   vi.useFakeTimers()
   vi.stubGlobal('requestIdleCallback', undefined)
-  snaps.clear(); subs.clear(); painted.length = 0
+  painted.length = 0
   scope = {}
+  for (const s of SYMS) fresh(s)
+  const byKey = new Map(SYMS.map((s) => [keyOf(s), s]))
+  __setDoubleBufferBarsSourceForTests((k) => (byKey.has(k) ? bars[byKey.get(k)] : null))
+  panes = [0, 1].map(() => {
+    const p = { m: meta(), focus: vi.fn() }
+    p.getDateMeta = () => p.m
+    p.viewDo = (op, f) => { if (op === 'restoreView') p.m = { ...p.m, frame: { fromRight: f.fromRight, toRight: f.toRight, locked: false } } }
+    return p
+  })
+  els = [document.createElement('div'), document.createElement('div')]
+  for (const e of els) { e.appendChild(document.createElement('button')); document.body.appendChild(e) }
   nf.__setNeighborFramesForTests(true); nf.__resetScanForTests()
   db.__resetDoubleBufferStatsForTests()
-  for (const s of ['AAA', 'BBB', 'CCC']) put(s)
   nf.publishScanNeighbors('AAA', ['BBB', 'CCC'], [])
   nf.publishScanNeighbors('BBB', ['CCC'], ['AAA'])
 })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); nf.__setNeighborFramesForTests(null) })
+afterEach(() => {
+  vi.useRealTimers(); vi.unstubAllGlobals(); nf.__setNeighborFramesForTests(null); __setDoubleBufferBarsSourceForTests(null)
+  for (const e of els) e.remove()
+})
+
+/** Mounted on AAA, both charts reported, the shadow on BBB. */
+async function ready(over = {}) {
+  const h = mount(over)
+  report(h.result, 0, 'AAA')
+  await idle()
+  report(h.result, 1, 'BBB')
+  return h
+}
+const press = (h, sym, over = {}) => h.rerender({ ...base(), ...over, sym })
 
 describe('useDoubleBuffer', () => {
   it('H1 the hidden layer takes the row ahead in idle time', async () => {
@@ -65,92 +89,121 @@ describe('useDoubleBuffer', () => {
     expect(result.current.syms).toEqual(['AAA', 'BBB'])
     expect(result.current.handles[0].state).toBe('visible')
     expect(result.current.handles[1].state).toBe('hidden')
-    expect(db.doubleBufferStats().retargets).toBe(1)
   })
 
-  it('H2 a press to that row FLIPS: roles swap, no layer changes symbol, handles follow, the paint is recorded', async () => {
-    const { result, rerender } = mount()
-    await idle()
-    const handles = result.current.handles
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(1)
-    expect(result.current.syms).toEqual(['AAA', 'BBB'])
+  it('H2 a press to the reported row FLIPS: roles swap, no layer changes symbol, handles follow, the paint is recorded', async () => {
+    const h = await ready()
+    const handles = h.result.current.handles
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
     expect(handles[1].state).toBe('visible')
     expect(handles[0].state).toBe('hidden')
     expect(db.doubleBufferStats().flips).toBe(1)
     expect(painted.some((a) => a[0] === 'BBB' && a[3] === 'flip' && a[4] === member && a[2] > 0)).toBe(true)
-    // …then the old front (hidden now) takes the next row ahead
     await idle()
-    expect(result.current.syms).toEqual(['CCC', 'BBB'])
+    expect(h.result.current.syms).toEqual(['CCC', 'BBB'])   // the old front takes the next row ahead
   })
 
-  it('H3 a shadow whose row moved on (another base snapshot) is refused: the front switches', async () => {
-    const { result, rerender } = mount()
+  it('H2b no report from the shadow yet (its chart has not committed the row): the normal switch', async () => {
+    const h = mount()
+    report(h.result, 0, 'AAA')
     await idle()
-    put('BBB')   // a new base snapshot of the row (deeper history, a seal, a status change)
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(0)
-    expect(result.current.syms[0]).toBe('BBB')
-    expect(db.doubleBufferStats().flips).toBe(0)
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why['no-shadow']).toBe(1)
+  })
+
+  it('H3 the store moved on since the shadow reported: refused; the shadow reports the new bars: a press flips', async () => {
+    const h = await ready()
+    fresh('BBB')                                         // the row's new base snapshot
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
     expect(db.doubleBufferStats().why.stale).toBe(1)
-  })
-
-  it('H3b a timeframe or settings change since the shadow was set, with the store unchanged, re-sets it (it got the props)', async () => {
-    const { result, rerender } = mount()
+    press(h, 'AAA')                                      // back (the front switches back to AAA)
     await idle()
-    const s2 = { look: 2 }
-    rerender({ eligible: true, sym: 'AAA', tf: 'D', extRef, settings: s2, scope, member, parentVis: null })
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings: s2, scope, member, parentVis: null })
-    expect(result.current.front).toBe(1)
+    report(h.result, 0, 'AAA')
+    report(h.result, 1, 'BBB')                           // the shadow's chart re-rendered on its current feed
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
   })
 
   it('H4 a press to another row is the normal switch of the front', async () => {
-    const { result, rerender } = mount()
-    await idle()
-    rerender({ eligible: true, sym: 'CCC', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(0)
-    expect(result.current.syms[0]).toBe('CCC')
+    const h = await ready()
+    press(h, 'CCC')
+    expect(h.result.current.front).toBe(0)
+    expect(h.result.current.syms[0]).toBe('CCC')
     expect(db.doubleBufferStats().why.sym).toBe(1)
     expect(painted.some((a) => a[3] === 'flip')).toBe(false)
   })
 
-  it('H5 the board\'s budget taken: no flip, ever', async () => {
+  it('H5 the board\'s budget taken: no shadow, no flip', async () => {
     db.acquireShadow(scope, {}); db.acquireShadow(scope, {})
-    const { result, rerender } = mount()
+    const h = mount()
+    report(h.result, 0, 'AAA')
     await idle()
-    expect(result.current.syms[1]).toBe(null)
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(0)
-    expect(result.current.syms[0]).toBe('BBB')
+    expect(h.result.current.syms[1]).toBe(null)
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
   })
 
-  it('H7 a base change of the row unsets the shadow at once and re-sets it after idle time; then a press flips', async () => {
-    const { result, rerender } = mount()
+  it('H6 (F2) a hidden board gives its shadow back and drops the hidden pane; shown again, the shadow returns; the budget is the slot\'s', async () => {
+    const board = createBoardVisibility({ layer: true })
+    const other = createBoardVisibility({ layer: true })
+    db.acquireShadow(other, {}); db.acquireShadow(other, {})   // another board slot's budget is full: not this one's
+    const h = mount({ parentVis: board })
+    report(h.result, 0, 'AAA')
     await idle()
-    expect(subs.has(keyOf('BBB'))).toBe(true)
-    put('BBB')                                   // the row's new base snapshot
-    act(() => { subs.get(keyOf('BBB'))() })
-    // a press now (before idle) is refused: the shadow is unset
-    await idle()                                 // the layer's current feed re-renders it; the widget re-sets it
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(1)
-    expect(db.doubleBufferStats().flips).toBe(1)
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
+    expect(db.shadowsHeld(board)).toBe(1)
+    act(() => { board.set('hidden') })
+    expect(h.result.current.handles[h.result.current.front].state).toBe('hidden')   // nested: the board hides it
+    expect(db.shadowsHeld(board)).toBe(0)
+    expect(h.result.current.syms[1]).toBe(null)
+    act(() => { board.set('visible') })
+    await idle()
+    expect(db.shadowsHeld(board)).toBe(1)
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB'])
   })
 
-  it('H7b a press between the base change and the re-set is the normal switch', async () => {
-    const { result, rerender } = mount()
+  it('H7 (F1) a zoomed front refuses the flip; the shadow mirrors the zoom in idle time; then a press flips', async () => {
+    const h = await ready()
+    await idle()                                         // (whatever mirror the shadow's report scheduled has run)
+    panes[0].m = meta(80, -5)                            // the member zoomed in on the front
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why['view-zoom']).toBe(1)
+    press(h, 'AAA')
     await idle()
-    put('BBB')
-    act(() => { subs.get(keyOf('BBB'))() })
-    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
-    expect(result.current.front).toBe(0)
-    expect(db.doubleBufferStats().flips).toBe(0)
+    report(h.result, 0, 'AAA')
+    report(h.result, 1, 'BBB')
+    act(() => { h.result.current.viewChanged(0) })      // the front's range moved
+    await idle()
+    expect(panes[1].m.frame).toEqual({ fromRight: 75, toRight: -5, locked: false })
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
   })
 
-  it('H6 the board handle hidden: the front mirrors it, the shadow stays hidden', async () => {
-    const parent = { state: 'hidden', layer: true, subscribe: () => () => {} }
-    const { result } = mount({ parentVis: parent })
-    await idle()
-    expect(result.current.handles[result.current.front].state).toBe('hidden')
+  it('H8 (F5) focus inside the old front moves into the new front', async () => {
+    const h = await ready()
+    els[0].querySelector('button').focus()
+    expect(document.activeElement).toBe(els[0].querySelector('button'))
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(panes[1].focus).toHaveBeenCalledTimes(1)
+    expect(panes[0].focus).not.toHaveBeenCalled()
+  })
+
+  it('H8b focus elsewhere stays where it is', async () => {
+    const h = await ready()
+    press(h, 'BBB')
+    expect(panes[1].focus).not.toHaveBeenCalled()
+  })
+
+  it('H9 (F6) no flip while a replay cutoff is set', async () => {
+    const h = await ready({ replay: true })
+    press(h, 'BBB', { replay: true })
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why.replay).toBe(1)
   })
 })

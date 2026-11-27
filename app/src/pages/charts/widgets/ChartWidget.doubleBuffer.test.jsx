@@ -4,7 +4,7 @@
 //      aria-hidden, the hidden class); a widget with no board scope keeps its one pane (no slot)
 //   W2 THE FLIP and the chrome: a press to the shadow's row shows the SAME DOM layer that already held it (its header,
 //      its chart), every identity surface agrees (pane, chart, dock), and neither layer's chart rendered for it
-//   W3 STALE REFUSED: the row's base snapshot moved after the shadow was set: the front pane switches as before
+//   W3 STALE REFUSED: the store's bars for the row moved on after the shadow's chart reported: the front pane switches
 //   W4 FALLBACK: a press to another row switches the front pane, exactly as before
 import { render, screen, act } from '@testing-library/react'
 import { useMemo, useState } from 'react'
@@ -34,15 +34,29 @@ vi.mock('../../../utils/prefetchBars', () => ({
 
 // Every identity-bearing child reports the symbol IT was given, so a mixed
 // state is directly observable rather than inferred.
-const renders = vi.hoisted(() => ({ bySym: {}, props: {} }))
-vi.mock('../../../components/StockChart', () => ({
-  default: (props) => {
-    const { sym } = props
-    renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
-    ;(renders.props[sym] = renders.props[sym] || []).push(props)
-    return <span data-testid="chart-sym">{sym}</span>
-  },
-}))
+const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {} }))
+// The chart: shows its symbol, and like StockChart REPORTS each committed pass to its layer (chart/layerPaint.js) with the
+// bars the store gives its key at that commit, and publishes a date-nav API (a frame at the right edge, default zoom)
+vi.mock('../../../components/StockChart', async () => {
+  const { useContext, useLayoutEffect, useEffect } = await import('react')
+  const { LayerPaintContext } = await import('../../../components/chart/layerPaint')
+  return {
+    default: (props) => {
+      const { sym, tf, onDateNavApi } = props
+      renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
+      ;(renders.props[sym] = renders.props[sym] || []).push(props)
+      const report = useContext(LayerPaintContext)
+      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym] }) })
+      useEffect(() => {
+        if (typeof onDateNavApi !== 'function') return undefined
+        const m = { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } }
+        onDateNavApi({ getDateMeta: () => m, restoreView: () => {} })
+        return () => onDateNavApi(null)
+      }, [onDateNavApi])
+      return <span data-testid="chart-sym">{sym}</span>
+    },
+  }
+})
 /** The props that changed between a symbol's chart renders (what made the memo render it). */
 const changedProps = (sym) => {
   const list = renders.props[sym] || []
@@ -80,12 +94,10 @@ import ChartWidget from './ChartWidget'
 import { createGroupSymsStore } from '../groupSymsStore'
 import * as nf from '../../../components/chart/neighborFrames'
 import * as dbm from '../../../components/chart/doubleBuffer'
-import { __setDoubleBufferSnapSourceForTests, __setDoubleBufferStoreForTests } from '../../../components/chart/useDoubleBuffer'
+import { __setDoubleBufferBarsSourceForTests, __setDoubleBufferStoreForTests } from '../../../components/chart/useDoubleBuffer'
 import { chartKeyFor } from '../../../components/chart/useBarSnapshotBars'
 
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
-const snaps = new Map()
-const snapOf = (sym) => { if (!snaps.has(sym)) snaps.set(sym, Object.freeze({ sym, bars: [1, 2] })); return snaps.get(sym) }
 
 let setGroup = null
 function Wrap({ initial = 'AAA', scoped = true }) {
@@ -117,18 +129,18 @@ const symIn = (el) => el?.querySelector('[data-testid="chart-sym"]')?.textConten
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(NOW)
   vi.stubGlobal('requestIdleCallback', undefined)
-  snaps.clear()
+  for (const s of ['AAA', 'BBB', 'CCC']) renders.storeBars[s] = Object.freeze([s, 1])
   dbm.__setDoubleBufferForTests(true)
   __setDoubleBufferStoreForTests(true)
   dbm.__resetDoubleBufferStatsForTests()
-  __setDoubleBufferSnapSourceForTests((key) => {
+  __setDoubleBufferBarsSourceForTests((key) => {
     for (const sym of ['AAA', 'BBB', 'CCC']) {
       for (const ext of [false, true]) {
-        if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: ext, replayCutoff: null, hasOverride: false }) === key) return snapOf(sym)
+        if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: ext, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[sym]
       }
     }
     return null
-  }, { has: () => false, subscribe: () => () => {} })
+  })
   nf.__setNeighborFramesForTests(true); nf.__resetScanForTests()
   nf.publishScanNeighbors('AAA', ['BBB', 'CCC'], [])
   nf.publishScanNeighbors('BBB', ['CCC'], ['AAA'])
@@ -137,7 +149,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers(); vi.unstubAllGlobals()
-  dbm.__setDoubleBufferForTests(null); nf.__setNeighborFramesForTests(null); __setDoubleBufferSnapSourceForTests(null); __setDoubleBufferStoreForTests(null)
+  dbm.__setDoubleBufferForTests(null); nf.__setNeighborFramesForTests(null); __setDoubleBufferBarsSourceForTests(null); __setDoubleBufferStoreForTests(null)
 })
 
 test('W1 the slot: a front layer and, after idle time, a shadow on the row ahead (hidden, inert); no scope, no slot', async () => {
@@ -178,7 +190,7 @@ test('W3 STALE: the row moved on after the shadow was set -> the front pane swit
   render(<Wrap />)
   await settle()
   const frontEl = layer('front')
-  snaps.set('BBB', Object.freeze({ sym: 'BBB', bars: [1, 2, 3] }))   // a new base snapshot of the row
+  renders.storeBars.BBB = Object.freeze(['BBB', 2])   // the store moved on for the row after the shadow's chart reported
   act(() => { setGroup('BBB') })
   await settle(200)
   expect(layer('front')).toBe(frontEl)
