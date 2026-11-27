@@ -71,12 +71,15 @@ export function useDoubleBuffer({ eligible, sym, tf, extRef, settings, scope, me
   const showExtended = () => !!extRef?.current
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
+  // each layer's handle: NESTED in the board's (hidden whenever the board is) and CURRENT (a hidden layer keeps its bar
+  // store BASE feed, re-rendered in idle tasks: boardVisibility.forwardWhileCurrent), made once, disposed at unmount
   const [handles] = useState(() => {
-    const a = createBoardVisibility({ layer: true })
-    const b = createBoardVisibility({ layer: true })
-    b.state = 'hidden'   // before anything subscribes: no notify needed
+    const a = createBoardVisibility({ layer: true, current: true, parent: parentVis })
+    const b = createBoardVisibility({ layer: true, current: true, parent: parentVis })
+    b.state = 'hidden'   // before anything subscribes: no one to tell
     return [a, b]
   })
+  useEffect(() => () => { handles[0].dispose(); handles[1].dispose() }, [handles])
   const [buf, setBuf] = useState(() => ({ syms: [sym || null, null], front: 0 }))
   const infoRef = useRef(null)    // what the shadow layer was set to: {idx, sym, tf, showExtended, settings, snap, set}
   const flipRef = useRef(null)    // a flip this render made, recorded in its commit
@@ -107,29 +110,33 @@ export function useDoubleBuffer({ eligible, sym, tf, extRef, settings, scope, me
     }
   }
 
-  // ── the commit: the handles follow `front` (the shown one mirrors the board's handle), a flip records its paint ──
+  // ── the commit: the handles follow `front`, QUIETLY (vis.flip: the feeds' catch-ups, the live developing bar among
+  // them, and the loop gates run in this task; React readers of the handles after the paint), a flip records its paint.
+  // The board's own state reaches each layer through the nesting (the shown layer is hidden while the board is). ──
   useLayoutEffect(() => {
-    if (!eligible) return undefined
+    if (!eligible) return
     const f = buf.front
-    const sync = () => {
-      handles[1 - f].set(parentVis && parentVis.state === 'disposed' ? 'disposed' : 'hidden')
-      handles[f].set(parentVis ? parentVis.state : 'visible')
-    }
-    sync()
+    handles[1 - f].flip('hidden')
+    handles[f].flip('visible')
     const fl = flipRef.current
     if (fl) {
       flipRef.current = null
       recordPaint(fl.sym, fl.tf, fl.bars, 'flip', member)
     }
-    return parentVis ? parentVis.subscribe(sync) : undefined
-  }, [eligible, buf.front, handles, parentVis, member])
+  }, [eligible, buf.front, handles, member])
 
   // ── the shadow's set: its render committed; still the store's snapshot? (and a props change re-set it) ──
   const ext = !!showExtended()
   useLayoutEffect(() => {
     const info = infoRef.current
     if (!info || bufRef.current.syms[info.idx] !== info.sym) return
-    if (!info.set) {
+    if (info.pending) {
+      // a base change of the row, re-rendered by the hidden layer's CURRENT feed: React commits that (default-lane)
+      // render before this transition's, so when the store has not moved since the change was seen, the layer shows it
+      const now = shadowSnapNow(info)
+      if (now === info.pending) { info.snap = now; info.set = true }
+      info.pending = null
+    } else if (!info.set) {
       info.set = shadowSnapNow(info) === info.snap && !!info.snap
     } else if (info.tf !== tf || info.settings !== settings || !!info.showExtended !== ext) {
       // the shadow pane got these props in this very commit (both layers get the same ones): it read the store now
@@ -175,6 +182,36 @@ export function useDoubleBuffer({ eligible, sym, tf, extRef, settings, scope, me
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
     return () => { alive = false; cancelPaint(); if (idle) _cic(idle); offScan() }
   }, [eligible, slotOk, frontSym, tf, settings])   // eslint-disable-line react-hooks/exhaustive-deps -- extRef is read when it runs
+
+  // ── the shadow follows its row: a base change of the row after it was set unsets it at once (a flip now would show
+  // the older bars), and once the hidden layer's current feed has re-rendered it (an idle task), a transition commit of
+  // this widget re-sets it (the layout effect above) ──
+  const [, bump] = useState(0)
+  const shadowSym = buf.syms[1 - buf.front]
+  useEffect(() => {
+    const info = infoRef.current
+    if (!eligible || !slotOk || !BARSTORE || !info || info.sym !== shadowSym || !handles[info.idx].current) return undefined
+    const key = chartKeyFor({ sym: info.sym, resolvedTf: info.tf, showExtended: !!info.showExtended, replayCutoff: null, hasOverride: false })
+    if (!key) return undefined
+    const store = getBarStore()
+    if (!store.registry.has(key) || typeof store.registry.subscribe !== 'function') return undefined
+    let alive = true
+    let idle = 0
+    const off = store.registry.subscribe(key, () => {
+      const cur = infoRef.current
+      if (!alive || !cur || cur.sym !== info.sym) return
+      cur.set = false
+      if (idle) return
+      idle = _ric(() => {
+        idle = 0
+        const now = infoRef.current
+        if (!alive || !now || now.sym !== info.sym) return
+        now.pending = shadowSnapNow(now)
+        startTransition(() => bump((n) => n + 1))
+      })
+    }, { wake: 'base' })
+    return () => { alive = false; if (idle) _cic(idle); try { off() } catch { /* gone */ } }
+  }, [eligible, slotOk, shadowSym, handles])
 
   return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles }), [eligible, buf, handles])
 }

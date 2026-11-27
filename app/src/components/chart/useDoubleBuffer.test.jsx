@@ -6,12 +6,18 @@
 //   H3 STALE REFUSED: the row's base snapshot moved after the shadow was set -> the normal switch of the front
 //   H4 FALLBACK: a press to any other row is the normal switch of the front, exactly as before
 //   H5 a widget the board cannot give a shadow (its budget taken) never flips
-//   H6 not eligible: nothing moves but the symbol the hook was handed
+//   H6 the board handle hidden: the shown layer is hidden through the nesting, the shadow stays hidden
+//   H7 the shadow FOLLOWS its row: a base change unsets it at once; once its current feed re-rendered it (idle), it is
+//      set again on that snapshot, and a press flips
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
 const snaps = new Map()
-const fakeStore = { registry: { has: (k) => snaps.has(k) }, getBaseSnapshot: (k) => snaps.get(k) ?? null }
+const subs = new Map()
+const fakeStore = {
+  registry: { has: (k) => snaps.has(k), subscribe: (k, cb) => { subs.set(k, cb); return () => { if (subs.get(k) === cb) subs.delete(k) } } },
+  getBaseSnapshot: (k) => snaps.get(k) ?? null,
+}
 vi.mock('../../data/barStore/index', () => ({ getBarStore: () => fakeStore }))
 vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return () => false } }))
@@ -40,7 +46,7 @@ function mount(over = {}) {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.stubGlobal('requestIdleCallback', undefined)
-  snaps.clear(); painted.length = 0
+  snaps.clear(); subs.clear(); painted.length = 0
   scope = {}
   nf.__setNeighborFramesForTests(true); nf.__resetScanForTests()
   db.__resetDoubleBufferStatsForTests()
@@ -116,6 +122,29 @@ describe('useDoubleBuffer', () => {
     rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
     expect(result.current.front).toBe(0)
     expect(result.current.syms[0]).toBe('BBB')
+  })
+
+  it('H7 a base change of the row unsets the shadow at once and re-sets it after idle time; then a press flips', async () => {
+    const { result, rerender } = mount()
+    await idle()
+    expect(subs.has(keyOf('BBB'))).toBe(true)
+    put('BBB')                                   // the row's new base snapshot
+    act(() => { subs.get(keyOf('BBB'))() })
+    // a press now (before idle) is refused: the shadow is unset
+    await idle()                                 // the layer's current feed re-renders it; the widget re-sets it
+    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
+    expect(result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
+  })
+
+  it('H7b a press between the base change and the re-set is the normal switch', async () => {
+    const { result, rerender } = mount()
+    await idle()
+    put('BBB')
+    act(() => { subs.get(keyOf('BBB'))() })
+    rerender({ eligible: true, sym: 'BBB', tf: 'D', extRef, settings, scope, member, parentVis: null })
+    expect(result.current.front).toBe(0)
+    expect(db.doubleBufferStats().flips).toBe(0)
   })
 
   it('H6 the board handle hidden: the front mirrors it, the shadow stays hidden', async () => {

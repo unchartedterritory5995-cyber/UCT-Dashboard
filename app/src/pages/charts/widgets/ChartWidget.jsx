@@ -31,6 +31,7 @@ import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
+import { boardLayerProps } from '../../../components/chart/boardLayer'
 import { SWRConfig } from 'swr'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
@@ -1017,8 +1018,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       {db.on ? (
         <div className={dbStyles.slot} data-double-buffer="">
           {[0, 1].map((i) => (db.syms[i] ? (
-            <div key={i} className={i === db.front ? dbStyles.layer : dbStyles.layerHidden} inert={i !== db.front}
-              aria-hidden={i === db.front ? undefined : true} data-db-layer={i === db.front ? 'front' : 'shadow'}>
+            <div key={i} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
                 <SWRConfig value={layerSwr[i]}>
                   {renderPane(db.syms[i], layerRefFns[i], layerSubscribeCrosshair[i])}

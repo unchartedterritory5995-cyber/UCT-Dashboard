@@ -17,10 +17,4 @@
   min-height: 0;
 }
 
-/* as the layer keep-alive's kept board (ChartsWorkspace.module.css .boardSlotLayer) */
-.layerHidden {
-  composes: layer;
-  visibility: hidden;
-  pointer-events: none;
-  contain: strict;
-}
+/* the hidden layer is the keep-alive's one primitive (boardLayer.js boardLayerProps: absolute, invisible, inert) */
