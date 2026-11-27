@@ -9,6 +9,8 @@
 //   H3 the show calls no setData when no new data arrived while hidden
 //   H4 a device-pixel-ratio change while hidden forces one resize at show; an unchanged ratio forces none
 //   H5 without a provider (the flag off) a hide destroys the chart exactly as before
+//   H6 (red first) the chart's window.__uctChartDebug handle is gone while hidden and back at show; a hide never removes
+//      a handle another chart (same widget id, the board in front) registered meanwhile
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor } from '@testing-library/react'
 import { Activity } from 'react'
@@ -166,4 +168,23 @@ describe('StockChart keeps its chart through a board hide', () => {
     expect(lw.removed).toBe(1)
     view.unmount()
   })
+
+  it('H6 (red first) the debug handle is gone while hidden, back at show, and the handle of another chart is never removed', async () => {
+    const vis = createBoardVisibility()
+    const view = await mounted(vis)
+    const own = window.__uctChartDebug?.['hide-safe']
+    expect(own, 'NON-VACUITY: the chart registered its handle').toBeTruthy()
+    await hide(view, vis)
+    expect(window.__uctChartDebug['hide-safe'], 'a hidden chart left its handle registered').toBeUndefined()
+    await show(view, vis)
+    expect(window.__uctChartDebug['hide-safe']).toBe(own)
+    const other = { other: true }
+    window.__uctChartDebug['hide-safe'] = other           // the board in front registered the same id
+    await hide(view, vis)
+    expect(window.__uctChartDebug['hide-safe'], 'a hide removed the handle of another chart').toBe(other)
+    act(() => { vis.state = 'disposed'; view.unmount() })
+    expect(window.__uctChartDebug['hide-safe'], 'an unmount removed the handle of another chart').toBe(other)
+    delete window.__uctChartDebug['hide-safe']
+  })
 })
+
