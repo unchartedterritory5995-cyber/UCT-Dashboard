@@ -1487,7 +1487,7 @@ def refresh_width_control_max(definition: Any) -> Any:
 #: browser, stamped as `meta.doorVersion` with `meta.pineVersion` and each static
 #: band's raw `fillTransparency`. Held to the browser's by
 #: `tests/fixtures/door_stamp_cases.json`, which both suites read.
-DOOR_VERSION = 1
+DOOR_VERSION = 2  # 2 = engine e100: a static color.new band is (100 - t) / 100
 _FILL_VIAS = ("none", "color", "transp")
 _LEGACY_FILL_DEFAULT_TRANSP = 90
 
@@ -1525,17 +1525,23 @@ def stamped_pine_version(definition: Any) -> Any:
 
 
 def stamped_fill_opacity(stamp: dict, pine_version: Any) -> float:
-    """`memberDocumentMigration.stampedFillOpacity`, exactly (the same float ops)."""
+    """`memberDocumentMigration.stampedFillOpacity` (door 2), exactly (the same float ops): `color.new` / `color.rgb`
+    and `transp` alike are (100 - t) / 100, TradingView's decimal alpha."""
     if stamp["via"] == "none":
         legacy = not isinstance(pine_version, int) or pine_version <= 4
         return (100 - _LEGACY_FILL_DEFAULT_TRANSP) / 100 if legacy else 1
-    if stamp["via"] == "transp":
-        return (100 - max(0, min(100, stamp["value"]))) / 100
-    return max(0, min(1, 1 - stamp["value"] / 100))
+    return (100 - max(0, min(100, stamp["value"]))) / 100
+
+
+def door_one_fill_opacity(stamp: dict, pine_version: Any) -> float:
+    """`memberDocumentMigration.doorOneFillOpacity`: what door 1 wrote (a `color.new` band at the float 1 - t/100)."""
+    if stamp["via"] == "color":
+        return max(0, min(1, 1 - stamp["value"] / 100))
+    return stamped_fill_opacity(stamp, pine_version)
 
 
 #: What each door version wrote as a static band's `fillOpacity` (`DOOR_FILL_RULES`).
-DOOR_FILL_RULES = {1: stamped_fill_opacity}
+DOOR_FILL_RULES = {1: door_one_fill_opacity, 2: stamped_fill_opacity}
 
 
 def refresh_from_door_stamps(definition: Any, rules: Optional[Mapping] = None) -> Any:

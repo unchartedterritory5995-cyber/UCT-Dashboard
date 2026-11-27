@@ -35979,9 +35979,15 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     const stated = !pair && pres.color && !Number.isFinite(pres.opacity)
     // ⭐ ENGINE 58 — the 90 holds at v1-v3 and unannotated too (S1 probes
     // `vw-cs1-transp-v{1,2,3}`: `filledAreasStyle` 90 between two plots and two hlines).
+    // ⭐⭐ DOOR 2 (engine e100, NUMBER PENDING) -- A STATIC BAND'S `color.new(c, t)` / `color.rgb(…, t)` IS A STYLE
+    // TRANSPARENCY: (100 − t) / 100, TradingView's decimal alpha, not the floating 1 − t/100 of a per-bar colour.
+    // FRED's pixel probe (2026-11-27, v5, SPY 1D): a STATIC `fill(p3, p4, color = color.new(#2962ff, 90))` painted alpha 0.1024 = byte 26, and TradingView's own model stores its colour as "rgba(41,98,255,0.1)" -- a decimal alpha, rounded once (25.5 half-up). Capture A's PER-BAR colours (Uncharted Clouds, t = 90 -> 25) are computed colours, byte-rounded from the floating 1 - t/100. Among whole t only 90 separates the two (25 vs 26).
+    // ⛔ Static only (no pair, no palette index): a per-bar band's colours keep capture A's rule.
+    const helperT = (!pair && pres.color && !pres.colorIndex && pres.transparency && pres.transparency.via === 'color'
+      && Number.isFinite(pres.transparency.value) && Number.isFinite(pres.opacity)) ? pres.transparency.value : null
     const staticOpacity = stated
       ? (isLegacyPineVersion(ctx && ctx.version) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
-      : pres.opacity
+      : (helperT !== null ? styleTransparencyOpacity(helperT) : pres.opacity)
     // ⭐⭐ THE RAW STAMP (`memberDocumentMigration.stampedFillOpacity`): what the
     // script WROTE for a STATIC band's transparency — a `color.new` / `color.rgb`
     // float, a `transp =`, or nothing at all — so the next correction to the rule
