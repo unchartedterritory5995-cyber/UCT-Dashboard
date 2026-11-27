@@ -223,6 +223,18 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Buy",
+       "note": "`Buy` is drawn as an arrow up: TradingView draws `shape.labelup`, which this chart does not draw yet."
+      },
+      {
+       "name": "Sell",
+       "note": "`Sell` is drawn as an arrow down: TradingView draws `shape.labeldown`, which this chart does not draw yet."
+      },
+      {
+       "name": "Exit Long",
+       "note": "`Exit Long` and `Exit Short` are drawn as squares: TradingView draws `shape.xcross`, which this chart does not draw yet."
       }
      ],
      "requirementTags": []
@@ -500,6 +512,10 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "value",
+       "note": "`value` and `out2` are drawn as circles with their characters beside them: TradingView draws the character alone, which this chart does not draw yet."
       },
       {
        "name": "Drawings",
@@ -1023,6 +1039,14 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "value",
+       "note": "`value` is drawn as an arrow up: TradingView draws `shape.triangleup`, which this chart does not draw yet."
+      },
+      {
+       "name": "out2",
+       "note": "`out2` is drawn as an arrow down: TradingView draws `shape.triangledown`, which this chart does not draw yet."
       },
       {
        "name": "Drawings",
@@ -11557,6 +11581,18 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
+       "name": "Bullish Rejection",
+       "note": "`Bullish Rejection` and `Bearish Rejection` are drawn as circles with their characters beside them: TradingView draws the character alone, which this chart does not draw yet."
+      },
+      {
+       "name": "Bullish Trend Change",
+       "note": "`Bullish Trend Change` is drawn as an arrow up: TradingView draws `shape.labelup`, which this chart does not draw yet."
+      },
+      {
+       "name": "Bearish Trend Change",
+       "note": "`Bearish Trend Change` is drawn as an arrow down: TradingView draws `shape.labeldown`, which this chart does not draw yet."
+      },
+      {
        "name": "Drawings",
        "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. Where the run holds back a kind of drawing that the script’s formula drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost. That program is drawn at the author’s settings, so once a setting of the script is changed here it is not drawn, and a kind of drawing the run holds back is named on the chart instead."
       }
@@ -11966,6 +12002,14 @@
       {
        "name": "Settings",
        "note": "Kept at the author's default: `pivotLen` (it sets where a plot is drawn (`offset`), which this pane draws at the author's default)."
+      },
+      {
+       "name": "The Selling Climax",
+       "note": "`The Selling Climax`, `the Secondary Test`, `Automatic Reaction` and `pivotHigh` are drawn as arrows up: TradingView draws `shape.triangleup`, which this chart does not draw yet."
+      },
+      {
+       "name": "Automatic Rally",
+       "note": "`Automatic Rally`, `The Buying Climax`, `The Secondary Test` and `pivotLow` are drawn as arrows down: TradingView draws `shape.triangledown`, which this chart does not draw yet."
       },
       {
        "name": "Drawings",
