@@ -7,7 +7,8 @@
  * in a layout effect before the first paint, with no side rail until it is known.
  *   N1 (red first) a narrow pane: the side rail never mounts
  *   N2 a wide pane: the side rail is on screen from the first paint (mounted before paint, once)
- *   N3 the same widget mounted again (a board switch back): narrow is known from its last measure, no width read at mount
+ *   N3 (review of #2862) one widget id on two boards of different widths (layouts saved from one another share ids): the
+ *      first paint is right on each, and the narrow one never mounts the side rail (a seed is a hint, always verified)
  */
 import { render, cleanup } from '@testing-library/react'
 import { useState, useEffect } from 'react'
@@ -73,13 +74,19 @@ describe('the library rail and a narrow pane', () => {
     expect(railMounts).toEqual(['side'])
   })
 
-  it('N3 the same widget mounted again knows its width from its last measure: no width read at mount', () => {
-    paneWidth = 200
-    const first = render(<Board door="board~wl-1" />)
-    first.unmount()
-    widthReads = 0
-    render(<Board door="board~wl-1" />)
-    expect(widthReads, 'the remount read the pane width again').toBe(0)
-    expect(railMounts.filter((m) => m === 'side')).toEqual([])
+  it('N3 (red first) one widget id on two boards of different widths: right on each first paint, no side rail in the narrow one', () => {
+    paneWidth = 800
+    const wide = render(<Board door="board~wl-shared" />)
+    expect(wide.getByTestId('rail').getAttribute('data-overlay')).toBe('no')
+    wide.unmount()
+    railMounts.length = 0
+    paneWidth = 200                                     // the same widget id on a board where its pane is narrow
+    const narrowBoard = render(<Board door="board~wl-shared" />)
+    expect(railMounts.filter((m) => m === 'side'), 'the seed from the wide board mounted the side rail').toEqual([])
+    expect(narrowBoard.queryByTestId('rail'), 'the narrow board painted with the rail').toBeNull()
+    narrowBoard.unmount()
+    paneWidth = 800                                     // and back: the narrow seed must not hide the rail on the wide board
+    const back = render(<Board door="board~wl-shared" />)
+    expect(back.getByTestId('rail').getAttribute('data-overlay')).toBe('no')
   })
 })
