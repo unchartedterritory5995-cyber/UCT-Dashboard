@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "P1",
+   "mutant": "the page draws on two-start agreement alone (the reach rule dropped)",
+   "file": "app/src/components/chart/engine/firstPage.js",
+   "from": "    const same = sameTail(col, probe[key], FIRST_PAGE_ROWS) && pageReachProvable(def, key)\n",
+   "to": "    const same = sameTail(col, probe[key], FIRST_PAGE_ROWS)\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "TWO STARTS THAT AGREE ARE NOT ENOUGH"
+  },
+  {
+   "id": "P2",
+   "mutant": "a start-counted clock leaf is not refused",
+   "file": "app/src/components/chart/engine/firstPage.js",
+   "from": "    if (typeof n.name === 'string' && START_COUNTED_CLOCK.includes(n.name)) return true\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "TWO STARTS THAT AGREE ARE NOT ENOUGH"
+  },
+  {
+   "id": "P3",
+   "mutant": "a higher timeframe's read is trusted",
+   "file": "app/src/components/chart/engine/firstPage.js",
+   "from": "    if (n.type === 'tf' || n.type === 'tf_live') return true\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "the reach rule"
+  },
+  {
+   "id": "P4",
+   "mutant": "a call with a non-window reach (series, session) is trusted",
+   "file": "app/src/components/chart/engine/firstPage.js",
+   "from": "    if (n.type === 'call' && !windowReach(n.name)) return true\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "the reach rule"
+  },
+  {
+   "id": "P5",
+   "mutant": "the reach bound is not checked",
+   "file": "app/src/components/chart/engine/firstPage.js",
+   "from": "back >= 0 && back <= FIRST_PAGE_PROBE",
+   "to": "back >= 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneFirstPage.test.js",
+   "expectRed": "the reach rule"
+  }
+ ]
+}
