@@ -15,8 +15,8 @@
    "id": "TC-2",
    "mutant": "the walk runs through the join (writes after the branch leak into its set)",
    "file": "app/src/components/chart/engine/runtime/taintCfg.js",
-   "from": "    for (const s of successors(code, pc)) if (s >= 0 && s !== join && !seen.has(s)) stack.push(s)",
-   "to": "    for (const s of successors(code, pc)) if (s >= 0 && !seen.has(s)) stack.push(s)",
+   "from": "    if (seen.has(pc) || pc === join || pc === branch) continue",
+   "to": "    if (seen.has(pc) || pc === branch) continue",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
    "expectRed": "nothing at or after the join"
   },

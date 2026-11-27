@@ -153,12 +153,13 @@ const frozenSets = (sets) => Object.freeze(Object.fromEntries(WRITE_KINDS.map((k
 /** The instructions on some path from `branch` to `join` (exclusive of both; `join === -1`: to the region's exit). */
 function between(code, branch, join) {
   const seen = new Set()
-  const stack = successors(code, branch).filter((s) => s >= 0 && s !== join)
+  const stack = successors(code, branch).filter((s) => s >= 0)
   while (stack.length) {
     const pc = stack.pop()
+    // ONE stop rule for the walk (the join, and the branch itself on a loop's back edge), checked as each pc is taken
     if (seen.has(pc) || pc === join || pc === branch) continue
     seen.add(pc)
-    for (const s of successors(code, pc)) if (s >= 0 && s !== join && !seen.has(s)) stack.push(s)
+    for (const s of successors(code, pc)) if (s >= 0 && !seen.has(s)) stack.push(s)
   }
   // a loop whose head is the branch itself: its body comes back to the branch, which is part of the region's writes
   // only through the instructions already collected
