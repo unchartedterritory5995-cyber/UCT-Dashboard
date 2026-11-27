@@ -138,6 +138,7 @@ import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
 import { windowedPoints, firstIndexAtOrAfter, PLOT_WINDOW_STEP } from './plotWindow'
 import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
+import { tvRunStartSignature } from './tvRunWindow.js'
 
 /** The script a document's run half runs (`compute.runtimeObjects.source`, as `nativeRegistry.js::withRunHalf`
  *  reads it), or null. */
@@ -2656,6 +2657,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
         + (strategyDepth !== null ? `|ld${strategyDepth}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
+        // ⭐⭐ HISTORY PARITY — TradingView's first bar of the run (`tvRunWindow.js`): another start is another answer
+        + (!frame && ctx.tvRunStart && typeof ctx.tvRunStart === 'object' ? `|tvrs${tvRunStartSignature(ctx.tvRunStart)}` : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
         + dailySig
       // ⭐ (e85) the pane, without what the data moves (the other-symbol, live-tail and forming parts of `sig`): a run
@@ -2724,6 +2727,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
             // ⭐⭐ (2026-11-20) and the listing FACT where it is not served (W / M): the same restriction
             ...(!frame && ctx.listingStart === true ? { listingStart: true } : {}),
+            // ⭐⭐ HISTORY PARITY — the chart's stamp of TradingView's first bar describes the chart's own series only
+            ...(!frame && ctx.tvRunStart && typeof ctx.tvRunStart === 'object' ? { tvRunStart: ctx.tvRunStart } : {}),
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),

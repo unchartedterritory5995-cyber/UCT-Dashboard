@@ -2265,7 +2265,8 @@ export function runtimeObjectsWithheld(def, cols) {
   // only from the bar its values stop depending on where the chart starts; the object
   // program is not proven seed-free, so its drawings stay withheld, by name.
   const curtain = runtimeWarmupOf(cols)
-  if (curtain) {
+  // ⭐⭐ HISTORY PARITY — a run from TradingView's first bar (`tvRunWindow.js`) is not a curtain: its drawings are exact
+  if (curtain && !curtain.tvRunStart) {
     return {
       guard: RUNTIME_OBJECTS_GUARD,
       message: "This script's drawings are not drawn: this chart's history does not start at the symbol's "

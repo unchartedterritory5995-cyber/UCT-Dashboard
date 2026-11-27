@@ -33,7 +33,9 @@ describe('engineChart is the binder\'s own view of the chart', () => {
   const binder = block(CHART, 'registry: engineRegistry,', 'historyWindowBars:')
   // ⭐⭐ (2026-11-20) the sixth: the listing FACT on a weekly / monthly chart where it is not served (`listingSeed.listingStartOf`)
   const FACTS = ['sym,', 'symbol: symbolMeta,', 'tf: resolvedTf,', 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', 'historyFromListing,',
-    '...(listingUnserved ? { listingStart: true } : {}),']
+    '...(listingUnserved ? { listingStart: true } : {}),',
+    // ⭐⭐ (history parity, phase 2) the seventh: TradingView's first bar of a listing script's run on an intraday chart
+    '...(tvRunStart ? { tvRunStart } : {}),']
 
   it('the same bars, and the same six facts, written the same way in both', () => {
     expect(mine.split(LF).map((l) => l.trim())).toContain('bars: filteredBars,')
@@ -50,7 +52,7 @@ describe('engineChart is the binder\'s own view of the chart', () => {
 
   it('it is memoised on exactly what it reads, so a tick that changes none of them hands the toolbar the same object', () => {
     const deps = CHART.slice(CHART.indexOf('}), [filteredBars, sym, symbolMeta'), CHART.indexOf(LF, CHART.indexOf('}), [filteredBars, sym, symbolMeta')))
-    expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])')
+    expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved, tvRunStart])')
   })
 
   // ⭐ 2026-11-21 -- and ONE read-only getter beside the context: what the chart has DRAWN (`binder.bindings()`), for
@@ -60,7 +62,7 @@ describe('engineChart is the binder\'s own view of the chart', () => {
     expect(lines).toContain('bindings: drawnBindingsReader(engineRef),')
     // a getter, read at call time: it sits OUTSIDE the context (the six facts are still the whole of it, above)
     // and the dependency list is what it was (the test above), so no tick hands the toolbar a new object for it
-    expect(mine.indexOf('bindings: drawnBindingsReader')).toBeGreaterThan(mine.indexOf('...(listingUnserved ? { listingStart: true } : {}),'))
+    expect(mine.indexOf('bindings: drawnBindingsReader')).toBeGreaterThan(mine.indexOf('...(tvRunStart ? { tvRunStart } : {}),'))
     expect(mine.split('engineRef').length - 1).toBe(1)
     // ⛔ THE CLOSURE IS BUILT AT MODULE LEVEL, not inside the render (a closure written in a render keeps that
     // render's whole context alive, and this object is held by the toolbar and the dock): no arrow in the memo

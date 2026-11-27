@@ -68,6 +68,8 @@ import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 import { withAmbientRunClock } from './vm.js'
 import { dailyExpressionAdmitted } from '../dailyExpressionGate.js'
+// ⭐⭐ HISTORY PARITY (phase 2) — a listing document on an intraday chart runs from TradingView's first bar (`tvRunWindow.js`)
+import { tvRunWindowOf, computeTvRunWindow, tvRunStartSignature } from '../tvRunWindow.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
 // `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
@@ -448,7 +450,9 @@ function runKey(def, ctx, withSupply = true) {
   // ⭐ U-DAILY (e96, part B) — a run made with the daily-expression capability open is another run (its session, its
   // memo): unchanged while it is closed, as committed (`dailyExpressionGate.js`)
   const dx = dailyExpressionAdmitted() ? '|dx' : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
+  // ⭐⭐ HISTORY PARITY — TradingView's first bar of the run, where the chart stamped it (another start is another run)
+  const tvrs = ctx && ctx.tvRunStart ? `|tvrs${tvRunStartSignature(ctx.tvRunStart)}` : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${tvrs}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
 /** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
@@ -696,6 +700,8 @@ export function __overnightCutOffForTests(off) { _overnightCutOff = !!off }
  * kind, and a wait, are the run's answer, as before.
  */
 export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
+  const tvRun = tvRunWindowOf(def, rows, ctx)
+  if (tvRun) return computeTvRunWindow(rows, tvRun, (r, c) => computeRuntimeColumns(def, r, c, opts), RUNTIME_HISTORY_GUARD)
   const n = Array.isArray(rows) ? rows.length : 0
   let end = n
   let series = []
