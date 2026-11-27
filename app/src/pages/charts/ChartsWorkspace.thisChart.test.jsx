@@ -6,7 +6,7 @@
  * made the member's way — a pointer-down in the chart's grid cell — and every assertion is on which
  * chart actually changed, never on the reply text alone.
  */
-import { render, screen, act, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen as globalScreen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -131,7 +131,11 @@ function mount(open = MAIN) {
   return render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
 }
 const tfOf = (id) => screen.getByTestId(`chart-${id}`).getAttribute('data-tf')
-const cell = (id) => document.querySelector(`[data-widget-id="${id}"]`)
+// the board in front: under the keep-alive (boardKeepAlive.js; production's default) a kept board stays mounted
+// hidden beside it, so a lookup that means "on screen" looks inside the slot marked data-board-current
+const front = () => document.querySelector('[data-board-current]') || document.body
+const screen = new Proxy({}, { get: (_, k) => within(front())[k] ?? globalScreen[k] })
+const cell = (id) => front().querySelector(`[data-widget-id="${id}"]`)
 const click = (id) => act(async () => { fireEvent.pointerDown(screen.getByTestId(`chart-${id}`)) })
 const dockButton = (name) => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button')].find(b => b.textContent.trim() === name) || null
 const activeId = () => JSON.parse(prefStore.get().charts_active_template || 'null')?.id ?? null
