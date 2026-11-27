@@ -7,9 +7,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork, barsHistoryUrl } from './network'
 import { keyOf } from './types'
-import { dateFirstPageFor, fullBarsFor } from '../../utils/barsBackfill'
-// (2026-11-27) the D tail's first page covers a zoomed-out view on its own (barsBackfill DATE_FIRST_PAGE)
-const FIRST_PAINT_BARS = dateFirstPageFor('D')
+import { dateCoverFor, fullBarsFor } from '../../utils/barsBackfill'
+// the D tail's default first page (a warm's: no cover asked; review of #2934, B1)
+const FIRST_PAINT_BARS = dateCoverFor('D')
 import { lastSealedDate, etPeriodStartISO, calendarSealedDate, historySealedDate } from '../../utils/barsHistorySplit'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET
@@ -69,15 +69,28 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
   // ⭐ (2026-11-27, #2934, the owner's repro: a daily chart zoomed out to ~1,000 bars, a cold ticker typed) the tail's first
   // page alone covers that view (its 1,000 bars plus the lookback, paintLog.viewNeed), so the chart paints ONCE on it and
   // the deep history lands behind the left edge. A 600-row tail painted short and the history then filled the screen in.
-  it('the first daily page alone covers a ~1,000-bar zoomed-out view (viewNeed), not the default 600', async () => {
+  it('the first daily page alone covers a ~1,000-bar zoomed-out view when the view asks it (cover = viewNeed)', async () => {
     const { viewNeed, noteMemberView } = await import('../../components/chart/paintLog')
     const member = {}
     noteMemberView(member, 1000)
     const w = world()
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: viewNeed(member) })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(viewNeed(member)).toBe(1400)
+    expect(tailBars(w)[0]).toBe(1400)
+  })
+
+  // (review of #2934, B1) ...and only then: a warm (a neighbour, a dwell, a list) asks no cover and gets the default page
+  it('CONTROL: a warm with no cover asks the default first page; a cover is capped at DATE_COVER_MAX', async () => {
+    const { dateCoverMaxFor } = await import('../../utils/barsBackfill')
+    const w = world()
     w.net.fetchOnce(w.key, { depth: w.depth })
     await vi.advanceTimersByTimeAsync(50)
-    expect(tailBars(w)[0]).toBeGreaterThanOrEqual(viewNeed(member))
-    expect(viewNeed(member)).toBe(1400)
+    expect(tailBars(w)[0]).toBe(FIRST_PAINT_BARS)
+    const w2 = world()
+    w2.net.fetchOnce(w2.key, { depth: w2.depth, cover: 9000 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w2)[0]).toBe(dateCoverMaxFor('D'))
   })
 
   it('the history URL is the one the legacy chart builds (same cache object at the edge)', () => {

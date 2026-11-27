@@ -35,8 +35,8 @@ async function boot() {
   const { createPrefetch, DEEP_JOIN_WAIT_MS } = await import('./prefetch')
   const { keyOf } = await import('./types')
   const idb = await import('../../utils/barsIDB')
-  // (2026-11-27) the D tail's first page (barsBackfill DATE_FIRST_PAGE): deeper than it means the history joined
-  const FIRST_PAINT_BARS = (await import('../../utils/barsBackfill')).dateFirstPageFor('D')
+  // (2026-11-27, #2934 B1) no D tail page is deeper than barsBackfill DATE_COVER_MAX: deeper means the history joined
+  const FIRST_PAINT_BARS = (await import('../../utils/barsBackfill')).dateCoverMaxFor('D')   // no tail page is deeper
   const store = createBarStore({
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),

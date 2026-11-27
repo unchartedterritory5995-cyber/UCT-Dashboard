@@ -44,7 +44,7 @@ import {
   tailRetriesExhausted,
 } from '../../utils/intradayTailPoll'
 import { classifyIntradayTail } from '../../utils/marketSession'
-import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS, dateFirstPageFor } from '../../utils/barsBackfill'
+import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS, dateCoverMaxFor, dateCoverFor } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
@@ -108,12 +108,13 @@ export const DEEP_WANT_MS = 5_000
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
-/** Bars to ask for: the chart's first-paint count, or the depth a caller ensured. */
-export function barsCountFor(key, { depth = 0, session = 'rth' } = {}) {
+/** Bars to ask for: the chart's first-paint count, or the depth a caller ensured. `cover` (D/W/M): the rows a view will
+ *  draw (review of #2934, B1: barsBackfill dateCoverFor; 0, a warm, asks the default page). */
+export function barsCountFor(key, { depth = 0, session = 'rth', cover = 0 } = {}) {
   const p = parseKey(key)
   if (!p) return FIRST_PAINT_BARS
   const eth = p.session ? p.session === 'eth' : session === 'eth'
-  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : dateFirstPageFor(p.tf)   // (D/W/M: a covering first page)
+  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : dateCoverFor(p.tf, cover)
   const want = Math.max(base, Math.floor(Number(depth) || 0))
   return Math.min(want, fullBarsFor(p.tf) || want)
 }
@@ -281,6 +282,7 @@ export function createNetwork({
     if (!r) {
       r = {
         key, refs: 0, sessions: new Map(), priority: 'background', depth: 0,
+        cover: 0,                 // D/W/M: the rows a view of this key will draw (barsCountFor `cover`)
         inflight: null,           // { ac, kind, promise }
         queue: [],                // pending scroll-back jobs
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
@@ -307,9 +309,9 @@ export function createNetwork({
     const p = parseKey(r.key)
     const gen = s.gen
     const session = _session(r)
-    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover })
     const split = _splitFor(r, p)
-    const bars = split ? Math.min(wanted, dateFirstPageFor(p.tf)) : wanted
+    const bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
     lastDelta.delete(r.key)
@@ -337,13 +339,13 @@ export function createNetwork({
       // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
       // depth (the daily handoff joining the typed warm's tail) raised `r.depth` after the request
       // left; read at the start only, its history was never asked.
-      const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session }))
+      const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover }))
       // ⭐ ONCE PER PAGE WHILE HELD (2026-11-27): `wantNow` is the full 12,500 for D, deeper than almost any name's
       // history, so after a join the depth stays under it and only `histAsked` (this record's) stopped a repeat; the
       // record goes when the last chart leaves the key, and every return re-asked the history to join nothing older.
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
-      const joinedHere = heldNow > dateFirstPageFor(p.tf) && _deepJoinedAt(r.key, heldNow)
+      const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
       if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
@@ -860,7 +862,7 @@ export function createNetwork({
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
       if (keys.get(key)?.splitOff) return false
       const held = registry.peek(key)?.bars.length ?? 0
-      if (held > dateFirstPageFor(p.tf)) return false
+      if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
     },
     /**
@@ -923,10 +925,11 @@ export function createNetwork({
      * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
      * the key — a prefetch or a mounted chart riding the same request never loses it.
      */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false, full = false } = {}) {
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false, full = false, cover = 0 } = {}) {
       if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
+      r.cover = Math.max(r.cover || 0, Number.isFinite(cover) ? cover : 0)
       if (!r.sessions.size) r.sessions.set(session, 0)
       // A key a chart is subscribed to is LIVE: a one-shot ask of it rides the chart's rank and
       // never goes out as a shed-able `&warm=1` warm.
