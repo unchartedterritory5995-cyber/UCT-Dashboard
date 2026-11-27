@@ -211,7 +211,7 @@ describe('ScanRows: the remembered sizes are keyed by everything that sets a row
     for (const id of [null, undefined, '']) expect(rowSizeCacheKey({ kind: 'wl', id, ...GEOM })).toBeNull()
   })
 
-  it('R7 scans are keyed by their host's stable id, never the display name: two hosts never share, a host with none is not remembered', () => {
+  it("R7 scans are keyed by their host's stable id, never the display name: two hosts never share, a host with none is not remembered", () => {
     const scan = (id) => rowSizeCacheKey({ kind: 'scan', id, ...GEOM })
     expect(scan('breadth-drill')).not.toBe(scan('etf-holdings'))
     expect(scan(null)).toBeNull()
@@ -237,7 +237,7 @@ describe('ScanRows: the remembered sizes are keyed by everything that sets a row
     const again = mountList('list:R8|l16')
     await frames()
     expect(T.rowReads, 'remembered').toBe(0)
-    expect(rowTop(again.container, 2), 'its own sizes, not the other widget's').toBe(2 * ROW_PX)
+    expect(rowTop(again.container, 2), "its own sizes, not the other widget's").toBe(2 * ROW_PX)
   })
 
   it('R9 (red first) a remembered size the observer contradicts is committed before paint (inside the observer callback)', () =>
