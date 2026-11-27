@@ -352,13 +352,14 @@ describe('LK12 every way a kept layer board is dropped unmounts it with its hand
 })
 
 test('LK13 (red first) a board kept 30 minutes without a show goes, the page visible', async () => {
-  mount()
-  await settle()
-  await go('Two Charts')
-  const vis = hosts.vis['watchlist-1']
-  expect(vis?.state, 'NON-VACUITY: MAIN is kept').toBe('hidden')
-  vi.useFakeTimers()
+  // the cap's timer starts at the switch: fake timers first (advancing with real time, so the awaits still run)
+  vi.useFakeTimers({ shouldAdvanceTime: true })
   try {
+    mount()
+    await settle()
+    await go('Two Charts')
+    const vis = hosts.vis['watchlist-1']
+    expect(vis?.state, 'NON-VACUITY: MAIN is kept').toBe('hidden')
     act(() => { vi.advanceTimersByTime(29 * 60_000) })
     expect(hosts.cleanups['watchlist-1'] || 0).toBe(0)
     act(() => { vi.advanceTimersByTime(60_000 + 1) })
