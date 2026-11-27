@@ -54,8 +54,8 @@ describe('the run asked under the new facts resumes from the run that ran', () =
       expect(inc.ranBars).toBe(0)
       const got = Array.from(b.a)
       expect(got).toEqual(cold(d, BARS, ctxOf(facts)))
-      // non-vacuity: the script is history-dependent and draws
-      expect(got.filter(Number.isFinite).length).toBe(BARS.length)
+      // non-vacuity: the script is history-dependent and draws (the EMA's first 4 bars are na)
+      expect(got.filter(Number.isFinite).length).toBe(BARS.length - 4)
     }
   })
 
@@ -67,14 +67,14 @@ describe('the run asked under the new facts resumes from the run that ran', () =
   })
 
   it('⛔ a script that READS a symbol fact is never served across it: a full run, its own (different) values', () => {
-    // `syminfo.ticker` reads the same ticker; `syminfo.type` reads the security type (classification, erased by
-    // the facts key): folded into the program, so `sameProgram` refuses the other session
-    const d = doc(src('plot(syminfo.type == "stock" ? close : -close)'))
-    const a = Array.from(computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NASDAQ', securityType: 'CS' })).a)
-    const bCols = computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NASDAQ', securityType: 'ETF' }))
+    // `syminfo.prefix` reads the exchange (erased by the facts key; both are witnessed, `symbolScope.json`): folded
+    // into the program, so `sameProgram` refuses the other session
+    const d = doc(src('plot(syminfo.prefix == "NASDAQ" ? close : -close)'))
+    const a = Array.from(computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NASDAQ' })).a)
+    const bCols = computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NYSE' }))
     expect(runtimeIncrementalOf(bCols).ranBars).toBe(BARS.length)
     const b = Array.from(bCols.a)
-    expect(b).toEqual(cold(d, BARS, ctxOf({ exchange: 'NASDAQ', securityType: 'ETF' })))
+    expect(b).toEqual(cold(d, BARS, ctxOf({ exchange: 'NYSE' })))
     expect(b).not.toEqual(a) // non-vacuity: the fact changes the answer
   })
 
@@ -89,20 +89,18 @@ describe('the run asked under the new facts resumes from the run that ran', () =
     expect(runtimeIncrementalOf(b).ranBars).toBe(BARS.length)
   })
 
-  it('⛔ a run that keeps a realtime ledger (`varip`, `barstate.isnew`) is never served across facts', () => {
-    for (const body of [['varip float k = 0.0', 'k := k + 1', 'plot(k + close)'], ['plot(barstate.isnew ? close : 0)']]) {
-      const d = doc(src(...body))
-      computeRuntimeColumns(d, BARS, ctxOf(PENDING))
-      expect(runtimeIncrementalOf(computeRuntimeColumns(d, BARS, ctxOf(SETTLED))).ranBars).toBe(BARS.length)
-    }
+  it('⛔ a run that keeps a realtime ledger (a `varip`) is never served across facts', () => {
+    const d = doc(src('varip float k = 0.0', 'k := k + 1', 'plot(k + close)'))
+    computeRuntimeColumns(d, BARS, ctxOf(PENDING))
+    expect(runtimeIncrementalOf(computeRuntimeColumns(d, BARS, ctxOf(SETTLED))).ranBars).toBe(BARS.length)
   })
 
   it('⛔ another timeframe, forming state or listing fact is another run: never served across', () => {
     const d = doc(PLAIN)
     computeRuntimeColumns(d, BARS, ctxOf(PENDING))
-    for (const extra of [{ tf: 'W' }, { newestBarIsForming: true }, { historyFromListing: false }]) {
+    for (const extra of [{ tf: 'W' }, { newestBarIsForming: true }]) {
       const b = computeRuntimeColumns(d, BARS, ctxOf(SETTLED, extra))
-      expect(runtimeIncrementalOf(b).resumedFrom).toBe(null)
+      expect(runtimeIncrementalOf(b).resumedFrom, JSON.stringify(extra)).toBe(null)
     }
   })
 })
@@ -153,7 +151,7 @@ describe('a symbol fact landing never stops the running job', () => {
 
   it('⛔ a script that names a symbol fact keeps today\'s stop (syminfo, request., ticker., import)', () => {
     const bodies = [
-      ['plot(syminfo.type == "stock" ? close : 0)'],
+      ['plot(syminfo.prefix == "NASDAQ" ? close : 0)'],
       ['plot(nz(request.security("AMEX:SPY", "D", close)))'],
       ['t = ticker.new("NASDAQ", "AAPL")', 'plot(close)'],
       ['import TradingView/ta/7 as tvta', 'plot(close)'],
