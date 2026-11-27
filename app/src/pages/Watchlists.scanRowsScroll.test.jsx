@@ -54,7 +54,7 @@ import { ScanRows } from './Watchlists'
 const ITEMS = Array.from({ length: 100 }, (_, i) => ({ id: `S${i}`, sym: `S${i}` }))
 /** The scroller's LIVE scrollTop is `V.live` (else the virtualizer's `V.offset`); with `head`, a sticky 32 px column
  *  header is the scroller's first child (the watchlist's `.gridHead`), and boxes are laid out as a browser would. */
-function List({ sym, noScroll = null, head = false, measureOffset = false }) {
+function List({ sym, noScroll = null, head = false, measureOffset = false, seen = null }) {
   const scrollRef = useRef(null)
   const noScrollRef = useRef(noScroll)
   noScrollRef.current = noScroll
@@ -65,7 +65,7 @@ function List({ sym, noScroll = null, head = false, measureOffset = false }) {
   return (
     <div ref={scroller} data-scroller="" style={{ height: 300, overflowY: 'auto' }}>
       {head ? <div data-sticky-head="" style={{ position: 'sticky', top: 0, minHeight: 32 }}>Symbol</div> : null}
-      <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => <span>{it.sym}</span>} emptyText="none"
+      <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it, meta) => { if (seen) seen[it.sym] = meta; return <span>{it.sym}</span> }} emptyText="none"
         scrollToSym={sym} noScrollRef={noScrollRef} measureOffset={measureOffset} />
     </div>
   )
@@ -150,6 +150,24 @@ describe('ScanRows: the selected row kept in view with the least scroll', () => 
     // the scroller is at 30 (the last press scrolled one row); the virtualizer's own offset has not caught up (0)
     press('S10', 'S11', { offset: 0, live: 30 })
     expect(V.calls).toEqual([{ index: 11, align: 'auto' }])
+  })
+
+  // ⚡ (2026-11-26, the board switch) the rows it mounts OFF screen (the overscan) are told so: their logos ask for their
+  // images after paint (CompanyLogo deferSrc). One row of margin on each side counts as on screen.
+  it('R10 (red first) each mounted row is told whether it lies off screen: the view, one row of margin, then the overscan', () => {
+    V.offset = 0
+    V.height = 300
+    const seen = {}
+    render(<List sym="S0" seen={seen} />)
+    for (let i = 0; i <= 10; i++) expect(seen[`S${i}`], `S${i} is on screen (or within the margin)`).toEqual({ offscreen: false })
+    for (let i = 11; i < 20; i++) expect(seen[`S${i}`], `S${i} lies below the view`).toEqual({ offscreen: true })
+  })
+
+  it('R11 nothing measured yet: every row counts as on screen', () => {
+    V.height = null
+    const seen = {}
+    render(<List sym="S0" seen={seen} />)
+    expect(Object.values(seen).every((m) => m && m.offscreen === false)).toBe(true)
   })
 
   it('R6 a click selection never moves the list', () => {

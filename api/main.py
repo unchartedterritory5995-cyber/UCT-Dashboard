@@ -12121,7 +12121,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.get("/api/maintenance")
 def get_maintenance():
-    return {"maintenance": _MAINTENANCE_MODE}
+    # ⛔ never stored: every signed-in page asks it at boot and AuthGuard holds the shell on it, so a cached
+    # `false` replayed during a maintenance window would let members past the gate (tests/test_maintenance_no_store.py)
+    return StarletteJSONResponse({"maintenance": _MAINTENANCE_MODE}, headers={"Cache-Control": "no-store"})
 
 def _process_rss_mb():
     """Current resident-set memory in MB, or None if unavailable (non-Linux).

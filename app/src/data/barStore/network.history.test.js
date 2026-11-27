@@ -223,7 +223,8 @@ describe('BarStore scroll-back from the history lake', () => {
     // ⭐ 2026-11-17: ONE LOAD, THE WHOLE DEPTH. A load that lands after the answer joins its deeper
     // rows (what the handoff waits for before it commits), only where the shared bars prove them.
     it('once the server answered, the lake JOINS its deeper rows where the overlap proves them', async () => {
-      const w = world({ lake: lakeUpTo(OPEN + 600) })
+      const loads = vi.fn(lakeUpTo(OPEN + 600))
+      const w = world({ lake: loads })
       const key = keyOf({ sym: 'SIM', tf: '5' })
       w.registry.acquire(key)
       w.net.fetchOnce(key)
@@ -237,10 +238,14 @@ describe('BarStore scroll-back from the history lake', () => {
       expect(s.bars[0].t).toBe(OPEN - 3 * 3600)                         // the lake's deeper rows, joined
       expect(s.bars.length).toBeGreaterThan(before.bars.length)
       for (let i = 1; i < s.bars.length; i++) expect(s.bars[i].t).toBeGreaterThan(s.bars[i - 1].t)
-      // and not loaded again once the key is joined: one load per key in flight, shared
+      // and not loaded again once the key is joined (2026-11-26, review of #2866: an answered entry whose load settled at
+      // what it holds is not loaded again at all; while a load is in flight its callers share it, as before)
+      const n = loads.mock.calls.length
       const a = w.net.lakeSeed(key), b = w.net.lakeSeed(key)
-      expect(a).toBe(b)
       await vi.advanceTimersByTimeAsync(20)
+      expect(await a).toBe(false)
+      expect(await b).toBe(false)
+      expect(loads.mock.calls.length).toBe(n)
     })
 
     it('a lake that ENDS BEFORE the answer joins nothing to it (no bar in common: a possible hole)', async () => {

@@ -73,7 +73,7 @@ import { servedFromListingOf, listingReferenceDate, listingStartOf } from './cha
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
-import { legendInkVars, readLegendContext, legibleInk, legendValueBandVars } from './chart/legendInk'
+import { legendInkVars, readLegendContextCached, legibleInk, legendValueBandVars } from './chart/legendInk'
 import { useThemeVersion } from '../lib/theme/useThemeInk'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
 // THE WHOLE STATEMENT. All fourteen series-expressible natives are FLIPPED, so
@@ -4708,7 +4708,8 @@ function StockChartBody({
   useLayoutEffect(() => {
     const el = wrapperRef.current
     if (!el) return
-    const { tokens, under } = readLegendContext(el)
+    // read once per element chain (legendInk.readLegendContextCached): a board switch mounts every chart in the same chain
+    const { tokens, under } = readLegendContextCached(el)
     const next = legendInkVars({ tokens, top: canvasSample.top, low: canvasSample.low, under, legendColor })
     setLegendInks((prev) => (prev && JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
   }, [canvasSample.top, canvasSample.low, legendColor, appThemeTick])

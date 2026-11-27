@@ -57,7 +57,7 @@ import {
   HARNESS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, laneShown, assertLaneMeasured,
   runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
+import { runHarness, loadCapture, VENDOR_DIR, REPO, harnessWindowOf } from './harness'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
 import { storeHeldOf, libraryStorePins, supplyHeldOf, supplyHeldStorePins, sourceHeldOf } from './storeHeld.js'
 import { builtinSourceStorePins } from './builtinSource.js'
@@ -263,6 +263,8 @@ describe('the vendor harness over the captures on disk', () => {
         ...(LIBRARIES_LOADED.length ? { libraryStore: libraryStorePins(LIBRARIES_LOADED) } : {}),
         ...(SUPPLY_HELD_LOADED.length ? { supplyHeldStore: SUPPLY_HELD_LOADED } : {}),
         ...(SOURCE_HELD_LOADED.length ? { sourceHeldStore: SOURCE_HELD_LOADED } : {}),
+        // ⭐ e98 — a bounded-window run says so at the top (the snapshot writers refuse it)
+        ...(harnessWindowOf() ? { boundedWindow: { newest: harnessWindowOf() } } : {}),
         results: markStoreHeld(run.results),
         inventory: run.inventory,
       }, null, 1) + '\n')

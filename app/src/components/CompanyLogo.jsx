@@ -25,12 +25,28 @@ function bgFor(sym) {
 // DEFERRING it — native lazy-loading was the 1-2s "pop-in" on visible logos. A
 // genuinely long, mostly-off-screen virtualized list can pass loading="lazy" to keep
 // the below-the-fold defer. Logos are tiny + edge-cached, so eager is cheap.
-export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null, brandMark = false, loading = 'eager' }) {
+// ⚡ `deferSrc` (2026-11-26, the board switch): a logo OFF SCREEN (a virtualized list's overscan rows, ScanRows) asks for
+// its image one animation frame after it mounts, out of the commit that mounts the board: setting `src` on ~40 row images
+// at once was 6.9 ms of a board switch's click task. Nothing on screen changes: the monogram is what every new row shows
+// until its image loads, and an off-screen row shows nothing. A row that comes on screen asks at once (the prop drops).
+export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null, brandMark = false, loading = 'eager', deferSrc = false }) {
   const s = (sym || '').toUpperCase()
   const [retry, setRetry] = useState(0)
   const [loaded, setLoaded] = useState(false)   // a REAL logo (naturalWidth > 2) has loaded
   const [prevSym, setPrevSym] = useState(s)
   const timerRef = useRef(null)
+  const [srcOn, setSrcOn] = useState(!deferSrc)
+  useEffect(() => {
+    // ⛔ once a logo has asked for its image the ask is never taken back (review of #2847): a row that came on screen
+    // (deferSrc false) and then slid back into the overscan keeps its src, never a dropped image and a re-request
+    if (!deferSrc) { if (!srcOn) setSrcOn(true); return undefined }
+    if (srcOn) return undefined
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 16)
+    const caf = typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : clearTimeout
+    const id = raf(() => setSrcOn(true))
+    return () => caf(id)
+  }, [deferSrc, srcOn])
+  const wantSrc = srcOn || !deferSrc
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
   // New symbol → start the retry budget over + hide any prior logo. React's
@@ -103,7 +119,7 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
         {s.slice(0, 1) || '?'}
       </span>
       {s && (
-        <img className={styles.imgFill} style={{ opacity: loaded ? 1 : 0 }} src={src}
+        <img className={styles.imgFill} style={{ opacity: loaded ? 1 : 0 }} src={wantSrc ? src : undefined}
              alt={`${s} logo`} loading={loading} decoding="async" onError={handleError} onLoad={handleLoad} />
       )}
     </span>
