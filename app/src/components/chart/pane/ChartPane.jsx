@@ -72,6 +72,7 @@ import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
 import { warmTypedSymbol as storeWarmTypedSymbol } from '../../../data/barStore/prefetch'
 import { BARSTORE } from '../barStoreSwitch'
+import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -1092,9 +1093,24 @@ function ChartPane({
   // them too, at the moment it knows the text is a ticker (data/barStore/prefetch _tellTyped)
   const typedTfsRef = useRef(typedIntentTfs)
   typedTfsRef.current = typedIntentTfs
+  // ⭐ (2026-11-26, typed vs arrow) ...and once that warm has settled (the ticker's bars are in the store, or were already),
+  // the typed ticker is named the NEXT symbol of the one this chart shows (neighborFrames.publishTypedNext): the charts on
+  // it prepare its frame in idle time, as they prepare a list's next row, and Enter finds it instead of deriving it in the
+  // key task. Only the newest text names anything; a prefix ('unknown') clears it. Store charts only (the preparer reads it).
+  const symRef = useRef(sym)
+  symRef.current = sym
+  const typedNextRef = useRef(null)
   const handleTypedIntent = useCallback((s) => {
-    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
+    const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
+    if (!BARSTORE) return
+    const center = symRef.current
+    const mine = {}
+    typedNextRef.current = mine
+    Promise.resolve(warm).then((r) => {
+      if (typedNextRef.current !== mine) return   // newer text since
+      publishTypedNext(center, r === 'unknown' || r === 'superseded' ? null : s)
+    }).catch(() => {})
   }, [effectiveTf])
 
   const handleChartClick = useCallback((e) => {

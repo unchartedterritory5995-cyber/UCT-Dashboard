@@ -92,3 +92,49 @@ test('PIN: Enter hands the host the symbol synchronously; only the chart\'s refo
   await new Promise((r) => requestAnimationFrame(() => r()))
   expect(document.activeElement).toBe(region())
 })
+
+// ⭐ (2026-11-26, typed vs arrow) THE TYPED TICKER'S FRAME IS PREPARED LIKE A LIST'S NEXT ROW. Once the chart's own typed
+// warm has settled (its bars are in the store), the pane names the typed ticker as the NEXT symbol of the chart it shows
+// (neighborFrames.publishTypedNext): every chart on that symbol prepares the typed ticker's derived frame in idle time
+// (useNeighborFrames), so Enter finds it instead of deriving it inside the key task. Only the newest text; never a prefix.
+test('after the typed warm settles, the typed ticker is the next symbol of the chart\'s current symbol', async () => {
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  let done
+  storeWarm.mockImplementation(() => new Promise((r) => { done = r }))
+  render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  expect(nf.scanNeighborsFor('NVDA')).toEqual([])                   // not before its bars are in
+  done('cache')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMD'])
+  storeWarm.mockReset()
+  nf.__setNeighborFramesForTests(null)
+})
+
+test('a held ticker (the warm has nothing to do: null) is named at once; a prefix ("unknown") and older text never are', async () => {
+  const nf = await import('../neighborFrames')
+  nf.__setNeighborFramesForTests(true)
+  nf.__resetScanForTests()
+  render(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  storeWarm.mockImplementation(() => null)
+  chartSearch().onTypedIntent('AMD')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMD'])
+  storeWarm.mockImplementation(() => Promise.resolve('unknown'))
+  chartSearch().onTypedIntent('AM')
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual([])                   // the prefix cleared it, named nothing
+  let slow
+  storeWarm.mockImplementation(() => new Promise((r) => { slow = r }))
+  chartSearch().onTypedIntent('AMDL')
+  storeWarm.mockImplementation(() => Promise.resolve('network'))
+  chartSearch().onTypedIntent('AMZN')
+  await new Promise((r) => setTimeout(r, 0))
+  slow('cache')                                                     // the older text's warm lands last
+  await new Promise((r) => setTimeout(r, 0))
+  expect(nf.scanNeighborsFor('NVDA')).toEqual(['AMZN'])
+  storeWarm.mockReset()
+  nf.__setNeighborFramesForTests(null)
+})
