@@ -21,8 +21,27 @@ describe('prefetch.heldRows', () => {
     const pf = createPrefetch({ store })
     const key = pf.keyFor('AAA', '30')
     store.held.set(key, { bars: rows(1120), developing: { t: 1 }, restSeen: true })
-    expect(pf.heldRows('AAA', '30')).toBe(1121)
+    expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(1121)   // an extended view draws every row
     expect(pf.heldRows('BBB', '30')).toBe(0)                    // nothing held
+  })
+
+  // (review of #2871) a REGULAR-HOURS view of a key both sessions share draws only its regular-session rows
+  it('a regular-hours view of a shared key counts its regular-session rows (barTime.isRthBar), up to COVER_ROWS', async () => {
+    const { isRthBar } = await import('../../components/chart/barTime')
+    const { COVER_ROWS } = await import('./coverRows')
+    const store = stubStore()
+    const pf = createPrefetch({ store })
+    const key = pf.keyFor('AAA', '30', { showExtended: false })
+    expect(pf.keyFor('AAA', '30', { showExtended: true })).toBe(key)   // the same rows serve both views
+    const few = rows(1120)
+    store.held.set(key, { bars: few, developing: null, restSeen: true })
+    const rth = few.filter((b) => isRthBar(b.t)).length
+    expect(rth).toBeLessThan(COVER_ROWS)
+    expect(pf.heldRows('AAA', '30', { showExtended: false })).toBe(rth)
+    const many = rows(6000)
+    store.held.set(key, { bars: many, developing: null, restSeen: true })
+    expect(pf.heldRows('AAA', '30', { showExtended: false })).toBe(COVER_ROWS)   // counted no further than COVER_ROWS
+    expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(6000)
   })
 
   it('with answered: 0 for a saved copy alone, the count once the server answered in this life', () => {
