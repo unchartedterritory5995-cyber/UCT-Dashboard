@@ -145,7 +145,8 @@ const fetcher = url => {
   const op = beginPrefsOp()
   // The first read takes the request main.jsx started as the page loaded (lib/bootFetch.js), and only
   // when the boot sign-in check named THIS member; anything else, or a failed boot request, fetches.
-  const boot = url === PREFS_URL ? takeBootPreferences(prefsUser()) : null
+  // (⭐ 2026-11-26: the getter, read when the boot /me has answered: a read made before it waits for it, never fetches twice)
+  const boot = url === PREFS_URL ? takeBootPreferences(prefsUser) : null
   // (A member change meanwhile: the next step drops whatever this hands it; no second request for it.)
   const p = (boot ? boot.then(r => { if (op.stale()) return r; return r || fetch(url) }) : fetch(url)).then(
     r => {

@@ -29,6 +29,7 @@ export const MAINTENANCE_TIMEOUT_MS = 8_000
 
 const entries = new Map()   // url -> { at, p }
 let bootUser                // undefined: boot /me not read yet; null: signed out; id: that member
+let bootUserWaiters = []    // preference takes waiting for the boot /me's verdict (`takeBootPreferences`)
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
@@ -76,7 +77,9 @@ export function takeBootMaintenance() { return take(MAINTENANCE_URL) }
  *  out). Only the first call counts: a later refetch must never re-point the boot preferences at
  *  another member. */
 export function noteBootUser(id) {
-  if (bootUser === undefined) bootUser = id ?? null
+  if (bootUser !== undefined) return
+  bootUser = id ?? null
+  for (const w of bootUserWaiters.splice(0)) w()
 }
 
 /** AuthContext, on every definitive /me answer: whether to start preferences early next page load. */
@@ -87,12 +90,32 @@ export function setSignedInHint(signedIn, storage = safeStorage()) {
   } catch { /* storage blocked */ }
 }
 
-/** usePreferences' fetcher: the boot preferences Response, only for the member the boot /me named. */
+/** usePreferences' fetcher: the boot preferences Response, only for the member the boot /me named.
+ *  `forUser`: the member the caller reads for, or a getter of it (read when the answer is decided).
+ *  ⭐ (2026-11-26, Fred RS load) A TAKE BEFORE THE BOOT /me HAS ANSWERED WAITS FOR IT instead of throwing the boot
+ *  answer away. ⚰️ Measured on production (ecc0bb94, a /charts reload): the chart asked for its preferences ~100 ms after
+ *  the boot request left and before the boot /me had answered; the take answered null (and consumed the entry), so the
+ *  preferences were fetched TWICE at boot (275 ms and 371 ms). Now the take resolves when the boot /me answers (never
+ *  later than BOOT_MAX_AGE_MS): the boot answer if /me named a member and the caller reads for that member or has no
+ *  member published yet (the same session cookie made both requests; a member change after is the caller's `op.stale()`
+ *  check), else null (signed out, or another member), and the caller fetches as before. */
 export function takeBootPreferences(forUser) {
   const p = take(PREFS_URL)
   if (!p) return null
-  if (bootUser === undefined || bootUser === null || forUser == null || forUser !== bootUser) return null
-  return p
+  const readFor = () => (typeof forUser === 'function' ? forUser() : forUser)
+  if (bootUser !== undefined) {
+    const f = readFor()
+    if (bootUser === null || f == null || f !== bootUser) return null
+    return p
+  }
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), BOOT_MAX_AGE_MS)
+    bootUserWaiters.push(() => {
+      clearTimeout(timer)
+      const f = readFor()
+      resolve(bootUser === null || (f != null && f !== bootUser) ? null : p)
+    })
+  })
 }
 
 function safeStorage() {
@@ -100,4 +123,4 @@ function safeStorage() {
 }
 
 /** Tests only. */
-export function __resetBootFetchForTests() { entries.clear(); bootUser = undefined }
+export function __resetBootFetchForTests() { entries.clear(); bootUser = undefined; bootUserWaiters = [] }
