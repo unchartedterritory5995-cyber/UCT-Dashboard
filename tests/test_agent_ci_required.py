@@ -1957,9 +1957,14 @@ def _follower_checkout(r):
             continue            # folders (/app/: data and configs) and agent-ci.yml: the fixture's master already holds them
         (r.work / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(ROOT / rel, r.work / rel)
-    ds = "app/src/lib/marketClock/market_calendar.json"     # the one /app/ file the follower reads
-    (r.work / ds).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(ROOT / ds, r.work / ds)
+    # /app/ is checked out WHOLE by the job: its dataset (the one file the follower reads) and every tracked .py under
+    # it (delta 4, W3), so code the follower might execute from app/ is on disk here as it is there, and counted
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "app/*.py"], capture_output=True, text=True, check=True)
+    app_py = [p for p in listed.stdout.split("\0") if p]
+    assert app_py, "no tracked .py under app/: the mirror would prove nothing"
+    for rel in ["app/src/lib/marketClock/market_calendar.json", *app_py]:
+        (r.work / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, r.work / rel)
 
 
 def _run_follower(tmp_path, r):
@@ -1999,3 +2004,21 @@ def test_MQ_the_follower_executes_only_self_protected_code(tmp_path):
     paths = acr.agent_paths(acr.load_agent_ci(ROOT))
     not_agent = [p for p in work if not acr.matches(p, paths)]
     assert not_agent == [], f"the token-holding follower executes repo code that is not an Agent path: {not_agent}"
+
+
+
+def test_MQ_the_freeze_calendar_dataset_is_an_agent_path_and_self_protected():
+    """AUDIT O1 on #2850: the follower's freeze windows are derived from this dataset, so editing it moves the merge
+    queue's freeze. It is an Agent path (agent-ci.yml, both `paths:` lists) AND self-protected: a calendar edit is
+    `self-protected` scope and AUDIT decides (the yearly holiday refresh included)."""
+    ds = "app/src/lib/marketClock/market_calendar.json"
+    assert (ROOT / ds).is_file() and acr.FREEZE_CALENDAR == ROOT / ds
+    assert acr.matches(ds, PATHS) and acr.matches(ds, list(ev.SELF_PROTECTED)), ds
+    assert acr.decide_scope([ds], PATHS, PROTECTED) == (acr.SCOPE_PROTECTED, "1 self-protected path(s), e.g. " + ds)
+    doc = acr.load_agent_ci(ROOT)
+    on = doc.get("on", doc.get(True))
+    for trigger in ("push", "pull_request"):
+        assert ds in on[trigger]["paths"], trigger                       # both lists, by name
+    # control: a neighbour in the same folder is neither
+    other = "app/src/lib/marketClock/sessionCalendar.js"
+    assert not acr.matches(other, list(ev.SELF_PROTECTED)) and not acr.matches(other, PATHS)

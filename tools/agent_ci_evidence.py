@@ -249,6 +249,9 @@ SELF_PROTECTED = (
     # #2850 (review delta 2, X1): the `tools` package marker. The queue verdict's follower, which holds the App token,
     # executes it on `from tools import ...`; it is an Agent path too (agent-ci.yml `paths:`), so an edit is AUDIT's.
     "tools/__init__.py",
+    # AUDIT O1 on #2850: the NYSE calendar dataset the queue verdict's freeze derives its windows from (data the token
+    # job reads, bounded in agent_ci_required._floor_calendar). An Agent path too, so a calendar edit is AUDIT's.
+    "app/src/lib/marketClock/market_calendar.json",
     # F4: the browser job executes the shard planner and reads its committed timings
     "tools/agent_vitest_shards.py", "tools/agent_vitest_shard_timings.json",
     # F4: code the configs import (vite.config.js imports ./scripts/chartLibraryPatch.mjs); config_imports() also
