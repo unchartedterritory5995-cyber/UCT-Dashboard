@@ -228,9 +228,11 @@ function useLegacyRealtimePrices(tickers = []) {
     }, STREAM_WATCHDOG_TICK_MS)
   }, [sorted])
 
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board closes its stream; it opens
+  // again after the show's first paint. Everywhere else: connected while mounted, exactly as before.
+  const layer = useLayerBoard()
   useEffect(() => {
-    if (sorted) connect()
-    return () => {
+    const close = () => {
       if (esRef.current) {
         esRef.current.close()
         esRef.current = null
@@ -244,7 +246,9 @@ function useLegacyRealtimePrices(tickers = []) {
       }
       setConnected(false)
     }
-  }, [sorted, connect])
+    if (!sorted) return close
+    return whileBoardShown(layer, () => { connect(); return close })
+  }, [sorted, connect, layer])
 
   // Per-field merge: REST fields (day_open, day_high, day_low, volume, prev_close)
   // are preserved, stream fields (price, change_pct, updated_at, timestamp) overlay.

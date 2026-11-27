@@ -6,20 +6,19 @@
 //   P3 (red first) neither the hide nor the show re-renders either hook when nothing moved; while hidden their prices
 //      are the ones held at the hide
 //   P4 the <Activity> mode's handle changes nothing
+//   P5 (red first) a poll landing while the board is hidden (another board keeps the ticker polled) re-renders nothing;
+//      after the show's first paint the hook reads it once
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-const reg = vi.hoisted(() => ({ live: new Map(), stream: new Map() }))
+const reg = vi.hoisted(() => ({ live: new Map(), stream: new Map(), snap: { AAPL: { price: 1 } }, subs: new Set() }))
 const bump = (m, list, d) => { for (const t of list) m.set(t, (m.get(t) || 0) + d) }
-vi.mock('./livePriceStore', () => {
-  const snap = { AAPL: { price: 1 } }
-  return {
-    registerTickers: (list) => { bump(reg.live, list, 1); return () => bump(reg.live, list, -1) },
-    subscribe: () => () => {},
-    getSnapshot: () => snap,
-    pollNow: () => {},
-  }
-})
+vi.mock('./livePriceStore', () => ({
+  registerTickers: (list) => { bump(reg.live, list, 1); return () => bump(reg.live, list, -1) },
+  subscribe: (fn) => { reg.subs.add(fn); return () => reg.subs.delete(fn) },
+  getSnapshot: () => reg.snap,
+  pollNow: () => {},
+}))
 vi.mock('../lib/priceStreamManager', () => {
   const snap = { prices: {}, staleSymbols: new Set(), connected: true }
   return {
@@ -32,7 +31,7 @@ import useLivePrices from './useLivePrices'
 import useRealtimePrices from './useRealtimePrices'
 import { BoardVisibilityContext, createBoardVisibility } from '../components/chart/boardVisibility'
 
-beforeEach(() => { reg.live.clear(); reg.stream.clear() })
+beforeEach(() => { reg.live.clear(); reg.stream.clear(); reg.snap = { AAPL: { price: 1 } } })
 let renders = 0
 const mount = (hook, vis) => renderHook(() => { renders++; return hook(['AAPL']) }, {
   wrapper: ({ children }) => <BoardVisibilityContext.Provider value={vis}>{children}</BoardVisibilityContext.Provider>,
@@ -84,6 +83,24 @@ describe('price hooks on a hidden layer board', () => {
       expect(renders - before, `${hook.name}: the hide or the show re-rendered the reader`).toBe(1)   // the rerender() above
       view.unmount()
     }
+  })
+
+  it('P5 (red first) a poll landing while hidden re-renders nothing; the show reads it once', async () => {
+    const vis = createBoardVisibility({ layer: true })
+    const view = mount(useLivePrices, vis)
+    await afterPaint()
+    reg.snap = { AAPL: { price: 2 } }
+    act(() => { for (const f of [...reg.subs]) f() })
+    expect(view.result.current.prices.AAPL.price, 'NON-VACUITY: a shown board reads a poll').toBe(2)
+    act(() => { vis.set('hidden') })
+    const before = renders
+    reg.snap = { AAPL: { price: 3 } }
+    act(() => { for (const f of [...reg.subs]) f() })
+    expect(renders - before, 'a poll re-rendered a hidden board').toBe(0)
+    act(() => { vis.set('visible') })
+    await afterPaint()
+    expect(view.result.current.prices.AAPL.price, 'the show did not read the poll that landed while hidden').toBe(3)
+    view.unmount()
   })
 
   it('P4 the <Activity> handle changes nothing', () => {
