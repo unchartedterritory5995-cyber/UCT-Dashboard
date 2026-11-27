@@ -13,6 +13,10 @@
 //   H9 (F6) no flip while a replay cutoff is set
 //   H10 (live dry run) right after a flip, and at mount, the hidden pane takes the row ahead with no idle time
 //   H11 each decision is logged with the time since the hidden pane was set and since its chart reported
+//   H12 / H13 (typed-Enter dry run) only the width must match (each chart pins its own symbol's right edge); a typed ticker
+//      named next by the pane (publishTypedNext) is the hidden pane's row, and Enter flips
+//   H14 (review of #2932) focusFront() focuses the pane shown NOW (a typed Enter's refocus, from the old front, lands there)
+//   H15 (review of #2932) a hidden chart of the same width, more than half a bar off its own pin, is re-pinned
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -36,7 +40,11 @@ let scope
 const member = { m: 1 }
 const idle = async () => { await act(async () => { await vi.advanceTimersByTimeAsync(400) }) }
 // each layer's pane: its date-nav meta (a frame at the right edge) and a restoreView that writes it, a focus spy
-const meta = (fromRight = 160, toRight = -5) => ({ frame: { fromRight, toRight, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } })
+// a frame pinned as the switch pins it on a 1000 px plot (gap 5 %): toRight = -(reserve + width x 0.05)
+const meta = (width = 160, reserve = 0) => {
+  const toRight = -(reserve + width * 0.05)
+  return { frame: { fromRight: toRight + width, toRight, locked: false }, activeRange: null, priceAuto: true, replay: { on: false }, plotWidthPx: 1000 }
+}
 let panes
 let els
 const base = () => ({ eligible: true, sym: 'AAA', settings, replay: false, scope, member, parentVis: null, panes: () => panes, layerEls: () => els })
@@ -157,7 +165,7 @@ describe('useDoubleBuffer', () => {
     expect(painted.some((a) => a[3] === 'flip')).toBe(false)
   })
 
-  it('H5 the board\'s budget taken: no shadow, no flip', async () => {
+  it("H5 the board\'s budget taken: no shadow, no flip", async () => {
     db.acquireShadow(scope, {}); db.acquireShadow(scope, {})
     const h = mount()
     report(h.result, 0, 'AAA')
@@ -167,7 +175,7 @@ describe('useDoubleBuffer', () => {
     expect(h.result.current.front).toBe(0)
   })
 
-  it('H6 (F2) a hidden board gives its shadow back and drops the hidden pane; shown again, the shadow returns; the budget is the slot\'s', async () => {
+  it("H6 (F2) a hidden board gives its shadow back and drops the hidden pane; shown again, the shadow returns; the budget is the slot\'s", async () => {
     const board = createBoardVisibility({ layer: true })
     const other = createBoardVisibility({ layer: true })
     db.acquireShadow(other, {}); db.acquireShadow(other, {})   // another board slot's budget is full: not this one's
@@ -204,7 +212,7 @@ describe('useDoubleBuffer', () => {
   it('H7 (F1) a zoomed front refuses the flip; the shadow mirrors the zoom in idle time; then a press flips', async () => {
     const h = await ready()
     await idle()                                         // (whatever mirror the shadow's report scheduled has run)
-    panes[0].m = meta(80, -5)                            // the member zoomed in on the front
+    panes[0].m = meta(80)                                // the member zoomed in on the front
     press(h, 'BBB')
     expect(h.result.current.front).toBe(0)
     expect(db.doubleBufferStats().why['view-zoom']).toBe(1)
@@ -214,7 +222,48 @@ describe('useDoubleBuffer', () => {
     report(h.result, 1, 'BBB')
     act(() => { h.result.current.viewChanged(0) })      // the front's range moved
     await idle()
-    expect(panes[1].m.frame).toEqual({ fromRight: 80, toRight: -5, locked: false })
+    expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(76, 6), toRight: expect.closeTo(-4, 6), locked: false })   // re-pinned at width 80
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+  })
+
+  it("H12 (typed-Enter dry run) a hidden chart pinned at its OWN right edge (its symbol's reserve) flips: only the width must match", async () => {
+    const h = await ready()
+    panes[1].m = meta(160, 1)                            // the hidden symbol's developing slot moves its right edge
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+  })
+
+  it("H13 (typed-Enter dry run) a typed ticker is the hidden pane's row: the chart names it next (publishTypedNext), Enter flips", async () => {
+    const h = await ready()
+    fresh('NVDA')
+    __setDoubleBufferBarsSourceForTests((k) => (k === keyOf('NVDA') ? bars.NVDA : k === keyOf('AAA') ? bars.AAA : k === keyOf('BBB') ? bars.BBB : null))
+    act(() => { nf.publishTypedNext('AAA', 'NVDA') })     // the pane's typed warm has NVDA's bars in
+    expect(h.result.current.syms[1]).toBe('NVDA')
+    report(h.result, 1, 'NVDA')
+    press(h, 'NVDA')
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().log.at(-1)).toMatchObject({ sym: 'NVDA', why: 'flip' })
+  })
+
+  it('H14 (review of #2932) focusFront() focuses the pane shown now, before and after a flip', async () => {
+    const h = await ready()
+    act(() => { h.result.current.focusFront() })
+    expect(panes[0].focus).toHaveBeenCalledTimes(1)
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    act(() => { h.result.current.focusFront() })
+    expect(panes[1].focus).toHaveBeenCalledTimes(1)
+    expect(panes[0].focus).toHaveBeenCalledTimes(1)
+  })
+
+  it("H15 (review of #2932) a hidden chart of the front's width, more than half a bar off its own pin, is re-pinned; then a press flips", async () => {
+    const h = await ready()
+    await idle()
+    panes[1].m = { ...meta(160, 1), pinReserve: 0 }      // today's first bar landed while the hidden chart was pinned
+    report(h.result, 1, 'BBB')
+    await idle()
+    expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(152, 6), toRight: expect.closeTo(-8, 6), locked: false })
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
   })

@@ -92,7 +92,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {object|null} o.parentVis   the board's layer handle, or null
  * @param {() => object[]} o.panes    each layer's pane instance (ChartPane's imperative handle: getDateMeta, viewDo, focus)
  * @param {() => Element[]} o.layerEls each layer's wrapper element
- * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function}}
+ * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
 export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
@@ -258,6 +258,13 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
   const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) scheduleMirror() })
+  // (review of #2932) the pane shown NOW takes the focus: ChartPane's refocus after a typed Enter calls this when its own
+  // pane is the inert old front (the Enter FLIPPED), so the keys go on reaching the chart (chart/layerPaint.js)
+  const panesRef = useRef(panes)
+  panesRef.current = panes
+  const [focusFront] = useState(() => () => {
+    try { panesRef.current?.()?.[bufRef.current.front]?.focus?.() } catch { /* a pane mid-unmount: nothing to focus */ }
+  })
 
   // ── the retarget: after the front's symbol changed (or the list publishes), the hidden pane takes the next row ──
   // ⭐ (2026-11-27, the live dry run: 1 s presses found the hidden pane not on the row ahead yet) RIGHT AFTER THE FRAME,
@@ -312,6 +319,6 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     }
   }, [buf])
 
-  return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged }),
-    [eligible, buf, handles, reporters, viewChanged])
+  return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged, focusFront }),
+    [eligible, buf, handles, reporters, viewChanged, focusFront])
 }

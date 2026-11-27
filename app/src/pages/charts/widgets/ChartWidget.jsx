@@ -32,7 +32,7 @@ import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
-import { LayerPaintContext } from '../../../components/chart/layerPaint'
+import { LayerFrontFocusContext, LayerPaintContext } from '../../../components/chart/layerPaint'
 import { SWRConfig } from 'swr'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
@@ -1044,6 +1044,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       {db.on ? (
         <div className={dbStyles.slot} data-double-buffer="">
+          {/* (review of #2932) a pane's refocus after a typed Enter that flipped lands in the pane shown now (ChartPane) */}
+          <LayerFrontFocusContext.Provider value={db.focusFront}>
           {[0, 1].map((i) => (db.syms[i] ? (
             <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
@@ -1055,6 +1057,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </BoardVisibilityContext.Provider>
             </div>
           ) : null))}
+          </LayerFrontFocusContext.Provider>
         </div>
       ) : renderPane(sym, paneRef, subscribeCrosshair)}
       </ChartDetailDock>

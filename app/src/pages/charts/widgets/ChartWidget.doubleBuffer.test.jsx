@@ -9,6 +9,8 @@
 //   W5 (delta review N1) A BOARD SWITCH'S CLICK COMMITS NOTHING OF THE WIDGET: hiding and showing its board (the
 //      workspace does it in its click handler) renders no pane and unmounts no chart in that commit; the shadow goes
 //      later, in idle time, and comes back after the show
+//   W6 the two layers' charts are mounted once for the widget's life
+//   W7 (review of #2932) a typed Enter that flips leaves the focus in the front layer, as a typed switch does
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { Profiler, useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -75,9 +77,28 @@ const changedProps = (sym) => {
 vi.mock('./ChartDetailDock', () => ({
   default: ({ sym, children }) => (<><span data-testid="dock-sym">{sym}</span>{children}</>),
 }))
+// The header's search: like SymbolSearch, its input sits in a PORTAL (outside the layer), and a submit hides that portal
+// root before it calls onSymbolChange (SymbolSearch.submit)
 vi.mock('../../../components/chart/SymbolSearch', async () => {
-  const { forwardRef, useImperativeHandle } = await import('react')
-  return { default: forwardRef((_p, ref) => { useImperativeHandle(ref, () => ({ openWith: () => {} })); return <span>search</span> }) }
+  const { forwardRef, useImperativeHandle, useRef } = await import('react')
+  const { createPortal } = await import('react-dom')
+  return {
+    default: forwardRef((p, ref) => {
+      useImperativeHandle(ref, () => ({ openWith: () => {} }))
+      const root = useRef(null)
+      const submit = (e) => {
+        e.preventDefault()
+        if (root.current) root.current.style.display = 'none'
+        p.onSymbolChange?.(e.currentTarget.elements.q.value.toUpperCase())
+      }
+      return (
+        <>
+          <span>search</span>
+          {createPortal(<div ref={root}><form data-testid={`search-${p.sym}`} onSubmit={submit}><input name="q" aria-label={`search ${p.sym}`} /></form></div>, document.body)}
+        </>
+      )
+    }),
+  }
 })
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <span>share</span> }))
 vi.mock('../../../components/chart/ChartSettingsModal', () => ({ default: () => null }))
@@ -278,4 +299,36 @@ test('W6 the two layers are mounted once: flips and retargets re-use the same tw
   expect(dbm.doubleBufferStats().flips).toBeGreaterThanOrEqual(1)
   expect(renders.mounts - m0, 'a press or a retarget mounted another chart').toBe(2)
   expect(renders.unmounts - u0).toBe(0)
+})
+
+// (review of #2932) a typed Enter refocuses the chart (ChartPane handleSymbolChange, in the next frame) so the next keys
+// reach it. On a FLIP the pane that ran the search is the OLD front, inert by the time that frame runs: the focus must land
+// in the pane now shown. The frames the Enter asks for are held until its switch has committed: the order when the handoff
+// shows a warm row at once (here the handoff's own wait would otherwise let the frame run first, and F5 carry the focus).
+const typeEnter = async (paneSym, text) => {
+  const input = screen.getByLabelText(`search ${paneSym}`)
+  act(() => { input.focus() })
+  fireEvent.change(input, { target: { value: text } })
+  const frames = []
+  const raf = globalThis.requestAnimationFrame
+  globalThis.requestAnimationFrame = (cb) => { frames.push(cb); return frames.length }
+  try { fireEvent.submit(screen.getByTestId(`search-${paneSym}`)) } finally { globalThis.requestAnimationFrame = raf }
+  await settle(200)                                         // the switch commits
+  act(() => { for (const cb of frames.splice(0)) cb(performance.now()) })   // then the Enter's frame
+  await settle(50)
+}
+test('W7 (review of #2932) a typed Enter that flips leaves the focus in the front layer, as a typed switch does', async () => {
+  render(<Wrap />)
+  await settle()
+  expect(symIn(layer('shadow'))).toBe('BBB')
+  await typeEnter('AAA', 'bbb')
+  expect(dbm.doubleBufferStats().flips).toBe(1)
+  expect(symIn(layer('front'))).toBe('BBB')
+  expect(layer('front').contains(document.activeElement), `focus is on ${document.activeElement?.tagName} ${document.activeElement?.getAttribute?.('aria-label') ?? ''}`).toBe(true)
+  await settle()
+  expect(symIn(layer('shadow'))).toBe('CCC')
+  await typeEnter('BBB', 'aaa')                             // not the hidden pane's row: the normal switch (the control)
+  expect(dbm.doubleBufferStats().flips).toBe(1)
+  expect(symIn(layer('front'))).toBe('AAA')
+  expect(layer('front').contains(document.activeElement)).toBe(true)
 })
