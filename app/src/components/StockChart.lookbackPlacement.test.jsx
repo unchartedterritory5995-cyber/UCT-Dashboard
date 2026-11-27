@@ -210,6 +210,29 @@ describe('the chrome sampler measures in the frame, not inside the commit', () =
     expect(wrapper.style.getPropertyValue('--lookback-bottom')).toMatch(/^\d+px$/)
   })
 
+  it('a ResizeObserver delivery before that frame takes the first pass there (the effect ran inside a frame callback)', async () => {
+    // The browser delivers an observer's first notification after the frame's layout, before its paint. An effect run
+    // inside an animation-frame callback asked for the NEXT frame; the delivery is what keeps the first paint placed.
+    const observers = []
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(cb) { this.cb = cb; this.els = []; observers.push(this) }
+      observe(el) { this.els.push(el) }
+      unobserve() {}
+      disconnect() { this.els = [] }
+    })
+    const wrapper = await mountReady()
+    expect(wrapper.style.getPropertyValue('--lookback-bottom')).toBe('')
+    act(() => {
+      for (const o of observers) {
+        for (const el of o.els) {
+          if (!wrapper.contains(el)) continue
+          try { o.cb([{ target: el, contentRect: { width: 600, height: 400 } }], o) } catch { /* another observer's shape */ }
+        }
+      }
+    })
+    expect(wrapper.style.getPropertyValue('--lookback-bottom'), 'placed by the delivery, no frame run').toMatch(/^\d+px$/)
+  })
+
   it('an unarranged chart (Price on top) leaves --price-pane-top unset: every reader falls back to 0px', async () => {
     const wrapper = await mountReady()
     for (let i = 0; i < 4; i++) await flushFrame()
