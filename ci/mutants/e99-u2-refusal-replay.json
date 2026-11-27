@@ -1,0 +1,50 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "M1",
+   "mutant": "a kept refusal replayed across scopes (env not checked for a refusal)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "if (hit && hit.env === this.env && hit.stack === this.stack",
+   "to": "if (hit && (hit.refusal || hit.env === this.env) && hit.stack === this.stack",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/refusalReplay.test.js",
+   "expectRed": "never across scopes"
+  },
+  {
+   "id": "M2",
+   "mutant": "a replay not charged on the call's count (CALL_STEPS)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (WINDOW_OPEN) CALL_STEPS += hit.callSteps",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/refusalReplay.test.js",
+   "expectRed": "the same translation and step count"
+  },
+  {
+   "id": "M3",
+   "mutant": "the same error object rethrown (no fresh refusal)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return refusalFromSnapshot(hit.refusal)",
+   "to": "    return hit.refusal.original",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/refusalReplay.test.js",
+   "expectRed": "a fresh refusal each time"
+  },
+  {
+   "id": "M4",
+   "mutant": "the Resolver's step cap not checked before a replay",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      && !(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)",
+   "to": "      && true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/refusalReplay.test.js",
+   "expectRed": "past the Resolver's cap it resolves for real"
+  },
+  {
+   "id": "M5",
+   "mutant": "memo fills not counted (RESOLVE_MEMO_FILLS left out of replaySideMark)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return n + RESOLVE_MEMO_FILLS",
+   "to": "    return n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/refusalReplay.test.js",
+   "expectRed": "settles a vector size"
+  }
+ ]
+}
