@@ -277,19 +277,18 @@ def test_the_deploy_freeze_self_check_passes_and_reads_the_same_window():
     out = subprocess.run([sys.executable, str(ROOT / "tools" / "deploy_freeze.py"),
                           "--self-check"], capture_output=True, text=True, timeout=120)
     assert out.returncode == 0 and "self-check: PASS" in out.stdout, out.stdout + out.stderr
-    frozen = subprocess.run([sys.executable, str(ROOT / "tools" / "deploy_freeze.py"),
+    # owner ruling 2026-11-27: the measurement window no longer holds the promotion (tests/test_no_deploy_freeze.py)
+    inside = subprocess.run([sys.executable, str(ROOT / "tools" / "deploy_freeze.py"),
                              "--now", "2026-10-14T14:00:00Z"], capture_output=True, text=True,
                             timeout=120)
-    assert frozen.returncode == 3 and "FROZEN" in frozen.stdout
+    assert inside.returncode == 0 and "NOT FROZEN" in inside.stdout
 
 
-def test_the_promotion_workflow_skips_the_fast_forward_when_frozen():
+def test_the_promotion_workflow_has_no_wednesday_window_catch_up():
+    # owner ruling 2026-11-27: no time hold, so no Wednesday catch-up; the weekday crons stay as backup resumes
     wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
     assert "python tools/deploy_freeze.py" in wf
-    assert "steps.freeze.outputs.frozen != 'yes'" in wf
-    assert "cron: '5 15 * * 3'" in wf
-    # the weekday rush catch-ups (2026-10-15): one per daylight/standard offset, after
-    # the opening (09:50 ET) and the closing (16:20 ET) rush
+    assert "cron: '5 15 * * 3'" not in wf and "cron: '5 16 * * 3'" not in wf
     for cron in ("50 13 * * 1-5", "50 14 * * 1-5", "20 20 * * 1-5", "20 21 * * 1-5"):
         assert f"cron: '{cron}'" in wf
 

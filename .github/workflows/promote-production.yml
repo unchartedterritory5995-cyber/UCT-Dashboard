@@ -43,9 +43,6 @@ on:
       sha:
         description: "master commit to promote (default: the PENDING SHA; never the tip of master)"
         required: false
-      freeze_override:
-        description: "reason to promote INSIDE the Wed 09:00-11:00 ET measurement window (voids that week's reading)"
-        required: false
       resume:
         description: "resume the PENDING SHA (set by this workflow's own bounded re-dispatch)"
         required: false
@@ -53,30 +50,20 @@ on:
         description: "yes = decide and report only: no push, no state write, no re-dispatch"
         required: false
       now:
-        description: "DRY RUN ONLY: a simulated clock (ISO time) for the freeze and the wait"
+        description: "DRY RUN ONLY: a simulated clock (ISO time)"
         required: false
-  # ⭐ THE WEDNESDAY CATCH-UP (tools/deploy_freeze.py). A promotion that arrives inside
-  # the Wed 09:00-11:00 ET measurement window is HELD, not refused; these two runs
-  # promote the tip of master once the window has closed (15:05 UTC = 11:05 EDT,
-  # 16:05 UTC = 11:05 EST; the off-season one lands inside the window and holds again,
-  # harmlessly). A run with nothing new to promote ends "Already promoted".
+  # ⛔⛔ NO TIME HOLD, EVER (owner ruling 2026-11-27, verbatim: "fuck the deploy freeze i dont ever want to hold
+  # anything back from deploying ever"). tools/deploy_freeze.py answers NOT FROZEN at every instant, so a gated-green
+  # SHA is fast-forwarded the moment its gate passes: no Wednesday measurement window, no opening/closing rush, no
+  # session hold, no half-day rule, no in-job wait. The Wednesday and half-day catch-up crons that resumed held SHAs
+  # are gone with the hold. Rails: tests/test_no_deploy_freeze.py.
   #
-  # ⭐ THE WEEKDAY RUSH CATCH-UPS (2026-10-15). web is also held during each weekday's
-  # opening (09:20-09:45 ET) and closing (15:30-16:15 ET) rush; these promote the tip of
-  # master after each: 09:50 and 16:20 ET, one cron per daylight/standard offset (the
-  # other lands outside every window and promotes harmlessly).
-  #
-  # ⭐ THE HALF-DAY CATCH-UP (2026-11-26). The hold follows the NYSE calendar (tools/deploy_freeze.py
-  # day_hold_windows): none on a holiday, and on a half-day (13:00 ET close) it ends at 13:15 ET. A SHA held from
-  # the morning of a half-day (its wait to 13:15 is past the 125-min bound) would otherwise wait for the 16:20 ET
-  # run, so these promote at 13:20 ET: 17:20 UTC under EDT (July 3), 18:20 UTC under EST (the day after
-  # Thanksgiving, Christmas Eve). The off-season one lands at 12:20 ET, inside the hold, and waits in-job (55 min,
-  # within the bound) to 13:15. ⛔ On any day that is not a half-day both END EARLY in "Resolve the candidate"
-  # (tools/deploy_freeze.py --half-day says "no"): otherwise the EDT 18:20 UTC run (14:20 ET, 115 min before 16:15,
-  # inside the wait bound) would sit ~2 h in the one promotion queue ahead of an override hotfix.
+  # ⭐ THE BACKUP RESUME CRONS. The weekday runs below are kept for the one thing that can still leave a SHA PENDING:
+  # a gating poll that timed out (checks still running). They resume THAT SHA (tools/promote_decision.py resolve);
+  # with nothing pending they end "nothing is pending" and promote nothing.
   # ⭐ A PR that changes the promotion machinery runs ONLY the `dryrun` job below (contents: read; no push, no state
-  # write, no dispatch): tools/promote_dryrun.py on simulated clocks inside a rush and inside the Wednesday window,
-  # plus the decision tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
+  # write, no dispatch): tools/promote_dryrun.py on simulated clocks the old freeze held (each must PROMOTE, with no
+  # wait), plus the decision and no-hold tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
   pull_request:
     paths:
       - .github/workflows/promote-production.yml
@@ -86,15 +73,12 @@ on:
       - tools/promote_state.sh
       - tools/deploy_freeze.py
       - tests/test_promote_decision.py
+      - tests/test_no_deploy_freeze.py
   schedule:
-    - cron: '5 15 * * 3'
-    - cron: '5 16 * * 3'
     - cron: '50 13 * * 1-5'
     - cron: '50 14 * * 1-5'
     - cron: '20 20 * * 1-5'
     - cron: '20 21 * * 1-5'
-    - cron: '20 17 * * 1-5'
-    - cron: '20 18 * * 1-5'
 
 # ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
 #
@@ -129,8 +113,8 @@ jobs:
     # ⛔ NEVER on pull_request: a PR runs only the `dryrun` job.
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled')
     runs-on: ubuntu-latest
-    # ⭐ 200 min: the bounded freeze wait (at most 126 min: tools/deploy_freeze.py MAX_WAIT_MIN + margin; the
-    # wait step's own timeout is 130) + the gating poll (~20 min) + checkout and bookkeeping. Well under
+    # ⭐ 200 min: generous headroom over the gating poll (~20 min) + checkout and bookkeeping. (It once covered a
+    # bounded freeze wait; since the owner ruling of 2026-11-27 no wait is ever planned, tools/deploy_freeze.py.) Well under
     # GitHub's 6 h job cap. On a public repository standard GitHub-hosted runners bill 0 minutes
     # (docs/agent/program/PROMOTE-CATCHUP-DESIGN.md, "Billing").
     timeout-minutes: 200
@@ -172,8 +156,8 @@ jobs:
           python tools/promote_decision.py --self-check
           python tools/deploy_freeze.py --self-check
 
-      # ⭐ THE PENDING RECORD (deploy-gate-state/pending-promotion.json): the exact gated SHA a freeze held,
-      # written BEFORE any wait so an interrupted run leaves it behind. Absent = nothing pending.
+      # ⭐ THE PENDING RECORD (deploy-gate-state/pending-promotion.json): a gated SHA whose gating poll timed out (or,
+      # before 2026-11-27, one a freeze held). Absent = nothing pending.
       - name: Read the pending record
         id: pend
         env:
@@ -205,22 +189,6 @@ jobs:
           SCHEDULE: ${{ github.event.schedule }}
         run: |
           set -euo pipefail
-          # ⭐ THE HALF-DAY CRONS DO NOTHING UNLESS TODAY IS A HALF-DAY. On a regular EDT day the 18:20 UTC run is
-          # 14:20 ET: the hold ends 16:15 (115 min, inside the bound), so a pending SHA would sit ~2 h in the ONE
-          # promotion queue, ahead of any override hotfix. Ends early ONLY on a positive "no"; "unknown" (the calendar
-          # cannot answer) proceeds like any catch-up. Master's tool (this checkout), not the candidate's.
-          if [ "$EVENT" = "schedule" ] && { [ "$SCHEDULE" = "20 17 * * 1-5" ] || [ "$SCHEDULE" = "20 18 * * 1-5" ]; }; then
-            HD=$(python tools/deploy_freeze.py --half-day 2>/dev/null | sed -n 's/^half_day=//p' | tail -1 || true)
-            echo "half-day catch-up cron ($SCHEDULE): half_day=${HD:-unknown}"
-            if [ "$HD" = "no" ]; then
-              echo "gate_green=no" >> "$GITHUB_OUTPUT"
-              echo "source=" >> "$GITHUB_OUTPUT"
-              echo "stop=the half-day catch-up cron on a day that is not an NYSE half-day" >> "$GITHUB_OUTPUT"
-              echo "none=yes" >> "$GITHUB_OUTPUT"
-              echo "::notice title=Nothing to do::half-day catch-up cron ($SCHEDULE) on a day that is not an NYSE half-day; the 16:20 ET catch-up covers today."
-              exit 0
-            fi
-          fi
           # (A) the operator's manual fallback needs the tip's OWN gate verdict. It is looked up ONLY for a human blank
           # dispatch with nothing pending (resolve() re-checks every guard: no sha, no resume, no dry run, not the bot).
           TIP=""; TIP_OK=no; TIP_RUN=""
@@ -268,16 +236,15 @@ jobs:
           echo "none=no" >> "$GITHUB_OUTPUT"
           echo "candidate: $SHA ($(printf '%s' "$R" | python -c 'import json,sys; print(json.load(sys.stdin)["source"])'))"
 
-      # ⛔ THE WEDNESDAY MEASUREMENT-WINDOW FREEZE (TERM-007, decision B1) AND THE WEEKDAY RUSHES. Inside
-      # them `web` is not promoted. FAILS OPEN: an error in the tool, or in this step, leaves `frozen0`
-      # unset and nothing waits. Override: the `freeze_override` dispatch input, or `[freeze-override]` in
-      # the candidate commit's message. `now` (dispatch input) is honoured in a DRY RUN only: a simulated clock.
-      - name: Deploy freeze, and how long to wait for it (bounded)
+      # ⛔⛔ THE DEPLOY FREEZE IS RETIRED (owner ruling 2026-11-27): tools/deploy_freeze.py answers NOT FROZEN at every
+      # instant and plans no wait, so `frozen0` is always "no" and the PENDING/wait steps below never run. The step is
+      # kept (not deleted) so the job's shape, tools/promote_dryrun.py and the summary stay unchanged; it FAILS OPEN
+      # as before. `now` (dispatch input) is honoured in a DRY RUN only: a simulated clock.
+      - name: Deploy freeze (retired 2026-11-27, always NOT FROZEN)
         id: freeze0
         if: steps.cand.outputs.none == 'no'
         continue-on-error: true
         env:
-          DEPLOY_FREEZE_OVERRIDE: ${{ inputs.freeze_override }}
           SIM_NOW: ${{ inputs.dry_run == 'yes' && inputs.now || '' }}
         run: |
           set +e
@@ -351,13 +318,12 @@ jobs:
           echo "::notice title=Promotion waiting (deploy freeze)::waiting ${WAIT_S}s in-job for the freeze to close, then re-checking everything on the same SHA."
           sleep "$WAIT_S"
 
-      # The SAME freeze decision again, after the wait. `frozen` is the final answer every later step reads.
-      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window, weekday rushes)
+      # The SAME (retired, always NOT FROZEN) freeze answer again. `frozen` is the final answer every later step reads.
+      - name: Deploy freeze re-check (retired 2026-11-27, always NOT FROZEN)
         id: freeze
         if: steps.cand.outputs.none == 'no'
         continue-on-error: true
         env:
-          DEPLOY_FREEZE_OVERRIDE: ${{ inputs.freeze_override }}
           SIM_NOW: ${{ steps.wait.outputs.sim_now || (inputs.dry_run == 'yes' && inputs.now) || '' }}
         run: |
           set +e
@@ -366,10 +332,10 @@ jobs:
           python tools/deploy_freeze.py "${NOWARG[@]}" --message "$MSG"
           CODE=$?
           if [ "$CODE" = "3" ]; then
-            echo "::notice title=Promotion held (deploy freeze)::Still inside a freeze window after the bounded wait. The SHA stays PENDING; the bounded re-dispatch or the backup crons resume it."
-            echo "## Promotion held — deploy freeze" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=Deploy freeze answered FROZEN::tools/deploy_freeze.py must never hold (owner ruling 2026-11-27). The SHA stays PENDING; fix the tool."
+            echo "## Promotion held — the retired deploy freeze answered FROZEN (a bug)" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "Still inside the Wednesday 09:00-11:00 ET window (TERM-007) or the session hold (09:20-16:15 ET on a regular NYSE day, to close + 15 min on a half-day, none on a holiday) after the bounded wait. The SHA is PENDING in deploy-gate-state." >> "$GITHUB_STEP_SUMMARY"
+            echo "tools/deploy_freeze.py answered FROZEN, which the owner ruling of 2026-11-27 forbids (no time hold, ever). Fix the tool; the SHA is PENDING in deploy-gate-state." >> "$GITHUB_STEP_SUMMARY"
           fi
           exit 0
 
@@ -713,24 +679,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Decision tests (and the CI cost rails)
+      - name: Decision tests, the no-hold rails (and the CI cost rails)
         run: |
           python -m pip install --quiet pyyaml pytest
-          python -m pytest tests/test_promote_decision.py tests/test_ci_cost_rails.py -q -p no:cacheprovider
-      # The weekday hold covers the whole session (09:20-16:15 ET, tools/deploy_freeze.py SESSION_HOLD_ET): inside it
-      # the job HOLDs (the 16:20 ET catch-up promotes); outside every window it promotes the gated candidate.
-      - name: Dry run inside the opening rush (Tue 09:31 ET) - holds
-        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run inside the Wednesday window (Wed 09:05 ET) - holds through the session
-        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run inside the regular session (Tue 11:00 ET) - holds
-        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --expect hold --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run outside every window (Tue 16:20 ET) - promotes
+          python -m pytest tests/test_promote_decision.py tests/test_no_deploy_freeze.py tests/test_ci_cost_rails.py -q -p no:cacheprovider
+      # ⛔⛔ NO TIME HOLD (owner ruling 2026-11-27): every clock the old freeze held must PROMOTE the gated candidate at
+      # once (tools/promote_dryrun.py's default expectation), never HOLD and never wait.
+      - name: Dry run at Tue 09:31 ET (old opening rush) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-11-10T14:31:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at Wed 10:00 ET (old measurement window) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-10-14T14:00:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at Wed 09:05 ET, EST (old measurement window) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-11-11T14:05:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at Tue 11:00 ET (old session hold) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-11-10T16:00:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at Thu 15:45 ET (old closing rush) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-10-15T19:45:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at half-day Fri 2026-11-27 12:45 ET (old half-day closing rush) - promotes, no wait
+        run: python tools/promote_dryrun.py --now 2026-11-27T17:45:00Z --summary "$GITHUB_STEP_SUMMARY"
+      - name: Dry run at Tue 16:20 ET (outside every old window) - promotes
         run: python tools/promote_dryrun.py --now 2026-11-10T21:20:00Z --summary "$GITHUB_STEP_SUMMARY"
-      # The NYSE calendar (2026-11-26): a holiday holds nothing; a half-day's hold ends at close + 15 (13:15 ET).
-      - name: Dry run on a market holiday (Thanksgiving Thu 13:00 ET) - promotes
-        run: python tools/promote_dryrun.py --now 2026-11-26T18:00:00Z --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run after a half-day close (Fri 2026-11-27 13:20 ET) - promotes
-        run: python tools/promote_dryrun.py --now 2026-11-27T18:20:00Z --summary "$GITHUB_STEP_SUMMARY"
-      - name: Dry run inside a half-day closing rush (Fri 2026-11-27 12:50 ET) - waits to 13:15 ET, then promotes
-        run: python tools/promote_dryrun.py --now 2026-11-27T17:50:00Z --summary "$GITHUB_STEP_SUMMARY"

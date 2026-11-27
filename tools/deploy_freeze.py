@@ -1,60 +1,33 @@
-"""Deploy freeze for the `web` promotion: the Wednesday 09:00-11:00 ET measurement
-window (decision B1 / T-4), and every weekday's opening and closing rush.
+"""Deploy freeze: RETIRED. Production promotion NEVER holds on a time window.
 
-WHY. The measurement window (TERM-007 / TERM-017 / X-15) is only valid on ONE web
-pod for the whole 09:00-11:00 ET window; a deploy inside it restarts the process
-and voids that week's reading. `web` deploys from `production`, and
-`.github/workflows/promote-production.yml` is the one step that moves
-`production`, so that is where a freeze can actually hold.
+⛔⛔ OWNER RULING, 2026-11-27 (verbatim): "fuck the deploy freeze i dont ever want to hold anything back from deploying
+ever". So `decide` answers NOT FROZEN at every instant, `freeze_ends_at` has no end to report (None) and `wait_plan`
+never waits. A gated-green SHA is fast-forwarded to `production` the moment its gate passes, at 09:31 ET, inside the
+Wednesday measurement window, on a half-day's closing rush, at 15:45 ET: whenever. Rails: tests/test_no_deploy_freeze.py.
 
-THE MARKET RUSHES (2026-10-15). A web deploy restarts the pod that holds the Massive
-stocks socket; the universe live-bars feed reconnects and the serving tier repairs the
-gap. On 2026-10-15 two web deploys landed at 15:47 and 16:02 ET, around the close. So
-web is also held every weekday inside `BURST_WINDOWS_ET` (09:20-09:45 and 15:30-16:15
-ET, half-open), the busiest minutes of the session. Catch-up: the workflow's weekday
-scheduled runs after each rush promote the tip of master.
+WHAT THE HOLD USED TO BE (history, so nobody re-derives it by accident). From 2026-10-14 to 2026-11-27 this tool held
+the `web` + `bars-api` promotion (both deploy from `production`) inside the Wednesday 09:00-11:00 ET measurement window
+(TERM-007, `api/services/measurement_window.py`) and 09:20-16:15 ET on every NYSE trading day (opening rush, regular
+session, closing rush; to close + 15 min on a half-day), and `.github/workflows/promote-production.yml` waited for it
+in-job, recorded the SHA PENDING and resumed it from catch-up crons. ⛔ Do NOT bring any of it back without a new owner
+ruling: the cost it protected against (a cold cache, a live-bars reconnect, ~1 min of 502 on a restart mid-session) was
+judged smaller than the cost of holding work back.
 
-THE NYSE CALENDAR (2026-11-26, Thanksgiving). The session/rush hold follows the real
-session, read from `api/services/session_calendar.py` (the repo's one calendar, loaded
-BY PATH like the measurement window): none on a holiday (no session to protect), and on
-a half-day it runs from the opening rush to close + 15 min (closing rush 12:30-13:15 ET
-for a 13:00 close). Regular days are unchanged. A calendar that cannot be read, or a date
-past its horizon, holds by the WEEKDAY rule with a warning, never "no hold" (see
-`day_hold_windows`). The Wednesday measurement window (`in_window`) is NOT calendar-aware:
-it is defined by weekday alone and is unchanged here.
-
-WHAT IT DOES. Prints a verdict and exits:
-
-    0  NOT FROZEN  promote as usual
-    3  FROZEN      inside a window; the promotion is HELD, not refused. The
-                   workflow's scheduled runs (Wed 15:05 and 16:05 UTC; weekdays
-                   after each rush) promote the tip of master once the window has
-                   closed, so nothing waits for the next push.
-
-With `GITHUB_OUTPUT` set it also writes `frozen=yes|no` there.
-
-OVERRIDE (a hotfix that must ship inside the window): set
-`DEPLOY_FREEZE_OVERRIDE=<reason>` (the workflow's dispatch input `freeze_override`),
-or put `[freeze-override]` in the candidate commit's message. The override is
-printed, never silent. A promotion that ships inside the window voids that week's
-measurement; the result record will say "2 pod identities".
-
-⛔ FAILS OPEN. Any error reading the clock or the window answers NOT FROZEN with a
-warning: a broken freeze must never become a stuck production branch. ⚠️ ONE EXCEPTION,
-deliberate: a broken NYSE calendar falls back to the weekday hold, not to "no hold"
-(`day_hold_windows` explains why).
-
-⛔ ONE DEFINITION OF THE WINDOW. `in_window` is read from
-`api/services/measurement_window.py`, loaded BY PATH (its top level is stdlib-only)
-so this tool imports no `api.*` package and no product code in CI.
-
-⚠️ SCOPE. It holds what deploys from `production`: `web` AND `bars-api` (measured
-2026-11-21, `railway deployment list --json` meta.branch). `worker` and `flow-worker`
-deploy from `master` on push, so a push inside the window still restarts them; this
-reader cannot see those. `chart-renderer` and `terminal-next-monitor`: unmeasured.
+WHAT IS LEFT, AND WHY IT IS NOT A HOLD.
+  * The promotion GATE is untouched: a SHA promotes only when its gating checks and its own `master deploy gate` run
+    succeeded (tools/promotion_gate.py, tools/promote_decision.py). That is correctness, not a time window.
+  * `day_hold_windows` / `burst_window` / `half_day_answer` still DESCRIBE the day's market rushes from the NYSE
+    calendar (`api/services/session_calendar.py`, loaded by path). Nothing in the promotion reads them any more. They
+    stay because two other things are pinned to the same facts by rails: the app's heavy-job rush waits
+    (`api/services/market_rush.py`, tests/test_market_rush.py; not a deploy hold) and the Agent-CI merge queue's own
+    freeze (`tools/agent_ci_required.py`, SELF_PROTECTED, AUDIT-owned; tests/test_agent_ci_required.py). ⚠️ That merge
+    queue freeze still exists and is separate policy: it refuses Agent-path ENTRIES into master inside the rushes; it
+    does not hold production promotion.
+  * The exit codes, `frozen=` output, `--wait-plan`, `--half-day` and `--self-check` keep their shapes so the workflow,
+    tools/promote_dryrun.py and tools/live_check.py run unchanged. EXIT_FROZEN (3) is never returned.
 
 Usage:
-    python tools/deploy_freeze.py [--now 2026-10-14T13:30:00Z] [--message "..."]
+    python tools/deploy_freeze.py [--now 2026-10-14T13:30:00Z] [--message "..."]   # always: NOT FROZEN, exit 0
     python tools/deploy_freeze.py --self-check
 """
 from __future__ import annotations
@@ -67,12 +40,15 @@ import pathlib
 import sys
 
 EXIT_OPEN = 0
+#: Never returned since the owner ruling of 2026-11-27; kept so old readers of the exit code still parse.
 EXIT_FROZEN = 3
 OVERRIDE_ENV = "DEPLOY_FREEZE_OVERRIDE"
 OVERRIDE_TOKEN = "[freeze-override]"
-#: Weekday rushes, ET wall clock, half-open [start, end). (name, start, end)
+#: Weekday rushes, ET wall clock, half-open [start, end). (name, start, end). A DESCRIPTION of the market, kept equal to
+#: api/services/market_rush.py and tools/agent_ci_required.py by rails; it holds NO promotion (owner ruling 2026-11-27).
 BURST_WINDOWS_ET = (("opening", (9, 20), (9, 45)), ("closing", (15, 30), (16, 15)))
-#: ⭐ THE REGULAR SESSION BETWEEN THE RUSHES (owner, 2026-11-19: "do it all", on holding chart-server deploys
+#: (HISTORY: this used to HOLD the promotion; the 2026-11-27 ruling ended every hold. Only `day_hold_windows` reads it.)
+#: THE REGULAR SESSION BETWEEN THE RUSHES (owner, 2026-11-19: "do it all", on holding chart-server deploys
 #: during trading). On 2026-11-18 evening other sessions' merges restarted bars-api four times in 35 min and web
 #: five times in 2.5 h; each restart is a cold cache and a repair pass of every ticker (1.5-3.5 s chart stalls for
 #: minutes) and, for web, ~1 min of 502. With the two rushes this holds 09:20-16:15 ET without a gap: a promotion
@@ -155,35 +131,34 @@ def _windows_for_close(close_hm: tuple[int, int]) -> tuple:
 
 
 def day_hold_windows(day: _dt.date) -> tuple:
-    """The session/rush hold windows for ET date `day`: ((name, start, end), ...), ET wall clock, half-open.
+    """The day's market windows for ET date `day`: ((name, start, end), ...), ET wall clock, half-open.
+
+    ⛔ A DESCRIPTION, NOT A HOLD (owner ruling 2026-11-27): `decide` never reads it, so no promotion waits on it. It
+    stays because tests/test_agent_ci_required.py, tests/test_deploy_freeze_market_calendar.py and
+    tests/test_market_rush.py pin the merge queue's freeze and the app's heavy-job rushes to these same facts.
 
     * a weekend: none.
-    * not an NYSE trading day (a holiday): none. There is no session to protect.
+    * not an NYSE trading day (a holiday): none.
     * a half-day: the opening rush to close + 15 min (closing rush = close - 30 min .. close + 15 min).
-    * a regular day: HOLD_WINDOWS_ET, unchanged.
+    * a regular day: HOLD_WINDOWS_ET.
 
-    ⛔ FAILS TO THE WEEKDAY RULE, NOT OPEN. If the calendar cannot be loaded, raises, or `day` is past its horizon,
-    the answer is HOLD_WINDOWS_ET (the behaviour before the calendar was read) with a printed warning. This is the
-    OPPOSITE of `decide`'s fail-open on a broken clock or window reader, on purpose: that fail-open trades one held
-    deploy for an unstuck production branch, while "no hold" here would ship web/bars-api restarts into a live
-    session on every weekday the calendar is broken. The weekday rule over-holds only on a holiday or a half-day
-    afternoon, and the catch-up crons still promote after 16:15 ET, so the cost of a broken calendar is a delay,
-    never a member-facing restart mid-session."""
+    If the calendar cannot be loaded, raises, or `day` is past its horizon, the answer is HOLD_WINDOWS_ET (the weekday
+    rule) with a printed warning, matching the merge queue's FREEZE_FLOOR fallback."""
     if day.weekday() >= 5:
         return ()
     try:
         cal = _calendar_module()
         if not cal.covers(day):
-            _warn(f"{day} is outside the NYSE calendar's coverage (horizon {cal.horizon()}); holding by the weekday "
-                  f"rule (09:20-16:15 ET). Extend app/src/lib/marketClock/market_calendar.json.")
+            _warn(f"{day} is outside the NYSE calendar's coverage (horizon {cal.horizon()}); describing the day by the "
+                  f"weekday rule (09:20-16:15 ET); no promotion is held. Extend app/src/lib/marketClock/market_calendar.json.")
             return HOLD_WINDOWS_ET
         if not cal.is_trading_day(day):
             return ()
         close = cal.close_time(day)
         close_hm = (close.hour, close.minute)
     except Exception as e:  # noqa: BLE001
-        _warn(f"the NYSE calendar could not be read ({type(e).__name__}: {e}); holding by the weekday rule "
-              f"(09:20-16:15 ET), never by 'no hold'.")
+        _warn(f"the NYSE calendar could not be read ({type(e).__name__}: {e}); describing the day by the "
+              f"weekday rule (09:20-16:15 ET); no promotion is held.")
         return HOLD_WINDOWS_ET
     if close_hm == REGULAR_CLOSE_ET:
         return HOLD_WINDOWS_ET
@@ -191,9 +166,8 @@ def day_hold_windows(day: _dt.date) -> tuple:
 
 
 def half_day_answer(now: _dt.datetime) -> str:
-    """"yes" | "no" | "unknown": is `now`'s ET date an NYSE half-day? For the workflow's half-day catch-up crons, which
-    end early on "no" only. "unknown" (the calendar cannot load or does not cover the date) lets the run proceed as
-    any other catch-up (it holds or waits), so a broken calendar never makes the crons skip on a guess."""
+    """"yes" | "no" | "unknown": is `now`'s ET date an NYSE half-day? ("unknown": the calendar cannot load or does not
+    cover the date.) Kept for the CLI's `--half-day`; the promotion no longer has half-day crons to gate."""
     from zoneinfo import ZoneInfo
     day = now.astimezone(ZoneInfo("America/New_York")).date()
     try:
@@ -206,8 +180,8 @@ def half_day_answer(now: _dt.datetime) -> str:
 
 
 def burst_window(now: _dt.datetime) -> str | None:
-    """The session hold `now` falls in ("opening"/"session"/"closing"), or None. Follows the NYSE calendar
-    (`day_hold_windows`): nothing on a weekend or a holiday, ends at close + 15 min on a half-day."""
+    """The market window `now` falls in ("opening"/"session"/"closing"), or None, by `day_hold_windows`. A
+    description only: it holds no promotion (owner ruling 2026-11-27)."""
     from zoneinfo import ZoneInfo
     et = now.astimezone(ZoneInfo("America/New_York"))
     hm = (et.hour, et.minute)
@@ -217,113 +191,40 @@ def burst_window(now: _dt.datetime) -> str | None:
     return None
 
 
-#: The longest in-job wait the promotion may take for a freeze to close (minutes). The weekday rushes are
-#: 25 and 45 minutes long and the Wednesday window 120, so a hold from inside any of them fits (with the
-#: margin). Bounded on purpose: no wait is ever planned longer than this, whatever the clock says, and the
-#: workflow's wait step has its own 130-minute timeout under a 200-minute job (GitHub's cap is 6 h).
+#: Kept for the CLI's `--max-wait-min` and old callers. No wait is ever planned: `wait_plan` always answers 0.
 MAX_WAIT_MIN = 125
-#: Seconds added after the window's end before the re-check, so the re-check is never ON the boundary.
 WAIT_MARGIN_S = 60
+#: ⛔ THE OWNER RULING (2026-11-27), as one constant the rails read. Production promotion never holds on a time window.
+HOLDS_PROMOTION = False
+NO_HOLD_REASON = ("NOT FROZEN: production promotion never holds on a time window (owner ruling 2026-11-27: "
+                  "\"i dont ever want to hold anything back from deploying ever\"). A gated-green SHA promotes now.")
 
 
 def freeze_ends_at(now: _dt.datetime, *, in_window_fn=None, burst_fn=None) -> _dt.datetime | None:
-    """When the freeze `now` is inside ends (UTC), or None when `now` is not inside one.
+    """Always None: there is no freeze, so there is no freeze end (owner ruling 2026-11-27).
 
-    Both windows are half-open, so at the returned instant `decide` answers NOT FROZEN. When both apply
-    (a Wednesday opening rush inside the measurement window) the LATER end is returned. Raises on a
-    broken window reader; `wait_plan` turns that into "no wait" (fail-open, as `decide`)."""
-    from zoneinfo import ZoneInfo
-    et_zone = ZoneInfo("America/New_York")
-    et = now.astimezone(et_zone)
-    ends = []
-    mw = None
-    inside_fn = in_window_fn
-    if inside_fn is None:
-        mw = _window_module()
-        inside_fn = mw.in_window
-    if inside_fn(now):
-        mw = mw or _window_module()
-        ends.append(mw.window_bounds(et.date())[1])
-    rush = (burst_fn or burst_window)(now)
-    if rush:
-        # The SAME day's windows `burst_window` judged by, so the wait ends where the hold does (13:15 ET on a
-        # half-day). A name the day does not hold (an injected burst_fn) falls back to the constant windows.
-        windows = day_hold_windows(et.date())
-        if not any(n == rush for n, _a, _b in windows):
-            windows = HOLD_WINDOWS_ET
-        end = next(b for n, _a, b in windows if n == rush)
-        # Back-to-back windows are ONE hold: the opening rush ends where the session starts, and the session where
-        # the closing rush starts, so the freeze ends where the last of a contiguous run ends (16:15 ET).
-        while True:
-            nxt = next((b for _n, a, b in windows if a == end), None)
-            if nxt is None:
-                break
-            end = nxt
-        ends.append(_dt.datetime(et.year, et.month, et.day, end[0], end[1], tzinfo=et_zone))
-    return max(ends).astimezone(_dt.timezone.utc) if ends else None
+    The keyword arguments are accepted and IGNORED (old call sites, e.g. tools/live_check.py, pass them): no window
+    reader is consulted, so no reader, broken or injected, can bring a hold back."""
+    return None
 
 
 def wait_plan(now: _dt.datetime, *, max_wait_min: int = MAX_WAIT_MIN, override: str = "", message: str = "",
               in_window_fn=None, burst_fn=None) -> tuple[int, str]:
-    """(seconds to wait, reason). 0 = do not wait: not frozen, overridden, a broken reader (fail-open), or a
-    freeze that ends later than `max_wait_min` from now (it stays a HOLD). Never more than max_wait_min*60."""
-    code, _why = decide(now, override=override, message=message, in_window_fn=in_window_fn, burst_fn=burst_fn)
-    if code != EXIT_FROZEN:
-        return 0, "no wait: not frozen"
-    try:
-        end = freeze_ends_at(now, in_window_fn=in_window_fn, burst_fn=burst_fn)
-    except Exception as e:  # noqa: BLE001
-        return 0, f"no wait (fail-open): the window end could not be read ({type(e).__name__}: {e})"
-    if end is None:
-        return 0, "no wait: the freeze end could not be placed"
-    s = int((end - now).total_seconds()) + WAIT_MARGIN_S
-    cap = int(max_wait_min) * 60
-    if s <= 0:
-        return 0, "no wait: the freeze has already ended"
-    if s > cap:
-        return 0, (f"no wait: the freeze ends at {end.isoformat()} ({s // 60} min), longer than the {max_wait_min}-min "
-                   f"bound; the promotion stays HELD for the scheduled runs or the next gate")
-    return s, f"wait {s} s: the freeze ends at {end.isoformat()} (+{WAIT_MARGIN_S} s margin)"
+    """(0, reason), always: the promotion never waits for a time window (owner ruling 2026-11-27)."""
+    return 0, "no wait: production promotion never holds on a time window (owner ruling 2026-11-27)"
 
 
 def decide(now: _dt.datetime, *, override: str = "", message: str = "",
            in_window_fn=None, burst_fn=None) -> tuple[int, str]:
-    """(exit_code, reason). Pure apart from the window functions."""
-    try:
-        in_window_fn = in_window_fn or _window_module().in_window
-        inside = bool(in_window_fn(now))
-        rush = (burst_fn or burst_window)(now)
-    except Exception as e:  # noqa: BLE001
-        return EXIT_OPEN, (f"NOT FROZEN (fail-open): the window could not be read "
-                           f"({type(e).__name__}: {e})")
-    if not inside and not rush:
-        return EXIT_OPEN, ("NOT FROZEN: outside Wednesday 09:00-11:00 ET and outside the "
-                           "session hold (09:20-16:15 ET on a regular NYSE day, to close + 15 min on a "
-                           "half-day, none on a holiday)")
-    if inside:
-        what = "the Wednesday 09:00-11:00 ET measurement window (TERM-007)"
-        cost = "This week's measurement window is void."
-        after = "the held run, after its bounded in-job wait (backup: the scheduled runs after 11:00 ET),"
-    else:
-        from zoneinfo import ZoneInfo
-        windows = day_hold_windows(now.astimezone(ZoneInfo("America/New_York")).date())
-        if not any(n == rush for n, _a, _b in windows):
-            windows = HOLD_WINDOWS_ET
-        start, end = next((a, b) for n, a, b in windows if n == rush)
-        label = "regular session" if rush == "session" else f"{rush} rush"
-        what = (f"the weekday {label} ({start[0]:02d}:{start[1]:02d}-"
-                f"{end[0]:02d}:{end[1]:02d} ET)")
-        cost = "Chart servers restart during trading (cold caches, the live bars feed reconnects)."
-        after = "the held run, after its bounded in-job wait (backup: the scheduled run after the rush),"
-    if override.strip():
-        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside {what}, override reason: "
-                           f"{override.strip()[:200]}. {cost}")
-    if OVERRIDE_TOKEN in (message or ""):
-        return EXIT_OPEN, (f"NOT FROZEN (OVERRIDE): inside {what}, commit message carries "
-                           f"{OVERRIDE_TOKEN}. {cost}")
-    return EXIT_FROZEN, (f"FROZEN: inside {what}. web is not promoted now; {after} "
-                         f"promotes the held SHA. Override: {OVERRIDE_ENV}=<reason> or "
-                         f"{OVERRIDE_TOKEN} in the commit message.")
+    """(EXIT_OPEN, reason), at every instant (owner ruling 2026-11-27: "i dont ever want to hold anything back from
+    deploying ever").
+
+    Not the Wednesday measurement window, not the opening or closing rush, not the regular session, not a half-day:
+    nothing holds the promotion. The arguments are accepted and IGNORED (the workflow still passes `--message`, the
+    old override token is meaningless now); no window reader is called, so neither a broken nor an injected reader can
+    turn this into FROZEN. The promotion GATE (tests must pass) is a different thing and lives in
+    tools/promotion_gate.py and tools/promote_decision.py."""
+    return EXIT_OPEN, NO_HOLD_REASON
 
 
 def _write_output(frozen: bool) -> None:
@@ -339,7 +240,7 @@ class _SelfCheckCalendar:
     ⛔ WHY NOT THE REAL DATASET. `--self-check` runs inside the production promote job with no continue-on-error, so a
     failing case stops EVERY promotion (review of #2836, point 6). Cases written against the real dataset fail on a
     healthy pipeline: a date "past the horizon" becomes a holiday the day the dataset is extended, and a broken or
-    mis-edited dataset (which the freeze itself survives by holding by the weekday rule) would fail the cases about
+    mis-edited dataset (which the description survives by falling back to the weekday rule) would fail the cases about
     its facts. So the self-check proves the LOGIC on facts it owns; the real dataset's facts (Thanksgiving 2026, the
     2026-11-27 half-day, the horizon) are railed in tests/test_deploy_freeze_market_calendar.py and by the PR dry-run
     steps in promote-production.yml."""
@@ -374,15 +275,15 @@ class _SelfCheckCalendar:
 
 def self_check() -> int:
     """Every case runs on `_SelfCheckCalendar`, never on the real dataset (see its docstring). The real calendar's
-    state is printed as information only: a broken calendar is a WARNING (the freeze holds by the weekday rule),
+    state is printed as information only: a broken calendar is a WARNING (it holds no promotion either way),
     never a self-check failure."""
     global _SELF_CHECKING, _calendar_module
     try:
         cal = _calendar_module()
         print(f"  info the NYSE calendar v{cal.version()} loads, horizon {cal.horizon()} (information, not a case)")
     except Exception as e:  # noqa: BLE001
-        print(f"  info the NYSE calendar does NOT load ({type(e).__name__}: {e}); promotions hold by the weekday "
-              f"rule until it is fixed (information, not a case)")
+        print(f"  info the NYSE calendar does NOT load ({type(e).__name__}: {e}); the day is described by the "
+              f"weekday rule until it is fixed; no promotion is held (information, not a case)")
     real_loader = _calendar_module
     stub = _SelfCheckCalendar()
     _SELF_CHECKING = True
@@ -404,94 +305,40 @@ def _self_check() -> int:
         bad += 0 if ok else 1
 
     utc = _dt.timezone.utc
-    wed_in = _dt.datetime(2026, 10, 14, 14, 0, tzinfo=utc)     # 10:00 EDT
-    wed_out = _dt.datetime(2026, 10, 14, 15, 5, tzinfo=utc)    # 11:05 EDT
-    wed_edge = _dt.datetime(2026, 10, 14, 15, 0, tzinfo=utc)   # 11:00 EDT, half-open
-    tue = _dt.datetime(2026, 10, 20, 14, 0, tzinfo=utc)
-    winter = _dt.datetime(2026, 12, 2, 15, 0, tzinfo=utc)      # 10:00 EST
-    case("a Wednesday 10:00 ET is FROZEN", decide(wed_in)[0] == EXIT_FROZEN)
-    case("Wed 11:05 ET is FROZEN (the session, after the window)", decide(wed_out)[0] == EXIT_FROZEN)
-    case("Wed 11:00 ET exactly is FROZEN (the session)", decide(wed_edge)[0] == EXIT_FROZEN)
-    case("a plain Tuesday 10:00 ET is FROZEN (the regular session)", decide(tue)[0] == EXIT_FROZEN)
-    case("a Tuesday 16:20 ET is not", decide(_dt.datetime(2026, 10, 20, 20, 20, tzinfo=utc))[0] == EXIT_OPEN)
-    case("a Tuesday 09:19 ET is not", decide(_dt.datetime(2026, 10, 20, 13, 19, tzinfo=utc))[0] == EXIT_OPEN)
-    case("the one-off window Tue 2026-10-13 10:00 ET is FROZEN",
-         decide(_dt.datetime(2026, 10, 13, 14, 0, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("winter (EST) 10:00 ET is FROZEN", decide(winter)[0] == EXIT_FROZEN)
-    case("the env override opens it", decide(wed_in, override="hotfix")[0] == EXIT_OPEN)
-    case("the message token opens it",
-         decide(wed_in, message=f"fix: x {OVERRIDE_TOKEN}")[0] == EXIT_OPEN)
-    case("a broken window fails OPEN",
-         decide(wed_in, in_window_fn=lambda _n: 1 / 0)[0] == EXIT_OPEN)
-    # the weekday rushes (2026-10-15)
-    thu_close = _dt.datetime(2026, 10, 15, 19, 55, tzinfo=utc)  # 15:55 EDT
-    case("a Thursday 15:55 ET (closing rush) is FROZEN", decide(thu_close)[0] == EXIT_FROZEN)
-    case("15:30 ET exactly is FROZEN (half-open start)",
-         decide(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("16:15 ET exactly is not (half-open end)",
-         decide(_dt.datetime(2026, 10, 15, 20, 15, tzinfo=utc))[0] == EXIT_OPEN)
-    case("15:29 ET is FROZEN (the session)", decide(_dt.datetime(2026, 10, 15, 19, 29, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("a Monday 09:30 ET (opening rush) is FROZEN",
-         decide(_dt.datetime(2026, 10, 19, 13, 30, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("09:45 ET is FROZEN (the session)", decide(_dt.datetime(2026, 10, 19, 13, 45, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("winter (EST) 15:55 ET is FROZEN",
-         decide(_dt.datetime(2026, 12, 3, 20, 55, tzinfo=utc))[0] == EXIT_FROZEN)
-    case("a Saturday 15:55 ET is not",
-         decide(_dt.datetime(2026, 10, 17, 19, 55, tzinfo=utc))[0] == EXIT_OPEN)
-    case("the override opens a rush", decide(thu_close, override="hotfix")[0] == EXIT_OPEN)
-    case("a broken rush reader fails OPEN",
-         decide(thu_close, burst_fn=lambda _n: 1 / 0)[0] == EXIT_OPEN)
-    # the bounded in-job wait (promote catch-up, 2026-11-10)
-    held_1031 = _dt.datetime(2026, 11, 10, 14, 31, tzinfo=utc)   # Tue 09:31 EST, inside the opening rush
-    s, _ = wait_plan(held_1031)
-    case("09:31 ET (opening rush) does not wait: the hold runs on to 16:15 ET (HOLD for the 16:20 catch-up)", s == 0)
-    case("the opening rush, the session and the closing rush are one hold ending 16:15 ET",
-         freeze_ends_at(held_1031) == _dt.datetime(2026, 11, 10, 21, 15, tzinfo=utc))
-    case("16:15 ET exactly is OPEN (half-open end)",
-         decide(_dt.datetime(2026, 11, 10, 21, 15, tzinfo=utc))[0] == EXIT_OPEN)
-    s2, _ = wait_plan(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc))   # Thu 15:30 EDT, closing rush start
-    case("15:30 ET waits 45 min + margin", s2 == 45 * 60 + WAIT_MARGIN_S)
-    case("a 40-min bound does not wait for a 45-min rush (HOLD)",
-         wait_plan(_dt.datetime(2026, 10, 15, 19, 30, tzinfo=utc), max_wait_min=40)[0] == 0)
-    case("a Wednesday 10:00 ET does not wait (the session hold outlasts the window: HOLD)",
-         wait_plan(wed_in)[0] == 0)
-    case("Wed 09:00 ET exactly waits the whole window (121 min, within the bound)",
-         wait_plan(_dt.datetime(2026, 10, 14, 13, 0, tzinfo=utc))[0] == 120 * 60 + WAIT_MARGIN_S)
-    case("a 50-min bound does not wait for the Wednesday window (HOLD)", wait_plan(wed_in, max_wait_min=50)[0] == 0)
-    case("a Wednesday 10:30 ET does not wait (HOLD)",
-         wait_plan(_dt.datetime(2026, 10, 14, 14, 30, tzinfo=utc))[0] == 0)
-    case("Wed 09:30 ET (rush inside the window) ends at the LATER end, the session hold's 16:15 ET",
-         freeze_ends_at(_dt.datetime(2026, 10, 14, 13, 30, tzinfo=utc)) == _dt.datetime(2026, 10, 14, 20, 15, tzinfo=utc))
-    case("not frozen: no wait", wait_plan(tue)[0] == 0)
-    case("an override: no wait", wait_plan(thu_close, override="hotfix")[0] == 0)
-    calls = [0]
 
-    def reader_breaks_on_second_read(_n):
-        calls[0] += 1
-        if calls[0] > 1:
-            raise RuntimeError("window reader broke")
-        return False
-    case("a window end that cannot be read fails OPEN (no wait)",
-         wait_plan(held_1031, in_window_fn=reader_breaks_on_second_read)[0] == 0)
-    # the NYSE calendar (2026-11-26): no hold on a holiday, close + 15 on a half-day, the weekday rule when unsure.
-    # ⛔ These run on _SelfCheckCalendar's OWN facts (self_check swaps it in), never the real dataset's.
     def et_at(y, mo, d, hh, mm):
         from zoneinfo import ZoneInfo
         return _dt.datetime(y, mo, d, hh, mm, tzinfo=ZoneInfo("America/New_York")).astimezone(utc)
-    case("Thanksgiving 2026-11-26 13:00 ET is not frozen (market closed)", decide(et_at(2026, 11, 26, 13, 0))[0] == EXIT_OPEN)
-    case("half-day 2026-11-27 12:50 ET is FROZEN (the closing rush)", burst_window(et_at(2026, 11, 27, 12, 50)) == "closing")
-    case("half-day 2026-11-27 13:20 ET is not frozen", decide(et_at(2026, 11, 27, 13, 20))[0] == EXIT_OPEN)
-    case("half-day 13:15 ET exactly is not frozen (half-open end)", decide(et_at(2026, 11, 27, 13, 15))[0] == EXIT_OPEN)
-    case("half-day freeze_ends_at from 12:50 ET is 13:15 ET",
-         freeze_ends_at(et_at(2026, 11, 27, 12, 50)) == et_at(2026, 11, 27, 13, 15))
-    case("half-day 12:50 ET waits 25 min + margin", wait_plan(et_at(2026, 11, 27, 12, 50))[0] == 25 * 60 + WAIT_MARGIN_S)
-    case("a regular Thursday 2026-12-03 13:00 ET is FROZEN (the session)",
-         burst_window(et_at(2026, 12, 3, 13, 0)) == "session")
-    case("a regular day's windows are exactly HOLD_WINDOWS_ET", day_hold_windows(_dt.date(2026, 12, 3)) == HOLD_WINDOWS_ET)
+
+    def no_hold(now, **kw):
+        return (decide(now, **kw)[0] == EXIT_OPEN and freeze_ends_at(now, **{k: v for k, v in kw.items()
+                if k in ("in_window_fn", "burst_fn")}) is None and wait_plan(now, **kw)[0] == 0)
+
+    # ⛔ THE OWNER RULING (2026-11-27): no time window holds the promotion. Every clock the old freeze held:
+    case("the ruling constant says the promotion never holds", HOLDS_PROMOTION is False)
+    case("Tue 09:31 ET (the old opening rush) is NOT FROZEN, no wait", no_hold(et_at(2026, 11, 10, 9, 31)))
+    case("Tue 11:00 ET (the old session hold) is NOT FROZEN, no wait", no_hold(et_at(2026, 11, 10, 11, 0)))
+    case("Thu 15:45 ET (the old closing rush) is NOT FROZEN, no wait", no_hold(et_at(2026, 10, 15, 15, 45)))
+    case("Wed 10:00 ET (the old measurement window) is NOT FROZEN, no wait", no_hold(et_at(2026, 10, 14, 10, 0)))
+    case("half-day 2026-11-27 12:45 ET (the old half-day closing rush) is NOT FROZEN, no wait",
+         no_hold(et_at(2026, 11, 27, 12, 45)))
+    case("winter (EST) Wed 10:00 ET is NOT FROZEN, no wait", no_hold(et_at(2026, 12, 2, 10, 0)))
+    case("injected 'always inside' readers cannot bring a hold back",
+         no_hold(et_at(2026, 10, 14, 10, 0), in_window_fn=lambda _n: True, burst_fn=lambda _n: "session"))
+    case("the old override inputs change nothing (still NOT FROZEN)",
+         decide(et_at(2026, 10, 14, 10, 0), override="x", message="[freeze-override]")[0] == EXIT_OPEN)
+    case("no minute of a regular day holds or waits", all(
+        no_hold(_dt.datetime(2026, 10, 15, 0, 0, tzinfo=utc) + _dt.timedelta(minutes=m)) for m in range(0, 24 * 60, 5)))
+    # The calendar DESCRIPTION (not a hold any more): the day's rushes, kept equal to the merge queue's freeze and the
+    # app's heavy-job rushes by rails. ⛔ These run on _SelfCheckCalendar's OWN facts, never the real dataset's.
+    case("a regular day's described windows are exactly HOLD_WINDOWS_ET", day_hold_windows(_dt.date(2026, 12, 3)) == HOLD_WINDOWS_ET)
+    case("a holiday describes no rush", day_hold_windows(_dt.date(2026, 11, 26)) == ())
+    case("a half-day's closing rush is described 12:30-13:15 ET",
+         burst_window(et_at(2026, 11, 27, 12, 50)) == "closing" and burst_window(et_at(2026, 11, 27, 13, 15)) is None)
     past = _calendar_module().horizon() + _dt.timedelta(days=1)
     while past.weekday() >= 5:
         past += _dt.timedelta(days=1)
-    case(f"a weekday past the calendar horizon ({past}) holds by the weekday rule",
+    case(f"a weekday past the calendar horizon ({past}) is described by the weekday rule",
          burst_window(et_at(past.year, past.month, past.day, 13, 0)) == "session")
     real_loader = _calendar_module
 
@@ -499,25 +346,22 @@ def _self_check() -> int:
         raise RuntimeError("self-check: calendar unreadable")
     _calendar_module = broken_loader
     try:
-        case("a calendar that cannot load holds a holiday by the weekday rule (never 'no hold')",
-             decide(et_at(2026, 11, 26, 13, 0))[0] == EXIT_FROZEN)
+        case("an unreadable calendar describes the weekday rule, and still holds NOTHING",
+             burst_window(et_at(2026, 11, 26, 13, 0)) == "session" and no_hold(et_at(2026, 11, 26, 13, 0)))
     finally:
         _calendar_module = real_loader
-    case("every wait is within the bound", all(
-        0 <= wait_plan(_dt.datetime(2026, 10, 15, 13, 0, tzinfo=utc) + _dt.timedelta(minutes=m))[0] <= MAX_WAIT_MIN * 60
-        for m in range(0, 12 * 60, 1)))
     print("self-check: " + ("PASS" if not bad else f"FAIL ({bad})"))
     return 0 if not bad else 1
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="web deploy freeze: Wednesday measurement window "
-                                             "and the weekday market rushes.")
+    ap = argparse.ArgumentParser(description="deploy freeze, RETIRED 2026-11-27: always NOT FROZEN (exit 0). "
+                                             "The promotion never holds on a time window.")
     ap.add_argument("--now", default=None, help="ISO time to judge (default: now, UTC)")
     ap.add_argument("--message", default=None, help="candidate commit message")
     ap.add_argument("--self-check", action="store_true")
     ap.add_argument("--wait-plan", action="store_true",
-                    help="print and write (GITHUB_OUTPUT) wait_s=<seconds> for a bounded in-job wait; exit 0")
+                    help="print and write (GITHUB_OUTPUT) wait_s=0 (the promotion never waits); exit 0")
     ap.add_argument("--max-wait-min", type=int, default=MAX_WAIT_MIN)
     ap.add_argument("--half-day", action="store_true",
                     help="print half_day=yes|no|unknown for the ET date of --now (default today); exit 0")

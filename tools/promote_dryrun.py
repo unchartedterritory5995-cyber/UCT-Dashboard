@@ -41,9 +41,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--now", required=True)
     ap.add_argument("--summary", default="")
-    # ⭐ WHAT THIS CLOCK MUST DO (2026-11-19, the session hold): "promote" = the gated candidate reaches the
-    # target; "hold" = inside a weekday hold the job neither promotes nor touches production, and records
-    # the candidate PENDING for the 16:20 ET catch-up.
+    # ⭐ WHAT THIS CLOCK MUST DO: "promote" (the default) = the gated candidate reaches the target. Since the owner
+    # ruling of 2026-11-27 ("i dont ever want to hold anything back from deploying ever") that is the answer at EVERY
+    # clock. "hold" is kept only to prove the control can fail: it is red against today's tools.
     ap.add_argument("--expect", choices=("promote", "hold"), default="promote")
     a = ap.parse_args(argv)
     wf = yaml.safe_load((ROOT / ".github/workflows/promote-production.yml").read_text(encoding="utf-8"))
