@@ -405,7 +405,8 @@ def test_the_house_cases_are_the_house_set_and_nothing_else():
         assert turn["words"] == ex["request"]
         built = [out["tree"] for o in ex["ops"] if o.get("op") == "create" for out in o["outputs"]]
         built += [o["tree"] for o in ex["ops"] if o.get("op") == "add_output"]
-        assert [o["tree"] for o in turn["expect"]["outputs"]] == built
+        from api.services.definition_conversation import pine_twin_tree
+        assert [o["tree"] for o in turn["expect"]["outputs"]] == [pine_twin_tree(t) for t in built]   # as the door builds it
         assert script[f"{cid}#0"][0]["ops"] == ex["ops"]               # the scripted answer IS the house patch
     # the runner's verdict needs its negative controls beside any examples: carried over unchanged
     base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}

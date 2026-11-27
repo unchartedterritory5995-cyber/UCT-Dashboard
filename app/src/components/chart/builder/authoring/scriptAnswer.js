@@ -51,6 +51,9 @@ const wallNow = () => (typeof performance !== 'undefined' && performance.now ? p
 
 /** The most times one request's script is sent back for repair (the server holds the same bound). */
 export const MAX_REPAIR_ROUNDS = 2
+/** A source that DECLARES a strategy: a copy of `memberPaneDefinition.STRATEGY_DECLARATION` (this module loads the engine
+ *  only when a script arrives), held equal to it by `strategyGate.test.js`. */
+export const STRATEGY_SOURCE = /^[ \t]*strategy[ \t]*\(/m
 /** The bounds the server reads a refusal under (`script_conversation.REFUSAL_MAX_*`). */
 export const SCRIPT_REFUSAL_LIMITS = Object.freeze({ maxErrors: 6, maxChars: 300 })
 /** The verdict states that mean "runs for a member with nothing withheld". */
@@ -133,7 +136,8 @@ export function sameRefusals(a, b) {
  * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules; `capClock` the wall clock the
  *                         main-thread cap is read on
  */
-export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null, admission = null, capClock = wallNow, cancelled = () => false,
+  loadGate = loadStrategyGate } = {}) {
   try {
     const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason,
       judgeOffThread } = await load()
@@ -182,8 +186,18 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     // (no chart to run on: an older caller, a chart still loading. The paste check passed and nothing was run;
     // `verdictOnChart` says exactly that, never "runs on the chart")
     if (!chart) return verdictOnChart(pasted, { state: 'not-run', stops: [], unchecked: [], waiting: [], notes: [], why: 'there was no chart to run it on' }, SCRIPT_REFUSAL_LIMITS)
-    const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
-    return withReason(verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS))
+    // ⭐⭐ 2026-11-26 -- A WRITTEN STRATEGY IS RUN WITH ITS WINDOW AND PASSES THE BROKER'S GATE (`strategyGate.js`).
+    // It is run with the strategy window the binder hands it, and a "runs" is taken back when the census predicate
+    // says the broker would refuse it -- a refusal that, with its plots standing in, lives only in the strategy record
+    // and never reached this verdict. A strategy the broker refuses is never offered as built.
+    const strategy = STRATEGY_SOURCE.test(pine)
+    const strategyGate = strategy ? await loadGate() : null
+    const onChart = strategy ? await strategyGate.withStrategyWindow(chart) : chart
+    const run = await runHereWhenLanded(pane, onChart, { timeoutMs: RUN_WAIT_MS })
+    const ran = verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS)
+    if (!strategy || !ran.runs) return withReason(ran)
+    const armed = strategyGate.armedStrategyVerdict({ source: pine, door: strategyGate.PASTE_CHECK_PASSED, bars: onChart.bars, ctx: onChart.ctx })
+    return withReason(strategyGate.gatedVerdict(ran, armed, SCRIPT_REFUSAL_LIMITS))
   } catch {
     return uncheckedVerdict()
   }
@@ -237,6 +251,13 @@ export function latchAnswerAdmission(kill, pine, admission) {
 
 /** The definition id a script is checked under (never stored, never installed). */
 export const SCRIPT_CHECK_ID = 'u_script_check'
+
+/** ⭐ 2026-11-26 -- the gate a written STRATEGY passes (`strategyGate.js`), loaded ONLY when a script declares one: it
+ *  brings the strategy runtime (the broker, the runtime columns), which an indicator's check never needs and which made
+ *  the first check of a page measurably slower when it rode `loadEngine` (`pendingReason.rail.test.jsx`, 120 s). */
+function loadStrategyGate() {
+  return import('./strategyGate')
+}
 
 /** The engine modules, loaded on first use, and what must be read before a script is judged. */
 async function loadEngine() {

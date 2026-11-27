@@ -222,6 +222,8 @@ export function createBarStore(o = {}) {
     lakeSeed: (key, opts) => network.lakeSeed?.(key, opts) ?? Promise.resolve(false),
     /** Is the lake's whole depth still due for `key` (network.lakePending)? */
     lakePending: (key) => !!network.lakePending?.(key),
+    /** The lake load of `key` in flight, or null (network.lakeLoading). Starts nothing. */
+    lakeLoading: (key) => network.lakeLoading?.(key) ?? null,
     /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
     deepPending: (key) => !!network.deepPending?.(key),
     /** D/W/M: fetch `key`'s deep history now, ahead of its join (network.deepPrime). */

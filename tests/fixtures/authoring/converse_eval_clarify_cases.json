@@ -600,7 +600,7 @@
          "args": [
           {
            "type": "call",
-           "name": "stoch",
+           "name": "stochPine",
            "args": [
             {
              "type": "series",
@@ -639,7 +639,7 @@
            "args": [
             {
              "type": "call",
-             "name": "stoch",
+             "name": "stochPine",
              "args": [
               {
                "type": "series",

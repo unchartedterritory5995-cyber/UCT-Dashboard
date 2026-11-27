@@ -34,3 +34,16 @@ export function readCachedDefinitionRows(owner, engine, storage = defsStorage())
     return rec.rows
   } catch { return undefined }
 }
+
+// ─── ⛔ (2026-11-27) THE KEPT LIST STARTS A PAGE LOAD, NOTHING ELSE ─────────────────────────────────────────────────────
+// Once this page has been served the list, a later mount (a sheet reopened, a chart remounted) reads the store as before,
+// never the kept copy. ⚰️ With the kept list on every mount, a remount drew the PREVIOUS answer and SWR deferred its read by
+// a frame (a mount holding data revalidates after one): master's BuilderSheet rails, which remount within a test, could not
+// find the row the store had just answered (vitest builder-2, 2026-11-27).
+let _served = false
+/** `useUserDefinitions`' fetcher, on every served answer. */
+export function markDefinitionsServed() { _served = true }
+/** Has this page been served the list (so no mount takes the kept copy any more)? */
+export function definitionsServedThisPage() { return _served }
+/** Tests only (test-setup, before each case): a fresh page. */
+export function __resetDefinitionsServedForTests() { _served = false }
