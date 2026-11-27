@@ -6,7 +6,7 @@
  * made the member's way — a pointer-down in the chart's grid cell — and every assertion is on which
  * chart actually changed, never on the reply text alone.
  */
-import { render, screen as globalScreen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -130,13 +130,12 @@ function mount(open = MAIN) {
   })
   return render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
 }
-const tfOf = (id) => screen.getByTestId(`chart-${id}`).getAttribute('data-tf')
+const tfOf = (id) => within(front()).getByTestId(`chart-${id}`).getAttribute('data-tf')
 // the board in front: under the keep-alive (boardKeepAlive.js; production's default) a kept board stays mounted
 // hidden beside it, so a lookup that means "on screen" looks inside the slot marked data-board-current
 const front = () => document.querySelector('[data-board-current]') || document.body
-const screen = new Proxy({}, { get: (_, k) => within(front())[k] ?? globalScreen[k] })
 const cell = (id) => front().querySelector(`[data-widget-id="${id}"]`)
-const click = (id) => act(async () => { fireEvent.pointerDown(screen.getByTestId(`chart-${id}`)) })
+const click = (id) => act(async () => { fireEvent.pointerDown(within(front()).getByTestId(`chart-${id}`)) })
 const dockButton = (name) => [...document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"] button')].find(b => b.textContent.trim() === name) || null
 const activeId = () => JSON.parse(prefStore.get().charts_active_template || 'null')?.id ?? null
 async function say(text) {
@@ -153,7 +152,7 @@ const applied = (action) => records.filter(r => String(r.outcomeData?.kind || ''
 
 test('click the LEFT chart, "switch this chart to weekly": only the left chart changes — no question, no model', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   await say('switch this chart to weekly')
   await waitFor(() => expect(tfOf('c-left')).toBe('W'), { timeout: 15000 })
@@ -164,7 +163,7 @@ test('click the LEFT chart, "switch this chart to weekly": only the left chart c
 
 test('click the RIGHT chart (a click inside the cell, on the canvas): "make this chart weekly" changes only the right chart', async () => {
   mount()
-  await screen.findByTestId('chart-c-right')
+  await within(front()).findByTestId('chart-c-right')
   await click('c-right')
   await say('make this chart weekly')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
@@ -173,8 +172,8 @@ test('click the RIGHT chart (a click inside the cell, on the canvas): "make this
 
 test('HOVER is not selection: pointer over a chart, no click → asks which chart, nothing changes', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
-  await act(async () => { fireEvent.pointerEnter(cell('c-left')); fireEvent.mouseOver(screen.getByTestId('chart-c-left')) })
+  await within(front()).findByTestId('chart-c-left')
+  await act(async () => { fireEvent.pointerEnter(cell('c-left')); fireEvent.mouseOver(within(front()).getByTestId('chart-c-left')) })
   await say('switch this chart to weekly')
   expect(await screen.findByText(/^Which chart\?$/, {}, { timeout: 15000 })).toBeTruthy()
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
@@ -187,7 +186,7 @@ test('HOVER is not selection: pointer over a chart, no click → asks which char
 
 test('a chart NAMED by its symbol beats the selection: left clicked, "switch the amd chart to weekly" → the AMD chart', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   await say('switch the amd chart to weekly')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
@@ -197,7 +196,7 @@ test('a chart NAMED by its symbol beats the selection: left clicked, "switch the
 
 test('an explicit position beats the selection: left selected, "switch the right chart to weekly" → right', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   await say('switch the right chart to weekly')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
@@ -208,7 +207,7 @@ test('an explicit position beats the selection: left selected, "switch the right
 // selection is valid; with no valid selection it still asks.
 test('a BARE request goes to the clicked chart: click RIGHT, "switch to weekly" → only the right chart changes', async () => {
   mount()
-  await screen.findByTestId('chart-c-right')
+  await within(front()).findByTestId('chart-c-right')
   await click('c-right')
   await say('switch to weekly')
   await waitFor(() => expect(tfOf('c-right')).toBe('W'), { timeout: 15000 })
@@ -219,7 +218,7 @@ test('a BARE request goes to the clicked chart: click RIGHT, "switch to weekly" 
 
 test('a BARE request with no click still asks on a multi-chart board — never a guess', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await say('switch to monthly')
   expect(await screen.findByText(/^Which chart\?$/, {}, { timeout: 15000 })).toBeTruthy()
   expect([tfOf('c-left'), tfOf('c-right')]).toEqual(['D', 'D'])
@@ -227,7 +226,7 @@ test('a BARE request with no click still asks on a multi-chart board — never a
 
 test('a BARE request after a layout switch (stale selection) asks — the old click does not carry over', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   await act(async () => { dockButton('Alt Board').click() })
   await waitFor(() => expect(activeId()).toBe(2))
@@ -240,14 +239,14 @@ test('a BARE request after a layout switch (stale selection) asks — the old cl
 
 test('a single-chart board needs no selection: "switch this chart to weekly" just works', async () => {
   mount(SOLO)
-  await screen.findByTestId('chart-c-only')
+  await within(front()).findByTestId('chart-c-only')
   await say('switch this chart to weekly')
   await waitFor(() => expect(tfOf('c-only')).toBe('W'), { timeout: 15000 })
 }, 45000)
 
 test('a layout switch makes the selection STALE — even back on the same layout with the same widget ids', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   await act(async () => { dockButton('Alt Board').click() })
   await waitFor(() => expect(activeId()).toBe(2))
@@ -260,7 +259,7 @@ test('a layout switch makes the selection STALE — even back on the same layout
 
 test('MODEL path: a true "this stock" with a chart clicked: a plan on the other chart goes to the clicked one, no question', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   turnReply = (body) => {
     const other = body.context.charts.find(c => !c.selected)
@@ -275,7 +274,7 @@ test('MODEL path: a true "this stock" with a chart clicked: a plan on the other 
 
 test('MODEL path: the selected chart is in the context, and a plan on ANOTHER chart is never run — asked, then resumed on the pick', async () => {
   mount()
-  await screen.findByTestId('chart-c-left')
+  await within(front()).findByTestId('chart-c-left')
   await click('c-left')
   // the model "decides" on the other chart for a deictic request
   turnReply = (body) => {
@@ -301,7 +300,7 @@ test('MODEL path: the selected chart is in the context, and a plan on ANOTHER ch
 
 test('MODEL path: a plan on the selected chart runs as planned', async () => {
   mount()
-  await screen.findByTestId('chart-c-right')
+  await within(front()).findByTestId('chart-c-right')
   await click('c-right')
   turnReply = (body) => ({ disposition: 'apply', reply: '', question: null, ops: [{ action: 'chart.setTimeframe', target: body.context.charts.find(c => c.selected).ref, args: { timeframe: 'W' } }], unsupported_category: null })
   await say('could you put this stock on the weekly view please')
@@ -324,7 +323,7 @@ const addOneChart = async () => {
 
 test('no room left: the refusal banner says so, the board is untouched, and Dismiss clears it', async () => {
     mount(NO_ROOM)
-    await screen.findByTestId('chart-c00')
+    await within(front()).findByTestId('chart-c00')
     const before = document.querySelectorAll('[data-widget-id]').length
     await addOneChart()
     await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
@@ -337,7 +336,7 @@ test('a refused add that carries a ticker saves no N:<id> pref (the Agent adding
   // The Agent's plan refuses a full board first, so this only happens when the board fills between plan and commit. That
   // is the call capabilities/workspace.js commit makes, through the workspace's real widgetOps.
   mount(NO_ROOM)
-  await screen.findByTestId('chart-c00')
+  await within(front()).findByTestId('chart-c00')
   const before = document.querySelectorAll('[data-widget-id]').length
   await act(async () => { hostSpy.widgetOps.add('chart', null, { symbol: 'TSLA', tf: 'D' }) })
   await waitFor(() => expect(banner()?.textContent).toMatch(/no room left on this board/i), { timeout: 15000 })
