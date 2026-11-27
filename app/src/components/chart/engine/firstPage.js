@@ -17,6 +17,7 @@
 // (coordinator condition). The chart's thread only WIDENS the window that comes back (`widenFirstPage`: a copy).
 import { astColumnsGiven, withWithheldBars, astTrees } from './astColumns.js'
 import { maxLookback, declaredInputs } from './ast/lint.js'
+import { TABLE } from './ast/parse.js'
 
 export const FIRST_PAGE_ROWS = 1500
 export const FIRST_PAGE_PROBE = 251
@@ -43,7 +44,7 @@ export const FIRST_PAGE_POST_ROWS = FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
 /** Clock leaves counted from the history's first bar (`closedTable.json` clock): the same bar reads another number when
  *  the history starts elsewhere, whatever its reach says. (A higher timeframe's read is refused beside them.) */
 export const START_COUNTED_CLOCK = Object.freeze(['barindex', 'isfirst', 'lastbarindex'])
-const readsStartCounted = (tree) => {
+const readsStartCounted = (tree) => {   // …or anything else the reach cannot bound (below)
   const stack = [tree]
   const seen = new Set()
   while (stack.length) {
@@ -55,9 +56,23 @@ const readsStartCounted = (tree) => {
     // is counted as a fixed number of chart bars), not a bound, and its first period on a page is partial. MEASURED: the
     // census's one remaining wrong plot after the reach rule was a monthly `valuewhen` whose estimated reach fit the probe.
     if (n.type === 'tf' || n.type === 'tf_live') return true
+    // ⛔ a call whose declared reach is not a WINDOW (`closedTable.json` lookback: a number, or `argN` / `k*argN`): a
+    // `series` reach (`cum`, an anchored VWAP, `valuewhenOccurrence`) or a `session` one is not a bar count the linter
+    // can bound. MEASURED (the rail): `cum(close)` came back with a finite reach. A function the table does not name is
+    // refused the same way.
+    if (n.type === 'call' && !windowReach(n.name)) return true
     for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
   }
   return false
+}
+
+const FUNCTIONS = (TABLE && TABLE.functions) || {}
+const WINDOW_LOOKBACK = /^(\d+\*)?arg\d+$/
+const windowReach = (name) => {
+  const spec = typeof name === 'string' && Object.prototype.hasOwnProperty.call(FUNCTIONS, name) ? FUNCTIONS[name] : null
+  if (!spec) return false
+  const lb = spec.lookback
+  return (typeof lb === 'number' && Number.isFinite(lb)) || (typeof lb === 'string' && WINDOW_LOOKBACK.test(lb))
 }
 
 /** May plot `key` of `def` be drawn from a page: its tree's reach is finite and within the probe, and it reads no
