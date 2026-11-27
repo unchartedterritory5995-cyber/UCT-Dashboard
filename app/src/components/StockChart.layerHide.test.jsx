@@ -118,12 +118,12 @@ const { BoardVisibilityContext, createBoardVisibility } = await import('./chart/
 
 // the chart's setInterval callbacks, captured (they never fire by themselves here: S4 runs them by hand)
 const intervals = []
-function Host({ vis }) {
-  const chart = <StockChart sym="AAPL" tf="D" chartId="layer-hide" barsOverride={FIXTURE_BARS} />
+function Host({ vis, extra }) {
+  const chart = <StockChart sym="AAPL" tf="D" chartId="layer-hide" barsOverride={FIXTURE_BARS} {...extra} />
   return vis === undefined ? chart : <BoardVisibilityContext.Provider value={vis}>{chart}</BoardVisibilityContext.Provider>
 }
-async function mounted(vis) {
-  const view = render(<Host vis={vis} />)
+async function mounted(vis, extra = {}) {
+  const view = render(<Host vis={vis} extra={extra} />)
   await waitFor(() => expect(lw.created).toBe(1))
   await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
   return view
@@ -154,8 +154,9 @@ describe('StockChart on a layer keep-alive board', () => {
 
   it('S2 (red first) every frame loop under the chart is gated on its board', async () => {
     const vis = createBoardVisibility({ layer: true })
-    const view = await mounted(vis)
-    expect(loops.length, 'NON-VACUITY: the chart runs a frame loop').toBeGreaterThan(0)
+    // the range selector turns on the chrome-placement loop as well (review: a mutant ungating it survived without it)
+    const view = await mounted(vis, { showRangeSelector: true })
+    expect(loops.length, 'NON-VACUITY: the chart runs its chrome loop and another').toBeGreaterThan(1)
     const ungated = loops.filter((o) => !o.gate).length
     expect(ungated, `${ungated} of ${loops.length} frame loops are not gated on the board`).toBe(0)
     await setTo(vis, 'hidden')
