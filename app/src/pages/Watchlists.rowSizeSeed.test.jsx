@@ -447,14 +447,23 @@ describe('ScanRows: the remembered offset fits the list it comes back to', () =>
       const onCommit = () => {
         if (atFirst) return
         const sc = document.querySelector('[data-scroller]')
-        atFirst = { top: sc.scrollTop, rows: [...sc.querySelectorAll('[data-index]')].map((el) => Number(el.getAttribute('data-index'))) }
+        const els = [...sc.querySelectorAll('[data-index]')]
+        atFirst = {
+          top: sc.scrollTop,
+          rows: els.map((el) => Number(el.getAttribute('data-index'))),
+          // each row's [top, bottom) in the list, as placed in this commit (a row is ROW_PX tall)
+          spans: els.map((el) => { const y = Number(/translateY\(([-\d.]+)px\)/.exec(el.style.transform)[1]); return [y, y + ROW_PX] }),
+        }
       }
       render(<List cacheKey="list:R19" items={half} onCommit={onCommit} />)
       expect(atFirst.rows.length, 'blank space: no rows in the first commit').toBeGreaterThan(0)
       expect(Math.max(...atFirst.rows), 'the last row').toBe(29)
       // the last screenful (rows 20-29) is all there; the library's range also counts the row that ends on the edge (19)
       for (let i = 20; i <= 29; i++) expect(atFirst.rows, `row ${i} of the last screenful`).toContain(i)
-      expect(atFirst.top, 'the scroller at the end of the shorter list').toBe(800)
+      // no blank space: the 400 px view at the scroller's position is covered by the rows this commit placed
+      const covered = (y) => atFirst.spans.some(([t, e]) => y >= t && y < e)
+      for (let y = atFirst.top; y < atFirst.top + 400; y += 10) expect(covered(y), `blank at ${y} px`).toBe(true)
+      expect(atFirst.top, 'the scroller past the shorter list').toBeLessThan(1200)
     } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop }
   })
 })
