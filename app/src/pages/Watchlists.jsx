@@ -32,7 +32,7 @@ import { createPortal, flushSync } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { boardHiddenNow, useLayerBoard } from '../components/chart/boardVisibility'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { useVirtualizer, observeElementOffset } from '@tanstack/react-virtual'
 
 // Above this many rows a watchlist renders through the virtualizer. Chosen to sit
 // just above the enrichment batches' own 100-ticker boundary, so a list either fits
@@ -90,7 +90,7 @@ function rafObserveElementRect(instance, cb) {
 // measured last time: those sizes are its estimates (the first render is placed right) and its attach-time answers (no
 // layout read). The ResizeObserver still measures every mounted row from its border box (after layout, before paint),
 // so a row that changed height since is corrected; only those re-render. Rail: Watchlists.rowSizeSeed.test.jsx.
-const ROW_SIZES = new Map()        // sizeCacheKey -> Map(row key -> px), most recently mounted last
+const ROW_SIZES = new Map()        // sizeCacheKey -> { sizes: Map(row key -> px), rect: the scroller box last delivered, offset: its last scroll offset }
 const ROW_SIZE_LISTS_MAX = 24
 // one list's memory: a whole-market scan scrolled end to end must not grow it without bound
 export const ROW_SIZE_ROWS_MAX = 5000
@@ -98,12 +98,12 @@ export const ROW_SIZE_ROWS_MAX = 5000
 // row-geometry input the key does not carry): its memory is dropped, and the list measures as it mounts again
 export const ROW_SIZE_CORRECTIONS_MAX = 3
 function rowSizesFor(key) {
-  let sizes = ROW_SIZES.get(key)
-  if (sizes) ROW_SIZES.delete(key)
-  else sizes = new Map()
-  ROW_SIZES.set(key, sizes)
+  let record = ROW_SIZES.get(key)
+  if (record) ROW_SIZES.delete(key)
+  else record = { sizes: new Map(), rect: null, offset: 0 }
+  ROW_SIZES.set(key, record)
   if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
-  return sizes
+  return record
 }
 /**
  * The key a list's row sizes are remembered under, or `null` (not remembered). It names the list by a STABLE id (a
@@ -120,24 +120,33 @@ export function rowSizeCacheKey({ kind, id, fontSize, logoPx, columns, touch, vi
 /**
  * The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
  * size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit.
- * `mem` is one mount's view of the memory: `{ sizes, corrections, dropped, correctedNow }`. An observer entry that
- * contradicts a remembered size counts a correction and asks the list to commit it before the frame paints
- * (`correctedNow`, read by the virtualizer's `onChange`).
+ * `mem` is one mount's view of the memory: `{ sizes, seeded, corrections, dropped, onCorrection }`.
+ *
+ * ⭐ (review of #2907, D1/D2) A CORRECTION IS JUDGED AGAINST THE VIRTUALIZER, FOR THE ROWS THIS MOUNT SEEDED. A row
+ * whose estimate or attach-time answer came from memory (`seeded`) is checked once, at its first observer delivery,
+ * against the size the virtualizer HOLDS for it (not against the memory, which another mount on the same key, or the
+ * drop below, may have changed). A difference calls `onCorrection` (the list commits every correction of the pass at
+ * once, before paint); the row then leaves `seeded`, so a later real resize takes the ordinary batched path. Nothing is
+ * left set between calls.
  */
 export function measureRememberedRow(el, entry, instance, mem) {
   const index = instance.indexFromElement(el)
   const key = index >= 0 ? instance.options.getItemKey(index) : undefined
   const box = entry?.borderBoxSize?.[0]
-  const known = key === undefined || mem.dropped ? undefined : mem.sizes.get(key)
   let size
   if (box) {
     size = Math.round(box.blockSize)
-    if (known !== undefined && known !== size && size > 0) {
-      mem.correctedNow = true
-      if (++mem.corrections > ROW_SIZE_CORRECTIONS_MAX) { mem.sizes.clear(); mem.dropped = true }
+    if (key !== undefined && mem.seeded?.has(key)) {
+      mem.seeded.delete(key)
+      const held = instance.itemSizeCache?.get(key) ?? instance.measurementsCache?.[index]?.size
+      if (held !== undefined && held !== size && size > 0) {
+        if (++mem.corrections > ROW_SIZE_CORRECTIONS_MAX && !mem.dropped) { mem.sizes.clear(); mem.dropped = true }
+        mem.onCorrection?.()
+      }
     }
   } else {
-    if (known !== undefined) return known
+    const known = key === undefined || mem.dropped ? undefined : mem.sizes.get(key)
+    if (known !== undefined) { mem.seeded?.add(key); return known }
     size = el.offsetHeight
   }
   if (size > 0 && key !== undefined && !mem.dropped) { // a hidden list (0) teaches nothing; nor does a row with no index
@@ -778,11 +787,32 @@ export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false, sizeCacheKey = null }) {
   // the row sizes this list measured on its last mount (see `rowSizesFor`), as this mount's view of them
   // (`measureRememberedRow`); none: measured as they mount, as before
-  const rowMem = useMemo(
-    () => (sizeCacheKey ? { sizes: rowSizesFor(sizeCacheKey), corrections: 0, dropped: false, correctedNow: false } : null),
-    [sizeCacheKey],
-  )
   const [, commitCorrection] = useState(0)
+  const rowMem = useMemo(() => {
+    if (!sizeCacheKey) return null
+    const record = rowSizesFor(sizeCacheKey)
+    const mem = {
+      record, sizes: record.sizes, seeded: new Set(), corrections: 0, dropped: false, flushQueued: false,
+      // a warm mount's first render (see `initialRect` below): the window's rows only, the overscan joins after it
+      firstFrame: !!record.rect,
+      offset: record.rect ? record.offset || 0 : 0,
+    }
+    // ⭐ (review of #2907, D1) EVERY CORRECTION OF ONE OBSERVER PASS, ONE COMMIT, BEFORE PAINT. The observer delivers all
+    // the rows of a pass in one callback; a correction (`measureRememberedRow`) only queues this, and the microtask runs
+    // after the callback has applied every row's size and before the frame paints. One `flushSync` commits them all.
+    mem.onCorrection = () => {
+      if (mem.flushQueued) return
+      mem.flushQueued = true
+      queueMicrotask(() => { mem.flushQueued = false; flushSync(() => commitCorrection((n) => n + 1)) })
+    }
+    return mem
+  }, [sizeCacheKey])
+  // the overscan rows join right after the warm first commit (off screen: nothing on screen moves)
+  useEffect(() => {
+    if (!rowMem?.firstFrame) return
+    rowMem.firstFrame = false
+    commitCorrection((n) => n + 1)
+  }, [rowMem])
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -828,30 +858,55 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   const rowKey = (i) => items[i]?.id || items[i]?.sym || i
   const virt = useVirtualizer({
     count: items.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: rowMem ? (i) => (rowMem.dropped ? undefined : rowMem.sizes.get(rowKey(i))) ?? 30 : () => 30,
+    // ⚡ A warm list remembered SCROLLED (`offset` > 0) finds its scroller in the switch's own commit: the parent's ref is
+    // attached after this list's layout effects, and without the scroller the rows rendered for the remembered offset
+    // would sit out of view (the fresh scroller is at 0) for a frame. Found through the DOM (its host is already
+    // attached), the virtualizer restores the offset there, before paint. This costs the one layout the scroll needs;
+    // a list at the top (the usual case) keeps waiting for the ref and pays nothing in the commit.
+    getScrollElement: () => scrollRef.current
+      ?? (rowMem?.offset > 0 ? hostRef.current?.closest('[data-scan-scroller]') ?? null : null),
+    estimateSize: rowMem
+      ? (i) => {
+        if (rowMem.dropped) return 30
+        const k = rowKey(i)
+        const known = rowMem.sizes.get(k)
+        if (known === undefined) return 30
+        rowMem.seeded.add(k) // checked against the observer's first delivery (`measureRememberedRow`)
+        return known
+      }
+      : () => 30,
     ...(rowMem ? {
+      // ⭐ (review of #2907, M2/D1: "no jumps") A ROW SEEDED FROM MEMORY THAT THE OBSERVER CONTRADICTS IS CORRECTED BEFORE
+      // THE FRAME PAINTS. The library's re-render from an observer callback is an ordinary update, rendered after this
+      // frame paints (one frame of rows at the wrong offsets, then a jump); the corrections of a pass commit together in
+      // one `flushSync` instead (`rowMem.onCorrection`). Every other change keeps the batched path (`useFlushSync: false`).
       measureElement: (el, entry, instance) => measureRememberedRow(el, entry, instance, rowMem),
-      // ⭐ (review of #2907, M2: "no jumps") A REMEMBERED SIZE THE OBSERVER CONTRADICTS IS CORRECTED BEFORE THE FRAME
-      // PAINTS. The observer delivers after layout and before paint; the library's re-render from there is an ordinary
-      // update, which React renders after this frame paints: one frame of rows at the wrong offsets, then a jump. That
-      // one case commits now (`flushSync`, allowed in an observer callback), as the attach-time measurement used to
-      // inside the commit; every other change keeps the batched path (`useFlushSync: false` below).
-      onChange: () => {
-        if (!rowMem.correctedNow) return
-        rowMem.correctedNow = false
-        flushSync(() => commitCorrection((n) => n + 1))
-      },
+      // the scroll offset is remembered beside the box, for the next warm mount's first render (`initialOffset`)
+      observeElementOffset: (instance, cb) => observeElementOffset(instance, (offset, scrolling) => {
+        rowMem.record.offset = offset
+        cb(offset, scrolling)
+      }),
     } : null),
     // Measured heights keyed by the ROW, not its position: a grouped list puts a
     // taller section header where a ticker row used to be, and a position-keyed
     // cache kept the old 29px height (headers overlapped).
     getItemKey: rowKey,
-    overscan: 12,
+    // the warm first render holds the window's rows only (it runs in the switch's click task); the overscan follows
+    overscan: rowMem?.firstFrame ? 0 : 12,
     scrollMargin,
     scrollPaddingStart: stickyTop,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
-    observeElementRect: rafObserveElementRect,
+    observeElementRect: rowMem
+      ? (instance, cb) => rafObserveElementRect(instance, (rect) => { if (rect.width > 0 && rect.height > 0) rowMem.record.rect = rect; cb(rect) })
+      : rafObserveElementRect,
+    // ⚡ FIRST FRAME CHANGES (2026-11-27, owner: "everything at once"): A REMEMBERED LIST'S ROWS ARE IN THE SWITCH'S FIRST
+    // FRAME. The scroller mounts in the same commit as the list, and a parent's ref is attached after a child's layout
+    // effects, so the virtualizer found no scroll element there: with no box it rendered NO rows, and the rows came a
+    // frame or more after the charts (once a later render subscribed and the box arrived). A list that remembers its
+    // scroller's box starts from it: its first render already holds the window's rows, at their remembered sizes, and
+    // the real box (a frame later) only confirms it. A list with no memory (cold) is unchanged.
+    // Rail: Watchlists.rowSizeSeed.test.jsx (R12, R13).
+    ...(rowMem?.record.rect ? { initialRect: rowMem.record.rect, initialOffset: rowMem.offset } : null),
     // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
     // `flushSync` on every scroll event while the list scrolls (`isScrolling`), and the arrow key's
     // `scrollIntoView` is such a scroll: that forced the whole pending chart switch to render and commit
@@ -3876,7 +3931,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         )}
 
         {/* Body */}
-        <div ref={listBodyRef} className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}${stableGutter ? ' ' + styles.stableGutter : ''}`} style={{ '--wl-grid': gridTemplate }}>
+        <div ref={listBodyRef} data-scan-scroller="" className={`${styles.listBody}${pickList ? ' ' + styles.pickMode : ''}${stableGutter ? ' ' + styles.stableGutter : ''}`} style={{ '--wl-grid': gridTemplate }}>
 
           {columnHeader}
 
