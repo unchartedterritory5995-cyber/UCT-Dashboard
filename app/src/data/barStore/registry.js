@@ -48,10 +48,15 @@ export function _nextLifeGenForTests() { return (_lives + 1) * LIFE_STRIDE }
 /** ⭐ (review of #2935, D-1) THE SWITCH TARGET STAYS HELD UNTIL ITS CHART SUBSCRIBES. The handoff's prepare pins its key
  *  (ensure) and lets go when it reports; the chart subscribes only at the commit. In between, a never-shown target is an
  *  ordinary idle intraday entry, and another key's landing over the budget could drop it (an exact reload, but the press
- *  the member made would wait for it). `holdUntilShown` pins it until a subscriber arrives, at most HANDOFF_HOLD_MS, and
- *  at most HANDOFF_HOLDS_MAX at once (a fast arrow run hands off two keys a press: the oldest holds go first). */
+ *  the member made would wait for it). `holdUntilShown` pins it until a subscriber arrives, at most HANDOFF_HOLD_MS.
+ *  ⭐ (review of #2935, D2-a) BOUNDED BY PRESSES, NOT KEYS. A press hands off one key per linked chart (the group's
+ *  timeframes, all on the press's symbol): five linked intraday charts are five keys, and a cap of 4 KEYS dropped the
+ *  current press's own holds. The holds kept are those of the HANDOFF_HOLD_SYMBOLS most recent symbols handed off (the
+ *  press and the one before it), every key of each; HANDOFF_HOLDS_MAX keys is only the backstop against a pathological
+ *  caller (more charts than any board holds), the oldest holds first. */
 export const HANDOFF_HOLD_MS = 1500
-export const HANDOFF_HOLDS_MAX = 4
+export const HANDOFF_HOLD_SYMBOLS = 2
+export const HANDOFF_HOLDS_MAX = 32
 
 /** One idle moment (requestIdleCallback; a 50 ms timer where there is none). */
 export function defaultIdle(fn) {
@@ -298,14 +303,15 @@ export function createRegistry({
     },
     keys() { return [...entries.keys()] },
     /** Pin `key` (a switch target its prepare just reported) until a subscriber arrives, at most `ms`; at most
-     *  HANDOFF_HOLDS_MAX holds at once, the oldest released first. A key not held, or already shown, is not pinned.
+     *  the HANDOFF_HOLD_SYMBOLS most recent symbols' holds (every key of each; HANDOFF_HOLDS_MAX keys the backstop), the
+     *  oldest released first. A key not held, or already shown, is not pinned.
      *  Returns the release (idempotent). */
     holdUntilShown(key, { ms = HANDOFF_HOLD_MS } = {}) {
       const e = entries.get(key)
       if (!e || e.subs.size) return () => {}
       e.refs++
       e.used = ++clock
-      const h = { key, timer: null, done: false }
+      const h = { key, sym: parseKey(key)?.sym ?? key, timer: null, done: false }
       h.end = () => {
         if (h.done) return
         h.done = true
@@ -316,7 +322,11 @@ export function createRegistry({
         _evictSoon()
       }
       h.timer = setTimer(h.end, ms)
+      // a symbol handed off again is the newest press: its holds move to the end
+      for (let i = handoffs.length - 1; i >= 0; i--) if (handoffs[i].sym === h.sym) handoffs.push(handoffs.splice(i, 1)[0])
       handoffs.push(h)
+      const syms = () => new Set(handoffs.map((x) => x.sym)).size
+      while (syms() > HANDOFF_HOLD_SYMBOLS) { const old = handoffs[0].sym; for (const x of handoffs.filter((y) => y.sym === old)) x.end() }
       while (handoffs.length > HANDOFF_HOLDS_MAX) handoffs[0].end()
       return h.end
     },

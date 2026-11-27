@@ -2,11 +2,15 @@
 // The handoff's prepare pins its key (ensure) and lets go when it reports; the chart subscribes at the commit. In between a
 // never-shown target was an ordinary idle intraday entry, and another key's landing over the bar budget could drop it.
 //   H1 registry: a held target survives any pressure; its chart's subscribe ends the hold (the subscriber pins it); an
-//      unsubscribed hold ends after HANDOFF_HOLD_MS and the key goes like any other; at most HANDOFF_HOLDS_MAX holds.
+//      unsubscribed hold ends after HANDOFF_HOLD_MS and the key goes like any other.
+//   H3 (review of #2935, D2-a) the holds are bounded by PRESSES: a press on a board of five linked intraday charts hands
+//      off five keys of one symbol, and every one stays held; the HANDOFF_HOLD_SYMBOLS most recent symbols keep theirs,
+//      an older press's go; HANDOFF_HOLDS_MAX keys is the backstop.
+//   H4 (D2-b) prepareDailyForDisplay hands its target off held, as prepareForDisplay does.
 //   H2 the facade: prepareForDisplay's target survives other keys' landings over the budget until its chart subscribes
 //      (a D target: an intraday one can also be held by the prepare's own closed-bar waiter, which would hide the hold).
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
-import { createRegistry, HANDOFF_HOLD_MS, HANDOFF_HOLDS_MAX } from './registry'
+import { createRegistry, HANDOFF_HOLD_MS, HANDOFF_HOLD_SYMBOLS, HANDOFF_HOLDS_MAX } from './registry'
 import { keyOf } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
@@ -45,10 +49,27 @@ describe('H1 registry.holdUntilShown', () => {
     await vi.advanceTimersByTimeAsync(HANDOFF_HOLD_MS + 1)
     reg.dispatch(K('P2'), full(200, 2))
     expect(reg.has(K('GHOST')), 'released after the bound').toBe(false)
-    // at most HANDOFF_HOLDS_MAX at once: the oldest go first
-    const ks = Array.from({ length: HANDOFF_HOLDS_MAX + 2 }, (_, i) => K(`H${i}`))
-    for (const k of ks) { reg.acquire(k); reg.dispatch(k, full(10, 1)); reg.release(k); reg.holdUntilShown(k) }
-    expect(ks.filter((k) => reg.refs(k) > 0)).toEqual(ks.slice(-HANDOFF_HOLDS_MAX))
+  })
+
+  it('H3 bounded by presses: five linked charts keep every hold of the press; an older press lets go', () => {
+    const reg = createRegistry({ barBudget: 1e9, recentSymbols: 0, ctx: () => ({ nowMs: NOW }), idle: (fn) => fn() })
+    const TFS = ['1', '5', '15', '30', '60']
+    const press = (sym) => TFS.map((tf) => {
+      const k = keyOf({ sym, tf })
+      reg.acquire(k); reg.dispatch(k, full(10, 1)); reg.holdUntilShown(k); reg.release(k)
+      return k
+    })
+    expect(HANDOFF_HOLD_SYMBOLS).toBe(2)
+    const a = press('PA'), b = press('PB')
+    for (const k of [...a, ...b]) expect(reg.refs(k), `${k} held`).toBe(1)
+    const c = press('PC')
+    for (const k of a) expect(reg.refs(k), `${k}: an older press`).toBe(0)
+    for (const k of [...b, ...c]) expect(reg.refs(k), `${k} held`).toBe(1)
+    // the backstop: more keys than any board holds, one symbol: the oldest holds go
+    const many = Array.from({ length: HANDOFF_HOLDS_MAX + 3 }, (_, i) => keyOf({ sym: 'PD', tf: '5', window: { to: 1_700_000_000 + i * 86400 } }))
+    for (const k of many) { reg.acquire(k); reg.dispatch(k, full(5, 1)); reg.holdUntilShown(k); reg.release(k) }
+    expect(many.filter((k) => reg.refs(k) > 0).length).toBeLessThanOrEqual(HANDOFF_HOLDS_MAX)
+    expect(reg.refs(many.at(-1))).toBe(1)
   })
 })
 
@@ -83,6 +104,36 @@ describe('H2 prepareForDisplay hands its target off held', () => {
     const off = registry.subscribe(key, () => {})
     expect(registry.has(key)).toBe(true)
     off()
+    store.dispose()
+  })
+})
+
+describe('H4 prepareDailyForDisplay hands its target off held', () => {
+  beforeAll(() => { fakeDb = fakeDb || installFakeIndexedDB() })
+  beforeEach(() => { fakeDb._clear(); vi.useFakeTimers(); vi.setSystemTime(NOW) })
+  afterEach(() => { vi.useRealTimers() })
+
+  it("the daily target survives other keys' landings over the budget until its chart subscribes", async () => {
+    vi.resetModules()
+    const server = installFakeBarsServer()
+    const { createBarStore } = await import('./index')
+    const { createPrefetch } = await import('./prefetch')
+    const R = await import('./registry')
+    const registry = R.createRegistry({ barBudget: 1, recentSymbols: 0, ctx: () => ({ nowMs: Date.now() }), idle: (fn) => fn() })
+    const store = createBarStore({
+      stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
+      isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(), registry,
+    })
+    const pf = createPrefetch({ store, tickerMeta: () => {} })
+    const p = pf.prepareDailyForDisplay('TGD', 'D')
+    await server.drain()
+    await p
+    const key = pf.keyFor('TGD', 'D')
+    await vi.advanceTimersByTimeAsync(200)
+    expect(registry.peek(key)?.depth, 'the prepare landed rows').toBeGreaterThan(0)
+    expect(registry.refs(key), 'held by the handoff alone').toBe(1)
+    for (let i = 0; i < 4; i++) registry.dispatch(pf.keyFor(`OTD${i}`, '5'), full(50, 2))
+    expect(registry.has(key), 'the target between prepare and commit').toBe(true)
     store.dispose()
   })
 })

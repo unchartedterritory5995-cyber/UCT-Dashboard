@@ -1382,6 +1382,10 @@ export function createPrefetch(o = {}) {
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
+    // (review of #2935, D2-b) pinned for the whole prepare and handed to the hold that lasts until the chart subscribes,
+    // exactly as prepareForDisplay's (below, finally)
+    const reg = S().registry
+    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
     try {
       // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
       // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
@@ -1411,6 +1415,8 @@ export function createPrefetch(o = {}) {
       return 'error'
     } finally {
       _release(key)
+      try { reg?.holdUntilShown?.(key) } catch { /* a hold is an optimisation */ }
+      try { reg?.release?.(key) } catch { /* no registry */ }
     }
   }
 
