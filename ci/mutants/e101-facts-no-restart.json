@@ -11,15 +11,6 @@
    "expectRed": "names a symbol fact keeps today"
   },
   {
-   "id": "F2",
-   "mutant": "sameProgram dropped from resumableFrom: a run whose program folded another fact resumes from the other session",
-   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
-   "from": "  if (!sameProgram(prev.program, program)) return { why: 'the program changed' }",
-   "to": "  if (false) return { why: 'the program changed' }",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/factsNoRestart.test.js",
-   "expectRed": "READS a symbol fact"
-  },
-  {
    "id": "F3",
    "mutant": "request sites admitted to the facts resume",
    "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",

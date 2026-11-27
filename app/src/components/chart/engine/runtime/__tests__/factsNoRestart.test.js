@@ -78,30 +78,28 @@ describe('the run asked under the new facts resumes from the run that ran', () =
     expect(b).not.toEqual(a) // non-vacuity: the fact changes the answer
   })
 
-  it('⛔ a fact folded into the PROGRAM (a function body, a `var` seed, a loop), not a column: `sameProgram` refuses it', () => {
-    // MEASURED (remote run, 2026-11-27): a NUMERIC read of a fact is lifted into a precomputed column wherever it is
-    // written (a function body, a `var` seed, a loop: all three refused by `sameColumnsTo`, "a column before the
-    // checkpoint changed"). A STRING fact cannot live in a Float64 column: it is a program constant, so ONLY
-    // `sameProgram` can refuse the other session (mutant F2)
+  it('⛔ a fact read inside code the VM runs (a function body, a `var` seed, a loop) is still refused: lifted into a column', () => {
+    // MEASURED (remote runs, 2026-11-27): a NUMERIC read of a symbol fact is lifted into a precomputed column wherever
+    // it is written, so `sameColumnsTo` refuses the other session ("a column before the checkpoint changed"); a STRING
+    // read (`var string p = syminfo.prefix`) is refused by the evaluator itself ("a value that a symbol settles
+    // reached the evaluator unsettled"). No symbol fact reaches the lowered PROGRAM, so dropping `sameProgram` is an
+    // equivalent mutant for this unit; `resumableFrom` keeps it for every other resume.
     const candidates = {
-      varString: ['var string p = syminfo.prefix', 'plot(str.length(p) + close)'],
-      concat: ['string q = syminfo.prefix + ":x"', 'plot(str.length(q) + close)'],
       fnBody: ['f(x) => syminfo.prefix == "NASDAQ" ? x + 1 : x - 1', 'var float s = 0.0', 's := f(s)', 'plot(s + close)'],
+      varSeed: ['var float s = syminfo.prefix == "NASDAQ" ? 1.0 : -1.0', 's := s + close', 'plot(s)'],
+      loop: ['float s = 0.0', 'for i = 0 to 2', '    s += syminfo.prefix == "NASDAQ" ? close : -close', 'plot(s)'],
     }
-    const whys = {}
     for (const [name, body] of Object.entries(candidates)) {
       const d = doc(src(...body))
       const a = Array.from(computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NASDAQ' })).a)
       const bCols = computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NYSE' }))
       const inc = runtimeIncrementalOf(bCols)
-      whys[name] = inc.why
+      expect(inc.why, name).toBe('a column before the checkpoint changed')
       expect(inc.ranBars, name).toBe(BARS.length)
       const b = Array.from(bCols.a)
       expect(b, name).toEqual(cold(d, BARS, ctxOf({ exchange: 'NYSE' })))
       expect(b, name).not.toEqual(a)
     }
-    // non-vacuity: at least one candidate is refused by the PROGRAM check, not the columns one
-    expect(Object.values(whys), JSON.stringify(whys)).toContain('the program changed')
   })
 
   it('⛔ a run with request sites is never served across facts (the listing date and the bind are read outside the program)', () => {
