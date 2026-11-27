@@ -13,6 +13,8 @@
 //
 // Switch: localStorage `uct.boardKeepAlive` = '1', or VITE_BOARD_KEEPALIVE=1 at build time. Read once per workspace.
 export const BOARD_KEEPALIVE_KEY = 'uct.boardKeepAlive'
+/** A kept board is disposed once the page has been hidden this long (memory: nobody is coming back soon). */
+export const KEPT_BOARD_HIDDEN_DISPOSE_MS = 10 * 60_000
 
 export function boardKeepAliveEnabled() {
   try {

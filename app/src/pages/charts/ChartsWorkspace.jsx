@@ -1,6 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, createBoardVisibility } from '../../components/chart/boardVisibility'
-import { boardKeepAliveEnabled, sameBoard } from './boardKeepAlive'
+import { boardKeepAliveEnabled, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -943,7 +943,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           currentBoardRef.current = { slot: kept.slot, key, vis: kept.vis }
           shown = kept.layout
         } else {
-          if (kept) kept.vis.state = 'disposed'
+          if (kept) kept.vis.dispose()   // its charts' teardowns run (a hidden board runs no cleanup when deleted)
           currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility() }
         }
         keptBoardRef.current = leaving
@@ -1233,7 +1233,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       .filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
       .map(w => w.id)
     // the kept (hidden) board's widgets stay admitted: they are mounted, and its show must not gate them again
-    const extra = keptBoard ? keptBoard.layout.widgets.map(w => w.id).filter(id => !cur.includes(id)) : []
+    const extra = keptBoard
+      ? keptBoard.layout.widgets.map(w => w.id).filter(id => !cur.includes(id) && !poppedWidgetIds.includes(id) && !floatingWidgetIds.includes(id))
+      : []
     return extra.length ? [...cur, ...extra] : cur
   }, [layout.widgets, poppedWidgetIds, floatingWidgetIds, keptBoard])
   // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
@@ -3055,10 +3057,33 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (!(gridMode || boardHidden)) return
     const kept = keptBoardRef.current
     if (!kept) return
-    kept.vis.state = 'disposed'
+    kept.vis.dispose()
     keptBoardRef.current = null
     setKeptBoard(null)
   }, [gridMode, boardHidden])
+  // A page hidden for KEPT_BOARD_HIDDEN_DISPOSE_MS lets the kept board go (memory); the workspace leaving disposes it.
+  useEffect(() => {
+    if (!keepAliveOn) return undefined
+    let t = null
+    const drop = () => {
+      t = null
+      const kept = keptBoardRef.current
+      if (!kept) return
+      kept.vis.dispose()
+      keptBoardRef.current = null
+      setKeptBoard(null)
+    }
+    const onVisibility = () => {
+      if (document.hidden) { if (t == null) t = setTimeout(drop, KEPT_BOARD_HIDDEN_DISPOSE_MS) }
+      else if (t != null) { clearTimeout(t); t = null }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      if (t != null) clearTimeout(t)
+      keptBoardRef.current?.vis.dispose()
+    }
+  }, [keepAliveOn])
 
   // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
   // demands an explicit owner — see the widget's own listener) and the press
@@ -4122,7 +4147,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       <BoardVisibilityContext.Provider key={`board-slot-${bd.slot}`} value={bd.vis}>
         <Activity mode={bd.front ? 'visible' : 'hidden'}>
           <div className={styles.boardSlot} data-board-current={bd.front ? '' : undefined}>
-            {bd.front ? front : renderGrid(keptBoard.layout.widgets, hiddenGridHandlers, undefined, undefined, { hidden: true })}
+            {bd.front ? front : renderGrid(
+              // a popped or floating widget exists once: never again on the kept board
+              keptBoard.layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id)),
+              hiddenGridHandlers, undefined, undefined, { hidden: true },
+            )}
           </div>
         </Activity>
       </BoardVisibilityContext.Provider>
