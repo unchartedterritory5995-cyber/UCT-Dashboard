@@ -32,7 +32,20 @@ const reasks = new Map()      // the lane's key -> the re-asks this page has spe
 const lastAsked = new Map()   // a document id -> the key the lane last asked for it (a different one, then this: a return)
 let generation = 0            // bumped by every Retry (and reset): a remembered stop of an older generation is dropped
 const listeners = new Set()
-const now = () => Date.now()
+// ⛔ NO WALL CLOCK OF ITS OWN (design 2.2 H5): this module is in the runtime compute closure
+// (`tools/pine_runtime_closure.mjs`, the server bundle), so the clock a stop's hold is measured on is the page's, injected
+// by the page's host (`runtime/runtimeAsync.js::ensureRuntimeLane` hands it `Date.now`). With none injected (a server
+// bundle, a rail that registers the lane by hand) a stop carries no time and its hold never releases it: only a return to
+// the picture, or Retry, asks it again (the engine 86 rule for the hold).
+let pageClock = null
+/** The page's host: the wall clock a remembered stop's hold is measured on (`null` takes it away). */
+export function setRuntimeBudgetStopClock(fn) { pageClock = typeof fn === 'function' ? fn : null }
+/** The clock injected, or null (the rail of the host's injection). */
+export function runtimeBudgetStopClock() { return pageClock }
+const now = () => {
+  const t = pageClock ? pageClock() : null
+  return typeof t === 'number' && Number.isFinite(t) ? t : null
+}
 
 const tell = (retried) => {
   for (const fn of [...listeners]) { try { fn(retried) } catch { /* a bad listener must not break the strip */ } }
@@ -60,7 +73,8 @@ export function askRuntimeBudgetStop(key, defId) {
   if (!s) return null
   const spent = reasks.get(key) || 0
   if (spent >= RUNTIME_BUDGET_STOP_REASKS) return s
-  if (!returned && now() - s.at < RUNTIME_BUDGET_STOP_HOLD_MS) return s
+  const t = now()
+  if (!returned && (t === null || s.at === null || t - s.at < RUNTIME_BUDGET_STOP_HOLD_MS)) return s
   stops.delete(key)
   reasks.set(key, spent + 1)
   tell(false)

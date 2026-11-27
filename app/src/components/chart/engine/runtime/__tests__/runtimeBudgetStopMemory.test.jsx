@@ -13,7 +13,8 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { runtimeColumnsFor, setRuntimeRunner, onRuntimeColumnsLanded, resetRuntimeSessions } from '../runtimeColumns'
 import { runtimeBudgetStoppedFor, retryRuntimeBudgetStops, rememberRuntimeBudgetStop, resetRuntimeBudgetStops,
-  RUNTIME_BUDGET_STOP_HOLD_MS, RUNTIME_BUDGET_STOP_REASKS } from '../../runtimeBudgetStops'
+  RUNTIME_BUDGET_STOP_HOLD_MS, RUNTIME_BUDGET_STOP_REASKS, setRuntimeBudgetStopClock, runtimeBudgetStopClock } from '../../runtimeBudgetStops'
+import { ensureRuntimeLane, resetRuntimeAsync } from '../runtimeAsync'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../../runtimeErrorNotice'
 import AttachedPineDisclosures from '../../../pane/AttachedPineDisclosures'
 
@@ -36,6 +37,7 @@ afterEach(() => {
   resetRuntimeSessions()
   resetRuntimeBudgetStops()
   resetRuntimeErrorNotices()
+  setRuntimeBudgetStopClock(null)
   vi.restoreAllMocks()
 })
 
@@ -114,6 +116,8 @@ describe('a remembered stop is asked again: after its hold, or on a return, at m
   const clockAt = (t0 = 1_000_000) => {
     const c = { t: t0 }
     vi.spyOn(Date, 'now').mockImplementation(() => c.t)
+    // the page's host injects this clock (`runtimeAsync.js::ensureRuntimeLane`); the compute closure reads none (H5)
+    setRuntimeBudgetStopClock(() => Date.now())
     return c
   }
   const STOP = () => ({ err: named('runtime:time-budget', 'this script took more than 1000 ms to draw bar by bar.') })
@@ -183,6 +187,35 @@ describe('a remembered stop is asked again: after its hold, or on a return, at m
     expect(retryRuntimeBudgetStops('u_budget')).toBe(true)
     ask(def(), rows(30), ctx({ tf: 'W' }))
     expect(calls.filter((c) => c.c.tf === 'W').length).toBe(4)
+  })
+})
+
+// ⛔ (e103, the closure fix) the compute closure reads no wall clock of its own (design 2.2 H5,
+// `hostNeutralClosure.rail.test.js`): the page's host injects the hold's clock. Without one, the hold never releases a
+// stop by itself (the engine 86 rule); a return still asks it again.
+describe('the hold's clock is the page host's', () => {
+  it('⭐ the page's host injects it: ensureRuntimeLane hands the store Date.now', () => {
+    expect(runtimeBudgetStopClock()).toBeNull()
+    try {
+      ensureRuntimeLane({ factory: () => ({ postMessage() {}, terminate() {} }) })
+      const clock = runtimeBudgetStopClock()
+      expect(typeof clock).toBe('function')
+      vi.spyOn(Date, 'now').mockImplementation(() => 1234567)
+      expect(clock()).toBe(1234567)
+    } finally { resetRuntimeAsync() }
+  })
+
+  it('⛔ no clock injected: past any wait the stop is honoured; a return asks it again', () => {
+    const calls = runner(() => ({ err: named('runtime:time-budget', 'slow') }))
+    const t = { v: 1_000_000 }
+    vi.spyOn(Date, 'now').mockImplementation(() => t.v)
+    ask(def(), rows(30), ctx({ tf: 'W' }))
+    t.v += 100 * RUNTIME_BUDGET_STOP_HOLD_MS
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).err.guard, 'no clock: the hold never releases it').toBe('runtime:time-budget')
+    expect(calls.length).toBe(1)
+    ask(def(), rows(30), ctx({ tf: 'D' }))
+    expect(ask(def(), rows(30), ctx({ tf: 'W' })).cols, 'a return: asked again').toEqual({})
+    expect(calls.filter((c) => c.c.tf === 'W').length).toBe(2)
   })
 })
 
