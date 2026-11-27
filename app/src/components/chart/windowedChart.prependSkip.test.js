@@ -117,4 +117,15 @@ describe('a prepend behind the window hands the library nothing', () => {
     expect(sets.candles).toBe(1)
     expect(rawOf(b.candles).data().at(-1).close).toBe(BARS[N - 1].close)
   })
+
+  it('control: the same array changed in place and handed again reaches the library (review of #2903)', async () => {
+    const b = board(); load(b)
+    const rows = copy(BARS)
+    b.candles.setData(rows)
+    const sets = spySets(b)
+    rows.push({ time: T(N), open: 1, high: 2, low: 0.5, close: 1.5 })
+    b.candles.setData(rows)
+    expect(sets.candles).toBe(1)
+    expect(rawOf(b.candles).data().at(-1).time).toBe(T(N))
+  })
 })

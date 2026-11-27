@@ -185,7 +185,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     for (let i = 0; i < a.length; i++) {
       const x = a[i]
       const y = b[i]
-      if (x === y) continue
+      if (x === y) continue   // (a row object is fresh or frozen: one changed in place would read as equal here)
       if (!x || !y || typeof x !== 'object' || typeof y !== 'object') return false
       const kx = Object.keys(x)
       if (kx.length !== Object.keys(y).length) return false
@@ -406,7 +406,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       // the same TIME (the anchor of the same load), so the cut is the rows the library already holds, as new objects. The
       // library's setData (each series re-set in its model, its time points redone) changed nothing it draws. Handed only
       // when a row differs, or when an update() reached the library since (it then holds a bar the cut does not).
-      if (!rec.updated && sameRows(rec.handed, cut)) rec.handed = cut
+      // (never the very array last handed: a caller that changed it in place and hands it again must reach the library)
+      if (!rec.updated && cut !== rec.handed && sameRows(rec.handed, cut)) rec.handed = cut
       else rec.set(cut)
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
