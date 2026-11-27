@@ -352,11 +352,14 @@ export function createNetwork({
     const settled = deepSettled.get(key)
     return settled != null && held >= settled
   }
-  /** The key's history join settled (rows added, nothing older, or the split turned off for it). */
-  function _settleDeep(key) {
+  /** The key's history join settled (rows added, nothing older, or the split turned off for it). `joined`: it ended
+   *  with the history's answer (res.ok). Only then is the depth recorded (`_deepJoinedAt` reads it as "joined at this
+   *  depth"); a join that ended in an error (a bad answer, another ticker, a refused seam: the split is off and a full read
+   *  recovers) records nothing, so a later key life asks again (review of #2869). Waiters are released either way. */
+  function _settleDeep(key, joined = true) {
     deepWanted.delete(key)
     const held = registry.peek(key)?.bars.length
-    if (held != null) {
+    if (joined && held != null) {
       deepSettled.delete(key)
       deepSettled.set(key, held)
       if (deepSettled.size > LAKE_SETTLED_MAX) deepSettled.delete(deepSettled.keys().next().value)
@@ -401,7 +404,7 @@ export function createNetwork({
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
-      if (!res?.aborted) _settleDeep(r.key)
+      if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
       return res
     })
   }
