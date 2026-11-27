@@ -188,7 +188,7 @@ function paintsWholeNow(sym, tf, sess, need = COVER_ROWS) {
   // (a displayable key always holds rows in the store: a count of zero is a source that cannot count them, so the rule
   // before this one decides, unchanged)
   if (!rows) return !(storePrefetch.lakePending(sym, ftf, sess) && !devicePaints(sym, ftf, sess))
-  if (rows >= need) return true
+  if (rows >= 1) return true
   return !storePrefetch.lakePending(sym, ftf, sess) && covers(sym, ftf, { ...sess, answered: true }, 1)
 }
 
