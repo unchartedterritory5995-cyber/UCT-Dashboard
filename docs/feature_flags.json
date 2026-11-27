@@ -2636,11 +2636,14 @@
       "note": "W5 T12 (2026-11-02): WHO the SERVER lanes (alerts, scans, backtests, the rule record: docs/pine/SERVER-RUNTIME-DESIGN.md 3.5) run a member's runtime script for. A MODE, not a gate: off (default; unset, empty or unrecognised all read off) | admins | cohort | all, the same ladder and the same cohort tag (rollout:pine-runtime-pane) as PINE_RUNTIME_STAGE. Read PER CALL in api/services/runtime_definitions.py::server_stage / effective_server_stage / server_permitted / server_lane_refusal, declared in PINE_RUNTIME_MODE_FLAGS so feature_flag_index.mode_flags() derives it. The effective server stage is min(pane stage, server stage): server_permitted asks pane_permitted FIRST (called, not copied), so a server lane can never reach a member whose chart cannot draw the script. It is checked against the definition's OWNER at EVALUATION time on every call, not once at arm, so lowering it withholds every runtime alert by name (runtime:server-stage) on the next cycle and deletes nothing. As of T12 nothing calls server_lane_refusal (T13 onward wire the lanes to it), so until a lane is wired this variable changes no member's behaviour, and no Railway variable is set. Arming order (T20, the owner's step): PINE_RUNTIME_SERVICE_SECRET on web and on the pine-runtime service, then PINE_RUNTIME_SERVICE_URL on web; this variable stays UNSET (off) until the post-deploy smoke passes; then admins with the allowlist only for a week (exit: zero runtime:server-integrity, canary green, smoke green on each deploy), then cohort, then all, never ahead of the pane stage. Rollback: set a lower stage or blank it (a variable, no deploy; verify a NEW boot and read it in-process, never from --kv). Rails: tests/test_runtime_server_stage.py. TRACK 6 (2026-11-22): with PINE_RUNTIME_CAPABILITY_ADMISSION=on, step 2 of server_lane_refusal also admits by capability (see that row); the stage still decides WHO."
     },
     "PINE_CAPABILITY_DETECTOR_WORKER": {
-      "status": "pending",
+      "status": "armed",
       "since": "2026-11-15",
-      "where": [],
+      "where": ["web"],
       "owner": "pine parity programme",
+      "owner_decision": "2026-11-27: ARMED on web by the coordinator under the owner's standing rule (\"we are only admins and have no users so everything can always be live fully\"); the documented precondition for the runtime pane beyond admins (stage all since 11-12). Applied by the 07:53Z deploy of 50b1895a71; R-27 PASS on that deploy (20 routes by click, 0 failures). Rollback: set off.",
       "default": "off",
+      "railway_value": "on",
+      "last_changed": "2026-11-27T07:53:03Z",
       "values": [
         "off",
         "on"
