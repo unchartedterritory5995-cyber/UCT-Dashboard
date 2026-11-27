@@ -3031,6 +3031,77 @@ function copyColumns(out) {
 /** The run half's state code while its run waits for another symbol's bars (not a refusal). */
 export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
 
+function withRunHalf(def, out, bars, inputs, ctx) {
+  if (!ctx) return out
+  const ro = def.compute.runtimeObjects
+  const res = copyColumns(out)
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
+  const answered = (state, code, waitingFor = null) => {
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  }
+  const asked = askRunHalf(def, bars, inputs, ctx, out)
+  if (asked.refused) return refused(asked.refused)
+  if (asked.pending) return answered('pending', asked.pending, asked.waitingFor || null)
+  const { cols } = asked
+  const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
+  // ⛔ A run that owns its drawings always attaches them when it finishes
+  // (`runtimeColumns.js`): nothing attached is a run still in flight.
+  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
+  if (payload.status === 'WITHHELD' && payload.pending === true) {
+    return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
+  }
+  if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
+  if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
+  const hostFams = hostObjectFamilies(def.objects)
+  if (Object.keys(payload.withheld || {}).some((f) => hostFams.has(f))) return refused('run-half:family-withheld')
+  // ⛔⛔ THE COLUMN RAIL.
+  const n = bars.length
+  const warm = runtimeWarmupOf(cols)
+  const from = warm && Number.isInteger(warm.withheldBars) && warm.withheldBars > 0 ? warm.withheldBars : 0
+  for (const key of Object.keys(ro.outputs)) {
+    const host = out[key]
+    const run = cols[key]
+    if (!host || !run || typeof host.length !== 'number' || host.length !== n || run.length !== n) {
+      return refused(RUN_HALF_COLUMN_RAIL)
+    }
+    for (let i = from; i < n; i += 1) {
+      if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
+    }
+  }
+  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
+  // create site the host draws must BE the host's, object for object, on these bars. With no
+  // plot mapped the column rail above compared nothing; this one never compares nothing (no
+  // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  // ⭐ SETTINGS PARITY (2c) — A SETTING ONLY THE DRAWINGS READ HAS BEEN MOVED: the host object program
+  // folded it at the author's default, so it is no picture of this chart (`objectReaderFor` reads
+  // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
+  // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
+  // graded against TradingView), beside the column rail, which still held.
+  if (runHalfOnlySettingMoved(def, inputs)) {
+    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+    return answered('served', null)
+  }
+  const rail = registeredRunHalfObjectRail()
+  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
+  let verdict
+  try {
+    verdict = rail({ def, bars, inputs, ctx, payload, from })
+  } catch {
+    verdict = null
+  }
+  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
+  Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+  return answered('served', null)
+}
+
+// (askRunHalf / primeRunHalf sit AFTER withRunHalf and before the gate signature: the refusal-telemetry rail,
+// `tests/test_run_half_refusal_telemetry.py`, reads every refusal code between those two functions.)
 /** ⭐⭐ (Fred RS run half, 2026-11-26) — THE RUN HALF'S GATES AND ITS ASK, without the rails: what `withRunHalf`
  *  reads before it compares anything. `{refused: code}`, `{pending: code, waitingFor?}`, or `{cols, runIn}` (the run's
  *  columns, its drawings riding them). Asking twice for the same bars is one run (`runtimeColumnsFor`'s memo), so
@@ -3124,75 +3195,6 @@ function primeRunHalf(def, bars, inputs, ctx) {
   } catch {
     return false
   }
-}
-
-function withRunHalf(def, out, bars, inputs, ctx) {
-  if (!ctx) return out
-  const ro = def.compute.runtimeObjects
-  const res = copyColumns(out)
-  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
-  // a code per document session, a hash-prefixed beacon; never the source)
-  const src = ro && typeof ro.source === 'string' ? ro.source : null
-  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
-  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
-  const answered = (state, code, waitingFor = null) => {
-    noteRunHalfAnswer(def, src, null)
-    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
-  }
-  const asked = askRunHalf(def, bars, inputs, ctx, out)
-  if (asked.refused) return refused(asked.refused)
-  if (asked.pending) return answered('pending', asked.pending, asked.waitingFor || null)
-  const { cols } = asked
-  const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
-  // ⛔ A run that owns its drawings always attaches them when it finishes
-  // (`runtimeColumns.js`): nothing attached is a run still in flight.
-  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
-  // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
-  if (payload.status === 'WITHHELD' && payload.pending === true) {
-    return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
-  }
-  if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
-  if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
-  const hostFams = hostObjectFamilies(def.objects)
-  if (Object.keys(payload.withheld || {}).some((f) => hostFams.has(f))) return refused('run-half:family-withheld')
-  // ⛔⛔ THE COLUMN RAIL.
-  const n = bars.length
-  const warm = runtimeWarmupOf(cols)
-  const from = warm && Number.isInteger(warm.withheldBars) && warm.withheldBars > 0 ? warm.withheldBars : 0
-  for (const key of Object.keys(ro.outputs)) {
-    const host = out[key]
-    const run = cols[key]
-    if (!host || !run || typeof host.length !== 'number' || host.length !== n || run.length !== n) {
-      return refused(RUN_HALF_COLUMN_RAIL)
-    }
-    for (let i = from; i < n; i += 1) {
-      if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
-    }
-  }
-  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
-  // create site the host draws must BE the host's, object for object, on these bars. With no
-  // plot mapped the column rail above compared nothing; this one never compares nothing (no
-  // comparable object is its own refusal, `run-half:no-comparable-objects`).
-  // ⭐ SETTINGS PARITY (2c) — A SETTING ONLY THE DRAWINGS READ HAS BEEN MOVED: the host object program
-  // folded it at the author's default, so it is no picture of this chart (`objectReaderFor` reads
-  // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
-  // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
-  // graded against TradingView), beside the column rail, which still held.
-  if (runHalfOnlySettingMoved(def, inputs)) {
-    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
-    return answered('served', null)
-  }
-  const rail = registeredRunHalfObjectRail()
-  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
-  let verdict
-  try {
-    verdict = rail({ def, bars, inputs, ctx, payload, from })
-  } catch {
-    verdict = null
-  }
-  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
-  Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
-  return answered('served', null)
 }
 
 /** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
