@@ -131,7 +131,22 @@ them from `taintTags.js`'s own text (`gen-vm-taint.mjs::INLINED`).
    their own parts, built-ins, collections, records, drawings, requests and broker reads answer `T` (fail closed), and
    a column's tag is one per column (`taintTags.js::columnTagsOf`: a bare `bar_index` / `last_bar_index` is `O`, a
    pointwise tree over the bar's prices is `C`, anything else `T`). Nothing consumes the tags yet (part 6).
-3. Built-ins: `WINDOW` / `CARRIED` / `CARRIED2` table, the columns' static `cleanFrom`.
+3. Built-ins: `WINDOW` / `CARRIED` / `CARRIED2` table, the columns' static `cleanFrom`. BUILT (e105): ONE table,
+   `taintTags.js::builtinRuleOf`: every `FINITE_WINDOW` member is a `window` under its own `na` policy (DERIVED from
+   that table), `FORGET` names the members with a written forget rule (`barssincePine` / `fixnanPine` / `valuewhen`:
+   `event`; `crossOver` / `crossUnder` / `crossAny` and a column's `change`: `lag`), and everything else (`ema`,
+   `rma`, `rsiPine`, `cumPine`, `vwap*`, `stochPine`, the pivots, `rising` / `falling`, an unknown name) is `T` for
+   ever. The taint loop reads it once per run (`tWindow` / `tCarried` / `tCarried2`: a clean count per instance,
+   restarted by a tainted step, a step under a tainted region, or a tainted branch whose write set names the
+   instance; a `propagate` window reads its ring's tags); the columns read it once per build (`cleanFromOf` /
+   `columnTaintOf`: the first clean bar per column, a `skip` / `finite` / `ffill` window counting its child's finite
+   values from the values the build computed). The ring of taint bits the design named is a COUNT: a tainted
+   observation leaves a window exactly `span` clean ones later, which is when the count reaches `span` again.
+   Rails: `taintBuiltins.test.js` (a family per describe), `taintTwoStart.test.js` (the two-start oracle: every bar
+   tagged C on a later start equals an earlier start's value, over the corpus the frontend builds directly plus the
+   families' fixtures; 0 wrong, 2 starts); mutants `ci/mutants/e105-taint-builtins.json` (16 rule mutants, 4 on the
+   oracle). Refinements left fail-closed (T): `rising` / `falling`, the pivots and `stoch` (each a window in
+   disguise), and a column's house `barssince` / `valuewhen` (different members from the Pine ones).
 4. Collections, records; then drawings in `objectStore.js`.
 5. `request.*` sub-runs; broker.
 6. Release in `runtimeColumns.js` (replaces the curtain behind `_offListingCurtainOn`'s place), the run half's rails.

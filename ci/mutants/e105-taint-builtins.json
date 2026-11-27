@@ -1,0 +1,186 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "START-TAINT part 3 (runtime/taintTags.js: the built-ins' ONE table, tWindow / tCarried / tCarried2, the columns' cleanFrom; the generated loop's rules): every family's rule must be able to fail, on its own rail (taintBuiltins.test.js) and on the two-start oracle (taintTwoStart.test.js, the CENSUS rows).",
+ "mutants": [
+  {
+   "id": "E105-WIN-COUNT",
+   "mutant": "a window is C before span clean observations",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (lt !== 0 || S.wc[i] < span) return 2",
+   "to": "if (lt !== 0 || S.wc[i] < 1) return 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "ta.sma(x, 3) in the VM"
+  },
+  {
+   "id": "E105-WIN-RESET",
+   "mutant": "a tainted observation does not restart a window's count",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (top > 0 || t !== 0) { S.wc[i] = 0; return 2 }",
+   "to": "if (top > 0 || t !== 0) { return 2 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a tainted observation restarts the count"
+  },
+  {
+   "id": "E105-WIN-RING",
+   "mutant": "a propagate window (dev) does not read its ring's tags",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "for (let k = 1; k < span; k += 1) if (S.th[off + ((committed - k) % depth)] !== 0) return 2",
+   "to": "void off, depth",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a propagate window"
+  },
+  {
+   "id": "E105-WIN-BRANCH",
+   "mutant": "a T branch's write set does not restart the windows the arm not taken may step",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "for (const x of w.windows) S.wc[wb + x] = 0",
+   "to": "for (const x of w.windows) void x",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a window the arm not taken"
+  },
+  {
+   "id": "E105-EVENT",
+   "mutant": "barssince is C before its first clean event",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (code === RULE.FIRES ? fires(v) : isFiniteNumber(v)) S.cc[i] = 1",
+   "to": "S.cc[i] = 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "is C from the first firing"
+  },
+  {
+   "id": "E105-EVENT-RESET",
+   "mutant": "a tainted condition does not forget the event",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (code === RULE.T || top > 0 || t !== 0) { S.cc[i] = 0; return 2 }",
+   "to": "if (code === RULE.T || top > 0 || t !== 0) { return 2 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a tainted condition forgets the event"
+  },
+  {
+   "id": "E105-FINITE",
+   "mutant": "fixnan counts an na as its event",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "code === RULE.FIRES ? fires(v) : isFiniteNumber(v)",
+   "to": "code === RULE.FIRES ? fires(v) : true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "fixnan(x) is C from the first clean finite value"
+  },
+  {
+   "id": "E105-OCC",
+   "mutant": "valuewhen is C from its first clean firing, not its occurrence + 1-th",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "return S.cc2[i] >= n + 1 ? 0 : 2",
+   "to": "return S.cc2[i] >= 1 ? 0 : 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "is C from the second clean firing"
+  },
+  {
+   "id": "E105-LAG",
+   "mutant": "the cross family is C on its first clean step (its previous pair unseen)",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "return S.cc2[i] >= 2 ? 0 : 2",
+   "to": "return S.cc2[i] >= 1 ? 0 : 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "ta.crossover(close, open) in the VM is C from bar 1"
+  },
+  {
+   "id": "E105-REC",
+   "mutant": "an unknown built-in (a recurrence) is a finite event instead of T",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (r === null || r.kind === 'window') return RULE.T",
+   "to": "if (r === null) return RULE.FINITE\n  if (r.kind === 'window') return RULE.T",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a recurrence and an unknown name are T"
+  },
+  {
+   "id": "E105-COL-WIN",
+   "mutant": "a column's skip window does not count its child's finite values",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "r = nthFiniteFrom(valuesOf(args[0]), c, span)",
+   "to": "r = c + span - 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "a skip window counts its child"
+  },
+  {
+   "id": "E105-COL-PROP",
+   "mutant": "a column's propagate window has no warm-up",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "else if (rule.policy === 'propagate') r = c + span - 1",
+   "to": "else if (rule.policy === 'propagate') r = c",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "sma(close, 3) and dev(close, 3) are C from bar 2"
+  },
+  {
+   "id": "E105-COL-LAG",
+   "mutant": "a column's change / cross needs no previous bar",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "r = args.length ? maxOf(args) + 1 : NEVER",
+   "to": "r = args.length ? maxOf(args) : NEVER",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "the columns: ta.change"
+  },
+  {
+   "id": "E105-COL-OFFSET",
+   "mutant": "a column offset is clean from its child's first clean bar",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "maxOf(args) + node.value : NEVER",
+   "to": "maxOf(args) : NEVER",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "an offset is clean k bars on"
+  },
+  {
+   "id": "E105-COL-UNKNOWN",
+   "mutant": "a column node the table does not name is clean",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "let r = NEVER",
+   "to": "let r = 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "fails closed"
+  },
+  {
+   "id": "E105-COLFROM",
+   "mutant": "the taint loop ignores a column's clean-from bar",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 2 /* OP.READ_COLUMN */: ts[sp] = bar >= colFrom[a] ? colTag[a] : 2;",
+   "to": "case 2 /* OP.READ_COLUMN */: ts[sp] = colTag[a];",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintBuiltins.test.js",
+   "expectRed": "sma(close, 3) and dev(close, 3) are C from bar 2"
+  },
+  {
+   "id": "E105-CENSUS-WIN",
+   "mutant": "census: a window is C before span clean observations",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (lt !== 0 || S.wc[i] < span) return 2",
+   "to": "if (lt !== 0 || S.wc[i] < 1) return 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTwoStart.test.js",
+   "expectRed": "the earlier start has"
+  },
+  {
+   "id": "E105-CENSUS-EVENT",
+   "mutant": "census: a tainted condition does not forget the event",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (code === RULE.T || top > 0 || t !== 0) { S.cc[i] = 0; return 2 }",
+   "to": "if (code === RULE.T || top > 0 || t !== 0) { return 2 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTwoStart.test.js",
+   "expectRed": "the earlier start has"
+  },
+  {
+   "id": "E105-CENSUS-COL",
+   "mutant": "census: a column's skip window does not count its child's finite values",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "r = nthFiniteFrom(valuesOf(args[0]), c, span)",
+   "to": "r = c + span - 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTwoStart.test.js",
+   "expectRed": "the earlier start has"
+  },
+  {
+   "id": "E105-CENSUS-STACK",
+   "mutant": "census: a region closes without tainting what its arms left on the stack",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "for (let k = rSp[rTop - 1]; k < sp; k += 1) ts[k] = 2",
+   "to": "void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTwoStart.test.js",
+   "expectRed": "the earlier start has"
+  }
+ ]
+}
