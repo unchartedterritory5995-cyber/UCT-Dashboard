@@ -1023,69 +1023,69 @@ one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     0      INCONCLUSIV
 one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block): a Pine block spans several statements and this engine stores a single expression — `for` (reached through `_smthMA`)
 open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
 open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request): this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`: the symbol argument `+` is computed from the bars, so it is not one symbol for the whole chart
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     OR High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     IB High                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     OR High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     IB High                                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     OR High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     IB High                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     INCONCLUSIVE      11 of 15 items could not be compared
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    OR Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "OR Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    IB Low                                   INCONCLUSIVE       — UNMAPPED — vendor title "IB Low" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
-    Shapes                                   INCONCLUSIVE       — UNMAPPED — vendor title "Shapes" is not unique in the study
+opening-range-initial-balance-opening-price- AMEX:SPY 1D      14     MATCH             all 15 items agree
     Opening price                            MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     OR High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     IB High                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    OR Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    IB Low                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 optimized-keltner-channels-sltp-strategy-for NYSE:RDDT 1D     5      MATCH             all 6 items agree
     Upper                                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.65e-16
@@ -1161,22 +1161,22 @@ pivot-point-supertrend-spy-1d-2026-10-03     AMEX:SPY 1D      8      MATCH      
     objects                                  MATCH         neither side draws an object
 pivot-trendlines-with-breaks-hg-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module): importing another script pulls in code this engine never sees — the library `HoanGhetti/SimpleTrendlines/4` is not in this engine's library registry, so its code cannot be compiled
 pmax-explorer-rddt-1d-2026-10-02             NYSE:RDDT 1D     7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.81e-16
     PMax                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.62e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 5.87e-16
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.63e-16
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 pmax-explorer-spy-1d-2026-10-02              AMEX:SPY 1D      7      DIVERGE           1 of 8 compared items diverge
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    Buy                                      INCONCLUSIVE       — UNMAPPED — vendor title "Buy" is not unique in the study
-    Sell                                     INCONCLUSIVE       — UNMAPPED — vendor title "Sell" is not unique in the study
-    plot_12                                  INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
     Moving Avg Line                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.05e-16
     PMax                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.29e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.20e-16
+    Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 3.72e-16
+    Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    plot_12                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 2 drawing steps (dropped: create:label ×1; pine:request)
 poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-computable: No label is shown on this chart: whether and where the script draws them depends on values this chart can't work out here, so none are drawn rather than a guess.); every other object family's counts and texts agree
@@ -1798,15 +1798,15 @@ supply-demand-mtf-flux-charts-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIV
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-60-2026-11 AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
-support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      INCONCLUSIVE      2 of 9 items could not be compared
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
-    L                                        INCONCLUSIVE       — UNMAPPED — vendor title "L" is not unique in the study
+support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      MATCH             all 9 items agree
     STR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     STS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTR                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     LTS                                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .R                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .S                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    L                                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 support-and-resistance-7538ddd8-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output): the pasted script offers no plot and no alert condition to filter on
 support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign): a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
@@ -5063,10 +5063,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
 INDEX ROUNDING (4 captures; bars within one index tick through the ratio, |rel| <= 0.0101 / X(t), counted apart, never into a MATCH): rs-rating-fred6724-m-nvda-1m-2026-11-18 DIVERGE 41 rounding-equal bars (sub-tick 1); rs-rating-fred6724-nvda-1d-2026-11-15 DIVERGE 918 rounding-equal bars (sub-tick 14); rs-rating-fred6724-w-nvda-1w-2026-11-17 DIVERGE 192 rounding-equal bars (sub-tick 3); rs-rating-fred6724-w-nvda-1w-2026-11-21 DIVERGE 192 rounding-equal bars (sub-tick 3)
-TOTAL 1038 captures — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 230 · DIVERGE 94 · INCONCLUSIVE 714
+TOTAL 1038 captures — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 132 captures) — MATCH 235 · DIVERGE 94 · INCONCLUSIVE 709
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 238 · DIVERGE 94 · INCONCLUSIVE 706
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 243 · DIVERGE 94 · INCONCLUSIVE 701
 CHANGED BY PAINTS (8): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-deep-aapl-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-deep-spy-1d-2026-11-19 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 

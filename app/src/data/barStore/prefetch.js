@@ -59,6 +59,7 @@
 // the list from the app's import graph), plus `peekBars` (the memPeek readers' replacement).
 
 import { getBarStore } from './index'
+import { COVER_ROWS } from './coverRows'
 import { keyOf, parseKey, normTf, isIntradayTf, isDateTf, PERIOD_SEC, STATUS, ACTION, unixToDateLabel } from './types'
 import { bucketOf } from './reducer'
 import { DAILY_POLL_MS } from './network'
@@ -73,7 +74,7 @@ import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, isRthBar } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -969,7 +970,23 @@ export function createPrefetch(o = {}) {
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
-    return s.bars.length + (s.developing ? 1 : 0)
+    return _viewRows(s, key, extOf(showExtended))
+  }
+  /**
+   * ⭐ (2026-11-26, review of #2871) THE ROWS THE VIEW DRAWS. A regular-hours view of an intraday key both sessions share
+   * (1/5/15/30: `parseKey().session` null) draws only its regular-session rows (barTime.isRthBar, the chart's own test):
+   * ~40% of the raw rows on a 5m key with extended hours, so COVER_ROWS raw rows were ~244 bars on screen, short of the
+   * visible bars plus the longest average's lookback, and the later join changed visible values. Counted from the newest
+   * row back and no further than COVER_ROWS (the only question asked of it: does it cover?). Any other view: every row.
+   */
+  function _viewRows(s, key, ext) {
+    if (!s) return 0
+    const p = key ? parseKey(key) : null
+    const all = s.bars.length + (s.developing ? 1 : 0)
+    if (ext || !p || p.session != null || p.window || !isIntradayTf(p.tf)) return all
+    let n = s.developing && isRthBar(s.developing.t) ? 1 : 0
+    for (let i = s.bars.length - 1; i >= 0 && n < COVER_ROWS; i--) if (isRthBar(s.bars[i].t)) n++
+    return n
   }
 
   function _own(key) { preparing.set(key, (preparing.get(key) || 0) + 1) }
@@ -2027,6 +2044,24 @@ export function createPrefetch(o = {}) {
     }
   }
 
+  /** ⭐ (2026-11-26) ...AND THE LINKED CHARTS' KEYS. Enter shows the typed ticker on every chart of the linked group (the
+   *  host's `alsoTfs`), and each of those keys that is already held with its lake depth still due had it joined only after
+   *  Enter, by that chart's own subscribe: the same rule as the typing chart's held key (above), per linked intraday key.
+   *  Starts nothing for a key not held (no entry to join into) or not carried by the lake. */
+  function _joinLinked(T, tf, alsoTfs) {
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k0 = String(t)
+      if (!t || seen.has(k0)) continue
+      seen.add(k0)
+      const k = keyFor(T, t)
+      const p = k ? parseKey(k) : null
+      if (!p || p.window || !isIntradayTf(p.tf) || !S().peek(k)) continue
+      if (S().lakePending?.(k)) _joinLake(k)
+    }
+  }
+
   function _warmTypedIntraday(sym, tf, alsoTfs) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
@@ -2051,6 +2086,7 @@ export function createPrefetch(o = {}) {
     // rows, the same reducer rule), while the member is still typing. No bar request; nothing for a key already whole.
     if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) {
       if (S().lakePending?.(key)) _joinLake(key)
+      _joinLinked(T, tf, alsoTfs)
       return null
     }
     if (typed && typed.key === key) return null
@@ -2081,8 +2117,14 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       _tellTyped(T, tf, alsoTfs)
+      _joinLinked(T, tf, alsoTfs)
       const behind = closedBehind(s0)
-      if (!behind && _localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
+      // ⭐ (2026-11-26, the owner's cold typed Enter) A local copy that paints answers from memory ONLY when it covers the
+      // view (COVER_ROWS: the switch then paints it at once and the depth joins behind the view). The device's copy of a
+      // never-opened ticker holds ~300 newest 5m rows: it painted no request, the switch then waited for the lake's join
+      // after Enter (owner board: 51-110 ms, the newest lake piece landing late), so a short copy is now asked from the
+      // server too, here, like a ticker with no copy at all: by Enter its answer covers the view and the switch paints it.
+      if (!behind && _localPaints(s0, fetchTf(String(tf))) && _viewRows(s0, key, extOf(undefined)) >= COVER_ROWS) { _joinLake(key); return 'cache' }
       // a copy behind the clock is asked even when its status says it is satisfied (ASK_AGAIN: no status is)
       const s = await ensure(key, { until: behind ? ASK_AGAIN : DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
