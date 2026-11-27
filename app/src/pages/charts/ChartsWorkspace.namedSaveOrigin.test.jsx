@@ -14,6 +14,9 @@
  *   NO5 (red first, F-C) a board taken from the stored preferences takes THEIR pointer as its origin: a stale pointer
  *       put back after the first load writes nothing either
  *   NO6 (red first, F-D) a Save As that answers after a switch adopts nothing: the board on screen keeps its pointer
+ * Review of #2928:
+ *   NO7 (red first, L4) the first visit's default template takes the same preferences' pointer as its origin: a stale
+ *       pointer put back afterwards writes nothing
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -71,6 +74,10 @@ const TWO = { id: 2, name: 'Two Charts', scope: 'user', groups: null, layout: { 
   { id: 'chart-1', type: 'chart', color: 'A', x: 0, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
   { id: 'chart-2', type: 'chart', color: 'B', x: 8, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
 ], cols: 24 } }
+const CHARTTPL = { id: 5, name: 'Chart', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'tpl-1', type: 'chart', color: 'A', x: 0, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
+  { id: 'tpl-2', type: 'chart', color: 'A', x: 8, y: 0, w: 8, h: 20, opts: { tf: 'D' } },
+], cols: 24 } }
 const OLDNAME = { id: 3, name: 'Old name', scope: 'user', groups: null, layout: { widgets: [
   { id: 'watchlist-9', type: 'watchlist', color: 'A', x: 0, y: 0, w: 6, h: 8, opts: {} },
 ], cols: 24 } }
@@ -109,7 +116,7 @@ afterEach(() => { cleanup(); delete globalThis.fetch })
 
 function mount(board = MAIN.layout, active = pointer(MAIN)) {
   prefStore.set({
-    charts_workspace_layout: JSON.stringify(board),
+    ...(board ? { charts_workspace_layout: JSON.stringify(board) } : {}),
     charts_active_template: active,
     charts_workspace_groups: JSON.stringify({ A: 'AAPL', B: 'MSFT', C: null, D: null }),
   })
@@ -191,4 +198,15 @@ test('NO6 (red first, F-D) a Save As that answers after a switch adopts nothing'
   expect(JSON.parse(prefStore.get().charts_active_template).id, 'the board on screen (TWO) was pointed at the copy').toBe(TWO.id)
   await wait(900)
   expect(into('Copy').length, 'the board on screen was saved into the copy').toBe(1)
+})
+
+test('NO7 (red first, L4) the first visit\'s default template takes the loaded pointer as its origin', async () => {
+  // no stored board: the first visit opens the "Chart" template; the stored pointer names MAIN
+  st.mine = [MAIN, TWO, CHARTTPL]
+  mount(null, pointer(MAIN))
+  await wait(50)
+  expect(document.querySelector('[data-testid="host-tpl-1"]'), 'NON-VACUITY: the default template is on screen').toBeTruthy()
+  await act(async () => { prefStore.write('charts_active_template', pointer(TWO)) })   // a stale read
+  await wait(900)
+  expect(into(TWO.name).map(widgetIds), 'the default board was written into the stale pointer\'s row').toEqual([])
 })
