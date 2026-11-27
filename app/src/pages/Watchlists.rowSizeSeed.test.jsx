@@ -37,7 +37,7 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', role: 'user', display_name: 'Pat' } }),
 }))
 
-import { ScanRows, rowSizeCacheKey, measureRememberedRow, ROW_SIZE_ROWS_MAX, ROW_SIZE_CORRECTIONS_MAX } from './Watchlists'
+import { ScanRows, rowSizeCacheKey, measureRememberedRow, ROW_SIZE_ROWS_MAX, ROW_SIZE_CORRECTIONS_MAX, rememberedOffsetFor, rowMemoryOf } from './Watchlists'
 
 const ITEMS = Array.from({ length: 60 }, (_, i) => ({ id: `R${i}`, sym: `R${i}` }))
 const ROW_PX = 40
@@ -72,14 +72,15 @@ afterEach(() => {
 
 // The scroller is mounted BEFORE the list, as in the widget (the list body exists, then a list is opened or loaded):
 // the virtualizer reads its scroll element in its layout effect, and a parent's ref is attached after a child's.
-function List({ cacheKey, show = true, onCommit = null }) {
+function List({ cacheKey, show = true, onCommit = null, items = ITEMS, margin = 0 }) {
   const scrollRef = useRef(null)
   return (
     <Profiler id="list" onRender={onCommit || (() => {})}>
     <div ref={scrollRef} data-scroller="" data-scan-scroller="" style={{ height: 400, overflowY: 'auto' }}>
+      {margin ? <div data-desc="" style={{ height: margin }}>a list description</div> : null}
       {show ? (
-        <ScanRows scrollRef={scrollRef} items={ITEMS} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
-          sizeCacheKey={cacheKey} />
+        <ScanRows scrollRef={scrollRef} items={items} renderRow={(it) => { T.renders[it.sym] = (T.renders[it.sym] || 0) + 1; return <span>{it.sym}</span> }} emptyText="none"
+          sizeCacheKey={cacheKey} measureOffset={margin > 0} />
       ) : null}
     </div>
     </Profiler>
@@ -420,4 +421,112 @@ describe('ScanRows: corrections in one commit; a remembered offset; the warm fir
     await act(async () => {})
     expect(view.container.querySelectorAll('[data-index]').length, 'the overscan joined after the first commit').toBeGreaterThan(firstCount)
   })
+})
+
+// ⭐ (review of #2916, LOW) A list that comes back SHORTER than it was scrolled: the remembered offset is clamped to the
+// last screenful of the rows it has now, so the first commit is never blank space past the end.
+describe('ScanRows: the remembered offset fits the list it comes back to', () => {
+  it('R19 (red first) half the rows: the first commit holds the last screenful, the scroller at its end', () => withRowObservers(async (deliver) => {
+    const realScrollTo = HTMLElement.prototype.scrollTo
+    Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
+    HTMLElement.prototype.scrollTo = function (opts) { this.scrollTop = typeof opts === 'object' ? (opts.top ?? this.scrollTop) : opts }
+    try {
+      const firstMount = mountList('list:R19') // 60 rows of 40 px: 2,400 px, a 400 px box
+      await frames()
+      const scroller = firstMount.container.querySelector('[data-scroller]')
+      // pass through the middle first, so every row of the first 30 has been measured (remembered at 40 px): the clamp
+      // then has no 30 px estimates in it and the last screenful starts exactly at 800. Rows that mount DURING a scroll
+      // are not measured at attach (the library skips it while `isScrolling`); the browser's observer measures them,
+      // so the observer delivers their border boxes here (diagnosed: R26-R29 were unknown, estimated 30, clamp 760).
+      await act(async () => { scroller.scrollTop = 400; scroller.dispatchEvent(new Event('scroll')) })
+      await frames()
+      await act(async () => { for (const el of scroller.querySelectorAll('[data-index]')) deliver(firstMount.container, Number(el.getAttribute('data-index')), ROW_PX) })
+      await act(async () => { scroller.scrollTop = 2000; scroller.dispatchEvent(new Event('scroll')) }) // the very end
+      await frames()
+      firstMount.unmount()
+      vi.stubGlobal('requestAnimationFrame', () => 0)
+      vi.stubGlobal('cancelAnimationFrame', () => {})
+      const half = ITEMS.slice(0, 30) // it comes back with 30 rows: 1,200 px, so the last screenful starts at 800
+      let atFirst = null
+      const onCommit = () => {
+        if (atFirst) return
+        const sc = document.querySelector('[data-scroller]')
+        const els = [...sc.querySelectorAll('[data-index]')]
+        atFirst = {
+          top: sc.scrollTop,
+          rows: els.map((el) => Number(el.getAttribute('data-index'))),
+          // each row's [top, bottom) in the list, as placed in this commit (a row is ROW_PX tall)
+          spans: els.map((el) => { const y = Number(/translateY\(([-\d.]+)px\)/.exec(el.style.transform)[1]); return [y, y + ROW_PX] }),
+        }
+      }
+      // what the second mount starts from (printed with any failure below)
+      const rec = typeof rowMemoryOf === 'function' ? rowMemoryOf('list:R19') : null
+      const diag = rec ? JSON.stringify({
+        offset: rec.offset, rect: rec.rect, margin: rec.margin, clamp: rememberedOffsetFor(rec, half),
+        unknown: half.filter((it) => rec.sizes.get(it.id) === undefined).map((it) => it.id),
+        odd: half.filter((it) => rec.sizes.get(it.id) !== undefined && rec.sizes.get(it.id) !== ROW_PX).map((it) => `${it.id}=${rec.sizes.get(it.id)}`),
+      }) : 'no memory export'
+      render(<List cacheKey="list:R19" items={half} onCommit={onCommit} />)
+      expect(atFirst.rows.length, `blank space: no rows in the first commit ${diag}`).toBeGreaterThan(0)
+      expect(atFirst.top, `the scroller at the start of the last screenful ${diag}`).toBe(800)
+      expect(Math.max(...atFirst.rows), 'the last row').toBe(29)
+      // exactly the last screenful: TanStack 3.14 picks the window by row STARTS, so at 800 it is rows 20-29
+      for (let i = 20; i <= 29; i++) expect(atFirst.rows, `row ${i} of the last screenful`).toContain(i)
+      expect(atFirst.rows, `row 19: the first render's offset was below 800 ${diag}`).not.toContain(19)
+      // no blank space: the 400 px view at the scroller's position is covered by the rows this commit placed
+      const covered = (y) => atFirst.spans.some(([t, e]) => y >= t && y < e)
+      for (let y = atFirst.top; y < atFirst.top + 400; y += 10) expect(covered(y), `blank at ${y} px`).toBe(true)
+      expect(atFirst.top, 'the scroller past the shorter list').toBeLessThan(1200)
+    } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop }
+  }))
+})
+
+// ⭐ (review of #2921) A REAL WATCHLIST HAS A SCROLL MARGIN: its description, add row or column header sits inside the
+// scroller above the rows, so the scroller's offset (what is remembered) includes it. The last screenful of a list that
+// comes back shorter starts at margin + rows - view, and the warm first render chooses its window with that margin.
+describe('ScanRows: the remembered offset and a scroll margin', () => {
+  it('R20 (red first) a 100 px margin: half the rows come back, the first commit is the last screenful at margin + rows - view', () => withRowObservers(async (deliver) => {
+    const realScrollTo = HTMLElement.prototype.scrollTo
+    const realRect = HTMLElement.prototype.getBoundingClientRect
+    Object.defineProperty(HTMLElement.prototype, 'scrollTop', { configurable: true, get() { return this._top || 0 }, set(v) { this._top = v } })
+    HTMLElement.prototype.scrollTo = function (opts) { this.scrollTop = typeof opts === 'object' ? (opts.top ?? this.scrollTop) : opts }
+    // laid out as a browser would: the scroller at 0, the rows' host 100 px down its content (under the description)
+    const box = (top, height) => ({ top, height, bottom: top + height, left: 0, right: 300, width: 300, x: 0, y: top, toJSON() {} })
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.hasAttribute('data-scroller')) return box(0, 400)
+      if (this.hasAttribute('data-desc')) return box(0 - (this.parentElement?.scrollTop || 0), 100)
+      if (this.parentElement?.hasAttribute('data-scroller')) return box(100 - (this.parentElement.scrollTop || 0), 2400)
+      return realRect.call(this)
+    }
+    try {
+      const view = render(<List cacheKey="list:R20" show={false} margin={100} />)
+      view.rerender(<List cacheKey="list:R20" margin={100} />)
+      await frames()
+      const scroller = view.container.querySelector('[data-scroller]')
+      await act(async () => { scroller.scrollTop = 500; scroller.dispatchEvent(new Event('scroll')) })
+      await frames()
+      // the rows that mounted during the scroll are measured by the observer (see R19)
+      await act(async () => { for (const el of scroller.querySelectorAll('[data-index]')) deliver(view.container, Number(el.getAttribute('data-index')), ROW_PX) })
+      await act(async () => { scroller.scrollTop = 2100; scroller.dispatchEvent(new Event('scroll')) }) // the end: 100 + 2400 - 400
+      await frames()
+      view.unmount()
+      vi.stubGlobal('requestAnimationFrame', () => 0)
+      vi.stubGlobal('cancelAnimationFrame', () => {})
+      const half = ITEMS.slice(0, 30) // 100 + 1,200 px: the last screenful starts at 900
+      let atFirst = null
+      const onCommit = () => {
+        if (atFirst) return
+        const sc = document.querySelector('[data-scroller]')
+        atFirst = { top: sc.scrollTop, rows: [...sc.querySelectorAll('[data-index]')].map((el) => Number(el.getAttribute('data-index'))) }
+      }
+      render(<List cacheKey="list:R20" items={half} margin={100} onCommit={onCommit} />)
+      expect(atFirst.top, 'the scroller at margin + rows - view').toBe(900)
+      for (let i = 20; i <= 29; i++) expect(atFirst.rows, `row ${i} of the last screenful`).toContain(i)
+      expect(atFirst.rows, 'a row above the last screenful (the window chosen without the margin)').not.toContain(19)
+    } finally {
+      HTMLElement.prototype.scrollTo = realScrollTo
+      HTMLElement.prototype.getBoundingClientRect = realRect
+      delete HTMLElement.prototype.scrollTop
+    }
+  }))
 })
