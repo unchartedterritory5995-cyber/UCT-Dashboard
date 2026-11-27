@@ -128,9 +128,17 @@ export function createRegistry({
   // ⭐ (2026-11-27, the heap check) ...AND THE RECENTLY SHOWN GO LAST. An entry a chart showed (`e.shown`: it had a
   // subscriber) of one of the `recentSymbols` symbols shown most recently is evicted only once every other idle entry is
   // gone: with the budget now sized to the board (lib/barBudget.js), arrowing back to the rows just left is still a held
-  // key. Ranks below (the intraday arrays before the daily bases); oldest first within a rank. A pinned or subscribed entry is never evicted, nor the entry the call that evicts just
-  // wrote (`keep`: an answer that lands is never dropped by its own landing, however far over the budget the page is).
-  // Each eviction is announced (`noteKeyEvicted`), so no cache keyed by the key keeps its rows alive.
+  // key. A pinned or subscribed entry is never evicted, nor the entry the call that evicts just wrote (`keep`: an answer
+  // that lands is never dropped by its own landing, however far over the budget the page is). Each eviction is announced
+  // (`noteKeyEvicted`), so no cache keyed by the key keeps its rows alive.
+  // ⭐⭐ TWO PRESSURES, TWO ORDERS (oldest first within a rank):
+  //   • over `maxKeys` (a COUNT: every entry costs one, whatever it holds) — 0 the dwell's of a symbol no chart shows,
+  //     1 every other idle entry, 2 a recent symbol's shown entry (recency decides; the rows ahead a list warmed keep
+  //     their place, prefetch.dwellFirstOut W1);
+  //   • over `barBudget` (BYTES: a bar costs the same in every timeframe, lib/barBudget.js) — the intraday arrays go
+  //     before the daily bases: 0 the dwell's of a symbol no chart shows (a warm nobody looked at, any timeframe), 1 an
+  //     idle intraday entry, 2 an idle daily base (D/W/M: a whole history since listing is a few thousand bars), 3 a
+  //     recent symbol's intraday entry, 4 a recent symbol's daily base.
   function _evict(keep = null) {
     if (entries.size <= maxKeys && totalBars <= barBudget) return
     const idle = []
@@ -138,25 +146,32 @@ export function createRegistry({
     for (const [key, e] of entries) {
       const p = parseKey(key)
       if (e.subs.size) (shown ??= new Set()).add(p?.sym)
-      if (e.refs === 0 && e.subs.size === 0) idle.push([key, e, p?.sym, isDateTf(p?.tf), 1])
+      if (e.refs === 0 && e.subs.size === 0) idle.push({ key, e, sym: p?.sym, daily: isDateTf(p?.tf), rank: 1 })
     }
-    // (each entry ranked once, never inside the sort's comparator: a full registry evicts on every landing now)
-    // ⭐ BY BYTES, THE INTRADAY ARRAYS FIRST (lib/barBudget.js): 0 the dwell's intraday warms of a symbol no chart shows,
-    // 1 every other idle intraday entry, 2 an idle daily base (D/W/M: a whole history is a few thousand bars), 3 a
-    // recently shown symbol's intraday entry, 4 a recent symbol's daily base.
-    for (const it of idle) {
-      const [, e, sym, daily] = it
-      const isRecent = recent.includes(sym)
-      it[4] = daily ? (isRecent ? 4 : 2) : (e.dwell && !shown?.has(sym) ? 0 : (e.shown && isRecent ? 3 : 1))
+    // (each entry ranked once per pass, never inside the sort's comparator: a full registry evicts on every landing now)
+    const gone = new Set()
+    const pass = (over, rankOf) => {
+      if (!over()) return
+      for (const it of idle) it.rank = rankOf(it)
+      idle.sort((a, b) => a.rank - b.rank || a.e.used - b.e.used)
+      for (const it of idle) {
+        if (!over()) break
+        if (it.key === keep || gone.has(it.key)) continue
+        gone.add(it.key)
+        totalBars -= it.e.state.depth
+        entries.delete(it.key)
+        noteKeyEvicted(it.key)
+      }
     }
-    idle.sort((a, b) => a[4] - b[4] || a[1].used - b[1].used)
-    for (const [key, e] of idle) {
-      if (entries.size <= maxKeys && totalBars <= barBudget) break
-      if (key === keep) continue
-      totalBars -= e.state.depth
-      entries.delete(key)
-      noteKeyEvicted(key)
-    }
+    const dwellUnshown = (it) => it.e.dwell && !shown?.has(it.sym)
+    const recentShown = (it) => it.e.shown && recent.includes(it.sym)
+    pass(() => entries.size > maxKeys, (it) => (dwellUnshown(it) ? 0 : (recentShown(it) ? 2 : 1)))
+    pass(() => totalBars > barBudget, (it) => {
+      if (dwellUnshown(it)) return 0
+      const isRecent = recent.includes(it.sym)
+      if (it.daily) return isRecent ? 4 : 2
+      return it.e.shown && isRecent ? 3 : 1
+    })
   }
 
   return {
