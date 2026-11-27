@@ -308,7 +308,13 @@ export function createNetwork({
       // depth (the daily handoff joining the typed warm's tail) raised `r.depth` after the request
       // left; read at the start only, its history was never asked.
       const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session }))
-      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0)) {
+      // ⭐ ONCE PER PAGE WHILE HELD (2026-11-27): `wantNow` is the full 12,500 for D, deeper than almost any name's
+      // history, so after a join the depth stays under it and only `histAsked` (this record's) stopped a repeat; the
+      // record goes when the last chart leaves the key, and every return re-asked the history to join nothing older.
+      // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
+      const heldNow = after?.bars?.length ?? 0
+      const joinedHere = heldNow > FIRST_PAINT_BARS && _deepJoinedAt(r.key, heldNow)
+      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
@@ -339,11 +345,21 @@ export function createNetwork({
     deepWanted.delete(key)
     return false
   }
-  /** The key's history join settled (rows added, nothing older, or the split turned off for it). */
-  function _settleDeep(key) {
+  /** ⭐ THE ONE AUTHORITY FOR "IS THE DEEP HISTORY DUE" on this page (`deepPending` and the tail's trigger): did the
+   *  key's history join settle here at a depth no greater than the `held` rows the entry holds now? Every reset path (a
+   *  cache_key, basis or history change, an eviction and rebuild) leaves the entry shallower than that, so it is due. */
+  function _deepJoinedAt(key, held) {
+    const settled = deepSettled.get(key)
+    return settled != null && held >= settled
+  }
+  /** The key's history join settled (rows added, nothing older, or the split turned off for it). `joined`: it ended
+   *  with the history's answer (res.ok). Only then is the depth recorded (`_deepJoinedAt` reads it as "joined at this
+   *  depth"); a join that ended in an error (a bad answer, another ticker, a refused seam: the split is off and a full read
+   *  recovers) records nothing, so a later key life asks again (review of #2869). Waiters are released either way. */
+  function _settleDeep(key, joined = true) {
     deepWanted.delete(key)
     const held = registry.peek(key)?.bars.length
-    if (held != null) {
+    if (joined && held != null) {
       deepSettled.delete(key)
       deepSettled.set(key, held)
       if (deepSettled.size > LAKE_SETTLED_MAX) deepSettled.delete(deepSettled.keys().next().value)
@@ -388,7 +404,7 @@ export function createNetwork({
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
-      if (!res?.aborted) _settleDeep(r.key)
+      if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
       return res
     })
   }
@@ -753,8 +769,7 @@ export function createNetwork({
       if (keys.get(key)?.splitOff) return false
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > FIRST_PAINT_BARS) return false
-      const settled = deepSettled.get(key)
-      return settled == null || held < settled
+      return !_deepJoinedAt(key, held)
     },
     /**
      * Fetch `key`'s deep history NOW, ahead of the tail answer its job waits for (the job takes this
