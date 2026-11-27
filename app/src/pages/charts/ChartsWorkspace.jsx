@@ -1,5 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
+import { boardLayerProps } from '../../components/chart/boardLayer'
 import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
@@ -4327,10 +4328,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             <BoardSlotWorkspace base={workspaceValue} view={rec.groupView} vis={rec.vis}>
               <SWRConfig value={rec.swr}>
                 <div
-                  className={isFront ? styles.boardSlot : styles.boardSlotLayer}
+                  {...boardLayerProps(!isFront, styles.boardSlot)}
                   data-board-current={isFront ? '' : undefined}
-                  inert={!isFront}
-                  aria-hidden={isFront ? undefined : true}
                 >
                   <SlotBoard el={content} hidden={!isFront} />
                 </div>
