@@ -27,6 +27,9 @@
  *   LK14 (red first, F2) a layer switch to a board that is not kept marks the NEW grid (charts-switching: no item
  *        transition on its first layout passes), never the hidden one, and the mark clears; a return to a kept board
  *        marks nothing
+ * Review of #2923:
+ *   LK15 (red first, F2-a) two layer switches to new boards in one frame, then back to the first: its grid carries no
+ *        mark (the second switch's mark took it off), and after the frames no grid does
  */
 import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -408,5 +411,31 @@ test('LK14 (red first; review of #2911, F2) a layer switch to a board not kept m
   await waitFor(() => expect(front.classList.contains('charts-switching'), 'the mark never cleared').toBe(false))
   await act(async () => { dockButton('Main Trading').click() })
   expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'a return to a kept board marked a grid').toBe(0)
+  await settle()
+})
+
+test('LK15 (red first; review of #2923, F2-a) two layer switches to new boards in one frame, then back to the first: no mark on its grid', async () => {
+  // the frames are this test's: nothing runs between the two switches
+  const frames = []
+  vi.stubGlobal('requestAnimationFrame', (f) => { frames.push(f); return frames.length })
+  const flushFrames = () => act(() => { for (let i = 0; i < 10 && frames.length; i++) frames.splice(0).forEach((f) => f(0)) })
+  try {
+    mount()
+    await settle()
+    flushFrames()                                   // the load's own mark comes off
+    expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'NON-VACUITY: the load mark is off').toBe(0)
+    await act(async () => { dockButton('Two Charts').click() })
+    const twoGrid = host('chart-1')?.closest('.react-grid-layout')
+    expect(twoGrid?.classList.contains('charts-switching'), 'NON-VACUITY: the first new grid is marked').toBe(true)
+    await act(async () => { dockButton('Intraday Pair').click() })   // no frame ran since the first switch
+    expect(host('chart-5a')?.closest('.react-grid-layout')?.classList.contains('charts-switching'), 'NON-VACUITY: the second new grid is marked').toBe(true)
+    await act(async () => { dockButton('Two Charts').click() })
+    expect(host('chart-1')?.closest('.react-grid-layout'), 'NON-VACUITY: TWO came back as the kept board').toBe(twoGrid)
+    expect(twoGrid.classList.contains('charts-switching'), 'the first new grid kept its mark through the return').toBe(false)
+    flushFrames()
+    expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'a grid kept a mark after the frames').toBe(0)
+  } finally {
+    vi.unstubAllGlobals()
+  }
   await settle()
 })
