@@ -90,7 +90,7 @@ describe("a custom timeframe chart's bars (store path)", () => {
     const bars0 = result.current.bars
     const copy = JSON.stringify(bars0)
     act(() => {
-      st.registry.dispatch(K, { key: K, gen: st.getSnapshot(K).gen, type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(13, 10) * 1000, o: 3, h: 9, l: 2, c: 8, v: 5 }, rev: Date.now() + 1 } })
+      st.registry.dispatch(K, { key: K, gen: st.getSnapshot(K).gen, type: 'push-bar', event: { sym: 'SIMX', bar: { t: et(12, 30) * 1000, o: 3, h: 9, l: 2, c: 8, v: 5 }, rev: Date.now() + 1 } })   // the 12:30 hour to date
     })
     expect(st.getBaseSnapshot(K)).toBe(base0)                    // a developing-only change
     expect(st.getSnapshot(K).developing).not.toEqual(before.developing)
