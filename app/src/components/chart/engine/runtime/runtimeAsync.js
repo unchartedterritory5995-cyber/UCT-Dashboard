@@ -415,6 +415,8 @@ function messageOf(id, def, rows, ctx) {
     historyFromListing: !!(ctx && ctx.historyFromListing === true),
     // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M): the run's withhold says it truthfully
     ...(ctx && ctx.listingStart === true ? { listingStart: true } : {}),
+    // ⭐⭐ HISTORY PARITY — TradingView's first bar of the run, as the chart stamped it (`tvRunWindow.js`; a frozen plain object)
+    ...(ctx && ctx.tvRunStart && typeof ctx.tvRunStart === 'object' ? { tvRunStart: { ...ctx.tvRunStart } } : {}),
     // ⭐ UIE PHASE 2 (M4) — the member's settings (plain numbers and text)
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
@@ -497,6 +499,7 @@ function coalesceKeyOf(def, ctx, facts = true) {
   return `${def && def.id}|${def && def.compute && def.compute.fn}|${ctx && ctx.tf}|${s}|`
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
     + (ctx && ctx.listingStart === true ? '|listingStart' : '')
+    + (ctx && ctx.tvRunStart && typeof ctx.tvRunStart === 'object' ? `|tvrs${ctx.tvRunStart.proven === true ? 'p' : 'u'}${ctx.tvRunStart.t}` : '')
 }
 
 /** The chart pane asking (`binder.js`: its scope and the instance), or null for a request no pane owns. */

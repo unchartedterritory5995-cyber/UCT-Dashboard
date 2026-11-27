@@ -72,6 +72,7 @@ import { useChartTickerMeta, useChartTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
+import { tvRunStartStampOf } from './chart/engine/tvRunWindow'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -10199,6 +10200,19 @@ function StockChartBody({
   // (`runtime:listing-unverified`). Absent everywhere else, so every other chart's context is unchanged.
   const listingUnserved = useMemo(() => listingUnservedFor(historyFromListing, __heavy.filteredBars, resolvedTf, ipoInfo),
     [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ HISTORY PARITY (phase 2) — WHERE TRADINGVIEW'S RUN OF A LISTING SCRIPT STARTS ON THIS INTRADAY CHART
+  // (`chart/engine/tvRunWindow.js`, `docs/pine/HISTORY-PARITY.md`): the first bar of the chunk holding the 20,000th
+  // newest session bar, keyed by its TIME and LATCHED for this series (a scroll-back, a new bar or a chunk move of the
+  // cap-th bar never moves a proven start; TradingView moves it only on a reload). Null on D / W / M (the listing
+  // statement answers there), in replay or an exact-range frame (a cut tail is not the chart TradingView counts).
+  const _tvRunStartRef = useRef(null)
+  const tvRunStart = useMemo(() => {
+    if (replayMode || replayCutoff || exactDateRange) return null
+    const s = tvRunStartStampOf({ bars: __heavy.filteredBars, tf: resolvedTf, extended: !!showExtended, sym,
+      listDate: listingReferenceDate(ipoInfo), prev: _tvRunStartRef.current })
+    _tvRunStartRef.current = s
+    return s
+  }, [filteredBars, resolvedTf, showExtended, sym, ipoInfo?.list_date, ipoInfo?.first_trade_date, replayMode, replayCutoff, exactDateRange])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
   // (`chart/builder/runsHere.js`): the bars the binder computes on and the six facts of the compute
   // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`, and
@@ -10214,12 +10228,13 @@ function StockChartBody({
       newestBarIsForming: __heavy.data?.newest_bar_is_forming ?? null,
       historyFromListing,
       ...(listingUnserved ? { listingStart: true } : {}),
+      ...(tvRunStart ? { tvRunStart } : {}),
     },
     // ⭐ 2026-11-21 -- WHAT THE CHART HAS DRAWN for its indicators right now (`binder.bindings()`), for a reader
     // beside the chart that must compute nothing (`chart/builder/authoring/emptyOnChart.js`). A getter over the
     // ref: this object's identity and its dependency list are what they were. Read-only, `[]` with no binder.
     bindings: drawnBindingsReader(engineRef),
-  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved, tvRunStart])  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
 
   // ═══ A METADATA ANSWER LANDING BETWEEN RENDERS (metadata islands, 2026-11-20) ═══════════════════════════════
   // `ChartMetaFeed` publishes; this body is NOT re-rendered. What the answer changes on screen is redrawn here,
@@ -14142,6 +14157,8 @@ function StockChartBody({
         historyFromListing,
         // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
         ...(listingUnserved ? { listingStart: true } : {}),
+        // ⭐⭐ HISTORY PARITY (phase 2) — TradingView's first bar of a listing script's run on this intraday chart
+        ...(tvRunStart ? { tvRunStart } : {}),
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,
@@ -15237,7 +15254,7 @@ function StockChartBody({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, paintMember, layerPaint])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, tvRunStart, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, paintMember, layerPaint])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
