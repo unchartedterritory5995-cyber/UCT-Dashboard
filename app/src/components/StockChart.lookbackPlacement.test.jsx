@@ -225,7 +225,8 @@ describe('the chrome sampler measures in the frame, not inside the commit', () =
     const files = walk(join(process.cwd(), 'src')).filter((p) => /\.(css|jsx?)$/.test(p) && !/\.test\./.test(p))
     let readers = 0
     for (const f of files) {
-      const src = readFileSync(f, 'utf8')
+      // comments mention the variable (`var(--price-pane-top)` in prose); only code reads it
+      const src = readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
       for (const m of src.matchAll(/var\(--price-pane-top([^)]*)\)/g)) {
         readers++
         expect(m[1].trim(), `${f}: ${m[0]}`).toBe(', 0px')
