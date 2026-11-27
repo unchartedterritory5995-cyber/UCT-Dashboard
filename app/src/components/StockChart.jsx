@@ -4116,6 +4116,7 @@ function StockChartBody({
   backgroundWarm: backgroundWarmProp = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
   deepWarm: deepWarmProp = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
+  onSymbolPainted = null,   // optional (sym) => void: the symbol each paint pass drew (ChartPane's header follows it)
   onDrawnBarCount = null,   // optional (n) => void — the number of candles currently handed to the chart, fired whenever it changes. `onBarsReady` says the bars question SETTLED (it fires on a fatal error too, deliberately, so a dead ticker never starves the grid mount queue); this says whether the answer had any DATA in it. The export page publishes it as `window.__chartBarCount` and the Discord renderer probes it, because a screenshot of an empty chart is indistinguishable from a drawn one by pixel variance alone (2026-08-31: three candle-less charts posted publicly).
   onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
@@ -11125,6 +11126,8 @@ function StockChartBody({
   // 0 forever and reject a chart that is, by then, perfectly drawn.
   const onDrawnBarCountRef = useRef(onDrawnBarCount)
   onDrawnBarCountRef.current = onDrawnBarCount
+  const onSymbolPaintedRef = useRef(onSymbolPainted)
+  onSymbolPaintedRef.current = onSymbolPainted
   useEffect(() => {
     // Count only REAL drawn candles. The load-anchor whitespace seed appends a
     // trailing whitespace point (the developing-bar slot that makes today's bar a
@@ -12251,6 +12254,10 @@ function StockChartBody({
     // the chart on screen, and a flip records its own (chart/useDoubleBuffer.js)
     recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full',
       boardHiddenNow(boardVisibilityRef.current) ? null : paintMember)
+    // ⭐⭐ (2026-11-27, owner on production: a new header over the OLD chart for a frame) the host learns the symbol this
+    // pass DREW, so its header, logo and day change follow the candles, never run ahead of them (ChartPane `shownSym`).
+    // Called inside this pass: from the layout effect on a switch, so the header's re-render lands in the same frame.
+    if (typeof onSymbolPaintedRef.current === 'function') { try { onSymbolPaintedRef.current(sym) } catch { /* the host's */ } }
     if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
