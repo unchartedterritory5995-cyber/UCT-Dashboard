@@ -8691,16 +8691,20 @@ export function withTranslateClock(now, fn) {
 //   · NESTING-SAFE: an inner window keeps the outer one's state and gives it back.
 // The per-Resolver step cap (`PINE_TRANSLATE_MAX_STEPS`) is unchanged: it was already the same on every machine.
 let CALL_STEPS = 0
+/** ⭐⭐ (e100) — the host-stack overflows this call's resolvers turned into the depth refusal (`resolveBinding`).
+ *  ZERO on every corpus script once the depth bound sits well below any host stack: a non-zero count means the
+ *  answer depended on the JIT's frame sizes again, and `translateDepthCap.test.js` rails that it stays zero. */
+let CALL_STACK_TRIPS = 0
 let CALL_MAX_STEPS = 0
 let WINDOW_OPEN = false
 let WINDOW_TRIP = null
-let LAST_WINDOW = { trip: null, steps: 0 }
+let LAST_WINDOW = { trip: null, steps: 0, stackTrips: 0 }
 const OUTER_WINDOWS = []
 
 export function beginTranslateBudget(budgetMs, sourcePath, now, maxCallSteps) {
   OUTER_WINDOWS.push({
     open: WINDOW_OPEN, clock: TRANSLATE_WINDOW_CLOCK, budget: TRANSLATE_BUDGET, deadline: TRANSLATE_DEADLINE,
-    path: TRANSLATE_PATH, printSteps, steps: CALL_STEPS, max: CALL_MAX_STEPS, trip: WINDOW_TRIP,
+    path: TRANSLATE_PATH, printSteps, steps: CALL_STEPS, max: CALL_MAX_STEPS, trip: WINDOW_TRIP, stackTrips: CALL_STACK_TRIPS,
   })
   TRANSLATE_WINDOW_CLOCK = clockOrNull(now) || TRANSLATE_CLOCK || wallNow
   TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
@@ -8709,12 +8713,13 @@ export function beginTranslateBudget(budgetMs, sourcePath, now, maxCallSteps) {
   printSteps = 0
   WINDOW_OPEN = true
   CALL_STEPS = 0
+  CALL_STACK_TRIPS = 0
   CALL_MAX_STEPS = Number.isFinite(maxCallSteps) ? maxCallSteps : PINE_TRANSLATE_CALL_MAX_STEPS
   WINDOW_TRIP = null
 }
 
 export function endTranslateBudget() {
-  LAST_WINDOW = { trip: WINDOW_TRIP, steps: CALL_STEPS }
+  LAST_WINDOW = { trip: WINDOW_TRIP, steps: CALL_STEPS, stackTrips: CALL_STACK_TRIPS }
   const outer = OUTER_WINDOWS.pop()
   if (outer && outer.open) {
     WINDOW_OPEN = true
@@ -8724,6 +8729,8 @@ export function endTranslateBudget() {
     TRANSLATE_PATH = outer.path
     printSteps = outer.printSteps
     CALL_STEPS = outer.steps
+    // an overflow inside a nested window is still one the outer call met
+    CALL_STACK_TRIPS = outer.stackTrips + CALL_STACK_TRIPS
     CALL_MAX_STEPS = outer.max
     WINDOW_TRIP = outer.trip
     return
@@ -8936,6 +8943,40 @@ const BUDGET_CHECK_MASK = 4095
  *  type, free text), not a plain number, and `resolveInput`'s existing
  *  refusal path already handles every kind this set does not name. */
 const PARAM_MANIFEST_ELIGIBLE_KINDS = Object.freeze(new Set(['input', 'int', 'float', 'bool']))
+
+/** ⭐ (e100) what a Resolver helper returns when it has NO answer and its caller goes on (`ext` splits:
+ *  a large method's early answers live in their own frame, so the frame that stays live while an operand
+ *  resolves stays small). Never a tree, never stored. */
+const NOT_ANSWERED = Symbol('not answered')
+
+/** ⭐ (e100) `Resolver.foldOffsetIndex`'s per-bar read (C38), told apart from a folded node (never stored). */
+class OffsetIndexRead {
+  constructor(tree) {
+    this.tree = tree
+  }
+}
+
+/** ⭐ (e100) `Resolver.tableCallHead`'s reading of a table call's name (never a tree, never stored). */
+class TableCallHead {
+  constructor(bare, shape, key, inexKey, hostServes, hostOnly) {
+    this.bare = bare
+    this.shape = shape
+    this.key = key
+    this.inexKey = inexKey
+    this.hostServes = hostServes
+    this.hostOnly = hostOnly
+  }
+}
+
+/** ⭐ (e100) `Resolver.tableCallPlan`'s plan for a table call's arguments (never a tree, never stored). */
+class TableCallPlan {
+  constructor(key, plan, declaredArgs, args) {
+    this.key = key
+    this.plan = plan
+    this.declaredArgs = declaredArgs
+    this.args = args
+  }
+}
 
 export class Resolver {
   constructor(env, table, types, opts = {}) {
@@ -9590,11 +9631,7 @@ export class Resolver {
     // `input.int` length is minted as the member's parameter whichever leg is read). ⚰️ `dmiParts`' legs resolved
     // both lengths to compare them, so a script reading only +DI / -DI still listed its "DMI Smoothing" input, and
     // its frozen parameter ids (`paramIdLegacy.js`) address it; TradingView lists it too.
-    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) {
-      const prevEnv = this.env
-      this.env = bound.env || prevEnv
-      try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
-    }
+    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) this.mintEveryArg(bound)
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
@@ -9631,21 +9668,13 @@ export class Resolver {
     // (`condGateNotesOnly`), and `if barstate.islast` / `s := ta.sma(close, 3)` painted
     // the every-bar mean on the last bar with no gate, where the plot reads Pine's `na`.
     if (!this.refuseCondCalls && this.condGate && this.mintOnly === 0 && bound && bound.oneExecution) {
-      this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
-      const minted = this.paramMint
-      this.paramMint = null
-      try { return this.resolveBinding(bound.oneExecution, tok, name) } finally { this.paramMint = minted }
+      return this.oneRunRead(bound, tok, name)
     }
     if (this.refuseCondCalls && bound && bound.oneExecution) {
       return this.resolveBinding(bound.oneExecution, tok, name)
     }
     if (bound && bound.condCall && this.mintOnly === 0 && (this.refuseCondCalls || this.condGate)) {
-      const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${bound.condCall}`, locate(tok))
-      // ⛔ and the runtime lane may not answer it either (`rtAdmits`): it reads
-      // the argument's every-bar history, the same wrong number.
-      err.noRuntime = true
-      if (this.refuseCondCalls) throw err
-      this.noteBlockRun(bound, bound.condCall, err)
+      this.condCallRead(bound, tok)
     }
     // ⭐⭐ C48 (PLOT LANE, `var` form) — a `var` written from a call in a block
     // that does not run on every bar (`stateRuns`, set by the fold's state path,
@@ -9659,29 +9688,33 @@ export class Resolver {
     // `s := ta.sma(close, 3)` / `plot(s)` drew 145.7767 on RDDT 1D from the
     // listing, where TradingView draws 149.2033.
     if (bound && Array.isArray(bound.stateRuns) && this.condGate && !this.refuseCondCalls && this.mintOnly === 0) {
-      for (const run of bound.stateRuns) {
-        const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${run.why}`, locate(tok))
-        err.noRuntime = true
-        this.noteBlockRun({ execGuard: run.chain }, run.why, err)
-      }
+      this.noteStateRuns(bound, tok)
     }
     // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
     // frame that still has stack left to build it — a guard that overflows while
     // reporting an overflow reports nothing at all.
     if (bound && this.maxDepth > 0 && (this.depthTripped || this.depth >= this.maxDepth)) {
       this.depthTripped = true
-      throw depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
+      throw this.depthRefusal(name, tok)
     }
     this.depth += 1
     if (this.depth > this.peakDepth) this.peakDepth = this.depth
     try {
-      const res = this.resolveBindingInner(bound, tok, name)
+      // ⭐⭐ (e100) ONE FRAME PER LEVEL FOR THE COMMON ARM. `resolveBindingInner` answers every arm but the plain
+      // expression (NOT_ANSWERED for that one, after the same checks in the same order); the plain arm runs HERE,
+      // so the deepest resolution — a chain of plain bindings, measured — pays one frame per level instead of two.
+      let res = this.resolveBindingInner(bound, tok, name)
+      if (res === NOT_ANSWERED) {
+        const st = this.enterPlainBinding(bound, tok, name)
+        try {
+          res = this.resolve(bound.node)
+          res = this.recurrenceFromBody(res, bound, st)
+        } finally { this.leavePlainBinding(bound, st) }
+      }
       // ⭐ C48 (object lane) — a `var` holding a call its block runs on only some
       // bars: the tree this read answers is noted with that block's guard, for the
       // object pass to carry beside the drawing (`buildObjectProgram`'s `stateRunSink`).
-      if (this.stateRunSink && bound && bound.stateRuns && res && typeof res === 'object') {
-        this.stateRunSink.note(res, bound.stateRuns, this.env)
-      }
+      if (this.stateRunSink && bound && bound.stateRuns && res && typeof res === 'object') this.noteStateRunSink(res, bound)
       return res
     } catch (err) {
       // ⛔⛔ THE HOST STACK CAN RUN OUT BEFORE THE BOUND DOES, AND THEN IT IS THE
@@ -9694,14 +9727,51 @@ export class Resolver {
       // runner speed. Tripping the same sticky bound here gives the same refusal
       // the 400th level would have, so the reply is a property of the script again.
       if (bound && this.maxDepth > 0 && isStackOverflow(err)) {
+        CALL_STACK_TRIPS += 1
         this.depthTripped = true
-        throw depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
+        throw this.depthRefusal(name, tok)
       }
       // ⭐ C31 — a refusal reached THROUGH a binding made below a stepped-over
       // loop says so (`markAfterLoop`); only the object lane's `rtAdmits` reads it.
       if (bound && bound.afterLoop && err && typeof err === 'object') err.afterLoop = true
       throw err
     } finally { this.depth -= 1 }
+  }
+
+  /** ⭐ (e100) `resolveBinding`'s preludes, each in its own frame: the frame `resolveBinding` keeps live across
+   *  the level below it — one per nesting level of the deepest resolution — then holds only what its `try`
+   *  needs. Behaviour is unchanged; see the comments at each call site in `resolveBinding`. */
+  mintEveryArg(bound) {
+    const prevEnv = this.env
+    this.env = bound.env || prevEnv
+    try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
+  }
+
+  /** ⭐ (e100) C48's one-run read (see `resolveBinding`): the every-bar read for its mint, then the one-run binding. */
+  oneRunRead(bound, tok, name) {
+    this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
+    const minted = this.paramMint
+    this.paramMint = null
+    try { return this.resolveBinding(bound.oneExecution, tok, name) } finally { this.paramMint = minted }
+  }
+
+  /** ⭐ (e100) C31's conditional-call mark (see `resolveBinding`): refused by the object pass, noted otherwise. */
+  condCallRead(bound, tok) {
+    const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${bound.condCall}`, locate(tok))
+    // ⛔ and the runtime lane may not answer it either (`rtAdmits`): it reads
+    // the argument's every-bar history, the same wrong number.
+    err.noRuntime = true
+    if (this.refuseCondCalls) throw err
+    this.noteBlockRun(bound, bound.condCall, err)
+  }
+
+  /** ⭐ (e100) C48's `var` form (see `resolveBinding`): each block run's guard, noted. */
+  noteStateRuns(bound, tok) {
+    for (const run of bound.stateRuns) {
+      const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${run.why}`, locate(tok))
+      err.noRuntime = true
+      this.noteBlockRun({ execGuard: run.chain }, run.why, err)
+    }
   }
 
   /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
@@ -9733,214 +9803,13 @@ export class Resolver {
   }
 
   resolveBindingInner(bound, tok, name) {
-    if (!bound) {
-      // ⭐ Same question as the other refusal site: a name the closed table holds
-      // is not a name the member failed to define.
-      const clockKey = engineClockKeyFor(name)
-      if (clockKey) {
-        // ⭐ AN EXACT RECONCILIATION BEATS THE REFUSAL, and only for a source
-        // that declares a `//@version` — see `clockTransformFor`.
-        const reconciled = clockTransformFor(name, this.pineVersion)
-        if (reconciled) return reconciled
-        if (own(PINE_CLOCK_MISMATCH, name)) {
-          throw new PineRefusal('pine:builtin',
-            `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(tok))
-        }
-        return clockLeaf(clockKey)
-      }
-      // ⭐⭐ A ONE-CHARACTER TYPO SHOULD SAY SO. `didYouMean` has shipped in
-      // `sentence.js` since the native read-back was written, and its own
-      // docblock names this exact failure — yet `pine.js` never imported it, so
-      // `ta.rsi(clsoe, 14)` came back "this Pine name was never given a value in
-      // the pasted script — `clsoe`" and stopped there.
-      // ⛔ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the
-      // names it bound itself, plus the bar fields and clock names the table
-      // declares. Offering the whole vocabulary would put `close` and a hundred
-      // strangers at the same distance.
-      throw this.undefinedName(name, tok)
-    }
+    // ⭐⭐ (e100) EVERY ARM BUT THE PLAIN EXPRESSION, each in its own method. The plain arm — the one the deepest
+    // resolution nests through — runs in `resolveBinding`'s own frame (`enterPlainBinding` / `recurrenceFromBody` /
+    // `leavePlainBinding`); this answers NOT_ANSWERED for it, after the checks that come before it.
+    if (!bound) return this.unboundBindingRead(tok, name)
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
     this.staleSnapshotRead(bound, name)
-    if (bound.kind === 'state') {
-      // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
-      // `bound` is then not the last word on the name, and folding IT into an
-      // accumulator builds a DIFFERENT variable — one whose "previous bar" is the
-      // previous bar's value at THIS line rather than at the end of the bar. See
-      // `partialStateRead` for the rule and the capture it was derived from.
-      const finalState = this.finalStateOf(bound, name)
-      if (finalState) return this.partialStateRead(bound, finalState, tok, name)
-      // ⛔⛔ C11c — A `var` WHOSE LATER REASSIGNMENT THIS ENGINE COULD NOT FOLD IS
-      // NOT THE VALUE IT HELD HERE. `bound` is the binding where this read stands
-      // (a statement's START, the positional read); when the program's last
-      // word on the name is some OTHER binding that is not this `var`'s own
-      // running state — opaque, because the block that reassigns it was refused
-      // — folding `bound` alone builds a variable nobody wrote: a `var` whose
-      // only update seen so far is none is its seed, a constant. ⚰️ MEASURED on a
-      // pro-trading-art rewrite: `topStart != lastStart` read `!= 0` on every
-      // bar and drew a double top TradingView does not (531 → 552). The last
-      // word's own refusal is the sentence; anything else refuses by name.
-      // ⚠️ Asked only where this arm would ANSWER (the constant, the fold
-      // below), never ahead of a refusal it already makes — an unanswered read
-      // keeps the sentence it had.
-      const staleLastWord = () => {
-        if (!name || this.finalLocals.has(bound)) return
-        const last = this.finalBindings.get(name)
-        if (last === undefined || last === bound) return
-        if (last && last.kind === 'opaque') throw new PineRefusal(last.guard, last.message, last.at)
-        throw new PineRefusal('pine:state',
-          `${REFUSALS['pine:state']} — \`${name}\` is read here before a later reassignment of it `
-          + 'that this engine could not fold into its running value', bound.at || locate(tok))
-      }
-      // ⭐ THE SEED AND THE UPDATE RESOLVE IN THEIR OWN ENVIRONMENTS, and they
-      // are different ones: the seed was written before the first `:=` and the
-      // update after it. Sharing one env is how `x := x + 1`'s right-hand `x`
-      // would come to mean the accumulator instead of its own past.
-      const prevEnv = this.env
-      const spec = this.table.functions.accum
-      if (!spec) {
-        throw new PineRefusal('pine:state',
-          `${REFUSALS['pine:state']} — \`${name}\``, bound.at || locate(tok))
-      }
-      try {
-        this.env = bound.seedEnv || prevEnv
-        const seed = this.resolve(bound.seed)
-        // ⭐ A `var` NOBODY REASSIGNS, WITH A CONSTANT SEED, IS THE CONSTANT — and
-        // this is a correctness fix, not a tidiness one. `var k = 5` wrapped in an
-        // accumulator is `5` from bar 250 onward and NOT COMPUTABLE before it, so
-        // `close > k` would go blank for a trading year over a number that never
-        // changes. Unwrapping is an identity: a constant 250 bars ago is the same
-        // constant. ⛔ ONLY for a `num` — `var anchor = close` really does mean a
-        // bar in the past, and that one keeps its accumulator and its warm-up.
-        if (bound.update && bound.update.type === 'selfref' && seed && seed.type === 'num') {
-          staleLastWord()
-          return seed
-        }
-        // ⭐⭐ e97 U8 — …AND ONE SEEDED BY THE MEMBER'S SETTINGS ALONE IS THAT SETTING'S ANSWER, for the same reason: a
-        // setting is one value per binding, so `var enableMA = maType != "None"` holds one answer on every bar.
-        // ⚰️ Measured: declared as the member's knob, the built-in MA family's `var enableMA` became an accumulator, and
-        // the smoothed MA was blank for its first 250 bars at every type (`enumKnobTruth`: NaN against the literal
-        // program's value from bar 21). ⛔ Only a tree of settings and numbers: a bar field keeps its accumulator.
-        if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {
-          staleLastWord()
-          return seed
-        }
-        // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
-        // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
-        // — measured at 400/400 on the anchored-VWAP script in the corpus.
-        //
-        // ⛔ IT IS SAVEABLE, WHICH IS WHAT MAKES IT WORSE THAN A REFUSAL. It
-        // parses, budgets, lints `non-repainting` and clears `canSaveFormula`, so
-        // a member gets a scan that returns nothing and reads as a quiet market
-        // rather than a broken column. That is the exact failure this translator
-        // refuses `cum` and `barssince` to avoid, arrived at from the other side.
-        //
-        // ⚠️ THIS WAS REACHED ONLY WHEN `ta.cross` LANDED — the output refused
-        // earlier in the same expression until then, so the dead accumulator sat
-        // behind a louder refusal. Closing one gap is what exposed it.
-        if (bound.update && bound.update.type === 'selfref' && isNaNLiteral(seed)) {
-          throw new PineRefusal('pine:state',
-            `\`${name}\` is a \`var\` seeded \`na\` that nothing in this script updates, `
-            + 'so every bar of its column would be blank — the reassignment it needs is '
-            + 'one this translator could not fold into a single expression',
-            bound.at || locate(tok))
-        }
-        this.env = bound.updateEnv || prevEnv
-        const prevReads = this.selfReads
-        const reads = { bare: 0, history: 0, guarded: 0, guardDepth: 0 }
-        this.selfReads = reads
-        let update
-        // ⭐ THE BUILD IS ON A STACK so a read of this same `var` INSIDE its own
-        // update — through a binding written between two of its reassignments —
-        // can tell that `self` already means its value at the start of the bar
-        // (`partialStateRead`).
-        // ⭐ AND A FRESH CYCLE STACK, for the reason the plain form takes one: a
-        // binding the OUTER resolution is inside (`sig` in `partialStateRead`'s
-        // example) is legally re-read inside this update, where it means a
-        // different tree.
-        this.stateBuilds.push(bound.seed)
-        const prevStack = this.stack
-        this.stack = new Set()
-        try { update = this.resolve(bound.update) } finally {
-          this.stack = prevStack
-          this.stateBuilds.pop()
-          this.selfReads = prevReads
-        }
-        // ⛔ A BODY THE STEP LOOP CANNOT RUN IS REFUSED HERE, NOT AT EVALUATION
-        // (`selfOutsideTheStepLoop`). Structural to this lane — the per-bar
-        // runtime lane runs the statements and keeps any window it needs — so the
-        // refusal names that lane, like the coupled-latch one.
-        const outside = selfOutsideTheStepLoop(update, this.table)
-        if (outside) {
-          const unsteppable = new PineRefusal('pine:state',
-            `${REFUSALS['pine:state']} — \`${name}\` reads its own running value inside `
-            + `${outside} within its own update, and the bar-by-bar accumulator keeps that `
-            + 'value, not a window over its past',
-            bound.at || locate(tok))
-          unsteppable.route = 'runtime'
-          throw unsteppable
-        }
-        // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
-        // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
-        // the SAME reassignment folded straight to `accum(0, self + volume, 250)`
-        // — a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line
-        // nobody would question. Two spellings of one construct reached two
-        // different answers because only one of them was railed.
-        // ⚠️ Found by a test written for a different feature, which is the honest
-        // account: the guard reads correct beside the path it is on, and nothing
-        // pointed at the sibling path four hundred lines away.
-        // ⛔ `var k = 5` and any other un-reassigned `var` are unaffected — their
-        // update IS bare `self`, which forgets by definition.
-        // ⭐ C12s — a body the window refuses may still forget on a RESET; it is
-        // then admitted as a SWITCHED recurrence (`forgetsOnReset`).
-        let switchedState = false
-        // ⭐ C29 — a bar counter (`var n = 0; n := n + 1`, `n += 1`, `var n = na;
-        // n := na(n) ? 0 : n + 1`) runs its update on bar 0: `readingSeed(…, 'update')`.
-        // ⛔ Never on a SCREEN: a screen has no listing, so every row would be blank.
-        const barCounter = !this.screen && reads.history === 0 && isBarCounterUpdate(update)
-        if (containsSelfSeries(update, this.table)
-            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
-            && !(switchedState = forgetsOnReset(update, this.table)) && !barCounter) {
-          throw new PineRefusal('pine:state',
-            REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
-            + 'bar and this engine cannot tell that it ever forgets where it '
-            + 'started, so folding it would draw a rolling window over the last '
-            + PINE_STATE_WARMUP + ' bars rather than a running total'
-            // ⭐ R-A2 (owner, 2026-09-12): NAME THE BOUNDED FORM. The refusal stands
-            // — `monotoneFoldOffer`'s comment carries the decidability measurement that
-            // is why — but a member writing "the highest ever" is told which call does say
-            // it, with the window left where it belongs: with them.
-            + (monotoneFoldOffer(update, this.table)
-              ? '. THIS ENGINE DOES DECLARE A BOUNDED FORM: '
-                + monotoneFoldOffer(update, this.table)
-                + '. Stating the window is what makes the answer the same tomorrow'
-                + ' — an all-time value moves with however many bars were fetched.'
-              : ''),
-            bound.at || locate(tok))
-        }
-        staleLastWord()
-        const args = []
-        // ⭐⭐ C47 — A v6 `var x = bool(na)` LATCH: seeded `false`, and a test that
-        // is `na` is not taken (`v6BoolNaLatch`). Null for every other shape.
-        const boolLatch = v6BoolNaLatch(bound.seed, update, this)
-        // ⭐⭐ C47 — A SWITCHED `var` READ ONLY BARE SAYS SO (`'update'`, C29's
-        // mark): bar 0 runs the update from the initializer, the one reading a
-        // `var` whose update never reads `x[k]` or `nz(x)` can have. Unmarked,
-        // the listing pass also kept "bar 0 IS the seed" (the self-reference
-        // spelling's reading, which this arm never writes) and so withheld the
-        // count until its first reset — trend-duration's `TrendCount` on the bar
-        // of its first flip, pushed into the window every later text reads.
-        const bareOnly = reads.history === 0 && reads.guarded === 0 && reads.bare > 0
-        args[spec.recurrence.seed] = boolLatch ? boolLatch.seed : switchedState
-          ? switchedVarSeed(bareOnly ? readingSeed(varSeedOf(seed, reads), 'update') : varSeedOf(seed, reads))
-          : barCounter && containsSelfSeries(update, this.table)
-            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
-            ? switchedVarSeed(readingSeed(varSeedOf(seed, reads), 'update'))
-            : varSeedOf(seed, reads)
-        args[spec.recurrence.body] = update
-        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
-        return cCall('accum', args)
-      } finally { this.env = prevEnv }
-    }
+    if (bound.kind === 'state') return this.resolveStateBinding(bound, tok, name)
     // ⭐⭐ ONE ELEMENT OF A TUPLE-RETURNING FUNCTION. `[a, b] = f(x)` binds each
     // name to a part; resolving one INLINES the call exactly as the `fn` arm
     // below does and then takes its own element. The frame is the call's, so a
@@ -9950,37 +9819,7 @@ export class Resolver {
     // whole basis for reducing it is that the branch does not move bar to bar.
     // Anything else and every arm would have to exist at once, which is a menu
     // rather than a column, and it keeps refusing at `pine:block`.
-    if (bound.kind === 'switch') {
-      // ⭐⭐ e95 unit 2b — A SUBJECT THAT IS A MEMBER'S `input.string` KNOB (`enumCompare`'s door) builds EVERY arm;
-      // the bind keeps the one the knob picks (`bind.js::pruneKnobArms`). Null for anything else.
-      const byKnob = this.enumSwitch(bound, tok, name)
-      if (byKnob) return byKnob
-      const subject = this.stringValueOf(bound.subject)
-      // ⭐⭐ C47 — A SUBJECT THE SYMBOL FIXES (`switch syminfo.root`, or a helper's
-      // parameter bound to it) is fixed per BINDING, which is the same basis the
-      // reduction below stands on: the branch does not move bar to bar.
-      if (subject === null) {
-        const bySymbol = this.symbolSwitch(bound, tok, name)
-        if (bySymbol) return bySymbol
-      }
-      if (subject === null) {
-        throw new PineRefusal('pine:block',
-          `${REFUSALS['pine:block']} — \`switch\`, and this one's subject is not a value the `
-          + 'script fixes, so every arm would have to exist at once',
-          bound.at || locate(tok))
-      }
-      let picked = null
-      for (const arm of bound.arms) {
-        const label = this.stringValueOf(parseWholeExpression(arm.match))
-        if (label !== null && label === subject) { picked = arm.binding; break }
-      }
-      if (!picked) picked = bound.fallback
-      // ⭐⭐ e97 U8(a) (coordinator ruling) — NO ARM MATCHES AND THERE IS NO DEFAULT: Pine's switch yields `na`, so does
-      // this (the engine's `na`, `0 / 0`, as a bare `na` resolves). ⚰️ It was refused (`pine:block`) as "inventing a
-      // column", which refused the built-in SMA / EMA / OBV smoothing plots at their default "None" on the host lane.
-      if (!picked) return cOp('/', [cNum(0), cNum(0)])
-      return this.resolveBinding(picked, tok, name)
-    }
+    if (bound.kind === 'switch') return this.resolveSwitchBinding(bound, tok, name)
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
     // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
     // lookahead = barmerge.lookahead_off)` — eight daily values fetched in one
@@ -9998,62 +9837,8 @@ export class Resolver {
     // neither the chart's nor a nameable ticker — each returns null there and
     // becomes `pine:request` here, which is the sentence the namespace already
     // publishes rather than a second one invented for tuples.
-    if (bound.kind === 'securityTuplePart') {
-      if (this.frames.length >= MAX_CALL_DEPTH) {
-        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
-      }
-      const part = bound.fn.value.parts[bound.index]
-      if (!part) {
-        throw new PineRefusal('pine:tuple',
-          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
-          + `${bound.fn.value.parts.length}-part result`, locate(tok))
-      }
-      const prevEnv = this.env
-      this.env = bound.env || prevEnv
-      try {
-        const out = this.securityAsNode(bound.call, () => {
-          // The inner call's own scope: its arguments become a frame, and the part
-          // resolves in the environment the function closed over — exactly as the
-          // plain `tuplePart` arm does it.
-          this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
-          const innerEnv = this.env
-          this.env = part.env || innerEnv
-          try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
-        })
-        if (!out) {
-          // ⭐ C27 — a tuple element of a request below the chart names why.
-          // ⭐ ENGINE 55 — …and one naming a spelling this door cannot even turn into a
-          // listing (a foreign exchange, `BRK/B`): the one sentence both lanes say.
-          const lower = this.lowerTfDeclineOf(bound.call)
-          const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
-          if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
-          // ⭐ e97 U1 — and every other decline names its argument, as the call's own refusal does.
-          const declined = lower ? null : this.requestWordsQuietly(() => this.securityDeclineReason(bound.call), null)
-          const why = lower ? lower.why : declined ? declined.why : null
-          throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
-            bound.at || locate(tok))
-        }
-        return out
-      } finally { this.env = prevEnv }
-    }
-    if (bound.kind === 'tuplePart') {
-      if (this.frames.length >= MAX_CALL_DEPTH) {
-        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
-      }
-      const part = bound.fn.value.parts[bound.index]
-      if (!part) {
-        // Unreachable through the destructure, which counts the parts first —
-        // but a refusal beats an `undefined` if another path ever gets here.
-        throw new PineRefusal('pine:tuple',
-          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
-          + `${bound.fn.value.parts.length}-part result`, locate(tok))
-      }
-      this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
-      const prevEnv = this.env
-      this.env = part.env || prevEnv
-      try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = prevEnv }
-    }
+    if (bound.kind === 'securityTuplePart') return this.resolveSecurityTuplePartBinding(bound, tok, name)
+    if (bound.kind === 'tuplePart') return this.resolveTuplePartBinding(bound, tok, name)
     if (bound.kind === 'fn') {
       throw new PineRefusal('pine:function-def',
         `${REFUSALS['pine:function-def']} — \`${name}\` is a function and this reads it as a value`,
@@ -10090,6 +9875,12 @@ export class Resolver {
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
+    return NOT_ANSWERED
+  }
+
+  /** ⭐ (e100) the plain arm of `resolveBindingInner`, BEFORE its body resolves: what it saves and sets, returned
+   *  for `leavePlainBinding` to restore (see `resolveBinding`). The same statements, in the same order. */
+  enterPlainBinding(bound, tok, name) {
     const wasBuilding = this.buildingRecurrence
     // ⭐ H1 — …and so does a helper's own local (`finalLocalOf`)
     const isLocalFinal = !!name && this.isLocalFinalReassign(bound, name)
@@ -10129,142 +9920,470 @@ export class Resolver {
     const prevReadAt = this.readAt
     if (bound.env) this.env = bound.env
     if (bound.at && Number.isFinite(bound.at.index)) this.readAt = bound.at.index
-    try {
-      const body = this.resolve(bound.node)
-      if (isFinalOfMutable && this.recurrenceSeeds.has(name)
-          && containsSelfSeries(body, this.table)) {
-        // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`; a switched body is
-        // admitted by `forgetsOnReset` (C12s).
-        const switchedState = !forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)
-        // ⭐ C29 — `x = 0` + `x := na(x[1]) ? 0 : x[1] + 1`: a bar counter whose
-        // bar 0 runs the update (`x[1]` is `na` there).
-        const plainCounter = !this.screen && switchedState && !forgetsOnReset(body, this.table)
-          && isBarCounterUpdate(body)
-        if (switchedState && !forgetsOnReset(body, this.table) && !plainCounter) {
-          // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
-          // this — the refusal corpus and "refuses for a DECLARED reason" — and
-          // both exist because a hand-written message drifts from the guard it
-          // claims to be.
-          throw new PineRefusal('pine:state',
-            `${REFUSALS['pine:state']} — \`${name}\` builds on its own previous bar `
-            + 'without ever forgetting where it started, and this engine\'s accumulator '
-            + 're-seeds a fixed number of bars back, so it would become a rolling sum '
-            + 'rather than a running total',
-            this.recurrenceSeedAt.get(name) || bound.at || locate(tok))
-        }
-        const spec = this.table.functions.accum
-        const seedBinding = this.recurrenceSeeds.get(name)
-        this.recurrenceSeeds.delete(name)
-        this.recurrenceSeedAt.delete(name)
-        this.buildingRecurrence = wasBuilding
-        // ⭐ THE PLAIN FORM READS ITSELF ONLY THROUGH HISTORY. `x = init` then
-        // `x := … x[1] …` re-runs `x = init` on EVERY bar, so a bare `x` in the
-        // update is that binding, never `self`; `self` comes only from `x[k]`,
-        // which on bar 0 is `na` (`varSeedOf`). So the accumulator seeds `na`.
-        // ⛔ The prior binding is still RESOLVED — a seed this door cannot
-        // translate keeps refusing exactly as it did — only its value is unused,
-        // because Pine never observes it through `x[1]`.
-        this.resolveBinding(seedBinding, tok, name)
-        const seed = historySeed()
-        const args = []
-        args[spec.recurrence.seed] = plainCounter ? switchedVarSeed(readingSeed(seed, 'update'))
-          : switchedState ? switchedVarSeed(seed) : seed
-        args[spec.recurrence.body] = body
-        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
-        const built = cCall('accum', args)
-        // ⛔ NOT for a local: a helper inlined at two call sites builds two
-        // different columns under one name, and the name-keyed memo would hand
-        // the second call the first call's column
-        if (!isLocalFinal) this.recurrenceColumns.set(name, built)
-        return built
-      }
-      if (isSelfRef && containsFreeSelfSeries(body, this.table)) {
-        const parts = seedAndUpdateOf(body, this.table)
-        if (!parts) {
-          // ⛔ ONE SHAPE ONLY, AND SAYING SO IS THE POINT. `na(x[1]) ? SEED :
-          // UPDATE` is the documented idiom and it STATES ITS OWN SEED, which is
-          // exactly what the accumulator needs. A bare `x = x[1] + 1` has none —
-          // Pine starts it at `na` and it stays `na` on every bar — so there is
-          // nothing honest to build, and inventing a 0 would answer a question
-          // nobody asked with a column that looks like a counter.
-          throw new PineRefusal('pine:state',
-            REFUSALS['pine:state'] + ' — `' + name + '` reads its own previous bar, '
-            + 'and this engine can hold that only when the script states a '
-            + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
-            bound.at || locate(tok))
-        }
-        // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
-        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
-        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
-        // whose update reads a slot) is refused with the same sentence by
-        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
-        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
-        // by that name instead; the member door shows this one. Neither answer it could draw is
-        // witnessed:
-        //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
-        //     removed self-reference in a declaration, so there is no TradingView value
-        //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
-        //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
-        //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
-        //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
-        //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
-        //     `U` from 0 and each later bar runs `U` from there. The listing pass's
-        //     candidates (seed, update(U, na), zero) do not include the first reading,
-        //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
-        //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
-        //     capture pins it (capture row W34-I4-S1).
-        // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
-        // not a bare history read (`na(nz(x[1]))`) keep their paths below, in v1/v2 and no
-        // pragma. Since engine 49 a v3+ declaration never reaches this branch: every v3+
-        // declaration that reads its own history refuses at the top of `resolveBindingInner`
-        // (`selfDeclaration`), with the same v3+ sentence.
-        if (naSeededSelfReference(body, parts, this.table)) {
-          throw new PineRefusal('pine:cycle',
-            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(name, this.pineVersion)}`,
-            bound.at || locate(tok))
-        }
-        // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
-        // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
-        // asking it to forget itself is asking the wrong question. Routing around
-        // the gate is the one thing this change must not do: `accum` re-seeds a
-        // fixed number of bars back, so an update that does not forget where it
-        // started becomes a ROLLING WINDOW rather than a running total.
-        const switchedState = !forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)
-        // ⭐ C29 — `x = na(x[1]) ? S : x[1] + K`: a bar counter whose bar 0 IS `S`.
-        const selfCounter = !this.screen && switchedState && !forgetsOnReset(parts.update, this.table)
-          && isBarCounterUpdate(parts.update)
-        if (switchedState && !forgetsOnReset(parts.update, this.table) && !selfCounter) {
-          throw new PineRefusal('pine:state',
-            REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
-            + 'bar and this engine cannot tell that it ever forgets where it '
-            + 'started, so folding it would draw a rolling window over the last '
-            + PINE_STATE_WARMUP + ' bars rather than a running total',
-            bound.at || locate(tok))
-        }
-        const spec = this.table.functions.accum
-        const args = []
-        args[spec.recurrence.seed] = selfCounter ? switchedVarSeed(readingSeed(parts.seed, 'seed'))
-          : switchedState ? switchedVarSeed(parts.seed) : parts.seed
-        // ⭐ ENGINE 56 (A1) — the step as written (`seedAndUpdateOf`'s `step`), never the
-        // update with its `na(self)` test or `nz(self, S)` wrappers taken out
-        args[spec.recurrence.body] = parts.step
-        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
-        const built = cCall('accum', args)
-        this.recurrenceColumns.set(name, built)
-        return built
-      }
-      return body
-    } finally {
-      this.stack.delete(bound)
-      this.stack = prevStack
-      this.env = prevEnv
-      this.readAt = prevReadAt
-      this.buildingRecurrence = wasBuilding
-      if (buildMarker) {
-        const k = this.stateBuilds.lastIndexOf(buildMarker)
-        if (k >= 0) this.stateBuilds.splice(k, 1)
-      }
+    return { tok, name, wasBuilding, isLocalFinal, isFinalOfMutable, isSelfRef, prevStack, buildMarker, prevEnv, prevReadAt }
+  }
+
+  /** ⭐ (e100) the depth bound's refusal (`depthRefusalOf`), built in its own frame (see `resolveBinding`). */
+  depthRefusal(name, tok) {
+    return depthRefusalOf(name, this.maxDepth, this.sourcePath, tok)
+  }
+
+  /** ⭐ (e100) …and AFTER it, resolved or not: the plain arm's `finally`, as it was. */
+  leavePlainBinding(bound, st) {
+    const { prevStack, prevEnv, prevReadAt, wasBuilding, buildMarker } = st
+    this.stack.delete(bound)
+    this.stack = prevStack
+    this.env = prevEnv
+    this.readAt = prevReadAt
+    this.buildingRecurrence = wasBuilding
+    if (buildMarker) {
+      const k = this.stateBuilds.lastIndexOf(buildMarker)
+      if (k >= 0) this.stateBuilds.splice(k, 1)
     }
+  }
+
+  /** ⭐ (e100) C48 (object lane)'s note, in its own frame (see `resolveBinding`). */
+  noteStateRunSink(res, bound) {
+    this.stateRunSink.note(res, bound.stateRuns, this.env)
+  }
+
+  /** ⭐ (e100) `resolveBindingInner`'s answer for a name with no binding, in its own frame. */
+  unboundBindingRead(tok, name) {
+    // ⭐ Same question as the other refusal site: a name the closed table holds
+    // is not a name the member failed to define.
+    const clockKey = engineClockKeyFor(name)
+    if (clockKey) {
+      // ⭐ AN EXACT RECONCILIATION BEATS THE REFUSAL, and only for a source
+      // that declares a `//@version` — see `clockTransformFor`.
+      const reconciled = clockTransformFor(name, this.pineVersion)
+      if (reconciled) return reconciled
+      if (own(PINE_CLOCK_MISMATCH, name)) {
+        throw new PineRefusal('pine:builtin',
+          `\`${name}\` is ${PINE_CLOCK_MISMATCH[name]}`, locate(tok))
+      }
+      return clockLeaf(clockKey)
+    }
+    // ⭐⭐ A ONE-CHARACTER TYPO SHOULD SAY SO. `didYouMean` has shipped in
+    // `sentence.js` since the native read-back was written, and its own
+    // docblock names this exact failure — yet `pine.js` never imported it, so
+    // `ta.rsi(clsoe, 14)` came back "this Pine name was never given a value in
+    // the pasted script — `clsoe`" and stopped there.
+    // ⛔ THE CANDIDATES ARE WHAT THIS SCRIPT COULD ACTUALLY HAVE MEANT: the
+    // names it bound itself, plus the bar fields and clock names the table
+    // declares. Offering the whole vocabulary would put `close` and a hundred
+    // strangers at the same distance.
+    throw this.undefinedName(name, tok)
+  }
+
+  /** ⭐ (e100) `resolveBindingInner`'s `state` arm, in its own frame (see `resolveBindingInner`). */
+  resolveStateBinding(bound, tok, name) {
+    // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
+    // `bound` is then not the last word on the name, and folding IT into an
+    // accumulator builds a DIFFERENT variable — one whose "previous bar" is the
+    // previous bar's value at THIS line rather than at the end of the bar. See
+    // `partialStateRead` for the rule and the capture it was derived from.
+    const finalState = this.finalStateOf(bound, name)
+    if (finalState) return this.partialStateRead(bound, finalState, tok, name)
+    // ⛔⛔ C11c — A `var` WHOSE LATER REASSIGNMENT THIS ENGINE COULD NOT FOLD IS
+    // NOT THE VALUE IT HELD HERE. `bound` is the binding where this read stands
+    // (a statement's START, the positional read); when the program's last
+    // word on the name is some OTHER binding that is not this `var`'s own
+    // running state — opaque, because the block that reassigns it was refused
+    // — folding `bound` alone builds a variable nobody wrote: a `var` whose
+    // only update seen so far is none is its seed, a constant. ⚰️ MEASURED on a
+    // pro-trading-art rewrite: `topStart != lastStart` read `!= 0` on every
+    // bar and drew a double top TradingView does not (531 → 552). The last
+    // word's own refusal is the sentence; anything else refuses by name.
+    // ⚠️ Asked only where this arm would ANSWER (the constant, the fold
+    // below), never ahead of a refusal it already makes — an unanswered read
+    // keeps the sentence it had.
+    const staleLastWord = () => {
+      if (!name || this.finalLocals.has(bound)) return
+      const last = this.finalBindings.get(name)
+      if (last === undefined || last === bound) return
+      if (last && last.kind === 'opaque') throw new PineRefusal(last.guard, last.message, last.at)
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${name}\` is read here before a later reassignment of it `
+        + 'that this engine could not fold into its running value', bound.at || locate(tok))
+    }
+    // ⭐ THE SEED AND THE UPDATE RESOLVE IN THEIR OWN ENVIRONMENTS, and they
+    // are different ones: the seed was written before the first `:=` and the
+    // update after it. Sharing one env is how `x := x + 1`'s right-hand `x`
+    // would come to mean the accumulator instead of its own past.
+    const prevEnv = this.env
+    const spec = this.table.functions.accum
+    if (!spec) {
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${name}\``, bound.at || locate(tok))
+    }
+    try {
+      this.env = bound.seedEnv || prevEnv
+      const seed = this.resolve(bound.seed)
+      // ⭐ A `var` NOBODY REASSIGNS, WITH A CONSTANT SEED, IS THE CONSTANT — and
+      // this is a correctness fix, not a tidiness one. `var k = 5` wrapped in an
+      // accumulator is `5` from bar 250 onward and NOT COMPUTABLE before it, so
+      // `close > k` would go blank for a trading year over a number that never
+      // changes. Unwrapping is an identity: a constant 250 bars ago is the same
+      // constant. ⛔ ONLY for a `num` — `var anchor = close` really does mean a
+      // bar in the past, and that one keeps its accumulator and its warm-up.
+      if (bound.update && bound.update.type === 'selfref' && seed && seed.type === 'num') {
+        staleLastWord()
+        return seed
+      }
+      // ⭐⭐ e97 U8 — …AND ONE SEEDED BY THE MEMBER'S SETTINGS ALONE IS THAT SETTING'S ANSWER, for the same reason: a
+      // setting is one value per binding, so `var enableMA = maType != "None"` holds one answer on every bar.
+      // ⚰️ Measured: declared as the member's knob, the built-in MA family's `var enableMA` became an accumulator, and
+      // the smoothed MA was blank for its first 250 bars at every type (`enumKnobTruth`: NaN against the literal
+      // program's value from bar 21). ⛔ Only a tree of settings and numbers: a bar field keeps its accumulator.
+      if (bound.update && bound.update.type === 'selfref' && seed && this.settingsOnlyTree(seed)) {
+        staleLastWord()
+        return seed
+      }
+      // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
+      // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
+      // — measured at 400/400 on the anchored-VWAP script in the corpus.
+      //
+      // ⛔ IT IS SAVEABLE, WHICH IS WHAT MAKES IT WORSE THAN A REFUSAL. It
+      // parses, budgets, lints `non-repainting` and clears `canSaveFormula`, so
+      // a member gets a scan that returns nothing and reads as a quiet market
+      // rather than a broken column. That is the exact failure this translator
+      // refuses `cum` and `barssince` to avoid, arrived at from the other side.
+      //
+      // ⚠️ THIS WAS REACHED ONLY WHEN `ta.cross` LANDED — the output refused
+      // earlier in the same expression until then, so the dead accumulator sat
+      // behind a louder refusal. Closing one gap is what exposed it.
+      if (bound.update && bound.update.type === 'selfref' && isNaNLiteral(seed)) {
+        throw new PineRefusal('pine:state',
+          `\`${name}\` is a \`var\` seeded \`na\` that nothing in this script updates, `
+          + 'so every bar of its column would be blank — the reassignment it needs is '
+          + 'one this translator could not fold into a single expression',
+          bound.at || locate(tok))
+      }
+      this.env = bound.updateEnv || prevEnv
+      const prevReads = this.selfReads
+      const reads = { bare: 0, history: 0, guarded: 0, guardDepth: 0 }
+      this.selfReads = reads
+      let update
+      // ⭐ THE BUILD IS ON A STACK so a read of this same `var` INSIDE its own
+      // update — through a binding written between two of its reassignments —
+      // can tell that `self` already means its value at the start of the bar
+      // (`partialStateRead`).
+      // ⭐ AND A FRESH CYCLE STACK, for the reason the plain form takes one: a
+      // binding the OUTER resolution is inside (`sig` in `partialStateRead`'s
+      // example) is legally re-read inside this update, where it means a
+      // different tree.
+      this.stateBuilds.push(bound.seed)
+      const prevStack = this.stack
+      this.stack = new Set()
+      try { update = this.resolve(bound.update) } finally {
+        this.stack = prevStack
+        this.stateBuilds.pop()
+        this.selfReads = prevReads
+      }
+      return this.stateAccumulator(bound, tok, name, seed, update, reads, spec, staleLastWord)
+    } finally { this.env = prevEnv }
+  }
+
+  /** ⭐ (e100) the `state` arm of `resolveBindingInner`, AFTER its update resolved: the refusals it owes and
+   *  the accumulator it builds, in their own frame (the arm's frame stays live across the update's resolution). */
+  stateAccumulator(bound, tok, name, seed, update, reads, spec, staleLastWord) {
+    // ⛔ A BODY THE STEP LOOP CANNOT RUN IS REFUSED HERE, NOT AT EVALUATION
+    // (`selfOutsideTheStepLoop`). Structural to this lane — the per-bar
+    // runtime lane runs the statements and keeps any window it needs — so the
+    // refusal names that lane, like the coupled-latch one.
+    const outside = selfOutsideTheStepLoop(update, this.table)
+    if (outside) {
+      const unsteppable = new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${name}\` reads its own running value inside `
+        + `${outside} within its own update, and the bar-by-bar accumulator keeps that `
+        + 'value, not a window over its past',
+        bound.at || locate(tok))
+      unsteppable.route = 'runtime'
+      throw unsteppable
+    }
+    // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
+    // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
+    // the SAME reassignment folded straight to `accum(0, self + volume, 250)`
+    // — a 250-bar ROLLING SUM presented as OBV, on every bar, drawing a line
+    // nobody would question. Two spellings of one construct reached two
+    // different answers because only one of them was railed.
+    // ⚠️ Found by a test written for a different feature, which is the honest
+    // account: the guard reads correct beside the path it is on, and nothing
+    // pointed at the sibling path four hundred lines away.
+    // ⛔ `var k = 5` and any other un-reassigned `var` are unaffected — their
+    // update IS bare `self`, which forgets by definition.
+    // ⭐ C12s — a body the window refuses may still forget on a RESET; it is
+    // then admitted as a SWITCHED recurrence (`forgetsOnReset`).
+    let switchedState = false
+    // ⭐ C29 — a bar counter (`var n = 0; n := n + 1`, `n += 1`, `var n = na;
+    // n := na(n) ? 0 : n + 1`) runs its update on bar 0: `readingSeed(…, 'update')`.
+    // ⛔ Never on a SCREEN: a screen has no listing, so every row would be blank.
+    const barCounter = !this.screen && reads.history === 0 && isBarCounterUpdate(update)
+    if (containsSelfSeries(update, this.table)
+        && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
+        && !(switchedState = forgetsOnReset(update, this.table)) && !barCounter) {
+      throw new PineRefusal('pine:state',
+        REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
+        + 'bar and this engine cannot tell that it ever forgets where it '
+        + 'started, so folding it would draw a rolling window over the last '
+        + PINE_STATE_WARMUP + ' bars rather than a running total'
+        // ⭐ R-A2 (owner, 2026-09-12): NAME THE BOUNDED FORM. The refusal stands
+        // — `monotoneFoldOffer`'s comment carries the decidability measurement that
+        // is why — but a member writing "the highest ever" is told which call does say
+        // it, with the window left where it belongs: with them.
+        + (monotoneFoldOffer(update, this.table)
+          ? '. THIS ENGINE DOES DECLARE A BOUNDED FORM: '
+            + monotoneFoldOffer(update, this.table)
+            + '. Stating the window is what makes the answer the same tomorrow'
+            + ' — an all-time value moves with however many bars were fetched.'
+          : ''),
+        bound.at || locate(tok))
+    }
+    staleLastWord()
+    const args = []
+    // ⭐⭐ C47 — A v6 `var x = bool(na)` LATCH: seeded `false`, and a test that
+    // is `na` is not taken (`v6BoolNaLatch`). Null for every other shape.
+    const boolLatch = v6BoolNaLatch(bound.seed, update, this)
+    // ⭐⭐ C47 — A SWITCHED `var` READ ONLY BARE SAYS SO (`'update'`, C29's
+    // mark): bar 0 runs the update from the initializer, the one reading a
+    // `var` whose update never reads `x[k]` or `nz(x)` can have. Unmarked,
+    // the listing pass also kept "bar 0 IS the seed" (the self-reference
+    // spelling's reading, which this arm never writes) and so withheld the
+    // count until its first reset — trend-duration's `TrendCount` on the bar
+    // of its first flip, pushed into the window every later text reads.
+    const bareOnly = reads.history === 0 && reads.guarded === 0 && reads.bare > 0
+    args[spec.recurrence.seed] = boolLatch ? boolLatch.seed : switchedState
+      ? switchedVarSeed(bareOnly ? readingSeed(varSeedOf(seed, reads), 'update') : varSeedOf(seed, reads))
+      : barCounter && containsSelfSeries(update, this.table)
+        && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
+        ? switchedVarSeed(readingSeed(varSeedOf(seed, reads), 'update'))
+        : varSeedOf(seed, reads)
+    args[spec.recurrence.body] = update
+    args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+    return cCall('accum', args)
+  }
+
+  /** ⭐ (e100) `resolveBindingInner`'s `switch` arm, in its own frame (see `resolveBindingInner`). */
+  resolveSwitchBinding(bound, tok, name) {
+    // ⭐⭐ e95 unit 2b — A SUBJECT THAT IS A MEMBER'S `input.string` KNOB (`enumCompare`'s door) builds EVERY arm;
+    // the bind keeps the one the knob picks (`bind.js::pruneKnobArms`). Null for anything else.
+    const byKnob = this.enumSwitch(bound, tok, name)
+    if (byKnob) return byKnob
+    const subject = this.stringValueOf(bound.subject)
+    // ⭐⭐ C47 — A SUBJECT THE SYMBOL FIXES (`switch syminfo.root`, or a helper's
+    // parameter bound to it) is fixed per BINDING, which is the same basis the
+    // reduction below stands on: the branch does not move bar to bar.
+    if (subject === null) {
+      const bySymbol = this.symbolSwitch(bound, tok, name)
+      if (bySymbol) return bySymbol
+    }
+    if (subject === null) {
+      throw new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — \`switch\`, and this one's subject is not a value the `
+        + 'script fixes, so every arm would have to exist at once',
+        bound.at || locate(tok))
+    }
+    let picked = null
+    for (const arm of bound.arms) {
+      const label = this.stringValueOf(parseWholeExpression(arm.match))
+      if (label !== null && label === subject) { picked = arm.binding; break }
+    }
+    if (!picked) picked = bound.fallback
+    // ⭐⭐ e97 U8(a) (coordinator ruling) — NO ARM MATCHES AND THERE IS NO DEFAULT: Pine's switch yields `na`, so does
+    // this (the engine's `na`, `0 / 0`, as a bare `na` resolves). ⚰️ It was refused (`pine:block`) as "inventing a
+    // column", which refused the built-in SMA / EMA / OBV smoothing plots at their default "None" on the host lane.
+    if (!picked) return cOp('/', [cNum(0), cNum(0)])
+    return this.resolveBinding(picked, tok, name)
+  }
+
+  /** ⭐ (e100) `resolveBindingInner`'s `securityTuplePart` arm, in its own frame (see `resolveBindingInner`). */
+  resolveSecurityTuplePartBinding(bound, tok, name) {
+    if (this.frames.length >= MAX_CALL_DEPTH) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+    }
+    const part = bound.fn.value.parts[bound.index]
+    if (!part) {
+      throw new PineRefusal('pine:tuple',
+        `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+        + `${bound.fn.value.parts.length}-part result`, locate(tok))
+    }
+    const prevEnv = this.env
+    this.env = bound.env || prevEnv
+    try {
+      const out = this.securityAsNode(bound.call, () => {
+        // The inner call's own scope: its arguments become a frame, and the part
+        // resolves in the environment the function closed over — exactly as the
+        // plain `tuplePart` arm does it.
+        this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+        const innerEnv = this.env
+        this.env = part.env || innerEnv
+        try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
+      })
+      if (!out) {
+        // ⭐ C27 — a tuple element of a request below the chart names why.
+        // ⭐ ENGINE 55 — …and one naming a spelling this door cannot even turn into a
+        // listing (a foreign exchange, `BRK/B`): the one sentence both lanes say.
+        const lower = this.lowerTfDeclineOf(bound.call)
+        const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
+        if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
+        // ⭐ e97 U1 — and every other decline names its argument, as the call's own refusal does.
+        const declined = lower ? null : this.requestWordsQuietly(() => this.securityDeclineReason(bound.call), null)
+        const why = lower ? lower.why : declined ? declined.why : null
+        throw new PineRefusal('pine:request',
+          `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
+          bound.at || locate(tok))
+      }
+      return out
+    } finally { this.env = prevEnv }
+  }
+
+  /** ⭐ (e100) `resolveBindingInner`'s `tuplePart` arm, in its own frame (see `resolveBindingInner`). */
+  resolveTuplePartBinding(bound, tok, name) {
+    if (this.frames.length >= MAX_CALL_DEPTH) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+    }
+    const part = bound.fn.value.parts[bound.index]
+    if (!part) {
+      // Unreachable through the destructure, which counts the parts first —
+      // but a refusal beats an `undefined` if another path ever gets here.
+      throw new PineRefusal('pine:tuple',
+        `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+        + `${bound.fn.value.parts.length}-part result`, locate(tok))
+    }
+    this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+    const prevEnv = this.env
+    this.env = part.env || prevEnv
+    try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = prevEnv }
+  }
+
+  /** ⭐ (e100) the plain arm of `resolveBindingInner`, AFTER its body resolved: the recurrence a reassigned or
+   *  self-reading name builds from that body, else the body. In its own frame, so the frame that stays live
+   *  across `this.resolve(bound.node)` holds only what the `finally` restores. */
+  recurrenceFromBody(body, bound, st) {
+    const { tok, name, isFinalOfMutable, isSelfRef, isLocalFinal, wasBuilding } = st
+    if (isFinalOfMutable && this.recurrenceSeeds.has(name)
+        && containsSelfSeries(body, this.table)) {
+      // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`; a switched body is
+      // admitted by `forgetsOnReset` (C12s).
+      const switchedState = !forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)
+      // ⭐ C29 — `x = 0` + `x := na(x[1]) ? 0 : x[1] + 1`: a bar counter whose
+      // bar 0 runs the update (`x[1]` is `na` there).
+      const plainCounter = !this.screen && switchedState && !forgetsOnReset(body, this.table)
+        && isBarCounterUpdate(body)
+      if (switchedState && !forgetsOnReset(body, this.table) && !plainCounter) {
+        // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
+        // this — the refusal corpus and "refuses for a DECLARED reason" — and
+        // both exist because a hand-written message drifts from the guard it
+        // claims to be.
+        throw new PineRefusal('pine:state',
+          `${REFUSALS['pine:state']} — \`${name}\` builds on its own previous bar `
+          + 'without ever forgetting where it started, and this engine\'s accumulator '
+          + 're-seeds a fixed number of bars back, so it would become a rolling sum '
+          + 'rather than a running total',
+          this.recurrenceSeedAt.get(name) || bound.at || locate(tok))
+      }
+      const spec = this.table.functions.accum
+      const seedBinding = this.recurrenceSeeds.get(name)
+      this.recurrenceSeeds.delete(name)
+      this.recurrenceSeedAt.delete(name)
+      this.buildingRecurrence = wasBuilding
+      // ⭐ THE PLAIN FORM READS ITSELF ONLY THROUGH HISTORY. `x = init` then
+      // `x := … x[1] …` re-runs `x = init` on EVERY bar, so a bare `x` in the
+      // update is that binding, never `self`; `self` comes only from `x[k]`,
+      // which on bar 0 is `na` (`varSeedOf`). So the accumulator seeds `na`.
+      // ⛔ The prior binding is still RESOLVED — a seed this door cannot
+      // translate keeps refusing exactly as it did — only its value is unused,
+      // because Pine never observes it through `x[1]`.
+      this.resolveBinding(seedBinding, tok, name)
+      const seed = historySeed()
+      const args = []
+      args[spec.recurrence.seed] = plainCounter ? switchedVarSeed(readingSeed(seed, 'update'))
+        : switchedState ? switchedVarSeed(seed) : seed
+      args[spec.recurrence.body] = body
+      args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+      const built = cCall('accum', args)
+      // ⛔ NOT for a local: a helper inlined at two call sites builds two
+      // different columns under one name, and the name-keyed memo would hand
+      // the second call the first call's column
+      if (!isLocalFinal) this.recurrenceColumns.set(name, built)
+      return built
+    }
+    if (isSelfRef && containsFreeSelfSeries(body, this.table)) {
+      const parts = seedAndUpdateOf(body, this.table)
+      if (!parts) {
+        // ⛔ ONE SHAPE ONLY, AND SAYING SO IS THE POINT. `na(x[1]) ? SEED :
+        // UPDATE` is the documented idiom and it STATES ITS OWN SEED, which is
+        // exactly what the accumulator needs. A bare `x = x[1] + 1` has none —
+        // Pine starts it at `na` and it stays `na` on every bar — so there is
+        // nothing honest to build, and inventing a 0 would answer a question
+        // nobody asked with a column that looks like a counter.
+        throw new PineRefusal('pine:state',
+          REFUSALS['pine:state'] + ' — `' + name + '` reads its own previous bar, '
+          + 'and this engine can hold that only when the script states a '
+          + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
+          bound.at || locate(tok))
+      }
+      // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
+      // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+      // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+      // whose update reads a slot) is refused with the same sentence by
+      // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+      // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+      // by that name instead; the member door shows this one. Neither answer it could draw is
+      // witnessed:
+      //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
+      //     removed self-reference in a declaration, so there is no TradingView value
+      //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
+      //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
+      //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
+      //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
+      //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
+      //     `U` from 0 and each later bar runs `U` from there. The listing pass's
+      //     candidates (seed, update(U, na), zero) do not include the first reading,
+      //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
+      //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
+      //     capture pins it (capture row W34-I4-S1).
+      // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
+      // not a bare history read (`na(nz(x[1]))`) keep their paths below, in v1/v2 and no
+      // pragma. Since engine 49 a v3+ declaration never reaches this branch: every v3+
+      // declaration that reads its own history refuses at the top of `resolveBindingInner`
+      // (`selfDeclaration`), with the same v3+ sentence.
+      if (naSeededSelfReference(body, parts, this.table)) {
+        throw new PineRefusal('pine:cycle',
+          `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(name, this.pineVersion)}`,
+          bound.at || locate(tok))
+      }
+      // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
+      // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
+      // asking it to forget itself is asking the wrong question. Routing around
+      // the gate is the one thing this change must not do: `accum` re-seeds a
+      // fixed number of bars back, so an update that does not forget where it
+      // started becomes a ROLLING WINDOW rather than a running total.
+      const switchedState = !forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)
+      // ⭐ C29 — `x = na(x[1]) ? S : x[1] + K`: a bar counter whose bar 0 IS `S`.
+      const selfCounter = !this.screen && switchedState && !forgetsOnReset(parts.update, this.table)
+        && isBarCounterUpdate(parts.update)
+      if (switchedState && !forgetsOnReset(parts.update, this.table) && !selfCounter) {
+        throw new PineRefusal('pine:state',
+          REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
+          + 'bar and this engine cannot tell that it ever forgets where it '
+          + 'started, so folding it would draw a rolling window over the last '
+          + PINE_STATE_WARMUP + ' bars rather than a running total',
+          bound.at || locate(tok))
+      }
+      const spec = this.table.functions.accum
+      const args = []
+      args[spec.recurrence.seed] = selfCounter ? switchedVarSeed(readingSeed(parts.seed, 'seed'))
+        : switchedState ? switchedVarSeed(parts.seed) : parts.seed
+      // ⭐ ENGINE 56 (A1) — the step as written (`seedAndUpdateOf`'s `step`), never the
+      // update with its `na(self)` test or `nz(self, S)` wrappers taken out
+      args[spec.recurrence.body] = parts.step
+      args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+      const built = cCall('accum', args)
+      this.recurrenceColumns.set(name, built)
+      return built
+    }
+    return body
   }
 
   /**
@@ -10349,7 +10468,23 @@ export class Resolver {
    * real instead, so the refusal fires at the node, with the caret, it always did.
    */
   resolveProbed(node, probed) {
+    // ⭐ (e100) this frame sits on the deepest resolution's chain (a probed comparison's operand), so a hit and
+    // the miss's bookkeeping run in frames of their own (`probedHit`, `probedEntry`, `keepProbed`): the same
+    // reads, in the same order, around the one `resolve`.
     const hit = probed.get(node)
+    if (hit) {
+      const tree = this.probedHit(node, hit)
+      if (tree !== NOT_ANSWERED) return tree
+    }
+    const entry = this.probedEntry()
+    const tree = this.resolve(node)
+    this.keepProbed(node, probed, entry, tree)
+    return tree
+  }
+
+  /** ⭐ (e100) `resolveProbed`'s hit: the kept tree when every input it was resolved under is the same and the
+   *  step budget has room for its steps, else NOT_ANSWERED. */
+  probedHit(node, hit) {
     if (hit && hit.env === this.env && hit.stack === this.stack && hit.frames === this.frames
       && hit.framesLength === this.frames.length && hit.selfReads === this.selfReads
       && hit.paramMint === this.paramMint && hit.objectPass === this.objectPass
@@ -10362,6 +10497,11 @@ export class Resolver {
       }
       return hit.tree
     }
+    return NOT_ANSWERED
+  }
+
+  /** ⭐ (e100) `resolveProbed`'s miss, before the operand resolves: what its entry will be keyed on. */
+  probedEntry() {
     const env = this.env
     const stack = this.stack
     const frames = this.frames
@@ -10371,21 +10511,18 @@ export class Resolver {
     const objectPass = this.objectPass
     const before = this.budgetSteps
     const mark = this.firstTimeMark()
-    const tree = this.resolve(node)
-    // ⛔ ONLY A RESOLUTION THAT DID NO FIRST-TIME WORK IS KEPT. Minting a new
-    // parameter (its `minval`/`maxval`/`step` resolve once, at creation) or
-    // filling a cache (`partialReadCache`, `recurrenceColumns`, …) makes the
-    // FIRST resolution dearer than a repeat; charging that to the replay would
-    // over-count `budgetSteps`. Such a resolution is not kept, so the ordinary
-    // path resolves for real — exactly as before — and its own probes, now
-    // repeats, are the ones replayed.
+    return { env, stack, frames, framesLength, selfReads, paramMint, objectPass, before, mark }
+  }
+
+  /** ⭐ (e100) …and after it: the entry, kept when the operand marked nothing for the first time. */
+  keepProbed(node, probed, entry, tree) {
+    const { env, stack, frames, framesLength, selfReads, paramMint, objectPass, before, mark } = entry
     if (this.firstTimeMark() === mark) {
       probed.set(node, {
         tree, steps: this.budgetSteps - before,
         env, stack, frames, framesLength, selfReads, paramMint, objectPass,
       })
     }
-    return tree
   }
 
   /** A number that moves whenever a resolution does work a repeat would not:
@@ -10409,7 +10546,9 @@ export class Resolver {
     let { op, left, right } = node
     if (!own(FLIP, op)) return null
     // Either order, exactly as the direct shape allows.
-    if (this.constIntOf(left, probed) !== null) { [op, left, right] = [FLIP[op], right, left] }
+    // ⭐ (e100) the swap as three assignments — the same three values as `[op, left, right] = [FLIP[op], right,
+    // left]`, without the array and its iterator, whose registers this frame (on the deepest chain) carried.
+    if (this.constIntOf(left, probed) !== null) { const was = left; op = FLIP[op]; left = right; right = was }
     const k = this.constIntOf(right, probed)
     if (k === null || !left) return null
     // ⚰️ A BARE IDENTIFIER IS A `name` HERE, NOT A `bound`. The `bound` shape
@@ -12402,483 +12541,18 @@ export class Resolver {
     switch (node.type) {
       case 'number': return cNum(node.value)
       case 'string':
-        throw new PineRefusal('pine:text-value', REFUSALS['pine:text-value'], locate(node.tok))
       case 'colour':
-        throw new PineRefusal('pine:colour-value', REFUSALS['pine:colour-value'], locate(node.tok))
       case 'collection':
-        throw new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(node.tok))
-      case 'bound': return this.resolveBinding(node.binding, node.tok, node.name)
+        throw this.resolveRefusal(node)
+      case 'bound': return this.resolveBoundNode(node)
       // ⛔ THE NAME COMES OFF THE MANIFEST, never typed. `recurrence.binds` is
       // what both walkers read it from, and a translator that spelled `self`
       // here would be the second authority over it.
-      case 'selfref': {
-        const spec = this.table.functions.accum
-        if (!spec) {
-          throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
-        }
-        // A BARE read of the `var` inside its own update — its value so far this
-        // bar, which on bar 0 is the initializer. See `varSeedOf`.
-        if (this.selfReads) this.selfReads.bare += 1
-        return cSeries(spec.recurrence.binds)
-      }
-      case 'unary': {
-        const inner = this.resolve(node.arg)
-        // ⭐ `not` IS A BOOL CONTEXT — see `implicitBoolCast`. `-x` is not.
-        if (node.op === 'not') return boolNaOperator('!', this.condition(inner, 'not', node.tok), null, this.pineVersion)
-        return cOp('u-', [inner])
-      }
-      case 'binary': {
-        // ⭐⭐ C22 — A WINDOW'S LENGTH AGAINST A WHOLE NUMBER is ONE slot's
-        // existence (`windowSizeComparison`), never the sum of every slot's.
-        const sizeCmp = this.objectPass ? this.windowSizeComparison(node) : null
-        if (sizeCmp) return sizeCmp
-        // ⭐⭐ A COMPARISON CAN BOUND WHAT ITS OPERAND CANNOT — and like the
-        // string fold below, it is asked BEFORE either operand is resolved,
-        // because resolving `ta.obv` or a one-argument `ta.barssince` IS the
-        // refusal this is deciding not to need. See `contextBoundedPlan` for why
-        // each rewrite is an identity rather than a convenience.
-        const bounded = contextBoundedPlan(node)
-        if (bounded) {
-          const boundedOp = PINE_OP_TO_TABLE[bounded.op]
-          if (boundedOp && own(this.table.operators, boundedOp)) {
-            if (bounded.kind === 'barssince') {
-              return cOp(boundedOp, [
-                cCall('barssince', [this.resolve(bounded.cond), cNum(bounded.window)]),
-                cNum(bounded.k),
-              ])
-            }
-            // ⭐ `obv` AND `pvt` ARE THE SAME REWRITE onto their own bounded-delta
-            // primitive — see `contextBoundedPlan`'s pvt branch and
-            // `_functions_excluded.pvt`.
-            const change = cCall(bounded.kind === 'pvt' ? 'pvtN' : 'obvN', [cNum(bounded.lag)])
-            // ⛔ THE DIFFERENCE IS THE VALUE, so `-` returns it directly rather
-            // than comparing it to anything.
-            return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
-          }
-        }
-        // ⭐⭐ …AND THROUGH A BINDING, WHICH IS HOW PEOPLE ACTUALLY WRITE IT.
-        // Measured on a corpus written blind to this engine: every one of the
-        // four `ta.barssince` scripts names the count first and compares it on a
-        // later line —
-        //     age = ta.barssince(cross)
-        //     ...
-        //     age <= 5
-        // — so the shape above, which needs the call and the literal in one
-        // expression, saw none of them. The identity is the SAME identity; only
-        // the distance between the two halves changed.
-        // ⭐ C24 — what the probe resolved is kept for the ordinary path at the
-        // bottom of this case (`resolveProbed`), so neither operand resolves twice.
-        // ⛔ Not when a rewrite BETWEEN the two can do work of its own (a run-length
-        // counter's state binding, a bare `obv`): the ordinary path then resolves
-        // after that work, exactly as it did.
-        const probed = own(FLIP, node.op)
-          && !this.stateBindingOf(node.left) && !this.stateBindingOf(node.right)
-          && !isBareObv(node.left) && !isBareObv(node.right) ? new Map() : null
-        const viaBinding = this.boundedBarssinceThroughBinding(node, probed)
-        if (viaBinding) return viaBinding
-        // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
-        // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
-        // the state this engine cannot hold is state the comparison never reads.
-        const viaRun = this.boundedRunLengthThroughBinding(node)
-        if (viaRun) return viaRun
-        // ⭐⭐ …AND OBV AGAINST ITS OWN AVERAGE IS BOUNDED FOR THE SAME REASON
-        // `obv > obv[k]` is: the comparison is made of DIFFERENCES, so the
-        // baseline this engine cannot know cancels. See
-        // `boundedObvAgainstOwnAverage`.
-        const viaObvAvg = this.boundedObvAgainstOwnAverage(node)
-        if (viaObvAvg) return viaObvAvg
-        // ⭐⭐ …AND A REDUNDANT `na` GUARD IS DROPPED BEFORE IT CAN REFUSE. Asked
-        // here, with the others, because resolving `na(age)` IS the unbounded
-        // `ta.barssince` refusal this is deciding not to need. See
-        // `naGuardDroppedFrom` for why the term cannot change the answer.
-        const viaNaGuard = this.naGuardDroppedFrom(node)
-        if (viaNaGuard) return viaNaGuard
-        // ⭐⭐ AN `input.string` WITH `options = [...]`, COMPARED WITH ONE OF ITS
-        // OWN OPTIONS, IS A LIVE MEMBER KNOB — never folded to the default when
-        // the member door asks (`enumInputs`). See `enumCompare`. Asked before the
-        // two-strings fold below, which would otherwise answer it from the default.
-        if (node.op === '==' || node.op === '!=') {
-          const en = this.enumCompare(node)
-          if (en) return en
-        }
-        // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
-        // BEFORE the operands are resolved, because resolving either of them is
-        // the `pine:text-value` refusal this is deciding not to need.
-        if (node.op === '==' || node.op === '!=') {
-          const left = this.stringValueOf(node.left)
-          if (left !== null) {
-            const right = this.stringValueOf(node.right)
-            if (right !== null) {
-              return cNum(((left === right) === (node.op === '==')) ? 1 : 0)
-            }
-          }
-        }
-        // ⭐⭐ ...AND ONE SIDE MAY BE SYMBOL-SCOPED, in which case the answer is a
-        // constant for the BINDING rather than for the script. `syminfo.ticker ==
-        // "SPY"` is not knowable here — no symbol has been chosen — but it is
-        // knowable the moment one is, so it DEFERS into a `textop` the fold
-        // settles, instead of refusing `pine:text-value` for a question that has
-        // a perfectly good answer one step later.
-        // ⛔ BOTH SIDES MUST BE TEXT. A `symtext` compared against a NUMBER is a
-        // script bug, and quietly answering 0 would hide it: `textOperandOf`
-        // returns null for the number and this falls through to the ordinary
-        // refusal, which names the operand.
-        if (node.op === '==' || node.op === '!=') {
-          const lt = this.textOperandOf(node.left)
-          const rt = lt ? this.textOperandOf(node.right) : null
-          if (lt && rt && (lt.type === 'symtext' || rt.type === 'symtext')) {
-            return { type: 'textop', name: node.op === '==' ? 'eq' : 'ne', args: [lt, rt] }
-          }
-        }
-        // ⭐⭐ C22 — TEXT CHOSEN PER BAR BETWEEN WRITTEN STRINGS, COMPARED WITH A
-        // WRITTEN STRING, is a NUMBER per bar (`textEqTree`). vdubus-pattern-gen:
-        // `rawName == "Gartley"`, where `rawName = f_getHarmonicName(…)` picks one
-        // of six literals by the ratios. No string ever becomes a node: each
-        // literal the choice can land on is compared here and replaced by 1 or 0.
-        // ⛔ The OBJECT pass only, and never under an enum read (`textEqOff`):
-        // a `position` / `style` word picked per bar from text is the enum
-        // reader's to refuse or serve, and a per-bar table position read off a
-        // condition the budget refuses would draw at the renderer's default —
-        // uncharted-volume-v2's volume table, measured.
-        if (this.objectPass && !this.textEqOff && (node.op === '==' || node.op === '!=')) {
-          // ⭐ a string WRITTEN at the comparison, never one found by following
-          // names: asking `stringValueOf` of both sides of every comparison was
-          // most of renderingnature's object pass.
-          const ls = node.left && node.left.type === 'string' ? node.left.value : null
-          const rs = ls === null && node.right && node.right.type === 'string' ? node.right.value : null
-          if (ls !== null || rs !== null) {
-            const other = ls !== null ? node.right : node.left
-            const lit = ls !== null ? ls : rs
-            // ⭐ memoised per scope: an op's guard is re-read for every op of its
-            // block, and each read resolves every test of the choice again
-            // (vdubus: 1,152 reads, half its door time). Only outside a call
-            // frame, where the scope alone decides what every name reads.
-            const memo = this.frames.length === 0 && this.env ? textEqMemoOf(this.env, other) : null
-            const mkey = memo ? `${node.op === '=='}|${lit}` : null
-            if (memo && memo.has(mkey)) {
-              const hit = memo.get(mkey)
-              if (hit) return hit
-            } else {
-              const eq = this.textEqTree(other, lit, node.op === '==')
-              if (memo) memo.set(mkey, eq)
-              if (eq) return eq
-            }
-          }
-        }
-        // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
-        //
-        // C3B-CLOSE measured `bar_index % 50 == 0` refusing and filed it as a
-        // VALUE-lane grammar gap (H7/J5.1). The obvious repair — add `%` to
-        // `closedTable.operators`, give it a precedence in `parse.js`, implement
-        // it in `interpret.js` and again in `ast_interpret.py` — would have minted
-        // a SECOND AUTHORITY OVER ONE ARITHMETIC in a repo whose most-repeated
-        // defect is exactly that. The table ALREADY owns this arithmetic, as the
-        // function `mod`: truncated, sign following the dividend, NaN on a zero
-        // divisor and NaN on a non-finite quotient. Both kernels implement it, and
-        // `_guarded_mod`'s docstring names the trap the second implementation
-        // would have walked into — `-7 % 2` is `-1` in JS and `1` in Python, so a
-        // borrowed `%` would have made the chart and the screener disagree about a
-        // negative dividend with every test green in both lanes.
-        //
-        // So the SURFACE SYNTAX lowers onto the settled semantics and nothing new
-        // is declared: no node type, no precedence entry, no second numeric
-        // authority, no new refusal. The screener understands `%` the same day the
-        // chart does, because it is reading a call it has always known.
-        //
-        // ⛔ ASKED BEFORE `PINE_OP_TO_TABLE`, which has no `%` and must not gain
-        // one — an entry there would route `%` to an operator the table does not
-        // declare and land back on the refusal below.
-        if (node.op === '%') {
-          return cCall('mod', [this.resolve(node.left), this.resolve(node.right)])
-        }
-        // ⭐⭐ F1 — `/` BETWEEN TWO `const int` TRUNCATES BEFORE v6, and the
-        // quotient is a constant, so it is written as the number Pine computes.
-        // Asked of the PINE tree: by the time an operand is resolved an
-        // `input.int` has folded to its default and reads exactly like a literal,
-        // and TradingView keeps the fraction for that one (`vw-int-div-assign`
-        // D01/D04). See `pineConstIntValue`.
-        if (node.op === '/') {
-          const q = pineConstIntValue(node, (n) => this.env.get(n),
-            { version: this.pineVersion, declWords: this.declWords || DECL_WORDS_SINK })
-          if (q !== null) return cNum(q)
-        }
-        const mapped = PINE_OP_TO_TABLE[node.op]
-        // ⭐⭐ the version island (bool na): an operator a v5 library writes inside a v6 script holds its `na` bool as
-        // a v5 script's does (`versionAt` at its token; `boolNaOperator` below, on every path)
-        const opVersion = versionAt(node.tok, this.pineVersion)
-        if (!mapped || !own(this.table.operators, mapped)) {
-          throw new PineRefusal('pine:operator',
-            `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
-        }
-        // ⭐⭐ AN OPERAND THE OTHER SIDE HAS ALREADY DECIDED IS NOT RESOLVED AT ALL.
-        //
-        // ⛔⛔ THIS IS ONE POLICY THAT HAD THREE SPELLINGS AND ONLY TWO OF THEM.
-        // The `ternary` case below says it outright — "a branch a constant test
-        // never takes is not resolved at all" — and the `if`/`else if` chain folds
-        // the same way. `and`/`or` did not: both operands were resolved eagerly,
-        // so a side the folded knob had already settled still had to translate.
-        //
-        // MEASURED on `15-anchored-vwap`, whose `anchorMode` defaults to
-        // "Auto: Last Swing":
-        //   line 90  `evt := time >= anchorTime and …`   inside a dead `else if`
-        //            → never resolved, because the CHAIN was pruned
-        //   line 92  `anchorMode != "Manual Date" or time >= anchorTime`
-        //            → `pine:builtin` on `time`, because the `or` was not
-        // Two spellings of "this cannot run under the knob in force", one railed.
-        // Neutralising line 92 alone made the whole script translate, which is how
-        // the asymmetry was proven rather than argued.
-        //
-        // ⚠️ KNOWN AND DELIBERATE ASYMMETRY: if the LEFT operand refuses and the
-        // RIGHT is the deciding constant (`<unsupported> or true`), this still
-        // refuses. Folding it would mean resolving right first and reporting
-        // errors out of source order, or catching a refusal to decide whether to
-        // rethrow it — and the knob-guard idiom always writes the test first.
-        // Left-to-right refusal reporting is worth more than that spelling.
-        const annihilator = logicalAnnihilator(mapped)
-        if (annihilator !== null) {
-          // ⭐ BOTH OPERANDS OF `and`/`or` ARE BOOL CONTEXTS (`implicitBoolCast`).
-          // The left one is cast BEFORE the annihilator check, so `5 or x` —
-          // true in v5 — short-circuits exactly as `true or x` does.
-          const decidedBy = this.condition(this.resolve(node.left), node.op, node.tok)
-          if (decidedBy.type === 'num' && decidedBy.value === annihilator) {
-            return cNum(annihilator)
-          }
-          // ⭐ C10 — THE SAME DECISION WHEN THE LEFT OPERAND IS A CONSTANT
-          // EXPRESSION (`not (900 >= 86400) or na(x)`; `constantTestValue`) —
-          // taken only as a RESCUE. The right side is still resolved first, so
-          // every tree that translated keeps its exact shape (and its parameter
-          // addresses); only a right side that REFUSES is skipped, because the
-          // left has already decided the answer on every bar.
-          if (!this.objectPass) {
-            const rightCast = this.condition(this.resolve(node.right), node.op, node.tok)
-            const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
-            // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
-            this.stampLogicRight(out, node, decidedBy, mapped)
-            return boolNaOperator(mapped, decidedBy, rightCast, opVersion, out, node.left, node.right)
-          }
-          let right
-          try {
-            right = this.condition(this.resolve(node.right), node.op, node.tok)
-          } catch (err) {
-            if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
-              && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-            throw err
-          }
-          // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
-          // same way (`deadLowerTfRead`): the left has decided every bar.
-          if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-          return boolNaOperator(mapped, decidedBy, right, opVersion,
-            foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
-        }
-        if (probed) {
-          const pl = this.resolveProbed(node.left, probed)
-          const pr = this.resolveProbed(node.right, probed)
-          // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
-          const constFoldP = this.constCompareOf(mapped, node, pl, pr)
-          if (constFoldP !== null) return cNum(constFoldP)
-          return boolNaOperator(mapped, pl, pr, opVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
-        }
-        const rl = this.resolve(node.left)
-        const rr = this.resolve(node.right)
-        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
-        // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
-        const constFold = this.constCompareOf(mapped, node, rl, rr)
-        if (constFold !== null) return cNum(constFold)
-        return boolNaOperator(mapped, rl, rr, opVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
-      }
-      case 'ternary': {
-        // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
-        // one cast covers `c ? a : b`, `if c`, and `else if c`.
-        const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
-        // ⭐⭐ C12 — THE FALLTHROUGH OF AN `if` WITH NO `else` (`foldIfChain` marks
-        // it `noElse`). Its `na` is Pine's answer only for a NUMBER: v6 returns
-        // `false` for a bool, v5 `na`, and no capture separates them. So the branch
-        // it falls back from must resolve to a proven number — resolved even when a
-        // constant test would skip it, because its KIND is what decides what the
-        // skipped side means — and anything else keeps the `pine:block` refusal,
-        // naming why.
-        if (node.noElse) {
-          let yes
-          try {
-            yes = this.resolve(node.yes)
-          } catch (err) {
-            if (test.type === 'num' && test.value !== 0) throw err
-            throw new PineRefusal('pine:block',
-              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
-              + 'and, in Pine v6, `false` for a bool, and its branch here could not be read to '
-              + 'say which', locate(node.tok))
-          }
-          if (conditionKindOf(yes, this.table) !== 'num') {
-            throw new PineRefusal('pine:block',
-              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
-              + 'and, in Pine v6, `false` for a bool, and this branch is not a proven number',
-              locate(node.tok))
-          }
-          if (test.type === 'num') return test.value !== 0 ? yes : this.resolve(node.no)
-          const out = cOp('?:', [test, yes, this.resolve(node.no)])
-          // ⭐⭐ C45 (H2) — the branch of an `if` expression with no `else` runs only
-          // where its condition holds, exactly as one with an `else` does
-          if (!this.objectPass) this.stampTernaryArms(out, node, test)
-          return out
-        }
-        // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
-        // the same rule as "a statement no output reaches is a note": refusing a
-        // script over an arm its own folded input makes unreachable would be
-        // reading a different document than the one the member pasted.
-        if (test.type === 'num') return this.resolve(test.value !== 0 ? node.yes : node.no)
-        // ⭐ C10 — …and a test that is a constant EXPRESSION rather than a
-        // literal (`not (900 >= 86400)`; `constantTestValue`) is the same case,
-        // taken only as a RESCUE: both arms are still resolved in order, so every
-        // tree that translated keeps its exact shape and parameter addresses
-        // (`paramIds.test.js`); only a DEAD arm that refuses is skipped. A live
-        // arm's refusal is still the answer.
-        if (!this.objectPass) {
-          const out = cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
-          // ⭐⭐ C45 — an arm whose own call runs only on the bars it is taken
-          this.stampTernaryArms(out, node, test)
-          return out
-        }
-        let yes
-        try {
-          yes = this.resolve(node.yes)
-        } catch (err) {
-          if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
-            && constantTestValue(test) === 0) return this.resolve(node.no)
-          throw err
-        }
-        let no
-        try {
-          no = this.resolve(node.no)
-        } catch (err) {
-          if (err instanceof PineRefusal && err.guard !== 'pine:timeout') {
-            const folded = constantTestValue(test)
-            if (folded !== null && folded !== 0) return yes
-          }
-          throw err
-        }
-        // ⭐⭐ C41 — A DEAD ARM THAT READS BELOW THE CHART IS STILL A DEAD ARM.
-        // Until C41 a lower-timeframe `request.security` refused, so the rescue
-        // above took the live arm of every such test. Now the read RESOLVES (an
-        // `ltf` tree) — and kept in the tree it would withhold the value on every
-        // bar our intraday bars do not cover (`interpret.js::lowerTfMask` is a
-        // rule about the tree's nodes), for a read Pine never makes: artemis'
-        // `not valid or na(o) ? 0 : o > 50 ? 1 : …` with `valid` folded false is 0
-        // on every bar, and its `— n/a` cells are TradingView's. So a test that is
-        // the same on every bar still answers with its live arm when the dead one
-        // holds an `ltf` — exactly the tree this produced before C41.
-        if (deadLowerTfRead(yes) || deadLowerTfRead(no)) {
-          const folded = constantTestValue(test)
-          if (folded !== null && deadLowerTfRead(folded !== 0 ? no : yes)) return folded !== 0 ? yes : no
-        }
-        // ⭐ C47 — `na(X) ? 0 : X` OVER AN `X` THAT IS NEVER `na` IS `X`
-        // (`naGuardIsIdentity`): the guard this lane writes round every `if`
-        // condition, dropped where it guards nothing.
-        if (naGuardIsIdentity(test, yes, no)) return no
-        return cOp('?:', [test, yes, no])
-      }
-      case 'offset': {
-        // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
-        // as an expression rather than a number; resolving it FIRST means every
-        // guard below — and the canonical node at the end — sees the same plain
-        // integer a written literal would have given them.
-        if (node.n && typeof node.n === 'object' && node.n.expr) {
-          let folded = this.resolve(node.n.expr)
-          // ⭐⭐ C9 (2026-09-29) — AN OFFSET IS A WINDOW, SO IT FOLDS LIKE ONE.
-          // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)` reaches here
-          // as an `op` tree, and at the member door (which hands a declared input
-          // back as an IDENTIFIER) even a bare `high[len]` did — so the same
-          // `drmLen` that `sma(close, drmLen)` folds to 14 in this pass refused as
-          // an offset. Pine computes both before bar 0 (`simple int`).
-          // `foldWindow` is the window arm's own fold: it hands back only an exact
-          // whole number ≥ 0, so `15 / 2`, a negative and a bar read still refuse
-          // below, and the input is recorded window-bound BEFORE the fold erases
-          // it — the caller refuses that knob by name rather than hand back one
-          // that moves a window and leaves this offset at the default.
-          // ⛔ A series offset (`x[bar_index - k]`) still refuses here: that is a
-          // per-bar read, not a window, and it is served (if at all) by the
-          // object lane's own absolute-bar read, never by this node.
-          if (folded.type !== 'num') {
-            for (const n of declaredInputNames(folded)) this.windowBoundInputs.add(n)
-            folded = foldWindow(folded)
-          }
-          if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
-            // ⭐⭐ C38 — A PER-BAR INDEX IS A READ, NOT A WINDOW (`historyReadOf`).
-            const read = this.historyReadOf(node, folded)
-            if (read) return read
-            // ⭐ C38 — a CONSTANT negative index is the forward reference, and says
-            // so: `n = 3` / `close[-n]` names a bar that has not happened. (The
-            // sign used to be swallowed at parse — see `parseOffsetIndex` — so
-            // this read `close[3]`, an offset Pine itself rejects.)
-            const fixed = constantValueOf(folded)
-            if (fixed !== null && fixed < 0) {
-              throw new PineRefusal('pine:offset-negative',
-                REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
-            }
-            throw new PineRefusal('pine:offset-literal',
-              `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
-              + 'number, so the window it opens would depend on a value that can change',
-              locate(node.n.tok || node.tok))
-          }
-          // ⚠️ UNREACHABLE TODAY, KEPT DELIBERATELY, AND SAID SO. The mutation
-          // harness proved it: deleting this changes no test, because nothing
-          // currently folds to a NEGATIVE `num` — `-1` resolves to a `u-` op and
-          // `0 - 2` to a `-` op, so both fail the whole-number check above and
-          // refuse at `pine:offset-literal` one line earlier.
-          //
-          // ⛔ It stays because it goes live the day anything folds constant
-          // arithmetic, and what it guards is the forward reference: `close[-1]`
-          // is NEXT BAR, the one construction the non-repainting guarantee rests
-          // on being inexpressible. A dead check in front of that is cheap. The
-          // dishonest thing would be to leave it undocumented and let the next
-          // reader believe it is the check doing the work.
-          if (folded.value < 0) {
-            throw new PineRefusal('pine:offset-negative',
-              REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
-          }
-          // ⛔ A COPY, NEVER A MUTATION OF THE PARSED NODE. Outputs share one
-          // parse tree and each gets its own resolver; writing the folded value
-          // back would leak one output's resolution into the next.
-          node = { ...node, n: folded.value }
-        }
-        // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
-        // the single most common `pine:state` refusal in the corpus —
-        // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
-        // `self[n]` since the multi-lag recurrence landed. Only the translator
-        // was missing, so this maps Pine's 1-based count onto the accumulator's
-        // 0-based one and hands the result to the arm that already exists.
-        const lag = this.selfOffsetLag(node)
-        if (lag !== null) {
-          const spec = this.table.functions.accum
-          if (!spec) {
-            throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
-          }
-          // A HISTORY read — `x[k]`, k ≥ 1 — which on bar 0 is `na` (or, inside
-          // `nz(…)`, nz's default). See `varSeedOf`.
-          if (this.selfReads) {
-            if (this.selfReads.guardDepth > 0) this.selfReads.guarded += 1
-            else this.selfReads.history += 1
-          }
-          const base = cSeries(spec.recurrence.binds)
-          return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
-        }
-        const blockRead = this.blockLocalHistory(node)
-        if (blockRead !== null) return blockRead
-        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
-        // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
-        // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
-        // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
-        // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
-        // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
-        const histVersion = versionAt(node.tok, this.pineVersion)
-        const plain = this.plainRecurrence(node, node.tok)
-        if (plain !== null) return plain
-        this.guardOffsetOfMutable(node)
-        // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
-        // reach the seam the same way and nesting needs no special case.
-        const child = this.resolve(node.arg)
-        const wrote = node.arg.type === 'name' ? `${node.arg.name}[${node.n}]` : null
-        return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)
-      }
+      case 'selfref': return this.resolveSelfrefNode(node)
+      case 'unary': return this.resolveUnaryNode(node)
+      case 'binary': return this.resolveBinaryNode(node)
+      case 'ternary': return this.resolveTernaryNode(node)
+      case 'offset': return this.resolveOffsetNode(node)
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)
       // ⭐⭐ A POSTFIX MEMBER REACHING A COLUMN REFUSES BY ITS OWN NAME, AND
@@ -12889,11 +12563,584 @@ export class Resolver {
       // malformed" and "this construct needs a type I do not have".
       case 'member':
       case 'method':
-        throw new PineRefusal('pine:member',
+      default:
+        throw this.resolveRefusal(node)
+    }
+  }
+
+  /** ⭐ (e100) `resolve`'s own refusals, each the sentence it always was, built in this frame rather than in
+   *  `resolve`'s (see `resolveBoundNode`). */
+  resolveRefusal(node) {
+    switch (node.type) {
+      case 'string':
+        return new PineRefusal('pine:text-value', REFUSALS['pine:text-value'], locate(node.tok))
+      case 'colour':
+        return new PineRefusal('pine:colour-value', REFUSALS['pine:colour-value'], locate(node.tok))
+      case 'collection':
+        return new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(node.tok))
+      case 'member':
+      case 'method':
+        return new PineRefusal('pine:member',
           `${REFUSALS['pine:member']} — \`.${node.name}\``, locate(node.tok))
       default:
-        throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(node.tok))
+        return new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(node.tok))
     }
+  }
+
+  /** ⭐ (e100) `resolve`'s `bound` case. ⛔ `resolve` is the commonest frame on the deepest resolution's chain
+   *  (measured: one in three), so its own frame is kept to the fewest registers: every case is a method, even one
+   *  line, because the widest call a frame makes is the size of its register file. */
+  resolveBoundNode(node) {
+    return this.resolveBinding(node.binding, node.tok, node.name)
+  }
+
+  resolveSelfrefNode(node) {
+    const spec = this.table.functions.accum
+    if (!spec) {
+      throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+    }
+    // A BARE read of the `var` inside its own update — its value so far this
+    // bar, which on bar 0 is the initializer. See `varSeedOf`.
+    if (this.selfReads) this.selfReads.bare += 1
+    return cSeries(spec.recurrence.binds)
+  }
+
+  resolveUnaryNode(node) {
+    const inner = this.resolve(node.arg)
+    // ⭐ `not` IS A BOOL CONTEXT — see `implicitBoolCast`. `-x` is not.
+    if (node.op === 'not') return boolNaOperator('!', this.condition(inner, 'not', node.tok), null, this.pineVersion)
+    return cOp('u-', [inner])
+  }
+
+  resolveBinaryNode(node) {
+    // ⭐⭐ C22 — A WINDOW'S LENGTH AGAINST A WHOLE NUMBER is ONE slot's
+    // existence (`windowSizeComparison`), never the sum of every slot's.
+    let early = this.objectPass ? this.windowSizeComparison(node) : null
+    if (early) return early
+    // ⭐⭐ A COMPARISON CAN BOUND WHAT ITS OPERAND CANNOT — and like the
+    // string fold below, it is asked BEFORE either operand is resolved,
+    // because resolving `ta.obv` or a one-argument `ta.barssince` IS the
+    // refusal this is deciding not to need. See `contextBoundedPlan` for why
+    // each rewrite is an identity rather than a convenience.
+    early = this.contextBoundedAnswer(node)
+    if (early) return early
+    // ⭐⭐ …AND THROUGH A BINDING, WHICH IS HOW PEOPLE ACTUALLY WRITE IT.
+    // Measured on a corpus written blind to this engine: every one of the
+    // four `ta.barssince` scripts names the count first and compares it on a
+    // later line —
+    //     age = ta.barssince(cross)
+    //     ...
+    //     age <= 5
+    // — so the shape above, which needs the call and the literal in one
+    // expression, saw none of them. The identity is the SAME identity; only
+    // the distance between the two halves changed.
+    // ⭐ C24 — what the probe resolved is kept for the ordinary path at the
+    // bottom of this case (`resolveProbed`), so neither operand resolves twice.
+    // ⛔ Not when a rewrite BETWEEN the two can do work of its own (a run-length
+    // counter's state binding, a bare `obv`): the ordinary path then resolves
+    // after that work, exactly as it did.
+    const probed = own(FLIP, node.op)
+      && !this.stateBindingOf(node.left) && !this.stateBindingOf(node.right)
+      && !isBareObv(node.left) && !isBareObv(node.right) ? new Map() : null
+    early = this.boundedBarssinceThroughBinding(node, probed)
+    if (early) return early
+    // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
+    // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
+    // the state this engine cannot hold is state the comparison never reads.
+    early = this.boundedRunLengthThroughBinding(node)
+    if (early) return early
+    // ⭐⭐ …AND OBV AGAINST ITS OWN AVERAGE IS BOUNDED FOR THE SAME REASON
+    // `obv > obv[k]` is: the comparison is made of DIFFERENCES, so the
+    // baseline this engine cannot know cancels. See
+    // `boundedObvAgainstOwnAverage`.
+    early = this.boundedObvAgainstOwnAverage(node)
+    if (early) return early
+    // ⭐⭐ …AND A REDUNDANT `na` GUARD IS DROPPED BEFORE IT CAN REFUSE. Asked
+    // here, with the others, because resolving `na(age)` IS the unbounded
+    // `ta.barssince` refusal this is deciding not to need. See
+    // `naGuardDroppedFrom` for why the term cannot change the answer.
+    early = this.naGuardDroppedFrom(node)
+    if (early) return early
+    early = this.textComparisonAnswer(node)
+    if (early) return early
+    // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
+    //
+    // C3B-CLOSE measured `bar_index % 50 == 0` refusing and filed it as a
+    // VALUE-lane grammar gap (H7/J5.1). The obvious repair — add `%` to
+    // `closedTable.operators`, give it a precedence in `parse.js`, implement
+    // it in `interpret.js` and again in `ast_interpret.py` — would have minted
+    // a SECOND AUTHORITY OVER ONE ARITHMETIC in a repo whose most-repeated
+    // defect is exactly that. The table ALREADY owns this arithmetic, as the
+    // function `mod`: truncated, sign following the dividend, NaN on a zero
+    // divisor and NaN on a non-finite quotient. Both kernels implement it, and
+    // `_guarded_mod`'s docstring names the trap the second implementation
+    // would have walked into — `-7 % 2` is `-1` in JS and `1` in Python, so a
+    // borrowed `%` would have made the chart and the screener disagree about a
+    // negative dividend with every test green in both lanes.
+    //
+    // So the SURFACE SYNTAX lowers onto the settled semantics and nothing new
+    // is declared: no node type, no precedence entry, no second numeric
+    // authority, no new refusal. The screener understands `%` the same day the
+    // chart does, because it is reading a call it has always known.
+    //
+    // ⛔ ASKED BEFORE `PINE_OP_TO_TABLE`, which has no `%` and must not gain
+    // one — an entry there would route `%` to an operator the table does not
+    // declare and land back on the refusal below.
+    if (node.op === '%') {
+      return cCall('mod', [this.resolve(node.left), this.resolve(node.right)])
+    }
+    // ⭐⭐ F1 — `/` BETWEEN TWO `const int` TRUNCATES BEFORE v6, and the
+    // quotient is a constant, so it is written as the number Pine computes.
+    // Asked of the PINE tree: by the time an operand is resolved an
+    // `input.int` has folded to its default and reads exactly like a literal,
+    // and TradingView keeps the fraction for that one (`vw-int-div-assign`
+    // D01/D04). See `pineConstIntValue`.
+    if (node.op === '/') {
+      early = this.constIntQuotient(node)
+      if (early !== null) return cNum(early)
+    }
+    const mapped = PINE_OP_TO_TABLE[node.op]
+    // ⭐⭐ the version island (bool na): an operator a v5 library writes inside a v6 script holds its `na` bool as
+    // a v5 script's does (`versionAt` at its token; `boolNaOperator` below, on every path)
+    const opVersion = versionAt(node.tok, this.pineVersion)
+    if (!mapped || !own(this.table.operators, mapped)) throw this.operatorRefusal(node)
+    // ⭐⭐ AN OPERAND THE OTHER SIDE HAS ALREADY DECIDED IS NOT RESOLVED AT ALL.
+    //
+    // ⛔⛔ THIS IS ONE POLICY THAT HAD THREE SPELLINGS AND ONLY TWO OF THEM.
+    // The `ternary` case below says it outright — "a branch a constant test
+    // never takes is not resolved at all" — and the `if`/`else if` chain folds
+    // the same way. `and`/`or` did not: both operands were resolved eagerly,
+    // so a side the folded knob had already settled still had to translate.
+    //
+    // MEASURED on `15-anchored-vwap`, whose `anchorMode` defaults to
+    // "Auto: Last Swing":
+    //   line 90  `evt := time >= anchorTime and …`   inside a dead `else if`
+    //            → never resolved, because the CHAIN was pruned
+    //   line 92  `anchorMode != "Manual Date" or time >= anchorTime`
+    //            → `pine:builtin` on `time`, because the `or` was not
+    // Two spellings of "this cannot run under the knob in force", one railed.
+    // Neutralising line 92 alone made the whole script translate, which is how
+    // the asymmetry was proven rather than argued.
+    //
+    // ⚠️ KNOWN AND DELIBERATE ASYMMETRY: if the LEFT operand refuses and the
+    // RIGHT is the deciding constant (`<unsupported> or true`), this still
+    // refuses. Folding it would mean resolving right first and reporting
+    // errors out of source order, or catching a refusal to decide whether to
+    // rethrow it — and the knob-guard idiom always writes the test first.
+    // Left-to-right refusal reporting is worth more than that spelling.
+    // ⭐ (e100) the two operands, in two slots shared by both paths below: `left` is the `and`/`or` path's
+    // `decidedBy` and the comparison's left value, `right` the right side of either (see `resolve`).
+    let left
+    let right
+    const annihilator = logicalAnnihilator(mapped)
+    if (annihilator !== null) {
+      // ⭐ BOTH OPERANDS OF `and`/`or` ARE BOOL CONTEXTS (`implicitBoolCast`).
+      // The left one is cast BEFORE the annihilator check, so `5 or x` —
+      // true in v5 — short-circuits exactly as `true or x` does.
+      left = this.condition(this.resolve(node.left), node.op, node.tok)
+      if (left.type === 'num' && left.value === annihilator) {
+        return cNum(annihilator)
+      }
+      // ⭐ C10 — THE SAME DECISION WHEN THE LEFT OPERAND IS A CONSTANT
+      // EXPRESSION (`not (900 >= 86400) or na(x)`; `constantTestValue`) —
+      // taken only as a RESCUE. The right side is still resolved first, so
+      // every tree that translated keeps its exact shape (and its parameter
+      // addresses); only a right side that REFUSES is skipped, because the
+      // left has already decided the answer on every bar.
+      if (this.objectPass) return this.logicalObjectRescue(node, mapped, left, opVersion, annihilator)
+      right = this.condition(this.resolve(node.right), node.op, node.tok)
+      return this.logicalTree(node, mapped, left, right, opVersion)
+    }
+    // ⭐ (e100) ONE PATH FOR BOTH READS: a probed comparison (C24) reads each operand through `resolveProbed`,
+    // every other through `resolve` — left first, then right, as the two copies of this tail did.
+    left = probed ? this.resolveProbed(node.left, probed) : this.resolve(node.left)
+    right = probed ? this.resolveProbed(node.right, probed) : this.resolve(node.right)
+    return this.comparisonTree(node, mapped, left, right, opVersion)
+  }
+
+  /** ⭐ (e100) `resolveBinaryNode`'s `and`/`or` on the object pass: C10's rescue of a right side that refuses
+   *  and C41's of one that reads below the chart, where the left side decided every bar. */
+  logicalObjectRescue(node, mapped, decidedBy, opVersion, annihilator) {
+    let right
+    try {
+      right = this.condition(this.resolve(node.right), node.op, node.tok)
+    } catch (err) {
+      if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
+        && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
+      throw err
+    }
+    // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
+    // same way (`deadLowerTfRead`): the left has decided every bar.
+    if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
+    return this.logicalObjectTree(node, mapped, decidedBy, right, opVersion)
+  }
+
+  /** ⭐ (e100) the trees `resolveBinaryNode` builds once its operands are resolved, and its `/` fold and operator
+   *  refusal, each in its own frame: a call's argument registers count in the frame of the method that makes it,
+   *  for as long as that frame lives, and `resolveBinaryNode`'s lives across both operands' resolution. */
+  constIntQuotient(node) {
+    return pineConstIntValue(node, (n) => this.env.get(n),
+      { version: this.pineVersion, declWords: this.declWords || DECL_WORDS_SINK })
+  }
+
+  operatorRefusal(node) {
+    return new PineRefusal('pine:operator',
+      `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
+  }
+
+  logicalTree(node, mapped, decidedBy, right, opVersion) {
+    const out = foldLogicalIdentity(mapped, decidedBy, right, this.table)
+    // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
+    this.stampLogicRight(out, node, decidedBy, mapped)
+    return boolNaOperator(mapped, decidedBy, right, opVersion, out, node.left, node.right)
+  }
+
+  logicalObjectTree(node, mapped, decidedBy, right, opVersion) {
+    return boolNaOperator(mapped, decidedBy, right, opVersion,
+      foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
+  }
+
+  comparisonTree(node, mapped, lv, rv, opVersion) {
+    // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
+    // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
+    const constFold = this.constCompareOf(mapped, node, lv, rv)
+    if (constFold !== null) return cNum(constFold)
+    return boolNaOperator(mapped, lv, rv, opVersion, foldLogicalIdentity(mapped, lv, rv, this.table), node.left, node.right)
+  }
+
+  /** ⭐ (e100) `resolveBinaryNode`'s context-bounded rewrite (`contextBoundedPlan`), in its own frame so the
+   *  comparison's frame stays small across every operand it resolves. null → no rewrite applies. */
+  contextBoundedAnswer(node) {
+    const bounded = contextBoundedPlan(node)
+    if (bounded) {
+      const boundedOp = PINE_OP_TO_TABLE[bounded.op]
+      if (boundedOp && own(this.table.operators, boundedOp)) {
+        if (bounded.kind === 'barssince') {
+          return cOp(boundedOp, [
+            cCall('barssince', [this.resolve(bounded.cond), cNum(bounded.window)]),
+            cNum(bounded.k),
+          ])
+        }
+        // ⭐ `obv` AND `pvt` ARE THE SAME REWRITE onto their own bounded-delta
+        // primitive — see `contextBoundedPlan`'s pvt branch and
+        // `_functions_excluded.pvt`.
+        const change = cCall(bounded.kind === 'pvt' ? 'pvtN' : 'obvN', [cNum(bounded.lag)])
+        // ⛔ THE DIFFERENCE IS THE VALUE, so `-` returns it directly rather
+        // than comparing it to anything.
+        return bounded.op === '-' ? change : cOp(boundedOp, [change, cNum(0)])
+      }
+    }
+    return null
+  }
+
+  /** ⭐ (e100) `resolveBinaryNode`'s answers for a comparison of TEXT, asked before either operand is
+   *  resolved, in their own frame (see `contextBoundedAnswer`). null → none applies. */
+  textComparisonAnswer(node) {
+    // ⭐⭐ AN `input.string` WITH `options = [...]`, COMPARED WITH ONE OF ITS
+    // OWN OPTIONS, IS A LIVE MEMBER KNOB — never folded to the default when
+    // the member door asks (`enumInputs`). See `enumCompare`. Asked before the
+    // two-strings fold below, which would otherwise answer it from the default.
+    if (node.op === '==' || node.op === '!=') {
+      const en = this.enumCompare(node)
+      if (en) return en
+    }
+    // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
+    // BEFORE the operands are resolved, because resolving either of them is
+    // the `pine:text-value` refusal this is deciding not to need.
+    if (node.op === '==' || node.op === '!=') {
+      const left = this.stringValueOf(node.left)
+      if (left !== null) {
+        const right = this.stringValueOf(node.right)
+        if (right !== null) {
+          return cNum(((left === right) === (node.op === '==')) ? 1 : 0)
+        }
+      }
+    }
+    // ⭐⭐ ...AND ONE SIDE MAY BE SYMBOL-SCOPED, in which case the answer is a
+    // constant for the BINDING rather than for the script. `syminfo.ticker ==
+    // "SPY"` is not knowable here — no symbol has been chosen — but it is
+    // knowable the moment one is, so it DEFERS into a `textop` the fold
+    // settles, instead of refusing `pine:text-value` for a question that has
+    // a perfectly good answer one step later.
+    // ⛔ BOTH SIDES MUST BE TEXT. A `symtext` compared against a NUMBER is a
+    // script bug, and quietly answering 0 would hide it: `textOperandOf`
+    // returns null for the number and this falls through to the ordinary
+    // refusal, which names the operand.
+    const sym = this.symbolTextAnswer(node)
+    if (sym) return sym
+    return this.textEqAnswer(node)
+  }
+
+  /** ⭐ (e100) `textComparisonAnswer`'s symbol-scoped text (see the comments above its call). */
+  symbolTextAnswer(node) {
+    if (node.op === '==' || node.op === '!=') {
+      const lt = this.textOperandOf(node.left)
+      const rt = lt ? this.textOperandOf(node.right) : null
+      if (lt && rt && (lt.type === 'symtext' || rt.type === 'symtext')) {
+        return { type: 'textop', name: node.op === '==' ? 'eq' : 'ne', args: [lt, rt] }
+      }
+    }
+    return null
+  }
+
+  /** ⭐ (e100) `textComparisonAnswer`'s text chosen per bar against a written string (C22). */
+  textEqAnswer(node) {
+    // ⭐⭐ C22 — TEXT CHOSEN PER BAR BETWEEN WRITTEN STRINGS, COMPARED WITH A
+    // WRITTEN STRING, is a NUMBER per bar (`textEqTree`). vdubus-pattern-gen:
+    // `rawName == "Gartley"`, where `rawName = f_getHarmonicName(…)` picks one
+    // of six literals by the ratios. No string ever becomes a node: each
+    // literal the choice can land on is compared here and replaced by 1 or 0.
+    // ⛔ The OBJECT pass only, and never under an enum read (`textEqOff`):
+    // a `position` / `style` word picked per bar from text is the enum
+    // reader's to refuse or serve, and a per-bar table position read off a
+    // condition the budget refuses would draw at the renderer's default —
+    // uncharted-volume-v2's volume table, measured.
+    if (this.objectPass && !this.textEqOff && (node.op === '==' || node.op === '!=')) {
+      // ⭐ a string WRITTEN at the comparison, never one found by following
+      // names: asking `stringValueOf` of both sides of every comparison was
+      // most of renderingnature's object pass.
+      const ls = node.left && node.left.type === 'string' ? node.left.value : null
+      const rs = ls === null && node.right && node.right.type === 'string' ? node.right.value : null
+      if (ls !== null || rs !== null) {
+        const other = ls !== null ? node.right : node.left
+        const lit = ls !== null ? ls : rs
+        // ⭐ memoised per scope: an op's guard is re-read for every op of its
+        // block, and each read resolves every test of the choice again
+        // (vdubus: 1,152 reads, half its door time). Only outside a call
+        // frame, where the scope alone decides what every name reads.
+        const memo = this.frames.length === 0 && this.env ? textEqMemoOf(this.env, other) : null
+        const mkey = memo ? `${node.op === '=='}|${lit}` : null
+        if (memo && memo.has(mkey)) {
+          const hit = memo.get(mkey)
+          if (hit) return hit
+        } else {
+          const eq = this.textEqTree(other, lit, node.op === '==')
+          if (memo) memo.set(mkey, eq)
+          if (eq) return eq
+        }
+      }
+    }
+    return null
+  }
+
+  resolveTernaryNode(node) {
+    // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
+    // one cast covers `c ? a : b`, `if c`, and `else if c`.
+    const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
+    // ⭐⭐ C12 — THE FALLTHROUGH OF AN `if` WITH NO `else` (`foldIfChain` marks
+    // it `noElse`). Its `na` is Pine's answer only for a NUMBER: v6 returns
+    // `false` for a bool, v5 `na`, and no capture separates them. So the branch
+    // it falls back from must resolve to a proven number — resolved even when a
+    // constant test would skip it, because its KIND is what decides what the
+    // skipped side means — and anything else keeps the `pine:block` refusal,
+    // naming why.
+    if (node.noElse) return this.resolveNoElseTernary(node, test)
+    // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
+    // the same rule as "a statement no output reaches is a note": refusing a
+    // script over an arm its own folded input makes unreachable would be
+    // reading a different document than the one the member pasted.
+    if (test.type === 'num') return this.resolve(test.value !== 0 ? node.yes : node.no)
+    // ⭐ C10 — …and a test that is a constant EXPRESSION rather than a
+    // literal (`not (900 >= 86400)`; `constantTestValue`) is the same case,
+    // taken only as a RESCUE: both arms are still resolved in order, so every
+    // tree that translated keeps its exact shape and parameter addresses
+    // (`paramIds.test.js`); only a DEAD arm that refuses is skipped. A live
+    // arm's refusal is still the answer.
+    if (!this.objectPass) {
+      const out = cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+      // ⭐⭐ C45 — an arm whose own call runs only on the bars it is taken
+      this.stampTernaryArms(out, node, test)
+      return out
+    }
+    return this.objectTernaryRescue(node, test)
+  }
+
+  /** ⭐ (e100) `resolveTernaryNode`'s `if` with no `else` (C12, see the comments in it), in its own frame. */
+  resolveNoElseTernary(node, test) {
+    let yes
+    try {
+      yes = this.resolve(node.yes)
+    } catch (err) {
+      if (test.type === 'num' && test.value !== 0) throw err
+      throw new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+        + 'and, in Pine v6, `false` for a bool, and its branch here could not be read to '
+        + 'say which', locate(node.tok))
+    }
+    if (conditionKindOf(yes, this.table) !== 'num') {
+      throw new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+        + 'and, in Pine v6, `false` for a bool, and this branch is not a proven number',
+        locate(node.tok))
+    }
+    if (test.type === 'num') return test.value !== 0 ? yes : this.resolve(node.no)
+    const out = cOp('?:', [test, yes, this.resolve(node.no)])
+    // ⭐⭐ C45 (H2) — the branch of an `if` expression with no `else` runs only
+    // where its condition holds, exactly as one with an `else` does
+    if (!this.objectPass) this.stampTernaryArms(out, node, test)
+    return out
+  }
+
+  /** ⭐ (e100) `resolveTernaryNode`'s object-pass rescue (C10 / C41 / C47, see the comments in it), in its own frame. */
+  objectTernaryRescue(node, test) {
+    let yes
+    try {
+      yes = this.resolve(node.yes)
+    } catch (err) {
+      if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
+        && constantTestValue(test) === 0) return this.resolve(node.no)
+      throw err
+    }
+    let no
+    try {
+      no = this.resolve(node.no)
+    } catch (err) {
+      if (err instanceof PineRefusal && err.guard !== 'pine:timeout') {
+        const folded = constantTestValue(test)
+        if (folded !== null && folded !== 0) return yes
+      }
+      throw err
+    }
+    // ⭐⭐ C41 — A DEAD ARM THAT READS BELOW THE CHART IS STILL A DEAD ARM.
+    // Until C41 a lower-timeframe `request.security` refused, so the rescue
+    // above took the live arm of every such test. Now the read RESOLVES (an
+    // `ltf` tree) — and kept in the tree it would withhold the value on every
+    // bar our intraday bars do not cover (`interpret.js::lowerTfMask` is a
+    // rule about the tree's nodes), for a read Pine never makes: artemis'
+    // `not valid or na(o) ? 0 : o > 50 ? 1 : …` with `valid` folded false is 0
+    // on every bar, and its `— n/a` cells are TradingView's. So a test that is
+    // the same on every bar still answers with its live arm when the dead one
+    // holds an `ltf` — exactly the tree this produced before C41.
+    if (deadLowerTfRead(yes) || deadLowerTfRead(no)) {
+      const folded = constantTestValue(test)
+      if (folded !== null && deadLowerTfRead(folded !== 0 ? no : yes)) return folded !== 0 ? yes : no
+    }
+    // ⭐ C47 — `na(X) ? 0 : X` OVER AN `X` THAT IS NEVER `na` IS `X`
+    // (`naGuardIsIdentity`): the guard this lane writes round every `if`
+    // condition, dropped where it guards nothing.
+    if (naGuardIsIdentity(test, yes, no)) return no
+    return cOp('?:', [test, yes, no])
+  }
+
+  resolveOffsetNode(node) {
+    // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
+    // as an expression rather than a number; resolving it FIRST means every
+    // guard below — and the canonical node at the end — sees the same plain
+    // integer a written literal would have given them.
+    if (node.n && typeof node.n === 'object' && node.n.expr) {
+      // ⭐ (e100) `foldOffsetIndex` answers the copied node, or the per-bar read (C38) wrapped as an
+      // `OffsetIndexRead`: the fold runs in its own frame (see `resolve`).
+      node = this.foldOffsetIndex(node)
+      if (node instanceof OffsetIndexRead) return node.tree
+    }
+    // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
+    // the single most common `pine:state` refusal in the corpus —
+    // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
+    // `self[n]` since the multi-lag recurrence landed. Only the translator
+    // was missing, so this maps Pine's 1-based count onto the accumulator's
+    // 0-based one and hands the result to the arm that already exists.
+    const lag = this.selfOffsetLag(node)
+    if (lag !== null) return this.selfOffsetRead(node, lag)
+    let early = this.blockLocalHistory(node)
+    if (early !== null) return early
+    // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
+    // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
+    // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
+    // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
+    // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
+    // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+    const histVersion = versionAt(node.tok, this.pineVersion)
+    early = this.plainRecurrence(node, node.tok)
+    if (early !== null) return early
+    this.guardOffsetOfMutable(node)
+    // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
+    // reach the seam the same way and nesting needs no special case.
+    const child = this.resolve(node.arg)
+    return this.offsetTree(node, child, histVersion)
+  }
+
+  /** ⭐ (e100) `resolveOffsetNode`'s folded index (C9 / C38, see the comments in it), in its own frame: the
+   *  node with its index folded, or the per-bar read wrapped as an `OffsetIndexRead`. */
+  foldOffsetIndex(node) {
+    let folded = this.resolve(node.n.expr)
+    // ⭐⭐ C9 (2026-09-29) — AN OFFSET IS A WINDOW, SO IT FOLDS LIKE ONE.
+    // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)` reaches here
+    // as an `op` tree, and at the member door (which hands a declared input
+    // back as an IDENTIFIER) even a bare `high[len]` did — so the same
+    // `drmLen` that `sma(close, drmLen)` folds to 14 in this pass refused as
+    // an offset. Pine computes both before bar 0 (`simple int`).
+    // `foldWindow` is the window arm's own fold: it hands back only an exact
+    // whole number ≥ 0, so `15 / 2`, a negative and a bar read still refuse
+    // below, and the input is recorded window-bound BEFORE the fold erases
+    // it — the caller refuses that knob by name rather than hand back one
+    // that moves a window and leaves this offset at the default.
+    // ⛔ A series offset (`x[bar_index - k]`) still refuses here: that is a
+    // per-bar read, not a window, and it is served (if at all) by the
+    // object lane's own absolute-bar read, never by this node.
+    if (folded.type !== 'num') {
+      for (const n of declaredInputNames(folded)) this.windowBoundInputs.add(n)
+      folded = foldWindow(folded)
+    }
+    if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
+      // ⭐⭐ C38 — A PER-BAR INDEX IS A READ, NOT A WINDOW (`historyReadOf`).
+      const read = this.historyReadOf(node, folded)
+      if (read) return new OffsetIndexRead(read)
+      // ⭐ C38 — a CONSTANT negative index is the forward reference, and says
+      // so: `n = 3` / `close[-n]` names a bar that has not happened. (The
+      // sign used to be swallowed at parse — see `parseOffsetIndex` — so
+      // this read `close[3]`, an offset Pine itself rejects.)
+      const fixed = constantValueOf(folded)
+      if (fixed !== null && fixed < 0) {
+        throw new PineRefusal('pine:offset-negative',
+          REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
+      }
+      throw new PineRefusal('pine:offset-literal',
+        `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
+        + 'number, so the window it opens would depend on a value that can change',
+        locate(node.n.tok || node.tok))
+    }
+    // ⚠️ UNREACHABLE TODAY, KEPT DELIBERATELY, AND SAID SO. The mutation
+    // harness proved it: deleting this changes no test, because nothing
+    // currently folds to a NEGATIVE `num` — `-1` resolves to a `u-` op and
+    // `0 - 2` to a `-` op, so both fail the whole-number check above and
+    // refuse at `pine:offset-literal` one line earlier.
+    //
+    // ⛔ It stays because it goes live the day anything folds constant
+    // arithmetic, and what it guards is the forward reference: `close[-1]`
+    // is NEXT BAR, the one construction the non-repainting guarantee rests
+    // on being inexpressible. A dead check in front of that is cheap. The
+    // dishonest thing would be to leave it undocumented and let the next
+    // reader believe it is the check doing the work.
+    if (folded.value < 0) {
+      throw new PineRefusal('pine:offset-negative',
+        REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
+    }
+    // ⛔ A COPY, NEVER A MUTATION OF THE PARSED NODE. Outputs share one
+    // parse tree and each gets its own resolver; writing the folded value
+    // back would leak one output's resolution into the next.
+    return { ...node, n: folded.value }
+  }
+
+  /** ⭐ (e100) `resolveOffsetNode`'s `self[n]` read inside a state update (see the comments in it). */
+  selfOffsetRead(node, lag) {
+    const spec = this.table.functions.accum
+    if (!spec) {
+      throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+    }
+    // A HISTORY read — `x[k]`, k ≥ 1 — which on bar 0 is `na` (or, inside
+    // `nz(…)`, nz's default). See `varSeedOf`.
+    if (this.selfReads) {
+      if (this.selfReads.guardDepth > 0) this.selfReads.guarded += 1
+      else this.selfReads.history += 1
+    }
+    const base = cSeries(spec.recurrence.binds)
+    return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
+  }
+
+  /** ⭐ (e100) `resolveOffsetNode`'s tree, once its child resolved. */
+  offsetTree(node, child, histVersion) {
+    const wrote = node.arg.type === 'name' ? `${node.arg.name}[${node.n}]` : null
+    return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)
   }
 
   /**
@@ -13343,6 +13590,12 @@ export class Resolver {
     // a deliberate feature. Only a name the member BOUND may take it from them.
     const bound = this.env.get(name)
     if (bound) return this.resolveBinding(bound, node.tok, name)
+    return this.resolveUnboundName(node, name)
+  }
+
+  /** ⭐ (e100) `resolveName` for a name the env does not bind (a bar field, a built-in, a refusal), in its own
+   *  frame: `resolveName` sits on every level of the deepest resolution, so its frame holds only the env read. */
+  resolveUnboundName(node, name) {
 
     // A bar field the manifest declares. ⭐ READ OFF THE TABLE, not a list here.
     if (own(this.table.series, name)) return cSeries(name)
@@ -13768,20 +14021,10 @@ export class Resolver {
     // and that no capture reads on its first run (`pineObjects.js::walk` marks
     // the token). The every-bar value is not Pine's there, and neither lane has
     // the right one.
-    if (node.tok && node.tok.onceUnwitnessed) {
-      const err = new PineRefusal('pine:block',
-        `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
-        + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
-        + 'a row of capture `vw-call-site-history`', locate(node.tok))
-      err.noRuntime = true
-      throw err
-    }
-    const offer = this.mintickGuardOffer(node)
-    if (offer) throw offer
+    if (node.tok && node.tok.onceUnwitnessed) throw this.onceUnwitnessedRefusal(node)
+    let early = this.mintickGuardOffer(node)
+    if (early) throw early
     const name = node.name
-    const dot = name.indexOf('.')
-    const ns = dot > 0 ? name.slice(0, dot) : null
-    const base = dot > 0 ? name.slice(dot + 1) : name
 
     // ⭐ `na` AND `nz` ARE DECLARED NOW, so what used to be one blanket refusal is
     // two resolutions and one remaining refusal — and the remaining one is the
@@ -13798,50 +14041,104 @@ export class Resolver {
     // derived rail in `pine.bindingOrder.test.js` on its FIRST RUN, as the FIFTH
     // instance of this defect. A member writing `nz(a, b) => a + b` got the
     // ENGINE'S `nz` for every call; their own function was never reached.
-    if ((name === 'na' || name === 'nz') && !this.shadowedByDefinition(name)) {
-      const arity = node.args.length
-      if (node.args.some((a) => a.name)) {
-        throw new PineRefusal('pine:named-argument',
-          `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
-      }
-      if (name === 'na' && arity === 1) {
-        // ⭐ Engine 66 (#1473) (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
-        // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
-        // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
-        // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
-        // history; with the value tree it measured 10 series references against the install cap of
-        // 8 (`budget:series`) and the whole script stopped installing. Only a call WRITTEN directly
-        // inside `na(…)` is told, never one reached through a binding.
-        const arg0 = node.args[0].value
-        const prevMembership = this.sessionMembershipTok
-        this.sessionMembershipTok = arg0 && arg0.type === 'call' && arg0.name === 'time' && arg0.tok
-          ? arg0.tok : null
-        let x
-        try { x = this.resolve(arg0) } finally { this.sessionMembershipTok = prevMembership }
-        // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
-        // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
-        // the identity fold may have reduced it to its operand, so it is read off the source
-        // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script reads the v5 `bool`'s `na`
-        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))
-        return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
-      }
-      if (name === 'nz' && (arity === 1 || arity === 2)) {
-        // ⭐ A `var`'s own `x[k]` INSIDE `nz(…)` IS A GUARDED history read: on
-        // bar 0 it answers nz's default, not `na`, so it cannot blank the value
-        // the way a bare `x[k]` does. `varSeedOf` reads the difference.
-        const reads = this.selfReads
-        if (reads) reads.guardDepth += 1
-        let value
-        try { value = this.resolve(node.args[0].value) } finally { if (reads) reads.guardDepth -= 1 }
-        return cCall('nz', [
-          value,
-          arity === 2 ? this.resolve(node.args[1].value) : cNum(0),
-        ])
-      }
-      throw new PineRefusal('pine:arity',
-        `${REFUSALS['pine:arity']} — \`${name}\` was given ${arity} `
-        + `argument${arity === 1 ? '' : 's'}`, locate(node.tok))
+    if ((name === 'na' || name === 'nz') && !this.shadowedByDefinition(name)) return this.resolveNaNzCall(node, name)
+    early = this.resolveSpecialCall(node, name)
+    if (early !== NOT_ANSWERED) return early
+    // ⛔ ONLY A `f(x) =>` DEFINITION SHADOWS A TABLE NAME, AND A VALUE NEVER DOES.
+    // `rsi = rsi(src, length)` is ordinary Pine — the variable and the function
+    // live in different namespaces there — and consulting the value binding first
+    // made `07-rsi.pine` refuse its own plot with the wrong guard entirely.
+    const bound = this.env.get(name)
+    // ⭐ C47 — a function the drawing lane can read and a plot cannot (its body
+    // declares through `name = switch …`): the object pass inlines it, every
+    // other caller keeps the refusal — and with it its saved parameter ids.
+    if (bound && bound.kind === 'opaque' && bound.isFunction && bound.objectLane && this.objectPass) {
+      return this.inlineUserFunction(bound.objectLane, node)
     }
+    if (bound && bound.kind === 'opaque' && bound.isFunction) throw this.opaqueFunctionRefusal(bound)
+    if (bound && bound.kind === 'fn') return this.inlineUserFunction(bound, node)
+
+    if (own(LEGACY_BARE_NAMESPACE, name)) throw this.legacyNamespaceRefusal(node, name)
+    const dot = name.indexOf('.')
+    return this.resolveTableCall(name, dot > 0 ? name.slice(dot + 1) : name, node.args, node.tok)
+  }
+
+  /** ⭐ (e100) `resolveCall`'s refusals, each built in its own frame: `resolveCall` sits on the deepest
+   *  resolution's chain, and the widest call a frame makes is the size of its register file. */
+  onceUnwitnessedRefusal(node) {
+    const err = new PineRefusal('pine:block',
+      `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
+      + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
+      + 'a row of capture `vw-call-site-history`', locate(node.tok))
+    err.noRuntime = true
+    return err
+  }
+
+  opaqueFunctionRefusal(bound) {
+    return new PineRefusal(bound.guard, bound.message, bound.at)
+  }
+
+  legacyNamespaceRefusal(node, name) {
+    const guard = NAMESPACE_GUARD[LEGACY_BARE_NAMESPACE[name]]
+    return new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
+  }
+
+  /** ⭐ (e100) `resolveCall`'s `na` / `nz` (see the comments in it), in its own frame. */
+  resolveNaNzCall(node, name) {
+    const arity = node.args.length
+    if (node.args.some((a) => a.name)) {
+      throw new PineRefusal('pine:named-argument',
+        `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
+    }
+    if (name === 'na' && arity === 1) return this.resolveNaCall(node)
+    if (name === 'nz' && (arity === 1 || arity === 2)) return this.resolveNzCall(node, arity)
+    throw new PineRefusal('pine:arity',
+      `${REFUSALS['pine:arity']} — \`${name}\` was given ${arity} `
+      + `argument${arity === 1 ? '' : 's'}`, locate(node.tok))
+  }
+
+  /** ⭐ (e100) `na(x)` (see `resolveNaNzCall`), in its own frame. */
+  resolveNaCall(node) {
+    // ⭐ Engine 66 (#1473) (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+    // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
+    // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
+    // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
+    // history; with the value tree it measured 10 series references against the install cap of
+    // 8 (`budget:series`) and the whole script stopped installing. Only a call WRITTEN directly
+    // inside `na(…)` is told, never one reached through a binding.
+    const arg0 = node.args[0].value
+    const prevMembership = this.sessionMembershipTok
+    this.sessionMembershipTok = arg0 && arg0.type === 'call' && arg0.name === 'time' && arg0.tok
+      ? arg0.tok : null
+    let x
+    try { x = this.resolve(arg0) } finally { this.sessionMembershipTok = prevMembership }
+    // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
+    // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
+    // the identity fold may have reduced it to its operand, so it is read off the source
+    // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script reads the v5 `bool`'s `na`
+    const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))
+    return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
+  }
+
+  /** ⭐ (e100) `nz(x)` / `nz(x, y)` (see `resolveNaNzCall`), in its own frame. */
+  resolveNzCall(node, arity) {
+    // ⭐ A `var`'s own `x[k]` INSIDE `nz(…)` IS A GUARDED history read: on
+    // bar 0 it answers nz's default, not `na`, so it cannot blank the value
+    // the way a bare `x[k]` does. `varSeedOf` reads the difference.
+    const reads = this.selfReads
+    if (reads) reads.guardDepth += 1
+    let value
+    try { value = this.resolve(node.args[0].value) } finally { if (reads) reads.guardDepth -= 1 }
+    return cCall('nz', [
+      value,
+      arity === 2 ? this.resolve(node.args[1].value) : cNum(0),
+    ])
+  }
+
+  /** ⭐ (e100) `resolveCall`'s special forms (casts, `fixnan`, inputs, methods, text, arrays, clocks, refused namespaces), in their own frame; NOT_ANSWERED when the call is an ordinary one. */
+  resolveSpecialCall(node, name) {
+    const dot = name.indexOf('.')
+    const ns = dot > 0 ? name.slice(0, dot) : null
     // ⚰️ PINE'S NUMERIC CASTS WERE WRITTEN HERE AND TAKEN BACK OUT, AND THE
     // MEASUREMENT IS WHY. `int(x)` truncates toward zero, which is exactly
     // `idiv(x, 1)` — the manifest's own sentence for `idiv` reads "divided by,
@@ -14191,27 +14488,7 @@ export class Resolver {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
     }
-    // ⛔ ONLY A `f(x) =>` DEFINITION SHADOWS A TABLE NAME, AND A VALUE NEVER DOES.
-    // `rsi = rsi(src, length)` is ordinary Pine — the variable and the function
-    // live in different namespaces there — and consulting the value binding first
-    // made `07-rsi.pine` refuse its own plot with the wrong guard entirely.
-    const bound = this.env.get(name)
-    // ⭐ C47 — a function the drawing lane can read and a plot cannot (its body
-    // declares through `name = switch …`): the object pass inlines it, every
-    // other caller keeps the refusal — and with it its saved parameter ids.
-    if (bound && bound.kind === 'opaque' && bound.isFunction && bound.objectLane && this.objectPass) {
-      return this.inlineUserFunction(bound.objectLane, node)
-    }
-    if (bound && bound.kind === 'opaque' && bound.isFunction) {
-      throw new PineRefusal(bound.guard, bound.message, bound.at)
-    }
-    if (bound && bound.kind === 'fn') return this.inlineUserFunction(bound, node)
-
-    if (own(LEGACY_BARE_NAMESPACE, name)) {
-      const guard = NAMESPACE_GUARD[LEGACY_BARE_NAMESPACE[name]]
-      throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
-    }
-    return this.resolveTableCall(name, base, node.args, node.tok)
+    return NOT_ANSWERED
   }
 
   /** `request.security(syminfo.tickerid, '<TF>', expr)` \u2192 a `tf` node, or null.
@@ -17119,6 +17396,23 @@ export class Resolver {
   }
 
   resolveTableCall(pineName, base, args, tok) {
+    // ⭐⭐ (e100) FOUR FRAMES, AND ONLY ONE OF THEM AT A TIME BELOW THIS ONE. A table call sits on most levels of
+    // the deepest resolution, and its single frame was the largest on that chain (84 registers, measured). The
+    // name's reading (`tableCallHead`), its inexpressible arm (`inexpressibleCallAnswer`), the argument plan
+    // (`tableCallPlan`) and the argument loop (`resolveTableArgs`) run in that order, as the one method did;
+    // each returns before the next is entered, so what stays live across an argument's resolution is this frame
+    // and the loop's.
+    let p = this.tableCallHead(pineName, base, args, tok)
+    if (!(p instanceof TableCallHead)) return p
+    const answer = this.inexpressibleCallAnswer(pineName, base, args, tok, p)
+    if (answer !== NOT_ANSWERED) return answer
+    p = this.tableCallPlan(pineName, args, tok, p)
+    if (!(p instanceof TableCallPlan)) return p
+    return this.resolveTableArgs(p.key, p.plan, p.declaredArgs, pineName, tok, p.args)
+  }
+
+  /** ⭐ (e100) `resolveTableCall`'s first part: an answer, or what the name reads as (`TableCallHead`). */
+  tableCallHead(pineName, base, args, tok) {
     // ⛔⛔ e95 unit 2b — `refusedArm` is the leaf this translator writes for a knob arm it refused
     // (`Resolver.refusedArmLeaf`), never a call a script may spell: written by a script it is refused, by name
     if (base === REFUSED_ARM_CALL || pineName === REFUSED_ARM_CALL) {
@@ -17614,122 +17908,12 @@ export class Resolver {
     // `_functions_cumulative` names BY PATH as the level that "must stay refused"
     // — started translating for a SCREEN. Caught by the corpus snapshot, not by
     // review.
-    if (inexKey !== null && !hostServes
-        && ((pineName !== base || !key) || hostOnly)) {
-      // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
-      // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
-      // and `time(timeframe, session)`, the session read. The entry describes the
-      // session read, so a member who wrote the ONE-ARGUMENT anchor was told they
-      // had written a session-window test.
-      // ⛔ IT IS NOT A NITPICK: `25-spy-expected-move-by-vix` writes
-      // `t = time(i_range_1)` and the very next line is
-      // `start = na(t[1]) or t > t[1]` — ordering the value with `>` to detect a
-      // new period, which is only meaningful on a TIMESTAMP. You cannot detect a
-      // new day by ordering session-membership answers. The refusal named a
-      // construct that is not in their script, so the one thing it is for —
-      // telling the member what to do next — pointed at the wrong thing.
-      // ⭐ ARITY IS THE DISCRIMINATOR and it is already in hand. The entry's own
-      // comment records that this arm was split from the bare-NAME arm so each
-      // construct gets its own true sentence; it stopped one notch short.
-      const anchorForm = bare === 'time' && args.length === 1
-      // ⭐⭐ PHASE 1 (2026-10-30) — PINE'S UNBOUNDED `ta.barssince(cond)` ON A PANE,
-      // EXACTLY, AND STILL NOT CAPPED. The refusal below exists because the house
-      // `barssince(cond, n)` SATURATES at a window, and "add a number" would buy a
-      // capped count under an uncapped name. Nothing here caps: the count since the
-      // most recent bar where `cond` held is the bar counter's difference,
-      //     barindex − valuewhenOccurrence(cond, barindex, 0)
-      // — `valuewhenOccurrence` is unbounded (C45), so a condition true 3,000 bars
-      // ago reads 3,000, and one never true in the loaded bars reads `na`. The
-      // counter's origin cancels in the difference (`barIndexShift.js` reads it as
-      // shift-invariant). A screen keeps the refusal. Namespaced only: the bare
-      // `barssince` is this table's own.
-      // ⛔⛔ NOT OVER A RECURRENCE. A condition that reads `accum` is `na` on the bars
-      // the RANGE window cannot yet decide, `valuewhenOccurrence` forgets every
-      // occurrence at an `na` condition, and the count it then reports is not the
-      // listing run's — and a comparison turns that `na` into a confident `false`.
-      // MEASURED: `atr-trailing-stop-by-ceyhun`'s `barssince(Green) < barssince(Red)`
-      // published 0 at AGEN bar 420 where the listing run reads 1
-      // (`ratchetServedScripts.test.js`). Such a condition keeps the refusal.
-      if (bare === 'barssince' && this.strict && pineName !== base
-          && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
-        const cond = this.condition(this.resolve(args[0].value !== undefined ? args[0].value : args[0]),
-          'arg:condition', tok)
-        if (!treeCallsAny(cond, RECURRENCE_CALLS)) {
-          const counter = () => cSeries('barindex')
-          return cOp('-', [counter(), cCall('valuewhenOccurrence', [cond, counter(), cNum(0)])])
-        }
-      }
-      // ⭐⭐ (2026-09-28) THE SESSION FORM IS SERVED ON THE CHART PANE, as the
-      // vendor was measured answering it — `sessionClockOf` carries the readings
-      // and refuses, by name, every form they do not cover. ⛔ HOST LANE ONLY: a
-      // screen evaluates stored daily bars whose `t` is a DATE (`YYYYMMDD`), so the
-      // clock columns are blank there and every bar would read "outside" — a
-      // confident wrong answer, where the sentence below is an honest refusal.
-      if (bare === 'time' && args.length >= 2 && this.strict) {
-        return this.sessionClockOf(args, tok)
-      }
-      // ⭐⭐⭐ (2026-09-20) THE "node this engine does not have" ABOVE IS NOW
-      // ONLY TRUE FOR NON-"D" PERIODS. `dayopentime` (`indicators.js`/
-      // `indicator_compute.py::CLOCK_TIME_DERIVED`) is exactly that node for
-      // the daily case: the opening timestamp of the ET calendar day each bar
-      // falls in, broadcast to every bar of that day. `timeframeLiteralOf`
-      // resolves the argument the SAME way `request.security`'s own
-      // timeframe argument already does (a literal, a bound variable, a
-      // constant-foldable ternary, or an `input.timeframe`/`input.string`/
-      // `input` fold — recorded in `usedInputs` on the fold, same as every
-      // other site). ⛔ ONLY "D"/"1D" REDIRECTS — W/M/intraday resampling is
-      // a separate, harder capability (real weekly/monthly bucket rules, or
-      // session-open-vs-midnight bucket alignment for intraday codes — see
-      // the memory's own scoping note) nothing in the real corpus asks for
-      // today, so it stays refused rather than silently guessed at.
-      if (anchorForm) {
-        const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
-        // ⭐⭐ C36 — the chart's OWN timeframe, asked FIRST for the reason
-        // `ownTimeframeOf` states (a rebound `period` is not the chart's).
-        if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
-        const rawTf = this.timeframeLiteralOf(argNode)
-        // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
-        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
-        // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
-        // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
-        // the same code and no capture row spells it.
-        if (rawTf !== null && String(rawTf).trim() === '60') return this.chartOwnTimeOf('"60"', pineName, tok)
-        if (tfCode === 'D') {
-          // ⛔⛔ MILLISECONDS, BECAUSE PINE'S CLOCK IS — AND THE MERGE OF 2026-09-23
-          // CREATED THIS MISMATCH OUT OF TWO CORRECT HALVES.
-          //
-          // `dayopentime` is SECONDS; the manifest says so in its own words: *"this
-          // platform's unit everywhere a bar carries one, and not Pine's
-          // milliseconds"*. The other lineage reconciled the BARE `time` NAME to ms
-          // via `PINE_CLOCK_TRANSFORM`. Each was right alone. Together, one script's
-          // `time` was milliseconds and its `time("D")` was seconds — a 1000×
-          // disagreement between two spellings of ONE clock.
-          //
-          // ⚰️ AND THE IDIOM THAT WOULD HAVE CAUGHT IT IS THE ONE THAT STILL WORKED:
-          // `time("D") != time("D")[1]` compares like with like and is unaffected.
-          // What broke is `time > time("D")` — the anchor comparison the refusal
-          // just below this line describes in those very words.
-          //
-          // ⭐ GATED ON `pineVersion` LIKE ITS SIBLING, not on a fresh condition:
-          // `clockTransformFor` applies the bare name's ×1000 only for a script that
-          // declares a `//@version`, so anchoring to the same test is what keeps the
-          // two spellings in step for a versionless script too.
-          // ⭐⭐ U-BUILTIN T-D (2026-11-19) — AND THE ANCHOR IS THE SESSION'S 09:30 OPEN, NOT MIDNIGHT.
-          // ⚰️ This was `dayopentime` (midnight New York), served on every chart: capture
-          // `vw-bt-time-1440-spy-{1d,60}-2026-11-16` R6 reads TradingView's `time("D")` as the 09:30
-          // open on every daily and regular-hours hourly bar, and the midnight anchor was 34,200 s early
-          // on every one of them. `interpret.js::dayAnchorNode` is the tree; the chart-clock mask withholds
-          // it by name on a chart whose bars leave the regular session (`time-day:off-session`).
-          return dayAnchorNode(this.pineVersion !== null)
-        }
-        const anchorPeriod = rawTf === null ? null : timeAnchorPeriodOf(rawTf)
-        if (anchorPeriod !== null) return this.periodAnchorOf(anchorPeriod, pineName, tok)
-      }
-      throw new PineRefusal('pine:function',
-        anchorForm
-          ? timeAnchorSentence(pineName)
-          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[inexKey]}`, locate(tok))
-    }
+    return new TableCallHead(bare, shape, key, inexKey, hostServes, hostOnly)
+  }
+
+  /** ⭐ (e100) `resolveTableCall`'s third part: an answer, or the call's argument plan (`TableCallPlan`). */
+  tableCallPlan(pineName, args, tok, head) {
+    const { key, bare, shape } = head
     if (!key) {
       // ⭐⭐ A NAME THIS TABLE HAS ALREADY RULED ON GETS ITS RULING, not a list of
       // the 64 it does declare. `_functions_excluded` is keyed by name, carries
@@ -18002,6 +18186,133 @@ export class Resolver {
       }
     }
 
+    return new TableCallPlan(key, plan, declaredArgs, args)
+  }
+
+  /** ⭐ (e100) `resolveTableCall`'s inexpressible-name arm (see the comments in it), in its own frame; NOT_ANSWERED when it falls through. */
+  inexpressibleCallAnswer(pineName, base, args, tok, head) {
+    const { inexKey, hostServes, key, hostOnly, bare } = head
+    if (inexKey !== null && !hostServes
+        && ((pineName !== base || !key) || hostOnly)) {
+      // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
+      // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
+      // and `time(timeframe, session)`, the session read. The entry describes the
+      // session read, so a member who wrote the ONE-ARGUMENT anchor was told they
+      // had written a session-window test.
+      // ⛔ IT IS NOT A NITPICK: `25-spy-expected-move-by-vix` writes
+      // `t = time(i_range_1)` and the very next line is
+      // `start = na(t[1]) or t > t[1]` — ordering the value with `>` to detect a
+      // new period, which is only meaningful on a TIMESTAMP. You cannot detect a
+      // new day by ordering session-membership answers. The refusal named a
+      // construct that is not in their script, so the one thing it is for —
+      // telling the member what to do next — pointed at the wrong thing.
+      // ⭐ ARITY IS THE DISCRIMINATOR and it is already in hand. The entry's own
+      // comment records that this arm was split from the bare-NAME arm so each
+      // construct gets its own true sentence; it stopped one notch short.
+      const anchorForm = bare === 'time' && args.length === 1
+      // ⭐⭐ PHASE 1 (2026-10-30) — PINE'S UNBOUNDED `ta.barssince(cond)` ON A PANE,
+      // EXACTLY, AND STILL NOT CAPPED. The refusal below exists because the house
+      // `barssince(cond, n)` SATURATES at a window, and "add a number" would buy a
+      // capped count under an uncapped name. Nothing here caps: the count since the
+      // most recent bar where `cond` held is the bar counter's difference,
+      //     barindex − valuewhenOccurrence(cond, barindex, 0)
+      // — `valuewhenOccurrence` is unbounded (C45), so a condition true 3,000 bars
+      // ago reads 3,000, and one never true in the loaded bars reads `na`. The
+      // counter's origin cancels in the difference (`barIndexShift.js` reads it as
+      // shift-invariant). A screen keeps the refusal. Namespaced only: the bare
+      // `barssince` is this table's own.
+      // ⛔⛔ NOT OVER A RECURRENCE. A condition that reads `accum` is `na` on the bars
+      // the RANGE window cannot yet decide, `valuewhenOccurrence` forgets every
+      // occurrence at an `na` condition, and the count it then reports is not the
+      // listing run's — and a comparison turns that `na` into a confident `false`.
+      // MEASURED: `atr-trailing-stop-by-ceyhun`'s `barssince(Green) < barssince(Red)`
+      // published 0 at AGEN bar 420 where the listing run reads 1
+      // (`ratchetServedScripts.test.js`). Such a condition keeps the refusal.
+      if (bare === 'barssince' && this.strict && pineName !== base
+          && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
+        const cond = this.condition(this.resolve(args[0].value !== undefined ? args[0].value : args[0]),
+          'arg:condition', tok)
+        if (!treeCallsAny(cond, RECURRENCE_CALLS)) {
+          const counter = () => cSeries('barindex')
+          return cOp('-', [counter(), cCall('valuewhenOccurrence', [cond, counter(), cNum(0)])])
+        }
+      }
+      // ⭐⭐ (2026-09-28) THE SESSION FORM IS SERVED ON THE CHART PANE, as the
+      // vendor was measured answering it — `sessionClockOf` carries the readings
+      // and refuses, by name, every form they do not cover. ⛔ HOST LANE ONLY: a
+      // screen evaluates stored daily bars whose `t` is a DATE (`YYYYMMDD`), so the
+      // clock columns are blank there and every bar would read "outside" — a
+      // confident wrong answer, where the sentence below is an honest refusal.
+      if (bare === 'time' && args.length >= 2 && this.strict) {
+        return this.sessionClockOf(args, tok)
+      }
+      // ⭐⭐⭐ (2026-09-20) THE "node this engine does not have" ABOVE IS NOW
+      // ONLY TRUE FOR NON-"D" PERIODS. `dayopentime` (`indicators.js`/
+      // `indicator_compute.py::CLOCK_TIME_DERIVED`) is exactly that node for
+      // the daily case: the opening timestamp of the ET calendar day each bar
+      // falls in, broadcast to every bar of that day. `timeframeLiteralOf`
+      // resolves the argument the SAME way `request.security`'s own
+      // timeframe argument already does (a literal, a bound variable, a
+      // constant-foldable ternary, or an `input.timeframe`/`input.string`/
+      // `input` fold — recorded in `usedInputs` on the fold, same as every
+      // other site). ⛔ ONLY "D"/"1D" REDIRECTS — W/M/intraday resampling is
+      // a separate, harder capability (real weekly/monthly bucket rules, or
+      // session-open-vs-midnight bucket alignment for intraday codes — see
+      // the memory's own scoping note) nothing in the real corpus asks for
+      // today, so it stays refused rather than silently guessed at.
+      if (anchorForm) {
+        const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
+        // ⭐⭐ C36 — the chart's OWN timeframe, asked FIRST for the reason
+        // `ownTimeframeOf` states (a rebound `period` is not the chart's).
+        if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
+        const rawTf = this.timeframeLiteralOf(argNode)
+        // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
+        const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
+        // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
+        // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
+        // the same code and no capture row spells it.
+        if (rawTf !== null && String(rawTf).trim() === '60') return this.chartOwnTimeOf('"60"', pineName, tok)
+        if (tfCode === 'D') {
+          // ⛔⛔ MILLISECONDS, BECAUSE PINE'S CLOCK IS — AND THE MERGE OF 2026-09-23
+          // CREATED THIS MISMATCH OUT OF TWO CORRECT HALVES.
+          //
+          // `dayopentime` is SECONDS; the manifest says so in its own words: *"this
+          // platform's unit everywhere a bar carries one, and not Pine's
+          // milliseconds"*. The other lineage reconciled the BARE `time` NAME to ms
+          // via `PINE_CLOCK_TRANSFORM`. Each was right alone. Together, one script's
+          // `time` was milliseconds and its `time("D")` was seconds — a 1000×
+          // disagreement between two spellings of ONE clock.
+          //
+          // ⚰️ AND THE IDIOM THAT WOULD HAVE CAUGHT IT IS THE ONE THAT STILL WORKED:
+          // `time("D") != time("D")[1]` compares like with like and is unaffected.
+          // What broke is `time > time("D")` — the anchor comparison the refusal
+          // just below this line describes in those very words.
+          //
+          // ⭐ GATED ON `pineVersion` LIKE ITS SIBLING, not on a fresh condition:
+          // `clockTransformFor` applies the bare name's ×1000 only for a script that
+          // declares a `//@version`, so anchoring to the same test is what keeps the
+          // two spellings in step for a versionless script too.
+          // ⭐⭐ U-BUILTIN T-D (2026-11-19) — AND THE ANCHOR IS THE SESSION'S 09:30 OPEN, NOT MIDNIGHT.
+          // ⚰️ This was `dayopentime` (midnight New York), served on every chart: capture
+          // `vw-bt-time-1440-spy-{1d,60}-2026-11-16` R6 reads TradingView's `time("D")` as the 09:30
+          // open on every daily and regular-hours hourly bar, and the midnight anchor was 34,200 s early
+          // on every one of them. `interpret.js::dayAnchorNode` is the tree; the chart-clock mask withholds
+          // it by name on a chart whose bars leave the regular session (`time-day:off-session`).
+          return dayAnchorNode(this.pineVersion !== null)
+        }
+        const anchorPeriod = rawTf === null ? null : timeAnchorPeriodOf(rawTf)
+        if (anchorPeriod !== null) return this.periodAnchorOf(anchorPeriod, pineName, tok)
+      }
+      throw new PineRefusal('pine:function',
+        anchorForm
+          ? timeAnchorSentence(pineName)
+          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[inexKey]}`, locate(tok))
+    }
+    return NOT_ANSWERED
+  }
+
+  /** ⭐ (e100) `resolveTableCall`'s argument loop, in its own frame: it resolves every argument of every table call, so the frame that stays live across those reads holds only what the loop needs. */
+  resolveTableArgs(key, plan, declaredArgs, pineName, tok, args) {
     const out = []
     for (let i = 0; i < plan.length; i += 1) {
       const slot = plan[i]
@@ -29883,7 +30194,7 @@ export function translatePine(source, opts = {}) {
   PERIOD_READ_SINK = periodSink
   let t
   let libraryLink = null
-  LAST_WINDOW = { trip: null, steps: 0 }
+  LAST_WINDOW = { trip: null, steps: 0, stackTrips: 0 }
   try {
     t = translatePineResult(source, opts)
   } finally {
