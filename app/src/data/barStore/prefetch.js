@@ -964,13 +964,18 @@ export function createPrefetch(o = {}) {
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
    *  handoff asks it after its own peek, which already did. */
-  /** SYNCHRONOUS, NO HYDRATE: does the store's memory hold SEALED bars for the key the chart `sym` / `tf` shows? A
-   *  developing bar alone is not a chart, and an unseen key is not hydrated here (the board asks during its render,
-   *  where a store write would reach subscribers mid-render): the board's warm admission (STORE_HOLDS_KEY). */
+  /** SYNCHRONOUS, NO HYDRATE: is the chart `sym` / `tf` WARM for the board's warm admission (STORE_HOLDS_KEY), i.e. is
+   *  nothing left for its mount to fetch but freshness? Sealed bars in memory, the chart's own window ANSWERED by the
+   *  server in this life (never the universe pack's shallow rows or a saved copy alone: review G4, a daily board of
+   *  those would run its deep loads outside the limit), and no deep (D/W/M) or lake (intraday) load still due. An
+   *  unseen key is not hydrated here (the board asks during its render, where a store write would reach subscribers
+   *  mid-render): it is simply not warm. */
   function peekSealedBars(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const s = key ? S().peek(key) : null
-    return !!s && s.bars.length > 0
+    if (!s || !(s.bars.length > 0)) return false
+    if (!(s.restSeen && S().network?.answered?.(key))) return false
+    return !S().deepPending?.(key) && !S().lakePending?.(key)
   }
 
   function heldRows(sym, tf, { showExtended, answered = false } = {}) {
