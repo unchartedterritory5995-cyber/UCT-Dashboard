@@ -29,13 +29,13 @@ import { workPulse } from '../workPulse.js'
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
-import { TAG, tStrict as tStrict$, tAdd as tAdd$, tSub as tSub$, tCmp as tCmp$, tVal as tVal$, tRange as tRange$, branchTableOf as branchTableOf$, taintBranch as taintBranch$ } from './taintTags.js'
+import { TAG, tStrict as tStrict$, tAdd as tAdd$, tSub as tSub$, tCmp as tCmp$, tVal as tVal$, tRange as tRange$, branchTableOf as branchTableOf$, taintBranch as taintBranch$, builtinRuleOf as builtinRuleOf$, ruleCodeOf as ruleCodeOf$, tWindow as tWindow$, tCarried as tCarried$, tCarried2 as tCarried2$ } from './taintTags.js'
 import { ADD as ADD$, AND as AND$, CLOCK_GETTER as CLOCK_GETTER$, CUMULATIVE_LIMITS as CUMULATIVE_LIMITS$, DISARMED_NO_OPS as DISARMED_NO_OPS$, DIV as DIV$, DisarmedBrokerRead as DisarmedBrokerRead$, EQ as EQ$, GE as GE$, GT as GT$, LE as LE$, LT as LT$, MUL as MUL$, NE as NE$, NEG as NEG$, NOT as NOT$, NO_OUTPUT as NO_OUTPUT$, OP_HALT as OP_HALT$, OR as OR$, PW as PW$, SUB as SUB$, VmError as VmError$, chargedSince as chargedSince$, countsOf as countsOf$, requestRegionScopeOf as requestRegionScopeOf$, runNow as runNow$, runRequest as runRequest$, _regionScopeOff } from './vm.js'
 
 export { TAG }
 
 export function executeTainted(program, ctx, limits, opts) {
-  const ADD = ADD$, AND = AND$, CLOCK_GETTER = CLOCK_GETTER$, CUMULATIVE_LIMITS = CUMULATIVE_LIMITS$, DISARMED_NO_OPS = DISARMED_NO_OPS$, DIV = DIV$, DisarmedBrokerRead = DisarmedBrokerRead$, EQ = EQ$, GE = GE$, GT = GT$, LE = LE$, LT = LT$, MUL = MUL$, NE = NE$, NEG = NEG$, NOT = NOT$, NO_OUTPUT = NO_OUTPUT$, OP_HALT = OP_HALT$, OR = OR$, PW = PW$, SUB = SUB$, VmError = VmError$, chargedSince = chargedSince$, countsOf = countsOf$, requestRegionScopeOf = requestRegionScopeOf$, runNow = runNow$, runRequest = runRequest$, tStrict = tStrict$, tAdd = tAdd$, tSub = tSub$, tCmp = tCmp$, tVal = tVal$, tRange = tRange$, branchTableOf = branchTableOf$, taintBranch = taintBranch$
+  const ADD = ADD$, AND = AND$, CLOCK_GETTER = CLOCK_GETTER$, CUMULATIVE_LIMITS = CUMULATIVE_LIMITS$, DISARMED_NO_OPS = DISARMED_NO_OPS$, DIV = DIV$, DisarmedBrokerRead = DisarmedBrokerRead$, EQ = EQ$, GE = GE$, GT = GT$, LE = LE$, LT = LT$, MUL = MUL$, NE = NE$, NEG = NEG$, NOT = NOT$, NO_OUTPUT = NO_OUTPUT$, OP_HALT = OP_HALT$, OR = OR$, PW = PW$, SUB = SUB$, VmError = VmError$, chargedSince = chargedSince$, countsOf = countsOf$, requestRegionScopeOf = requestRegionScopeOf$, runNow = runNow$, runRequest = runRequest$, tStrict = tStrict$, tAdd = tAdd$, tSub = tSub$, tCmp = tCmp$, tVal = tVal$, tRange = tRange$, branchTableOf = branchTableOf$, taintBranch = taintBranch$, builtinRuleOf = builtinRuleOf$, ruleCodeOf = ruleCodeOf$, tWindow = tWindow$, tCarried = tCarried$, tCarried2 = tCarried2$
   // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
   if (opts && (opts.resume || opts.probe || opts.realtime || Number.isInteger(opts.checkpointAt) || opts.entry !== undefined)) {
     throw new VmError('runtime:taint — a taint run is a whole top-level run (no resume, probe, checkpoint, realtime or request entry)')
@@ -346,6 +346,21 @@ export function executeTainted(program, ctx, limits, opts) {
     }
     for (let i = 0; i < columns.length; i += 1) { const t = TG.columnTags[i]; colTag[i] = t === 0 || t === 1 ? t : 2 }
   }
+  // ⭐ PART 3 — the first bar each column is clean from (`taintTags.js::columnTaintOf`); unnamed: from its first bar
+  const colFrom = new Float64Array(columns.length)
+  if (TG.columnFrom !== undefined) {
+    if (!TG.columnFrom || TG.columnFrom.length !== columns.length) {
+      throw new VmError(`runtime:taint — ${columns.length} columns and ${TG.columnFrom ? TG.columnFrom.length : 0} column clean-from bars`)
+    }
+    for (let i = 0; i < columns.length; i += 1) { const f = Number(TG.columnFrom[i]); colFrom[i] = f >= 0 ? f : Infinity }
+  }
+  // ⭐ PART 3 — each built-in instance's clean count and its rule, from `taintTags.js`'s ONE table (read once per run)
+  const winPol = winPlan.map((w) => { const r = builtinRuleOf(w.fn); return r && r.kind === 'window' ? r.policy : null })
+  const carRule = Uint8Array.from(carPlan, (c) => ruleCodeOf(c.fn))
+  const car2Rule = Uint8Array.from(car2Plan, (c) => ruleCodeOf(c.fn))
+  const wc = new Int32Array(winPlan.length)
+  const cc = new Int32Array(carPlan.length)
+  const cc2 = new Int32Array(car2Plan.length)
   const tTab = branchTableOf(program)
   const brJoin = tTab.brJoin
   const brW = tTab.brW
@@ -371,7 +386,7 @@ export function executeTainted(program, ctx, limits, opts) {
   let rJT = -3
   // ⭐ PERF: the implicit-flow work lives in `taintTags.js::taintBranch` and is handed this state, so no closure here
   // captures a tag array or `rTop`: the loop keeps them in registers, not context slots loaded per instruction
-  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, wc, cc, cc2, th, histOffset, histPlan }
   for (let bar = startBar; bar < runBars; bar += 1) {
     let extraRun = false
     if (broker) {
@@ -428,13 +443,13 @@ export function executeTainted(program, ctx, limits, opts) {
         case 4 /* OP.READ_SERIES_HIST */: ts[sp] = bar - b >= 0 ? 0 : 2;
           stack[sp++] = bar - b >= 0 ? series[a][bar - b] : NaN
           break
-        case 2 /* OP.READ_COLUMN */: ts[sp] = colTag[a]; stack[sp++] = columns[a][bar]; break
-        case 3 /* OP.READ_HIST */: ts[sp] = bar - b >= 0 ? colTag[a] : 2; {
+        case 2 /* OP.READ_COLUMN */: ts[sp] = bar >= colFrom[a] ? colTag[a] : 2; stack[sp++] = columns[a][bar]; break
+        case 3 /* OP.READ_HIST */: ts[sp] = bar - b >= colFrom[a] ? colTag[a] : 2; {
           const idx = bar - b
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
-        case 56 /* OP.READ_HIST_DYN */: { const _r = stack[sp - 1]; const _n = Number.isNaN(_r) ? 0 : _r; ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= 0 ? colTag[a] : 2 } {
+        case 56 /* OP.READ_HIST_DYN */: { const _r = stack[sp - 1]; const _n = Number.isNaN(_r) ? 0 : _r; ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= colFrom[a] ? colTag[a] : 2 } {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
           if (b < 0 && (!Number.isInteger(n) || n < 0)) {
@@ -542,12 +557,12 @@ export function executeTainted(program, ctx, limits, opts) {
           initialised[persistBase + a] = 1
           break
         case 60 /* OP.JUMP */: pc = a; break
-        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } {
+        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } {
           const t = stack[--sp]
           if (t !== t || t === 0) pc = a
           break
         }
-        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } if (initialised[persistBase + a]) pc = b; break
+        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } if (initialised[persistBase + a]) pc = b; break
         case 70 /* OP.CALL */: { const _f = program.functions[a]; const _nb = localsTop; for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; tl.fill(0, _nb + _f.params, _nb + _f.frameSize) } {
           const fn = program.functions[a]
           const site = program.callSites[b]
@@ -706,7 +721,7 @@ export function executeTainted(program, ctx, limits, opts) {
           sp -= 2
           recFieldSet(stack[sp], program.fieldNames[a], stack[sp + 1])
           break
-        case 73 /* OP.WINDOW */: ts[sp - (winPlan[windowBase + a].dynamic === true ? 2 : 1)] = 2; {
+        case 73 /* OP.WINDOW */: { const _wi = windowBase + a; const _dy = winPlan[_wi].dynamic === true; const _at = _dy ? sp - 2 : sp - 1; ts[_at] = tWindow(TS, _wi, winPol[_wi], ts[_at], stack[_at], _dy ? stack[sp - 1] : winPlan[_wi].span, _dy ? ts[sp - 1] : 0, rTop, committed, historyBase + winPlan[_wi].historySlot) } {
           const wi = windowBase + a
           const w = winPlan[wi]
           let span = w.span
@@ -790,14 +805,14 @@ export function executeTainted(program, ctx, limits, opts) {
           stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }
-                case 74 /* OP.CARRIED */: ts[sp - 1] = 2; {
+                case 74 /* OP.CARRIED */: ts[sp - 1] = tCarried(TS, carriedBase + a, carRule[carriedBase + a], ts[sp - 1], stack[sp - 1], rTop); {
           const ci = carriedBase + a
           const v = stack[--sp]
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci], carPlan[ci].m)
           break
         }
-                case 90 /* OP.CARRIED2 */: ts[sp - (car2Spec[carried2Base + a].inputs === 3 ? 3 : 2)] = 2; {
+                case 90 /* OP.CARRIED2 */: { const _c = carried2Base + a; const _k = car2Spec[_c].inputs === 3 ? 3 : 2; const _at = sp - _k; ts[_at] = tCarried2(TS, _c, car2Rule[_c], ts[_at], stack[_at], ts[_at + 1], _k === 3 ? ts[_at + 2] : 0, car2Plan[_c].n, rTop) } {
           const c2 = carried2Base + a
           const v2third = car2Spec[c2].inputs === 3 ? stack[--sp] : NaN
           const v2src = stack[--sp]

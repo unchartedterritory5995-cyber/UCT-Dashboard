@@ -41,14 +41,15 @@ export const TAG_RULES = Object.freeze({
   READ_SERIES: 'ts[sp] = 0;',
   READ_CLOCK: 'ts[sp] = 0;',
   SESSION: 'ts[sp] = 0;',
-  READ_COLUMN: 'ts[sp] = colTag[a];',
+  // a column is clean from its own first clean bar (`taintTags.js::columnTaintOf`, part 3); before it, T
+  READ_COLUMN: 'ts[sp] = bar >= colFrom[a] ? colTag[a] : 2;',
   // ── source 2: a history read before the run's first bar is T (another start holds that bar) ──
   READ_SERIES_HIST: 'ts[sp] = bar - b >= 0 ? 0 : 2;',
-  READ_HIST: 'ts[sp] = bar - b >= 0 ? colTag[a] : 2;',
+  READ_HIST: 'ts[sp] = bar - b >= colFrom[a] ? colTag[a] : 2;',
   // a dynamic offset: an O or T offset is T (`close[bar_index]` reaches the run's first bar); a C offset reads as
   // the value code does (`na` offset = this bar; a negative or fractional one is a deterministic `na`)
   READ_HIST_DYN: '{ const _r = stack[sp - 1]; const _n = Number.isNaN(_r) ? 0 : _r; '
-    + 'ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= 0 ? colTag[a] : 2 }',
+    + 'ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= colFrom[a] ? colTag[a] : 2 }',
   READ_SERIES_HIST_DYN: '{ const _r = stack[sp - 1]; const _n = Number.isNaN(_r) ? 0 : _r; '
     + 'ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= 0 ? 0 : 2 }',
   READ_HIST_SLOT: 'ts[sp] = b > committed ? 2 : th[histOffset[historyBase + a] + ((committed - b) % histPlan[historyBase + a].depth)];',
@@ -84,9 +85,9 @@ export const TAG_RULES = Object.freeze({
   LOAD_GLOBAL_PERSIST: 'ts[sp] = tp[a];',
   // ── control: a T condition taints the branch's whole write set and opens a region until its join ──
   JUMP: '',
-  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
+  JUMP_IF_FALSE: 'if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   // source 1: whether a `var` initialiser runs here is start-dependent (another start ran it on ITS first bar)
-  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
+  JUMP_IF_INIT: 'if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, windowBase, carriedBase, carried2Base, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }',
   CALL: '{ const _f = program.functions[a]; const _nb = localsTop; '
     + 'for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; '
     + 'tl.fill(0, _nb + _f.params, _nb + _f.frameSize) }',
@@ -99,17 +100,21 @@ export const TAG_RULES = Object.freeze({
     + 'ts[sp - b] = _g }',
   COLOUR: 'ts[sp - b] = tRange(ts, sp - b, sp);',
   TEXT: 'ts[sp - b] = tRange(ts, sp - b, sp);',
-  // ── fail closed until their own parts: drawings (4), the broker (5), collections and records (4), built-in state
-  // (3), requests (5) answer T ──
+  // ── fail closed until their own parts: drawings (4), the broker (5), collections and records (4), requests (5)
+  // answer T ──
   OBJECT: 'if (objectOps[a].returns !== \'void\') ts[sp - b] = 2;',
   BROKER: 'if (brokerOps[a].returns !== \'void\') ts[sp - b] = 2;',
   ARRAY: 'if (ARRAY_FNS[program.arrayOps[a].fn].returns !== \'void\') ts[sp - b] = 2;',
   RECORD: 'ts[sp - b] = 2;',
   FIELD_GET: 'ts[sp - 1] = 2;',
   FIELD_SET: '',
-  WINDOW: 'ts[sp - (winPlan[windowBase + a].dynamic === true ? 2 : 1)] = 2;',
-  CARRIED: 'ts[sp - 1] = 2;',
-  CARRIED2: 'ts[sp - (car2Spec[carried2Base + a].inputs === 3 ? 3 : 2)] = 2;',
+  // ── built-in state (part 3): each instance's clean count, by its rule in `taintTags.js`'s ONE table ──
+  WINDOW: '{ const _wi = windowBase + a; const _dy = winPlan[_wi].dynamic === true; const _at = _dy ? sp - 2 : sp - 1; '
+    + 'ts[_at] = tWindow(TS, _wi, winPol[_wi], ts[_at], stack[_at], _dy ? stack[sp - 1] : winPlan[_wi].span, _dy ? ts[sp - 1] : 0, '
+    + 'rTop, committed, historyBase + winPlan[_wi].historySlot) }',
+  CARRIED: 'ts[sp - 1] = tCarried(TS, carriedBase + a, carRule[carriedBase + a], ts[sp - 1], stack[sp - 1], rTop);',
+  CARRIED2: '{ const _c = carried2Base + a; const _k = car2Spec[_c].inputs === 3 ? 3 : 2; const _at = sp - _k; '
+    + 'ts[_at] = tCarried2(TS, _c, car2Rule[_c], ts[_at], stack[_at], ts[_at + 1], _k === 3 ? ts[_at + 2] : 0, car2Plan[_c].n, rTop) }',
   REQUEST: 'for (let _k = 0; _k < b; _k += 1) ts[sp - 1 + _k] = 2;',
   // ── outputs: an O plotted is T (ruling 2); an emit under a tainted branch taints that bar ──
   EMIT: 'outT[a][bar] = rTop > 0 ? 2 : tVal(ts[sp - 1]);',
@@ -133,6 +138,21 @@ const SETUP = `  // ─── START-TAINT (generated, \`app/scripts/gen-vm-taint
     }
     for (let i = 0; i < columns.length; i += 1) { const t = TG.columnTags[i]; colTag[i] = t === 0 || t === 1 ? t : 2 }
   }
+  // ⭐ PART 3 — the first bar each column is clean from (\`taintTags.js::columnTaintOf\`); unnamed: from its first bar
+  const colFrom = new Float64Array(columns.length)
+  if (TG.columnFrom !== undefined) {
+    if (!TG.columnFrom || TG.columnFrom.length !== columns.length) {
+      throw new VmError(\`runtime:taint — \${columns.length} columns and \${TG.columnFrom ? TG.columnFrom.length : 0} column clean-from bars\`)
+    }
+    for (let i = 0; i < columns.length; i += 1) { const f = Number(TG.columnFrom[i]); colFrom[i] = f >= 0 ? f : Infinity }
+  }
+  // ⭐ PART 3 — each built-in instance's clean count and its rule, from \`taintTags.js\`'s ONE table (read once per run)
+  const winPol = winPlan.map((w) => { const r = builtinRuleOf(w.fn); return r && r.kind === 'window' ? r.policy : null })
+  const carRule = Uint8Array.from(carPlan, (c) => ruleCodeOf(c.fn))
+  const car2Rule = Uint8Array.from(car2Plan, (c) => ruleCodeOf(c.fn))
+  const wc = new Int32Array(winPlan.length)
+  const cc = new Int32Array(carPlan.length)
+  const cc2 = new Int32Array(car2Plan.length)
   const tTab = branchTableOf(program)
   const brJoin = tTab.brJoin
   const brW = tTab.brW
@@ -158,7 +178,7 @@ const SETUP = `  // ─── START-TAINT (generated, \`app/scripts/gen-vm-taint
   let rJT = -3
   // ⭐ PERF: the implicit-flow work lives in \`taintTags.js::taintBranch\` and is handed this state, so no closure here
   // captures a tag array or \`rTop\`: the loop keeps them in registers, not context slots loaded per instruction
-  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, wc, cc, cc2, th, histOffset, histPlan }
 `
 
 const PROLOGUE = `  // ⛔ START-TAINT — the taint run is a top-level run from this chart's first bar, nothing resumed, probed or live
@@ -189,7 +209,8 @@ export const ANCHORS = Object.freeze([
 ])
 
 /** The tag algebra's functions the rules call (`taintTags.js`), bound to locals once per run (see `generateVmTaint`). */
-const TAINT_FNS = ['tStrict', 'tAdd', 'tSub', 'tCmp', 'tVal', 'tRange', 'branchTableOf', 'taintBranch']
+const TAINT_FNS = ['tStrict', 'tAdd', 'tSub', 'tCmp', 'tVal', 'tRange', 'branchTableOf', 'taintBranch', 'builtinRuleOf', 'ruleCodeOf',
+  'tWindow', 'tCarried', 'tCarried2']
 
 const SIGNATURE = 'export function execute(program, ctx, limits, opts) {\n'
 const CASE = /case (\d+) \/\* OP\.([A-Z0-9_]+) \*\/:/g
