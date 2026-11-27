@@ -269,7 +269,7 @@ import {
 } from './chart/uctIntelligence'
 import UctIntelligencePanel, { useChartSetups } from './chart/UctIntelligencePanel'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
-import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
+import { useInstalledUserDefinitions, startUserDefinitionsBootRequest } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
 import useHistoryUserId from './chart/useHistoryUserId'
 import IndicatorUndoToast from './chart/IndicatorUndoToast'
@@ -1915,6 +1915,10 @@ import {
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
   useLegacyCustomTfF, useLegacyDailyTickE, useLegacyRegistryWriterC,
 } from './chart/legacyLiveWriters'
+
+// ⭐ (e101 S5) the definitions list leaves as this chunk loads, not at the first render (`useUserDefinitions.js::
+// startUserDefinitionsBootRequest`, `lib/bootFetch.js`). Not under test: a suite asks for nothing it did not stub.
+if (import.meta.env.MODE !== 'test') startUserDefinitionsBootRequest()
 
 // ⭐ P3-S1: THE chart's bar source, chosen ONCE at module load (chart/barStoreSwitch.js) — a
 // module constant, so the hook order of every StockChart render is fixed. Off → the legacy
