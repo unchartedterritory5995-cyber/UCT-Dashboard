@@ -48,7 +48,7 @@ const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {}, unmount
 // The chart: shows its symbol, and like StockChart REPORTS each committed pass to its layer (chart/layerPaint.js) with the
 // bars the store gives its key at that commit, and publishes a date-nav API (a frame at the right edge, default zoom)
 vi.mock('../../../components/StockChart', async () => {
-  const { useContext, useLayoutEffect, useEffect } = await import('react')
+  const { useContext, useLayoutEffect, useEffect, useRef } = await import('react')
   const { LayerPaintContext } = await import('../../../components/chart/layerPaint')
   return {
     default: (props) => {
@@ -56,12 +56,14 @@ vi.mock('../../../components/StockChart', async () => {
       renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
       ;(renders.props[sym] = renders.props[sym] || []).push(props)
       const report = useContext(LayerPaintContext)
+      const latest = useRef(props)
+      latest.current = props
       useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym], cutoff: replayCutoff || null, anchor: anchorWidth ? `${anchorDate}|${anchorWidth}` : null }) })
       useLayoutEffect(() => { renders.mounts += 1; return () => { renders.unmounts += 1 } }, [])
       useEffect(() => {
         if (typeof onDateNavApi !== 'function') return undefined
         const m = { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } }
-        onDateNavApi({ getDateMeta: () => (typeof renders.meta === 'function' ? renders.meta(props) : renders.meta) || m, restoreView: () => {}, stepBar: () => {}, goToDate: () => {}, goToYear: () => {} })
+        onDateNavApi({ getDateMeta: () => (typeof renders.meta === 'function' ? renders.meta(latest.current) : renders.meta) || m, restoreView: () => {}, stepBar: () => {}, goToDate: () => {}, goToYear: () => {} })
         return () => onDateNavApi(null)
       }, [onDateNavApi])
       return <span data-testid="chart-sym">{sym}</span>
