@@ -24,15 +24,24 @@ const defaultRaf = (f) => (typeof requestAnimationFrame === 'function' ? request
 export function createBoardSwitchMark({ raf = defaultRaf, setTimer = (f, ms) => setTimeout(f, ms) } = {}) {
   let seq = 0
   let pending = null   // { seq, grid } of a marked switch whose board has not committed yet
+  let markedGrid = null   // the grid carrying the newest mark, until it comes off
   const clearAfterFrames = (p) => {
     // two frames: the first may run before this commit's own frame computes its styles; a newer switch keeps the mark
-    raf(() => raf(() => { if (p.seq === seq) p.grid.classList.remove(SWITCH_MARK_CLASS) }))
+    raf(() => raf(() => {
+      if (p.seq !== seq) return
+      p.grid.classList.remove(SWITCH_MARK_CLASS)
+      if (markedGrid === p.grid) markedGrid = null
+    }))
   }
   return {
     mark(grid) {
       if (!grid) return
+      // (review of #2923, F2-a) a mark on ANOTHER grid (the keep-alive's layer mode: each board has its own) takes the
+      // older grid's mark off now: the older switch's frames are skipped once a newer one marks, so it would stay on
+      if (markedGrid && markedGrid !== grid) markedGrid.classList.remove(SWITCH_MARK_CLASS)
       const s = ++seq
       grid.classList.add(SWITCH_MARK_CLASS)
+      markedGrid = grid
       pending = { seq: s, grid }
       setTimer(() => {
         if (!pending || pending.seq !== s) return   // committed, or a newer switch is waiting on its own commit
