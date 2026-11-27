@@ -238,19 +238,13 @@ def test_half_day_cli_is_unknown_when_the_calendar_is_broken(tmp_path):
 
 
 
-# -- ONE DEFINITION with the merge queue's freeze (review of #2850, delta 2, X1) ------------------------------------
-# The Agent CI follower holds an App token, so it never executes this tool: it derives the same rushes itself, from the
-# dataset (tools/agent_ci_required.py freeze_windows_on). This mirror of the rail in tests/test_agent_ci_required.py
-# lives HERE so a change to deploy_freeze.py or session_calendar.py alone still has to agree with it.
+# -- the merge queue has no freeze to agree with any more (owner ruling 2026-11-27) -----------------------------------
+# Until then tools/agent_ci_required.py derived the same rushes itself and a rail here required the two to agree every
+# covered day. The merge queue's freeze is removed, so the rail now pins that nothing there consults a clock window.
 
-def test_the_merge_queue_freeze_agrees_with_this_tool_every_covered_day(df):
-    spec = importlib.util.spec_from_file_location("_acr_for_freeze_mirror", ROOT / "tools" / "agent_ci_required.py")
+def test_the_merge_queue_consults_no_market_windows():
+    spec = importlib.util.spec_from_file_location("_acr_no_freeze_mirror", ROOT / "tools" / "agent_ci_required.py")
     acr = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(acr)
-    day, bad = dt.date(2026, 1, 1), []
-    while day <= dt.date(2028, 12, 31):
-        ours = tuple((a, b) for n, a, b in df.day_hold_windows(day) if n in acr.FREEZE_RUSHES)
-        if ours != acr.freeze_windows_on(day):
-            bad.append(day)
-        day += dt.timedelta(days=1)
-    assert bad == [], bad[:10]
+    for gone in ("freeze_window", "freeze_windows_on", "freeze_day", "FREEZE_RUSHES", "FREEZE_FLOOR"):
+        assert not hasattr(acr, gone), gone

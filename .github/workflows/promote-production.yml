@@ -58,9 +58,12 @@ on:
   # session hold, no half-day rule, no in-job wait. The Wednesday and half-day catch-up crons that resumed held SHAs
   # are gone with the hold. Rails: tests/test_no_deploy_freeze.py.
   #
-  # ⭐ THE BACKUP RESUME CRONS. The weekday runs below are kept for the one thing that can still leave a SHA PENDING:
-  # a gating poll that timed out (checks still running). They resume THAT SHA (tools/promote_decision.py resolve);
-  # with nothing pending they end "nothing is pending" and promote nothing.
+  # ⭐ NO SCHEDULE HERE. The one thing that can still leave a SHA PENDING is a gating poll that timed out (checks still
+  # running). The HOURLY backup lives in .github/workflows/promote-resume-hourly.yml: it reads the pending record and,
+  # only when a SHA is pending AND no promotion run is active or queued, dispatches this workflow with resume=yes. A
+  # cron HERE would join the one `promote-production` concurrency group every hour, and a newly queued run CANCELS
+  # any run already PENDING in the group (GitHub keeps one pending run per group): it could drop a gated SHA's
+  # workflow_run promotion queued behind an in-progress one.
   # ⭐ A PR that changes the promotion machinery runs ONLY the `dryrun` job below (contents: read; no push, no state
   # write, no dispatch): tools/promote_dryrun.py on simulated clocks the old freeze held (each must PROMOTE, with no
   # wait), plus the decision and no-hold tests. The promote and resume jobs are excluded from pull_request by their job-level `if:`.
@@ -74,11 +77,7 @@ on:
       - tools/deploy_freeze.py
       - tests/test_promote_decision.py
       - tests/test_no_deploy_freeze.py
-  schedule:
-    - cron: '50 13 * * 1-5'
-    - cron: '50 14 * * 1-5'
-    - cron: '20 20 * * 1-5'
-    - cron: '20 21 * * 1-5'
+      - .github/workflows/promote-resume-hourly.yml
 
 # ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
 #
@@ -113,11 +112,9 @@ jobs:
     # ⛔ NEVER on pull_request: a PR runs only the `dryrun` job.
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'cancelled')
     runs-on: ubuntu-latest
-    # ⭐ 200 min: generous headroom over the gating poll (~20 min) + checkout and bookkeeping. (It once covered a
-    # bounded freeze wait; since the owner ruling of 2026-11-27 no wait is ever planned, tools/deploy_freeze.py.) Well under
-    # GitHub's 6 h job cap. On a public repository standard GitHub-hosted runners bill 0 minutes
-    # (docs/agent/program/PROMOTE-CATCHUP-DESIGN.md, "Billing").
-    timeout-minutes: 200
+    # ⭐ 45 min: the gating poll (at most 40 x 30 s = 20 min) + checkout and bookkeeping, with headroom. (It was 200 while
+    # it had to cover a bounded freeze wait; since the owner ruling of 2026-11-27 no wait is ever planned.)
+    timeout-minutes: 45
     outputs:
       action: ${{ steps.dec.outputs.action }}
       candidate: ${{ steps.cand.outputs.sha }}
@@ -273,7 +270,7 @@ jobs:
         run: bash tools/promote_facts.sh "$SHA" "$RUNNER_TEMP/pending.json" > "$RUNNER_TEMP/facts0.json" && cat "$RUNNER_TEMP/facts0.json"
 
       # ⭐ HOLD FIRST, THEN WAIT. The SHA is recorded PENDING before the sleep, so a killed run leaves the
-      # record and the bounded re-dispatch (job `resume` below) or the backup crons resume THAT SHA.
+      # record and the bounded re-dispatch (job `resume` below) or the hourly backup resume THAT SHA.
       - name: Record the SHA as PENDING (before waiting)
         if: steps.freeze0.outputs.frozen0 == 'yes'
         # the record is the safety net for an interrupted wait; failing to write it must not stop the wait itself
@@ -297,18 +294,18 @@ jobs:
           echo "hold decision: $D"
           bash tools/promote_state.sh write-pending "$D" "$BLOB"
 
-      # ⛔ BOUNDED TWICE: the tool never plans more than MAX_WAIT_MIN, and this step dies at 130 minutes.
-      # A dry run does not sleep; it advances its simulated clock by the planned wait instead.
+      # ⛔⛔ NEVER RUNS (owner ruling 2026-11-27: no time hold, ever): `frozen0` is always "no". If it ever did run it
+      # REFUSES any wait at all (the guard below) and dies at 5 minutes. Kept so the job's shape stays unchanged.
       - name: Wait in-job for the freeze to close (bounded)
         id: wait
         if: steps.freeze0.outputs.frozen0 == 'yes' && steps.freeze0.outputs.wait_s != '0'
-        timeout-minutes: 130
+        timeout-minutes: 5
         env:
           WAIT_S: ${{ steps.freeze0.outputs.wait_s }}
           SIM_NOW: ${{ inputs.dry_run == 'yes' && inputs.now || '' }}
         run: |
           set -euo pipefail
-          if [ "$WAIT_S" -gt 7620 ]; then echo "::error::refusing a wait of ${WAIT_S}s (bound 7620s)"; exit 1; fi
+          if [ "$WAIT_S" -gt 0 ]; then echo "::error::refusing a wait of ${WAIT_S}s: the promotion never waits for a time window (owner ruling 2026-11-27)"; exit 1; fi
           if [ "$DRY_RUN" = "yes" ]; then
             NEW=$(python -c 'import datetime as d,sys; t=d.datetime.fromisoformat((sys.argv[1] or d.datetime.now(d.timezone.utc).isoformat()).replace("Z","+00:00")); print((t+d.timedelta(seconds=int(sys.argv[2]))).isoformat())' "$SIM_NOW" "$WAIT_S")
             echo "DRY RUN: would sleep ${WAIT_S}s; simulated clock -> $NEW"
@@ -655,7 +652,7 @@ jobs:
           R=$(python3 tools/promote_decision.py redispatch --pending pending.json)
           echo "$R" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$(printf '%s' "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["dispatch"])')" != "True" ]; then
-            echo "::warning title=Promotion still pending::$(printf '%s' "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["reason"])') — the backup crons or the next green gate resume it."
+            echo "::warning title=Promotion still pending::$(printf '%s' "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["reason"])') — the hourly backup (promote-resume-hourly.yml) or the next green gate resume it."
             exit 0
           fi
           BLOB=$(gh api "/repos/$GITHUB_REPOSITORY/contents/pending-promotion.json?ref=deploy-gate-state" --jq .sha)

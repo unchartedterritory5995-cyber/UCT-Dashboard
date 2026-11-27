@@ -139,3 +139,71 @@ def test_the_workflow_keeps_the_gate():
     assert "python tools/promotion_gate.py --runs runs.json --workflows wf.json" in wf
     assert "promote_decision.py gate" in wf and "promote_decision.py decide" in wf
     assert "The triggering gate must have succeeded" in wf
+
+
+# -- the override mechanism is gone, and stays gone ---------------------------------------------------------------------
+#: The MECHANISM's identifiers, not the times: they can only exist if somebody rebuilt a way to pass a freeze override.
+#: Records (docs/) may still name what was removed; only the live surfaces are scanned.
+FORBIDDEN_OVERRIDE = ("freeze_override", "DEPLOY_FREEZE_OVERRIDE", "[freeze-override]", "OVERRIDE_TOKEN")
+SCAN_DIRS = ("tools", "scripts", ".github")
+
+
+def _live_files():
+    for d in SCAN_DIRS:
+        base = ROOT / d
+        if not base.is_dir():
+            continue
+        for f in base.rglob("*"):
+            if f.is_file() and f.suffix in (".py", ".sh", ".yml", ".yaml", ".json", ".md", ".txt", ".ps1", ".js", ".mjs"):
+                yield f
+
+
+def test_no_workflow_or_tool_passes_a_freeze_override():
+    hits = []
+    for f in _live_files():
+        text = f.read_text(encoding="utf-8", errors="replace")
+        hits += [f"{f.relative_to(ROOT).as_posix()}: {name}" for name in FORBIDDEN_OVERRIDE if name in text]
+    assert hits == [], hits
+
+
+def test_the_override_rail_can_fail(tmp_path):
+    """CONTROL: the scan sees a planted override in a workflow-shaped file (else the rail above proves nothing)."""
+    planted = "on:\n  workflow_dispatch:\n    inputs:\n      freeze_override:\n        required: false\n"
+    assert any(name in planted for name in FORBIDDEN_OVERRIDE)
+    wf_text = WF.read_text(encoding="utf-8")
+    assert "freeze_override" not in wf_text and "workflow_dispatch:" in wf_text   # the real file has the door, not the input
+
+
+# -- the promote job is short, and the hourly backup cannot cancel a pending promotion --------------------------------
+
+def test_the_promote_job_is_45_minutes_and_its_wait_step_refuses_any_wait():
+    import yaml
+    doc = yaml.safe_load(WF.read_text(encoding="utf-8"))
+    job = doc["jobs"]["promote"]
+    assert job["timeout-minutes"] == 45
+    wait = next(s for s in job["steps"] if s.get("id") == "wait")
+    assert wait["timeout-minutes"] == 5
+    assert '[ "$WAIT_S" -gt 0 ]' in wait["run"] and "exit 1" in wait["run"]
+
+
+def test_no_cron_in_promote_production_the_backup_is_hourly_and_queue_safe():
+    import yaml
+    doc = yaml.safe_load(WF.read_text(encoding="utf-8"))
+    on = doc.get("on", doc.get(True))
+    assert "schedule" not in on, "a cron here joins the promotion queue and can cancel a pending promotion"
+    hw = ROOT / ".github" / "workflows" / "promote-resume-hourly.yml"
+    text = hw.read_text(encoding="utf-8")
+    assert text.startswith("# promotion-gate: no")
+    h = yaml.safe_load(text)
+    hon = h.get("on", h.get(True))
+    assert [c["cron"] for c in hon["schedule"]] == ["17 * * * *"]                     # every hour, every day
+    assert h["permissions"] == {"contents": "read", "actions": "write"}
+    assert h["concurrency"]["group"] != "promote-production"                      # never the promotion queue itself
+    run = h["jobs"]["resume"]["steps"][-1]["run"]
+    # dispatch ONLY with a pending SHA and an idle promotion queue, and only as a resume (never a SHA, never the tip)
+    i_pending, i_idle, i_go = run.index("pending-promotion.json"), run.index('[ "$ACTIVE" != "0" ]'), run.index("gh workflow run")
+    assert i_pending < i_idle < i_go
+    assert "gh workflow run promote-production.yml -R \"$GITHUB_REPOSITORY\" --ref master -f resume=yes" in run
+    assert run.count("gh workflow run") == 1 and "-f sha=" not in run
+    assert "git push" not in run and "gh api --method" not in run
+

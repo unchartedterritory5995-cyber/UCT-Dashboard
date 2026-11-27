@@ -247,10 +247,12 @@ gate runs, reports, and no-ops.
   waited in-job; see docs/agent/program/PROMOTE-CATCHUP-DESIGN.md, now history for that part.)
 - **A SHA can still be PENDING** when its gating poll timed out (checks still running). The PENDING record
   (`deploy-gate-state/pending-promotion.json`) keeps that exact SHA; a capped self re-dispatch (≤ 2 per SHA), the
-  weekday backup crons or the next green gate resume it, and production moves to EXACTLY that SHA, never master's tip.
-- ⚠️ **Not this:** the Agent-CI merge queue (`tools/agent_ci_required.py`, SELF_PROTECTED, AUDIT-owned) still refuses
-  Agent-path ENTRIES into master inside the opening/closing rushes. That is merge-queue policy, separate from
-  promotion, and was not changed by the 2026-11-27 ruling.
+  HOURLY backup (`.github/workflows/promote-resume-hourly.yml`: dispatches one resume only when a SHA is pending and
+  no promotion run is active or queued) or the next green gate resume it, and production moves to EXACTLY that SHA,
+  never master's tip. The promote job's timeout is 45 min (the gating poll is at most 20).
+- **The merge queue has no time window either.** The Agent-CI follower (`tools/agent_ci_required.py`) used to refuse
+  Agent-path ENTRIES into master inside the opening/closing rushes; the same ruling removed that refusal. An entry is
+  judged on its evidence at any clock.
 - **Manual "Run workflow" (promote to production):**
   - `sha=<commit>` promotes that commit, through every check.
   - Blank promotes the PENDING SHA. If nothing is pending, it promotes master's tip ONLY when the tip's own master

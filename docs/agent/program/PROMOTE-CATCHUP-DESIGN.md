@@ -4,7 +4,8 @@
 > FROZEN at every instant, so nothing below about a freeze HOLDING a promotion, the in-job wait, or the Wednesday /
 > half-day catch-up crons happens any more. What still applies: the candidate is the exact gated SHA (never master's
 > tip), the PENDING record (now only for a gating poll that timed out), the capped re-dispatch, the manual door and
-> every fire-time check. Rails: `tests/test_no_deploy_freeze.py`.
+> every fire-time check. The backup resume is HOURLY, in `.github/workflows/promote-resume-hourly.yml` (no cron is left
+> in promote-production.yml). Rails: `tests/test_no_deploy_freeze.py`.
 
 Branch `agent/pl/promote-catchup`, off master 5fed0561f1. DRAFT for AUDIT. This touches deploy infrastructure, so it
 needs AUDIT GO **and the owner's own approval in the PR** before any merge.

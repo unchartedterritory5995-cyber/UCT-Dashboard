@@ -81,7 +81,7 @@ def main(argv=None) -> int:
     env = dict(os.environ, RUNNER_TEMP=str(runner), GITHUB_STEP_SUMMARY=str(summary), GITHUB_ENV=str(runner / "env"),
                GITHUB_REPOSITORY="dryrun/dryrun", DRY_RUN="yes", PYTHONIOENCODING="utf-8", GH_TOKEN="",
                PATH=str(shim) + os.pathsep + os.environ["PATH"])
-    ctx = {"inputs.dry_run": "yes", "inputs.now": a.now, "inputs.freeze_override": "", "inputs.sha": "", "inputs.resume": "",
+    ctx = {"inputs.dry_run": "yes", "inputs.now": a.now, "inputs.sha": "", "inputs.resume": "",
            "github.event_name": "workflow_run", "github.event.workflow_run.id": "dry-run",
            "github.event.workflow_run.head_sha": cand, "github.event.workflow_run.conclusion": "success",
            "github.token": "", "secrets.GITHUB_TOKEN": ""}

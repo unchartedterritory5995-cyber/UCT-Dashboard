@@ -18,11 +18,9 @@ WHAT IS LEFT, AND WHY IT IS NOT A HOLD.
     succeeded (tools/promotion_gate.py, tools/promote_decision.py). That is correctness, not a time window.
   * `day_hold_windows` / `burst_window` / `half_day_answer` still DESCRIBE the day's market rushes from the NYSE
     calendar (`api/services/session_calendar.py`, loaded by path). Nothing in the promotion reads them any more. They
-    stay because two other things are pinned to the same facts by rails: the app's heavy-job rush waits
-    (`api/services/market_rush.py`, tests/test_market_rush.py; not a deploy hold) and the Agent-CI merge queue's own
-    freeze (`tools/agent_ci_required.py`, SELF_PROTECTED, AUDIT-owned; tests/test_agent_ci_required.py). ⚠️ That merge
-    queue freeze still exists and is separate policy: it refuses Agent-path ENTRIES into master inside the rushes; it
-    does not hold production promotion.
+    stay because the app's heavy-job rush waits (`api/services/market_rush.py`, not a deploy hold) are pinned to the
+    same facts by tests/test_market_rush.py. The Agent-CI merge queue's own time-window freeze
+    (`tools/agent_ci_required.py`) was removed by the same ruling: the queue admits an entry at any clock.
   * The exit codes, `frozen=` output, `--wait-plan`, `--half-day` and `--self-check` keep their shapes so the workflow,
     tools/promote_dryrun.py and tools/live_check.py run unchanged. EXIT_FROZEN (3) is never returned.
 
@@ -42,8 +40,6 @@ import sys
 EXIT_OPEN = 0
 #: Never returned since the owner ruling of 2026-11-27; kept so old readers of the exit code still parse.
 EXIT_FROZEN = 3
-OVERRIDE_ENV = "DEPLOY_FREEZE_OVERRIDE"
-OVERRIDE_TOKEN = "[freeze-override]"
 #: Weekday rushes, ET wall clock, half-open [start, end). (name, start, end). A DESCRIPTION of the market, kept equal to
 #: api/services/market_rush.py and tools/agent_ci_required.py by rails; it holds NO promotion (owner ruling 2026-11-27).
 BURST_WINDOWS_ET = (("opening", (9, 20), (9, 45)), ("closing", (15, 30), (16, 15)))
@@ -220,8 +216,8 @@ def decide(now: _dt.datetime, *, override: str = "", message: str = "",
     deploying ever").
 
     Not the Wednesday measurement window, not the opening or closing rush, not the regular session, not a half-day:
-    nothing holds the promotion. The arguments are accepted and IGNORED (the workflow still passes `--message`, the
-    old override token is meaningless now); no window reader is called, so neither a broken nor an injected reader can
+    nothing holds the promotion. The arguments are accepted and IGNORED (the workflow still passes `--message`;
+    the old override input and commit token are removed, a rail forbids them); no window reader is called, so neither a broken nor an injected reader can
     turn this into FROZEN. The promotion GATE (tests must pass) is a different thing and lives in
     tools/promotion_gate.py and tools/promote_decision.py."""
     return EXIT_OPEN, NO_HOLD_REASON
@@ -325,8 +321,8 @@ def _self_check() -> int:
     case("winter (EST) Wed 10:00 ET is NOT FROZEN, no wait", no_hold(et_at(2026, 12, 2, 10, 0)))
     case("injected 'always inside' readers cannot bring a hold back",
          no_hold(et_at(2026, 10, 14, 10, 0), in_window_fn=lambda _n: True, burst_fn=lambda _n: "session"))
-    case("the old override inputs change nothing (still NOT FROZEN)",
-         decide(et_at(2026, 10, 14, 10, 0), override="x", message="[freeze-override]")[0] == EXIT_OPEN)
+    case("an override argument changes nothing (still NOT FROZEN)",
+         decide(et_at(2026, 10, 14, 10, 0), override="x", message="x")[0] == EXIT_OPEN)
     case("no minute of a regular day holds or waits", all(
         no_hold(_dt.datetime(2026, 10, 15, 0, 0, tzinfo=utc) + _dt.timedelta(minutes=m)) for m in range(0, 24 * 60, 5)))
     # The calendar DESCRIPTION (not a hold any more): the day's rushes, kept equal to the merge queue's freeze and the
@@ -374,16 +370,14 @@ def main(argv=None) -> int:
         print(f"half_day={half_day_answer(now)}")
         return 0
     if a.wait_plan:
-        s, why = wait_plan(now, max_wait_min=min(a.max_wait_min, MAX_WAIT_MIN),
-                           override=os.environ.get(OVERRIDE_ENV, ""), message=a.message or "")
+        s, why = wait_plan(now, max_wait_min=min(a.max_wait_min, MAX_WAIT_MIN), message=a.message or "")
         print(f"deploy-freeze wait-plan: {why}")
         out = os.environ.get("GITHUB_OUTPUT")
         if out:
             with open(out, "a", encoding="utf-8") as f:
                 f.write(f"wait_s={s}\n")
         return 0
-    code, reason = decide(now, override=os.environ.get(OVERRIDE_ENV, ""),
-                          message=a.message or "")
+    code, reason = decide(now, message=a.message or "")
     print(f"deploy-freeze: {reason}")
     _write_output(code == EXIT_FROZEN)
     return code

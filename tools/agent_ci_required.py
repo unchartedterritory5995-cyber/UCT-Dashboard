@@ -43,7 +43,7 @@ MASTER's copy of this file in two places:
            nothing the merge group's run says about itself: it recomputes the scope from the commit, and posts with a
            GitHub App's token. success ONLY for no-agent-paths, or for agent-paths when (a) no self-protected path
            differs between the commit and the master commit the group is built on (an entry AHEAD may have edited the
-           Agent CI machinery), (b) the clock is outside the day's deploy freeze windows, and (c) every required
+           Agent CI machinery), and (b) every required
            Agent job (master's agent-ci.yml) is success under the queue workflow's call in that run. self-protected is
            ALWAYS failure (AUDIT's local evidence decides), and so is anything unreadable. Never pending.
            Whatever goes wrong while deciding is POSTED as a failure; API calls are tried 3 times (transport / 5xx /
@@ -340,39 +340,12 @@ FOLLOW_MASTER_REF = "refs/agent-ci-verdict/master"
 FOLLOW_DEPTH = 50
 #: the environment variable that holds the GitHub App's installation token: the ONLY token the follower POSTs with
 VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
-#: D2.1 (AUDIT on #2495): deploy freeze windows, wall clock in FREEZE_TZ, both ends included. An entry that needs
-#: Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds before the
-#: entry lands.
-#: ⛔ THE WINDOWS FOLLOW THE NYSE CALENDAR (2026-11-26). Until then a hard-coded weekday copy refused an Agent entry
-#: on Thanksgiving (#2844, 16:07 ET). The day's windows are derived HERE (`freeze_day`) from the calendar DATASET
-#: (FREEZE_CALENDAR, parsed by `_floor_calendar`, stdlib only): none on a weekend or a listed closure; FREEZE_FLOOR's
-#: opening rush plus close-30..close+15 on a listed early close (12:30-13:15 ET for 13:00); FREEZE_FLOOR on a regular
-#: day. A dataset that cannot be read, or a day outside its coverage, gives FREEZE_FLOOR (the weekday fallback: refused
-#: for nothing, the safe side), never "no window".
-#: ⛔ THE FOLLOWER EXECUTES ONLY SELF-PROTECTED CODE (review of #2850, delta 2, X1). `--stage follow` holds the verdict
-#: App's token (statuses: write). tools/deploy_freeze.py and api/services/session_calendar.py are NOT self-protected,
-#: so this file never imports or executes them: it reads only the JSON dataset. ONE DEFINITION is kept as RAILS
-#: instead: tests/test_agent_ci_required.py and tests/test_deploy_freeze_market_calendar.py both require deploy_freeze's
-#: day_hold_windows rushes to equal `freeze_windows_on` for every covered day, and
-#: test_MQ_the_follower_executes_only_self_protected_code runs the real follower under an audit hook.
-#: ⛔ THE DATA IS BOUNDED (delta D2): `sessions.close` must be 16:00; a close other than 16:00 only on a date listed in
-#: `early_closes`, within [12:00, 16:00); listed dates are weekdays inside the coverage, never twice or in both lists;
-#: at most FREEZE_MAX_HOLIDAYS closures and FREEZE_MAX_EARLY early closes in any calendar year (the real maxima: 13
-#: closures in 2001, the September 11 week; 4 early closes in 2003). A dataset outside the bounds raises
-#: FreezeFloorError: EVERY Agent entry fails closed.
-#: ⚠️ LIMIT, stated for AUDIT: the dataset itself is not self-protected. Within the bounds, a data edit can mark at most
-#: 14 weekdays a year as closures (both rushes gone) and 5 as early closes in [12:00, 16:00) (the closing rush moves),
-#: exactly as a real calendar change would. The regular rushes, the half-day offsets, the 16:00 regular close and the
-#: bounds cannot be weakened without editing this file.
-FREEZE_TZ = "America/New_York"
-FREEZE_RUSHES = ("opening", "closing")
-FREEZE_FLOOR = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
-#: the close FREEZE_FLOOR's closing rush is written around, and that rush's offsets from it (minutes)
-FREEZE_FLOOR_CLOSE, FREEZE_FLOOR_BEFORE, FREEZE_FLOOR_AFTER = (16, 0), 30, 15
-FREEZE_FLOOR_FAILED = "fail closed: the NYSE calendar dataset breaks the self-protected bounds in agent_ci_required.py; AUDIT decides"
-FREEZE_CALENDAR = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "lib" / "marketClock" / "market_calendar.json"
-FREEZE_MAX_HOLIDAYS, FREEZE_MAX_EARLY = 14, 5
-FREEZE_EARLY_RANGE = ((12, 0), (16, 0))        # an early close is in [12:00, 16:00)
+#: ⛔⛔ NO TIME-WINDOW FREEZE (owner ruling 2026-11-27, verbatim: "fuck the deploy freeze i dont ever want to hold
+#: anything back from deploying ever"). Until then the follower refused an entry that needs Agent evidence inside the
+#: day's market rushes (D2.1, AUDIT on #2495; NYSE-calendar-aware with a bounded dataset FLOOR since #2850). That
+#: refusal, its windows, the FLOOR and its calendar reader are removed: an entry is judged on its evidence at any
+#: clock. The calendar dataset stays an Agent path and SELF_PROTECTED (tools/agent_ci_evidence.py, unchanged); the
+#: follower no longer reads it. Rails: tests/test_agent_ci_required.py, "NO TIME-WINDOW FREEZE IN THE MERGE QUEUE".
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
 APP_REACH = ": only the two posters may reach the verdict App"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
@@ -771,106 +744,6 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
-class FreezeFloorError(RuntimeError):
-    """The calendar dataset breaks the self-protected bounds (see FREEZE_FLOOR's comment block): fail closed."""
-
-
-def _hm(m: int) -> tuple:
-    return (m // 60, m % 60)
-
-
-class _CalendarUnreadable(Exception):
-    """The dataset could not be read or parsed at all: the weekday fallback (not a floor failure)."""
-
-
-def _floor_calendar() -> dict:
-    """FREEZE_CALENDAR parsed HERE (stdlib only), with the floor's bounds (FREEZE_FLOOR's comment block):
-    {"start", "horizon", "holidays": set of dates, "early": {date: close minute}}. _CalendarUnreadable when it cannot
-    be read or parsed; FreezeFloorError when it parses but breaks a bound."""
-    import collections
-    import datetime as _dt
-    try:
-        raw = json.loads(FREEZE_CALENDAR.read_text(encoding="utf-8"))
-        start, horizon = _dt.date.fromisoformat(raw["coverage_start"]), _dt.date.fromisoformat(raw["horizon"])
-        close = raw["sessions"]["close"]
-        holidays = [_dt.date.fromisoformat(h["date"]) for h in raw["holidays"]]
-        early = [(_dt.date.fromisoformat(e["date"]), e["close"]) for e in raw["early_closes"]]
-    except Exception as e:  # noqa: BLE001
-        raise _CalendarUnreadable(f"{type(e).__name__}: {e}") from None
-
-    def minutes(hm: str) -> int:
-        m = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", str(hm))
-        if not m:
-            raise FreezeFloorError(f"market_calendar.json: {hm!r} is not an HH:MM time")
-        return int(m.group(1)) * 60 + int(m.group(2))
-    regular = FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1]
-    if minutes(close) != regular:
-        raise FreezeFloorError(f"market_calendar.json: sessions.close is {close!r}, not 16:00")
-    lo, hi = (h * 60 + m for h, m in FREEZE_EARLY_RANGE)
-    early_map = {}
-    for d, c in early:
-        cm = minutes(c)
-        if not lo <= cm < hi:
-            raise FreezeFloorError(f"market_calendar.json: the early close {d} at {c} is outside [12:00, 16:00)")
-        early_map[d] = cm
-    if len(set(holidays)) != len(holidays) or len(early_map) != len(early) or set(holidays) & set(early_map):
-        raise FreezeFloorError("market_calendar.json: a date is listed twice")
-    for d in (*holidays, *early_map):
-        if d.weekday() >= 5 or not start <= d <= horizon:
-            raise FreezeFloorError(f"market_calendar.json: {d} is a weekend or outside the coverage")
-    for what, dates, cap in (("closures", holidays, FREEZE_MAX_HOLIDAYS), ("early closes", list(early_map), FREEZE_MAX_EARLY)):
-        year, n = max(collections.Counter(d.year for d in dates).items(), key=lambda kv: kv[1], default=(None, 0))
-        if n > cap:
-            raise FreezeFloorError(f"market_calendar.json: {n} {what} in {year}, more than {cap}")
-    return {"start": start, "horizon": horizon, "holidays": set(holidays), "early": early_map}
-
-
-def freeze_day(day) -> tuple:
-    """(windows, fallback) for ET date `day`: the day's market rushes as ((start, end), ...) ET (h, m) pairs, derived
-    HERE from the calendar dataset (`_floor_calendar`; nothing else is executed), and whether they are the WEEKDAY
-    FALLBACK (the dataset could not answer for `day`). Raises FreezeFloorError when the dataset breaks the bounds."""
-    try:
-        cal = _floor_calendar()                    # FreezeFloorError propagates: out of bounds fails closed
-    except _CalendarUnreadable:
-        cal = None
-    if cal is None or not cal["start"] <= day <= cal["horizon"]:
-        return (() if day.weekday() >= 5 else FREEZE_FLOOR), True
-    if day.weekday() >= 5 or day in cal["holidays"]:
-        return (), False
-    close_m = cal["early"].get(day, FREEZE_FLOOR_CLOSE[0] * 60 + FREEZE_FLOOR_CLOSE[1])
-    return (FREEZE_FLOOR[0], (_hm(close_m - FREEZE_FLOOR_BEFORE), _hm(close_m + FREEZE_FLOOR_AFTER))), False
-
-
-def freeze_windows_on(day) -> tuple:
-    """((start, end), ...) ET (h, m) pairs: the day's market rushes (`freeze_day`)."""
-    return freeze_day(day)[0]
-
-
-def freeze_window_detail(now) -> tuple:
-    """(window, fallback): the deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None; and
-    whether the day's windows are the weekday fallback. `now` is an AWARE datetime (a naive one raises: a clock that
-    cannot be placed is not a clock). Both ends included, read in FREEZE_TZ's wall clock, so the UTC instants move with
-    daylight saving. The windows are the day's rushes (`freeze_day`, derived here from the calendar dataset;
-    FreezeFloorError propagates): none on a weekend or an NYSE holiday, close-30..close+15 on a half-day."""
-    import zoneinfo
-    if now.tzinfo is None or now.utcoffset() is None:
-        raise ValueError("freeze_window needs an aware datetime")
-    local = now.astimezone(zoneinfo.ZoneInfo(FREEZE_TZ))
-    if local.weekday() >= 5:
-        return None, False
-    at = (local.hour, local.minute, local.second)
-    windows, fallback = freeze_day(local.date())
-    for (h1, m1), (h2, m2) in windows:
-        if (h1, m1, 0) <= at <= (h2, m2, 0):
-            return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET", fallback
-    return None, fallback
-
-
-def freeze_window(now) -> str | None:
-    """`freeze_window_detail(now)`'s window alone."""
-    return freeze_window_detail(now)[0]
-
-
 def _utcnow():
     import datetime
     return datetime.datetime.now(datetime.timezone.utc)
@@ -913,9 +786,9 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
     against its first parent), and for an entry that needs Agent evidence it also requires, in this order:
       * every self-protected path byte-identical between the commit and the master commit the group is built on
         (machinery_edits: an entry AHEAD may have edited what this entry's jobs ran with);
-      * the clock outside the deploy freeze windows (freeze_window);
       * every required Agent job (master's agent-ci.yml) listed under the queue workflow's call in THAT run, success.
-    An entry that touches no Agent path needs none of this and is success. Anything unreadable is failure."""
+    An entry that touches no Agent path needs none of this and is success. Anything unreadable is failure.
+    `now` is accepted and not read: no clock refuses an entry (owner ruling 2026-11-27)."""
     ev = _evidence()
     git = _git_reader(root, run, log)
     if git("the merge group and master, fetching", "fetch", "--no-tags", "--quiet", "--filter=blob:none", f"--depth={FOLLOW_DEPTH}",
@@ -945,14 +818,6 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
         if hits:
             head = f"{len(hits)} self-protected path(s) differ from master, e.g. {hits[0]}"
             return FAILURE, head[:140 - len(MACHINERY_EDITED)] + MACHINERY_EDITED
-        try:
-            window, fallback = freeze_window_detail(now)
-        except FreezeFloorError as e:
-            log(f"freeze floor: {e}"[:400])
-            return FAILURE, FREEZE_FLOOR_FAILED
-        if window:
-            why = "weekday fallback" if fallback else "a market rush today"
-            return FAILURE, f"deploy freeze window {window} ({why}): an Agent entry does not land in it; queue it again afterwards"
         required = required_jobs(doc)
         try:
             jobs = run_jobs(api, run_id)

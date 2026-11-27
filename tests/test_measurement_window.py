@@ -284,13 +284,13 @@ def test_the_deploy_freeze_self_check_passes_and_reads_the_same_window():
     assert inside.returncode == 0 and "NOT FROZEN" in inside.stdout
 
 
-def test_the_promotion_workflow_has_no_wednesday_window_catch_up():
-    # owner ruling 2026-11-27: no time hold, so no Wednesday catch-up; the weekday crons stay as backup resumes
+def test_the_promotion_workflow_has_no_window_catch_up_cron():
+    # owner ruling 2026-11-27: no time hold, so no catch-up crons; the backup resume is hourly, in its own workflow
     wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
     assert "python tools/deploy_freeze.py" in wf
-    assert "cron: '5 15 * * 3'" not in wf and "cron: '5 16 * * 3'" not in wf
-    for cron in ("50 13 * * 1-5", "50 14 * * 1-5", "20 20 * * 1-5", "20 21 * * 1-5"):
-        assert f"cron: '{cron}'" in wf
+    assert "cron:" not in wf
+    hourly = (ROOT / ".github" / "workflows" / "promote-resume-hourly.yml").read_text(encoding="utf-8")
+    assert "cron: '17 * * * *'" in hourly
 
 
 def test_the_one_off_extra_window_2026_10_13_is_a_full_window():
