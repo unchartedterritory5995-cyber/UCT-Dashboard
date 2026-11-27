@@ -19,7 +19,7 @@ import {
   workerRunner, resetRuntimeAsync, runtimeWorkerStats, warmRuntimeLane, RUNTIME_WORKER_WATCHDOG_MS, RUNTIME_WORKER_UNRESPONSIVE_GUARD,
 } from '../runtimeAsync.js'
 import { computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded } from '../runtimeColumns.js'
-import { RUNTIME_WORKER_READY, RUNTIME_WORKER_WARM } from '../workerReady.js'
+import { RUNTIME_WORKER_READY, RUNTIME_WORKER_READY_ASK, RUNTIME_WORKER_WARM } from '../workerReady.js'
 import * as registry from '../../nativeRegistry'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 
@@ -33,8 +33,11 @@ function announcingWorkers({ announces = true } = {}) {
   const made = []
   const factory = () => {
     const w = {
-      posted: [], queue: [], terminated: false,
-      postMessage(msg) { this.posted.push(msg); this.queue.push(msg) },
+      posted: [], queue: [], terminated: false, asked: 0,
+      postMessage(msg) {
+        if (msg && msg.kind === RUNTIME_WORKER_READY_ASK) { this.asked += 1; return }
+        this.posted.push(msg); this.queue.push(msg)
+      },
       ready() { this.onmessage && this.onmessage({ data: { kind: RUNTIME_WORKER_READY } }) },
       flush() {
         const q = this.queue
@@ -69,6 +72,7 @@ describe('a job is posted only to a worker that has said it is ready', () => {
     run(def(), rows(30), ctx('pane-1', 'SPY'), (err, cols) => answered.push(['SPY', err, cols && cols.v.length]))
     expect(w.made.length, 'the worker is started for the job').toBe(1)
     expect(w.made[0].posted.length, 'nothing is posted to a worker still loading').toBe(0)
+    expect(w.made[0].asked, 'the page asks the worker to say READY, once').toBe(1)
     run(def(), rows(31), ctx('pane-1', 'QQQ'), (err, cols) => answered.push(['QQQ', err, cols && cols.v.length]))
     // ⛔ THE RAIL: no terminate, no second worker
     expect(w.made[0].terminated, 'the loading worker is kept').toBe(false)
@@ -99,6 +103,7 @@ describe('a job is posted only to a worker that has said it is ready', () => {
     const run = workerRunner(w.factory)
     run(def(), rows(10), ctx('pane-1'), () => {})
     expect(w.made[0].posted.length).toBe(1)
+    expect(w.made[0].asked, 'a factory that does not announce is not asked').toBe(0)
   })
 
   it('⛔ CONTROL: once ready, a job is posted at once (the gate is only the start-up)', () => {
@@ -166,14 +171,16 @@ describe('the worker is warmed with the chart\'s own documents', () => {
 })
 
 describe('the worker itself', () => {
-  it('⭐ says READY when its module has evaluated, and answers a WARM job with nothing but that it is done', async () => {
+  it('⭐ says READY when asked (once its module has evaluated), never unasked, and answers a WARM job with nothing but that it is done', async () => {
     const posted = []
     const prev = globalThis.self
     globalThis.self = { postMessage: (m) => posted.push(m) }
     try {
       vi.resetModules()
       await import('../runtimeWorker.js')
-      expect(posted, 'READY is the first word').toEqual([{ kind: RUNTIME_WORKER_READY }])
+      expect(posted, 'nothing is volunteered (a harness reads the first message as its own answer)').toEqual([])
+      globalThis.self.onmessage({ data: { kind: RUNTIME_WORKER_READY_ASK } })
+      expect(posted, 'READY, when asked').toEqual([{ kind: RUNTIME_WORKER_READY }])
       globalThis.self.onmessage({ data: { kind: RUNTIME_WORKER_WARM, id: 7, def: def('u_w'), rows: rows(20), ctx: { tf: 'D' } } })
       expect(posted[1]).toEqual({ id: 7, warm: true })
       // and the page's own factory is the one that waits for that word (the browser's worker is not exported)

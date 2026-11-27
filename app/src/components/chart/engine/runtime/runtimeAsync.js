@@ -30,7 +30,7 @@ import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
 import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
-import { RUNTIME_WORKER_READY, RUNTIME_WORKER_WARM } from './workerReady.js'
+import { RUNTIME_WORKER_READY, RUNTIME_WORKER_READY_ASK, RUNTIME_WORKER_WARM } from './workerReady.js'
 
 let _ready = false
 let _worker = null
@@ -385,6 +385,10 @@ function workerOf(factory) {
   }
   _worker.onerror = () => killWorker(workerFailed)
   _worker.onmessageerror = () => killWorker(workerFailed)
+  // ⭐⭐ (Fred RS run half, 2026-11-26) the ask the worker answers READY to once its module has evaluated
+  if (!_workerReady) {
+    try { _worker.postMessage({ kind: RUNTIME_WORKER_READY_ASK }) } catch { killWorker(workerFailed); return _worker }
+  }
   return _worker
 }
 

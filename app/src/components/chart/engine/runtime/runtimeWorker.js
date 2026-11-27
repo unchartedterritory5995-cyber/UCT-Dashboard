@@ -28,7 +28,7 @@ import { registerStrategyBrokerGate } from '../strategyBrokerGateRegistry.js'
 // ⭐⭐ (switch smoothness, 2026-11-20) the chart's own-daily question, asked off its main thread (`ownDailyAsync.js`)
 import { OWN_DAILY_ASK, ownDailyReplyOf } from './ownDailyProbe.js'
 // ⭐⭐ (Fred RS run half, 2026-11-26) the worker's lifecycle words (`workerReady.js`)
-import { RUNTIME_WORKER_READY, RUNTIME_WORKER_WARM } from './workerReady.js'
+import { RUNTIME_WORKER_READY, RUNTIME_WORKER_READY_ASK, RUNTIME_WORKER_WARM } from './workerReady.js'
 registerStrategyBrokerGate(strategyBrokerEnabled)
 
 // ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
@@ -38,14 +38,11 @@ const clock = () => (typeof performance !== 'undefined' && performance.now ? per
 self.onmessage = (event) => {
   // ⭐ a probe is answered and nothing else is done: it carries no run (`ownDailyProbe.js`)
   if (event.data && event.data.kind === OWN_DAILY_ASK) { self.postMessage(ownDailyReplyOf(event.data)); return }
-  // ⭐⭐ (Fred RS run half, 2026-11-26) a WARM job: the document computed over stand-in bars, nothing kept or sent but
-  // that it is done (its first run here pays the compile-and-optimise cost the chart's first real run would)
-  if (event.data && event.data.kind === RUNTIME_WORKER_WARM) {
-    const { id, def, rows, ctx } = event.data
-    try { computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS }) } catch { /* a warm-up's answer is not read */ }
-    self.postMessage({ id, warm: true })
-    return
-  }
+  // ⭐⭐ (Fred RS run half, 2026-11-26) READY, when asked (`workerReady.js`): this module has evaluated
+  if (event.data && event.data.kind === RUNTIME_WORKER_READY_ASK) { self.postMessage({ kind: RUNTIME_WORKER_READY }); return }
+  // ⭐⭐ a WARM job is the same run (the one call below) over stand-in bars, answered with nothing but that it is done:
+  // its first run here pays the compile-and-optimise cost the chart's first real run would
+  const warm = !!(event.data && event.data.kind === RUNTIME_WORKER_WARM)
   const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
@@ -61,6 +58,7 @@ self.onmessage = (event) => {
     // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms. ⭐⭐ (engine 86, A2) and
     // here alone the VM's `WALL_TIME` follows that budget (`runLimitsOf`): every other caller keeps 5,000
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
+    if (warm) { self.postMessage({ id, warm: true }); return }
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
@@ -72,6 +70,7 @@ self.onmessage = (event) => {
       // ⭐⭐ (2026-11-20) and the overnight tail's record (`overnightTail.js`), which the strip reads too
       overnight: runtimeOvernightOf(columns) })
   } catch (err) {
+    if (warm) { self.postMessage({ id, warm: true }); return }
     self.postMessage({
       id,
       ok: false,
@@ -81,8 +80,3 @@ self.onmessage = (event) => {
     })
   }
 }
-
-// ⭐⭐ (Fred RS run half, 2026-11-26) — READY: this module has evaluated, so a job posted now is computed at once. The page
-// posts nothing before it (`runtimeAsync.js::pump`): a job superseded while this worker was still loading is dropped on
-// the page, and this worker is kept instead of terminated and loaded again.
-self.postMessage({ kind: RUNTIME_WORKER_READY })
