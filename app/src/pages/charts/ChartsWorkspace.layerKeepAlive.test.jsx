@@ -21,8 +21,17 @@
  *   LK12 every way a kept layer board is dropped (a third board, grid mode, the desk hiding the workspace, ten hidden
  *        minutes, the workspace leaving) unmounts it with its handle disposed
  *   LK13 (red first; review of #2901, D3 + L3) a board kept 30 minutes without a show goes, page visible or not
+ * Review of #2911:
+ *   LK12 + (red first, F1) the Agent deleting the kept board's layout drops it (the menu's delete already did); the
+ *        Agent deleting another layout leaves it kept
+ *   LK14 (red first, F2) a layer switch to a board that is not kept marks the NEW grid (charts-switching: no item
+ *        transition on its first layout passes), never the hidden one, and the mark clears; a return to a kept board
+ *        marks nothing
+ * Review of #2923:
+ *   LK15 (red first, F2-a) two layer switches to new boards in one frame, then back to the first: its grid carries no
+ *        mark (the second switch's mark took it off), and after the frames no grid does
  */
-import { render, act, cleanup } from '@testing-library/react'
+import { render, act, cleanup, waitFor } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
 import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -72,6 +81,10 @@ vi.mock('./WidgetHost', async () => {
       return <div data-testid={`host-${widget.id}`}>{widget.id}{hosts.menuFor === widget.id ? <Menu id={widget.id} /> : null}</div>
     },
   }
+})
+vi.mock('../../agent/agentApp', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, useAgentPageHost: (...a) => { hosts.agentHost = a[1]; return actual.useAgentPageHost(...a) } }
 })
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -343,6 +356,17 @@ describe('LK12 every way a kept layer board is dropped unmounts it with its hand
       vi.useRealTimers()
     }
   })
+  test('the Agent deleting its layout (review of #2911, F1)', async () => {
+    const { vis } = await kept()
+    expect(typeof hosts.agentHost?.layouts?.remove, 'NON-VACUITY: the Agent host has the layouts door').toBe('function')
+    await act(async () => { await hosts.agentHost.layouts.remove(INTRA.id) })
+    await settle()
+    expect(hosts.cleanups['watchlist-1'] || 0, 'the Agent deleting ANOTHER layout dropped the kept board').toBe(0)
+    expect(vis.state).toBe('hidden')
+    await act(async () => { await hosts.agentHost.layouts.remove(MAIN.id) })
+    await settle()
+    dropped(vis)
+  })
   test('the workspace leaving', async () => {
     const { view, vis } = await kept()
     view.unmount()
@@ -369,4 +393,49 @@ test('LK13 (red first) a board kept 30 minutes without a show goes, the page vis
   } finally {
     vi.useRealTimers()
   }
+})
+
+test('LK14 (red first; review of #2911, F2) a layer switch to a board not kept marks the NEW grid; a return marks nothing', async () => {
+  mount()
+  await settle()
+  // the load's own switch marked MAIN's grid (the remount path); it clears after two frames
+  await waitFor(() => expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'NON-VACUITY: the load mark clears').toBe(0))
+  await act(async () => { dockButton('Two Charts').click() })
+  const front = document.querySelector('[data-board-current] .react-grid-layout')
+  expect(front, 'NON-VACUITY: the board in front has a grid').toBeTruthy()
+  expect(host('chart-1')?.closest('.react-grid-layout'), 'NON-VACUITY: TWO is the board in front').toBe(front)
+  expect(front.classList.contains('charts-switching'), 'the fresh grid of a board not kept was not marked').toBe(true)
+  const hiddenGrid = host('watchlist-1')?.closest('.react-grid-layout')
+  expect(hiddenGrid && hiddenGrid !== front, 'NON-VACUITY: MAIN is kept in its own grid').toBe(true)
+  expect(hiddenGrid.classList.contains('charts-switching'), 'the hidden grid was marked').toBe(false)
+  await waitFor(() => expect(front.classList.contains('charts-switching'), 'the mark never cleared').toBe(false))
+  await act(async () => { dockButton('Main Trading').click() })
+  expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'a return to a kept board marked a grid').toBe(0)
+  await settle()
+})
+
+test('LK15 (red first; review of #2923, F2-a) two layer switches to new boards in one frame, then back to the first: no mark on its grid', async () => {
+  // the frames are this test's: nothing runs between the two switches
+  const frames = []
+  vi.stubGlobal('requestAnimationFrame', (f) => { frames.push(f); return frames.length })
+  const flushFrames = () => act(() => { for (let i = 0; i < 10 && frames.length; i++) frames.splice(0).forEach((f) => f(0)) })
+  try {
+    mount()
+    await settle()
+    flushFrames()                                   // the load's own mark comes off
+    expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'NON-VACUITY: the load mark is off').toBe(0)
+    await act(async () => { dockButton('Two Charts').click() })
+    const twoGrid = host('chart-1')?.closest('.react-grid-layout')
+    expect(twoGrid?.classList.contains('charts-switching'), 'NON-VACUITY: the first new grid is marked').toBe(true)
+    await act(async () => { dockButton('Intraday Pair').click() })   // no frame ran since the first switch
+    expect(host('chart-5a')?.closest('.react-grid-layout')?.classList.contains('charts-switching'), 'NON-VACUITY: the second new grid is marked').toBe(true)
+    await act(async () => { dockButton('Two Charts').click() })
+    expect(host('chart-1')?.closest('.react-grid-layout'), 'NON-VACUITY: TWO came back as the kept board').toBe(twoGrid)
+    expect(twoGrid.classList.contains('charts-switching'), 'the first new grid kept its mark through the return').toBe(false)
+    flushFrames()
+    expect(document.querySelectorAll('.react-grid-layout.charts-switching').length, 'a grid kept a mark after the frames').toBe(0)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+  await settle()
 })
