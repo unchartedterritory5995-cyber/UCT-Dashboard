@@ -11,8 +11,9 @@ tests/test_pine_coverage_ratchet.py does), and the shard processes are run IN PR
   * N shards merge into <cache>: every input exactly once, census_input.json the full inputs, the store record,
     lane.jsonl from every shard, and the rows equal an N=1 census of the same inputs (`ms` dropped);
   * the comparison catches a census whose rows depend on what the same process measured before (warm state);
-  * MUTANTS refused, named: a shard dropped, a row double-counted, a row that is no input, a shard measured
-    with another store, a shard whose lane proof failed, a shard that exited non-zero;
+  * MUTANTS refused, named: a shard dropped, a row double-counted, a row that is no input, a torn row or lane
+    line, a shard measured with another store, a shard whose lane proof failed, a shard that exited non-zero;
+  * each shard's vitest has a cache directory of its own (app/vite.config.js reads it); N=1 never inherits one;
   * memory: refuses (fail closed) below 6 GB a shard + 2 GB free, or when free RAM cannot be read, before any
     shard directory exists;
   * resume guards: another lane's rows, an unsharded census, another sharding, a stale shard directory;
@@ -20,6 +21,7 @@ tests/test_pine_coverage_ratchet.py does), and the shard processes are run IN PR
 """
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import pathlib
@@ -42,13 +44,16 @@ def _items(n, prefix="committed:x"):
     return [{"key": "%s%03d" % (prefix, i), "path": "unused", "cap": 8} for i in range(n)]
 
 
-def _fake_vitest(monkeypatch, verdict=None, lane_ok=True, loaded=None):
-    """Stand in for `node vitest run <census>`: one row per unanswered input of COVERAGE_INPUT (with a random
-    `ms`, as the census writes), a lane.jsonl pass, `libraryStore` = the store's size. `verdict(key, nth)` is
+def _fake_vitest(monkeypatch, verdict=None, lane_ok=True, loaded=None, seen=None):
+    """Stand in for `node vitest run <census>`: one row per unanswered input of COVERAGE_INPUT (with an `ms`
+    that never repeats, as wall clock), a lane.jsonl pass, `libraryStore` = the store's size. `verdict(key, nth)` is
     the row's `clean`, where nth counts the rows THIS process already wrote (warm per-process state)."""
     state = {}
+    clock = itertools.count(1)           # wall clock: never the same twice, so a kept `ms` always differs
 
     def call(cmd, cwd=None, env=None):
+        if seen is not None:
+            seen.setdefault(env["COVERAGE_OUT"], []).append(env.get(RC.VITEST_CACHE_ENV))
         items = json.loads(open(env["COVERAGE_INPUT"], encoding="utf-8").read())
         out = env["COVERAGE_OUT"]
         lane = PROD if env["COVERAGE_RUNTIME_ON"] == "0" else RT
@@ -60,7 +65,7 @@ def _fake_vitest(monkeypatch, verdict=None, lane_ok=True, loaded=None):
             for it in new:
                 nth = state.get(out, 0)
                 state[out] = nth + 1
-                row = {"key": it["key"], "lane": lane, "ms": random.randint(1, 9999),
+                row = {"key": it["key"], "lane": lane, "ms": next(clock),
                        **({"libraryStore": store} if store else {}),
                        "attached": True, "clean": verdict(it["key"], nth) if verdict else True, "steps": [{}]}
                 f.write(json.dumps(row) + "\n")
@@ -209,8 +214,8 @@ def test_three_shards_merge_into_one_census_equal_to_one_process(monkeypatch, tm
     assert plan["shards"] == 3 and plan["lane"] == PROD
     # THE PROOF the owner runs for real: identical row for row, `ms` dropped (and NOT identical with it)
     r = RC.compare_censuses(str(one), str(three))
-    assert r == {"rows": (14, 14), "onlyA": [], "onlyB": [], "differ": []}
-    assert RC.compare_censuses(str(one), str(three), drop=())["differ"]             # ms is wall clock
+    assert r == {"rows": (14, 14), "onlyA": [], "onlyB": [], "differ": [], "fields": {}}
+    assert RC.compare_censuses(str(one), str(three), drop=())["fields"] == {"ms": 14}   # ms is wall clock
     # a re-run over the finished shards re-merges the same rows (resumable, idempotent)
     before = (three / "census.jsonl").read_bytes()
     assert RC.drive_sharded(items, str(three), PROD, 3, library_store=str(root), runner=in_process,
@@ -227,7 +232,8 @@ def test_the_comparison_catches_warm_per_process_state(monkeypatch, tmp_path):
     RC.drive(items, str(one), PROD)
     RC.drive_sharded(items, str(three), PROD, 3, runner=in_process, free=PLENTY)
     r = RC.compare_censuses(str(one), str(three))
-    assert r["differ"] and not r["onlyA"] and not r["onlyB"]
+    assert r["differ"] == ["committed:x%03d" % i for i in range(4, 9)] and not r["onlyA"] and not r["onlyB"]
+    assert r["fields"] == {"clean": 5}                                  # and it names the field that varies
     assert RC.compare_main([str(one), str(three)]) == 1
     assert RC.compare_main([str(one), str(one)]) == 0
 
@@ -290,6 +296,19 @@ def test_a_row_that_is_no_input_and_a_torn_line_are_refused(monkeypatch, tmp_pat
                              runner=lambda a, l, t=tamper: in_process(a, l, after=t))
 
 
+def test_a_torn_lane_line_is_a_named_merge_refusal(monkeypatch, tmp_path):
+    cache = tmp_path / "c"
+
+    def tear():
+        with open(cache / "shard-1" / "lane.jsonl", "a", encoding="utf-8") as f:
+            f.write('{"requested": "production", "ok": tr')
+    _fake_vitest(monkeypatch)
+    with pytest.raises(RC.CensusRunError, match="SHARD MERGE: shard-1 lane.jsonl holds a line that is not a lane pass"):
+        RC.drive_sharded(_items(6), str(cache), PROD, 2, free=PLENTY,
+                         runner=lambda a, l: in_process(a, l, after=tear))
+    assert not (cache / "lane.jsonl").exists()                   # refused before anything merged was written
+
+
 def test_a_shard_measured_with_another_store_is_refused(monkeypatch, tmp_path):
     root = _store(tmp_path, ["TradingView/ta/11"])
     cache = tmp_path / "c"
@@ -324,6 +343,34 @@ def test_a_shard_whose_own_census_failed_is_refused(monkeypatch, tmp_path):
     _fake_vitest(monkeypatch, lane_ok=False)
     with pytest.raises(RC.CensusRunError, match="SHARDS FAILED"):
         RC.drive_sharded(_items(4), str(tmp_path / "d"), PROD, 2, free=PLENTY, runner=in_process)
+
+
+# ── each shard's own vitest cache ────────────────────────────────────────────
+
+def test_each_shard_runs_vitest_with_a_cache_directory_of_its_own(monkeypatch, tmp_path):
+    """vitest exits 0 when it selects nothing, so a cache N processes share must never decide what one runs."""
+    monkeypatch.setenv(RC.VITEST_CACHE_ENV, str(tmp_path / "callers"))    # the caller's: never the measurement's
+    seen = {}
+    _fake_vitest(monkeypatch, seen=seen)
+    cache = tmp_path / "c"
+    RC.drive_sharded(_items(9), str(cache), PROD, 3, free=PLENTY, runner=in_process)
+    want = {os.path.join(str(cache), "shard-%d" % k, "census.jsonl"):
+            [os.path.abspath(os.path.join(str(cache), "shard-%d" % k, RC.SHARD_VITEST_CACHE))] for k in range(3)}
+    assert seen == want and len({v[0] for v in seen.values()}) == 3
+    # N=1 (today's path): no cache directory is set, and the caller's is not inherited
+    seen.clear()
+    RC.drive(_items(2), str(tmp_path / "one"), PROD)
+    assert list(seen.values()) == [[None]]
+
+
+def test_vite_config_reads_the_shard_cache_variable_into_cachedir():
+    """The other half of the wire: app/vite.config.js sets Vite's cacheDir from the variable drive() sets, and
+    only when it is set (unset: Vite's default, so every other vitest run is unchanged)."""
+    import re
+    text = (ROOT / "app" / "vite.config.js").read_text(encoding="utf-8")
+    name = re.escape(RC.VITEST_CACHE_ENV)
+    assert re.search(r"\.\.\.\(process\.env\.%s\s*\?\s*\{\s*cacheDir:\s*process\.env\.%s\s*\}\s*:\s*\{\}\)"
+                     % (name, name), text), "vite.config.js no longer reads %s into cacheDir" % RC.VITEST_CACHE_ENV
 
 
 # ── memory: fail closed ──────────────────────────────────────────────────────

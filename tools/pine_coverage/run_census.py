@@ -3,6 +3,9 @@
 
   python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --label pine-coverage -- \
       python tools/pine_coverage/run_census.py --cache <cache> --ref <pine_v6_reference.json>
+  # sharded: run a sharded census under heavy_lock --solo; N=2 peaks ~12 GB, N=3 peaks ~18 GB
+  python C:/Users/Patrick/uct-clips/tools/heavy_lock.py --solo --label pine-coverage run -- \
+      python tools/pine_coverage/run_census.py --cache <fresh cache> --ref <pine_v6_reference.json> --shards 2
 
 Inputs
   <cache>/sample_manifest.json   from fetch_sample.py (committed + reference + builtin)
@@ -52,7 +55,10 @@ promoted store (production's truth): build it with
 heavy_lock hold: the inputs sorted by key, input i to <cache>/shard-<i % N>/, each shard a full drive() (its own
 restarts, killer rows, lane and store proofs), then the shards' census.jsonl and lane.jsonl are concatenated into
 <cache> and proved again (lane, store, every input exactly once). Refuses unless 6 GB a shard + 2 GB is free.
-Default 1: one process, the path above. ⛔ Trust a sharded map only after an N=1 and an N>1 census of the same
+Each shard's vitest gets its own cache directory (<cache>/shard-<k>/vitest-cache, via UCT_VITEST_CACHE_DIR, which
+app/vite.config.js reads), so no shared cache decides what a shard runs. Default 1: one process, the path above.
+On this box --shards 2 is the documented choice (~12 GB at the census's p90 peak); 3 only with >= 20 GB free.
+Run it under heavy_lock --solo: a --shared partner's memory is not in the free-RAM check taken at the start. ⛔ Trust a sharded map only after an N=1 and an N>1 census of the same
 tree and lane agreed row for row (by key, `ms` dropped): see drive_sharded.
 """
 import argparse
@@ -197,8 +203,8 @@ def main():
                          "production's truth). Left out: an EMPTY store, recorded as such")
     ap.add_argument("--shards", type=int, default=1,
                     help="run the census in N concurrent processes (<cache>/shard-<k>/, merged into <cache>), "
-                         "inside the caller's ONE heavy_lock hold. Needs %.0f GB free a shard + %.0f GB; refuses "
-                         "below. Default 1: one process, today's path" % (SHARD_HEAP_GB, SHARD_HEADROOM_GB))
+                         "inside the caller's ONE heavy_lock hold (run it --solo). Needs %.0f GB free a shard + %.0f "
+                         "GB; refuses below. Default 1: one process, today's path. On this box: 2" % (SHARD_HEAP_GB, SHARD_HEADROOM_GB))
     a = ap.parse_args()
     lane = LANE_RUNTIME_ON if a.runtime_on else LANE_PRODUCTION
     cache = os.path.abspath(a.cache)
@@ -259,13 +265,15 @@ def assert_lane_measured(cache, lane):
     return got[lane]
 
 
-def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store=None):
+def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store=None, vitest_cache_dir=None):
     """THE CENSUS LOOP, in one place (run_census.py's sample census and the coverage ratchet over the
     committed corpus both call it): write `items` ([{key, path, cap}]) as the census input, run the
     census test until every item has a row in <cache>/census.jsonl, restarting past a process death
     (the script named in current.txt is recorded `killed`), then prove the lane.
     ⛔ vitest exits 0 when it selects nothing, so success is the ROW COUNT, never the exit code.
-    Raises CensusRunError when a row is missing or the lane is not the one asked for."""
+    Raises CensusRunError when a row is missing or the lane is not the one asked for.
+    `vitest_cache_dir` (a shard's): vitest's cache directory, set explicitly; left out, vitest's default and
+    never the caller's environment."""
     os.makedirs(cache, exist_ok=True)
     inp = os.path.join(cache, "census_input.json")
     write_json(inp, items)
@@ -284,6 +292,9 @@ def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store
     if library_store:
         env["PINE_LIBRARY_STORE"] = os.path.abspath(library_store)
     write_json(os.path.join(cache, LIBRARY_STORE_FILE), store)
+    env.pop(VITEST_CACHE_ENV, None)
+    if vitest_cache_dir:
+        env[VITEST_CACHE_ENV] = os.path.abspath(vitest_cache_dir)
     for attempt in range(max_restarts):
         before = done_keys(out)
         if len(before) >= len(items):
@@ -328,6 +339,8 @@ def drive(items, cache, lane, census_test=CENSUS, max_restarts=40, library_store
 SHARD_HEAP_GB = 6.0          # NODE_OPTIONS --max-old-space-size=6144 per census process (drive() sets it)
 SHARD_HEADROOM_GB = 2.0      # the OS, the parent and the vitest host beside N heaps
 SHARDS_FILE = "shards.json"
+VITEST_CACHE_ENV = "UCT_VITEST_CACHE_DIR"   # app/vite.config.js: Vite's cacheDir, only when set
+SHARD_VITEST_CACHE = "vitest-cache"
 MERGED_FILES = ("census.jsonl", "lane.jsonl")
 
 
@@ -439,12 +452,15 @@ def merge_shards(cache, items, n, lane, store):
                 if not line.strip():
                     continue
                 line = line if line.endswith("\n") else line + "\n"
+                try:
+                    d = json.loads(line)
+                    if not isinstance(d, dict):
+                        raise ValueError("not a JSON object")
+                    key = d["key"] if name == "census.jsonl" else None
+                except Exception as err:  # noqa: BLE001
+                    raise CensusRunError("SHARD MERGE: shard-%d %s holds a line that is not a %s (%s)"
+                                         % (k, name, "row" if name == "census.jsonl" else "lane pass", err))
                 if name == "census.jsonl":
-                    try:
-                        key = json.loads(line)["key"]
-                    except Exception as err:  # noqa: BLE001
-                        raise CensusRunError("SHARD MERGE: shard-%d census.jsonl holds a line that is not a row (%s)"
-                                             % (k, err))
                     if key in seen:
                         raise CensusRunError("SHARD MERGE: %s has a row in shard-%d and shard-%d (double count)"
                                              % (key, seen[key], k))
@@ -553,10 +569,17 @@ def census_rows(cache, drop=("ms",)):
 def compare_censuses(a_cache, b_cache, drop=("ms",)):
     """THE SHARDING PROOF: two censuses of the same tree and lane (e.g. --shards 1 and --shards 3), row for row
     by key, the `drop` fields (wall-clock) left out. Returns {"rows": (n_a, n_b), "onlyA": [...], "onlyB": [...],
-    "differ": [...]}, keys sorted; identical means all three lists are empty."""
+    "differ": [...], "fields": {field: rows it differs in}}, keys sorted; identical means the three lists are empty.
+    `fields` names WHICH top-level fields vary (a noise floor that is not zero says where the noise is)."""
     a, b = census_rows(a_cache, drop), census_rows(b_cache, drop)
+    differ = sorted(k for k in set(a) & set(b) if a[k] != b[k])
+    fields = {}
+    for k in differ:
+        for f in sorted(set(a[k]) | set(b[k])):
+            if a[k].get(f, KeyError) != b[k].get(f, KeyError):
+                fields[f] = fields.get(f, 0) + 1
     return {"rows": (len(a), len(b)), "onlyA": sorted(set(a) - set(b)), "onlyB": sorted(set(b) - set(a)),
-            "differ": sorted(k for k in set(a) & set(b) if a[k] != b[k])}
+            "differ": differ, "fields": dict(sorted(fields.items()))}
 
 
 def compare_main(argv):
@@ -572,6 +595,8 @@ def compare_main(argv):
     print("%s: %d rows vs %d rows; only in A %d, only in B %d, differ %d (dropped: %s)" % (
         "IDENTICAL" if same else "DIFFERENT", r["rows"][0], r["rows"][1], len(r["onlyA"]), len(r["onlyB"]),
         len(r["differ"]), ", ".join(a.drop) or "nothing"))
+    if r["fields"]:
+        print("  fields that differ (rows): %s" % ", ".join("%s %d" % kv for kv in r["fields"].items()))
     for name in ("onlyA", "onlyB", "differ"):
         for k in r[name]:
             print("  %s %s" % (name, k))
@@ -591,7 +616,7 @@ def worker_main(argv):
     items = json.load(open(os.path.join(a.dir, "census_input.json"), encoding="utf-8"))
     print("shard %s: %d inputs, lane %s" % (a.dir, len(items), a.lane), flush=True)
     drive(items, a.dir, a.lane, census_test=a.census_test, max_restarts=a.max_restarts,
-          library_store=a.library_store)
+          library_store=a.library_store, vitest_cache_dir=os.path.join(a.dir, SHARD_VITEST_CACHE))
 
 
 if __name__ == "__main__":

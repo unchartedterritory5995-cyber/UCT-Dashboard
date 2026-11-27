@@ -283,6 +283,10 @@ export default defineConfig({
       '/api': 'http://localhost:8000'
     }
   },
+  // + a cache directory of its own, ONLY when asked (`run_census.py --shards N` sets UCT_VITEST_CACHE_DIR per
+  // shard): N census processes in one app/ (and one junctioned node_modules) must never share vitest's cache
+  // (results.json), so a shared cache cannot decide what a shard runs. Unset: Vite's default, unchanged.
+  ...(process.env.UCT_VITEST_CACHE_DIR ? { cacheDir: process.env.UCT_VITEST_CACHE_DIR } : {}),
   test: {
     environment: 'jsdom',
     globals: true,
