@@ -42,7 +42,7 @@ import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
 import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 import { inRegularSession } from '../data/deviceStore/fresh'
-import { onChartPaint, memberViewSpan } from '../components/chart/paintLog'
+import { onChartPaint, viewNeed, VIEW_LOOKBACK_ROWS } from '../components/chart/paintLog'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -89,21 +89,10 @@ setSwitchEnv({ store: DEVICE, rth: inRegularSession })
  * now, and the depth joins behind the view (it moves no right-edge geometry; the first-paint rails hold it).
  */
 export { COVER_ROWS }
-/** The rows the default view assumes besides its visible bars: the longest average's lookback and a margin (COVER_ROWS
- *  is ~200 visible bars plus these). */
-export const VIEW_LOOKBACK_ROWS = COVER_ROWS - 200
-/**
- * ⭐⭐ (2026-11-27, owner: "I type a random stock and it loads a small portion of the candles right away and then shortly
- * after it loads the rest. That jumpiness is horrible.") THE ROWS A FIRST PAINT NEEDS: what the view this member shows
- * will draw (its logical width, the right margin included: chart/paintLog memberViewSpan) plus the lookback the averages
- * draw from, and never fewer than COVER_ROWS (the default view). A view zoomed out to 425 bars needed ~825 rows, and the
- * fixed 600 painted it short.
- */
-export function viewNeed(member) {
-  const span = memberViewSpan(member)
-  return Number.isFinite(span) && span > 0 ? Math.max(COVER_ROWS, Math.ceil(span) + VIEW_LOOKBACK_ROWS) : COVER_ROWS
-}
-const covers = (sym, tf, opts = {}, need = COVER_ROWS) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= need
+// (the rows a member's first paint needs: chart/paintLog viewNeed, one rule for the switch and the double buffer's flip)
+export { VIEW_LOOKBACK_ROWS, viewNeed }
+// (`upTo`: heldRows counts a regular-hours view's rows from the newest back only as far as the question needs)
+const covers = (sym, tf, opts = {}, need = COVER_ROWS) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, { ...opts, upTo: need }) ?? 0) >= need
 
 // ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20). WHEN a member of a linked group shows a
 // new symbol lives in ./handoffGroups.js: the key handler's DECISION (every member can show it now: one
@@ -169,10 +158,16 @@ function dailyHoldNeeded(sym, tf, need = COVER_ROWS) {
   // the view (`devicePaints`), and the deep history then filled the screen in. Short of the view, the switch holds while
   // the deep history is still due; with nothing more coming (its join settled) it paints what there is.
   const rows = storePrefetch.heldRows?.(sym, tf, {}) ?? 0
+  const deep = !!storePrefetch.deepPending(sym, tf)
   // (a count of zero: a source that cannot count rows, so the rule before this one decides, unchanged)
-  if (!rows) return !!storePrefetch.deepPending(sym, tf) && !devicePaints(sym, tf)
-  if (rows >= need) return false
-  return !!storePrefetch.deepPending(sym, tf)
+  if (!rows) return deep && !devicePaints(sym, tf)
+  // nothing more is coming (the deep history joined or settled): what is held is the set
+  if (!deep) return false
+  // the deep history still due: shown now only on rows that cover the view and that the chart paints: this life's
+  // answer (a saved copy alone may be behind, and the chart refuses it), or the device's current copy
+  if (covers(sym, tf, { answered: true }, need)) return false
+  if (devicePaints(sym, tf) && rows >= need) return false
+  return true
 }
 
 /** ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink later"). A held
@@ -189,7 +184,7 @@ function paintsWholeNow(sym, tf, sess, need = COVER_ROWS) {
   // view, like any other copy. A copy short of the view waits for the rows that cover it (the prepare: the answer, the
   // lake's join, bounded by LAKE_JOIN_WAIT_MS), unless nothing more is coming: the lake settled and the server answered
   // this life (a young listing paints what there is).
-  const rows = BARSTORE ? (storePrefetch.heldRows?.(sym, ftf, sess) ?? 0) : 0
+  const rows = BARSTORE ? (storePrefetch.heldRows?.(sym, ftf, { ...sess, upTo: need }) ?? 0) : 0
   // (a displayable key always holds rows in the store: a count of zero is a source that cannot count them, so the rule
   // before this one decides, unchanged)
   if (!rows) return !(storePrefetch.lakePending(sym, ftf, sess) && !devicePaints(sym, ftf, sess))

@@ -8,6 +8,7 @@
 // know when every chart of a group has drawn a new symbol. A chart with no identity (every other host) hands
 // nothing; with no listener nothing is called. Read by no rendering decision.
 import { createContext } from 'react'
+import { COVER_ROWS } from '../../data/barStore/coverRows'
 
 /** The identity a chart paints under (an opaque token), or null: this chart is no group's member. */
 export const PaintMemberContext = createContext(null)
@@ -24,6 +25,20 @@ export function noteMemberView(member, span) {
 /** The logical width the chart painting under `member` last showed, or null (none written yet). */
 export function memberViewSpan(member) {
   return member && typeof member === 'object' ? (_views.get(member) ?? null) : null
+}
+/** The rows the default view assumes besides its visible bars: the longest average's lookback and a margin (COVER_ROWS
+ *  is ~200 visible bars plus these). */
+export const VIEW_LOOKBACK_ROWS = COVER_ROWS - 200
+/**
+ * ⭐⭐ (2026-11-27, owner: "I type a random stock and it loads a small portion of the candles right away and then shortly
+ * after it loads the rest. That jumpiness is horrible.") THE ROWS A FIRST PAINT NEEDS: what the view this member shows
+ * will draw (its logical width, the right margin included: memberViewSpan) plus the lookback the averages draw from, and
+ * never fewer than COVER_ROWS (the default view). A view zoomed out to 425 bars needed ~825 rows, and the fixed 600
+ * painted it short. Read by the switch (hooks/useSymbolHandoff) and the double buffer's flip (useDoubleBuffer).
+ */
+export function viewNeed(member) {
+  const span = memberViewSpan(member)
+  return Number.isFinite(span) && span > 0 ? Math.max(COVER_ROWS, Math.ceil(span) + VIEW_LOOKBACK_ROWS) : COVER_ROWS
 }
 
 let _onPaint = null

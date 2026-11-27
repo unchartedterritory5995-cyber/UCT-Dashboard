@@ -96,11 +96,13 @@ describe('a first paint holds the rows the view will draw', () => {
     expect(flip('5').result.current).toBe('AAA')
   })
 
-  it('a bounded wait still ends in a paint: the prepare reporting commits (never a member stuck on the old chart)', async () => {
+  it('the prepare reporting while still short does NOT commit (never a short page); the hang guard still ends the wait', async () => {
     st.rows = 300
     const { result } = flip('5')
     expect(result.current).toBe('AAA')
     await act(async () => { resolvePrepare('current'); await vi.advanceTimersByTimeAsync(5) })
+    expect(result.current).toBe('AAA')
+    await act(async () => { await vi.advanceTimersByTimeAsync(4100) })    // HANDOFF_HANG_MS: never a member stuck on A
     expect(result.current).toBe('BBB')
   })
 })

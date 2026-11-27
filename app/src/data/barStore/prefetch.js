@@ -965,12 +965,12 @@ export function createPrefetch(o = {}) {
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
    *  handoff asks it after its own peek, which already did. */
-  function heldRows(sym, tf, { showExtended, answered = false } = {}) {
+  function heldRows(sym, tf, { showExtended, answered = false, upTo = COVER_ROWS } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
-    return _viewRows(s, key, extOf(showExtended))
+    return _viewRows(s, key, extOf(showExtended), upTo)
   }
   /**
    * ⭐ (2026-11-26, review of #2871) THE ROWS THE VIEW DRAWS. A regular-hours view of an intraday key both sessions share
@@ -979,13 +979,13 @@ export function createPrefetch(o = {}) {
    * visible bars plus the longest average's lookback, and the later join changed visible values. Counted from the newest
    * row back and no further than COVER_ROWS (the only question asked of it: does it cover?). Any other view: every row.
    */
-  function _viewRows(s, key, ext) {
+  function _viewRows(s, key, ext, upTo = COVER_ROWS) {
     if (!s) return 0
     const p = key ? parseKey(key) : null
     const all = s.bars.length + (s.developing ? 1 : 0)
     if (ext || !p || p.session != null || p.window || !isIntradayTf(p.tf)) return all
     let n = s.developing && isRthBar(s.developing.t) ? 1 : 0
-    for (let i = s.bars.length - 1; i >= 0 && n < COVER_ROWS; i--) if (isRthBar(s.bars[i].t)) n++
+    for (let i = s.bars.length - 1; i >= 0 && n < upTo; i--) if (isRthBar(s.bars[i].t)) n++
     return n
   }
 

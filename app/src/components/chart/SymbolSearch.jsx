@@ -275,8 +275,8 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // pending one, and the chart's typed warm itself keeps one warm at a time (a newer symbol aborts the older one), so a
   // member arrowing down the list starts at most one fetch per pause. Once per symbol per open search, shared with the
   // settled text (lastIntentRef): the same ticker is never told twice.
-  const highlighted = open ? results?.[activeIdx] : null
-  const highlightedTicker = highlighted && !highlighted.econ && typeof highlighted.ticker === 'string' ? highlighted.ticker.toUpperCase() : null
+  const hlRow = open ? results?.[activeIdx] : null
+  const highlightedTicker = hlRow && !hlRow.econ && typeof hlRow.ticker === 'string' ? hlRow.ticker.toUpperCase() : null
   useEffect(() => {
     // (only once the member has typed: the empty search's popular list is no intent)
     if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth' || !highlightedTicker || !query.trim()) return undefined
