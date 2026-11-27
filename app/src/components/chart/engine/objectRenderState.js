@@ -347,6 +347,10 @@ const CELL_THEME_SLOTS = Object.freeze(['text_color', 'bgcolor'])
  *  paints, never restated. */
 export const RENDER_COLOUR_SLOTS = Object.freeze({ ...THEME_SLOTS, cell: CELL_THEME_SLOTS })
 
+/** ⭐ M-T1 — a placeholder cell's reason when the RUN withheld its text for its number format (no translator
+ *  refusal names it): plain words, the e95 format rule. */
+export const WITHHELD_FORMAT_REASON = 'the number’s display format is not one this chart can reproduce yet'
+
 /**
  * @param {Array}  live   `evaluateObjects(...).live`
  * @param {object} opts
@@ -389,6 +393,8 @@ export function toRenderState(live, opts = {}) {
   // here, and they are what the member's drawing note discloses
   // (`objectRenderNotice.js`).
   const unplaced = { line: 0, label: 0, box: 0, cell: 0, linefill: 0 }
+  /** ⭐ M-T1 — cells kept as "not computed" placeholders (drawn as such, never as values; not `unplaced`) */
+  const placeholders = { cell: 0 }
   const unplacedIds = new Set()
   /** A finite coordinate the clock could not place (an `na` one is the script's). */
   const lost = (value, x) => x === null && num(value) !== null
@@ -503,16 +509,23 @@ export function toRenderState(live, opts = {}) {
         // day produce — so it fixes the order itself rather than inheriting one
         // producer's habit. A table whose row order depends on which cell the
         // author happened to write first is not a table.
-        // ⛔ A cell whose text is withheld (`null`) is not drawn — the cell IS its
-        // text. Counted under `dropped.cell`, present only when it happened.
-        cells: [...(o.cells || [])].filter((c) => {
-          if (c.props.text !== null) return true
-          dropped.cell = (dropped.cell || 0) + 1
-          unplaced.cell += 1
-          return false
+        // ⭐⭐ M-T1 (coordinator ruling 2026-11-27) — A CELL WHOSE TEXT IS WITHHELD (`null`: the translator refused
+        // it, or the run withheld its number's format) KEEPS ITS PLACE AS A PLACEHOLDER: `placeholder: true` and
+        // `reason`, never a blank cell and never a value. ⚰️ It was dropped, which collapsed the table around the
+        // hole (Black-Scholes drew 8 of TradingView's 22 rows, every later row moved up). The table's geometry is
+        // TradingView's again; the renderer paints the placeholder muted, with its reason on hover / long-press.
+        // ⛔ A placeholder is NOT a drawn value: it is not counted as a cell drawn (`placeholders` is its own
+        // count, and a reader of cells as values — the harness — skips `placeholder`). A cell whose text
+        // TradingView leaves empty (`''`) is not withheld and is unchanged.
+        cells: [...(o.cells || [])].map((c) => {
+          if (c.props.text !== null) return c
+          placeholders.cell += 1
+          return { ...c, placeholder: true }
         }).sort((x, y) => (x.row - y.row) || (x.col - y.col)).map((c) => ({
           col: c.col,
           row: c.row,
+          ...(c.placeholder ? { placeholder: true, reason: typeof c.props.refused === 'string' && c.props.refused
+            ? c.props.refused : WITHHELD_FORMAT_REASON } : {}),
           text: c.props.text === undefined || c.props.text === null ? '' : String(c.props.text),
           text_color: paint(c.props.text_color, undefined) ?? defaults.cell.text_color,
           text_size: c.props.text_size,
@@ -562,6 +575,7 @@ export function toRenderState(live, opts = {}) {
     frame,
     dropped,
     unplaced,
+    placeholders,
     counts: {
       line: lines.length,
       label: labels.length,

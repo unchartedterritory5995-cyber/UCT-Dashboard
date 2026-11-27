@@ -51,7 +51,8 @@ const cellTree = (expr) => {
 var table tb = table.new(position.top_right, 1, 1)
 if barstate.islast
     table.cell(tb, 0, 0, str.tostring(${expr}))`), { strict: true })
-  const cellOp = out.objects && out.objects.ops.find((op) => op.k === 'cell')
+  // ⭐ M-T1 — a refused text keeps its cell as a "not computed" placeholder (`{t:'refused'}`): not a value
+  const cellOp = out.objects && out.objects.ops.find((op) => op.k === 'cell' && op.props.text.node.t !== 'refused')
   if (!cellOp) return { dropped: out.objectDiagnostics.dropReasons }
   return out.objects.trees[cellOp.props.text.node.tree]
 }

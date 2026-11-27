@@ -66,7 +66,16 @@ const CELL_PAD_PX = 6
  * text or a background of its own; nothing else does.
  */
 export const cellIsDrawn = (c) =>
-  !!c && ((typeof c.text === 'string' && c.text !== '') || !!c.bgcolor)
+  !!c && (c.placeholder === true || (typeof c.text === 'string' && c.text !== '') || !!c.bgcolor)
+
+/** ⭐⭐ M-T1 (coordinator ruling 2026-11-27) — what a "not computed" placeholder cell SAYS, and how it looks.
+ *  A cell whose text this chart could not compute keeps TradingView's place and colours (the render state's
+ *  `placeholder`), and shows this, muted and in italics: never blank (an empty cell reads as "the value is
+ *  empty") and never a number. Its reason is on hover (`title`) and on a touch long-press. */
+export const PLACEHOLDER_TEXT = 'not computed'
+export const PLACEHOLDER_COLOR = '#787B86'
+export const PLACEHOLDER_LONG_PRESS_MS = 500
+export const PLACEHOLDER_REASON_SHOW_MS = 4000
 
 /** Where the nine Pine anchors put a box inside its container, as CSS.
  *  ⛔ CORNERS AND PERCENTAGES, NEVER MEASURED PIXELS. A `left` computed from
@@ -104,6 +113,40 @@ export function rowCells(row) {
   return cells.slice(0, last + 1).map((c, col) => ({ col, cell: c, drawn: cellIsDrawn(c) }))
 }
 
+/** ⭐⭐ M-T1 — turn a built `<td>` into the "not computed" placeholder: muted italic words in the cell's own
+ *  size, place and background (set by the caller, as for any cell), the reason on hover (`title`) and on a
+ *  touch long-press (shown in place, then put back). ⛔ The table root is `pointer-events: none` so the chart
+ *  under it stays draggable; only a placeholder takes pointer events, the smallest target that needs them. */
+export function placeholderCell(td, cell, doc) {
+  const reason = typeof cell.reason === 'string' && cell.reason ? cell.reason : 'this chart could not compute this value'
+  td.textContent = PLACEHOLDER_TEXT
+  td.setAttribute('data-uct-cell', 'placeholder')
+  td.setAttribute('data-uct-reason', reason)
+  td.setAttribute('title', `Not computed on this chart: ${reason}`)
+  td.setAttribute('aria-label', `Not computed on this chart: ${reason}`)
+  td.style.color = PLACEHOLDER_COLOR
+  td.style.fontStyle = 'italic'
+  td.style.fontWeight = 'normal'
+  td.style.pointerEvents = 'auto'
+  td.style.cursor = 'help'
+  const view = doc && doc.defaultView
+  let pressTimer = null
+  let backTimer = null
+  const clear = () => { if (pressTimer !== null && view) view.clearTimeout(pressTimer); pressTimer = null }
+  td.addEventListener('pointerdown', (e) => {
+    if (!view || (e && e.pointerType && e.pointerType !== 'touch' && e.pointerType !== 'pen')) return
+    clear()
+    pressTimer = view.setTimeout(() => {
+      pressTimer = null
+      td.textContent = reason
+      if (backTimer !== null) view.clearTimeout(backTimer)
+      backTimer = view.setTimeout(() => { backTimer = null; td.textContent = PLACEHOLDER_TEXT }, PLACEHOLDER_REASON_SHOW_MS)
+    }, PLACEHOLDER_LONG_PRESS_MS)
+  })
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) td.addEventListener(ev, clear)
+  return td
+}
+
 /** A positive, finite width in whole pixels (≤ 50), else 0 — never a string into CSS. */
 const px1 = (w) => (typeof w === 'number' && Number.isFinite(w) && w > 0 ? Math.min(50, Math.round(w)) : 0)
 
@@ -131,7 +174,8 @@ export function buildTable(tb, doc) {
     // a line of vertical padding, which is a stripe the author never drew.
     if (!cells.length) continue
     rows.push(cells)
-    for (const c of cells) if (c.drawn) drawnCells += 1
+    // ⭐ M-T1 — a placeholder holds its place but is not a drawn value (an instrument counting cells skips it)
+    for (const c of cells) if (c.drawn && !(c.cell && c.cell.placeholder === true)) drawnCells += 1
   }
   if (!drawnCells) return null
 
@@ -232,6 +276,7 @@ export function buildTable(tb, doc) {
       // markup on our page. `textContent` also means the compare reads exactly
       // the bytes the template produced, which is the point of doing this in DOM.
       td.textContent = String(cell.text === undefined || cell.text === null ? '' : cell.text)
+      if (cell.placeholder === true) placeholderCell(td, cell, doc)
       tr.appendChild(td)
     }
     tbody.appendChild(tr)

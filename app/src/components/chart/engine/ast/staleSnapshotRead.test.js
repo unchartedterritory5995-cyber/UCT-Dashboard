@@ -87,7 +87,9 @@ describe('C28 — a snapshot does not see the closing pass', () => {
   it('🔴 the object pass withholds the cell rather than printing the declaration\'s answer', () => {
     const r = translatePine(src(...HEAD, ...TABLE), {})
     const cells = r.objects.ops.filter((o) => o.k === 'cell')
-    expect(cells.map((c) => c.props.text.node)).toEqual([{ t: 'lit', s: 'K' }])
+    // ⭐ M-T1 — withheld as a REFUSED text (a "not computed" placeholder), never the declaration's answer
+    expect(cells.map((c) => c.props.text.node.t)).toEqual(['refused', 'lit'])
+    expect(cells[1].props.text.node).toEqual({ t: 'lit', s: 'K' })
     expect(r.objectDiagnostics.dropReasons['cell:text']).toBe(1)
   })
 

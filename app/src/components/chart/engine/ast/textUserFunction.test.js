@@ -22,6 +22,9 @@
 // smallest scripts that isolate the substitution.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
+// ⭐ M-T1 (2026-11-27) — a cell whose text this door refuses is kept as a "not computed" placeholder
+// (`{t:'refused'}`), never a value: the cells these rails count are the COMPUTED ones.
+const isRefusedCell = (o) => !!(o && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused')
 
 const HEAD = '//@version=6\nindicator("t", overlay=true)\n'
 
@@ -31,7 +34,7 @@ function cells(src) {
   const ops = (t.objects && t.objects.ops) || []
   return {
     t,
-    cells: ops.filter((o) => o.k === 'cell'),
+    cells: ops.filter((o) => o.k === 'cell' && !isRefusedCell(o)),
     dropped: (t.objectDiagnostics && t.objectDiagnostics.dropReasons) || {},
   }
 }

@@ -53,10 +53,12 @@ describe('⭐ `syminfo.ticker` in a cell is the symbol\'s text', () => {
     expect(cellAt(state, 3, 11).text).toBe(vendor.t)
   }, 60000)
 
-  it('⛔ CONTROL — a binding that does not know the symbol draws NO footer, never "NaN"', () => {
+  it('⛔ CONTROL — a binding that does not know the symbol draws NO footer value, never "NaN"', () => {
     const { run, state } = drawCapture(RIBBON, undefined)
-    expect(cellAt(state, 3, 11)).toBeUndefined()
-    expect(state.dropped.cell).toBeGreaterThan(0)
+    // ⭐ M-T1 (2026-11-27) — the footer keeps its place as a "not computed" placeholder: no text, not a value
+    expect(cellAt(state, 3, 11).placeholder).toBe(true)
+    expect(cellAt(state, 3, 11).text).toBe('')
+    expect(state.placeholders.cell).toBeGreaterThan(0)
     expect(run.stats.textsWithheld).toBeGreaterThan(0)
     expect(state.tables[0].cells.map((c) => c.text)).not.toContain('NaN')
   }, 60000)

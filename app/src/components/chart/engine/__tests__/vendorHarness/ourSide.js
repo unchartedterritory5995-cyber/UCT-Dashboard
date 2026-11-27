@@ -1451,7 +1451,8 @@ function runtimeObjectsReport(def, bars, ctx, cols) {
 
 /** Counts, texts and held objects off a LIVE set and its render state. */
 function heldReport(live, state, pineVersion) {
-  const cells = state.tables.flatMap((t) => t.cells || [])
+  // ⭐ M-T1 — a "not computed" placeholder holds a place, not a value: never counted or texted as a cell
+  const cells = state.tables.flatMap((t) => (t.cells || []).filter((c) => !c.placeholder))
   const held = { line: 0, label: 0, box: 0 }
   const heldTexts = { label: [], box: [] }
   for (const o of live || []) {
@@ -1586,7 +1587,7 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
         held: [...(run.live || []), ...(run.offListingLive || [])].sort((x, y) => x.id - y.id) }
     }
     const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
-    const cells = state.tables.flatMap((t) => t.cells || [])
+    const cells = state.tables.flatMap((t) => (t.cells || []).filter((c) => !c.placeholder))
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
     // runtime's LIVE set at the last bar — because that is what the capture's
     // counts are. TradingView's `graphics()` collections keep an object whose

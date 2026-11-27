@@ -33,6 +33,9 @@ import { buildObjectLane, runObjectLane } from '../runtime/objectLane.js'
 import { OBJECT_STATUS } from '../objectRuntime'
 import { toRenderState } from '../objectRenderState'
 import { probeObjectRuntime } from '../runtime/runtimeColumns'
+// ⭐ M-T1 (2026-11-27) — a cell whose text this door refuses is kept as a "not computed" placeholder
+// (`{t:'refused'}`), never a value: the cells these rails count are the COMPUTED ones.
+const isRefusedCell = (o) => !!(o && o.props && o.props.text && o.props.text.node && o.props.text.node.t === 'refused')
 
 const LF = String.fromCharCode(10)
 const HEAD = ['//@version=6', 'indicator("t", overlay = true)']
@@ -44,7 +47,7 @@ const cells = (src) => {
   const t = translatePine(src, {})
   const ops = (t.objects && t.objects.ops) || []
   const d = t.objectDiagnostics || {}
-  return { t, cells: ops.filter((o) => o.k === 'cell'), why: d.cellTextWhy || [], dropped: d.dropReasons || {} }
+  return { t, cells: ops.filter((o) => o.k === 'cell' && !isRefusedCell(o)), why: d.cellTextWhy || [], dropped: d.dropReasons || {} }
 }
 const findNum = (node) => {
   if (!node || typeof node !== 'object') return null
@@ -122,7 +125,7 @@ describe('A — `{N,number,percent}` is REFUSED BY NAME until capture Q-W3-3 mat
   it('⛔ the document validator refuses a forged `percent` node', () => {
     const t = translatePine(P.control, {})
     const forged = JSON.parse(JSON.stringify(t.objects))
-    findNum(forged.ops.find((o) => o.k === 'cell').props.text.node).fmt = 'percent'
+    findNum(forged.ops.find((o) => o.k === 'cell' && !isRefusedCell(o)).props.text.node).fmt = 'percent'
     expect(() => assertObjectProgram(forged)).toThrow(/str\.format pattern "percent" is not one a capture or published rule pins/)
   })
 
@@ -250,8 +253,10 @@ describe('B — every other S1 shape is refused BY NAME, never "no refusal recor
     // the loop probes' `loop:empty` beside it — measured on the merge base before the
     // names landed (W3-S1 probes, 2026-11-02)
     for (const src of [P.date, P.numberBare, P.integer]) expect(cells(src).dropped).toEqual({ 'cell:text': 1 })
+    // ⭐ M-T1 (2026-11-27) — and no more `loop:empty`: the loop now keeps its cells as "not computed"
+    // placeholders at their per-row places, so it is not empty. The `cell:text` count is unchanged.
     for (const src of [P.loopList, P.loopHelper, P.loopTernary, P.loopLocal]) {
-      expect(cells(src).dropped).toEqual({ 'cell:text': 1, 'loop:empty': 1 })
+      expect(cells(src).dropped).toEqual({ 'cell:text': 1 })
     }
   })
 
