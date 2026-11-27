@@ -28,6 +28,8 @@ import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState 
 import { createBoardVisibility } from './boardVisibility'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars } from '../../data/barStore/adapter'
+import { keyOf } from '../../data/barStore/types'
+import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
@@ -37,20 +39,30 @@ import {
   doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, noteDecision, noteRetarget,
 } from './doubleBuffer'
 
-/** The bars array the store's base snapshot of the key a chart reported gives NOW: the array a chart of that key
- *  hands the library (`adapter.legacyBars`, memoised per snapshot), or null (no store, no key, not held). Never creates
- *  a registry entry. */
+/** The bars array a chart of the reported symbol, timeframe and session hands the library NOW, by the chart's own
+ *  path (useBarSnapshotBars): the base snapshot's rows (`adapter.legacyBars`, memoised per snapshot); for a CUSTOM
+ *  timeframe, their filed resample (customTfRows.deriveCustomTf); for W / M whose own key is still empty, the filed
+ *  resample of the held daily rows (deriveWmFromDaily) (review of #2922, N2). null: no store, no key, not held.
+ *  Never creates a registry entry. */
 export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
   const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: null, hasOverride: false })
   if (!key) return null
-  return _barsOf(key)
+  return _barsOf(key, report)
 }
-const _storeBars = (key) => {
+const _storeBars = (key, report) => {
   const store = getBarStore()
-  if (!store.registry.has(key)) return null
-  const snap = store.getBaseSnapshot(key)
-  return snap ? legacyBars(snap) : null
+  const snap = store.registry.has(key) ? store.getBaseSnapshot(key) : null
+  const all = snap ? legacyBars(snap) : null
+  const tf = String(report?.tf ?? '')
+  const spec = report ? customSpecOf(tf, !!report.ext) : null
+  if (spec) return all?.length ? deriveCustomTf(all, spec) : null
+  if ((tf === 'W' || tf === 'M') && !all?.length) {
+    const d = store.peek ? store.peek(keyOf({ sym: report.sym, tf: 'D' })) : null
+    const daily = d ? legacyBars(d) : null
+    return daily?.length ? deriveWmFromDaily(daily, tf) : null
+  }
+  return all
 }
 let _barsOf = _storeBars
 let _storeOn = () => !!BARSTORE
@@ -100,6 +112,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
   const reportsRef = useRef([null, null])   // each layer's chart's last committed pass (F3)
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
+  const heldRef = useRef(false)             // the widget holds a shadow NOW (set in the board handle's own task)
 
   // ── (F2) the budget: the board SLOT's, given back while the board is not shown ──
   // ⛔ (delta review of #2922, N1) A BOARD SWITCH RE-RENDERS NOTHING HERE. The workspace hides and shows boards in its
@@ -112,6 +125,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     const key = parentVis || scope
     let release = null
     const sync = (initial = false) => {
+      // (delta 2, D2-1) the budget's truth at once, for the idle drop below (the state follows in a transition)
       const shown = !parentVis || parentVis.state === 'visible'
       let next = null
       if (shown && !release) {
@@ -122,17 +136,19 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         next = false
       }
       if (next === null) return
+      heldRef.current = next
       if (initial) setSlotOk(next)
       else startTransition(() => setSlotOk(next))
     }
     sync(true)
     const off = parentVis && typeof parentVis.subscribe === 'function' ? parentVis.subscribe(() => sync(false)) : null
-    return () => { if (off) off(); if (release) release() }
+    return () => { if (off) off(); if (release) release(); heldRef.current = false }
   }, [eligible, scope, owner, parentVis])
   // a widget without a shadow holds no hidden pane (its canvases go): in idle time, as a transition
   useEffect(() => {
     if (!eligible || slotOk) return undefined
     const idle = _ric(() => {
+      if (heldRef.current) return   // (D2-1) the board was shown again and took the shadow back: keep the pane
       const b = bufRef.current
       if (b.syms[1 - b.front] == null) return
       reportsRef.current[1 - b.front] = null
