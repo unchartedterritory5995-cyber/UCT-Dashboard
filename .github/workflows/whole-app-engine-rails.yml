@@ -53,6 +53,10 @@ on:
       - 'docs/superpowers/**'
       - 'docs/frontend_feature_flags.json'
       - 'docs/pine/lwc5-capability-map.md'
+      # W9 ARMED (owner decision 2026-11-26): the strategy broker's arming is read off Dockerfile.web's ARG default
+      # (productScorecard / strategiesAreRuled, through runtime/__tests__/brokerArmed.js), so a PR that re-disarms it
+      # (that one line) runs them
+      - 'Dockerfile.web'
       - 'tests/fixtures/**'
       - 'tests/test_the_member_loop_end_to_end.py'
       # this job's own definition and tooling (tools/ci_app_src_rails.py is under tools/** above)

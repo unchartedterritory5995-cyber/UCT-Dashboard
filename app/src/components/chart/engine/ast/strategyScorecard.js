@@ -11,8 +11,11 @@
 // The screener ruling (`strategiesAreRuled.test.js`: a strategy is not a screen) is a
 // separate row and is not changed by this wording.
 //
-// `served` is false until the owner arms a W2 stage for strategies (ruling D6: arming is
-// the owner's act, per stage). Nothing in this repo arms it, so the scorecard passes false.
+// `served` is the CALLER's: whether a production build arms the strategy broker. The owner armed it
+// on 2026-11-26 (verbatim: "we are only admins and have no users so everything can always be live
+// fully"; ruling D6, every W2 stage at once). The scorecard reads it off Dockerfile.web and the gate
+// module (`runtime/__tests__/brokerArmed.js::productionBrokerArmedOf`), never a constant. The default
+// stays false (fail closed): a caller that does not ask is told "not served".
 import { BROKER_RULE_IDS, UNPINNED_GUARD } from '../runtime/brokerRules.js'
 import RESOLVED from '../runtime/brokerPins.resolved.json'
 
@@ -30,6 +33,8 @@ export function strategyScorecardWording({ ledger = RESOLVED, served = false } =
     `${pinned} of ${total} broker rules are pinned, each verified against a TradingView capture.`,
     `A backtest that reaches an unpinned rule stops and refuses by name (${UNPINNED_GUARD}).`,
   ]
-  if (!served) parts.push('Strategy backtests are not served to members yet.')
+  parts.push(served
+    ? 'Strategy backtests are served to members where every broker rule a backtest reaches is pinned.'
+    : 'Strategy backtests are not served to members yet.')
   return parts.join(' ')
 }

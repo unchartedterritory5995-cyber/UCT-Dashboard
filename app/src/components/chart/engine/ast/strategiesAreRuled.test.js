@@ -68,6 +68,9 @@ import path from 'node:path'
 import { parseFormula } from './parse.js'
 import { strategyScorecardWording, pinnedBrokerRules } from './strategyScorecard.js'
 import { BROKER_RULE_IDS } from '../runtime/brokerRules.js'
+import { brokerArmedInDockerfile, brokerArmingTextsOf, productionBrokerArmedOf } from '../runtime/__tests__/brokerArmed.js'
+
+const REPO_ROOT = path.resolve(process.cwd(), '..')
 
 const STRATEGY_PINE = `//@version=6
 strategy("mine", overlay=true)
@@ -170,10 +173,11 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
 // The ruling above stays: a strategy is not a screen. D7 adds one plain row for the
 // OTHER door, the single-symbol backtest W9 builds. It says three things and nothing
 // else: how many broker rules are pinned (verified against TradingView captures), that
-// an unpinned rule refuses by name, and that strategy backtests are not served yet.
+// an unpinned rule refuses by name, and whether strategy backtests are served (read off the production
+// build: served since the owner armed the broker on 2026-11-26).
 // Counts come from the committed ledger, so the row cannot claim a pin that is not there.
 describe('D7: the strategy-backtest scorecard wording', () => {
-  it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
+  it('states the pinned count from the ledger, the refusal by name, and that it is served (armed 2026-11-26)', () => {
     // 32 since 2026-11-16: B-FUNDS (Q-S1i), pinned by w9-q-s1a-size-v6 grading MATCH
     // 34 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i), pinned by w9-q-s1i-short-v6 grading MATCH
     // 39 since 2026-11-17 (the reversal slice): B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER and
@@ -186,10 +190,13 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // 47 since 2026-11-20 (the strategy-only daily window): B-START-DEEP, pinned by Q-SU-7 / Q-SU-8 (supertrend-strategy on
     // SPY 1D from 1993 and AAPL 1D from 1980, each scrolled back to its listing) grading MATCH
     expect(pinnedBrokerRules()).toHaveLength(47)
-    expect(strategyScorecardWording()).toBe(
+    // ⭐⭐ W9 ARMED (owner decision 2026-11-26, verbatim: "we are only admins and have no users so everything can always
+    // be live fully"): the production build arms the broker, so the scorecard (which reads the build) says served
+    expect(productionBrokerArmedOf(REPO_ROOT)).toBe(true)
+    expect(strategyScorecardWording({ served: productionBrokerArmedOf(REPO_ROOT) })).toBe(
       `47 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
-      + 'Strategy backtests are not served to members yet.')
+      + 'Strategy backtests are served to members where every broker rule a backtest reaches is pinned.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
     // fill-timing rules (B-POC, B-POC-PRICE, B-POC-PYR, B-POC-FILLS, B-FILLS, B-TICK-HIST) + 8 W9-T7 rules
     // (B-TRAIL, B-EXIT-QTY, B-CLOSE-QTY, B-OCA, B-ORDER, B-IMMEDIATELY, B-STOP-LIMIT, B-EXIT-LEVELS).
@@ -239,6 +246,30 @@ describe('D7: the strategy-backtest scorecard wording', () => {
   it('drops the not-served sentence only when the caller says it is served', () => {
     expect(strategyScorecardWording({ served: true })).not.toMatch(/not served/)
     expect(strategyScorecardWording()).toMatch(/not served to members yet\.$/)
+  })
+
+  // ⭐⭐ W9 ARMED (owner decision 2026-11-26) - THE ARMING IS READ OFF THE BUILD, AND THE RE-DISARM PATH IS THE SAME LINE.
+  // `Dockerfile.web`'s ARG default for the gate's flag decides what a production build bakes (Railway's variable unset);
+  // the scorecard follows it both ways, so re-disarming (the ARG default set to anything but the literal) turns the
+  // member-facing sentence back to "not served" in the same commit, with no second switch to remember.
+  it('reads the arming off Dockerfile.web and the gate, and re-disarms on the same line', () => {
+    const { dockerText, gateSource } = brokerArmingTextsOf(REPO_ROOT)
+    const flag = (gateSource.match(/import\.meta\.env\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
+    expect(flag).toBe('VITE_PINE_STRATEGY_BROKER_ENABLED')
+    const line = new RegExp(`^ARG[ \\t]+${flag}=1[ \\t\\r]*$`, 'm')
+    expect(dockerText).toMatch(line)
+    expect(brokerArmedInDockerfile(dockerText, gateSource)).toBe(true)
+    // the re-disarm path: the same line with another default, or none, or removed, is OFF; so is a missing gate
+    for (const held of [`ARG ${flag}=0`, `ARG ${flag}=`, `ARG ${flag}`, `ARG ${flag}=true`, '']) {
+      const text = dockerText.replace(line, held)
+      expect(text, held).not.toMatch(line)
+      expect(brokerArmedInDockerfile(text, gateSource), held).toBe(false)
+      const w = strategyScorecardWording({ served: brokerArmedInDockerfile(text, gateSource) })
+      expect(w, held).toMatch(/not served to members yet\.$/)
+    }
+    expect(brokerArmedInDockerfile(dockerText, '')).toBe(false)
+    // another flag's default does not arm this one
+    expect(brokerArmedInDockerfile('ARG VITE_OTHER_FLAG=1\n', gateSource)).toBe(false)
   })
 
   it('is plain: no em dash, no marketing words, and the screener ruling is untouched', () => {

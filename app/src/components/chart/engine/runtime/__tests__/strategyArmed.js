@@ -38,6 +38,9 @@ export function brokerFlagOf(gateSource) {
   return (String(gateSource).match(/env\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1] || null
 }
 
+/** ⭐⭐ W9 ARMED (owner decision 2026-11-26): is the broker armed in a production build? One reader, `brokerArmed.js`. */
+export { brokerArmedInDockerfile, productionBrokerArmedOf } from './brokerArmed.js'
+
 /** `bars_window.HISTORY_WINDOW_BARS`, the ONE authority over a strategy run's window, read off the Python
  *  module (W9 rule 3: no second bar constant). `repoRoot` is the repository root. */
 export function historyWindowBarsOf(repoRoot) {

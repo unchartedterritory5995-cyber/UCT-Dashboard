@@ -1,0 +1,114 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "W9 ARMED, every W2 stage at once (owner decision 2026-11-26, verbatim: \"we are only admins and have no users so everything can always be live fully\"; ruling D6's owner act). The scorecard and the census read ONE arming authority, the build's own (the gate's flag and literal, Dockerfile.web's ARG default): (a) a strategy the armed broker serves is counted served, (b) every other strategy stays refused by name, (c) the re-disarm path (the same ARG line) turns every predicate and the member-facing sentence back. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "A1",
+   "mutant": "PY: the build always reads as armed (the ARG default never compared to the gate's literal)",
+   "file": "tools/pine_coverage/coverage_map.py",
+   "from": "    return bool(m) and m.group(1) == g.group(2)",
+   "to": "    return True",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_the_re_disarm_path_is_the_same_line"
+  },
+  {
+   "id": "A2",
+   "mutant": "PY: broker_serves ignores the arming (a disarmed build still counts a strategy served)",
+   "file": "tools/pine_coverage/coverage_map.py",
+   "from": "    return bool(armed) and isinstance(v, dict) and v.get(\"schema\") == ARMED_SCHEMA and v.get(\"transfers\") is True",
+   "to": "    return isinstance(v, dict) and v.get(\"schema\") == ARMED_SCHEMA and v.get(\"transfers\") is True",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_c_disarmed_no_strategy_transfers"
+  },
+  {
+   "id": "A3",
+   "mutant": "PY: broker_serves ignores the armed verdict (a strategy on an unpinned rule counted served)",
+   "file": "tools/pine_coverage/coverage_map.py",
+   "from": "    return bool(armed) and isinstance(v, dict) and v.get(\"schema\") == ARMED_SCHEMA and v.get(\"transfers\") is True",
+   "to": "    return bool(armed) and isinstance(v, dict) and v.get(\"schema\") == ARMED_SCHEMA",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_b_a_strategy_on_an_unpinned_rule_stays_refused_by_name"
+  },
+  {
+   "id": "A4",
+   "mutant": "PY: the runtime kill list no longer stops an armed strategy",
+   "file": "tools/pine_coverage/coverage_map.py",
+   "from": "        return broker_serves(r, armed) and not killed",
+   "to": "        return broker_serves(r, armed)",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_b_the_kill_list_stops_an_armed_strategy"
+  },
+  {
+   "id": "A5",
+   "mutant": "PY: the runtime-on lane back to 'a strategy never transfers' (the arming not counted)",
+   "file": "tools/pine_coverage/coverage_map.py",
+   "from": "        return broker_serves(r, armed) and not killed",
+   "to": "        return False",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_a_an_armed_strategy_the_broker_serves_transfers_on_the_runtime_on_lane"
+  },
+  {
+   "id": "A6",
+   "mutant": "PY: the ratchet no longer names an armed strategy's refusal by its armed wall",
+   "file": "tools/pine_coverage/coverage_ratchet.py",
+   "from": "        if lane == RC.LANE_RUNTIME_ON and CM.strategy_broker_armed():",
+   "to": "        if False:",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_the_ratchet_counts_an_armed_strategy_on_runtime_on_and_names_a_refused_one"
+  },
+  {
+   "id": "A7",
+   "mutant": "PY: the member model never serves an armed strategy (the served headline stays dark)",
+   "file": "tools/pine_coverage/parity_roadmap.py",
+   "from": "        armed_served = bool(s[\"placesOrders\"]) and k in added and s.get(\"wouldTransferIfArmed\") is True",
+   "to": "        armed_served = False",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_a_the_member_model_serves_an_armed_strategy_the_server_admits"
+  },
+  {
+   "id": "A8",
+   "mutant": "PY: the member model serves a strategy whose own armed column disagrees with the lane",
+   "file": "tools/pine_coverage/parity_roadmap.py",
+   "from": "        armed_served = bool(s[\"placesOrders\"]) and k in added and s.get(\"wouldTransferIfArmed\") is True",
+   "to": "        armed_served = bool(s[\"placesOrders\"]) and k in added",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_b_the_member_model_refuses_every_other_strategy_by_name"
+  },
+  {
+   "id": "A9",
+   "mutant": "PY: the member model skips the server's admission and the kill list for an armed strategy",
+   "file": "tools/pine_coverage/parity_roadmap.py",
+   "from": "        if route_runtime and adm and (not s[\"placesOrders\"] or armed_served):",
+   "to": "        if route_runtime and adm and not s[\"placesOrders\"]:",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_b_the_member_model_refuses_every_other_strategy_by_name"
+  },
+  {
+   "id": "A10",
+   "mutant": "PY: facts with no admission for a strategy (written before the arming) read as admitted",
+   "file": "tools/pine_coverage/parity_roadmap.py",
+   "from": "        if armed_served and not adm:",
+   "to": "        if False:",
+   "rail": "python -m pytest -q tests/test_pine_w9_arm_all.py",
+   "expectRed": "test_b_the_member_model_refuses_every_other_strategy_by_name"
+  },
+  {
+   "id": "A11",
+   "mutant": "JS: any ARG line for the flag reads as armed, whatever its default (the re-disarm path lost)",
+   "file": "app/src/components/chart/engine/runtime/__tests__/brokerArmed.js",
+   "from": "  return !!m && m[1] === g[2]",
+   "to": "  return !!m",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/strategiesAreRuled.test.js",
+   "expectRed": "re-disarms on the same line"
+  },
+  {
+   "id": "A12",
+   "mutant": "JS: the scorecard says 'not served' whatever the build (the false member-facing sentence back)",
+   "file": "app/src/components/chart/engine/ast/strategyScorecard.js",
+   "from": "  parts.push(served",
+   "to": "  parts.push(false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/strategiesAreRuled.test.js",
+   "expectRed": "that it is served (armed 2026-11-26)"
+  }
+ ]
+}
