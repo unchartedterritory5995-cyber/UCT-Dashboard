@@ -119,13 +119,14 @@ describe('a prepend behind the window hands the library nothing', () => {
   })
 
   it('control: the same array changed in place and handed again reaches the library (review of #2903)', async () => {
-    const b = board(); load(b)
-    const rows = copy(BARS)
+    const b = board()
+    b.chart.window.setWindow(renderWindowRows(150, 0), { span: 150 })
+    const rows = copy(BARS.slice(0, 500))            // short: no window, the library is handed this very array
     b.candles.setData(rows)
     const sets = spySets(b)
-    rows.push({ time: T(N), open: 1, high: 2, low: 0.5, close: 1.5 })
+    rows.push({ time: T(500), open: 1, high: 2, low: 0.5, close: 1.5 })
     b.candles.setData(rows)
     expect(sets.candles).toBe(1)
-    expect(rawOf(b.candles).data().at(-1).time).toBe(T(N))
+    expect(rawOf(b.candles).data().at(-1).time).toBe(T(500))
   })
 })
