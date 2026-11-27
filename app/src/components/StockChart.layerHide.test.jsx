@@ -281,6 +281,30 @@ describe('StockChart on a layer keep-alive board', () => {
     expect(last.tf).toBe('D')
     expect(typeof last.ext).toBe('boolean')
     expect(last.bars, 'the report names the very bars array the pass committed').toBe(FIXTURE_BARS)
+    expect(last.cutoff).toBe(null)
+    view.unmount()
+  })
+
+  it('S11 (owner, 2026-11-27) the mode a hidden chart is prepared in: its cutoff reported, its rows and replay lock read, a replay lock restored', async () => {
+    const { LayerPaintContext } = await import('./chart/layerPaint')
+    const seen = []
+    let api = null
+    const cutoff = '2026-02-10'
+    const view = render(
+      <LayerPaintContext.Provider value={(r) => { seen.push(r) }}>
+        <Host extra={{ replayCutoff: cutoff, onDateNavApi: (a) => { api = a } }} />
+      </LayerPaintContext.Provider>,
+    )
+    await waitFor(() => expect(seen.length).toBeGreaterThan(0))
+    expect(seen[seen.length - 1].cutoff).toBe(cutoff)
+    await waitFor(() => expect(api?.getDateMeta?.()).toBeTruthy())
+    const m = api.getDateMeta()
+    expect(m.rows).toBeGreaterThan(0)
+    expect(m.replayLock).toBe(null)
+    act(() => { api.restoreView({ fromRight: 40, toRight: 0, activeRange: null, locked: false, lock: null, replayLock: { barsFromRight: 1, width: 40 } }) })
+    expect(api.getDateMeta().replayLock).toEqual({ barsFromRight: 1, width: 40 })
+    act(() => { api.restoreView({ fromRight: 40, toRight: 0, activeRange: null, locked: false, lock: null, replayLock: null }) })
+    expect(api.getDateMeta().replayLock).toBe(null)
     view.unmount()
   })
 

@@ -10,13 +10,16 @@
 //      the hidden pane; the board shown again: the shadow comes back. The budget is the board SLOT's.
 //   H7 (F1) the views: a zoomed front refuses the flip; the shadow mirrors the front's span in idle time, then a press flips
 //   H8 (F5) focus inside the old front moves to the new front at the flip
-//   H9 (F6) no flip while a replay cutoff is set
+//   H9 (owner, 2026-11-27; it was F6's "no flip in replay") change-date mode: at a 2006 cutoff a press flips when the
+//      hidden chart reported that cutoff; a hidden chart of another cutoff refuses
 //   H10 (live dry run) right after a flip, and at mount, the hidden pane takes the row ahead with no idle time
 //   H11 each decision is logged with the time since the hidden pane was set and since its chart reported
 //   H12 / H13 (typed-Enter dry run) only the width must match (each chart pins its own symbol's right edge); a typed ticker
 //      named next by the pane (publishTypedNext) is the hidden pane's row, and Enter flips
 //   H14 (review of #2932) focusFront() focuses the pane shown NOW (a typed Enter's refocus, from the old front, lands there)
 //   H15 (review of #2932) a hidden chart of the same width, more than half a bar off its own pin, is re-pinned
+//   H16 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock): the hidden chart is given the front's lock at the frame
+//      the lock gives it, and then a press flips
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -47,12 +50,12 @@ const meta = (width = 160, reserve = 0) => {
 }
 let panes
 let els
-const base = () => ({ eligible: true, sym: 'AAA', settings, replay: false, scope, member, parentVis: null, panes: () => panes, layerEls: () => els })
+const base = () => ({ eligible: true, sym: 'AAA', settings, cutoff: null, scope, member, parentVis: null, panes: () => panes, layerEls: () => els })
 function mount(over = {}) {
   return renderHook((p) => useDoubleBuffer(p), { initialProps: { ...base(), ...over } })
 }
 // a layer's chart commits a pass of `sym` (StockChart's report through LayerPaintContext)
-const report = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym] }) })
+const report = (result, i, sym, cutoff = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff }) })
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -65,7 +68,11 @@ beforeEach(() => {
   panes = [0, 1].map(() => {
     const p = { m: meta(), focus: vi.fn() }
     p.getDateMeta = () => p.m
-    p.viewDo = (op, f) => { if (op === 'restoreView') p.m = { ...p.m, frame: { fromRight: f.fromRight, toRight: f.toRight, locked: false } } }
+    p.viewDo = (op, f) => {
+      if (op !== 'restoreView') return
+      p.m = { ...p.m, frame: f.lock ? { fromRight: f.fromRight, toRight: f.toRight, locked: !!f.locked, lock: { ...f.lock } } : { fromRight: f.fromRight, toRight: f.toRight, locked: false } }
+      if ('replayLock' in f) p.m.replayLock = f.replayLock ? { ...f.replayLock } : null
+    }
     return p
   })
   els = [document.createElement('div'), document.createElement('div')]
@@ -284,10 +291,40 @@ describe('useDoubleBuffer', () => {
     expect(panes[1].focus).not.toHaveBeenCalled()
   })
 
-  it('H9 (F6) no flip while a replay cutoff is set', async () => {
-    const h = await ready({ replay: true })
-    press(h, 'BBB', { replay: true })
+  it('H9 (owner, 2026-11-27) change-date mode at a 2006 date: the hidden chart of that cutoff flips; one of another cutoff refuses', async () => {
+    const c = '2006-03-15'
+    const h = mount({ cutoff: c })
+    report(h.result, 0, 'AAA', c)
+    await idle()
+    report(h.result, 1, 'BBB', c)
+    press(h, 'BBB', { cutoff: c })
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().log.at(-1)).toMatchObject({ sym: 'BBB', why: 'flip' })
+    await idle()
+    expect(h.result.current.syms[0]).toBe('CCC')
+    report(h.result, 0, 'CCC', '2006-03-16')              // its last pass was another cutoff's
+    press(h, 'CCC', { cutoff: c })
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().why.cutoff).toBe(1)
+  })
+
+  it('H16 (owner, 2026-11-27) zoomed out 2014-2026: the hidden chart is given the front lock at its frame; then a press flips', async () => {
+    const lock = { anchorFrac: 0.95, width: 3000, tf: 'D', top: null, bottom: null }
+    const h = await ready()
+    await idle()
+    panes[0].m = { ...meta(160), frame: { fromRight: 2850, toRight: -150, locked: true, lock }, rows: 6000 }
+    panes[1].m = { ...meta(160), rows: 6000 }
+    press(h, 'BBB')
     expect(h.result.current.front).toBe(0)
-    expect(db.doubleBufferStats().why.replay).toBe(1)
+    expect(db.doubleBufferStats().why['view-lock']).toBe(1)
+    press(h, 'AAA')
+    await idle()
+    report(h.result, 0, 'AAA')
+    report(h.result, 1, 'BBB')
+    act(() => { h.result.current.viewChanged(0) })
+    await idle()
+    expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(2850, 6), toRight: expect.closeTo(-150, 6), locked: true, lock })
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
   })
 })
