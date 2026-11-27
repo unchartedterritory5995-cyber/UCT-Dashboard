@@ -52,7 +52,7 @@ describe('the generator stops by name', () => {
 
 describe('the joins are INLINED from taintTags.js, its one author (e105 perf)', () => {
   const TAGS = read('taintTags.js')
-  it('the generated loop carries taintTags.js's own tSub, operands substituted (an algebra change lands regenerated)', () => {
+  it('the generated loop carries the tSub of taintTags.js, operands substituted (an algebra change lands regenerated)', () => {
     const tags = once(TAGS, 'export const tSub = (x, y) => (y === 0 ? x : (x === 1 && y === 1 ? 0 : 2))',
       'export const tSub = (x, y) => (y === 0 ? x : 2)')
     const out = generateVmTaint(VM, tags)
@@ -64,7 +64,7 @@ describe('the joins are INLINED from taintTags.js, its one author (e105 perf)', 
     expect(() => generateVmTaint(VM, tags)).toThrow(/tCmp is not an arrow of one-letter parameters/)
   })
   it('no call of an inlined function is left in the generated loop', () => {
-    expect(read('vmTaint.js')).not.toMatch(/(tStrict|tAdd|tSub|tCmp|tVal)(/)
+    expect(read('vmTaint.js')).not.toMatch(/\b(tStrict|tAdd|tSub|tCmp|tVal)\(/)
   })
 })
 
