@@ -10,6 +10,9 @@
  *   K6 a board whose saved layout changed meanwhile is mounted fresh, never the stale kept copy
  *   K7 the kept board's widgets stay admitted by the main board's stagger: a return to a four-widget board renders every
  *      one mounted in its first commit (not paced back in)
+ *   K8 (red first, review of the stage) a dropped kept board's handle is DISPOSED (its charts' teardowns run): by a
+ *      third board, and by the workspace leaving; the board in front is never disposed through it
+ *   K9 a page hidden for ten minutes lets the kept board go
  */
 import { render, act, cleanup } from '@testing-library/react'
 import { useSyncExternalStore } from 'react'
@@ -17,12 +20,19 @@ import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 // every WidgetHost INSTANCE: a state initialiser runs once per mount, and not again at an <Activity> show
-const hosts = vi.hoisted(() => ({ created: {}, renders: [] }))
+const hosts = vi.hoisted(() => ({ created: {}, renders: [], disposed: {} }))
 vi.mock('./WidgetHost', async () => {
-  const { useState } = await import('react')
+  const { useState, useContext } = await import('react')
+  const { BoardVisibilityContext } = await import('../../components/chart/boardVisibility')
   return {
     default: ({ widget, mounted }) => {
-      useState(() => { hosts.created[widget.id] = (hosts.created[widget.id] || 0) + 1; return 0 })
+      const vis = useContext(BoardVisibilityContext)
+      useState(() => {
+        hosts.created[widget.id] = (hosts.created[widget.id] || 0) + 1
+        // like a kept chart: its teardown waits on the board's handle
+        vis?.onDispose?.(() => { hosts.disposed[widget.id] = (hosts.disposed[widget.id] || 0) + 1 })
+        return 0
+      })
       hosts.renders.push({ id: widget.id, mounted: mounted !== false })
       return <div data-testid={`host-${widget.id}`}>{widget.id}</div>
     },
@@ -104,6 +114,7 @@ import ChartsWorkspace from './ChartsWorkspace'
 beforeEach(() => {
   hosts.created = {}
   hosts.renders = []
+  hosts.disposed = {}
   gridCommits.length = 0
   MAIN_LAYOUT = mainLayout(0)
   try { localStorage.clear() } catch { /* */ }
@@ -210,4 +221,34 @@ test('K7 a return to a four-widget board renders every widget mounted in its fir
   await act(async () => { dockButton('Quad Board').click() })
   const first = ['q1', 'q2', 'q3', 'q4'].map((id) => hosts.renders.find((r) => r.id === id)?.mounted)
   expect(first, 'a widget of the kept board was paced back in').toEqual([true, true, true, true])
+})
+
+test('K8 (red first) a dropped kept board is disposed: by a third board and by the workspace leaving', async () => {
+  const view = mount()
+  await settle()
+  await go('Two Charts')
+  await go('Intraday Pair')
+  expect(hosts.disposed['watchlist-1'], 'MAIN dropped by a third board without its teardown').toBe(1)
+  expect(hosts.disposed['chart-1'] || 0, 'TWO (now kept) was disposed').toBe(0)
+  view.unmount()
+  expect(hosts.disposed['chart-1'], 'the kept board outlived the workspace').toBe(1)
+  expect(hosts.disposed['chart-5a'] || 0, 'the board in front was disposed through its handle').toBe(0)
+})
+
+test('K9 a page hidden for ten minutes lets the kept board go', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  vi.useFakeTimers()
+  try {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    act(() => { vi.advanceTimersByTime(9 * 60_000) })
+    expect(hosts.disposed['watchlist-1'] || 0).toBe(0)
+    act(() => { vi.advanceTimersByTime(60_000 + 1) })
+    expect(hosts.disposed['watchlist-1'], 'the kept board survived ten hidden minutes').toBe(1)
+  } finally {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false })
+    vi.useRealTimers()
+  }
 })
