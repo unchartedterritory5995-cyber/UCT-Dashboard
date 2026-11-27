@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { BoardVisibilityContext, boardHiddenNow } from '../../../components/chart/boardVisibility'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -673,10 +674,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
   // every other chart key uses: only the last-hovered chart answers, so one
   // press banks ONE chart into the inbox even with six on the board.
+  // a hidden layer board (board keep-alive) captures nothing: the board in front may hold a chart of the same id
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
       if (isHiddenDeskKey(e)) return
+      if (boardHiddenNow(boardVisibilityRef.current)) return
       // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
       // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
       // on EVERY mounted chart — N inbox rows per press. Capture demands an

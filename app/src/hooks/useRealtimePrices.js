@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { mergeLiveQuote } from '../lib/liveQuoteMerge'
 import useLivePrices from './useLivePrices'
+import { useBoardHidden } from '../components/chart/boardVisibility'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
@@ -256,4 +257,15 @@ const POOL_DISABLED = (() => {
   try { return localStorage.getItem('uct.ssePool.disabled') === '1' } catch { return false }
 })()
 
-export default POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
+const useRealtimePricesImpl = POOL_DISABLED ? useLegacyRealtimePrices : usePooledRealtimePrices
+const NO_TICKERS = []
+/** ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board streams no price: none of its
+ *  tickers is registered (the stream and the poll drop them), and it reads what it HELD at the hide, so its charts see
+ *  no change until the show (which registers them again and reads the current prices). */
+export default function useRealtimePrices(tickers = []) {
+  const hidden = useBoardHidden()
+  const out = useRealtimePricesImpl(hidden ? NO_TICKERS : tickers)
+  const heldRef = useRef(out)
+  if (!hidden) heldRef.current = out
+  return hidden ? heldRef.current : out
+}

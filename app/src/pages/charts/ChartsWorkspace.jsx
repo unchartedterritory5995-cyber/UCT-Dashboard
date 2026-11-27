@@ -1,6 +1,6 @@
 import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { BoardVisibilityContext, createBoardVisibility } from '../../components/chart/boardVisibility'
-import { boardKeepAliveEnabled, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
+import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
+import { boardKeepAliveMode, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS } from './boardKeepAlive'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -19,7 +19,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
-import useSWR, { useSWRConfig } from 'swr'
+import useSWR, { SWRConfig, useSWRConfig } from 'swr'
 import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
@@ -97,7 +97,7 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
-import { createGroupSymsStore } from './groupSymsStore'
+import { createBoardGroupSymsView, createGroupSymsStore } from './groupSymsStore'
 import { beginGroupSwitch, chartGroupKey } from '../../hooks/handoffGroups'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
@@ -727,6 +727,29 @@ function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
   return 'A'
 }
 
+// A kept board's grid (board keep-alive): nothing it does writes a board (it is hidden; this is the guard that holds if
+// it were not). One module object, so the kept board's widget hosts see the same handlers at every render.
+const NO_GRID_OP = () => {}
+const HIDDEN_GRID_HANDLERS = {
+  onLayoutChange: NO_GRID_OP, onDragStart: NO_GRID_OP, onRemove: NO_GRID_OP, onColorChange: NO_GRID_OP,
+  onOptsChange: NO_GRID_OP, onReplaceWidget: NO_GRID_OP,
+}
+
+// The layer keep-alive's per-board workspace (boardKeepAlive.js '2'): the workspace's value with the groups' symbols
+// read through the board's own view (groupSymsStore.js `createBoardGroupSymsView`), which holds them while the board
+// is hidden. The view is the slot's for life, so a hide or a show changes nothing a reader keys on.
+function withGroupSymsView(base, view) {
+  const out = {}
+  for (const k of Object.keys(base)) if (k !== 'groupSyms' && k !== 'groupSymsStore') out[k] = base[k]
+  Object.defineProperty(out, 'groupSyms', { enumerable: true, configurable: true, get: () => view.get() })
+  out.groupSymsStore = view
+  return out
+}
+function BoardSlotWorkspace({ base, view, children }) {
+  const value = useMemo(() => withGroupSymsView(base, view), [base, view])
+  return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
+}
+
 // Inline "Delete?" confirm shown in place of a layout's ✕ so an accidental click
 // can't wipe a saved layout. Yes deletes; Go back cancels.
 function DeleteConfirm({ onYes, onCancel }) {
@@ -916,11 +939,15 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // layout SHOWS it. Each board is a SLOT (its React key, stable across the prefs load and every non-member switch) with
   // ONE visibility handle its charts read (boardVisibility.js); the handle's state is written HERE, before the commit
   // that hides, shows or disposes the board. `key` is the board's dock id: what a switch back is matched on.
-  const keepAliveOn = useMemo(() => boardKeepAliveEnabled(), [])
+  // '2' is the LAYER mode (boardKeepAlive.js): the kept board stays laid out under the board in front, its effects alive
+  // and its work paused through its handle; each slot also reads the groups' symbols and SWR through its own view.
+  const keepAliveMode = useMemo(() => boardKeepAliveMode(), [])
+  const keepAliveOn = keepAliveMode !== 'off'
+  const layerMode = keepAliveMode === 'layer'
   const keepAliveOnRef = useRef(keepAliveOn)
   const boardSlotSeqRef = useRef(0)
   const currentBoardRef = useRef(null)   // { slot, key, vis } of the board in front
-  if (!currentBoardRef.current) currentBoardRef.current = { slot: 0, key: null, vis: createBoardVisibility() }
+  if (!currentBoardRef.current) currentBoardRef.current = { slot: 0, key: null, vis: createBoardVisibility({ layer: layerMode }) }
   const [keptBoard, setKeptBoard] = useState(null)   // { slot, key, vis, layout } of the hidden board
   const keptBoardRef = useRef(null)
   keptBoardRef.current = keptBoard
@@ -936,15 +963,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       if (prevKey != null && String(prevKey) !== String(key)) {
         const kept = keptBoardRef.current
         const reuse = !!kept && String(kept.key) === String(key) && sameBoard(kept.layout, next, serializeLayout)
-        const leaving = { slot: cur.slot, key: prevKey, vis: cur.vis, layout: layoutRef.current }
-        leaving.vis.state = 'hidden'
+        // a slot's record carries what is its for life (the handle; in the layer mode its views, made at its first render)
+        const leaving = { ...cur, key: prevKey, layout: layoutRef.current }
+        leaving.vis.set('hidden')
         if (reuse) {
-          kept.vis.state = 'visible'
-          currentBoardRef.current = { slot: kept.slot, key, vis: kept.vis }
+          kept.vis.set('visible')
+          const { layout: _shownLayout, ...slotRec } = kept
+          currentBoardRef.current = { ...slotRec, key }
           shown = kept.layout
         } else {
           if (kept) kept.vis.dispose()   // its charts' teardowns run (a hidden board runs no cleanup when deleted)
-          currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility() }
+          currentBoardRef.current = { slot: ++boardSlotSeqRef.current, key, vis: createBoardVisibility({ layer: cur.vis.layer }) }
         }
         keptBoardRef.current = leaving
         setKeptBoard(leaving)
@@ -4129,17 +4158,45 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     if (boardHidden) announceDeskLaunchBlocked()
   }
 
-  // A kept board's grid: nothing it does writes a board (it is hidden; this is the guard that holds if it were not).
-  const hiddenGridHandlers = {
-    onLayoutChange: () => {}, onDragStart: () => {}, onRemove: () => {}, onColorChange: () => {}, onOptsChange: () => {},
-    onReplaceWidget: () => {},
-  }
   // The board in front and, keep-alive on, the kept one: each in its SLOT (a stable React key, ordered by slot so a
   // switch back moves no DOM node), under its visibility handle, in an <Activity>. Keep-alive off: the board alone.
   const renderMainBoards = () => {
     const front = renderGrid(visibleWidgets, mainGridHandlers)
     if (!keepAliveOn) return front
     const cur = currentBoardRef.current
+    const keptGrid = () => renderGrid(
+      // a popped or floating widget exists once: never again on the kept board
+      keptBoard.layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id)),
+      HIDDEN_GRID_HANDLERS, undefined, undefined, { hidden: true },
+    )
+    if (layerMode) {
+      // ⭐ LAYER: no <Activity>. The kept board is laid out under the one in front (`.boardSlotLayer`), inert; its slot's
+      // views hold the groups' symbols and pause its SWR polls while its handle says hidden. A switch back changes
+      // classes and attributes only.
+      const recs = [{ rec: cur, front: true }]
+      if (keptBoard && keptBoard.slot !== cur.slot) recs.push({ rec: keptBoard, front: false })
+      recs.sort((a, z) => a.rec.slot - z.rec.slot)
+      return recs.map(({ rec, front: isFront }) => {
+        if (!rec.groupView) rec.groupView = createBoardGroupSymsView(groupSymsStore, rec.vis)
+        if (!rec.swr) { const vis = rec.vis; rec.swr = { isPaused: () => boardHiddenNow(vis) } }
+        return (
+          <BoardVisibilityContext.Provider key={`board-slot-${rec.slot}`} value={rec.vis}>
+            <BoardSlotWorkspace base={workspaceValue} view={rec.groupView}>
+              <SWRConfig value={rec.swr}>
+                <div
+                  className={isFront ? styles.boardSlot : styles.boardSlotLayer}
+                  data-board-current={isFront ? '' : undefined}
+                  inert={!isFront}
+                  aria-hidden={isFront ? undefined : true}
+                >
+                  {isFront ? front : keptGrid()}
+                </div>
+              </SWRConfig>
+            </BoardSlotWorkspace>
+          </BoardVisibilityContext.Provider>
+        )
+      })
+    }
     const boards = [{ slot: cur.slot, vis: cur.vis, front: true }]
     if (keptBoard && keptBoard.slot !== cur.slot) boards.push({ slot: keptBoard.slot, vis: keptBoard.vis, front: false })
     boards.sort((a, z) => a.slot - z.slot)
@@ -4147,11 +4204,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       <BoardVisibilityContext.Provider key={`board-slot-${bd.slot}`} value={bd.vis}>
         <Activity mode={bd.front ? 'visible' : 'hidden'}>
           <div className={styles.boardSlot} data-board-current={bd.front ? '' : undefined}>
-            {bd.front ? front : renderGrid(
-              // a popped or floating widget exists once: never again on the kept board
-              keptBoard.layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id)),
-              hiddenGridHandlers, undefined, undefined, { hidden: true },
-            )}
+            {bd.front ? front : keptGrid()}
           </div>
         </Activity>
       </BoardVisibilityContext.Provider>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { registerTickers, subscribe, getSnapshot, pollNow } from './livePriceStore'
+import { useBoardHidden } from '../components/chart/boardVisibility'
 
 /** True when every ticker in `key` maps to the same entry object in both snapshots. */
 export function sameSlice(prev, next, key) {
@@ -19,7 +20,18 @@ export function sameSlice(prev, next, key) {
  * one poll per component. Each caller reads only its own slice. Same return
  * shape as before — consumers are unaffected.
  */
+const NO_TICKERS = []
+/** ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board polls no price (its tickers leave
+ *  the 2 s poll) and reads what it HELD at the hide until the show. */
 export default function useLivePrices(tickers = []) {
+  const hidden = useBoardHidden()
+  const out = useLivePricesImpl(hidden ? NO_TICKERS : tickers)
+  const heldRef = useRef(out)
+  if (!hidden) heldRef.current = out
+  return hidden ? heldRef.current : out
+}
+
+function useLivePricesImpl(tickers = []) {
   // Stable, sorted, deduped key for this caller's ticker set.
   const key = tickers.length ? [...new Set(tickers)].filter(Boolean).sort().join(',') : ''
 
