@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2163,
+  "passed": 2161,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 398.58,
+  "failed_files": [
+    "api/services/bars_sqlite_test.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2161 passed, 1 skipped, 39 warnings in 398.58s (0:06:38)",
+  "ok": true
+}

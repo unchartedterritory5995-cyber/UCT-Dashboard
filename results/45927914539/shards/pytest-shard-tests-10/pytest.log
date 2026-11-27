@@ -1,0 +1,86 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+................................................s....................... [ 70%]
+..................................s.s....s....ssss..................ss.. [ 74%]
+.s...................................................................... [ 77%]
+...............................s........................................ [ 81%]
+.............s.......................................................... [ 84%]
+................................ssssss.........ss....s.................. [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+........................                                                 [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_fmp_timeout_pinning.py::test_every_fmp_get_call_site_names_its_timeout
+tests/test_fmp_timeout_pinning.py::test_the_scan_ALSO_SEES_fmp_get_passed_as_a_REFERENCE
+tests/test_fmp_timeout_pinning.py::test_the_owner_reserved_exclusion_is_STILL_REAL
+tests/test_forced_tool_choice_guard.py::test_EVERY_forced_tool_call_in_the_backend_is_named_here
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_front_app.py::test_health_does_not_depend_on_the_upstream
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_gate_trigger3.py::test_a_stuck_queue_turns_the_whole_verdict
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_gate_trigger3.py:148: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc = _resume(tmp_path / "r.md", datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"), 4)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_gallery_w11_fnote1.py:1455: spaces travel between the halves: not an address
+SKIPPED [1] tests/test_gate_box_lock.py:90: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_lock.py:135: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:307: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:489: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_lock.py:542: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:593: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_lock.py:628: holder liveness is a `tasklist` query: off Windows every pid reads as alive, so a dead holder cannot be shown there
+SKIPPED [1] tests/test_gate_box_sampler.py:148: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:190: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_box_sampler.py:239: the snapshot is a Win32_Process query
+SKIPPED [1] tests/test_gate_shards.py:478: OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, unbounded; it killed a landing run on 2026-09-17
+SKIPPED [1] tests/test_gate_shards.py:1848: OPT-IN rail: spawns two real vitest runs and samples process counts
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:120: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:137: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:158: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:172: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:207: ANTHROPIC_API_KEY not set -- this is Track E's real-model-call gate working as designed (DEC-008: isolated-environment-only key, provisioned separately from this test run), not a test failure or a gap in coverage.
+SKIPPED [1] tests/test_golden_journey_04_05_live.py:237: INDICATOR_VISION_ENABLED is not '1' -- deliberate product flag, and DEC-008 requires it set ONLY in the same isolated environment as the scoped key, never globally.
+SKIPPED [1] tests/test_graph_wire_size.py:72: verified 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: measured 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_graph_wire_size.py:72: timed 4 bands for the bands on this machine; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: u_c2d900000005.json [licence CC-BY-NC-SA; evidence ledger: no row (not a vendor capture; licence verdict per the record)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+2018 passed, 22 skipped, 9 warnings in 640.07s (0:10:40)

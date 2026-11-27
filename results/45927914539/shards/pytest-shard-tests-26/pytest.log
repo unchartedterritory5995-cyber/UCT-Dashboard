@@ -1,0 +1,88 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  9%]
+........................................................................ [ 19%]
+........................................................................ [ 29%]
+........................................................................ [ 39%]
+........................................................................ [ 49%]
+........................................................................ [ 59%]
+........................................................................ [ 68%]
+........................................................................ [ 78%]
+........................................................................ [ 88%]
+..............................................................E......... [ 98%]
+...........                                                              [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_THE_RATCHET_no_blind_spot_is_unaccepted_and_none_accepted_is_stale _
+
+    @pytest.fixture(scope="module")
+    def audited():
+        try:
+>           return A.audit(DATA["cases"], lambda src, c: _every_window_one_longer(src, SHORT_WINDOWS.get(c["id"])))
+
+tests/test_value_cases_blind_ratchet.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/value_cases/audit.py:104: in audit
+    unseen = sum(1 for f in flips if G.grade_case({**c, "answer": f}, f)["verdict"] == "right")
+tools/value_cases/audit.py:104: in <genexpr>
+    unseen = sum(1 for f in flips if G.grade_case({**c, "answer": f}, f)["verdict"] == "right")
+tools/value_cases/grade.py:309: in grade_case
+    edged = grade(case['id'], answer, case.get('chart', 'daily'))
+tools/value_cases/grade.py:142: in grade
+    cols = [(name, *evaluate(tree, inputs, chart, calc)) for name, tree in built]
+tools/value_cases/grade.py:103: in evaluate
+    return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols'], _daily_frames(c)), None
+tools/value_cases/grade.py:81: in _interpret
+    return [_num(x) for x in ast_interpret.interpret(call_expansions.expand_calls(tree), bars, inputs, None, None, opts)]
+api/services/ast_interpret.py:5185: in interpret
+    column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
+api/services/ast_interpret.py:9968: in _interpret_column
+    return _to_column(eval_node(ast), length)
+api/services/ast_interpret.py:9017: in eval_node
+    _value = _eval_raw(n)
+api/services/ast_interpret.py:9226: in _eval_raw
+    return apply_op(n, [eval_node(a) for a in n["args"]])
+api/services/ast_interpret.py:9017: in eval_node
+    _value = _eval_raw(n)
+api/services/ast_interpret.py:9239: in _eval_raw
+    return run_recurrence(n, spec)
+api/services/ast_interpret.py:9768: in run_recurrence
+    nxt = step(body, j, history)
+api/services/ast_interpret.py:9511: in step
+    out_v = apply_op_step(x, values)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+node = {'args': [{'args': [{'args': [{...}], 'type': 'offset', 'value': 1}, {'type': 'num', 'value': 1788235200}], 'name': '<... {'args': [{...}, {...}, {...}], 'name': '?:', 'type': 'op'}], 'name': '+', 'type': 'op'}], 'name': '?:', 'type': 'op'}
+values = [1.0, 0.0, 0.0]
+
+    def apply_op_step(node: dict, values: List[Any]) -> Any:
+        """One operator, applied to BARE FLOATS. The recurrence step loop's arm.
+    
+        ⭐ THE SAME ``_UNARY``/``_BINARY``/``_ternary`` ENTRIES ``apply_op`` USES,
+        and that is not a convenience: ``_lift1/2/3`` are pure elementwise
+        applications of these very functions, so a body evaluated one bar at a
+        time and a column evaluated all at once are the SAME ARITHMETIC by
+        construction. A second scalar table here would be a second grammar, and
+        the first thing to diverge would be the NaN rule (``_cmp`` answers 0.0,
+        ``_logical`` answers NaN) — a difference NO cross-lane parity run would
+        catch, because it would be wrong identically in both lanes.
+        """
+>       name = node.get("name")
+E       Failed: Timeout (>120.0s) from pytest-timeout.
+
+api/services/ast_interpret.py:9325: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_user_definition_edit_forget.py::test_forget_has_a_PRODUCTION_call_site_and_it_is_the_write_path
+tests/test_user_definition_edit_forget.py::test_user_value_functions_docstring_claim_about_forget_is_TRUE_now
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+ERROR tests/test_value_cases_blind_ratchet.py::test_THE_RATCHET_no_blind_spot_is_unaccepted_and_none_accepted_is_stale - Failed: Timeout (>120.0s) from pytest-timeout.
+730 passed, 3 warnings, 1 error in 632.83s (0:10:32)

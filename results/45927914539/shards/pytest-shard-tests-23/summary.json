@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1518,
+  "passed": 1516,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 577.83,
+  "failed_files": [
+    "tests/test_synthetic_session_signout.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1516 passed, 1 skipped, 7 warnings in 577.83s (0:09:37)",
+  "ok": true
+}

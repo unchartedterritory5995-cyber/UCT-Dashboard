@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 4995,
+  "passed": 4991,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 938.36,
+  "failed_files": [
+    "tests/test_runtime_server_stage.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 4991 passed, 3 skipped, 3 xfailed, 21 warnings in 938.36s (0:15:38)",
+  "ok": true
+}

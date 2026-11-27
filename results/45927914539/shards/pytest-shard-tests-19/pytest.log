@@ -1,0 +1,140 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+.............................................x..x.x..................... [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+.F...................................................................... [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+.........ss............................................................. [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+.........................................................s.............. [ 99%]
+..............................                                           [100%]
+=================================== FAILURES ===================================
+__________ test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways __________
+
+    def test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways():
+        led = _ledger()["flags"]["PINE_RUNTIME_SERVER_STAGE"]
+        code_default, code_values = rt.PINE_RUNTIME_MODE_FLAGS["PINE_RUNTIME_SERVER_STAGE"]
+        assert led["default"] == code_default == "off"
+        assert tuple(led["values"]) == code_values == rt.STAGES
+>       assert led["status"] == "dark" and led["where"] == []
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_runtime_server_stage.py:215: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_rs_screens_u10_owner_only.py: 1 warning
+tests/test_runtime_repaint_memo.py: 1 warning
+tests/test_s6_cp2_migration.py: 3 warnings
+tests/test_sample_never_feeds_real_numbers.py: 5 warnings
+tests/test_scan_evaluator_off_request_path.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_rs_screens_u10_owner_only.py::test_the_gate_is_still_one_the_ledger_index_can_see
+tests/test_runtime_repaint_memo.py::test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [2] tests/test_scalar_population_rail.py:428: set SCALAR_POPULATION_ARTIFACT=<path to a screener.db> to measure a real snapshot (the suite's own DB is a sandbox)
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+XFAIL tests/test_rs_phase3_parity.py::test_clenow_shipped_figure_is_not_the_page_figure_raw - convention, measured: the page annualises over 260 bars and the product over 252, so the shipped clenowAnnual on the page's inputs is 13.42 %, 3.3 % below its 13.88 %. Strict, so changing the exponent turns this red for a review
+XFAIL tests/test_rs_phase3_parity.py::test_vars_matches_the_published_sign_changes - OANDA publishes its VARS only as chart images: no dated zero-line crossings and no price series as text (rs_parity_vars.json `not_published`), so its sign changes cannot be reproduced
+XFAIL tests/test_rs_phase3_parity.py::test_rrg_quadrant_agreement_with_stockcharts - awaiting owner StockCharts readings
+FAILED tests/test_runtime_server_stage.py::test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+1 failed, 4991 passed, 3 skipped, 3 xfailed, 21 warnings in 938.36s (0:15:38)

@@ -1,0 +1,187 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+..F..................................................................... [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+......................................s................................. [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_bump_db_epoch_propagates_across_threads _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_bump_db_epoch_propagates_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a7592064e60>
+
+    @requires_posix_replace
+    def test_bump_db_epoch_propagates_across_threads(tmp_path, monkeypatch):
+        """Each thread has its own thread-local connection. A single bump must
+        invalidate all of them."""
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        bars_sqlite = _reload_bars_sqlite()
+        db_path = os.path.join(str(tmp_path), "bars.db")
+        _make_db(db_path, [(1, "v1")])
+    
+        results: dict[str, str] = {}
+        barrier = threading.Barrier(3)  # main + 2 worker threads
+    
+        def worker(name: str):
+            # Open a connection in this thread and read once
+            c = bars_sqlite._conn()
+            results[f"{name}_before"] = c.execute("SELECT v FROM t WHERE k=1").fetchone()[0]
+            barrier.wait()  # synchronize: all threads have read v1
+            barrier.wait()  # wait for main to swap and bump
+            c2 = bars_sqlite._conn()
+            results[f"{name}_after"] = c2.execute("SELECT v FROM t WHERE k=1").fetchone()[0]
+    
+        t1 = threading.Thread(target=worker, args=("t1",))
+        t2 = threading.Thread(target=worker, args=("t2",))
+        t1.start()
+        t2.start()
+    
+        barrier.wait()  # workers have read; safe to swap
+        new_path = os.path.join(str(tmp_path), "bars.db.new")
+        _make_db(new_path, [(1, "v2")])
+        os.replace(new_path, db_path)
+        bars_sqlite.bump_db_epoch()
+        barrier.wait()  # tell workers to read again
+    
+        t1.join(timeout=5)
+        t2.join(timeout=5)
+    
+        assert results["t1_before"] == "v1"
+        assert results["t2_before"] == "v1"
+>       assert results["t1_after"] == "v2"
+E       KeyError: 't1_after'
+
+api/services/bars_sqlite_test.py:123: KeyError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+api/routers/stream_bars_test.py::test_stream_bars_accepts_60min_pairs
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+api/routers/stream_bars_test.py::test_stream_bars_accepts_60min_pairs
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_falls_back_to_yfinance_when_massive_daily_is_stale
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_does_not_call_yfinance_when_massive_daily_is_fresh
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_weekly_fills_missing_days_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_monthly_fills_missing_days_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3207: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_falls_back_to_yfinance_when_massive_daily_is_stale
+api/services/bars_fetch_test.py::TestDeltaDailyYfFallback::test_does_not_call_yfinance_when_massive_daily_is_fresh
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_weekly_fills_missing_days_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_delta_monthly_fills_missing_days_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3208: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py: 10 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3135: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_fills_tail_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_no_yfinance_when_massive_fresh
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3843: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_fills_tail_from_yfinance
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_daily_no_yfinance_when_massive_fresh
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3846: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_weekly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3871: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_weekly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3873: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_monthly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3914: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestWeeklyMonthlyAndFullFetchYfFallback::test_fetch_monthly_fills_tail_from_yfinance
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3916: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+api/services/bars_fetch_test.py::TestResampleWeeklyClosingDate::test_ms_variant_dated_friday
+api/services/bars_fetch_test.py::TestResampleWeeklyClosingDate::test_ms_variant_dated_friday
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2472: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    dt = datetime.utcfromtimestamp(bar["t"] / 1000)
+
+api/services/bars_sqlite_test.py::test_bump_db_epoch_propagates_across_threads
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-13 (worker)
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite_test.py", line 103, in worker
+      c2 = bars_sqlite._conn()
+           ^^^^^^^^^^^^^^^^^^^
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_sqlite.py", line 135, in _conn
+      c.execute("PRAGMA journal_mode=WAL")
+  sqlite3.OperationalError: database is locked
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+api/services/data_sync_test.py::test_make_tarball_round_trip
+api/services/data_sync_test.py::test_make_tarball_excludes_bars_cache_by_default
+api/services/data_sync_test.py::test_make_tarball_captures_wal_writes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync_test.py:89: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(extract_dir)
+
+api/services/data_sync_test.py::test_download_snapshot_bumps_db_epoch
+api/services/data_sync_test.py::test_download_snapshot_refuses_malformed_payload
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:1256: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(tmpdir)
+
+api/services/journal_two/test_coach_chat_timeouts.py::test_neither_site_is_reported_by_the_census
+  api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] api/services/journal_two/test_media_policy.py:118: only meaningful while pi_heif is absent
+FAILED api/services/bars_sqlite_test.py::test_bump_db_epoch_propagates_across_threads - KeyError: 't1_after'
+1 failed, 2161 passed, 1 skipped, 39 warnings in 398.58s (0:06:38)
