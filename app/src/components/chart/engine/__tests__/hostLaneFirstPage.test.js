@@ -209,7 +209,10 @@ describe('the first page: drawn at once, byte-equal to the full history where it
       cum: pageReachProvable(tree({ type: 'call', name: 'cum', args: [close] }), 'v'),
       none: pageReachProvable(tree(null), 'v'),
     }
-    expect(got).toEqual({ close: true, sma20: true, smaAtProbe: true, smaPastProbe: false, barindex: false, cum: false, none: false })
+    // a monthly read: its reach is a span estimate, never trusted
+    got.monthly = pageReachProvable(tree({ type: 'tf', code: 'M', args: [close] }), 'v')
+    expect(JSON.stringify(got)).toBe(JSON.stringify({ close: true, sma20: true, smaAtProbe: true, smaPastProbe: false,
+      barindex: false, cum: false, none: false, monthly: false }))
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {

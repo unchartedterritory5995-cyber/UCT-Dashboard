@@ -35,13 +35,13 @@ export const FIRST_PAGE_POST_ROWS = FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
 // whose deciding bar lies further back than both starts, so the starts agreed with each other and not with the full run).
 // So a plot is drawn on the page only when its value at a bar PROVABLY depends on no bar further back than the probe's
 // earlier start reaches: the tree's backward reach (`lint.js::maxLookback`, the evaluator's own declared windows, `tf`
-// spans included) is a finite number of at most `FIRST_PAGE_PROBE` bars, and it reads no clock leaf whose value is a
-// count from the history's first bar (`START_COUNTED_CLOCK`). Then the probe's values on the page are the full history's,
+// spans NOT trusted: a higher timeframe's read is refused) is a finite number of at most `FIRST_PAGE_PROBE` bars, and it
+// reads no clock leaf whose value is a count from the history's first bar (`START_COUNTED_CLOCK`). Then the probe's values on the page are the full history's,
 // and the two-start agreement (kept) proves the page's own values equal them. An unknown or unbounded reach, a knob-sized
 // window (`lint.js`: unanalysable, fails closed) or a start-counted read is withheld on the page, by name, as before.
 
 /** Clock leaves counted from the history's first bar (`closedTable.json` clock): the same bar reads another number when
- *  the history starts elsewhere, whatever its reach says. */
+ *  the history starts elsewhere, whatever its reach says. (A higher timeframe's read is refused beside them.) */
 export const START_COUNTED_CLOCK = Object.freeze(['barindex', 'isfirst', 'lastbarindex'])
 const readsStartCounted = (tree) => {
   const stack = [tree]
@@ -51,6 +51,10 @@ const readsStartCounted = (tree) => {
     if (!n || typeof n !== 'object' || seen.has(n)) continue
     seen.add(n)
     if (typeof n.name === 'string' && START_COUNTED_CLOCK.includes(n.name)) return true
+    // ⛔ a HIGHER timeframe's read (`tf`, `tf_live`): its reach in chart bars is a span ESTIMATE (`lint.js`: a period
+    // is counted as a fixed number of chart bars), not a bound, and its first period on a page is partial. MEASURED: the
+    // census's one remaining wrong plot after the reach rule was a monthly `valuewhen` whose estimated reach fit the probe.
+    if (n.type === 'tf' || n.type === 'tf_live') return true
     for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
   }
   return false
