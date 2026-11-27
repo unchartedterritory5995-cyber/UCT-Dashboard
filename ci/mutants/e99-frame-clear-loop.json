@@ -1,0 +1,14 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "FC1",
+   "mutant": "the clear starts one slot early and erases the last argument",
+   "file": "app/src/components/chart/engine/runtime/vm.js",
+   "from": "for (let k = newBase + fn.params, e = newBase + fn.frameSize; k < e; k += 1) locals[k] = NaN",
+   "to": "for (let k = newBase + fn.params - 1, e = newBase + fn.frameSize; k < e; k += 1) locals[k] = NaN",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/udf.test.js src/components/chart/engine/runtime/__tests__/state.test.js",
+   "expectRed": "udf"
+  }
+ ]
+}
