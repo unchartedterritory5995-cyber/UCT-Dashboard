@@ -170,6 +170,33 @@ const _defaultOnVisible = (cb) => {
 }
 const _isAbort = (e) => e?.name === 'AbortError'
 
+/** A background deepening's window lands within this long even when the page is never idle. */
+export const DEEPEN_IDLE_TIMEOUT_MS = 1000
+function _inputPending() {
+  try { return !!globalThis.navigator?.scheduling?.isInputPending?.() } catch { return false }
+}
+/**
+ * ⭐ (2026-11-27, the second full draw after a switch) Run `fn` in idle time: requestIdleCallback with a timeout so it
+ * can never starve, giving way to a key or pointer press that is waiting (navigator.scheduling.isInputPending) until
+ * the timeout has passed. No idle signal: the next task. Returns the cancel.
+ */
+export function idleLand(fn, { timeout = DEEPEN_IDLE_TIMEOUT_MS, now = () => Date.now() } = {}) {
+  if (typeof requestIdleCallback !== 'function') {
+    const h = setTimeout(fn, 0)
+    return () => clearTimeout(h)
+  }
+  const until = now() + timeout
+  let h = null
+  const tick = (deadline) => {
+    h = null
+    const left = until - now()
+    if (left > 0 && !deadline?.didTimeout && _inputPending()) { h = requestIdleCallback(tick, { timeout: left }); return }
+    fn()
+  }
+  h = requestIdleCallback(tick, { timeout })
+  return () => { if (h != null) { try { cancelIdleCallback(h) } catch { /* gone */ } h = null } }
+}
+
 /**
  * @param {object} o
  * @param {ReturnType<import('./registry').createRegistry>} o.registry
@@ -185,6 +212,8 @@ export function createNetwork({
   history = null,
   // called just before a key's answer is dispatched, with the answer (index.js: persist.flushJoins, review of #2615)
   beforeAnswer = null,
+  // (fn) => cancel: where a BACKGROUND deepening's window lands (idleLand: idle time, giving way to input; tests pass their own)
+  idle = idleLand,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -422,13 +451,48 @@ export function createNetwork({
     return !!p && !p.window && isIntradayTf(p.tf) && !r.lakeDone
   }
 
+  /**
+   * ⭐ (2026-11-27, coordinator ruling) A BACKGROUND DEEPENING LANDS IN IDLE TIME. The window of older history asked
+   * right after a chart's first answer (`_noteAnswered`, 'background') or by a deepening loop ('grid': the chart's dwell,
+   * the neighbour hold) joined the store in the task its bytes arrived in: one 16-40 ms task 120-170 ms after a switch
+   * (the reduce, the chart's re-render over the whole new history, its updateChart, the binder), right where the
+   * member's next key press lands. Its rows are older than everything on screen, so WHEN they join changes nothing
+   * drawn: the join (`apply`) runs in idle time (`idle`: requestIdleCallback with a timeout, giving way to a waiting key
+   * or pointer press). A scroll the member makes ('urgent') joins at once, as before, and any job queued for the key
+   * meanwhile (a scroll, a tail) lands the waiting window first, in order.
+   * A window for a chart the member has LEFT (a chart held the key when it was asked, none holds it now) is dropped: its
+   * bytes stay in the HTTP / lake cache, so coming back is cheap. A key no chart held (a neighbour row) is never dropped.
+   */
+  function _landBackground(r, priority, apply) {
+    if (priority === 'urgent') return apply()
+    const heldAtAsk = r.refs > 0
+    return new Promise((resolve) => {
+      const pending = { run: null, cancel: null }
+      pending.run = () => {
+        if (r.idleLand !== pending) return
+        r.idleLand = null
+        if (heldAtAsk && (keys.get(r.key) !== r || r.refs <= 0)) { resolve({ ok: false, dropped: true }); return }
+        try { resolve(apply()) } catch { resolve({ error: true }) }
+      }
+      r.idleLand = pending
+      pending.cancel = idle(pending.run)
+    })
+  }
+  /** A job queued for `r` while a background window waits for idle: the window lands now, first. */
+  function _flushIdle(r) {
+    const p = r.idleLand
+    if (!p) return
+    try { p.cancel?.() } catch { /* gone */ }
+    p.run()
+  }
+
   /** Scroll-back: the lake first where it carries the key, then the server's window. A lake that
    *  has nothing older, fails, or disagrees at the join hands over to the server window, queued
    *  behind whatever took the slot meanwhile (≤1 request per key still holds). */
   function _scrollJob(r, opts) {
     if (!history || !_lakeCarries(r)) return _serverScrollJob(r, opts)
     return _lakeScrollJob(r, opts).then((res) => {
-      if (res?.aborted || res?.ok) return res
+      if (res?.aborted || res?.ok || res?.dropped) return res   // (dropped: a window for a chart the member left, _landBackground)
       if (res?.exhausted) r.lakeDone = true            // nothing older in the lake: stop asking it
       return new Promise((resolve) => { r.queue.push({ run: () => _serverScrollJob(r, opts), resolve }); _drain(r) })
     })
@@ -443,6 +507,13 @@ export function createNetwork({
     const want = Math.max(opts.bars ?? HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS)
     return _send(r, 'scroll', `lake:${r.key}<${oldest}`, opts.priority || 'urgent', async (got) => {
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
+      return _landBackground(r, opts.priority || 'urgent', () => _joinLakeWindow(r, gen, got))
+    }, { fetch: (signal) => history.olderBars(r.key, oldest, { bars: want, signal }) })
+  }
+
+  /** A lake window's join (the store's SCROLL_BACK), read against the entry as it is when it lands. */
+  function _joinLakeWindow(r, gen, got) {
+    {
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
       const before = registry.getSnapshot(r.key)
       // ⛔⛔ THE LAKE MUST REACH THE CHART (2026-11-17, production). The lake is published up to a date
@@ -459,7 +530,7 @@ export function createNetwork({
       if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: got.bars } })
       return { ok: true, added: after.depth - before.depth, source: 'lake' }
-    }, { fetch: (signal) => history.olderBars(r.key, oldest, { bars: want, signal }) })
+    }
   }
 
   function _serverScrollJob(r, opts) {
@@ -471,6 +542,13 @@ export function createNetwork({
     if (!url) return Promise.resolve({ empty: true })
     return _send(r, 'scroll', url, opts.priority || 'urgent', async (json) => {
       if (!json || !Array.isArray(json.bars)) return { error: true }
+      return _landBackground(r, opts.priority || 'urgent', () => _joinServerWindow(r, gen, json))
+    })
+  }
+
+  /** A server window's join (the store's SCROLL_BACK), read against the entry as it is when it lands. */
+  function _joinServerWindow(r, gen, json) {
+    {
       const before = registry.getSnapshot(r.key)
       // ⛔ `filling` IS NOT "NOTHING OLDER". The server answers a window it is still fetching
       // with the rows it holds, `filling: true` and Retry-After 3 (bars_fetch `to-filling`).
@@ -484,7 +562,7 @@ export function createNetwork({
       }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: json })
       return { ok: true, added: after.depth - before.depth, ...(filling ? { filling: true, retryAfterMs: 3000 } : {}) }
-    })
+    }
   }
 
   function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null } = {}) {
@@ -539,6 +617,7 @@ export function createNetwork({
   /** A tail request for `r` — joins the one in flight; queued (its `.job`) behind a scroll-back. */
   function _queueTail(r, priority, opts) {
     const job = { run: () => _tailJob(r, priority, opts), resolve: null, started: null, waiters: 1 }
+    _flushIdle(r)   // a background window waiting for idle lands before the tail, in order
     const out = new Promise((resolve) => { job.resolve = resolve; r.queue.push(job) })
     out.job = job
     return out
@@ -874,6 +953,7 @@ export function createNetwork({
     scrollBack(key, { bars = HISTORY_WINDOW_BARS, priority = 'urgent' } = {}) {
       const r = _rec(key)
       const run = () => _scrollJob(r, { bars, priority })
+      _flushIdle(r)   // a window waiting for idle lands first (its rows are what this scroll reads its oldest bar from)
       const out = r.inflight ? new Promise((resolve) => { r.queue.push({ run, resolve }) }) : run()
       out.finally(() => _gc(r))
       return out
