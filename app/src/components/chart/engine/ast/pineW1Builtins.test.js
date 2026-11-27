@@ -137,15 +137,15 @@ describe('ta.pvt — REFERENCE: ta.cum((ta.change(close) / close[1]) * volume), 
 
 // ─── ta.iii / ta.wvad / ta.wad ───────────────────────────────────────────────
 
-// ⛔ W1 RE-REVIEW (2026-11-02): `ta.iii` DIVIDES BY THE VOLUME. The published body
-// is `(2 * close - high - low) / ((high - low) * volume)`: TradingView's v4 reference
-// prints it, and TradingView's own exported `ta.iii` values (PyneCore's export
-// fixture, below) agree with it on every row. The v5/v6 pages print
-// `((2 * close - high - low) / (high - low)) * volume`, which this rail was first
-// written from — and passed, because the engine had been built from the same quote.
-// Sources: `docs/pine/evidence/2026-11-02-w1/formula-sources.md`.
+// ⛔ e99 (2026-11-26, MEASURED): `ta.iii` MULTIPLIES BY THE VOLUME, in every version: TradingView's own `ta.iii`
+// (Pine v6, the builtin4 witness captures `builtin4-witness-spy-spy-1d-2026-11-26` (AMEX:SPY 1D, 8,515 bars, receipt
+// fnv1a 1430519255) and `builtin4-witness-rddt-rddt-1d-2026-11-26` (NYSE:RDDT 1D, 674 bars, fnv1a 3084821133), local
+// evidence) equals `((2 * close - high - low) / (high - low)) * volume`, the v5/v6 pages' body, on every bar, its one
+// `na` (a high == low bar) included; graded for //@version=6, 5 and 4 alike. The dividing body the W1 re-review
+// (2026-11-02) switched to matched 35 of 8,515 and 0 of 674. Its evidence, PyneCore's export fixture, is not a v4
+// export (its column is the v5+ name `ta.iii`), so v4 multiplies too. Sources: `pine.js` (the `iii` tree's comment).
 describe('ta.iii, ta.wvad — REFERENCE: TradingView\'s per-bar bodies; a screen may read them', () => {
-  const iii = (b) => (2 * b.c - b.h - b.l) / ((b.h - b.l) * b.v)
+  const iii = (b) => ((2 * b.c - b.h - b.l) / (b.h - b.l)) * b.v
   const wvad = (b) => ((b.c - b.o) / (b.h - b.l)) * b.v
   // the engine's one rule for a division by zero, applied here as the reference's own
   // last step: IEEE division (`interpret.js::BINARY['/']`), and whatever is not finite
@@ -162,41 +162,82 @@ describe('ta.iii, ta.wvad — REFERENCE: TradingView\'s per-bar bodies; a screen
       }
     }
   })
-  it('⛔ ta.iii by hand: the volume divides; a zero range and a zero volume are gaps, by the engine\'s x / 0 rule', () => {
+  it('⛔ ta.iii by hand: the volume multiplies; a zero range is a gap (0 / 0), a zero volume over a range is 0', () => {
     const bars = [
-      // 2 * 769.64 - 772 - 765 = 2.28, and 2.28 / (7 * 46,335,000) = 7.0296e-9
+      // 2 * 769.64 - 772 - 765 = 2.28, and 2.28 / 7 * 46,335,000 = 15,091,971.43
       { t: 1, o: 768, h: 772.00, l: 765.00, c: 769.64, v: 46335000 },
-      // high == low: (2 * 100 - 100 - 100) / (0 * 5000) = 0 / 0 → NaN → na
+      // high == low: (2 * 100 - 100 - 100) / 0 * 5000 = 0 / 0 → NaN → na
       { t: 2, o: 100, h: 100, l: 100, c: 100, v: 5000 },
-      // volume == 0: (21 - 11 - 9) / (2 * 0) = 1 / 0 = Infinity → na
+      // volume == 0: (21 - 11 - 9) / 2 * 0 = 0
       { t: 3, o: 10, h: 11, l: 9, c: 10.5, v: 0 },
-      // volume == 0 over a zero numerator: 0 / 0 → NaN → na
+      // volume == 0 over a zero numerator: 0 / 2 * 0 = 0
       { t: 4, o: 10, h: 11, l: 9, c: 10, v: 0 },
     ]
     for (const opts of [undefined, pane]) {
       const { tree, formula } = treeOf(V6('plot(ta.iii)'), opts)
-      expect(formula).toBe('(2 * close - high - low) / ((high - low) * volume)')
+      expect(formula).toBe('(2 * close - high - low) / (high - low) * volume')
       const ours = Array.from(interpret(tree, bars))
-      expect(Math.abs(ours[0] / 7.0296e-9 - 1), String(ours[0])).toBeLessThan(1e-5)
-      expect(Math.abs(ours[0] / (2.28 / (7 * 46335000)) - 1), String(ours[0])).toBeLessThan(1e-12)
-      expect(ours.slice(1).map((x) => (Number.isFinite(x) ? x : null)), JSON.stringify(ours)).toEqual([null, null, null])
+      expect(Math.abs(ours[0] / 15091971.428571 - 1), String(ours[0])).toBeLessThan(1e-9)
+      expect(Math.abs(ours[0] / ((2.28 / 7) * 46335000) - 1), String(ours[0])).toBeLessThan(1e-12)
+      expect(ours.slice(1).map((x) => (Number.isFinite(x) ? x : null)), JSON.stringify(ours)).toEqual([null, 0, 0])
       // and the reference, independently, says the same of all four bars
       same(fin(ours), fin(bars.map(iii)), 1e-12)
-      // the v4 bare spelling is the same tree
+      // the v4 bare spelling and v5 are the same tree
       expect(treeOf(V(4, 'plot(iii)'), opts).formula).toBe(formula)
+      expect(treeOf(V(5, 'plot(ta.iii)'), opts).formula).toBe(formula)
     }
   })
-  it('a second witness, TradingView\'s own exported values: PyneCore\'s fixture tests/t01_lib/t20_ta/data/iii+nvi+obv.csv, rows 1-3', () => {
-    // github.com/PyneSys/pynecore @ fe29d4a4c5 (a TradingView chart-data export by its
-    // format); OHLCV as exported, `ta.iii` as TradingView computed it
+  it('⭐ e99 VENDOR: TradingView\'s own ta.iii, rows of the builtin4 witness captures (SPY and RDDT 1D), v6 / v5 / v4 alike', () => {
+    // [time, open, high, low, close, volume, TradingView's ta.iii]; null = TradingView's `na`
+    const rows = [
+      // builtin4-witness-spy-spy-1d-2026-11-26: bars 0-2, 1052 (high == low: TradingView's one `na`), 8514
+      [728317800, 43.9688, 43.96899, 43.75, 43.938, 1003200, 719267.6925887401],
+      [728577000, 43.96875, 44.25, 43.96875, 44.25, 480500, 480500],
+      [728663400, 44.21875, 44.375, 44.125, 44.34375, 201300, 150975],
+      [859818600, 75.6875, 75.6875, 75.6875, 75.6875, 4270699, null],
+      [1795617000, 703.2, 718.43, 695.45, 716.7, 73112796, 62104516.010444425],
+      // builtin4-witness-rddt-rddt-1d-2026-11-26: bars 0-2, 673
+      [1711027800, 47, 57.8, 45.05, 50.44, 48705533, -7525482.353725486],
+      [1711114200, 48.88, 51, 45.34, 46, 15983139, -12255622.484098958],
+      [1711373400, 47.09, 61.9399, 46.08, 59.8, 24398838, 17814802.358388122],
+      [1795617000, 87.895, 92.3, 84.6, 91.51, 4196762, 3335608.238961048],
+    ]
+    const bars = rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+    const want = rows.map((r) => r[6])
+    let graded = 0
+    for (const src of [V6('plot(ta.iii)'), V(5, 'plot(ta.iii)'), V(4, 'plot(iii)')]) {
+      for (const opts of [undefined, pane]) {
+        const ours = Array.from(interpret(treeOf(src, opts).tree, bars)).map((x) => (Number.isFinite(x) ? x : null))
+        expect(ours.map((x) => x === null)).toEqual(want.map((x) => x === null))
+        ours.forEach((x, i) => {
+          if (x === null) return
+          expect(Math.abs(x - want[i]) / Math.max(1, Math.abs(want[i])), `row ${i}`).toBeLessThan(1e-12)
+          graded += 1
+        })
+      }
+    }
+    expect(graded).toBe(6 * 8)
+    // ⛔ and the dividing body (the W1 re-review's) is wrong on every one of these finite rows
+    rows.forEach((r, i) => {
+      if (r[6] === null) return
+      const div = (2 * r[4] - r[2] - r[3]) / ((r[2] - r[3]) * r[5])
+      expect(Math.abs(div - r[6]) / Math.max(1, Math.abs(r[6])), `row ${i}`).toBeGreaterThan(1e-3)
+    })
+  })
+  it('pinned history, not a witness: PyneCore\'s export fixture iii+nvi+obv.csv (rows 1-3) divides, and today\'s builtin does not', () => {
+    // github.com/PyneSys/pynecore @ fe29d4a4c5, tests/t01_lib/t20_ta/data/iii+nvi+obv.csv: a TradingView chart-data
+    // export by its format, its column the v5+ name `ta.iii` (so not a v4 export). Its values are the DIVIDING body's;
+    // TradingView's v6 builtin today (the witness rows above) multiplies. Held so neither fact drifts unseen.
     const rows = [
       [1.06994, 1.06994, 1.06912, 1.06918, 100, -0.008536585365854584],
       [1.06918, 1.06925, 1.06664, 1.06789, 824, -0.00005114756537591343],
       [1.06789, 1.06837, 1.06628, 1.06785, 5684, 0.0000883871119805718],
     ]
     const bars = rows.map(([o, h, l, c, v], i) => ({ t: i + 1, o, h, l, c, v }))
+    same(bars.map((b) => (2 * b.c - b.h - b.l) / ((b.h - b.l) * b.v)), rows.map((r) => r[5]), 1e-12)
     const ours = Array.from(interpret(treeOf(V6('plot(ta.iii)')).tree, bars))
-    same(ours, rows.map((r) => r[5]), 1e-12)
+    same(ours, bars.map(iii), 1e-12)
+    ours.forEach((x, i) => expect(Math.abs(x - rows[i][5])).toBeGreaterThan(1e-3))
   })
   it('v4 bare spellings are TradingView\'s; v6 bare spellings are refused by name', () => {
     expect(treeOf(V(4, 'plot(iii)')).formula).toBe(treeOf(V6('plot(ta.iii)')).formula)

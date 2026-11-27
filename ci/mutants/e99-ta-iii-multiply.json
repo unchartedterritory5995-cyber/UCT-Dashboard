@@ -1,0 +1,14 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "III-1",
+   "mutant": "the W1 dividing body restored: ta.iii divides by the volume (the defect)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  iii: () => cOp('*', [\n    cOp('/', [\n      cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),\n      cOp('-', [cSeries('high'), cSeries('low')]),\n    ]),\n    cSeries('volume'),\n  ]),",
+   "to": "  iii: () => cOp('/', [\n    cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),\n    cOp('*', [cOp('-', [cSeries('high'), cSeries('low')]), cSeries('volume')]),\n  ]),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineW1Builtins.test.js",
+   "expectRed": "e99 VENDOR: TradingView's own ta.iii, rows of the builtin4 witness captures"
+  }
+ ]
+}
