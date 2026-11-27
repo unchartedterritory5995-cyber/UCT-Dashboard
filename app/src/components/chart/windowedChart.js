@@ -169,6 +169,11 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     extending: false,
     placePending: false, // a new load: the next primary setData places the window
     checkQueued: false,
+    // the shared axis's epoch: bumped whenever any series is handed a cut whose SET OF TIMES differs from the one it last
+    // handed (a value-only re-set does not move it). A skipped setData needs it unmoved through its pass (setFull).
+    axisGen: 0,
+    passStart: null,     // the epoch when the current synchronous pass of setData calls began (null: no pass open)
+    passSkipped: [],     // the setData calls this pass skipped: re-handed at the pass's end if the axis moved
   }
   /** wrapped series -> { raw, full, tail: Map(time -> item), primary } */
   const series = new Map()
@@ -178,6 +183,30 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   const on = () => st.wanted != null && !disabled()
   const anchorStart = anchor === 'index' ? (rows, wanted) => renderWindowStart(rows.length, wanted) : renderWindowStartFor
 
+  /** A synchronous pass of setData calls: opened by the first, closed in a microtask (after the pass, before the frame
+   *  paints). Closing it re-hands what the pass skipped if any series' set of times moved during it. */
+  function openPass() {
+    if (st.passStart != null) return
+    st.passStart = st.axisGen
+    queueMicrotask(() => {
+      const moved = st.axisGen !== st.passStart
+      const skipped = st.passSkipped
+      st.passStart = null
+      st.passSkipped = []
+      if (moved) for (const k of skipped) if (k.rec.handed === k.cut && series.get(k.w) === k.rec) k.rec.set(k.cut)
+    })
+  }
+  /** Do two row arrays hold the same times, in order (values aside)? O(rows). */
+  function sameTimes(a, b) {
+    if (a === b) return Array.isArray(a)
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      const x = a[i]?.time
+      const y = b[i]?.time
+      if (x !== y && (x == null || y == null || cmpTime(x, y) !== 0)) return false
+    }
+    return true
+  }
   /** Do two row arrays hold the same rows (each row's own fields equal; a time compared by value)? O(rows). */
   function sameRows(a, b) {
     if (a === b) return Array.isArray(a)
@@ -390,7 +419,12 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     const origSetDataFn = raw.setData
     const origUpdateFn = raw.update
     // (`handed`: the rows the library was last handed; `updated`: an update() reached the library since)
-    rec.set = (rows) => { rec.handed = rows; rec.updated = false; return origSetData(rows) }
+    rec.set = (rows) => {
+      if (!sameTimes(rec.handed, rows)) st.axisGen++   // this series' times moved: the shared axis re-merges
+      rec.handed = rows
+      rec.updated = false
+      return origSetData(rows)
+    }
     rec.upd = (item, ...rest) => { rec.updated = true; return origUpdate(item, ...rest) }
     /** The series' setData: keep `rows`, hand the library the cut (painted when `paint` is given). */
     function setFull(rows, paint) {
@@ -414,8 +448,17 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       // (more rows, an older first time) with the window where it was.
       const grewAtFront = !!prev && prev.length > 0 && rows.length > prev.length && rows.length > 0
         && cmpTime(rows[0].time, prev[0].time) === -1
-      if (grewAtFront && st.wsTime === before && !rec.updated && cut !== rec.handed && sameRows(rec.handed, cut)) rec.handed = cut
-      else rec.set(cut)
+      // ⛔ ...AND ONLY WHILE THE SHARED AXIS HOLDS STILL (review of #2903, the owner's "never move"): a series whose set of
+      // times changes in the same pass (a compare series joining, a newer bar on another series) makes the library
+      // re-merge the axis, and the chart's re-hand of the candles is part of what keeps the newest candle in place. So a
+      // skip needs the axis unmoved since the pass began, and a series that moves it LATER in the same pass re-hands every
+      // series this pass skipped, before the frame paints (the pass ends in a microtask, before the rAF paint).
+      openPass()
+      if (grewAtFront && st.wsTime === before && !rec.updated && st.axisGen === st.passStart && cut !== rec.handed
+          && sameRows(rec.handed, cut)) {
+        rec.handed = cut
+        st.passSkipped.push({ rec, w, cut })
+      } else rec.set(cut)
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
       if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
