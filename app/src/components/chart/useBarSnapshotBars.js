@@ -36,6 +36,7 @@ import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/b
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
+import { deriveCustomTf } from './customTfRows'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
@@ -186,8 +187,10 @@ export function useBarSnapshotBars({
     [_staleSrc],
   )
   // ── custom timeframe: a memoized resample of the NATIVE base key (Writer F's input) ──
+  // ⭐ (2026-11-27) filed under the base rows (customTfRows.deriveCustomTf): the array the idle preparer of this row
+  // asked for, so every value derived from it before the press is found on it (neighbour frames on; off, as before).
   const _customBars = useMemo(
-    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? resampleForSpec(all, _customSpec) : null),
+    () => ((_isCustomTf && all?.length && status !== STATUS.PROVISIONAL) ? deriveCustomTf(all, _customSpec) : null),
     [_isCustomTf, all, status, _customSpec],
   )
   // ── W/M while its own key is empty: the same-frame resample of the held DAILY snapshot ──
