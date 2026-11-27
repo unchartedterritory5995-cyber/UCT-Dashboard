@@ -28,7 +28,7 @@
 //
 import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createPortal } from 'react-dom'
+import { createPortal, flushSync } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
 import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -91,6 +91,11 @@ function rafObserveElementRect(instance, cb) {
 // so a row that changed height since is corrected; only those re-render. Rail: Watchlists.rowSizeSeed.test.jsx.
 const ROW_SIZES = new Map()        // sizeCacheKey -> Map(row key -> px), most recently mounted last
 const ROW_SIZE_LISTS_MAX = 24
+// one list's memory: a whole-market scan scrolled end to end must not grow it without bound
+export const ROW_SIZE_ROWS_MAX = 5000
+// a mount whose first observer pass corrects more remembered rows than this was laid out unlike the last one (a
+// row-geometry input the key does not carry): its memory is dropped, and the list measures as it mounts again
+export const ROW_SIZE_CORRECTIONS_MAX = 3
 function rowSizesFor(key) {
   let sizes = ROW_SIZES.get(key)
   if (sizes) ROW_SIZES.delete(key)
@@ -99,19 +104,45 @@ function rowSizesFor(key) {
   if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
   return sizes
 }
-/** The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
- *  size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit. */
-function measureRememberedRow(el, entry, instance, sizes) {
-  const key = instance.options.getItemKey(instance.indexFromElement(el))
+/**
+ * The key a list's row sizes are remembered under, or `null` (not remembered). It names the list by a STABLE id (a
+ * list's own id; a scan host's column-storage key, never its display name: every pick list without a name is "Scan")
+ * and carries every input that sets a row's height: the text size, the logo's size (0 without logos), the visible
+ * column set, the touch tier and the viewport band the stylesheet switches on. Two widgets on one list with different
+ * settings therefore keep separate memories (review of #2907, M1).
+ */
+export function rowSizeCacheKey({ kind, id, fontSize, logoPx, columns, touch, viewportW }) {
+  if (id === null || id === undefined || id === '') return null
+  const band = !(viewportW > 0) ? '?' : viewportW <= 640 ? 's' : viewportW <= 1024 ? 'm' : 'l'
+  return `${kind}:${id}|f${fontSize ?? ''}|l${logoPx || 0}|c${(columns || []).join(',')}|${touch ? 't' : 'p'}|${band}`
+}
+/**
+ * The library's measurement (a rounded border box from the observer, else `offsetHeight`), except that a row whose
+ * size this list remembers answers from memory when there is no observer entry: the attach-time call, in the commit.
+ * `mem` is one mount's view of the memory: `{ sizes, corrections, dropped, correctedNow }`. An observer entry that
+ * contradicts a remembered size counts a correction and asks the list to commit it before the frame paints
+ * (`correctedNow`, read by the virtualizer's `onChange`).
+ */
+export function measureRememberedRow(el, entry, instance, mem) {
+  const index = instance.indexFromElement(el)
+  const key = index >= 0 ? instance.options.getItemKey(index) : undefined
   const box = entry?.borderBoxSize?.[0]
+  const known = key === undefined || mem.dropped ? undefined : mem.sizes.get(key)
   let size
-  if (box) size = Math.round(box.blockSize)
-  else {
-    const known = sizes.get(key)
+  if (box) {
+    size = Math.round(box.blockSize)
+    if (known !== undefined && known !== size && size > 0) {
+      mem.correctedNow = true
+      if (++mem.corrections > ROW_SIZE_CORRECTIONS_MAX) { mem.sizes.clear(); mem.dropped = true }
+    }
+  } else {
     if (known !== undefined) return known
     size = el.offsetHeight
   }
-  if (size > 0) sizes.set(key, size) // a hidden list (0) teaches nothing
+  if (size > 0 && key !== undefined && !mem.dropped) { // a hidden list (0) teaches nothing; nor does a row with no index
+    if (!mem.sizes.has(key) && mem.sizes.size >= ROW_SIZE_ROWS_MAX) mem.sizes.clear()
+    mem.sizes.set(key, size)
+  }
   return size
 }
 import useSWR from 'swr'
@@ -744,8 +775,13 @@ export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
 }
 
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false, sizeCacheKey = null }) {
-  // the row sizes this list measured on its last mount (see `rowSizesFor`); none: measured as they mount, as before
-  const rowSizes = useMemo(() => (sizeCacheKey ? rowSizesFor(sizeCacheKey) : null), [sizeCacheKey])
+  // the row sizes this list measured on its last mount (see `rowSizesFor`), as this mount's view of them
+  // (`measureRememberedRow`); none: measured as they mount, as before
+  const rowMem = useMemo(
+    () => (sizeCacheKey ? { sizes: rowSizesFor(sizeCacheKey), corrections: 0, dropped: false, correctedNow: false } : null),
+    [sizeCacheKey],
+  )
+  const [, commitCorrection] = useState(0)
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -792,8 +828,20 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   const virt = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: rowSizes ? (i) => rowSizes.get(rowKey(i)) ?? 30 : () => 30,
-    ...(rowSizes ? { measureElement: (el, entry, instance) => measureRememberedRow(el, entry, instance, rowSizes) } : null),
+    estimateSize: rowMem ? (i) => (rowMem.dropped ? undefined : rowMem.sizes.get(rowKey(i))) ?? 30 : () => 30,
+    ...(rowMem ? {
+      measureElement: (el, entry, instance) => measureRememberedRow(el, entry, instance, rowMem),
+      // ⭐ (review of #2907, M2: "no jumps") A REMEMBERED SIZE THE OBSERVER CONTRADICTS IS CORRECTED BEFORE THE FRAME
+      // PAINTS. The observer delivers after layout and before paint; the library's re-render from there is an ordinary
+      // update, which React renders after this frame paints: one frame of rows at the wrong offsets, then a jump. That
+      // one case commits now (`flushSync`, allowed in an observer callback), as the attach-time measurement used to
+      // inside the commit; every other change keeps the batched path (`useFlushSync: false` below).
+      onChange: () => {
+        if (!rowMem.correctedNow) return
+        rowMem.correctedNow = false
+        flushSync(() => commitCorrection((n) => n + 1))
+      },
+    } : null),
     // Measured heights keyed by the ROW, not its position: a grouped list puts a
     // taller section header where a ticker row used to be, and a position-keyed
     // cache kept the old 29px height (headers overlapped).
@@ -2535,6 +2583,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return uctCtrlSlot ? ks.filter(k => k !== 'flag') : ks
   }, [colCfg, isAllIdxList, uctCtrlSlot])
   const visibleOptional = OPTIONAL_COLS.filter(c => !colHidden[c.key])
+  // Everything that sets a list row's height, for the virtualized list's remembered row sizes (`rowSizeCacheKey`).
+  const rowGeometry = {
+    fontSize: wlSettings.fontSize, logoPx: wlSettings.showLogos ? rowLogoSize : 0, columns: orderedKeys, touch: isTouch,
+    viewportW: typeof window !== 'undefined' ? window.innerWidth : 0,
+  }
   // Measured content width of the list (excludes the vertical scrollbar) — drives the
   // shrink-to-fit below so an ADDED column squeezes the others in rather than overflow.
   const listBodyRef = useRef(null)
@@ -3440,7 +3493,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   scrollToSym={selectedSym}
                   noScrollRef={clickSelectRef}
                   measureOffset
-                  sizeCacheKey={`wl:${wl.id}:${wlSettings.fontSize}`}
+                  sizeCacheKey={rowSizeCacheKey({ kind: 'wl', id: wl.id, ...rowGeometry })}
                 />
               </>
             )
@@ -3849,7 +3902,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}
               noScrollRef={clickSelectRef}
-              sizeCacheKey={`scan:${scanWl.name}:${wlSettings.fontSize}`}
+              sizeCacheKey={rowSizeCacheKey({ kind: 'scan', id: colStorageKey, ...rowGeometry })}
             />
           )}
 
