@@ -69,11 +69,13 @@ function taintWrites(S, w, lb, pb, bar) {
   for (const x of w.iters) S.iterT[x].fill(2)
 }
 
-/** A T branch at `p` (call depth `d`), with `top` regions open: every effect EITHER arm may have (the arm not taken
- *  included) is T now, the called sites' absolute effects too, and a region opens until the branch's join (every write
- *  until then is T). Answers the new number of open regions. A loop head re-tested inside its own region opens nothing.
- *  `S` = `{ tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }` (the generated loop's own arrays). */
-export function taintBranch(S, p, lb, pb, bar, d, top) {
+/** A T branch at `p` (call depth `d`, stack height `h` once the branch has taken its condition), with `top` regions
+ *  open: every effect EITHER arm may have (the arm not taken included) is T now, the called sites' absolute effects too,
+ *  and a region opens until the branch's join (every write until then is T, and so is every value still on the stack
+ *  above `h` when it closes). Answers the new number of open regions. A loop head re-tested inside its own region opens
+ *  nothing. `S` = `{ tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, rSp }` (the generated loop's
+ *  own arrays). */
+export function taintBranch(S, p, lb, pb, bar, d, top, h) {
   for (let r = 0; r < top; r += 1) if (S.rBr[r] === p && S.rDepth[r] === d) return top
   const w = S.brW[p]
   taintWrites(S, w, lb, pb, bar)
@@ -81,6 +83,7 @@ export function taintBranch(S, p, lb, pb, bar, d, top) {
   S.rBr[top] = p
   S.rJoin[top] = S.brJoin[p]
   S.rDepth[top] = d
+  S.rSp[top] = h
   return top + 1
 }
 

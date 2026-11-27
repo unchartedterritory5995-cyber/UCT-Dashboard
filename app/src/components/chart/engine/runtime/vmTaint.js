@@ -361,17 +361,18 @@ export function executeTainted(program, ctx, limits, opts) {
   const theld = new Uint8Array(held.length).fill(2)
   const outT = outputs.map((o) => new Uint8Array(o.length))
   const iterT = iters.map(() => new Uint8Array(ITER_SLOTS))
-  // the implicit-flow regions open now: [branch pc, its join, the call depth it was taken at]
+  // the implicit-flow regions open now: [branch pc, its join, the call depth it was taken at, the stack height then]
   const rBr = []
   const rJoin = []
   const rDepth = []
+  const rSp = []
   let rTop = 0
   // ⭐ PERF: the innermost region's join in one scalar: each fetch is ONE compare (`pc === rJT`); the region arrays (and
   // the call depth) are read only when control reaches a join
   let rJT = -3
   // ⭐ PERF: the implicit-flow work lives in `taintTags.js::taintBranch` and is handed this state, so no closure here
   // captures a tag array or `rTop`: the loop keeps them in registers, not context slots loaded per instruction
-  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth }
+  const TS = { tl, tp, theld, outT, iterT, brW, brJoin, siteW, rBr, rJoin, rDepth, rSp }
   for (let bar = startBar; bar < runBars; bar += 1) {
     let extraRun = false
     if (broker) {
@@ -400,7 +401,10 @@ export function executeTainted(program, ctx, limits, opts) {
       const a = code[base + 1]
       const b = code[base + 2]
       if (pc === rJT) {
-        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) rTop -= 1
+        while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) {
+          for (let k = rSp[rTop - 1]; k < sp; k += 1) ts[k] = 2
+          rTop -= 1
+        }
         rJT = rTop > 0 ? rJoin[rTop - 1] : -3
       }
       pc += 1
@@ -542,12 +546,12 @@ export function executeTainted(program, ctx, limits, opts) {
           initialised[persistBase + a] = 1
           break
         case 60 /* OP.JUMP */: pc = a; break
-        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } {
+        case 61 /* OP.JUMP_IF_FALSE */: if (ts[sp - 1] !== 0) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop, sp - 1); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } {
           const t = stack[--sp]
           if (t !== t || t === 0) pc = a
           break
         }
-        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } if (initialised[persistBase + a]) pc = b; break
+        case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop, sp); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 } if (initialised[persistBase + a]) pc = b; break
         case 70 /* OP.CALL */: { const _f = program.functions[a]; const _nb = localsTop; for (let _k = 0; _k < _f.params; _k += 1) tl[_nb + _k] = ts[sp - _f.params + _k]; tl.fill(0, _nb + _f.params, _nb + _f.frameSize) } {
           const fn = program.functions[a]
           const site = program.callSites[b]
@@ -807,7 +811,7 @@ export function executeTainted(program, ctx, limits, opts) {
             car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n, v2third)
           break
         }
-                case 71 /* OP.RET */: { while (rTop > 0 && rDepth[rTop - 1] >= depth) rTop -= 1; rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 : (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) } {
+                case 71 /* OP.RET */: { while (rTop > 0 && rDepth[rTop - 1] >= depth) { for (let _k = rSp[rTop - 1]; _k < sp; _k += 1) ts[_k] = 2; rTop -= 1 } rJT = rTop > 0 ? rJoin[rTop - 1] : -3; const _rf = program.functions[frFn[depth - 1]]; for (let _k = 0; _k < _rf.historyCount; _k += 1) theld[historyBase + _k] = rTop > 0 ? 2 : (_rf.historyPersist[_k] ? tp[persistBase + _rf.historySlots[_k]] : tl[localsBase + _rf.historySlots[_k]]) } {
           {
             const rf = program.functions[frFn[depth - 1]]
             const hc = rf.historyCount
