@@ -84,7 +84,8 @@
 // nearest, because each palette's contrast was measured against its own surface.
 
 import { IND_TOKENS } from '../designTokens'
-import { paneMode } from './paneLayout'
+import { paneMode, NO_STACK_MAIN_MARGINS } from './paneLayout'
+import { isHouseCopyMeta } from '../house/houseNames'
 import { parsePaneOfTarget } from './sourceRef'
 import { readoutConditionOpen } from './readoutSchema'
 
@@ -324,6 +325,96 @@ export function joinsPriceScaleOf(def) {
 export function ownScaleOf(def) {
   const p = def && typeof def === 'object' ? def.placement : null
   return !!(p && typeof p === 'object' && p.ownScale === true)
+}
+
+/**
+ * ⭐ PIN TO SCALE (owner, 2026-11-26, on Fred RS: "it doesn't scale and move properly ... it gets
+ * stuck low on the chart"). TradingView's per-indicator "Pin to scale" choice, for an instance
+ * drawn ON PRICE:
+ *
+ *   'price' — "Same as price": the candles' scale (`MAIN_PRICE_SCALE_ID`), today's behaviour.
+ *   'none'  — "No scale": an INVISIBLE OVERLAY SCALE of the instance's own
+ *             (`PIN_SCALE_PREFIX + instanceId`), framed in the candles' band and autoscaled on
+ *             its OWN visible values, so the line fills the pane and follows the visible window
+ *             as the member pans and zooms, independent of the price axis. The candles' autoscale
+ *             never sees it (a different scale id).
+ *
+ * STORED on the instance as `placement.pinScale`, and only ever by the member's pick
+ * (`instanceControls.setInstancePinScale`): every pick writes its value, so a stored value is
+ * itself the record that the member chose. Absent → the DEFAULT:
+ *
+ *   · an unedited member copy of a UCT house indicator (`houseNames.isHouseCopyMeta`, Fred RS)
+ *     → 'none', which is how the owner's TradingView has it pinned. Read here, never written,
+ *     so every chart that already holds a Fred copy gets it with no migration write, and a
+ *     member who picked "Same as price" keeps that.
+ *   · everything else → 'price', byte-identical to before this existed.
+ *
+ * ⛔ A definition that declared `ownScale` (UCT RS) answers its own rule above; it is not offered
+ * the choice (`pinScaleOffered`), and a stray stored value is ignored for it.
+ */
+export const PIN_SCALE_PRICE = 'price'
+export const PIN_SCALE_NONE = 'none'
+export const PIN_SCALE_CHOICES = Object.freeze([PIN_SCALE_PRICE, PIN_SCALE_NONE])
+export const PIN_SCALE_LABELS = Object.freeze({ [PIN_SCALE_PRICE]: 'Same as price', [PIN_SCALE_NONE]: 'No scale' })
+export const PIN_SCALE_PREFIX = 'pin:'
+
+/** The answer when the member has not picked: see `pinScaleOf`. */
+export function defaultPinScaleOf(def) {
+  return def && typeof def === 'object' && isHouseCopyMeta(def.meta) ? PIN_SCALE_NONE : PIN_SCALE_PRICE
+}
+
+/** The member's stored pick, or null when there is none (or it is not a known choice). */
+export function storedPinScaleOf(instance) {
+  const v = instance && instance.placement && instance.placement.pinScale
+  return PIN_SCALE_CHOICES.includes(v) ? v : null
+}
+
+/** Which scale this instance draws on when it is on price: 'price' | 'none'. */
+export function pinScaleOf(instance, def) {
+  if (ownScaleOf(def)) return PIN_SCALE_PRICE
+  return storedPinScaleOf(instance) || defaultPinScaleOf(def)
+}
+
+/** Is the choice offered for this definition at all? (Not for an `ownScale` one.) */
+export function pinScaleOffered(def) {
+  return !!(def && typeof def === 'object') && !ownScaleOf(def)
+}
+
+/** Is this a scale that belongs to ONE instance (a pinned "No scale" or a 3-07 own scale)? */
+export function isInstanceScaleId(scaleId) {
+  return typeof scaleId === 'string' && (scaleId.startsWith(PIN_SCALE_PREFIX) || scaleId.startsWith(OWN_SCALE_PREFIX))
+}
+
+/**
+ * The candles' margins, so a "No scale" line is framed in the band the candles are: what the
+ * surface says it applied (`ctx.mainScaleMargins`, StockChart's own `_mainMargins` / dragged
+ * `vertMarginsRef`), else the layout's main margins, else the no-stack default.
+ */
+function pinnedScaleMargins(c) {
+  const ok = (m) => m && typeof m === 'object' && Number.isFinite(m.top) && Number.isFinite(m.bottom)
+  if (ok(c.mainScaleMargins)) return { top: c.mainScaleMargins.top, bottom: c.mainScaleMargins.bottom }
+  const lay = c.paneLayout
+  const m = lay ? (paneMode() === 'panes' ? lay.pane0 && lay.pane0.mainMargins : lay.bands && lay.bands.main) : null
+  if (ok(m)) return { top: m.top, bottom: m.bottom }
+  return { top: NO_STACK_MAIN_MARGINS.top, bottom: NO_STACK_MAIN_MARGINS.bottom }
+}
+
+/**
+ * The series whose price↔pixel map an instance's DRAWN OBJECTS (labels, dots: `objectLayer`)
+ * must use: one of the instance's own series sitting on an instance scale (a visible one first),
+ * else `fallback` (the candles). A label at `y = rs` on the candles' map lands wherever the RS
+ * value happens to fall on the PRICE axis, nowhere near its line.
+ *
+ * @param {Array<{series: object}>} mine the instance's bindings
+ */
+export function objectPriceHost(mine, fallback) {
+  const own = (Array.isArray(mine) ? mine : []).filter((b) => {
+    if (!b || !b.series || typeof b.series.options !== 'function') return false
+    try { return isInstanceScaleId(b.series.options().priceScaleId) } catch { return false }
+  })
+  if (!own.length) return fallback
+  const shown = own.find((b) => { try { return b.series.options().visible !== false } catch { return false } })
+  return (shown || own[0]).series
 }
 
 // ─── colour ──────────────────────────────────────────────────────────────────
@@ -582,6 +673,20 @@ export function resolvePlacement(instance, def, ctx) {
         scaleOptions: { visible: false, borderVisible: false, scaleMargins: { ...OWN_SCALE_MARGINS } },
         autoscale: 'default',
         lastValue: false,
+      }
+    }
+    // ⭐ PIN TO SCALE → "No scale" (2026-11-26, see `pinScaleOf`): an invisible overlay scale of
+    // this instance's own, framed in the candles' band, autoscaled on its own values only.
+    if (!_econPrimary && pinScaleOf(instance, def) === PIN_SCALE_NONE) {
+      const instanceKey = (instance && typeof instance.instanceId === 'string' && instance.instanceId) || null
+      if (instanceKey) {
+        return {
+          paneIndex: priceIndexOf(c),
+          scaleId: PIN_SCALE_PREFIX + instanceKey,
+          scaleOptions: { visible: false, borderVisible: false, autoScale: true, scaleMargins: pinnedScaleMargins(c) },
+          autoscale: 'default',
+          lastValue: false,
+        }
       }
     }
     return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: _econPrimary ? 'default' : 'exclude' }
