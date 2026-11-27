@@ -164,6 +164,7 @@ import secrets
 import sqlite3
 import threading
 import time
+from collections import OrderedDict
 from typing import Any, Mapping, Optional
 
 from api.services import compute_graph
@@ -1087,11 +1088,20 @@ def line_identities_many(user_id: Any, refs: Any) -> dict:
     """``{(def_id, version): {plotKey: identity}}`` for many stored versions on ONE
     connection -- the list route serves every definition of a member at once."""
     out: dict = {}
+    todo = []
+    for def_id, version in refs:
+        if not isinstance(def_id, str) or version is None:
+            continue
+        hit = _line_identity_cached((str(user_id), def_id, int(version)))
+        if hit is not None:
+            out[(def_id, int(version))] = hit
+        else:
+            todo.append((def_id, version))
+    if not todo:
+        return out
     with contextlib.closing(_connect()) as c:
         _ensure(c)
-        for def_id, version in refs:
-            if not isinstance(def_id, str) or version is None:
-                continue
+        for def_id, version in todo:
             row = c.execute(
                 "SELECT definition FROM user_definitions WHERE user_id=? AND def_id=? "
                 "AND version=?", (str(user_id), def_id, int(version))).fetchone()
@@ -1102,8 +1112,45 @@ def line_identities_many(user_id: Any, refs: Any) -> dict:
             except (TypeError, ValueError):
                 continue
             ids = _effective_line_ids(c, user_id, def_id, int(version))
-            out[(def_id, int(version))] = {k: line_identity(k, ids) for k in keys}
+            got = {k: line_identity(k, ids) for k in keys}
+            _line_identity_store((str(user_id), def_id, int(version)), got)
+            out[(def_id, int(version))] = dict(got)
     return out
+
+
+# ⭐ ONE STORED VERSION'S LINE IDENTITIES, ONCE PER PROCESS (chart speed, 2026-11-26). They are a function of that
+# version and the versions before it (`_effective_line_ids`), and the store only ever APPENDS versions, so a
+# version's answer never moves; the list asked it again on every request (two document reads and two parses per
+# row). Keyed with the database path; bounded; a hit hands out a copy. Rails:
+# tests/test_user_definitions_list_verdict_cache.py.
+_LINE_IDS_MAX = 4096
+_LINE_IDS: "OrderedDict[tuple, dict]" = OrderedDict()
+_LINE_IDS_LOCK = threading.Lock()
+
+
+def _line_identity_cached(ref: tuple) -> Optional[dict]:
+    key = (_DB_PATH,) + ref
+    with _LINE_IDS_LOCK:
+        hit = _LINE_IDS.get(key)
+        if hit is None:
+            return None
+        _LINE_IDS.move_to_end(key)
+        return dict(hit)
+
+
+def _line_identity_store(ref: tuple, ids: dict) -> None:
+    key = (_DB_PATH,) + ref
+    with _LINE_IDS_LOCK:
+        _LINE_IDS[key] = dict(ids)
+        _LINE_IDS.move_to_end(key)
+        while len(_LINE_IDS) > _LINE_IDS_MAX:
+            _LINE_IDS.popitem(last=False)
+
+
+def _reset_line_identity_cache() -> None:
+    """Tests only."""
+    with _LINE_IDS_LOCK:
+        _LINE_IDS.clear()
 
 
 def history_line_identities(user_id: Any, def_id: str) -> dict:

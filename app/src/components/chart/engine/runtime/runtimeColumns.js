@@ -1333,6 +1333,43 @@ function acrossSupplyBlocked(cp, program, supply) {
   return null
 }
 
+// ─── ⭐⭐ (e101 S1, coordinator GO 2026-11-27) — A RUN RESUMES ACROSS SYMBOL FACTS IT CANNOT HAVE READ ─────────────────
+//
+// A cold ticker switch asks for one run three times while the symbol's facts land: the listing date ('^?' -> '^date',
+// `/api/ticker-ipo`) and the exchange (null -> NYSE, `/api/ticker-meta`). Each fact is in `runKey` (`symbolKey`), so
+// each ask was a cold run over every bar, even for a script that reads neither fact (`runtimeAsync.js::supersede`
+// tells the measured story). A run with NO session of its own may now resume from the session of the same run asked
+// under other symbol facts: the same document, settings, timeframe, forming state, listing flags and role
+// (`factsFreeCtx` erases only the symbol's exchange, classification and listing date).
+// ⛔ THE PROOF IS THE ONE EVERY RESUME USES, UNCHANGED (`resumableFrom`):
+//   * the bars up to the checkpoint are the same, bit for bit;
+//   * THIS run's own build (its build memo hit or a cold build, never the session's build) lowers to the same program
+//     (`sameProgram`: code, constants, slots). A `syminfo.*` read is folded into the program at build time, so a fact
+//     the script reads makes the programs differ, and the run is a full run;
+//   * every precomputed column it reads is the same up to the checkpoint.
+// ⛔ AND TWO KINDS OF RUN ARE NEVER SERVED (the run reads the facts outside its program):
+//   * a run with request sites: the own-daily read rests on the listing date and the other-symbol bind on the
+//     exchange (`requestSupply.js`);
+//   * a run that keeps a realtime ledger (`keepsLedger`): its ledger is keyed by the run's own identity.
+
+/** The context with the symbol's facts erased: its ticker only. */
+function factsFreeCtx(ctx) {
+  if (!ctx || !ctx.symbol || typeof ctx.symbol !== 'object') return ctx
+  return { ...ctx, symbol: { ticker: ctx.symbol.ticker } }
+}
+let _factsResumeOff = false
+/** Tests: never resume across symbol facts (the identity rails compare both ways). */
+export function __factsResumeOffForTests(off) { _factsResumeOff = !!off }
+/** The newest session kept under `factsKey` by a run of ANOTHER identity, or null; never for a run that keeps a
+ *  realtime ledger. The caller asks only for a run with no request sites (`!reqSupply`) and proves the session
+ *  (`resumableFrom`). */
+function factsSessionFor(factsKey, sessionKey, ir, source) {
+  if (_factsResumeOff || !factsKey || !ir) return null
+  if (keepsLedger(varipSlotsOf(ir), source)) return null
+  let found = null
+  for (const [key, session] of _sessions) if (key !== sessionKey && session.factsKey === factsKey) found = session
+  return found
+}
 /** The checkpoint a run over `rows` with `program` may resume from, or `{why}`. With `supply` (a run that reads
  *  requests), only across a supply that agrees (`acrossSupplyBlocked`). */
 export function resumableFrom(prev, rows, program, supply = null) {
@@ -1743,10 +1780,15 @@ function realtimeDecision(e, bar, rows, forming, lastConfirmed) {
   if (seen) return { from: seen.start, record: null, isNew: seen.first === true }
   return { from: e.end, record: { confirmed: confirmedNow, first: false, sig }, isNew: false }
 }
+/** The run's `varip` slots (top-level persists declared `varip`). */
+const varipSlotsOf = (ir) => (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
+  .map((sl) => sl.index)
+/** ⭐ Does a run keep a realtime ledger: it declares a `varip` or reads `barstate.isnew`. ONE predicate, read by
+ *  `realtimeRun` and by the facts resume (`factsSessionFor`), which never serves a run that keeps one. */
+const keepsLedger = (varip, source) => varip.length > 0 || readsIsNew(source)
 function realtimeRun(def, ctx, role, ir, source, rows, forming, lastConfirmed) {
-  const varip = (ir.slots || []).filter((sl) => sl && sl.varip === true && sl.owner === null && sl.kind === SLOT.PERSIST)
-    .map((sl) => sl.index)
-  if (!varip.length && !readsIsNew(source)) return null
+  const varip = varipSlotsOf(ir)
+  if (!keepsLedger(varip, source)) return null
   // ⭐ (review H1) SHARED BY IDENTICAL PANES, ON PURPOSE: two panes of one script on one symbol
   // and timeframe see one feed, so they must show one `varip`. Sharing cannot double-count once
   // a run over the same prices is the same update (`realtimeDecision`): the second pane's run
@@ -1948,6 +1990,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // read of the supply is checked bar for bar before it is resumed (`acrossSupplyBlocked`)
     : `${runKey(def, ctx, _resumeAcrossSupplyOff)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
   const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  // ⭐⭐ (e101 S1) the same identity with the symbol facts erased (`factsSessionFor`): kept on the session this run leaves
+  const factsKey = sessionKey
+    ? `${runKey(def, factsFreeCtx(ctx), _resumeAcrossSupplyOff)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}` : null
   // ⭐⭐ P3 WS-F (B5) — THE SESSION'S BUILD, REUSED: the front end is not run again, only
   // the columns are re-evaluated over THESE bars (`buildRecorder`, `columnsOver`).
   const reused = prevSession && prevSession.build && rows.length ? columnsOver(prevSession.build, rows, prevSession) : null
@@ -2082,8 +2127,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // checkpoint's state was computed from the requested bars of an EARLIER supply.
   // ⭐⭐ (item 3) …unless its supply agrees with the checkpoint's (`acrossSupplyBlocked`)
   const acrossSupply = !!reqSupply && !_resumeAcrossSupplyOff && opts.resumeAcrossSupply !== false
-  const resumable = prevSession && !opts.probe && (!reqSupply || acrossSupply)
-    ? resumableFrom(prevSession, rows, program, reqSupply ? reqSupply.supply : null)
+  // ⭐⭐ (e101 S1) no session of its own: the session of the same run under other symbol facts, when this run cannot
+  // read them (`factsSessionFor`), proved by the same `resumableFrom` as any other resume
+  const factsSession = !prevSession && !opts.probe && !reqSupply
+    ? factsSessionFor(factsKey, sessionKey, built.ir, compute.source) : null
+  const fromSession = prevSession || factsSession
+  const resumable = fromSession && !opts.probe && (!reqSupply || acrossSupply)
+    ? resumableFrom(fromSession, rows, program, reqSupply ? reqSupply.supply : null)
     : { why: reqSupply ? 'request' : sessionKey ? 'cold' : 'off' }
   // ⚠️ Fresh constants for a run from bar 0 — conservative, NOT mutation-provable: running the
   // session's program instead drew the same columns and drawings on every rail and probe tried
@@ -2095,7 +2145,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const resumeFrom = resumable.checkpoint || null
   // ⭐ a resumed run runs the SESSION's program (its constants — a drawing-handle template
   // the checkpointed state already holds is that very object) over THIS build's columns
-  const runProgram = resumeFrom ? { ...prevSession.program, columns: program.columns } : program
+  const runProgram = resumeFrom ? { ...fromSession.program, columns: program.columns } : program
   // ⭐ P3 WS-F (B5) — the five series and the times in ONE pass (it was six `map`s and five
   // `Float64Array.from`s, about 3 ms a tick at 5,000 bars); the same numbers.
   const nRows = rows.length
@@ -2285,7 +2335,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (res.checkpoint && reqSupply) res.checkpoint.supply = supplyDigestOf(reqSupply.supply, res.checkpoint)
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
-    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, ...(build ? { build } : {}) }
+    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, factsKey, ...(build ? { build } : {}) }
     next.bytes = sessionBytes(next)
     if (next.bytes <= SESSION_BYTE_CAP / 2) {
       _sessions.set(sessionKey, next)

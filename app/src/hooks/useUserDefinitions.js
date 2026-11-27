@@ -27,7 +27,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
-import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions } from '../lib/userDefsCache'
+import { readCachedDefinitionRows, writeCachedDefinitionRows, clearCachedDefinitions, markDefinitionsServed, definitionsServedThisPage } from '../lib/userDefsCache'
 import { startBootRequestIfSignedIn, takeBootFor } from '../lib/bootFetch'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration, uninstallUserDefinition,
@@ -111,6 +111,7 @@ async function fetcher(url) {
   // as `plots[].uid` (`lineIdentity.withServedRowIdentities`).
   // ⭐⭐ (2026-11-26, Fred RS load time) and the answer, as served, is this member's start for the next load
   if (owner != null && owner === _defsCacheOwner) writeCachedDefinitionRows(owner, SCRIPT_ENGINE_VERSION, body.definitions)
+  markDefinitionsServed()
   return hydrateRows(body.definitions)
 }
 
@@ -200,7 +201,7 @@ export function useUserDefinitions() {
   const owner = ownerOf(user)
   _defsCacheOwner = owner
   _defsBootUser = user ? (user.id ?? null) : null
-  const fallback = useMemo(() => readCachedDefinitions(owner), [owner])
+  const fallback = useMemo(() => (definitionsServedThisPage() ? undefined : readCachedDefinitions(owner)), [owner])
   const { data, error, isLoading } = useSWR(user ? USER_DEFINITIONS_KEY : null, fetcher, {
     fallbackData: fallback,
     revalidateOnMount: true,
