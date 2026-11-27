@@ -94,9 +94,9 @@ import {
 } from './astColumns.js'
 import { lowerTfCodesOf } from './lowerTf.js'
 import { hostLaneCostOf } from './hostLaneCost.js'
-import { computesOnMain, learnCost, resetHostLaneRoute } from './hostLaneRoute.js'
+import { computesOnMain, learnCost, resetHostLaneRoute, HOST_UNMEASURED_MAIN_ROWS } from './hostLaneRoute.js'
 import { notifyColumnsLanded } from './serverCompute.js'
-import { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_POST_ROWS, widenFirstPage } from './firstPage.js'
+import { FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_POST_ROWS, widenFirstPage, firstPageWindow } from './firstPage.js'
 import { packRows, ctxImageOf, answerFromImage, errorFromImage } from './hostLaneWire.js'
 
 /** How long the worker may take to answer the job it holds before it is called unresponsive, in
@@ -162,7 +162,7 @@ const _last = new Map()      // `${pane}\u0001${sig}` -> the pane's latest pictu
 let _realigned = new WeakMap() // picture columns -> {rows, answer}
 let _costs = new WeakMap()   // specialised document -> hostLaneCostOf
 const _stats = { posted: 0, landed: 0, superseded: 0, cancelled: 0, retired: 0, dropped: 0, toMain: 0, refused: 0,
-  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null, firstPages: 0, firstPageFailed: 0, firstPageDiscarded: 0 }
+  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null, firstPages: 0, firstPagesMain: 0, firstPageFailed: 0, firstPageDiscarded: 0 }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
@@ -471,6 +471,38 @@ function firstPageJobOf(job) {
     sendDef: plan.def, postRows: plan.rows.slice(n - FIRST_PAGE_POST_ROWS), postCtx: plan.valueCtx }
 }
 
+/** ⭐⭐ (2026-11-26, Fred RS warm reload) THE FIRST PAGE ON THIS THREAD, WHEN IT FITS THE UNMEASURED BUDGET.
+ *  ⚰️ Measured (local bundle, AGL 1D, Fred RS, 20 warm reloads): the chart's rows came from the device store already
+ *  deep, so the pane's first job went to the worker (a document this tab has not measured computes here only over a first
+ *  paint's rows, `HOST_UNMEASURED_MAIN_ROWS`), and Fred RS was drawn 224 / 281 / 297 ms after the candles while that
+ *  worker started and answered; on a cold reload the first 600 rows computed here drew Fred RS IN the candles' frame.
+ *  So a cold pane whose full job goes to the worker, and whose document this tab has NOT measured on this timeframe, has
+ *  its first page computed HERE over the newest `HOST_UNMEASURED_MAIN_ROWS` rows (the same rows a cold reload's first
+ *  paint computes here): the page after a `FIRST_PAGE_PROBE` head start, each plot exact or withheld by the same two-start
+ *  test the worker's page uses (`firstPageWindow`), stored as the pane's picture before the full job is submitted. Its
+ *  cost is learned, so a document measured dear never takes this path again in this tab. Null when the page is not made
+ *  here: a calc_bars_count window or a framed instance, a chart too short, or a document already measured on this tf. */
+function firstPageOnMain(job, pane, sig) {
+  const plan = job.plan
+  if (!_firstPageOn || !_firstPageMain || plan.win || plan.valueRows !== plan.rows) return null
+  const n = plan.rows.length
+  const take = HOST_UNMEASURED_MAIN_ROWS
+  if (n <= take || take <= FIRST_PAGE_PROBE + 1) return null
+  if (!computesOnMain(job.docId, tfOf(plan, job.ctx), take)) return null
+  const t0 = clock()
+  let win
+  try { win = firstPageWindow(plan.def, plan.rows.slice(n - take), plan.scalars, plan.valueCtx, job.stop, FIRST_PAGE_PROBE) } catch { return null }
+  learnCost(job.docId, tfOf(plan, job.ctx), take, clock() - t0)
+  const cols = widenFirstPage(win, n, take - FIRST_PAGE_PROBE)
+  if (!cols) return null
+  rememberPicture(pane, sig, { rows: plan.rows, cols })
+  _stats.firstPagesMain += 1
+  return cols
+}
+let _firstPageMain = true
+/** Test seam / kill switch: the first page on this thread off (the worker's page, as before). */
+export function setFirstPageOnMainEnabled(on) { _firstPageMain = on !== false }
+
 /** A landed page: widened and stored as its pane's picture, unless that pane already holds a picture of its
  *  signature or its full answer has settled (then it is dropped: the full picture is never painted over). */
 function settleFirstPage(job, reply) {
@@ -536,7 +568,8 @@ export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   per.set(key, { state: 'pending', job })
   // ⭐⭐ THE FIRST PAGE: no picture of this pane yet (a cold timeframe or symbol): a small page job goes to the worker
   // AHEAD of the full one, and its exact plots are drawn when it lands; the full answer replaces them
-  const page = pictureOf(pane, sig) ? null : firstPageJobOf(job)
+  // ⭐⭐ (2026-11-26) computed HERE when it fits a first paint's budget (`firstPageOnMain`), else the worker's page job
+  const page = pictureOf(pane, sig) || firstPageOnMain(job, pane, sig) ? null : firstPageJobOf(job)
   if (page) submit(page)
   submit(job)
   // ⛔ a job the worker could not take at once (no worker could be started, the post was refused)

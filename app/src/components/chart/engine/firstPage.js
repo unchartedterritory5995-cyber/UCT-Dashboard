@@ -38,16 +38,19 @@ export function sameTail(a, b, n) {
  * agree bit for bit, and, for an exact plot only, its `FIRST_PAGE_ROWS` page values. A throw is the caller's.
  * @returns {{keys: string[], exact: boolean[], values: (Float64Array|null)[]}}
  */
-export function firstPageWindow(def, rows, scalars, ctx, stop) {
-  const page = astColumnsGiven(def, rows.slice(FIRST_PAGE_PROBE), scalars, ctx, stop)
+export function firstPageWindow(def, rows, scalars, ctx, stop, probeRows = FIRST_PAGE_PROBE) {
+  // (2026-11-26) `probeRows`: the earlier start's head start; the page is the rows after it (`FIRST_PAGE_ROWS` for the
+  // worker's page, fewer for the chart thread's own, `hostLaneAsync.firstPageOnMain`)
+  const pageRows = rows.length - probeRows
+  const page = astColumnsGiven(def, rows.slice(probeRows), scalars, ctx, stop)
   const probe = astColumnsGiven(def, rows, scalars, ctx, stop)
   const keys = []
   const exact = []
   const values = []
   for (const key of Object.keys(page)) {
     const col = page[key]
-    if (!col || typeof col.length !== 'number' || col.length !== FIRST_PAGE_ROWS) continue
-    const same = sameTail(col, probe[key], FIRST_PAGE_ROWS)
+    if (!col || typeof col.length !== 'number' || col.length !== pageRows) continue
+    const same = sameTail(col, probe[key], pageRows)
     keys.push(key)
     exact.push(same)
     values.push(same ? Float64Array.from(col) : null)
@@ -60,9 +63,9 @@ export function firstPageWindow(def, rows, scalars, ctx, stop) {
  * newest bars, `NaN` before them; a start-dependent plot `NaN` everywhere; each plot's withholding named
  * (`FIRST_PAGE_CODE`: before the page for an exact plot, every bar otherwise). Null when the window holds no plot.
  */
-export function widenFirstPage(win, n) {
-  if (!win || !Array.isArray(win.keys) || !win.keys.length || n < FIRST_PAGE_ROWS) return null
-  const cut = n - FIRST_PAGE_ROWS
+export function widenFirstPage(win, n, pageRows = FIRST_PAGE_ROWS) {
+  if (!win || !Array.isArray(win.keys) || !win.keys.length || n < pageRows) return null
+  const cut = n - pageRows
   const all = new Float64Array(n).fill(1)
   const before = new Float64Array(n)
   before.fill(1, 0, cut)
@@ -70,7 +73,7 @@ export function widenFirstPage(win, n) {
   const withheld = {}
   win.keys.forEach((key, j) => {
     const full = new Float64Array(n).fill(NaN)
-    const exact = !!win.exact[j] && win.values[j] && win.values[j].length === FIRST_PAGE_ROWS
+    const exact = !!win.exact[j] && win.values[j] && win.values[j].length === pageRows
     if (exact) full.set(win.values[j], cut)
     out[key] = full
     withheld[key] = new Map([[FIRST_PAGE_CODE, exact ? before : all]])

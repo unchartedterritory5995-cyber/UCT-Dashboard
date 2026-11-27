@@ -11,7 +11,7 @@ import * as registry from '../nativeRegistry'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import {
   setHostLaneWorkerFactory, resetHostLaneAsync, isHostLanePending, hostLaneStats, setFirstPageEnabled,
-  __routeEveryHostDocumentForTests,
+  __routeEveryHostDocumentForTests, setFirstPageOnMainEnabled,
   FIRST_PAGE_ROWS, FIRST_PAGE_PROBE, FIRST_PAGE_CODE,
 } from '../hostLaneAsync'
 import { FIRST_PAGE_NOTE } from '../firstPage'
@@ -84,6 +84,8 @@ beforeEach(() => {
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '0')
   resetHostLaneAsync()
   setFirstPageEnabled(true)
+  // (2026-11-26) this file is the WORKER's page: the chart thread's own first page (hostLaneFirstPageMain.test.js) is off
+  setFirstPageOnMainEnabled(false)
   workers = standInWorkers()
   setHostLaneWorkerFactory(workers.factory)
 })
@@ -92,6 +94,7 @@ afterEach(() => {
   fredId = null
   setHostLaneWorkerFactory(null)
   setFirstPageEnabled(true)
+  setFirstPageOnMainEnabled(true)
   __routeEveryHostDocumentForTests(false)
   resetHostLaneAsync()
   vi.unstubAllEnvs()
