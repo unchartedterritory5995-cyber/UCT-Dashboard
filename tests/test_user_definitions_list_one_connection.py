@@ -161,6 +161,19 @@ def test_one_connection_and_a_constant_number_of_statements(store, monkeypatch):
     assert not any("CREATE" in q or "table_info" in q for q in stmts12), "the schema ran again on an ensured file"
 
 
+def test_a_cold_list_still_reads_everything_on_one_connection(store, monkeypatch):
+    """With nothing cached yet (a deploy's first list): the rows, the line identities and the capability
+    prefetch all read on the SAME connection."""
+    from api.services import runtime_definitions as rt
+    monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, rt.CAPABILITY_ADMISSION_ON)
+    _make(4)
+    _route(True, 97)
+    getattr(router_mod, "_reset_list_caches", lambda: None)()     # cold per-version caches, the file ensured
+    out, conns, stmts = _traced_list(monkeypatch)
+    assert len(out["definitions"]) == 4
+    assert conns == 1, f"a cold list opened {conns} connections"
+
+
 def test_a_file_replaced_at_the_same_path_is_ensured_again(store):
     _make(2)
     assert len(svc.list_for_user(USER)) == 2
