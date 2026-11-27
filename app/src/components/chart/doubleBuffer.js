@@ -96,6 +96,8 @@ export function flipDecision(want, report, barsNow, view) {
   // (owner, 2026-11-27; it was F6's refusal of any replay) change-date mode: the hidden chart drew under the front's
   // cutoff, or it shows other bars than the switch would (StockChart cuts every bar after it; intraday reads its window)
   if ((want.cutoff || null) !== (report.cutoff || null)) return { flip: false, why: 'cutoff' }
+  // (owner, 2026-11-27) the date the member went to (the date box's anchor, `date|width`): drawn under the same one
+  if ((want.anchor || null) !== (report.anchor || null)) return { flip: false, why: 'anchor' }
   if (report.sym !== want.sym) return { flip: false, why: 'sym' }
   if (want.tf == null || report.tf !== want.tf) return { flip: false, why: 'tf' }
   if (!!report.ext !== !!want.ext) return { flip: false, why: 'session' }
@@ -159,6 +161,7 @@ function lockFrameFor(front, tf) {
   }
   return null
 }
+const sameAnchor = (a, b) => (!a && !b) || (!!a && !!b && a.date === b.date && _same(a.width, b.width))
 /** The hidden chart's history does not reach its frame's left edge (the switch would wait for the rows that cover it). */
 const shortOf = (m) => Number.isFinite(m.rows) && m.frame.fromRight > m.rows - 1 + 0.5
 /** 'ok' when the normal switch from the front's view would frame the symbol as the hidden chart shows it: the same
@@ -168,6 +171,17 @@ export function viewParity(front, shadow, ctx = {}) {
   const b = viewBlocked(front) || viewBlocked(shadow)
   if (b) return b
   if (!sameLocks(front, shadow)) return 'view-lock'
+  // (owner, 2026-11-27) THE DATE THE MEMBER WENT TO frames every switch before any lock or pin (StockChart
+  // anchorOwnsFrame): each chart frames its OWN rows at it (a prop both layers get), and reads back the frame it gives
+  // (`anchorFrame`). Alike when the hidden chart holds the same anchor, sits at that frame, and its rows hold the date
+  // and reach the frame's left edge (a date before its loaded rows: its earliest bars, which may still be loading).
+  if (!sameAnchor(front.anchor, shadow.anchor)) return 'view-anchor'
+  if (front.anchor) {
+    const af = shadow.anchorFrame
+    if (!af || shadow.anchorEarliest) return 'view-short'
+    if (!near(shadow.frame.fromRight, af.fromRight) || !near(shadow.frame.toRight, af.toRight)) return 'view-frame'
+    return shortOf(shadow) ? 'view-short' : 'ok'
+  }
   const lf = lockFrameFor(front, ctx.tf)
   if (lf && lf.refuse) return lf.refuse
   if (lf) {
@@ -213,6 +227,8 @@ function pinFrameFor(front, shadow, w) {
  */
 export function mirrorFrameFor(front, shadow, ctx = {}) {
   if (viewBlocked(front) || viewBlocked(shadow)) return null
+  // (owner, 2026-11-27) never over a date anchor: each chart frames its own symbol at it (the prop both layers get)
+  if (front.anchor || shadow.anchor) return null
   const locksAlike = sameLocks(front, shadow)
   const l = lockOf(front)
   const modeOf = (f) => ({ fromRight: f.fromRight, toRight: f.toRight, activeRange: null, locked: !!l, lock: l ? { ...l } : null,

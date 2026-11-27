@@ -9,6 +9,9 @@ import styles from './ChartDateNav.module.css'
 // (click a year to frame that whole calendar year). All chart work is done by
 // StockChart's imperative API, reached through `paneRef` (ChartPane handle):
 //   goToDate(ms) · goToYear(y) · stepBar(dir) · ensureFullHistory() · getDateMeta()
+// ⭐ (owner, 2026-11-27: scanning charts AT a past date) A HOST MAY TAKE THE JUMPS: `nav` ({goToDate, goToYear, stepBar})
+// receives them instead of the pane, so the /charts widget can carry the date to every next symbol. While the host
+// says the box is `anchored`, a "Latest" button (and Enter on an empty field) hands the date back (`onLatest`).
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -174,7 +177,8 @@ export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYe
   )
 }
 
-export default function ChartDateNav({ paneRef, themeVars = null }) {
+export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null }) {
+  const jump = () => nav || paneRef?.current
   const [meta, setMeta] = useState(null)
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
@@ -202,8 +206,9 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
   const shown = editing ? draft : fmtDate(meta?.rightMs)
 
   const submit = () => {
+    if (!String(draft || '').trim() && anchored && onLatest) { onLatest(); setEditing(false); return }   // a cleared date
     const ms = parseDate(draft)
-    if (ms != null) { paneRef?.current?.goToDate?.(ms) }
+    if (ms != null) { jump()?.goToDate?.(ms) }
     setEditing(false)
   }
 
@@ -229,7 +234,7 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         className={styles.step}
         title="Step back one bar"
         aria-label="Step back one bar"
-        onClick={() => paneRef?.current?.stepBar?.(-1)}
+        onClick={() => jump()?.stepBar?.(-1)}
       >◀</button>
       <input
         className={styles.field}
@@ -251,8 +256,17 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         className={styles.step}
         title="Step forward one bar"
         aria-label="Step forward one bar"
-        onClick={() => paneRef?.current?.stepBar?.(1)}
+        onClick={() => jump()?.stepBar?.(1)}
       >▶</button>
+      {anchored && onLatest && (
+        <button
+          type="button"
+          className={styles.step}
+          title="Back to the latest bar: every next symbol opens at the present again"
+          aria-label="Back to the latest bar"
+          onClick={() => onLatest()}
+        >Latest</button>
+      )}
       <button
         ref={caretRef}
         type="button"
@@ -274,8 +288,8 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
           maxMs={meta?.lastMs}
           years={years}
           loadingYears={meta ? !meta.fullyLoaded : false}
-          onPickDate={(ms) => { paneRef?.current?.goToDate?.(ms); setOpen(false) }}
-          onPickYear={(y) => { paneRef?.current?.goToYear?.(y); setOpen(false) }}
+          onPickDate={(ms) => { jump()?.goToDate?.(ms); setOpen(false) }}
+          onPickYear={(y) => { jump()?.goToYear?.(y); setOpen(false) }}
           onClose={() => setOpen(false)}
           themeVars={themeVars}
         />

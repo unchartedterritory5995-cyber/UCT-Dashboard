@@ -29,6 +29,7 @@ import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
+import { noteMemberDate } from '../../../components/chart/viewDate'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
@@ -232,6 +233,51 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => {
     if (replayCutoff && sym && replayWarmIntraday !== false) prefetchReplayTimeframes(sym, replayCutoff)
   }, [sym, replayCutoff, replayWarmIntraday])
+
+  // ⭐⭐ (owner, 2026-11-27: "on the change date tab and jumping through charts in 2006") THE DATE THE MEMBER WENT TO.
+  // The date box's jumps (Go to date, a year, the step buttons) anchor THIS widget at a date: both layers' charts get it
+  // (StockChart anchorDate + anchorWidth: the day's last bar at the right edge, the member's span), so every next symbol
+  // (an arrow, a typed ticker, a list click) opens there instead of snapping to the present, and the double buffer's
+  // hidden pane is framed there too. Cleared by the box's "Latest" (or Enter on an empty field), a range button or Reset
+  // view (onAnchorRelease), and entering replay; kept across a timeframe change. In memory only (the 8/19 incident was a
+  // STORED view that sent every search back in time). A plain pan or zoom never sets it (the back-in-time guard stands).
+  const [viewDate, setViewDate] = useState(null)   // { date: 'YYYY-MM-DD', width: bars } | null
+  const clearViewDate = useCallback(() => { setViewDate(null) }, [])
+  useEffect(() => { if (replayCutoff) setViewDate(null) }, [replayCutoff])
+  useEffect(() => {
+    noteMemberDate(switchMember, viewDate ? { rightMs: Date.parse(`${viewDate.date}T00:00:00Z`), offset: 0.5, width: viewDate.width, tf } : null)
+  }, [switchMember, viewDate, tf])
+  const dateNav = useMemo(() => {
+    const isoOf = (ms) => new Date(ms).toISOString().slice(0, 10)
+    const meta = () => { try { return paneRef.current?.getDateMeta?.() || null } catch { return null } }
+    const spanOf = (m) => {
+      const f = m?.frame
+      const w = f && Number.isFinite(f.fromRight) && Number.isFinite(f.toRight) ? f.fromRight - f.toRight : NaN
+      return w > 1 ? w : 200
+    }
+    // a date at or past the newest bar is the present: the anchor goes
+    const anchorAt = (ms, width) => {
+      const m = meta()
+      if (Number.isFinite(m?.lastMs) && ms >= Date.parse(`${isoOf(m.lastMs)}T00:00:00Z`)) { setViewDate(null); return }
+      setViewDate({ date: isoOf(ms), width })
+    }
+    return {
+      goToDate: (ms) => { if (Number.isFinite(ms)) anchorAt(ms, spanOf(meta())) },
+      // a year: its last day at the right edge, a year of bars across (W 52, M 12; D and intraday the member's span)
+      goToYear: (y) => {
+        if (!Number.isFinite(y)) return
+        const per = String(tf) === 'W' ? 52 : String(tf) === 'M' ? 12 : String(tf) === 'D' ? 252 : spanOf(meta())
+        anchorAt(Date.UTC(y, 11, 31), per)
+      },
+      // a step: the pane steps, and its new right edge is the date (the present, once it reaches the newest bar)
+      stepBar: (dir) => {
+        try { paneRef.current?.stepBar?.(dir) } catch { /* the pane's */ }
+        const m = meta()
+        if (Number.isFinite(m?.rightMs)) anchorAt(m.rightMs, spanOf(m))
+      },
+    }
+  }, [tf])   // eslint-disable-line react-hooks/exhaustive-deps -- paneRef is a ref
+  const anchorKey = viewDate && !replayCutoff ? `${viewDate.date}|${viewDate.width}` : null
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -813,7 +859,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerInstRef = useRef([null, null])
   const layerElRef = useRef([null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null,
+    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null, anchor: anchorKey,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })
@@ -915,6 +961,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // Replay mode: hide every bar after this ISO date (null = normal chart) + show
             // the "Exit Replay Mode" pill centered in this chart's clear top area.
             replayCutoff: replayCutoff || null,
+            // (owner, 2026-11-27) the date the member went to (the date box): every symbol opens framed there
+            anchorDate: anchorKey ? viewDate.date : null,
+            anchorWidth: anchorKey ? viewDate.width : null,
+            hideAnchorMarker: anchorKey ? true : undefined,
+            onAnchorRelease: anchorKey ? clearViewDate : undefined,
             // FULLY freeze live in replay: replay is static historical data, so kill the SSE
             // subscription + the per-tick live-price re-render (was left on, which churned the
             // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
@@ -979,7 +1030,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ) : null,
             // Time Navigator — seated right after the timeframe buttons, before the
             // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
-            tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars} />,
+            tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars}
+              nav={dateNav} anchored={!!anchorKey} onLatest={clearViewDate} />,
             tfBarRight: (
               <>
                 {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart

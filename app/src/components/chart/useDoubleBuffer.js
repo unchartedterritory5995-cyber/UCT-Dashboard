@@ -91,6 +91,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {object|null} o.settings    the pane's stored settings (identity)
  * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
  *                                    drew under the same one
+ * @param {string|null} o.anchor     the date the member went to (the date box, `date|width`), or null: likewise
  * @param {object} o.scope            the board's group store (the shadow budget's scope when there is no board handle)
  * @param {object|null} o.member      the identity the widget's chart paints under (PaintMemberContext)
  * @param {object|null} o.parentVis   the board's layer handle, or null
@@ -98,7 +99,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {() => Element[]} o.layerEls each layer's wrapper element
  * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
@@ -175,7 +176,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     const f = buf.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null } : null
+    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null, anchor: anchor || null } : null
     const report = slotOk && buf.syms[s] === sym ? reportsRef.current[s] : null
     const view = () => {
       const p = panes ? panes() : []
@@ -255,7 +256,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
 
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
-    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, settings: settingsRef.current }
+    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, anchor: r.anchor || null, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
     // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
     // the board's first paint, and is still set long before the first press
