@@ -8846,6 +8846,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       `\`${frameName}\` ${what}, and is given a value by this script, `
       + 'but not one the engine can read before bar 0', at)
     r.frameName = frameName
+    // ⭐ M-D — what the name DOES there, so the call site's refusal says it too (`simpleSpecialisation`):
+    // a timeframe `timeframe.in_seconds` measures is not a window, and was reported as one
+    r.frameWhat = what
     return r
   }
 
@@ -9501,6 +9504,14 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       if (g && g.type === 'name' && OWN_TF_NAMES.has(g.name) && !legacyPeriodUndeclared(g.name, pineVersion)
         && scope.lookup(g.name) === null && !env.has(g.name)) {
         return column(columnOf(node, at))
+      }
+      // ⭐ M-D — `timeframe.main_period` (v5/v6) is the script's MAIN timeframe, which differs from
+      // `timeframe.period` only inside a request's value (excluded above) or under `indicator(timeframe = …)`,
+      // which this engine refuses outright (`pine.js::declarationTimeframe`). So here it IS the chart's own:
+      // measured as `timeframe.in_seconds(timeframe.period)` (the `ta.checkLTF` shape in TradingView/ta/10, ta/12).
+      if (g && g.type === 'name' && g.name === 'timeframe.main_period' && pineVersion !== null && pineVersion >= 5
+        && scope.lookup(g.name) === null && !env.has(g.name)) {
+        return column(columnOf({ ...node, args: [{ name: null, value: { type: 'name', name: 'timeframe.period', tok: g.tok }, tok: node.tok }] }, at))
       }
       const c = constantArgOf(g, scope)
       if (typeof c.ownTf === 'string') {
@@ -16895,7 +16906,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     /** parameter → the CALLER's frame name that kept its argument from folding */
     const blockedBy = new Map()
     params.forEach((p, i) => {
-      if (quals.get(p) === 'series') return
+      // ⭐⭐ M-D — A DECLARED QUALIFIER IS AN UPPER BOUND, NOT A PROMISE THE VALUE CHANGES. A parameter declared
+      // `series` accepts a value fixed for the whole run (an input, a literal), and at a call site that passes one
+      // the parameter IS that value on every bar, so this call site's copy may answer it as a constant exactly as
+      // an unqualified parameter's (`ta.checkLTF(series string lowerTimeframe)` called with `input.timeframe`).
+      // Measured: every such call was refused ("declared `series` ... sizes a window"), though no window was there.
+      // A per-bar argument still folds to nothing here and keeps its refusal.
       const c = constantArgOf(args[i], scope)
       if (c.value !== null) consts.set(p, c.value)
       // ⭐ C47 — a text argument fixed before bar 0 (a quoted string, an
@@ -16952,9 +16968,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         q === 'simple' || q === 'const'
           ? `\`${p}\` is declared \`${q}\` in \`${node.name}\`, and this call passes a value `
             + 'that is only known while the bar is running (Pine does not compile that)'
-          : q === 'series'
-            ? `\`${p}\` is declared \`series\` in \`${node.name}\` and sizes a window there, `
-              + 'so the ring it needs cannot be sized before bar 0'
+          // ⭐ M-D — what the parameter does there, when the body said (`frameWhat`): a timeframe is not a ring
+          : typeof err.frameWhat === 'string' && err.frameWhat !== 'bounds this offset'
+            ? `\`${p}\` ${err.frameWhat} in \`${node.name}\`, and this call passes a value that `
+              + 'is only known while the bar is running, so it cannot be read before bar 0'
             : `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value that `
               + 'is only known while the bar is running, so the ring it needs cannot be sized before bar 0', at)
       // ⭐ An argument that read the CALLER's own parameter names it, so the

@@ -110,9 +110,18 @@ describe('(1) a `simple` argument sizes a window per call site', () => {
     expect(r.message).toContain('`len` is passed a value read on every bar')
   })
 
-  it('⭐ a parameter declared `series` is a series length: read per bar, even with a literal (A1)', () => {
+  it('⭐ M-D: a parameter declared `series` handed a literal is that literal: a FIXED window, not a per-bar read', () => {
+    // (A1 read it per bar, which drew the same numbers; the qualifier is an upper bound, and a fixed window is exact
+    // and cheaper. seriesQualifierFold.test.js holds the shapes this changed from a refusal.)
     const r = column(`${head}f(src, series int len) =>\n    ta.highest(src, len)\nplot(f(close, 5))\n`)
     same(r.col, column(`${head}plot(ta.highest(close, 5))\n`).col)
+    expect(r.diagnostics.seriesSpecialisedCalls || 0).toBe(0)
+  })
+
+  it('⭐ ...and handed a value read per bar it is still a series length, read per bar (A1)', () => {
+    const r = column(`${head}var k = 0\nk := k >= 2 ? 0 : k + 1\nf(src, series int len) =>\n    ta.highest(src, len)\nplot(f(close, k + 1))\n`)
+    const byLen = [1, 2, 3].map((k) => column(`${head}plot(ta.highest(close, ${k}))\n`).col)
+    same(r.col, r.col.map((_, i) => byLen[(i + 1) % 3][i]))
     expect(r.diagnostics.seriesSpecialisedCalls).toBe(1)
   })
 
