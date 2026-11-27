@@ -192,7 +192,7 @@
   {
    "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
    "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -1838,7 +1838,7 @@
   {
    "capture": "fvg-trend-spy-1d-2026-11-17",
    "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -4998,7 +4998,7 @@
   {
    "capture": "rs-rating-fred6724-m-nvda-1m-2026-11-18",
    "lane": "host",
-   "runtimeOn": "MATCH_SUBSTITUTED",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "collections:array",
@@ -5023,7 +5023,7 @@
   {
    "capture": "rs-rating-fred6724-m-rddt-1m-2026-11-18",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "collections:array",
@@ -5573,7 +5573,7 @@
   {
    "capture": "rs-rating-fred6724-w-nvda-1w-2026-11-17",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "collections:array",
@@ -5623,7 +5623,7 @@
   {
    "capture": "rs-rating-fred6724-w-rddt-1w-2026-11-17",
    "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "collections:array",
@@ -8199,7 +8199,7 @@
   {
    "capture": "volume-divergence-by-mm-spy-1d-2026-11-17",
    "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
@@ -9555,7 +9555,7 @@
   {
    "capture": "vw-deadband-ticks-brk-a-1d-2026-09-28",
    "lane": "runtime",
-   "runtimeOn": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "compound-assign",
@@ -22119,25 +22119,7 @@
    ]
   }
  ],
- "stops": [
-  {
-   "capture": "vw-deadband-ticks-brk-a-1d-2026-09-28",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  }
- ],
+ "stops": [],
  "hostDiverge": [
   {
    "capture": "auto-trendline-dojiemoji-rddt-1d-2026-10-02",
@@ -22189,6 +22171,106 @@
     "udt",
     "var",
     "while"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-m-nvda-1m-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-m-rddt-1m-2026-11-18",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-w-nvda-1w-2026-11-17",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
+   ]
+  },
+  {
+   "capture": "rs-rating-fred6724-w-rddt-1w-2026-11-17",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "collections:array",
+    "conditional-ta",
+    "core",
+    "fn-multi",
+    "fn-single",
+    "for",
+    "if-block",
+    "max_bars_back",
+    "obj:delete",
+    "obj:label",
+    "realtime-state",
+    "reassign",
+    "request-other",
+    "switch",
+    "ternary",
+    "typed-array",
+    "var"
    ]
   },
   {
