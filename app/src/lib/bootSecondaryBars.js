@@ -9,9 +9,11 @@
 // behind the chart's own bars.
 //
 // So every chart page REMEMBERS the other-symbol windows its charts need right now (`noteSecondaryNeeds`, written by
-// `useSecondarySources` on each needed-set change), and the next load of the SAME page asks for them the moment the entry
-// bundle runs (`startBootSecondaryBars`, from `bootFetchStart.js`), beside `/api/auth/me` and the preferences. The chart's
-// own fetch of that URL adopts the answer (`takeBootSecondaryBars`, in `secondaryBars.fetchSecondaryBars`).
+// `useSecondarySources` on each needed-set change), and the next load of the SAME page asks for them as the document
+// parses: the inline script `#uct-boot-secondary` in `app/index.html` (no bundle bytes; it leaves before the entry bundle
+// loads). The chart's own fetch of that URL adopts the answer (`takeBootSecondaryBars`, in
+// `secondaryBars.fetchSecondaryBars`). ⛔ The script restates this module's limits (it can import nothing):
+// `bootSecondaryBars.test.js` runs the script itself against these constants, so the two cannot drift.
 //
 // Rules, each one load-bearing:
 //  * The SAME page only (pathname), only for a browser that was signed in last time (`uct.signedIn.v1`), only for windows
@@ -29,10 +31,9 @@ export const SECONDARY_NEEDS_KEY = 'uct.secondaryNeeds.v1'
 export const SECONDARY_NEEDS_MAX = 4
 export const SECONDARY_NEEDS_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000
 export const BOOT_SECONDARY_MAX_AGE_MS = 60_000
-const SIGNED_IN_HINT = 'uct.signedIn.v1'
-const BARS_PREFIX = '/api/bars/'
+export const SIGNED_IN_HINT = 'uct.signedIn.v1'
+export const BARS_PREFIX = '/api/bars/'
 
-const entries = new Map()   // url -> { at, p }
 const needsByChart = new Map()   // chart slot -> urls (this page's charts, right now)
 let writeTimer = null
 
@@ -45,42 +46,14 @@ function pathNow() {
   try { return typeof location !== 'undefined' ? location.pathname : '' } catch { return '' }
 }
 
-/** The remembered windows for `path` (fresh ones, at most SECONDARY_NEEDS_MAX), from storage. Exported for its rail. */
-export function rememberedSecondaryNeeds(path, { storage = safeStorage(), wallNow = Date.now() } = {}) {
-  let rec = null
-  try { rec = JSON.parse(storage?.getItem(SECONDARY_NEEDS_KEY) || 'null') } catch { rec = null }
-  if (!rec || typeof rec !== 'object' || !Array.isArray(rec.urls) || rec.path !== path) return []
-  if (!(Number.isFinite(rec.at) && wallNow - rec.at >= 0 && wallNow - rec.at < SECONDARY_NEEDS_MAX_AGE_MS)) return []
-  return rec.urls.filter((u) => typeof u === 'string' && u.startsWith(BARS_PREFIX)).slice(0, SECONDARY_NEEDS_MAX)
-}
-
-/** main.jsx (through `bootFetchStart.js`) calls this once, before the app renders. */
-export function startBootSecondaryBars({ fetchImpl = (typeof fetch === 'function' ? fetch : null), storage = safeStorage(),
-  path = pathNow(), wallNow = Date.now() } = {}) {
-  if (!fetchImpl || entries.size) return 0
-  let signedIn = false
-  try { signedIn = storage?.getItem(SIGNED_IN_HINT) === '1' } catch { /* storage blocked */ }
-  if (!signedIn) return 0
-  const urls = rememberedSecondaryNeeds(path, { storage, wallNow })
-  for (const url of urls) {
-    entries.set(url, {
-      at: now(),
-      p: Promise.resolve()
-        .then(() => fetchImpl(url, { credentials: 'same-origin' }))
-        .then((r) => (r && r.ok ? r.json() : null))
-        .then((payload) => (payload && typeof payload === 'object' ? payload : null), () => null),
-    })
-  }
-  return urls.length
-}
-
 /** `secondaryBars.fetchSecondaryBars`: the boot answer for `url` (a Promise of the payload, or of null when the boot
  *  request failed), or null when there is none or it is too old. One use. */
 export function takeBootSecondaryBars(url) {
-  const e = entries.get(url)
-  if (!e) return null
-  entries.delete(url)
-  if (now() - e.at > BOOT_SECONDARY_MAX_AGE_MS) return null
+  const reg = typeof window !== 'undefined' ? window.__uctBootSecondary : null
+  const e = reg && typeof reg === 'object' ? reg[url] : null
+  if (!e || typeof e !== 'object' || !e.p || typeof e.p.then !== 'function') return null
+  delete reg[url]
+  if (!Number.isFinite(e.at) || now() - e.at > BOOT_SECONDARY_MAX_AGE_MS) return null
   return e.p
 }
 
@@ -113,6 +86,7 @@ export function forgetSecondaryNeeds(slot) { needsByChart.delete(slot) }
 
 /** Tests only. */
 export function __resetBootSecondaryForTests() {
-  entries.clear(); needsByChart.clear()
+  if (typeof window !== 'undefined') delete window.__uctBootSecondary
+  needsByChart.clear()
   if (writeTimer !== null) { try { clearTimeout(writeTimer) } catch { /* not a timer */ } writeTimer = null }
 }

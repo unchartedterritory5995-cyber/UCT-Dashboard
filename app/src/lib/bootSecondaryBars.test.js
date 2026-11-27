@@ -10,11 +10,10 @@
 //      does not rewrite it
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
-import BOOT_START_SRC from './bootFetchStart.js?raw'
-import MAIN_SRC from '../main.jsx?raw'
+import INDEX_HTML from '../../index.html?raw'
 import {
-  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_MAX_AGE_MS, startBootSecondaryBars, takeBootSecondaryBars,
-  noteSecondaryNeeds, forgetSecondaryNeeds, rememberedSecondaryNeeds, __resetBootSecondaryForTests,
+  SECONDARY_NEEDS_KEY, SECONDARY_NEEDS_MAX, SECONDARY_NEEDS_MAX_AGE_MS, BOOT_SECONDARY_MAX_AGE_MS, SIGNED_IN_HINT, BARS_PREFIX,
+  takeBootSecondaryBars, noteSecondaryNeeds, forgetSecondaryNeeds, __resetBootSecondaryForTests,
 } from './bootSecondaryBars'
 import { ensureSecondaryBars, cachedBars, clearSecondaryBars, SOURCE_STATUS } from '../components/chart/engine/secondaryBars'
 import { secondaryNeedUrls, ensureChartSources, useSecondarySources } from '../components/chart/engine/useSecondarySources'
@@ -27,11 +26,25 @@ const SPX = '/api/bars/SPX?tf=D&bars=20000'
 const record = (over = {}) => JSON.stringify({ path: '/charts', at: Date.now(), urls: [SPX], ...over })
 const okResponse = (payload) => ({ ok: true, json: () => Promise.resolve(payload) })
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0)) }
+// ⭐ THE PRODUCT'S OWN BOOT CODE: the inline script of app/index.html, run here as the document would run it
+const BOOT_SCRIPT = (INDEX_HTML.match(/<script id="uct-boot-secondary">([\s\S]*?)<\/script>/) || [])[1] || ''
+/** Run the document's boot script with `storage` as this browser's localStorage, `path` as the page, `fetchImpl` as fetch;
+ *  answers how many windows it asked for. */
+function startBootSecondaryBars({ fetchImpl, path, storage }) {
+  window.localStorage.clear()
+  for (const [k, v] of storage.m) window.localStorage.setItem(k, v)
+  window.history.replaceState({}, '', path)
+  vi.stubGlobal('fetch', fetchImpl)
+  // eslint-disable-next-line no-new-func
+  new Function(BOOT_SCRIPT)()
+  vi.unstubAllGlobals()
+  return Object.keys(window.__uctBootSecondary || {}).length
+}
 const rows = [{ t: '2026-11-24', o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }, { t: '2026-11-25', o: 1.5, h: 2.5, l: 1, c: 2, v: 11 }]
 
-afterEach(() => { __resetBootSecondaryForTests(); clearSecondaryBars(); vi.useRealTimers() })
+afterEach(() => { __resetBootSecondaryForTests(); clearSecondaryBars(); vi.useRealTimers(); window.localStorage.clear(); window.history.replaceState({}, '', '/') })
 
-describe('boot: the windows this page needed last time leave with the entry bundle', () => {
+describe('boot: the windows this page needed last time leave as the document parses', () => {
   it('B1 asks the remembered window at boot, and nothing for another page, a stale record, a signed-out browser or a non-bars URL', () => {
     const f = vi.fn(() => Promise.resolve(okResponse({ bars: rows })))
     const signedIn = { 'uct.signedIn.v1': '1' }
@@ -41,9 +54,12 @@ describe('boot: the windows this page needed last time leave with the entry bund
     expect(startBootSecondaryBars({ fetchImpl: f, path: '/charts', storage: memStorage({ [SECONDARY_NEEDS_KEY]: record() }) })).toBe(0)
     expect(startBootSecondaryBars({ fetchImpl: f, path: '/charts',
       storage: memStorage({ ...signedIn, [SECONDARY_NEEDS_KEY]: record({ at: Date.now() - SECONDARY_NEEDS_MAX_AGE_MS - 1 }) }) })).toBe(0)
-    expect(rememberedSecondaryNeeds('/charts', { storage: memStorage({ [SECONDARY_NEEDS_KEY]: record({ urls: ['/api/auth/me', SPX] }) }) }))
-      .toEqual([SPX])
-    return settle().then(() => expect(f.mock.calls.map((c) => c[0])).toEqual([SPX]))
+    expect(startBootSecondaryBars({ fetchImpl: f, path: '/charts',
+      storage: memStorage({ ...signedIn, [SECONDARY_NEEDS_KEY]: record({ urls: ['/api/auth/me', SPX] }) }) })).toBe(1)
+    const five = ['A', 'B', 'C', 'D', 'E'].map((x) => `/api/bars/${x}?tf=D&bars=600`)
+    expect(startBootSecondaryBars({ fetchImpl: f, path: '/charts', storage: memStorage({ ...signedIn, [SECONDARY_NEEDS_KEY]: record({ urls: five }) }) }))
+      .toBe(SECONDARY_NEEDS_MAX)
+    return settle().then(() => expect(f.mock.calls.map((c) => c[0])).toEqual([SPX, SPX, ...five.slice(0, SECONDARY_NEEDS_MAX)]))
   })
 
   it('B2 the chart adopts the boot answer: ONE request for the window, the entry AVAILABLE', async () => {
@@ -118,9 +134,13 @@ describe('boot: the windows this page needed last time leave with the entry bund
     window.localStorage.removeItem(SECONDARY_NEEDS_KEY)
   })
 
-  it('B6 the entry bundle starts it: main.jsx imports bootFetchStart FIRST, and bootFetchStart calls startBootSecondaryBars', () => {
-    expect(MAIN_SRC.split(/\r?\n/).find((l) => /^import /.test(l))).toMatch(/^import '\.\/lib\/bootFetchStart'/)
-    expect(BOOT_START_SRC).toMatch(/^import \{ startBootSecondaryBars \} from '\.\/bootSecondaryBars'$/m)
-    expect(BOOT_START_SRC).toMatch(/^startBootSecondaryBars\(\)$/m)
+  it("B6 the document starts it before any bundle: the inline script, with this module's own limits", () => {
+    expect(BOOT_SCRIPT).toContain(`'${SIGNED_IN_HINT}'`)
+    expect(BOOT_SCRIPT).toContain(`'${SECONDARY_NEEDS_KEY}'`)
+    expect(BOOT_SCRIPT).toContain(`'${BARS_PREFIX}'`)
+    expect(BOOT_SCRIPT).toContain(`age < ${SECONDARY_NEEDS_MAX_AGE_MS}`)
+    expect(BOOT_SCRIPT).toContain(`.slice(0, ${SECONDARY_NEEDS_MAX})`)
+    // before the entry bundle's own script tag
+    expect(INDEX_HTML.indexOf('id="uct-boot-secondary"')).toBeLessThan(INDEX_HTML.indexOf('src="/src/main.jsx"'))
   })
 })
