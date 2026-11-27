@@ -224,12 +224,14 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pointer move over a chart in front would move and redraw it. The hide clears the one it may still draw.
   const subscribeCrosshair = useCallback((cb) => {
     if (!crosshairBus) return () => {}
+    let drawn = false   // (D5) a crosshair was applied since the last clear: only then does the hide clear one
     const off = crosshairBus.subscribe(({ sourceId, payload }) => {
       if (sourceId === widgetIdRef.current) return
       if (boardHiddenNow(layerBoard)) return
+      drawn = payload != null
       cb(payload)
     })
-    const offVis = layerBoard ? layerBoard.subscribe(() => { if (boardHiddenNow(layerBoard)) cb(null) }) : null
+    const offVis = layerBoard ? layerBoard.subscribe(() => { if (drawn && boardHiddenNow(layerBoard)) { drawn = false; cb(null) } }) : null
     return () => { offVis?.(); off() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [crosshairBus, sym, layerBoard])

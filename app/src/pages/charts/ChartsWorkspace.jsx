@@ -19,7 +19,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
-import useSWR, { SWRConfig, useSWRConfig } from 'swr'
+import useSWR, { SWRConfig, unstable_serialize, useSWRConfig } from 'swr'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
@@ -753,12 +753,15 @@ function plainData(v) {
   const p = Object.getPrototypeOf(v)
   return Array.isArray(v) || p === Object.prototype || p === null
 }
+// (review of #2901, D8) only these fields are compared by value: each is arrays / objects of primitives. Every other
+// field must be the same object, so a future field holding functions or a Map can never compare equal while it differs.
+const SLOT_VALUE_DATA_FIELDS = new Set(['groupTfs', 'groupTfSets', 'widgetCanvasById', 'widgetCanvasByType'])
 function sameSlotValue(a, b) {
   for (const k of Object.keys(b)) {
     if (k === 'groupSyms') continue   // read through the slot's view, the same object in both
     const x = a[k], y = b[k]
     if (x === y) continue
-    if (!plainData(x) || !plainData(y)) return false
+    if (!SLOT_VALUE_DATA_FIELDS.has(k) || !plainData(x) || !plainData(y)) return false
     try { if (JSON.stringify(x) !== JSON.stringify(y)) return false } catch { return false }
   }
   return Object.keys(a).length === Object.keys(b).length
@@ -787,23 +790,48 @@ function SlotBoard({ el, hidden }) {
   return hidden ? deferred : el
 }
 
-// ⭐ (review of #2901, M3) the slot's SWR hooks, recorded so a show can revalidate them (a hidden board's polls are
-// off: SWRConfig isVisible). Each entry is the hook's bound mutate, read through a ref.
-function slotSwrMiddleware(hooks) {
+// ⭐ (review of #2901, M3 + D2) the slot's SWR hooks, recorded so a show can catch up the reads its hidden board
+// missed (a hidden board's polls are off: SWRConfig isVisible). Each entry: the hook's serialized key, its refresh
+// interval, its bound mutate (read through a ref) and when its key last fetched (the slot's fetcher wrapper).
+// ⛔ mutate() is one FORCED, undeduped request (SWR drops the key's in-flight fetch first), so the show revalidates
+// each distinct POLLED key once, and only when its own interval ran out while hidden; a key with no refresh interval
+// (static data: profiles, statements, meta) is never re-read by a show.
+function slotSwrMiddleware(hooks, fetchedAt) {
   return (useSWRNext) => (key, fetcher, config) => {
-    const swr = useSWRNext(key, fetcher, config)
+    let sk = null
+    try { sk = key == null ? null : unstable_serialize(key) } catch { sk = null }
+    const timed = fetcher && sk
+      ? (...args) => { const p = fetcher(...args); fetchedAt.set(sk, Date.now()); return p }
+      : fetcher
+    const swr = useSWRNext(key, timed, config)
     const mutateRef = useRef(swr.mutate)
     mutateRef.current = swr.mutate
+    const entryRef = useRef(null)
+    if (!entryRef.current) entryRef.current = { key: null, interval: 0, revalidate: () => mutateRef.current() }
+    entryRef.current.key = sk
+    entryRef.current.interval = typeof config?.refreshInterval === 'number' ? config.refreshInterval : 0
     useEffect(() => {
-      const entry = { revalidate: () => mutateRef.current() }
+      const entry = entryRef.current
       hooks.add(entry)
       return () => { hooks.delete(entry) }
     }, [])
     return swr
   }
 }
-// A board hidden at least this long revalidates its SWR reads after its show's first paint (a quick back-and-forth
-// does not: SWR's own dedupe window).
+/** The show of a slot: one revalidation per distinct polled key whose interval ran out (D2). Returns the count. */
+export function revalidateSlotReads(hooks, fetchedAt, now = Date.now()) {
+  const seen = new Set()
+  let n = 0
+  for (const h of hooks) {
+    if (!h.key || seen.has(h.key) || !(h.interval > 0)) continue
+    seen.add(h.key)
+    const at = fetchedAt.get(h.key)
+    if (at != null && now - at < h.interval) continue
+    try { h.revalidate(); n++ } catch { /* one read */ }
+  }
+  return n
+}
+// A board hidden at least this long revalidates its polled SWR reads after its show's first paint.
 const SLOT_REVALIDATE_AFTER_MS = 2000
 function afterFirstPaint(fn) {
   if (typeof requestAnimationFrame !== 'function') { setTimeout(fn, 0); return }
@@ -1036,8 +1064,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           kept.vis.set('visible')
           // M3: a kept layer board hidden long enough revalidates its SWR reads after the show's first paint
           if (kept.vis.layer && kept.swrHooks && Date.now() - (kept.hiddenAt || 0) >= SLOT_REVALIDATE_AFTER_MS) {
-            const hooks = [...kept.swrHooks]
-            afterFirstPaint(() => { for (const h of hooks) { try { h.revalidate() } catch { /* one read */ } } })
+            const { swrHooks, swrFetchedAt } = kept
+            afterFirstPaint(() => { revalidateSlotReads(swrHooks, swrFetchedAt) })
           }
           const { layout: _shownLayout, ...slotRec } = kept
           currentBoardRef.current = { ...slotRec, key }
@@ -1286,11 +1314,24 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   onLayerHideRef.current = () => {
     activeChartRef.current = null
     activeWatchlistRef.current = null
+    // (D7) the leaving board's widget attributes go NOW: its re-render without them is deferred, and a lookup by
+    // [data-widget-id] in between must find the board in front only
+    try {
+      const leaving = bodyRef.current?.querySelector?.('[data-board-current]')
+      if (leaving) {
+        for (const el of leaving.querySelectorAll('[data-widget-id],[data-widget-type]')) {
+          el.removeAttribute('data-widget-id')
+          el.removeAttribute('data-widget-type')
+        }
+      }
+    } catch { /* no DOM */ }
+    // (D4) a MOUSE press, off-screen: a handler with a touch branch (pointerType '') or one measuring the press never
+    // takes it for a gesture
     try {
       const body = document.body
-      const P = typeof PointerEvent === 'function' ? PointerEvent : MouseEvent
-      body.dispatchEvent(new P('pointerdown', { bubbles: true, cancelable: true }))
-      body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      const at = { bubbles: true, cancelable: true, button: 0, buttons: 1, clientX: -1, clientY: -1 }
+      if (typeof PointerEvent === 'function') body.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse', isPrimary: true, pointerId: 1 }))
+      body.dispatchEvent(new MouseEvent('mousedown', at))
     } catch { /* no DOM */ }
   }
 
@@ -4269,12 +4310,13 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           // front. isVisible gates only the hidden hook's own interval and focus revalidation.
           const vis = rec.vis
           rec.swrHooks = new Set()
-          rec.swr = { isVisible: () => !boardHiddenNow(vis) && isAppVisible(), use: [slotSwrMiddleware(rec.swrHooks)] }
+          rec.swrFetchedAt = new Map()
+          rec.swr = { isVisible: () => !boardHiddenNow(vis) && isAppVisible(), use: [slotSwrMiddleware(rec.swrHooks, rec.swrFetchedAt)] }
         }
         // the hidden board's element is made once per hide (a later render of the workspace re-renders nothing of it)
         let content = front
         if (!isFront) {
-          const sig = `${poppedWidgetIds.join(',')}|${floatingWidgetIds.join(',')}|${merged ? 1 : 0}`
+          const sig = `${poppedWidgetIds.join(',')}|${floatingWidgetIds.join(',')}|${merged ? 1 : 0}|${rowHeight}`
           if (!rec.hiddenEl || rec.hiddenSig !== sig) { rec.hiddenEl = keptGrid(); rec.hiddenSig = sig }
           content = rec.hiddenEl
         } else {
