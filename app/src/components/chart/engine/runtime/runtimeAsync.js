@@ -30,6 +30,7 @@ import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
 import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
+import { RUNTIME_WORKER_READY, RUNTIME_WORKER_WARM } from './workerReady.js'
 
 let _ready = false
 let _worker = null
@@ -44,8 +45,19 @@ let _inFlight = null         // the job the worker is computing
 const _queue = []            // jobs not yet posted, oldest first: at most one per pane, and per key for pane-less jobs
 let _hidden = false          // the tab is hidden: nothing is posted, and the running job was stopped
 let _visibilityBound = false
-const _stats = { posted: 0, cancelled: 0, superseded: 0, hiddenStops: 0 }
+const _stats = { posted: 0, cancelled: 0, superseded: 0, hiddenStops: 0, warmed: 0 }
 let _watchdog = null
+// ⭐⭐ (Fred RS run half, 2026-11-26) — THE WORKER HAS SAID IT IS READY (`workerReady.js`). A worker from a factory that
+// announces (`factory.announcesReady`, the browser's own) starts not ready, and nothing is posted to it until it says
+// so; a job superseded meanwhile is dropped HERE (the queue keeps one per pane) and the loading worker is kept.
+// ⚰️ Measured (production-flag bundle, smoke@ AGL 1D cold reloads, 2026-11-26): in 9 of 20 the chart's first run was
+// posted to a worker still loading, superseded 40-260 ms later (the listing date landed), and the worker TERMINATED and
+// loaded again, its whole start-up paid twice before the RS label could be computed. A factory that does not announce
+// (every stand-in) is ready at once, as before.
+let _workerReady = true
+let _readyWatchdog = null
+// ⭐⭐ WARM jobs waiting for a ready, idle worker: `{def, rows, ctx}` (`warmRuntimeLane({warm})`)
+const _warmJobs = []
 
 /** ⭐⭐ RF — HOW LONG THE WORKER MAY TAKE TO ANSWER THE JOB AT THE HEAD OF ITS
  *  QUEUE before it is called unresponsive, in ms. The run itself is bounded by
@@ -207,6 +219,19 @@ function disarm() {
   if (_watchdog !== null) { clearTimeout(_watchdog); _watchdog = null }
 }
 
+function disarmReady() {
+  if (_readyWatchdog !== null) { clearTimeout(_readyWatchdog); _readyWatchdog = null }
+}
+
+/** A worker that never says it is ready is as unresponsive as one that never answers: the same timer, the same end. */
+function armReady() {
+  if (_readyWatchdog !== null) return
+  _readyWatchdog = setTimeout(() => {
+    _readyWatchdog = null
+    if (!_workerReady) killWorker(unresponsive)
+  }, RUNTIME_WORKER_WATCHDOG_MS)
+}
+
 /** ⭐ RF — one timer, on the job in the worker (or the worker still loading for it). */
 function arm() {
   disarm()
@@ -233,7 +258,9 @@ function stopWorker(w) {
  *  `RUNTIME_WORKER_MAX_STARTS` per tab. */
 function killWorker(reasonOf) {
   disarm()
-  const failed = [...(_inFlight ? [_inFlight] : []), ..._queue.splice(0)]
+  disarmReady()
+  _warmJobs.length = 0   // a failed worker is never started again for a warm-up
+  const failed = [...(_inFlight && !_inFlight.warm ? [_inFlight] : []), ..._queue.splice(0)]
   _inFlight = null
   stopWorker(_worker)
   _worker = null
@@ -258,6 +285,7 @@ function forgetJob(job) {
 function cancelInFlight() {
   const job = _inFlight
   disarm()
+  disarmReady()
   _inFlight = null
   stopWorker(_worker)
   _worker = null
@@ -291,7 +319,7 @@ function onVisibility() {
     if (_inFlight) {
       const job = cancelInFlight()
       _stats.hiddenStops += 1
-      _queue.unshift(job)
+      if (!job.warm) _queue.unshift(job)
     }
     return
   }
@@ -313,6 +341,7 @@ export function runtimeWorkerStats() {
 function workerOf(factory) {
   if (_worker || _workerBroken) return _worker
   _starts += 1
+  _workerReady = !(factory && factory.announcesReady === true)
   try {
     _worker = factory()
   } catch {
@@ -323,11 +352,20 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
+    // ⭐⭐ (Fred RS run half, 2026-11-26) the worker has evaluated: what waited for it is posted now
+    if (event.data && event.data.kind === RUNTIME_WORKER_READY) {
+      _workerReady = true
+      disarmReady()
+      pump()
+      return
+    }
     const { id, ok, columns, error, objects, warmup, strategy, calcBars, overnight } = event.data || {}
     const job = _inFlight
     if (!job || job.id !== id) return
     _inFlight = null
     disarm()
+    // a warm job is answered with nothing: no landing, no count, no paint
+    if (job.warm) { _stats.warmed += 1; pump(); return }
     const landed = ok ? withRuntimeObjects(columns, objects || null) : null
     if (landed && warmup) {
       Object.defineProperty(landed, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
@@ -434,9 +472,35 @@ function post(job) {
   arm()
 }
 
-/** Post the next waiting job while the worker is free and the tab is visible. */
+/** Post the next waiting job while the worker is free, READY and the tab is visible; a warm job only when no chart
+ *  job waits. */
 function pump() {
-  while (!_inFlight && !_hidden && _queue.length) post(_queue.shift())
+  while (!_inFlight && !_hidden && (_queue.length || _warmJobs.length)) {
+    const factory = _queue.length ? _queue[0].factory : _warmJobs[0].factory
+    const w = workerOf(factory)
+    // ⭐⭐ posted when the worker says it is ready (`RUNTIME_WORKER_READY`), never before
+    if (w && !_workerReady) { armReady(); return }
+    if (_queue.length) { post(_queue.shift()); continue }
+    const warm = _warmJobs.shift()
+    if (w) postWarm(w, warm)
+  }
+}
+
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — a WARM job in the worker: the chart's own document over stand-in bars. It is
+ *  `_inFlight` like any job (one at a time), so a chart job posted meanwhile waits for it; it is never superseded
+ *  (it has no pane, `supersede`), never answered or counted (`workerOf`'s reply), and a stopped worker drops it. */
+function postWarm(w, warm) {
+  const id = _nextId++
+  const job = { id, warm: true, pane: null, coalesce: null, factory: warm.factory }
+  _inFlight = job
+  try {
+    const m = messageOf(id, warm.def, warm.rows, warm.ctx)
+    w.postMessage({ ...m, kind: RUNTIME_WORKER_WARM })
+  } catch {
+    _inFlight = null
+    return
+  }
+  arm()
 }
 
 /** ⭐ RF — WHICH JOBS ARE THE SAME PICTURE: one document on one chart (symbol,
@@ -487,6 +551,10 @@ export function resetRuntimeAsync() {
   _starts = 0
   _inFlight = null
   _queue.length = 0
+  _warmJobs.length = 0
+  _workerReady = true
+  disarmReady()
+  _warmedOnce = false
   if (_visibilityBound && typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
   _visibilityBound = false
   _hidden = false
@@ -500,6 +568,8 @@ export function resetRuntimeAsync() {
 }
 
 const defaultFactory = () => new Worker(new URL('./runtimeWorker.js', import.meta.url), { type: 'module' })
+// ⭐⭐ (Fred RS run half, 2026-11-26) the browser's worker says READY when its module has evaluated (`runtimeWorker.js`)
+defaultFactory.announcesReady = true
 
 /** Make runtime documents computable in this client. Idempotent. */
 export function ensureRuntimeLane({ factory } = {}) {
@@ -531,10 +601,23 @@ let _warmAsks = 0
  *  and the page warms the lane when the answer lands (`builder/memberPane/memberDoorAsync.js`). */
 export function runtimeLaneWarmAsks() { return _warmAsks }
 
-export function warmRuntimeLane({ factory } = {}) {
+export function warmRuntimeLane({ factory, warm } = {}) {
   _warmAsks += 1
   ensureRuntimeLane({ factory })
   const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
   if (!factory && !canWork) return false
-  return !!workerOf(factory || defaultFactory)
+  const f = factory || defaultFactory
+  const w = workerOf(f)
+  // ⭐⭐ (Fred RS run half, 2026-11-26) — AND THE DOCUMENTS THE CHART WILL RUN, run once over stand-in bars as soon as
+  // the worker is ready and idle (`postWarm`): the compiler's and the VM's first run is paid before the chart's
+  // first real job. At most `RUNTIME_WARM_MAX` documents, once per page; a chart job always goes first.
+  if (w && Array.isArray(warm) && !_warmedOnce) {
+    _warmedOnce = true
+    for (const d of warm.slice(0, RUNTIME_WARM_MAX)) if (d && d.def) _warmJobs.push({ ...d, factory: f })
+    pump()
+  }
+  return !!w
 }
+/** ⭐⭐ How many documents a page warms (`warmRuntimeLane({warm})`). */
+export const RUNTIME_WARM_MAX = 2
+let _warmedOnce = false

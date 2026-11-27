@@ -27,6 +27,8 @@ import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
 import { registerStrategyBrokerGate } from '../strategyBrokerGateRegistry.js'
 // ⭐⭐ (switch smoothness, 2026-11-20) the chart's own-daily question, asked off its main thread (`ownDailyAsync.js`)
 import { OWN_DAILY_ASK, ownDailyReplyOf } from './ownDailyProbe.js'
+// ⭐⭐ (Fred RS run half, 2026-11-26) the worker's lifecycle words (`workerReady.js`)
+import { RUNTIME_WORKER_READY, RUNTIME_WORKER_WARM } from './workerReady.js'
 registerStrategyBrokerGate(strategyBrokerEnabled)
 
 // ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
@@ -36,6 +38,14 @@ const clock = () => (typeof performance !== 'undefined' && performance.now ? per
 self.onmessage = (event) => {
   // ⭐ a probe is answered and nothing else is done: it carries no run (`ownDailyProbe.js`)
   if (event.data && event.data.kind === OWN_DAILY_ASK) { self.postMessage(ownDailyReplyOf(event.data)); return }
+  // ⭐⭐ (Fred RS run half, 2026-11-26) a WARM job: the document computed over stand-in bars, nothing kept or sent but
+  // that it is done (its first run here pays the compile-and-optimise cost the chart's first real run would)
+  if (event.data && event.data.kind === RUNTIME_WORKER_WARM) {
+    const { id, def, rows, ctx } = event.data
+    try { computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS }) } catch { /* a warm-up's answer is not read */ }
+    self.postMessage({ id, warm: true })
+    return
+  }
   const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
@@ -71,3 +81,8 @@ self.onmessage = (event) => {
     })
   }
 }
+
+// ⭐⭐ (Fred RS run half, 2026-11-26) — READY: this module has evaluated, so a job posted now is computed at once. The page
+// posts nothing before it (`runtimeAsync.js::pump`): a job superseded while this worker was still loading is dropped on
+// the page, and this worker is kept instead of terminated and loaded again.
+self.postMessage({ kind: RUNTIME_WORKER_READY })
