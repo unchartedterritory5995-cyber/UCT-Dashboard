@@ -319,8 +319,10 @@ export function getBarStore() {
     _wireFlush()
     // (what the app's registry holds, next to the other caches' shares: `window.__uctBarBudget()`, lib/barBudget.js)
     registerBarHolder('registry', () => {
-      const st = _default?.registry.stats()
-      return st ? { bars: st.bars, entries: st.keys, budget: st.budget, recent: st.recent } : null
+      const r = _default?.registry
+      if (!r) return null
+      const st = r.stats()
+      return { bars: st.bars, entries: st.keys, budget: r.limits().barBudget, recent: r.recentSymbols() }
     })
   }
   return _default

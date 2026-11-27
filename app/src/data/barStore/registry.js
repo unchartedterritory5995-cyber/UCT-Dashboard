@@ -239,10 +239,12 @@ export function createRegistry({
     isDwell(key) { return !!entries.get(key)?.dwell },
     /** The symbols most recently shown, the newest first (their entries are evicted last). */
     recentSymbols() { return recent.slice() },
+    /** The bounds this registry evicts by (lib/barBudget.js's ledger reads them). */
+    limits() { return { barBudget, maxKeys, recentSymbols } },
     stats() {
       let dwell = 0
       for (const e of entries.values()) if (e.dwell) dwell++
-      return { keys: entries.size, bars: totalBars, dwell, budget: barBudget, maxKeys, recent: recent.slice() }
+      return { keys: entries.size, bars: totalBars, dwell }
     },
   }
 }
