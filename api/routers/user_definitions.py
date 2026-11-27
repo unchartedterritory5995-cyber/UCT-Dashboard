@@ -518,7 +518,11 @@ def list_definitions(user: dict = Depends(require_paid),
     # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
     budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
-    stamped = [_stamped(r, budget=budget) for r in rows]
+    # ⭐ the committed kill list, allowlist and capability registry are read ONCE for the whole list (they were
+    # read per row per server lane: ~89% of the list's server time on a member with 26 runtime rows), and still
+    # fresh on every request (`runtime_definitions.read_once`)
+    with runtime_definitions.read_once():
+        stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
     ids = svc.line_identities_many(
         user["id"], [(r.get("def_id"), r.get("version")) for r in stamped
