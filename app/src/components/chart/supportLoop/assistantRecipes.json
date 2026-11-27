@@ -211,7 +211,7 @@
    "source": "//@version=5\nindicator(\"RSI Divergence\", overlay=false)\nlen = input.int(14, \"RSI length\", minval=2)\nleft = input.int(5, \"Pivot bars left\", minval=1)\nright = input.int(5, \"Pivot bars right\", minval=1)\nosc = ta.rsi(close, len)\nplFound = not na(ta.pivotlow(osc, left, right))\nphFound = not na(ta.pivothigh(osc, left, right))\nbull = plFound and low[right] < ta.valuewhen(plFound, low[right], 1) and osc[right] > ta.valuewhen(plFound, osc[right], 1)\nbear = phFound and high[right] > ta.valuewhen(phFound, high[right], 1) and osc[right] < ta.valuewhen(phFound, osc[right], 1)\nplot(osc, \"RSI\", color=color.purple)\nplot(70, \"Overbought\", color=color.gray)\nplot(30, \"Oversold\", color=color.gray)\nplotshape(bull, \"Bullish divergence\", shape.triangleup, location.bottom, color.green, offset=-right)\nplotshape(bear, \"Bearish divergence\", shape.triangledown, location.top, color.red, offset=-right)\nalertcondition(bull, \"Bullish divergence\", \"RSI bullish divergence\")\nalertcondition(bear, \"Bearish divergence\", \"RSI bearish divergence\")\n",
    "lane": "host",
    "state": "runs-with-notes",
-   "headline": "Runs, with 2 notes",
+   "headline": "Runs, with 6 notes",
    "draws": false,
    "runs": {
     "fromListing": {
@@ -303,7 +303,7 @@
    "source": "//@version=5\nindicator(\"Unfilled Gaps\", overlay=true, max_boxes_count=100)\nminPct = input.float(1.0, \"Smallest gap %\", minval=0.1)\nkeep = input.int(20, \"Gaps kept\", minval=1)\nvar box[] ups = array.new_box(0)\nvar box[] downs = array.new_box(0)\ngapUp = low > high[1] and (low - high[1]) / high[1] * 100 >= minPct\ngapDown = high < low[1] and (low[1] - high) / low[1] * 100 >= minPct\nif gapUp\n    array.push(ups, box.new(bar_index - 1, low, bar_index, high[1], extend=extend.right, bgcolor=color.new(color.green, 85), border_color=color.green))\n    if array.size(ups) > keep\n        oldBox = array.shift(ups)\n        box.delete(oldBox)\nif gapDown\n    array.push(downs, box.new(bar_index - 1, low[1], bar_index, high, extend=extend.right, bgcolor=color.new(color.red, 85), border_color=color.red))\n    if array.size(downs) > keep\n        oldBox = array.shift(downs)\n        box.delete(oldBox)\nif array.size(ups) > 0\n    for i = array.size(ups) - 1 to 0\n        b = array.get(ups, i)\n        if low <= box.get_bottom(b) and not gapUp\n            box.delete(b)\n            array.remove(ups, i)\nif array.size(downs) > 0\n    for i = array.size(downs) - 1 to 0\n        b = array.get(downs, i)\n        if high >= box.get_top(b) and not gapDown\n            box.delete(b)\n            array.remove(downs, i)\nplot(array.size(ups) + array.size(downs), \"Open gaps\", display=display.data_window)\nplotshape(gapUp, \"Gap up\", shape.triangleup, location.belowbar, color.green, size=size.tiny)\nplotshape(gapDown, \"Gap down\", shape.triangledown, location.abovebar, color.red, size=size.tiny)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs, with 2 notes",
+   "headline": "Runs, with 4 notes",
    "draws": true,
    "runs": {
     "fromListing": {
@@ -859,7 +859,7 @@
    "source": "//@version=5\nindicator(\"Follow-through day\", overlay=true)\nlookback    = input.int(60, \"Highest-close lookback (bars)\", minval=2)\ndrawdownPct = input.float(5.0, \"Correction: percent below the highest close\", minval=0.0, step=0.25)\nminDay      = input.int(4, \"Earliest day of the attempt\", minval=1)\ngainPct     = input.float(1.25, \"Minimum gain on the day (%)\", minval=0.0, step=0.05)\n// in a correction: the close is at least drawdownPct percent below the highest close of the lookback (this bar included)\nhiClose = ta.highest(close, lookback)\ninCorrection = close <= hiClose * (1 - drawdownPct / 100)\n// ONE rally attempt at a time, kept across bars: whether it is live, which day of it this is, and the low it started on\nvar bool  active   = false\nvar int   dayCount = 0\nvar float startLow = na\nif active\n    // the attempt ends when a later bar trades below the low of the bar it started on\n    if low < startLow\n        active := false\n        dayCount := 0\n        startLow := na\n    else\n        dayCount += 1\n// it starts on a bar that closes above the prior close while in a correction (a new one may start on the bar the old one ended)\nif not active and close > close[1] and inCorrection\n    active := true\n    dayCount := 1\n    startLow := low\n// a follow-through day: day minDay or later of a live attempt, up at least gainPct percent on more volume than the prior bar\nfollowThrough = active and dayCount >= minDay and close >= close[1] * (1 + gainPct / 100) and volume > volume[1]\nplotshape(followThrough, \"Follow-through day\", shape.triangleup, location.belowbar, color.green, size=size.small)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart, with 1 note",
+   "headline": "Runs on the chart, with 2 notes",
    "draws": false,
    "runs": {
     "fromListing": {

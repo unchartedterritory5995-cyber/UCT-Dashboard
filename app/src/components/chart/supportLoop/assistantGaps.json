@@ -108,8 +108,8 @@
    "source": "//@version=5\nindicator(\"probe\")\nlen = input.int(14, \"RSI length\")\nlbL = input.int(5, \"Pivot left\")\nlbR = input.int(5, \"Pivot right\")\nosc = ta.rsi(close, len)\nplFound = not na(ta.pivotlow(osc, lbL, lbR))\noscHL = osc[lbR] > ta.valuewhen(plFound, osc[lbR], 1)\npriceLL = low[lbR] < ta.valuewhen(plFound, low[lbR], 1)\nbull = priceLL and oscHL and plFound\nplot(osc, \"RSI\")\nplotshape(bull, \"Bullish divergence\", shape.triangleup, location.bottom, color.green)\n",
    "runs": true,
    "lane": "host",
-   "state": "runs",
-   "headline": "Runs fully"
+   "state": "runs-with-notes",
+   "headline": "Runs, with 2 notes"
   },
   {
    "id": "regression-channel-residual",
