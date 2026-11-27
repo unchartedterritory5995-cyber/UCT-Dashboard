@@ -244,14 +244,15 @@ test("W5 (N1) a board switch's click commits nothing of the widget; the shadow g
   await settle()
   expect(symIn(layer('shadow'))).toBe('BBB')
   const renderedBefore = { ...renders.bySym }
+  const unmounted = renders.unmounts
   log.length = 0
   fireEvent.click(screen.getByTestId('board-switch'))     // hide the board
   expect(log[0], `the click's commit rendered the widget: ${JSON.stringify(log)}`).toBe('root')
-  expect(renders.unmounts, 'the click unmounted a chart').toBe(0)
+  expect(renders.unmounts - unmounted, 'the click unmounted a chart').toBe(0)
   expect(renders.bySym).toEqual(renderedBefore)          // no chart rendered at all
   expect(dbm.shadowsHeld(board)).toBe(0)                  // the budget moved at once
   await settle()                                          // idle time: the hidden pane goes
-  expect(renders.unmounts).toBe(1)
+  expect(renders.unmounts - unmounted).toBe(1)
   expect(layer('shadow')).toBe(null)
   log.length = 0
   fireEvent.click(screen.getByTestId('board-switch'))     // show it again
