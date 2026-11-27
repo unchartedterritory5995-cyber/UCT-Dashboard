@@ -174,6 +174,10 @@ describe('the first page: drawn at once, byte-equal to the full history where it
   })
 
   it('⛔ CONTROLS: a short chart, the switch off, or a pane that already has a picture: no first page', () => {
+    // (2026-11-26) pinned to the worker, as ORDERING is: left to the learned route, the short chart's answer measured Fred
+    // cheap on a fast runner and the "switched off" pane then computed on the main thread (5 plots), redding this rail
+    // with the first-page logic fine; the route is not what this case tests
+    __routeEveryHostDocumentForTests(true)
     const def = fredDef()
     const fc = fredCtx(fiveMinute(22).spx)
     const short = fiveMinute(8).chart                 // 1,536 rows: under 2 * FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
