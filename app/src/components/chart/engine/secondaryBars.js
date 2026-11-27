@@ -26,7 +26,7 @@
 /** The canonical bars route — the SAME endpoint the primary chart and Compare
  *  Symbols already use. A second browser bars client would be a second answer to
  *  "what are QQQ's bars", and the two would drift. */
-const BARS_PATH = '/api/bars/'
+export const BARS_PATH = '/api/bars/'
 
 // ─── ⭐⭐ (e95, 2026-11-22) A CUSTOM TIMEFRAME IS BUILT HERE, THE WAY THE CHART BUILDS ITS OWN ─────────────────────────────
 // ⚰️ Measured on production 2026-11-22 (the every-timeframe Fred RS run): on a 4h chart the Fred RS legend was ABSENT.
@@ -47,6 +47,7 @@ import { baseBarsFor, fetchTf, resampleSpec } from '../timeframes'
 import { resampleForSpec, isRegularSessionSpec } from '../../../utils/resampleBars'
 import { isRthBar, toChartTime, etMinuteOfDay } from '../barTime'
 import { viewShowExtended } from '../../../utils/viewSession'
+import { takeBootSecondaryBars } from '../../../lib/bootSecondaryBars'
 
 /**
  * The request URL for one (symbol, timeframe, count).
@@ -605,8 +606,11 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher, opts = {}) {
   if (existing) return existing
 
   const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  // ⭐⭐ (2026-11-26, Fred RS load time) the request this page started as it loaded, when it remembered needing this
+  // window (`lib/bootSecondaryBars.js`); a failed boot request ("no answer") is asked again here, as before
+  const boot = takeBootSecondaryBars(wire.fetchUrl)
   const p = Promise.resolve()
-    .then(() => get(wire.fetchUrl))
+    .then(() => (boot ? boot.then((payload) => payload || get(wire.fetchUrl)) : get(wire.fetchUrl)))
     .then((payload) => {
       // ⭐ (2026-11-26, #2801) `opts.idleRead`: a custom-timeframe page is judged and resampled OFF this landing task,
       // in ET-day slices across idle callbacks (`_readCustomIdle`), and lands (cache, notification) only then
