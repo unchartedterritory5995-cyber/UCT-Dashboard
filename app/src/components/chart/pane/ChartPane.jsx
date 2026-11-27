@@ -108,6 +108,27 @@ function ladderFitAt(chartId, width) {
   const f = chartId ? _ladderFits.get(chartId) : null
   return f && f.width === width ? f.level : 0
 }
+/** ⚡ (2026-11-27, chart 2's paced mount) The one-row ladder's clip ANSWER per chart and row signature. `isClipped`
+ *  reads layout only when the signature moved since its last read, but that memory was the pane instance's: every
+ *  remount (a board return, a paced chart) forced a layout on a row identical in every part of the signature, about
+ *  6 ms of each pane mount (profiled on the owner's board). The same signature on the same chart gives the same answer,
+ *  as within one pane; a font that finished loading since can change a row's width without changing its signature, so
+ *  each 'loadingdone' starts a new generation (nothing measured before it is reused). The newest LADDER_CLIPS_MAX. */
+const LADDER_CLIPS_MAX = 512
+const _ladderClips = new Map()
+let _fontGen = 0
+try { globalThis.document?.fonts?.addEventListener?.('loadingdone', () => { _fontGen++ }) } catch { /* no font events */ }
+const _ladderClipKey = (chartId, sig) => `${chartId}|${_fontGen}|${sig}`
+function ladderClipAt(chartId, sig) {
+  return chartId ? _ladderClips.get(_ladderClipKey(chartId, sig)) : undefined
+}
+function rememberLadderClip(chartId, sig, clipped) {
+  if (!chartId) return
+  const k = _ladderClipKey(chartId, sig)
+  _ladderClips.delete(k)
+  _ladderClips.set(k, clipped)
+  if (_ladderClips.size > LADDER_CLIPS_MAX) _ladderClips.delete(_ladderClips.keys().next().value)
+}
 
 function rowFitSig(el) {
   if (!el) return '-'
@@ -778,9 +799,13 @@ function ChartPane({
       const sig = `${paneWidth}|${rowLevel}|${rowFitSig(row)}|${rowFitSig(tf)}`
       const last = ladderFitRef.current
       if (last && last.sig === sig) return last.clipped
+      // the same row on this chart before this pane mounted (`_ladderClips`): the answer it read stands
+      const known = ladderClipAt(chartId, sig)
+      if (known !== undefined) { ladderFitRef.current = { sig, clipped: known }; return known }
       const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
       const out = clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tf)
       ladderFitRef.current = { sig, clipped: out }
+      rememberLadderClip(chartId, sig, out)
       return out
     },
   })
