@@ -6,7 +6,8 @@
 // forget it without loading the chart engine.
 // Rules: one record, keyed by member AND script engine (a read for another member or engine answers nothing), the raw
 // rows as served, a record over DEFS_CACHE_MAX_CHARS is not kept, every storage failure is "nothing kept".
-export const DEFS_CACHE_KEY = 'uct.userDefinitions.v1'
+import { DEFS_CACHE_KEY, clearCachedDefinitions } from './userDefsForget'
+export { DEFS_CACHE_KEY, clearCachedDefinitions }
 export const DEFS_CACHE_MAX_CHARS = 1_500_000
 
 function defsStorage() {
@@ -32,9 +33,4 @@ export function readCachedDefinitionRows(owner, engine, storage = defsStorage())
     if (!rec || rec.owner !== String(owner) || rec.engine !== engine || !Array.isArray(rec.rows)) return undefined
     return rec.rows
   } catch { return undefined }
-}
-
-/** A definitive sign-out: the kept list is forgotten. */
-export function clearCachedDefinitions(storage = defsStorage()) {
-  try { storage?.removeItem(DEFS_CACHE_KEY) } catch { /* storage blocked */ }
 }

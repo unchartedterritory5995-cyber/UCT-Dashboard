@@ -75,7 +75,7 @@ describe('useUserDefinitions: the kept list is the first answer', () => {
     writeCachedDefinitionRows('m1', SCRIPT_ENGINE_VERSION, [KEPT])
     clearCachedDefinitions()
     expect(readCachedDefinitionRows('m1', SCRIPT_ENGINE_VERSION)).toBe(undefined)
-    expect(AUTH_SRC).toMatch(/^import \{ clearCachedDefinitions \} from '\.\.\/lib\/userDefsCache'$/m)
+    expect(AUTH_SRC).toMatch(/^import \{ clearCachedDefinitions \} from '\.\.\/lib\/userDefsForget'$/m)
     expect(AUTH_SRC).toMatch(/setSignedInHint\(false\)\s*\n\s*clearCachedDefinitions\(\)/)
   })
 })
