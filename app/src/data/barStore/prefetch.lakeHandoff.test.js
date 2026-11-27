@@ -100,6 +100,42 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.store.lakePending(key)).toBe(false)                             // so the handoff paints it at once
   })
 
+  // ⭐ (2026-11-26, typed vs arrow on a board with a list) A typed LIST member is already held: the list's warm answered it
+  // (~500-1,100 bars), and the typed warm returned at once, so its lake depth joined only AFTER Enter (pieces asked +31 ms,
+  // the whole chart drawn again +85-400 ms), where an arrow onto the next row paints the whole depth in its first frame.
+  it('a typed ticker already HELD shallow (the list warm answered it) has the lake\'s whole depth joined BEFORE Enter', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })                   // the list's warm: an answer, no lake load
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(key).restSeen).toBe(true)
+    expect(w.store.peek(key).bars[0].t).toBeGreaterThan(OPEN - 300 * 60)    // shallow: the answer's rows only
+    expect(w.store.lakePending(key)).toBe(true)
+    const asked = w.server.calls.length
+    expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)                    // held and painting: nothing to ask...
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(key).bars[0].t).toBe(OPEN - 300 * 60)               // ...but the whole depth is in, before Enter
+    expect(w.store.lakePending(key)).toBe(false)                             // so Enter paints it whole, at once
+    expect(w.server.calls.length).toBe(asked)                                // and no bar request was made for it
+  })
+
+  it('a typed ticker held WHOLE (its lake load settled) starts no second lake load', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await w.store.lakeSeed(key)                                              // joined (as a hover or a neighbour would)
+    expect(w.store.lakePending(key)).toBe(false)
+    const loads = lake.olderBars.mock.calls.length
+    expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)
+    await vi.advanceTimersByTimeAsync(20)
+    expect(lake.olderBars.mock.calls.length).toBe(loads)
+  })
+
   // ⭐ Measured 2026-11-17 at 00:36 ET (flip proof, server at normal speed): first paints ended at
   // 11:05 the day before, and that session's afternoon arrived ~500 ms later in view. Overnight and
   // pre-open, the session-completeness rule (marketSession, ramped to 100% the same night) is what
