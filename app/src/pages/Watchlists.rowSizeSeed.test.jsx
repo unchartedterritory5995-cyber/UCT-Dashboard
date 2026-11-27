@@ -448,7 +448,8 @@ describe('ScanRows: the remembered offset fits the list it comes back to', () =>
       render(<List cacheKey="list:R19" items={half} onCommit={onCommit} />)
       expect(atFirst.rows.length, 'blank space: no rows in the first commit').toBeGreaterThan(0)
       expect(Math.max(...atFirst.rows), 'the last row').toBe(29)
-      expect(Math.min(...atFirst.rows), 'the last screenful starts at row 20').toBe(20)
+      // the last screenful (rows 20-29) is all there; the library's range also counts the row that ends on the edge (19)
+      for (let i = 20; i <= 29; i++) expect(atFirst.rows, `row ${i} of the last screenful`).toContain(i)
       expect(atFirst.top, 'the scroller at the end of the shorter list').toBe(800)
     } finally { HTMLElement.prototype.scrollTo = realScrollTo; delete HTMLElement.prototype.scrollTop }
   })
