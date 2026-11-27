@@ -4,8 +4,10 @@
 //
 // `docs/pine/START-TAINT.md` (approved 2026-11-27). An off-listing run serves a value only where it cannot depend on
 // the run's first bar. The taint run (`vmTaint.js::executeTainted`, GENERATED from `vm.js::execute`) carries one tag
-// per value beside it, and these are the rules it combines them by. They live here, hand-written and railed, so the
-// generated loop holds only calls into them and the table of which opcode calls which (`app/scripts/gen-vm-taint.mjs`).
+// per value beside it, and these are the rules it combines them by. They live here, hand-written and railed, and the
+// generated loop holds the table of which opcode applies which (`app/scripts/gen-vm-taint.mjs`). ⛔ The one-line joins
+// below (`tStrict` ... `tVal`) are INLINED into the loop from this file's TEXT (`gen-vm-taint.mjs::INLINED`, a perf
+// rule): keep each one line of one-letter parameters, numbers and operators, and regenerate after changing one.
 //
 //   C (0) clean    the same on every earlier first bar
 //   O (1) offset   clean up to ONE additive constant, the number of bars before our first bar (`bar_index`)
@@ -156,9 +158,10 @@ export function tWindow(S, i, policy, t, live, span, lt, top, committed, hi) {
     }
     return 0
   }
-  if (isFiniteNumber(live)) { if (S.wc[i] < COUNT_CAP) S.wc[i] += 1 }
-  // `ffill` fills a hole from the value before it, which may lie before the window: a hole restarts the count
-  else if (policy === 'ffill') S.wc[i] = 0
+  // a hole (`na`) is no observation; under `ffill` (`wma`) it is filled from the finite value before it, and with
+  // `span` clean finite values since the last tainted step, a window of the last `span` steps holding h holes holds
+  // span - h finite ones, so at least h clean finite values came before it: every fill's source is clean
+  if (isFiniteNumber(live) && S.wc[i] < COUNT_CAP) S.wc[i] += 1
   if (lt !== 0 || S.wc[i] < span) return 2
   // `finite` answers `na` before bar `span - 1` (another start, further on, answers there): the run's own bar count
   if (policy === 'finite' && committed < span - 1) return 2
@@ -231,13 +234,10 @@ export function cleanFromOf(node, valuesOf, memo = new Map()) {
       else if (rule.policy === 'propagate') r = c + span - 1
       else if (typeof valuesOf !== 'function') r = NEVER
       else {
-        const vals = valuesOf(args[0])
-        const k = nthFiniteFrom(vals, c, span)
-        if (k === NEVER) r = NEVER
-        else if (rule.policy === 'ffill') {
-          // every filled cell's source at or after `c`: the window starts at or after the first finite value
-          r = Math.max(k, nthFiniteFrom(vals, c, 1) + span - 1)
-        } else r = rule.policy === 'finite' ? Math.max(k, span - 1) : k
+        // the bar holding the `span`-th finite value at or after `c`: from there the last `span` finite values (and,
+        // under `ffill`, every hole's fill: see `tWindow`) lie at or after `c`; it is at least `c + span - 1`, so
+        // a `finite` window's own warm-up (bar `span - 1`) is behind it too
+        r = nthFiniteFrom(valuesOf(args[0]), c, span)
       }
     }
   }

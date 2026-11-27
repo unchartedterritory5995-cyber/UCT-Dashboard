@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 export const VM_PATH = path.resolve(HERE, '../src/components/chart/engine/runtime/vm.js')
 export const OUT_PATH = path.resolve(HERE, '../src/components/chart/engine/runtime/vmTaint.js')
+export const TAGS_PATH = path.resolve(HERE, '../src/components/chart/engine/runtime/taintTags.js')
 
 /** Each opcode's tag statement(s), keyed by the name in the case label. In scope: the value loop's own variables
  *  (`sp` and `pc` as the case finds them, `a`, `b`, `bar`, the frame bases, `depth`, `committed`, `stack`, ...) and
@@ -209,8 +210,51 @@ export const ANCHORS = Object.freeze([
 ])
 
 /** The tag algebra's functions the rules call (`taintTags.js`), bound to locals once per run (see `generateVmTaint`). */
-const TAINT_FNS = ['tStrict', 'tAdd', 'tSub', 'tCmp', 'tVal', 'tRange', 'branchTableOf', 'taintBranch', 'builtinRuleOf', 'ruleCodeOf',
-  'tWindow', 'tCarried', 'tCarried2']
+const TAINT_FNS = ['tRange', 'branchTableOf', 'taintBranch', 'builtinRuleOf', 'ruleCodeOf', 'tWindow', 'tCarried',
+  'tCarried2']
+
+/** ⭐ PERF (e105): the per-opcode joins are INLINED, not called. `execute` is one function of ~1,500 lines, and
+ *  TurboFan inlines calls into it only up to a cumulative bytecode budget: 22 more call sites (one per arithmetic or
+ *  compare case) competed for it with the value code's own `ADD` / `LT` / `PW` calls, and a run whose loop lost that
+ *  contest measured 8.5x `execute` (inside-bar-range, GitHub runner) where the inlined loop measured 1.7x. The algebra
+ *  keeps ONE author, `taintTags.js`: each of these is a one-line arrow there (`export const tAdd = (x, y) => (...)`),
+ *  read from that file's TEXT and spliced in with its parameters replaced by the operands (each a plain `ts[...]`
+ *  read, so reading one twice changes nothing). An arrow that is not one line of one-letter parameters, numbers and
+ *  operators stops generation by name, and `vmTaintGenerated.test.js` regenerates from both files, so the inlined
+ *  copy cannot drift from the algebra its rails prove. */
+export const INLINED = Object.freeze(['tStrict', 'tAdd', 'tSub', 'tCmp', 'tVal'])
+const INLINED_CALL = /\b(tStrict|tAdd|tSub|tCmp|tVal)\(((?:ts\[sp - \d\])(?:, ts\[sp - \d\])*)\)/g
+const ANY_INLINED_CALL = /\b(tStrict|tAdd|tSub|tCmp|tVal)\(/
+const word = (q) => new RegExp(`\\b${q}\\b`, 'g')
+
+/** `{ name: { params, body } }` for each `INLINED` arrow, read from the source of `taintTags.js`. */
+function algebraOf(tagsSource) {
+  const out = {}
+  for (const name of INLINED) {
+    const m = new RegExp(`^export const ${name} = \\(([^)]*)\\) => (.+)$`, 'm').exec(tagsSource)
+    if (!m) throw new Error(`gen-vm-taint: taintTags.js has no one-line \`export const ${name} = (...) => ...\``)
+    const params = m[1].split(',').map((x) => x.trim())
+    const body = m[2].trim()
+    const rest = params.reduce((r, q) => r.replace(word(q), ''), body)
+    if (!params.every((q) => /^[a-z]$/.test(q)) || !/^[\s\d()?:=!&|<>+-]*$/.test(rest)) {
+      throw new Error(`gen-vm-taint: taintTags.js's ${name} is not an arrow of one-letter parameters, numbers and operators: ${body}`)
+    }
+    out[name] = { params, body }
+  }
+  return out
+}
+
+/** `rule` with each call of an inlined function over `ts[sp - k]` operands replaced by its body. */
+function inlineAlgebra(rule, algebra) {
+  return rule.replace(INLINED_CALL, (call, name, argText) => {
+    const { params, body } = algebra[name]
+    const args = argText.split(', ')
+    if (args.length !== params.length) throw new Error(`gen-vm-taint: ${call} has ${args.length} operands, ${name} takes ${params.length}`)
+    // one pass over the body, so an operand's own text is never rewritten by a later parameter
+    const at = new Map(params.map((q, k) => [q, args[k]]))
+    return `(${body.replace(new RegExp(`\\b(${params.join('|')})\\b`, 'g'), (q) => at.get(q))})`
+  })
+}
 
 const SIGNATURE = 'export function execute(program, ctx, limits, opts) {\n'
 const CASE = /case (\d+) \/\* OP\.([A-Z0-9_]+) \*\/:/g
@@ -254,8 +298,9 @@ function exportListOf(src) {
 const countOf = (hay, needle) => hay.split(needle).length - 1
 
 /** The generated `vmTaint.js` for this `vm.js` source. Throws by name on anything it cannot place. */
-export function generateVmTaint(vmSource) {
+export function generateVmTaint(vmSource, tagsSource = fs.readFileSync(TAGS_PATH, 'utf8')) {
   const src = vmSource.replace(/\r\n/g, '\n')
+  const algebra = algebraOf(tagsSource.replace(/\r\n/g, '\n'))
   const start = src.indexOf(SIGNATURE)
   if (start < 0 || countOf(src, SIGNATURE) !== 1) throw new Error('gen-vm-taint: `export function execute(program, ctx, limits, opts) {` must occur once')
   const end = src.indexOf('\n}\n', start)
@@ -288,7 +333,8 @@ export function generateVmTaint(vmSource) {
     }
     if (used.has(name)) throw new Error(`gen-vm-taint: OP.${name} has two case labels`)
     used.add(name)
-    const rule = TAG_RULES[name]
+    const rule = inlineAlgebra(TAG_RULES[name], algebra)
+    if (ANY_INLINED_CALL.test(rule)) throw new Error(`gen-vm-taint: OP.${name}'s rule calls the algebra over operands it cannot inline: ${rule}`)
     return rule ? `${label} ${rule}` : label
   })
   const stale = Object.keys(TAG_RULES).filter((k) => !used.has(k))

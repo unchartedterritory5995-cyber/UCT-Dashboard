@@ -60,7 +60,7 @@
    "id": "E104-PLOT",
    "mutant": "an O plotted stays O (ruling 2: bar_index plotted is T)",
    "file": "app/src/components/chart/engine/runtime/vmTaint.js",
-   "from": "outT[a][bar] = rTop > 0 ? 2 : tVal(ts[sp - 1]);",
+   "from": "outT[a][bar] = rTop > 0 ? 2 : ((ts[sp - 1] === 0 ? 0 : 2));",
    "to": "outT[a][bar] = rTop > 0 ? 2 : ts[sp - 1];",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
    "expectRed": "bar_index plotted is T"
@@ -121,12 +121,12 @@
   },
   {
    "id": "E104-OMO",
-   "mutant": "O - O is not C",
+   "mutant": "O - O is not C (the algebra's own rail: the loop inlines the committed copy, e105)",
    "file": "app/src/components/chart/engine/runtime/taintTags.js",
    "from": "(x === 1 && y === 1 ? 0 : 2)",
    "to": "(2)",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
-   "expectRed": "bar_index - bar_index[1] is C"
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "O-O C"
   },
   {
    "id": "E104-OPO",
@@ -139,12 +139,12 @@
   },
   {
    "id": "E104-OCMP",
-   "mutant": "O compared with a C number is C",
+   "mutant": "O compared with a C number is C (the algebra's own rail: the loop inlines the committed copy, e105)",
    "file": "app/src/components/chart/engine/runtime/taintTags.js",
    "from": "(x === y && x !== 2 ? 0 : 2)",
    "to": "(x !== 2 && y !== 2 ? 0 : 2)",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
-   "expectRed": "bar_index > 100 is T"
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "C cmp C and O cmp O are C"
   },
   {
    "id": "E104-COLO",
@@ -172,6 +172,42 @@
    "to": "case 0 /* OP.CONST */: ts[sp] = 1;",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
    "expectRed": "what the generator makes of vm.js"
+  },
+  {
+   "id": "E105-INLINE-OMO",
+   "mutant": "the inlined join of SUB loses O - O -> C",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "(ts[sp - 2] === 1 && ts[sp - 1] === 1 ? 0 : 2)",
+   "to": "(2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index - bar_index[1] is C"
+  },
+  {
+   "id": "E105-INLINE-OCMP",
+   "mutant": "the inlined join of GT compares an O with a C number clean",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 21 /* OP.GT */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2));",
+   "to": "case 21 /* OP.GT */: ts[sp - 2] = ((ts[sp - 2] !== 2 && ts[sp - 1] !== 2 ? 0 : 2));",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index > 100 is T"
+  },
+  {
+   "id": "E105-ALG-DRIFT",
+   "mutant": "the algebra changes in taintTags.js and the loop is not regenerated",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "(x === 1 && y === 1 ? 0 : 2)",
+   "to": "(2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "is exactly what the generator makes"
+  },
+  {
+   "id": "E105-GEN-INLINE",
+   "mutant": "the generator inlines an algebra function that is not one line of parameters and operators",
+   "file": "app/scripts/gen-vm-taint.mjs",
+   "from": "if (!params.every((q) => /^[a-z]$/.test(q)) || !/^[\\s\\d()?:=!&|<>+-]*$/.test(rest)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "stops by name on an algebra function"
   }
  ]
 }
