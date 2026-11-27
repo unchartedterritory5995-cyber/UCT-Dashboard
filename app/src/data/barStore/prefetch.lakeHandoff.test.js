@@ -121,6 +121,69 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.server.calls.length).toBe(asked)                                // and no bar request was made for it
   })
 
+  // ⭐ (2026-11-26) ...and the LINKED charts' keys (the host's alsoTfs): each held one with its depth still due joins too
+  const linkedLake = () => ({
+    olderBars: vi.fn(async (key, beforeT) => {
+      const step = String(key).includes('|15|') || /:15(|:|$)/.test(String(key)) ? 900 : 300
+      const out = []
+      for (let t = OPEN - step * 200; t <= OPEN + 600; t += step) out.push({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
+      return { bars: out.filter((b) => b.t < beforeT) }
+    }),
+    prime: vi.fn(),
+    hasSymbol: vi.fn(async () => true),
+  })
+  for (const held5 of [true, false]) {
+    it(`a linked chart's held key (alsoTfs 15) has its lake depth joined before Enter (typing chart's key ${held5 ? 'held' : 'not held'})`, async () => {
+      const lake = linkedLake()
+      const w = await boot({ lake })
+      const k15 = w.k('REAL', '15')
+      if (held5) w.store.ensure(w.k('REAL', '5'), { priority: 'grid', warm: true })
+      w.store.ensure(k15, { priority: 'grid', warm: true })
+      await w.server.drain()
+      await vi.advanceTimersByTimeAsync(20)
+      expect(w.store.lakePending(k15)).toBe(true)
+      const first = w.store.peek(k15).bars[0].t
+      w.pf.warmTypedSymbol('REAL', '5', { alsoTfs: ['15', 'D'] })
+      await vi.advanceTimersByTimeAsync(100)
+      await w.server.drain()
+      await vi.advanceTimersByTimeAsync(50)
+      expect(w.store.peek(k15).bars[0].t).toBeLessThan(first)                  // deeper, before Enter
+      expect(w.store.lakePending(k15)).toBe(false)
+    })
+  }
+
+  // (review of #2866, LOW) Enter's subscribe (index._start) and the handoff ask lakeSeed again for a key whose load already
+  // settled at what an ANSWERED entry holds: a second load re-reads and re-decodes the same pieces to add nothing.
+  it('an answered key whose lake load settled at what it holds starts no second load', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
+    const loads = lake.olderBars.mock.calls.length
+    await expect(w.store.lakeSeed(key, { awaited: true })).resolves.toBe(false)
+    expect(lake.olderBars.mock.calls.length).toBe(loads)
+  })
+
+  it('...but a NEW answer that grew the entry past the settled depth is loaded again', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await w.store.lakeSeed(key)
+    const loads = lake.olderBars.mock.calls.length
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000)                    // two buckets later
+    w.store.ensure(key, { priority: 'grid', warm: true, until: [] })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await w.store.lakeSeed(key)
+    expect(lake.olderBars.mock.calls.length).toBe(loads + 1)
+  })
+
   it('a typed ticker held WHOLE (its lake load settled) starts no second lake load', async () => {
     const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
     const w = await boot({ lake })

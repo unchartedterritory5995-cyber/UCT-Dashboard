@@ -80,14 +80,34 @@ describe('typed intraday warm', () => {
     expect(w.server.calls.length).toBe(before)
   })
 
-  it('a local copy that paints answers "cache" with no request', async () => {
+  it('a local copy that paints AND covers the view (COVER_ROWS) answers "cache" with no request', async () => {
     const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
     await w.known('LOC')
-    await w.idb.idbPutMonotonic('LOC', '5', intradayRows(5, Math.floor(NOW / 1000) - 300))
+    const rows = intradayRows(5, Math.floor(NOW / 1000) - 300, { from: OPEN - 8 * 86400 })
+    expect(rows.length).toBeGreaterThanOrEqual(COVER_ROWS)
+    await w.idb.idbPutMonotonic('LOC', '5', rows)
     const typed = w.pf.warmTypedSymbol('LOC', '5')
     await w.server.drain()
     await expect(typed).resolves.toBe('cache')
     expect(ofTf(w.server.calls, '5')).toEqual([])
+  })
+
+  // ⭐ (2026-11-26, the owner's cold typed Enter) the device's copy of a never-opened ticker holds ~300 newest 5m rows:
+  // it paints, but it does not cover the view, so the switch waited for the lake's join AFTER Enter (51-110 ms on the
+  // owner's board). Asked before Enter, its answer covers the view and the switch paints it in the Enter task.
+  it('a local copy that paints but is SHORT of COVER_ROWS is asked from the server before Enter', async () => {
+    const w = await boot()
+    const { COVER_ROWS } = await import('./coverRows')
+    await w.known('LOC')
+    const rows = intradayRows(5, Math.floor(NOW / 1000) - 300)
+    expect(rows.length).toBeLessThan(COVER_ROWS)
+    await w.idb.idbPutMonotonic('LOC', '5', rows)
+    const typed = w.pf.warmTypedSymbol('LOC', '5')
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+    expect(ofTf(w.server.calls, '5')).toEqual(['LOC'])
+    expect(w.store.peek(w.k('LOC', '5')).restSeen).toBe(true)
   })
 
   it('new text aborts the previous typed warm that nothing joined', async () => {

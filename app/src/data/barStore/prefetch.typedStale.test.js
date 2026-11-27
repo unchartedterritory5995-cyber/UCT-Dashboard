@@ -66,7 +66,8 @@ describe('typed intraday warm · a copy behind the clock is asked again', () => 
   it('a saved copy at the frontier still paints from cache with no request', async () => {
     const w = await boot()
     await w.known('IWMX')
-    await w.idb.idbPutMonotonic('IWMX', '5', intradayRows(5, Math.floor(NOW / 1000) - 60))
+    // (a copy that covers the view, COVER_ROWS: a shorter one is asked from the server, prefetch.typedIntraday.test)
+    await w.idb.idbPutMonotonic('IWMX', '5', intradayRows(5, Math.floor(NOW / 1000) - 60, { from: OPEN - 8 * 86400 }))
     const typed = w.pf.warmTypedSymbol('IWMX', '5')
     await w.server.drain()
     await expect(typed).resolves.toBe('cache')
