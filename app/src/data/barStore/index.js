@@ -18,6 +18,7 @@
 // `createBarStore` takes every collaborator as an option so tests drive it with fakes; the
 // module-level functions use one lazily created default store (no side effect on import).
 
+import { subscribeProbeOn, probeFirstSubscribe } from './subscribeProbe'
 import { createRegistry } from './registry'
 import { createPersist } from './persist'
 import { createNetwork } from './network'
@@ -114,7 +115,11 @@ export function createBarStore(o = {}) {
       // ⭐ (review of #2786) A key with no bars (no saved copy, no answer yet; a lone developing bar is not a chart)
       // paints the lake's newest bars FIRST: that paint waits on the load, so its pieces never yield (network.lakeSeed
       // `awaited`). A key that already painted a saved copy only deepens: its pieces decode one per task, leaving room for frames.
-      persist.hydrate(key, { urgent: true }).catch(() => {}).then(() => {
+      const probe0 = subscribeProbeOn() ? registry.peek(key) : null   // (opt-in diagnostic: subscribeProbe.js)
+      const hyd = persist.hydrate(key, { urgent: true })
+      if (probe0 !== null) probeFirstSubscribe(key, probe0, registry.peek(key), 'sync')
+      hyd.catch(() => {}).then(() => {
+        if (probe0 !== null) probeFirstSubscribe(key, probe0, registry.peek(key), 'hydrated')
         const s = registry.peek(key)
         const awaited = !s?.bars?.length
         try { network.lakeSeed?.(key, { awaited }) } catch { /* paint only */ }
