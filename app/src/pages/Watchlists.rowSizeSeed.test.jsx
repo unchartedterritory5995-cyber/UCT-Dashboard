@@ -281,3 +281,33 @@ describe('ScanRows: the remembered sizes are keyed by everything that sets a row
     expect(mem.sizes.get('K7')).toBe(33)
   })
 })
+
+// ⚡ FIRST FRAME CHANGES: rows appear one frame (or more) earlier. On a board switch the scroller and the list mount in
+// ONE commit: the virtualizer finds no scroll element there and, with no box, renders no rows. A list that remembers
+// its scroller's box renders the window's rows in that first commit. No frame runs in these two cases.
+describe('ScanRows: a remembered list has its rows in the switch\'s first commit', () => {
+  it('R12 (red first) warm: the scroller and the list mount together and the rows are there, placed, with no layout read', async () => {
+    const first = mountList('list:R12')
+    await frames() // the box is delivered (and remembered), the rows measured
+    expect(rowTop(first.container, 2)).toBe(2 * ROW_PX)
+    first.unmount()
+    let queue = []
+    vi.stubGlobal('requestAnimationFrame', (fn) => { queue.push(fn); return queue.length })
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    T.rowReads = 0
+    const again = render(<List cacheKey="list:R12" />) // one commit, as the board switch mounts it
+    expect(again.container.querySelector('[data-index="0"]'), 'no rows in the first commit').not.toBeNull()
+    expect(rowTop(again.container, 2)).toBe(2 * ROW_PX)
+    expect(T.rowReads, 'rows measured in the commit').toBe(0)
+    // the window: the remembered 400 px box holds 10 rows of 40 (plus the overscan)
+    expect(again.container.querySelector('[data-index="9"]')).not.toBeNull()
+    queue = []
+  })
+
+  it('R13 cold: a list with no memory mounts as before (no rows until the box arrives)', () => {
+    const view = render(<List cacheKey="list:R13-never-seen" />)
+    expect(view.container.querySelector('[data-index="0"]')).toBeNull()
+    const nokey = render(<List cacheKey={undefined} />)
+    expect(nokey.container.querySelector('[data-index="0"]')).toBeNull()
+  })
+})
