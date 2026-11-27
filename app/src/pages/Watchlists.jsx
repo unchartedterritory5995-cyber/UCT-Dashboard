@@ -89,7 +89,7 @@ function rafObserveElementRect(instance, cb) {
 // measured last time: those sizes are its estimates (the first render is placed right) and its attach-time answers (no
 // layout read). The ResizeObserver still measures every mounted row from its border box (after layout, before paint),
 // so a row that changed height since is corrected; only those re-render. Rail: Watchlists.rowSizeSeed.test.jsx.
-const ROW_SIZES = new Map()        // sizeCacheKey -> Map(row key -> px), most recently mounted last
+const ROW_SIZES = new Map()        // sizeCacheKey -> { sizes: Map(row key -> px), rect: the scroller box last delivered }
 const ROW_SIZE_LISTS_MAX = 24
 // one list's memory: a whole-market scan scrolled end to end must not grow it without bound
 export const ROW_SIZE_ROWS_MAX = 5000
@@ -97,12 +97,12 @@ export const ROW_SIZE_ROWS_MAX = 5000
 // row-geometry input the key does not carry): its memory is dropped, and the list measures as it mounts again
 export const ROW_SIZE_CORRECTIONS_MAX = 3
 function rowSizesFor(key) {
-  let sizes = ROW_SIZES.get(key)
-  if (sizes) ROW_SIZES.delete(key)
-  else sizes = new Map()
-  ROW_SIZES.set(key, sizes)
+  let record = ROW_SIZES.get(key)
+  if (record) ROW_SIZES.delete(key)
+  else record = { sizes: new Map(), rect: null }
+  ROW_SIZES.set(key, record)
   if (ROW_SIZES.size > ROW_SIZE_LISTS_MAX) ROW_SIZES.delete(ROW_SIZES.keys().next().value)
-  return sizes
+  return record
 }
 /**
  * The key a list's row sizes are remembered under, or `null` (not remembered). It names the list by a STABLE id (a
@@ -777,10 +777,11 @@ export function rowPlacement(virt, idx, { scrollTop, padStart = 0 } = {}) {
 export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false, sizeCacheKey = null }) {
   // the row sizes this list measured on its last mount (see `rowSizesFor`), as this mount's view of them
   // (`measureRememberedRow`); none: measured as they mount, as before
-  const rowMem = useMemo(
-    () => (sizeCacheKey ? { sizes: rowSizesFor(sizeCacheKey), corrections: 0, dropped: false, correctedNow: false } : null),
-    [sizeCacheKey],
-  )
+  const rowMem = useMemo(() => {
+    if (!sizeCacheKey) return null
+    const record = rowSizesFor(sizeCacheKey)
+    return { record, sizes: record.sizes, corrections: 0, dropped: false, correctedNow: false }
+  }, [sizeCacheKey])
   const [, commitCorrection] = useState(0)
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
@@ -850,7 +851,17 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
     scrollMargin,
     scrollPaddingStart: stickyTop,
     // See rafObserveElementRect above — prevents the narrow-width #185 crash.
-    observeElementRect: rafObserveElementRect,
+    observeElementRect: rowMem
+      ? (instance, cb) => rafObserveElementRect(instance, (rect) => { if (rect.width > 0 && rect.height > 0) rowMem.record.rect = rect; cb(rect) })
+      : rafObserveElementRect,
+    // ⚡ FIRST FRAME CHANGES (2026-11-27, owner: "everything at once"): A REMEMBERED LIST'S ROWS ARE IN THE SWITCH'S FIRST
+    // FRAME. The scroller mounts in the same commit as the list, and a parent's ref is attached after a child's layout
+    // effects, so the virtualizer found no scroll element there: with no box it rendered NO rows, and the rows came a
+    // frame or more after the charts (once a later render subscribed and the box arrived). A list that remembers its
+    // scroller's box starts from it: its first render already holds the window's rows, at their remembered sizes, and
+    // the real box (a frame later) only confirms it. A list with no memory (cold) is unchanged.
+    // Rail: Watchlists.rowSizeSeed.test.jsx (R12, R13).
+    ...(rowMem?.record.rect ? { initialRect: rowMem.record.rect } : null),
     // ⭐ (2026-11-20, switch profile) NO flushSync ON SCROLL. react-virtual's default re-renders through
     // `flushSync` on every scroll event while the list scrolls (`isScrolling`), and the arrow key's
     // `scrollIntoView` is such a scroll: that forced the whole pending chart switch to render and commit
