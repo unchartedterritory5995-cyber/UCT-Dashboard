@@ -79,12 +79,14 @@ describe('the run asked under the new facts resumes from the run that ran', () =
   })
 
   it('⛔ a fact folded into the PROGRAM (a function body, a `var` seed, a loop), not a column: `sameProgram` refuses it', () => {
-    // the column check (`sameColumnsTo`) catches a fact read in a plain series expression; these reads live in code
-    // the VM runs, so ONLY `sameProgram` can refuse the other session (mutant F2)
+    // MEASURED (remote run, 2026-11-27): a NUMERIC read of a fact is lifted into a precomputed column wherever it is
+    // written (a function body, a `var` seed, a loop: all three refused by `sameColumnsTo`, "a column before the
+    // checkpoint changed"). A STRING fact cannot live in a Float64 column: it is a program constant, so ONLY
+    // `sameProgram` can refuse the other session (mutant F2)
     const candidates = {
+      varString: ['var string p = syminfo.prefix', 'plot(str.length(p) + close)'],
+      concat: ['string q = syminfo.prefix + ":x"', 'plot(str.length(q) + close)'],
       fnBody: ['f(x) => syminfo.prefix == "NASDAQ" ? x + 1 : x - 1', 'var float s = 0.0', 's := f(s)', 'plot(s + close)'],
-      varSeed: ['var float s = syminfo.prefix == "NASDAQ" ? 1.0 : -1.0', 's := s + close', 'plot(s)'],
-      loop: ['float s = 0.0', 'for i = 0 to 2', '    s += syminfo.prefix == "NASDAQ" ? close : -close', 'plot(s)'],
     }
     const whys = {}
     for (const [name, body] of Object.entries(candidates)) {
