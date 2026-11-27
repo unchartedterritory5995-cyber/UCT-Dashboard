@@ -6,7 +6,8 @@
 // 160-430 ms, and the pane stayed BLANK until 0.6-1.3 s: the worker computing Fred's values over 20,000-32,000 chart
 // rows, with no picture of this pane to show meanwhile.
 // So the NEWEST `FIRST_PAGE_ROWS` bars are computed TWICE, from two starts `FIRST_PAGE_PROBE` bars apart. ⛔ A plot is
-// drawn on the first page ONLY where both starts agree BIT FOR BIT on every page bar: its values there do not depend on
+// drawn on the first page ONLY where both starts agree BIT FOR BIT on every page bar AND its tree's reach is proved
+// within the probe (`pageReachProvable`, e101): its values there do not depend on
 // where history began (Fred's RS line, `close / SPX(t)`, reads no history at all). Any other plot (a moving average, a
 // `var` state, `bar_index`) is WITHHELD whole on the first page, by name (`FIRST_PAGE_CODE`), and drawn when the full
 // answer lands. The drawings (the run half) are not computed from a page: they wait for the full answer.
@@ -14,7 +15,9 @@
 // ⛔⛔ THE COMPUTE RUNS IN THE WORKER (`hostLaneWorkerCore`, job kind 'firstPage'), NEVER ON THE CHART'S THREAD: measured
 // 2026-11-23 on Fred RS 5m (4,224 rows), the two starts cost 125-158 ms of main thread against 5-11 ms without them
 // (coordinator condition). The chart's thread only WIDENS the window that comes back (`widenFirstPage`: a copy).
-import { astColumnsGiven, withWithheldBars } from './astColumns.js'
+import { astColumnsGiven, withWithheldBars, astTrees } from './astColumns.js'
+import { maxLookback, declaredInputs } from './ast/lint.js'
+import { TABLE } from './ast/parse.js'
 
 export const FIRST_PAGE_ROWS = 1500
 export const FIRST_PAGE_PROBE = 251
@@ -25,6 +28,66 @@ export const FIRST_PAGE_NOTE = 'Loading the full history: the newest bars are dr
   + 'that needs them, are shown once the full history loads.'
 /** The rows a page job carries: the page and the probe's earlier start. */
 export const FIRST_PAGE_POST_ROWS = FIRST_PAGE_ROWS + FIRST_PAGE_PROBE
+
+// ─── ⭐⭐ (e101, coordinator ruling 2026-11-27) TWO STARTS AGREEING IS NOT A PROOF; THE TREE'S OWN REACH IS ────────────
+// ⚰️ MEASURED (`firstPageCensus.measure.test.js`, every corpus script the member door puts on the host lane, SPY 1D 8,507
+// rows and SPY 60 23,554 rows): 571 plots agreed from both starts on the page, and 3 of them were WRONG against the full
+// history (support-and-resistance-multi-time-frame, D: its weekly and monthly `valuewhen(high >= highest(high, 34), ...)`,
+// whose deciding bar lies further back than both starts, so the starts agreed with each other and not with the full run).
+// So a plot is drawn on the page only when its value at a bar PROVABLY depends on no bar further back than the probe's
+// earlier start reaches: the tree's backward reach (`lint.js::maxLookback`, the evaluator's own declared windows, `tf`
+// spans NOT trusted: a higher timeframe's read is refused) is a finite number of at most `FIRST_PAGE_PROBE` bars, and it
+// reads no clock leaf whose value is a count from the history's first bar (`START_COUNTED_CLOCK`). Then the probe's values on the page are the full history's,
+// and the two-start agreement (kept) proves the page's own values equal them. An unknown or unbounded reach, a knob-sized
+// window (`lint.js`: unanalysable, fails closed) or a start-counted read is withheld on the page, by name, as before.
+
+/** Clock leaves counted from the history's first bar (`closedTable.json` clock): the same bar reads another number when
+ *  the history starts elsewhere, whatever its reach says. (A higher timeframe's read is refused beside them.) */
+export const START_COUNTED_CLOCK = Object.freeze(['barindex', 'isfirst', 'lastbarindex'])
+/** Reads resampled to another timeframe (`parse.js::NODE_TYPES`): higher (`tf`, `tf_live`, `tf_merge`) and lower (`ltf`). */
+export const OTHER_TIMEFRAME_NODES = Object.freeze(['tf', 'tf_live', 'tf_merge', 'ltf'])
+const readsStartCounted = (tree) => {   // …or anything else the reach cannot bound (below)
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (typeof n.name === 'string' && START_COUNTED_CLOCK.includes(n.name)) return true
+    // ⛔ another timeframe's read (`OTHER_TIMEFRAME_NODES`): its reach in chart bars is a span ESTIMATE (`lint.js`: a period
+    // is counted as a fixed number of chart bars), not a bound, and its first period on a page is partial. MEASURED: the
+    // census's one remaining wrong plot after the reach rule was a monthly `valuewhen` whose estimated reach fit the probe.
+    if (OTHER_TIMEFRAME_NODES.includes(n.type)) return true
+    // ⛔ a call whose declared reach is not a WINDOW (`closedTable.json` lookback: a number, or `argN` / `k*argN`): a
+    // `series` reach (`cum`, an anchored VWAP, `valuewhenOccurrence`) or a `session` one is not a bar count the linter
+    // can bound. MEASURED (the rail): `cum(close)` came back with a finite reach. A function the table does not name is
+    // refused the same way.
+    if (n.type === 'call' && !windowReach(n.name)) return true
+    for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
+  }
+  return false
+}
+
+const FUNCTIONS = (TABLE && TABLE.functions) || {}
+const WINDOW_LOOKBACK = /^(\d+\*)?arg\d+$/
+const windowReach = (name) => {
+  const spec = typeof name === 'string' && Object.prototype.hasOwnProperty.call(FUNCTIONS, name) ? FUNCTIONS[name] : null
+  if (!spec) return false
+  const lb = spec.lookback
+  return (typeof lb === 'number' && Number.isFinite(lb)) || (typeof lb === 'string' && WINDOW_LOOKBACK.test(lb))
+}
+
+/** May plot `key` of `def` be drawn from a page: its tree's reach is finite and within the probe, and it reads no
+ *  start-counted clock leaf. Exported for its rail. */
+export function pageReachProvable(def, key) {
+  const trees = astTrees(def)
+  const tree = trees ? trees[key] : (def && def.compute && def.compute.ast)
+  if (!tree || typeof tree !== 'object') return false
+  let back
+  try { back = maxLookback(tree, { inputs: declaredInputs(def) }) } catch { return false }
+  return typeof back === 'number' && Number.isFinite(back) && back >= 0 && back <= FIRST_PAGE_PROBE
+    && !readsStartCounted(tree)
+}
 
 /** Do two columns hold the same value on the last `n` bars, bit for bit (`NaN` equal to `NaN`)? */
 export function sameTail(a, b, n) {
@@ -47,7 +110,7 @@ export function firstPageWindow(def, rows, scalars, ctx, stop) {
   for (const key of Object.keys(page)) {
     const col = page[key]
     if (!col || typeof col.length !== 'number' || col.length !== FIRST_PAGE_ROWS) continue
-    const same = sameTail(col, probe[key], FIRST_PAGE_ROWS)
+    const same = sameTail(col, probe[key], FIRST_PAGE_ROWS) && pageReachProvable(def, key)
     keys.push(key)
     exact.push(same)
     values.push(same ? Float64Array.from(col) : null)
