@@ -18579,7 +18579,8 @@ function StockChartBody({
           // the wrapper is inherited by the whole chart, so a changed value written here made this pass's next read
           // restyle every element of it (trace, 2026-11-26: 311 elements, 2-4.5 ms, a frame after each switch). Its
           // one reader is the deal notice, which none of those reads measure; the frame restyles once instead.
-          lookbackVar = `${plan.lookbackBottom}px`
+          const want = `${plan.lookbackBottom}px`
+          lookbackVar = want
           const vl = volLegendRef.current
           if (vl) {
             // The VOLUME pane's own top — asked of the volume series, for the same
@@ -18667,8 +18668,9 @@ function StockChartBody({
         }
       } catch { return null /* pane API missing → CSS fallback; keep measuring */ } finally {
         const host = wrapperRef.current
-        if (host && lookbackVar !== null && host.style.getPropertyValue('--lookback-bottom') !== lookbackVar) {
-          host.style.setProperty('--lookback-bottom', lookbackVar)
+        const want = lookbackVar
+        if (host && want !== null && host.style.getPropertyValue('--lookback-bottom') !== want) {
+          host.style.setProperty('--lookback-bottom', want)
         }
       }
       return settled ? sig : null
