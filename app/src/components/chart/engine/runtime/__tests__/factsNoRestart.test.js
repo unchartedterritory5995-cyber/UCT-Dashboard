@@ -78,6 +78,30 @@ describe('the run asked under the new facts resumes from the run that ran', () =
     expect(b).not.toEqual(a) // non-vacuity: the fact changes the answer
   })
 
+  it('⛔ a fact folded into the PROGRAM (a function body, a `var` seed, a loop), not a column: `sameProgram` refuses it', () => {
+    // the column check (`sameColumnsTo`) catches a fact read in a plain series expression; these reads live in code
+    // the VM runs, so ONLY `sameProgram` can refuse the other session (mutant F2)
+    const candidates = {
+      fnBody: ['f(x) => syminfo.prefix == "NASDAQ" ? x + 1 : x - 1', 'var float s = 0.0', 's := f(s)', 'plot(s + close)'],
+      varSeed: ['var float s = syminfo.prefix == "NASDAQ" ? 1.0 : -1.0', 's := s + close', 'plot(s)'],
+      loop: ['float s = 0.0', 'for i = 0 to 2', '    s += syminfo.prefix == "NASDAQ" ? close : -close', 'plot(s)'],
+    }
+    const whys = {}
+    for (const [name, body] of Object.entries(candidates)) {
+      const d = doc(src(...body))
+      const a = Array.from(computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NASDAQ' })).a)
+      const bCols = computeRuntimeColumns(d, BARS, ctxOf({ exchange: 'NYSE' }))
+      const inc = runtimeIncrementalOf(bCols)
+      whys[name] = inc.why
+      expect(inc.ranBars, name).toBe(BARS.length)
+      const b = Array.from(bCols.a)
+      expect(b, name).toEqual(cold(d, BARS, ctxOf({ exchange: 'NYSE' })))
+      expect(b, name).not.toEqual(a)
+    }
+    // non-vacuity: at least one candidate is refused by the PROGRAM check, not the columns one
+    expect(Object.values(whys), JSON.stringify(whys)).toContain('the program changed')
+  })
+
   it('⛔ a run with request sites is never served across facts (the listing date and the bind are read outside the program)', () => {
     const SPY = DAYS.map((t, i) => ({ t, o: 500, h: 505, l: 495, c: 500 + 2 * i, v: 9000 }))
     const extra = { exchangeOf: (t) => (t === 'SPY' ? 'NYSE Arca' : null),
