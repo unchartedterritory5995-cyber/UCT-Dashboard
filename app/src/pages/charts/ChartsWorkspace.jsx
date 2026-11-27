@@ -50,7 +50,7 @@ import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
 import useStaggeredMount from './grid/useStaggeredMount'
 import { createBoardSwitchMark, userSwitchRenders } from './boardSwitchMark'
-import { chartWarmKey } from './chartWarmKey'
+import { chartWarmKey, warmAdmissionOn } from './chartWarmKey'
 import { popoutAddWidgetId, popoutRemoveWidgetId } from './popout/popoutState'
 import MobileChartsApp from './mobile/MobileChartsApp'
 import { findPlacement } from './findOpenSlot'
@@ -1208,7 +1208,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // switch's own commit, together (nothing to fetch, so no herd); its other widgets one frame later. Cold charts, first
   // loads and reverts keep the paced admission below. The store answers through its registered reader, no import edge
   // (data/barStore/prefetch STORE_HOLDS_KEY): no reader yet (no chart loaded on this page) reads as cold.
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it. (Declared here, above the warm lane
+  // that reads it: no warm admission in replay mode, its charts show a windowed key, chartWarmKey.warmAdmissionOn.)
+  const [replayCutoff, setReplayCutoff] = useState(null)
   const userSwitchRender = userSwitchRenders(userSwitchRef.current, layout)
+  const warmLaneOn = warmAdmissionOn({ userSwitch: userSwitchRender, replayCutoff })
   const warmChartNow = (id) => {
     const holds = typeof globalThis !== 'undefined' ? globalThis.__uctStoreHoldsBars : null
     if (typeof holds !== 'function') return false
@@ -1227,7 +1231,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
     limit: PANEL_MOUNT_CAP,
     minAdmitIntervalMs: PANEL_ADMIT_INTERVAL_MS,
-    admitNowFor: userSwitchRender ? warmChartNow : null,
+    admitNowFor: warmLaneOn ? warmChartNow : null,
     nextFrameFor: userSwitchRender ? nonChartSoon : null,
     slotTimeoutFor: (id) => {
       const w = layout.widgets.find(x => x.id === id)
@@ -1305,8 +1309,6 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const [compareIntent, setCompareIntent] = useState(null)
   // The tab the open panel shows ('overlay' | 'rotation'), as the panel reports it (onTabChange); null while it is closed.
   const [compareTab, setCompareTab] = useState(null)
-  // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
-  const [replayCutoff, setReplayCutoff] = useState(null)
   // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
   // it writes the SAME shared `replayCutoff` chart prop but edits no CPS file).
   const [replayOpen, setReplayOpen] = useState(false)

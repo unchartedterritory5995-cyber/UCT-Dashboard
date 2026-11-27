@@ -15,6 +15,13 @@ import { effectiveGroup, isSuspendedGroup } from './colorGroups'
  * @param {boolean} extraGroupsOn
  * @returns {{ sym: string, tf: string, showExtended: boolean } | null}  null: not a chart, or no group symbol it shows
  */
+/** Is the warm lane on for this render? Only on a member's switch, and never in replay mode: there every chart shows a
+ *  WINDOWED key (the replay cutoff, workspace session state no saved layout carries) that chartWarmKey does not name
+ *  (review H2). Off keeps today's paced admission. */
+export function warmAdmissionOn({ userSwitch = false, replayCutoff = null } = {}) {
+  return !!userSwitch && !replayCutoff
+}
+
 export function chartWarmKey(tab, groupSyms, accountCs = null, extraGroupsOn = false) {
   if (!tab || tab.type !== 'chart') return null
   const opts = tab.opts || {}

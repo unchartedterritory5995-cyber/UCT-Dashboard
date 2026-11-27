@@ -972,10 +972,13 @@ export function createPrefetch(o = {}) {
    *  mid-render): it is simply not warm. */
   function peekSealedBars(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
-    const s = key ? S().peek(key) : null
+    const st = S()
+    // ⛔ a store without these accessors can vouch for nothing: cold (review H3: `!undefined` would read as "nothing due")
+    if (typeof st.network?.answered !== 'function' || typeof st.deepPending !== 'function' || typeof st.lakePending !== 'function') return false
+    const s = key ? st.peek(key) : null
     if (!s || !(s.bars.length > 0)) return false
-    if (!(s.restSeen && S().network?.answered?.(key))) return false
-    return !S().deepPending?.(key) && !S().lakePending?.(key)
+    if (!(s.restSeen && st.network.answered(key))) return false
+    return !st.deepPending(key) && !st.lakePending(key)
   }
 
   function heldRows(sym, tf, { showExtended, answered = false } = {}) {
