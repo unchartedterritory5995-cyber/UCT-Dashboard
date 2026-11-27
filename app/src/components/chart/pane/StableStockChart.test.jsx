@@ -14,7 +14,7 @@ vi.mock('../../StockChart', () => ({
 const { default: StableStockChart } = await import('./StableStockChart')
 
 const LISTED = ['onSettingsPersist', 'onSymbolChange', 'onTfChange', 'onWatermarkAdjustEnd', 'onWatermarkAnchor',
-  'onTimeRangeChange', 'onDateNavApi', 'onDrawnBarCount']
+  'onTimeRangeChange', 'onDateNavApi', 'onDrawnBarCount', 'onSaveColor', 'onDeleteColor', 'onVolumePaneResize']
 const SETTINGS = Object.freeze({ k: 1 })
 /** A pane render: the same values, and every callback a NEW function that records which render made it. */
 const propsOf = (gen, calls, extra = {}) => ({
