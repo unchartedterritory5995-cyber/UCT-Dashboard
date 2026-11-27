@@ -2080,7 +2080,21 @@ export function createPrefetch(o = {}) {
    *  key's task. Each linked key not already held in a painting state is asked now (its first page, at `visible` rank so
    *  it never queues behind background work), then joined: the lake's depth for intraday, the deep sealed history for
    *  D/W/M. At most LINKED_TYPED_MAX keys; `signal` is the typed warm's own (a newer text aborts it, Enter keeps it). */
-  function _fetchLinked(T, tf, alsoTfs, signal) {
+  let _linkedCtl = null   // the newest text's linked fetches (B2, review of #2934)
+  function _fetchLinked(T, tf, alsoTfs, warmSignal) {
+    // ⛔ (review of #2934, B2) EVERY TEXT'S LINKED FETCHES ARE CANCELLED BY THE NEXT TEXT'S. They run under one controller
+    // per call, aborted by the next call, and by the typed warm's own signal when it has one. A warm that asked nothing
+    // (its key already held) has no signal, and a warm that finished drops its controller, so without this a held
+    // suggestion's linked fetches outlived the text: with the 0 ms highlight warm, three highlights in a row left nine
+    // requests running. (A fetch another caller joined, the switch's own, is only detached, never aborted: network.js.)
+    if (_linkedCtl) _linkedCtl.abort()
+    const ctl = new AbortController()
+    _linkedCtl = ctl
+    if (warmSignal) {
+      if (warmSignal.aborted) ctl.abort()
+      else warmSignal.addEventListener?.('abort', () => ctl.abort(), { once: true })
+    }
+    const signal = ctl.signal
     const own = String(tf)
     const seen = new Set([own, String(fetchTf(own))])
     let n = 0

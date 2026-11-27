@@ -21,8 +21,9 @@ vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return ()
 const painted = vi.hoisted(() => [])
 vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) => { painted.push(a) } }))
 // the rows the store holds for the shadow's row, counted in the view's session (0: uncountable, the check stands aside)
-const held = vi.hoisted(() => ({ rows: 0 }))
-vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => held.rows }))
+const held = vi.hoisted(() => ({ rows: 0, deep: true }))
+// ...and whether more is still coming for it (D: the deep history due; review of #2934, L3)
+vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => held.rows, deepPending: () => held.deep, lakePending: () => held.deep }))
 
 const { useDoubleBuffer, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
@@ -121,6 +122,20 @@ describe('useDoubleBuffer', () => {
     press(h, 'BBB')
     expect(h.result.current.front).toBe(0)                  // the front switched, no flip
     expect(db.doubleBufferStats().flips).toBe(0)
+  })
+
+  // (review of #2934, L3) ...unless nothing more is coming for it: a young listing's whole history is shorter than the
+  // view, the switch paints it at once (its own exemption), and so the shadow flips
+  it('H12c a short shadow whose history is whole (nothing more coming) flips', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    held.rows = COVER_ROWS - 1
+    held.deep = false
+    try {
+      const h = await ready()
+      press(h, 'BBB')
+      expect(h.result.current.front).toBe(1)
+      expect(db.doubleBufferStats().flips).toBe(1)
+    } finally { held.deep = true }
   })
 
   it('H12b control: a shadow whose rows cover the view flips', async () => {
