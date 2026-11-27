@@ -32,9 +32,14 @@ import { BAR_BUDGET_DESKTOP, noteKeyEvicted } from '../../lib/barBudget'
 // ⭐ (review of #2935, E1) EVERY ENTRY LIFE HAS ITS OWN GENERATIONS. An action carries the `gen` read when its work began
 // (a request, a read) and the reducer refuses another (`staleReason` 'gen'). A new entry started at gen 0, and so had
 // the entry an eviction dropped: an answer in flight across the eviction (a `since=` delta asked of the old life) was
-// accepted by the new, EMPTY entry, which then held only the rows since `since`, "answered". Each new entry now starts
-// at a page-unique base (LIFE_STRIDE apart: a life's own invalidations count up from it, never into the next life's).
+// accepted by the new, EMPTY entry, which then held only the rows since `since`, "answered". An entry RE-CREATED after its
+// key was evicted now starts at a page-unique base (LIFE_STRIDE apart: a life's own invalidations count up from it, never
+// into the next life's). A key's FIRST life keeps gen 0 (nothing earlier can be in flight for it; callers and fixtures
+// that dispatch `gen: 0` to a fresh key are its own life). The registry remembers the keys it evicted (EVICTED_KEYS_KEPT,
+// oldest forgotten first: a forgotten key's request in flight was aborted at its eviction and its landing is dropped,
+// network.js, so the generation is the third of three guards).
 const LIFE_STRIDE = 2 ** 20
+const EVICTED_KEYS_KEPT = 20_000
 let _lives = 0
 const _lifeGen = () => (++_lives) * LIFE_STRIDE
 /** The first generation of an entry made now (tests). */
@@ -84,6 +89,8 @@ export function createRegistry({
   const entries = new Map()
   let clock = 0
   let totalBars = 0
+  /** The keys this registry evicted (a re-created entry's life gets a page-unique generation), oldest first. */
+  const evictedKeys = new Set()
   /** This registry's own eviction listeners (its network aborts the dropped key's request in flight). */
   const evictSubs = new Set()
   let idleEvict = false
@@ -112,7 +119,8 @@ export function createRegistry({
   function _entry(key) {
     let e = entries.get(key)
     if (!e) {
-      const state = Object.freeze({ ...initialState(key, ctxFor(key)), gen: _lifeGen() })
+      const fresh = initialState(key, ctxFor(key))
+      const state = evictedKeys.has(key) ? Object.freeze({ ...fresh, gen: _lifeGen() }) : fresh
       e = { state, base: state, refs: 0, subs: new Set(), used: ++clock }
       entries.set(key, e)
     }
@@ -187,6 +195,8 @@ export function createRegistry({
         gone.add(it.key)
         totalBars -= it.e.state.depth
         entries.delete(it.key)
+        evictedKeys.delete(it.key); evictedKeys.add(it.key)
+        if (evictedKeys.size > EVICTED_KEYS_KEPT) evictedKeys.delete(evictedKeys.values().next().value)
         for (const cb of [...evictSubs]) { try { cb(it.key) } catch { /* a listener's failure never blocks the rest */ } }
         noteKeyEvicted(it.key)
       }
