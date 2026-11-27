@@ -16,6 +16,11 @@
 //       back): once it succeeds, the written value is on screen again
 //   RO6 (red first, L1) the boot read (the request main.jsx started at page load) lands under a write made before the
 //       hook's fetcher took it: the write is not undone
+// Review of #2929:
+//   RO7 (red first) after a late success is put back, a read follows: a newer value written by another device after
+//       it lands (it is not masked until the next 5-minute read)
+//   RO8 a newer local write of the key made before the late answer stays (the late settle puts nothing back)
+//   RO9 a late REFUSAL puts nothing back
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { mutate as mutateGlobal } from 'swr'
@@ -29,6 +34,7 @@ let server
 let gate
 let postStatus
 let postGate
+let afterPost
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r }); return { promise, resolve } }
 const isRead = (init) => !init || !init.method || String(init.method).toUpperCase() === 'GET'
@@ -39,6 +45,7 @@ beforeEach(async () => {
   server = { a: '1', b: '1' }
   gate = null
   postGate = null
+  afterPost = null
   postStatus = 200
   boot.next = null
   global.fetch = vi.fn(async (url, init) => {
@@ -52,6 +59,7 @@ beforeEach(async () => {
     if (postStatus !== 200) return json({ detail: 'refused' }, postStatus)
     const body = JSON.parse(init.body || '{}')
     if (body && body.key) server = { ...server, [body.key]: body.value }
+    if (afterPost) { const f = afterPost; afterPost = null; f() }   // another device writes right after
     return json({ ok: true })
   })
 })
@@ -139,5 +147,46 @@ describe('a read never undoes a newer local write (review of #2928)', () => {
     const { result } = renderHook(() => usePreferences())
     await waitFor(() => expect(result.current.prefs.b, 'NON-VACUITY: the boot answer landed').toBe('2'))
     expect(result.current.prefs.a, 'the boot answer undid a newer local write').toBe('8')
+  })
+})
+
+describe('a late answer (review of #2929)', () => {
+  async function expiredWrite(result, value) {
+    const g = deferred()
+    postGate = g
+    let w
+    await act(async () => { w = result.current.setPref('a', value) })
+    const t0 = Date.now()
+    vi.spyOn(Date, 'now').mockImplementation(() => t0 + 31000)          // the hold is over
+    await act(async () => { await refreshPreferences() })              // a read lands the old value
+    expect(result.current.prefs.a, 'NON-VACUITY: the old value is back on screen').toBe('1')
+    return { g, w }
+  }
+
+  it('RO7 (red first) after a late success a read follows: another device\'s newer value lands', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    afterPost = () => { server = { ...server, a: 'Z' } }                // written elsewhere right after ours
+    await act(async () => { g.resolve(); await w })
+    await waitFor(() => expect(result.current.prefs.a, 'the server\'s newer value stayed masked').toBe('Z'))
+  })
+
+  it('RO8 a newer local write made before the late answer stays', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    let w2
+    await act(async () => { w2 = result.current.setPref('a', '9') })     // queued behind the first POST
+    await act(async () => { g.resolve(); await w; await w2 })
+    expect(server.a).toBe('9')
+    await waitFor(() => expect(result.current.prefs.a, 'the late settle undid a newer write').toBe('9'))
+  })
+
+  it('RO9 a late refusal puts nothing back', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    postStatus = 500
+    await act(async () => { g.resolve(); await w })
+    expect(server.a).toBe('1')
+    expect(result.current.prefs.a, 'a refused write was put back on screen').toBe('1')
   })
 })
