@@ -37,7 +37,7 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'u1', role: 'user', display_name: 'Pat' } }),
 }))
 
-import { ScanRows } from './Watchlists'
+import { ScanRows, rowSizeCacheKey, measureRememberedRow, ROW_SIZE_ROWS_MAX, ROW_SIZE_CORRECTIONS_MAX } from './Watchlists'
 
 const ITEMS = Array.from({ length: 60 }, (_, i) => ({ id: `R${i}`, sym: `R${i}` }))
 const ROW_PX = 40
@@ -174,5 +174,110 @@ describe('ScanRows: a remounted list starts from the row sizes it measured', () 
     const uses = src.split('<ScanRows').slice(1).map((s) => s.slice(0, s.indexOf('/>')))
     expect(uses.length).toBeGreaterThanOrEqual(2)
     for (const u of uses) expect(u).toMatch(/sizeCacheKey=\{/)
+  })
+})
+
+// The virtualizer asks the scroller's own window for its observer (jsdom's window, not the test global).
+function withRowObservers(fn) {
+  const win = document.defaultView
+  const prevRO = win.ResizeObserver
+  const observers = []
+  win.ResizeObserver = class {
+    constructor(cb) { this.cb = cb; this.els = new Set(); observers.push(this) }
+    observe(el) { this.els.add(el) }
+    unobserve(el) { this.els.delete(el) }
+    disconnect() { this.els.clear() }
+  }
+  const deliver = (container, index, blockSize) => {
+    const row = container.querySelector(`[data-index="${index}"]`)
+    const ro = observers.find((o) => o.els.has(row))
+    if (!ro) throw new Error(`row ${index} is not observed`)
+    ro.cb([{ target: row, borderBoxSize: [{ blockSize, inlineSize: 300 }] }], ro)
+  }
+  return Promise.resolve(fn(deliver)).finally(() => { win.ResizeObserver = prevRO })
+}
+const GEOM = { fontSize: 11, logoPx: 16, columns: ['flag', 'sym', 'chg'], touch: false, viewportW: 1400 }
+
+describe('ScanRows: the remembered sizes are keyed by everything that sets a row height (review of #2907)', () => {
+  it('R6 the key separates logos on/off, logo size, column sets, touch tier and viewport band; no id: no key', () => {
+    const k = (over) => rowSizeCacheKey({ kind: 'wl', id: 'L1', ...GEOM, ...over })
+    expect(k({})).not.toBe(k({ logoPx: 0 }))
+    expect(k({})).not.toBe(k({ logoPx: 20 }))
+    expect(k({})).not.toBe(k({ columns: ['flag', 'sym', 'chg', 'spark'] }))
+    expect(k({})).not.toBe(k({ fontSize: 13 }))
+    expect(k({})).not.toBe(k({ touch: true }))
+    expect(k({})).not.toBe(k({ viewportW: 800 }))
+    expect(k({}), 'same inputs, same key').toBe(k({ columns: ['flag', 'sym', 'chg'] }))
+    for (const id of [null, undefined, '']) expect(rowSizeCacheKey({ kind: 'wl', id, ...GEOM })).toBeNull()
+  })
+
+  it('R7 scans are keyed by their host's stable id, never the display name: two hosts never share, a host with none is not remembered', () => {
+    const scan = (id) => rowSizeCacheKey({ kind: 'scan', id, ...GEOM })
+    expect(scan('breadth-drill')).not.toBe(scan('etf-holdings'))
+    expect(scan(null)).toBeNull()
+    const src = readFileSync(join(process.cwd(), 'src/pages/Watchlists.jsx'), 'utf8')
+    const uses = src.split('<ScanRows').slice(1).map((s) => s.slice(0, s.indexOf('/>')))
+    const keyed = uses.map((u) => /sizeCacheKey=\{rowSizeCacheKey\(\{ kind: '(\w+)', id: ([\w.]+)/.exec(u))
+    expect(keyed.every(Boolean), 'every list keys through rowSizeCacheKey').toBe(true)
+    expect(keyed.find((m) => m[1] === 'scan')[2]).toBe('colStorageKey')
+    expect(keyed.find((m) => m[1] === 'wl')[2]).toBe('wl.id')
+  })
+
+  it('R8 two keys (logos on, logos off) keep separate memories: neither re-seeds the other', async () => {
+    const on = mountList('list:R8|l16')
+    await frames()
+    on.unmount()
+    T.rowPx = Object.fromEntries(ITEMS.map((it) => [it.id, 50])) // logos off: another row height
+    const off = mountList('list:R8|l0')
+    await frames()
+    expect(rowTop(off.container, 2)).toBe(100)
+    off.unmount()
+    T.rowPx = {}
+    T.rowReads = 0
+    const again = mountList('list:R8|l16')
+    await frames()
+    expect(T.rowReads, 'remembered').toBe(0)
+    expect(rowTop(again.container, 2), 'its own sizes, not the other widget's').toBe(2 * ROW_PX)
+  })
+
+  it('R9 (red first) a remembered size the observer contradicts is committed before paint (inside the observer callback)', () =>
+    withRowObservers(async (deliver) => {
+      const view = mountList('list:R9')
+      await frames()
+      view.rerender(<List cacheKey="list:R9" show={false} />)
+      view.rerender(<List cacheKey="list:R9" />)
+      await frames()
+      expect(rowTop(view.container, 2)).toBe(2 * ROW_PX)
+      // NOT inside act: what the DOM holds when the callback returns is what the frame paints
+      deliver(view.container, 1, 70)
+      expect(rowTop(view.container, 2), 'rows still at the stale offsets when the frame paints').toBe(ROW_PX + 70)
+      await act(async () => {})
+    }))
+
+  it(`R10 more than ${ROW_SIZE_CORRECTIONS_MAX} corrections in one mount drop the list's memory: the next mount measures`, () =>
+    withRowObservers(async (deliver) => {
+      const view = mountList('list:R10')
+      await frames()
+      view.rerender(<List cacheKey="list:R10" show={false} />)
+      view.rerender(<List cacheKey="list:R10" />)
+      await frames()
+      for (let i = 0; i <= ROW_SIZE_CORRECTIONS_MAX; i++) await act(async () => { deliver(view.container, i, 60) })
+      view.rerender(<List cacheKey="list:R10" show={false} />)
+      T.rowReads = 0
+      view.rerender(<List cacheKey="list:R10" />)
+      await frames()
+      expect(T.rowReads, 'a dropped memory measures on the next mount').toBeGreaterThan(0)
+    }))
+
+  it('R11 a row with no index is not remembered; one list remembers at most ROW_SIZE_ROWS_MAX rows', () => {
+    const el = { offsetHeight: 33 }
+    const mem = { sizes: new Map(), corrections: 0, dropped: false, correctedNow: false }
+    const inst = (index) => ({ indexFromElement: () => index, options: { getItemKey: (i) => `K${i}` } })
+    expect(measureRememberedRow(el, undefined, inst(-1), mem)).toBe(33)
+    expect(mem.sizes.size, 'index -1 cached').toBe(0)
+    for (let i = 0; i < ROW_SIZE_ROWS_MAX; i++) mem.sizes.set(`X${i}`, 30)
+    measureRememberedRow(el, undefined, inst(7), mem)
+    expect(mem.sizes.size).toBeLessThanOrEqual(ROW_SIZE_ROWS_MAX)
+    expect(mem.sizes.get('K7')).toBe(33)
   })
 })
