@@ -9,6 +9,10 @@
 //   R2 a remount with another symbol (different text) reads again
 //   R3 another chart id with the same header reads again (the answer is per chart)
 //   R4 after the page's fonts finish loading (document.fonts 'loadingdone') a remount reads again
+//   R5 (red first, review of #2873) the signature is the row's CONTENT, not its sizes: an equal-length symbol (NVDA ->
+//      MSFT) on the same chart reads again
+//   R6 (red first) an equal-length class swap or a different icon changes the signature (rowFitSig over real elements)
+//   R7 (red first) a theme change (an attribute on <html>) reads again
 import { render, cleanup } from '@testing-library/react'
 import { vi, test, expect, afterEach } from 'vitest'
 
@@ -80,7 +84,7 @@ vi.mock('../../../hooks/useMarketOpen', () => ({
 vi.mock('../../../utils/extSession', () => ({ getExtSessionCached: () => ({ session: 'post' }) }))
 
 
-import ChartPane from './ChartPane'
+import ChartPane, { rowFitSig } from './ChartPane'
 
 const READS = { n: 0, on: false }
 for (const p of ['scrollWidth', 'clientWidth']) {
@@ -121,3 +125,25 @@ test('R4 after the fonts finish loading a remount reads again', () => {
   fonts.dispatchEvent(new Event('loadingdone'))
   expect(mountReads({ chartId: 'r4-chart', sym: 'NVDA' }), 'a fit measured before a font load reused after it').toBeGreaterThan(0)
 })
+
+test('R5 (red first) an equal-length symbol on the same chart reads again', () => {
+  mountReads({ chartId: 'r5-chart', sym: 'NVDA' })
+  expect(mountReads({ chartId: 'r5-chart', sym: 'MSFT' }), 'MSFT reused the fit measured on NVDA').toBeGreaterThan(0)
+})
+
+test('R6 (red first) an equal-length class swap or another icon changes the row signature', () => {
+  const mk = (html) => { const el = document.createElement('div'); el.innerHTML = html; return el }
+  expect(rowFitSig(mk('<span class="aa">NVDA</span>'))).not.toBe(rowFitSig(mk('<span class="bb">NVDA</span>')))
+  expect(rowFitSig(mk('<svg><path d="M0 0L9 9"></path></svg>'))).not.toBe(rowFitSig(mk('<svg><path d="M9 9L0 0"></path></svg>')))
+  expect(rowFitSig(mk('<span class="aa">NVDA</span>'))).toBe(rowFitSig(mk('<span class="aa">NVDA</span>')))
+})
+
+test('R7 (red first) a theme change reads again', async () => {
+  mountReads({ chartId: 'r7-chart', sym: 'NVDA' })
+  document.documentElement.dataset.theme = 'light'
+  await Promise.resolve()
+  await new Promise((r) => setTimeout(r, 0))
+  expect(mountReads({ chartId: 'r7-chart', sym: 'NVDA' }), 'a fit measured under another theme reused').toBeGreaterThan(0)
+  delete document.documentElement.dataset.theme
+})
+

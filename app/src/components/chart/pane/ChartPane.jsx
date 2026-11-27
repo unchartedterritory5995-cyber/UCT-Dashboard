@@ -130,7 +130,7 @@ function rememberLadderClip(chartId, sig, clipped) {
   if (_ladderClips.size > LADDER_CLIPS_MAX) _ladderClips.delete(_ladderClips.keys().next().value)
 }
 
-function rowFitSig(el) {
+export function rowFitSig(el) {
   if (!el) return '-'
   const all = el.getElementsByTagName('*')
   let cls = 0
