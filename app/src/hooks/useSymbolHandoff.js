@@ -32,6 +32,7 @@ import { memPeek } from '../utils/barsMemCache'
 import * as legacyPrefetch from '../utils/prefetchBars'
 import * as storePrefetch from '../data/barStore/prefetch'
 import { BARSTORE } from '../components/chart/barStoreSwitch'
+import { COVER_ROWS } from '../data/barStore/coverRows'
 import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
@@ -86,7 +87,7 @@ setSwitchEnv({ store: DEVICE, rth: inRegularSession })
  * and the chart's render window (newest >= 600 rows) holds no more. So a held key with this many rows paints
  * now, and the depth joins behind the view (it moves no right-edge geometry; the first-paint rails hold it).
  */
-export const COVER_ROWS = 600
+export { COVER_ROWS }
 const covers = (sym, tf, opts = {}) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= COVER_ROWS
 
 // ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20). WHEN a member of a linked group shows a

@@ -100,6 +100,112 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.store.lakePending(key)).toBe(false)                             // so the handoff paints it at once
   })
 
+  // ⭐ (2026-11-26, typed vs arrow on a board with a list) A typed LIST member is already held: the list's warm answered it
+  // (~500-1,100 bars), and the typed warm returned at once, so its lake depth joined only AFTER Enter (pieces asked +31 ms,
+  // the whole chart drawn again +85-400 ms), where an arrow onto the next row paints the whole depth in its first frame.
+  it('a typed ticker already HELD shallow (the list warm answered it) has the lake\'s whole depth joined BEFORE Enter', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })                   // the list's warm: an answer, no lake load
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(key).restSeen).toBe(true)
+    expect(w.store.peek(key).bars[0].t).toBeGreaterThan(OPEN - 300 * 60)    // shallow: the answer's rows only
+    expect(w.store.lakePending(key)).toBe(true)
+    const asked = w.server.calls.length
+    expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)                    // held and painting: nothing to ask...
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(key).bars[0].t).toBe(OPEN - 300 * 60)               // ...but the whole depth is in, before Enter
+    expect(w.store.lakePending(key)).toBe(false)                             // so Enter paints it whole, at once
+    expect(w.server.calls.length).toBe(asked)                                // and no bar request was made for it
+  })
+
+  // ⭐ (2026-11-26) ...and the LINKED charts' keys (the host's alsoTfs): each held one with its depth still due joins too
+  const linkedLake = () => ({
+    olderBars: vi.fn(async (key, beforeT) => {
+      const step = /(^|[^0-9])15([^0-9]|$)/.test(String(key)) ? 900 : 300
+      const out = []
+      for (let t = OPEN - step * 200; t <= OPEN + 600; t += step) out.push({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
+      return { bars: out.filter((b) => b.t < beforeT) }
+    }),
+    prime: vi.fn(),
+    hasSymbol: vi.fn(async () => true),
+  })
+  for (const held5 of [true, false]) {
+    it(`a linked chart's held key (alsoTfs 15) has its lake depth joined before Enter (typing chart's key ${held5 ? 'held' : 'not held'})`, async () => {
+      const lake = linkedLake()
+      const w = await boot({ lake })
+      const k15 = w.k('REAL', '15')
+      if (held5) w.store.ensure(w.k('REAL', '5'), { priority: 'grid', warm: true })
+      w.store.ensure(k15, { priority: 'grid', warm: true })
+      await w.server.drain()
+      await vi.advanceTimersByTimeAsync(20)
+      expect(w.store.lakePending(k15)).toBe(true)
+      const first = w.store.peek(k15).bars[0].t
+      w.pf.warmTypedSymbol('REAL', '5', { alsoTfs: ['15', 'D'] })
+      await vi.advanceTimersByTimeAsync(100)
+      await w.server.drain()
+      await vi.advanceTimersByTimeAsync(50)
+      expect(w.store.peek(k15).bars[0].t).toBeLessThan(first)                  // deeper, before Enter
+      expect(w.store.lakePending(k15)).toBe(false)
+    })
+  }
+
+  // (review of #2866, LOW) Enter's subscribe (index._start) and the handoff ask lakeSeed again for a key whose load already
+  // settled at what an ANSWERED entry holds: a second load re-reads and re-decodes the same pieces to add nothing.
+  it('an answered key whose lake load settled at what it holds starts no second load', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
+    const loads = lake.olderBars.mock.calls.length
+    await expect(w.store.lakeSeed(key, { awaited: true })).resolves.toBe(false)
+    expect(lake.olderBars.mock.calls.length).toBe(loads)
+  })
+
+  // (review of #2871, HIGH) ...but an entry that LOST depth since its load settled (a basis / cache_key / history_rev
+  // reset, an eviction rebuilt shallow) is exactly what lakePending says is due: it is loaded again, at once
+  it('an answered entry reset below its settled depth is loaded again (lakePending and lakeSeed agree)', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const { ACTION } = await import('./types')
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
+    const settledAt = w.store.peek(key).bars.length
+    w.store.registry.dispatch(key, { type: ACTION.INVALIDATE, key, reason: 'history_rev' })   // a reset
+    w.store.ensure(key, { priority: 'grid', warm: true, until: [] })                        // answered again, shallow
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(key).restSeen).toBe(true)
+    expect(w.store.peek(key).bars.length).toBeLessThan(settledAt)
+    expect(w.store.lakePending(key)).toBe(true)
+    const loads = lake.olderBars.mock.calls.length
+    await expect(w.store.lakeSeed(key)).resolves.toBe('join')
+    expect(lake.olderBars.mock.calls.length).toBe(loads + 1)
+  })
+
+  it('a typed ticker held WHOLE (its lake load settled) starts no second lake load', async () => {
+    const lake = lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL'] })
+    const w = await boot({ lake })
+    const key = w.k('REAL', '5')
+    w.store.ensure(key, { priority: 'grid', warm: true })
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(20)
+    await w.store.lakeSeed(key)                                              // joined (as a hover or a neighbour would)
+    expect(w.store.lakePending(key)).toBe(false)
+    const loads = lake.olderBars.mock.calls.length
+    expect(w.pf.warmTypedSymbol('REAL', '5')).toBe(null)
+    await vi.advanceTimersByTimeAsync(20)
+    expect(lake.olderBars.mock.calls.length).toBe(loads)
+  })
+
   // ⭐ Measured 2026-11-17 at 00:36 ET (flip proof, server at normal speed): first paints ended at
   // 11:05 the day before, and that session's afternoon arrived ~500 ms later in view. Overnight and
   // pre-open, the session-completeness rule (marketSession, ramped to 100% the same night) is what
