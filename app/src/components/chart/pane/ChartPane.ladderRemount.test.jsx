@@ -13,6 +13,11 @@
 //      MSFT) on the same chart reads again
 //   R6 (red first) an equal-length class swap or a different icon changes the signature (rowFitSig over real elements)
 //   R7 (red first) a theme change (an attribute on <html>) reads again
+//   R8 (red first, delta review of #2873) a digits-only tick in the identity row (the day gain, the clock's seconds, its
+//      beat) reads no layout: every live digit is tabular-nums, so a digit never changes a width; a sign flip or a
+//      longer value still reads
+//   R9 a symbol differing only in a digit (its label is not tabular) on the same chart reads again (`sym` and the
+//      header label are part of the signature)
 import { render, cleanup } from '@testing-library/react'
 import { vi, test, expect, afterEach } from 'vitest'
 
@@ -41,11 +46,13 @@ vi.mock('../SymbolSearch', async () => {
 vi.mock('../ChartSettingsModal', () => ({
   default: ({ open }) => (open ? <div data-testid="settings-modal" /> : null),
 }))
+// the identity row's live text (a price tick, the clock's seconds, its beat), changed between renders by R8
+const { LIVE } = vi.hoisted(() => ({ LIVE: { gain: '+1.23 (0.45%)', clock: '10:00:05', beat: '1' } }))
 vi.mock('../../../pages/charts/widgets/ChartMarketClock', () => ({
-  default: () => <span data-testid="market-clock">clock</span>,
+  default: () => <span data-testid="market-clock" data-beat={LIVE.beat}>{LIVE.clock}</span>,
 }))
 vi.mock('../../../pages/charts/widgets/ChartDayGain', () => ({
-  default: ({ sym }) => <span data-testid="day-gain">{sym}</span>,
+  default: () => <span data-testid="day-gain">{LIVE.gain}</span>,
 }))
 vi.mock('../../../pages/charts/widgets/TimeframeMenu', () => ({
   default: () => <div data-testid="tf-menu" />,
@@ -134,7 +141,9 @@ test('R5 (red first) an equal-length symbol on the same chart reads again', () =
 test('R6 (red first) an equal-length class swap or another icon changes the row signature', () => {
   const mk = (html) => { const el = document.createElement('div'); el.innerHTML = html; return el }
   expect(rowFitSig(mk('<span class="aa">NVDA</span>'))).not.toBe(rowFitSig(mk('<span class="bb">NVDA</span>')))
-  expect(rowFitSig(mk('<svg><path d="M0 0L9 9"></path></svg>'))).not.toBe(rowFitSig(mk('<svg><path d="M9 9L0 0"></path></svg>')))
+  // another icon: a different shape (path commands). A change in digits alone (a coordinate, a size attribute) reads as
+  // the same width by design (every live digit in the header is tabular-nums; its geometry attributes are constant)
+  expect(rowFitSig(mk('<svg><path d="M0 0L9 9"></path></svg>'))).not.toBe(rowFitSig(mk('<svg><path d="M0 0H9V9"></path></svg>')))
   expect(rowFitSig(mk('<span class="aa">NVDA</span>'))).toBe(rowFitSig(mk('<span class="aa">NVDA</span>')))
 })
 
@@ -147,3 +156,23 @@ test('R7 (red first) a theme change reads again', async () => {
   delete document.documentElement.dataset.theme
 })
 
+
+test('R8 (red first) a digits-only tick reads no layout; a sign flip or a longer value reads', () => {
+  const props = { chartId: 'r8-chart', sym: 'NVDA', tf: 'D', onSymbolChange: noop, onTfChange: noop, slots: ONE_ROW }
+  const view = render(<ChartPane {...props} />)
+  const rerenderReads = () => { READS.n = 0; READS.on = true; view.rerender(<ChartPane {...props} />); READS.on = false; return READS.n }
+  expect(rerenderReads(), 'NON-VACUITY: an unchanged render reads nothing').toBe(0)
+  Object.assign(LIVE, { gain: '+1.24 (0.46%)', clock: '10:00:06', beat: '2' })
+  expect(rerenderReads(), 'a digits-only tick (price, clock, beat) read layout').toBe(0)
+  LIVE.gain = '-1.24 (0.46%)'
+  expect(rerenderReads(), 'a sign flip').toBeGreaterThan(0)
+  LIVE.gain = '-10.24 (0.46%)'
+  expect(rerenderReads(), 'a longer value').toBeGreaterThan(0)
+  view.unmount()
+  Object.assign(LIVE, { gain: '+1.23 (0.45%)', clock: '10:00:05', beat: '1' })
+})
+
+test('R9 a symbol differing only in a digit reads again on the same chart', () => {
+  mountReads({ chartId: 'r9-chart', sym: 'X1Y' })
+  expect(mountReads({ chartId: 'r9-chart', sym: 'X2Y' }), 'X2Y reused the fit measured on X1Y').toBeGreaterThan(0)
+})
