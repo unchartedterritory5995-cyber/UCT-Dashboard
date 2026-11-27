@@ -1,0 +1,792 @@
+{
+ "schema": "uct.tv-marker-geometry/v1",
+ "source": {
+  "run": "markers-2026-11-26",
+  "measuredBy": "FRED RS",
+  "chart": "AMEX:SPY 1D, TradingView, light theme, DPR 1 (1 CSS px = 1 screenshot px)",
+  "probes": "vw-plotshape-{abovebar,belowbar,top,bottom,absolute,extras}.pine",
+  "method": "ink bbox (any visible pixel, alpha >= 0.18) of each marker, unmixed against white toward its colour; bar x and price-to-y read from TradingView itself (wick within 1 px of yHigh / yLow on 248 of 248 bars). Sizes and offsets are medians over the wide windows (5 bars per window at 90 px bar spacing).",
+  "committed": "derived numbers only; the screenshots, crops and per-row JSON stay local"
+ },
+ "tolerancePx": 2,
+ "pane": {
+  "height": 891,
+  "scaleMargins": {
+   "top": 0.25,
+   "bottom": 0.1
+  },
+  "marginTopY": 222.75,
+  "marginBottomY": 800.9,
+  "barSpacing": 90
+ },
+ "box": {
+  "triangleup": {
+   "tiny": [
+    11.0,
+    9.0
+   ],
+   "small": [
+    17.0,
+    17.0
+   ],
+   "normal": [
+    27.0,
+    27.0
+   ],
+   "large": [
+    41,
+    39
+   ],
+   "huge": [
+    53.0,
+    52.0
+   ]
+  },
+  "triangledown": {
+   "tiny": [
+    11.0,
+    8.0
+   ],
+   "small": [
+    17.0,
+    16.0
+   ],
+   "normal": [
+    27.0,
+    26.0
+   ],
+   "large": [
+    41.0,
+    38.0
+   ],
+   "huge": [
+    53.0,
+    51.0
+   ]
+  },
+  "labelup": {
+   "tiny": [
+    7.0,
+    10.0
+   ],
+   "small": [
+    13.0,
+    20.0
+   ],
+   "normal": [
+    19.0,
+    31.0
+   ],
+   "large": [
+    27.0,
+    45.0
+   ],
+   "huge": [
+    35.0,
+    56.5
+   ]
+  },
+  "labeldown": {
+   "tiny": [
+    7,
+    10
+   ],
+   "small": [
+    13.0,
+    20.0
+   ],
+   "normal": [
+    19.0,
+    31.0
+   ],
+   "large": [
+    27.0,
+    45.0
+   ],
+   "huge": [
+    35.0,
+    58.5
+   ]
+  },
+  "flag": {
+   "tiny": [
+    10.0,
+    10.0
+   ],
+   "small": [
+    16.0,
+    18.0
+   ],
+   "normal": [
+    26.0,
+    29.0
+   ],
+   "large": [
+    40.0,
+    42.5
+   ],
+   "huge": [
+    52.0,
+    57.0
+   ]
+  },
+  "diamond": {
+   "tiny": [
+    10.0,
+    9.5
+   ],
+   "small": [
+    18.0,
+    17.5
+   ],
+   "normal": [
+    28.0,
+    28.0
+   ],
+   "large": [
+    40.0,
+    39.0
+   ],
+   "huge": [
+    52.0,
+    51.5
+   ]
+  },
+  "cross": {
+   "tiny": [
+    8.0,
+    8.0
+   ],
+   "small": [
+    16.0,
+    16.0
+   ],
+   "normal": [
+    26.0,
+    26.0
+   ],
+   "large": [
+    38,
+    38
+   ],
+   "huge": [
+    50.0,
+    50.0
+   ]
+  },
+  "xcross": {
+   "tiny": [
+    9.5,
+    9.0
+   ],
+   "small": [
+    16,
+    17
+   ],
+   "normal": [
+    26.0,
+    26.5
+   ],
+   "large": [
+    39.0,
+    39.0
+   ],
+   "huge": [
+    52,
+    52
+   ]
+  },
+  "circle": {
+   "tiny": [
+    10.0,
+    9.0
+   ],
+   "small": [
+    16.0,
+    17.0
+   ],
+   "normal": [
+    26.0,
+    26.5
+   ],
+   "large": [
+    40.0,
+    39.0
+   ],
+   "huge": [
+    52.0,
+    51.5
+   ]
+  },
+  "square": {
+   "tiny": [
+    9.0,
+    9.0
+   ],
+   "small": [
+    17,
+    17
+   ],
+   "normal": [
+    27,
+    27
+   ],
+   "large": [
+    39.0,
+    39.0
+   ],
+   "huge": [
+    51.0,
+    51.0
+   ]
+  },
+  "arrowup": {
+   "tiny": [
+    45,
+    9
+   ],
+   "small": [
+    45.0,
+    16.0
+   ],
+   "normal": [
+    45.0,
+    26.0
+   ],
+   "large": [
+    45.0,
+    39.0
+   ],
+   "huge": [
+    45.0,
+    51.0
+   ]
+  },
+  "arrowdown": {
+   "tiny": [
+    45.0,
+    9.0
+   ],
+   "small": [
+    45.0,
+    16.0
+   ],
+   "normal": [
+    45.0,
+    26.0
+   ],
+   "large": [
+    45,
+    39
+   ],
+   "huge": [
+    45.0,
+    51.0
+   ]
+  }
+ },
+ "boxNote": "ink w x h px per shape and size word at 90 px bar spacing; arrow w follows the bar spacing (see barSpacing)",
+ "nearEdgeGap": {
+  "abovebar": {
+   "triangleup": {
+    "tiny": 8.8,
+    "small": 16.9,
+    "normal": 28.4,
+    "large": 43.9,
+    "huge": 58.1
+   },
+   "triangledown": {
+    "tiny": 5.7,
+    "small": 12.1,
+    "normal": 19.7,
+    "large": 30.7,
+    "huge": 40.7
+   },
+   "labelup": {
+    "tiny": 0.8,
+    "small": 3.1,
+    "normal": 7.1,
+    "large": 11.1,
+    "huge": 16.7
+   },
+   "labeldown": {
+    "tiny": 9.8,
+    "small": 21.8,
+    "normal": 37.4,
+    "large": 54.7,
+    "huge": 74.5
+   },
+   "flag": {
+    "tiny": 6.3,
+    "small": 14.5,
+    "normal": 24.3,
+    "large": 36.1,
+    "huge": 48.7
+   },
+   "diamond": {
+    "tiny": 6.7,
+    "small": 13.9,
+    "normal": 24.0,
+    "large": 36.7,
+    "huge": 49.3
+   },
+   "cross": {
+    "tiny": 7.2,
+    "small": 14.4,
+    "normal": 24.1,
+    "large": 36.5,
+    "huge": 50.5
+   },
+   "xcross": {
+    "tiny": 6.3,
+    "small": 14.8,
+    "normal": 24.4,
+    "large": 36.0,
+    "huge": 49.2
+   },
+   "circle": {
+    "tiny": 6.2,
+    "small": 14.1,
+    "normal": 24.9,
+    "large": 36.4,
+    "huge": 49.5
+   },
+   "square": {
+    "tiny": 6.1,
+    "small": 13.8,
+    "normal": 24.4,
+    "large": 36.2,
+    "huge": 48.7
+   },
+   "arrowup": {
+    "tiny": 5.4,
+    "small": 14.1,
+    "normal": 24.8,
+    "large": 35.4,
+    "huge": 49.5
+   },
+   "arrowdown": {
+    "tiny": 6.7,
+    "small": 14.8,
+    "normal": 24.1,
+    "large": 36.1,
+    "huge": 48.5
+   }
+  },
+  "belowbar": {
+   "triangleup": {
+    "tiny": 4.0,
+    "small": 11.5,
+    "normal": 21.0,
+    "large": 29.1,
+    "huge": 40.1
+   },
+   "triangledown": {
+    "tiny": 7.6,
+    "small": 17.9,
+    "normal": 29.9,
+    "large": 42.7,
+    "huge": 58.4
+   },
+   "labelup": {
+    "tiny": 10.7,
+    "small": 23.4,
+    "normal": 37.8,
+    "large": 56.2,
+    "huge": 75.0
+   },
+   "labeldown": {
+    "tiny": 2.2,
+    "small": 4.1,
+    "normal": 8.5,
+    "large": 11.8,
+    "huge": 16.8
+   },
+   "flag": {
+    "tiny": 4.7,
+    "small": 13.5,
+    "normal": 22.3,
+    "large": 32.6,
+    "huge": 44.1
+   },
+   "diamond": {
+    "tiny": 6.1,
+    "small": 14.5,
+    "normal": 24.1,
+    "large": 36.5,
+    "huge": 49.0
+   },
+   "cross": {
+    "tiny": 7.7,
+    "small": 15.7,
+    "normal": 25.5,
+    "large": 37.1,
+    "huge": 50.0
+   },
+   "xcross": {
+    "tiny": 6.4,
+    "small": 14.8,
+    "normal": 25.1,
+    "large": 36.4,
+    "huge": 49.1
+   },
+   "circle": {
+    "tiny": 6.2,
+    "small": 14.3,
+    "normal": 25.0,
+    "large": 36.4,
+    "huge": 49.5
+   },
+   "square": {
+    "tiny": 6.7,
+    "small": 15.1,
+    "normal": 25.0,
+    "large": 36.6,
+    "huge": 49.6
+   },
+   "arrowup": {
+    "tiny": 7.1,
+    "small": 15.5,
+    "normal": 25.5,
+    "large": 37.1,
+    "huge": 50.5
+   },
+   "arrowdown": {
+    "tiny": 6.7,
+    "small": 15.5,
+    "normal": 25.1,
+    "large": 36.2,
+    "huge": 49.6
+   }
+  },
+  "top": {
+   "triangleup": {
+    "tiny": 4.2,
+    "small": 12.2,
+    "normal": 21.2,
+    "large": 29.2,
+    "huge": 40.2
+   },
+   "triangledown": {
+    "tiny": 8.2,
+    "small": 18.2,
+    "normal": 30.2,
+    "large": 43.2,
+    "huge": 58.2
+   },
+   "labelup": {
+    "tiny": 11.2,
+    "small": 23.2,
+    "normal": 38.2,
+    "large": 56.2,
+    "huge": 75.2
+   },
+   "labeldown": {
+    "tiny": 2.2,
+    "small": 4.2,
+    "normal": 8.2,
+    "large": 12.2,
+    "huge": 17.2
+   },
+   "flag": {
+    "tiny": 5.2,
+    "small": 13.2,
+    "normal": 22.2,
+    "large": 33.2,
+    "huge": 44.2
+   },
+   "diamond": {
+    "tiny": 6.2,
+    "small": 14.2,
+    "normal": 24.2,
+    "large": 36.2,
+    "huge": 49.2
+   },
+   "cross": {
+    "tiny": 7.2,
+    "small": 15.2,
+    "normal": 25.2,
+    "large": 37.2,
+    "huge": 50.2
+   },
+   "xcross": {
+    "tiny": 6.2,
+    "small": 14.2,
+    "normal": 24.2,
+    "large": 36.2,
+    "huge": 49.2
+   },
+   "circle": {
+    "tiny": 6.2,
+    "small": 14.2,
+    "normal": 24.2,
+    "large": 36.2,
+    "huge": 49.2
+   },
+   "square": {
+    "tiny": 7.2,
+    "small": 15.2,
+    "normal": 25.2,
+    "large": 37.2,
+    "huge": 50.2
+   },
+   "arrowup": {
+    "tiny": 7.2,
+    "small": 15.2,
+    "normal": 25.2,
+    "large": 37.2,
+    "huge": 50.2
+   },
+   "arrowdown": {
+    "tiny": 7.2,
+    "small": 15.2,
+    "normal": 25.2,
+    "large": 37.2,
+    "huge": 50.2
+   }
+  },
+  "bottom": {
+   "triangleup": {
+    "tiny": 7.9,
+    "small": 15.9,
+    "normal": 26.9,
+    "huge": 56.9
+   },
+   "triangledown": {
+    "tiny": 4.9,
+    "small": 10.9,
+    "normal": 18.9,
+    "large": 29.9,
+    "huge": 39.9
+   },
+   "labelup": {
+    "tiny": -0.1,
+    "small": 1.9,
+    "normal": 5.9,
+    "large": 9.9,
+    "huge": 14.9
+   },
+   "labeldown": {
+    "tiny": 8.9,
+    "small": 20.9,
+    "normal": 35.9,
+    "large": 53.9,
+    "huge": 72.9
+   },
+   "flag": {
+    "tiny": 5.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 35.9,
+    "huge": 47.9
+   },
+   "diamond": {
+    "tiny": 4.9,
+    "small": 12.9,
+    "normal": 22.9,
+    "large": 34.9,
+    "huge": 47.9
+   },
+   "cross": {
+    "tiny": 5.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 35.9,
+    "huge": 48.9
+   },
+   "xcross": {
+    "tiny": 5.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 35.9,
+    "huge": 47.9
+   },
+   "circle": {
+    "tiny": 5.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 34.9,
+    "huge": 47.9
+   },
+   "square": {
+    "tiny": 4.9,
+    "small": 12.9,
+    "normal": 22.9,
+    "large": 34.9,
+    "huge": 47.9
+   },
+   "arrowup": {
+    "tiny": 4.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 34.9,
+    "huge": 47.9
+   },
+   "arrowdown": {
+    "tiny": 4.9,
+    "small": 13.9,
+    "normal": 23.9,
+    "large": 34.9,
+    "huge": 47.9
+   }
+  }
+ },
+ "nearEdgeGapNote": "abovebar = yHigh - marker bottom; belowbar = marker top - yLow; top = marker top - marginTopY; bottom = marginBottomY - marker bottom (px)",
+ "absoluteCentreMinusValue": {
+  "labelup": {
+   "tiny": 5.59,
+   "small": 10.53,
+   "normal": 15.96,
+   "large": 22.64,
+   "huge": 30.42
+  },
+  "labeldown": {
+   "tiny": -4.67,
+   "small": -10.47,
+   "huge": -29.32
+  },
+  "flag": {
+   "tiny": -0.7,
+   "small": -0.43,
+   "normal": -1.28,
+   "large": -1.71
+  },
+  "diamond": {
+   "tiny": 0.77,
+   "small": 0.45,
+   "huge": 0.51
+  },
+  "xcross": {
+   "tiny": -0.32,
+   "small": -0.1,
+   "normal": 0.25,
+   "huge": -0.25
+  },
+  "circle": {
+   "large": -0.18,
+   "huge": 0.02
+  },
+  "square": {
+   "normal": 0.63,
+   "large": 0.28,
+   "huge": 0.88
+  },
+  "arrowup": {
+   "normal": 1.86,
+   "large": 2.07
+  },
+  "arrowdown": {
+   "large": 0.44,
+   "huge": 0.62
+  }
+ },
+ "absoluteNote": "bbox centre y - y of the plotted value (positive = below), unclipped wide-window rows only",
+ "absoluteExcluded": [
+  "arrowdown/normal: clipped (25x12 of 45.0x26.0)",
+  "arrowdown/small: clipped (21x6 of 45.0x16.0)",
+  "arrowdown/tiny: clipped (21x4 of 45.0x9.0)",
+  "arrowup/huge: clipped (39x50 of 45.0x51.0)",
+  "arrowup/small: clipped (45x7 of 45.0x16.0)",
+  "arrowup/tiny: clipped (45x4 of 45x9)",
+  "circle/normal: clipped (26x12 of 26.0x26.5)",
+  "circle/small: clipped (16x8 of 16.0x17.0)",
+  "circle/tiny: clipped (8x3 of 10.0x9.0)",
+  "cross/huge: no ink",
+  "cross/large: clipped (38x20 of 38x38)",
+  "cross/normal: no ink",
+  "cross/small: clipped (16x8 of 16.0x16.0)",
+  "cross/tiny: no ink",
+  "diamond/large: clipped (36x17 of 40.0x39.0)",
+  "diamond/normal: clipped (26x12 of 28.0x28.0)",
+  "flag/huge: clipped (51x25 of 52.0x57.0)",
+  "labeldown/large: no ink",
+  "labeldown/normal: no ink",
+  "plotchar-star/normal: no ink",
+  "square/small: clipped (17x8 of 17x17)",
+  "square/tiny: clipped (9x4 of 9.0x9.0)",
+  "triangledown/huge: triangle (anchor not pinned)",
+  "triangledown/large: triangle (anchor not pinned)",
+  "triangledown/normal: triangle (anchor not pinned)",
+  "triangledown/small: triangle (anchor not pinned)",
+  "triangledown/tiny: triangle (anchor not pinned)",
+  "triangleup/huge: triangle (anchor not pinned)",
+  "triangleup/large: triangle (anchor not pinned)",
+  "triangleup/normal: triangle (anchor not pinned)",
+  "triangleup/small: triangle (anchor not pinned)",
+  "triangleup/tiny: triangle (anchor not pinned)",
+  "xcross/large: clipped (39x18 of 39.0x39.0)"
+ ],
+ "barSpacing": {
+  "arrowWidth": [
+   [
+    90,
+    45
+   ],
+   [
+    17.22,
+    9
+   ],
+   [
+    8.73,
+    3
+   ]
+  ],
+  "autoBox": [
+   [
+    90,
+    46
+   ],
+   [
+    17.22,
+    10
+   ]
+  ],
+  "note": "arrowup / arrowdown ink width at three bar spacings (height follows the size word); size.auto (xcross, the default plotshape) box edge at two spacings (triangleup size.auto: 47 at 90)"
+ },
+ "defaults": {
+  "plotshape": {
+   "shape": "shape.xcross",
+   "location": "location.abovebar",
+   "size": "size.auto",
+   "color": "#2962FF"
+  },
+  "plotchar": {
+   "location": "location.abovebar",
+   "size": "size.auto"
+  }
+ },
+ "stacking": "none: every marker of one location on one bar is drawn in the same slot at its own offset; the last declared plot is on top",
+ "zOrder": "the main series (candles) paints over the markers",
+ "text": {
+  "triangleTextColour": "the marker colour when textcolor= is absent",
+  "triangleSmallTextGapBelowPx": 11,
+  "triangleSmallTextGapAbovePx": 13,
+  "textCapPx": 9,
+  "labelNormalWithTextAb": [
+   33,
+   41
+  ],
+  "plotcharSmallTextGapPx": 20,
+  "note": "one sample each: text geometry is NOT pinned by this run"
+ },
+ "plotcharStar": {
+  "normal": [
+   36,
+   35
+  ],
+  "small": [
+   22,
+   21
+  ],
+  "auto90": [
+   66,
+   63
+  ],
+  "auto17": [
+   13,
+   12
+  ],
+  "gapAbovebarNormal": 35.4,
+  "gapBelowbarNormal": 37.3
+ }
+}
