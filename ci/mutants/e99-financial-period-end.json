@@ -1,0 +1,32 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "PE-1",
+   "mutant": "the filing-date placement restored (a value lands on the session its filing became public)",
+   "file": "api/services/pine_financial.py",
+   "from": "        kf = placement_day(period_end) if (period_end and PINE_PLACEMENT == \"fiscal_period_end\") else published",
+   "to": "        kf = published",
+   "rail": "python -m pytest -q tests/test_pine_financial_placement.py",
+   "expectRed": "test_every_step_date_is_tradingviews_fq_and_fy_all_five_ids"
+  },
+  {
+   "id": "PE-2",
+   "mutant": "a share count placed at its cover date, not the fiscal period it follows",
+   "file": "api/services/pine_financial.py",
+   "from": "    if base == \"shares_outstanding\" and not fy_base(series):",
+   "to": "    if False:",
+   "rail": "python -m pytest -q tests/test_pine_financial_placement.py",
+   "expectRed": "test_every_step_date_is_tradingviews_fq_and_fy_all_five_ids"
+  },
+  {
+   "id": "PE-3",
+   "mutant": "the period end itself, not the nearest calendar month end",
+   "file": "api/services/pine_financial.py",
+   "from": "        me = nxt - timedelta(days=1)",
+   "to": "        me = pe",
+   "rail": "python -m pytest -q tests/test_pine_financial_placement.py",
+   "expectRed": "test_the_placement_rule_on_its_measured_cases"
+  }
+ ]
+}
