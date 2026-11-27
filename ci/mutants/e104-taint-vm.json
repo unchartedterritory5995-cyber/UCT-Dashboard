@@ -1,0 +1,222 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "START-TAINT part 2 (runtime/vmTaint.js, generated from vm.js by app/scripts/gen-vm-taint.mjs; runtime/taintTags.js): every source, propagation rule and the generator's own refusals must be able to fail. E105: the inlined joins, the algebra's drift, the generator's inline refusal and the stack at a join.",
+ "mutants": [
+  {
+   "id": "E104-S1",
+   "mutant": "source 1 dropped: a var initialiser running is not a T branch",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 62 /* OP.JUMP_IF_INIT */: if (!initialised[persistBase + a]) { rTop = taintBranch(TS, pc - 1, localsBase, persistBase, bar, depth, rTop, sp); rJT = rTop > 0 ? rJoin[rTop - 1] : -3 }",
+   "to": "case 62 /* OP.JUMP_IF_INIT */:",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "a counter built on itself"
+  },
+  {
+   "id": "E104-STORE",
+   "mutant": "a STORE joins with the slot's old tag instead of overwriting it (no latch-after-event)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "tp[persistBase + a] = rTop > 0 ? 2 : ts[sp - 1];",
+   "to": "tp[persistBase + a] = rTop > 0 ? 2 : Math.max(ts[sp - 1], tp[persistBase + a]);",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "latch-after-event"
+  },
+  {
+   "id": "E104-S2-SERIES",
+   "mutant": "source 2 dropped for a series: close[k] before the first bar is clean",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 4 /* OP.READ_SERIES_HIST */: ts[sp] = bar - b >= 0 ? 0 : 2;",
+   "to": "case 4 /* OP.READ_SERIES_HIST */: ts[sp] = 0;",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "close[3] is T on bars 0-2"
+  },
+  {
+   "id": "E104-S2-COLUMN",
+   "mutant": "source 2 dropped for a column: col[k] before the first bar is the column's tag",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 3 /* OP.READ_HIST */: ts[sp] = bar - b >= 0 ? colTag[a] : 2;",
+   "to": "case 3 /* OP.READ_HIST */: ts[sp] = colTag[a];",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "col[2] is T on bars 0-1"
+  },
+  {
+   "id": "E104-S2-SLOT",
+   "mutant": "source 2 dropped for a slot: x[k] before the first bar reads the ring's tag",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "ts[sp] = b > committed ? 2 : th[",
+   "to": "ts[sp] = false ? 2 : th[",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "z[2] is T on bars 0-1"
+  },
+  {
+   "id": "E104-HELD",
+   "mutant": "a call site's held cell starts clean",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "const theld = new Uint8Array(held.length).fill(2)",
+   "to": "const theld = new Uint8Array(held.length)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "held cell starts T"
+  },
+  {
+   "id": "E104-PLOT",
+   "mutant": "an O plotted stays O (ruling 2: bar_index plotted is T)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "outT[a][bar] = rTop > 0 ? 2 : ((ts[sp - 1] === 0 ? 0 : 2));",
+   "to": "outT[a][bar] = rTop > 0 ? 2 : ts[sp - 1];",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index plotted is T"
+  },
+  {
+   "id": "E104-TEXT",
+   "mutant": "an O in text stays O (ruling 2: bar_index in text is T)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 76 /* OP.TEXT */: ts[sp - b] = tRange(ts, sp - b, sp);",
+   "to": "case 76 /* OP.TEXT */:",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index in text is T"
+  },
+  {
+   "id": "E104-OFF",
+   "mutant": "an O history offset is clean (ruling 5: close[bar_index] is T)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "ts[sp - 1] = ts[sp - 1] !== 0 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= 0 ? 0 : 2 }",
+   "to": "ts[sp - 1] = ts[sp - 1] === 2 ? 2 : !(Number.isInteger(_n) && _n >= 0) ? 0 : bar - _n >= 0 ? 0 : 2 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "an O history OFFSET is T"
+  },
+  {
+   "id": "E104-WRITESET",
+   "mutant": "implicit flow without the write set: the arm not taken leaves its local clean",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "for (const x of w.locals) S.tl[lb + x] = 2",
+   "to": "for (const x of w.locals) void x",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "the bars that did not take the arm included"
+  },
+  {
+   "id": "E104-PCTAINT",
+   "mutant": "implicit flow without the region: a store under a T branch keeps its value's tag",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "tl[localsBase + a] = rTop > 0 ? 2 : ts[sp - 1];",
+   "to": "tl[localsBase + a] = ts[sp - 1];",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "the bars that did not take the arm included"
+  },
+  {
+   "id": "E104-JOIN",
+   "mutant": "a region never closes: stores after the join stay under the branch",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "while (rTop > 0 && rJoin[rTop - 1] === pc && rDepth[rTop - 1] === depth) {",
+   "to": "while (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "the region closes at the join"
+  },
+  {
+   "id": "E104-CALL",
+   "mutant": "a call's arguments lose their tags in the body",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "tl[_nb + _k] = ts[sp - _f.params + _k]",
+   "to": "tl[_nb + _k] = 2",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "f(close) is C"
+  },
+  {
+   "id": "E104-OMO",
+   "mutant": "O - O is not C (the algebra's own rail: the loop inlines the committed copy, e105)",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "(x === 1 && y === 1 ? 0 : 2)",
+   "to": "(2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "O-O C"
+  },
+  {
+   "id": "E104-OPO",
+   "mutant": "O + O is O (twice the offset passed as one)",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "(x === 1 && y === 0 ? 1 : 2)",
+   "to": "(x === 1 && y !== 2 ? 1 : 2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "O+O T"
+  },
+  {
+   "id": "E104-OCMP",
+   "mutant": "O compared with a C number is C (the algebra's own rail: the loop inlines the committed copy, e105)",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "(x === y && x !== 2 ? 0 : 2)",
+   "to": "(x !== 2 && y !== 2 ? 0 : 2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "C cmp C and O cmp O are C"
+  },
+  {
+   "id": "E104-COLO",
+   "mutant": "a bar_index column is not O",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "if (tree && tree.type === 'series' && BAR_INDEX_LEAVES.includes(tree.name)) return TAG.O",
+   "to": "if (tree && tree.type === 'series' && BAR_INDEX_LEAVES.includes(tree.name)) return TAG.T",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintTags.test.js",
+   "expectRed": "bar_index and last_bar_index are O"
+  },
+  {
+   "id": "E104-GEN-RULE",
+   "mutant": "the generator lets a case with no tag rule through",
+   "file": "app/scripts/gen-vm-taint.mjs",
+   "from": "if (!Object.prototype.hasOwnProperty.call(TAG_RULES, name)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "a case with no tag rule"
+  },
+  {
+   "id": "E104-DRIFT",
+   "mutant": "the committed taint loop drifts from the generated one (a rule edited by hand)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 0 /* OP.CONST */: ts[sp] = 0;",
+   "to": "case 0 /* OP.CONST */: ts[sp] = 1;",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "what the generator makes of vm.js"
+  },
+  {
+   "id": "E105-INLINE-OMO",
+   "mutant": "the inlined join of SUB loses O - O -> C",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "(ts[sp - 2] === 1 && ts[sp - 1] === 1 ? 0 : 2)",
+   "to": "(2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index - bar_index[1] is C"
+  },
+  {
+   "id": "E105-INLINE-OCMP",
+   "mutant": "the inlined join of GT compares an O with a C number clean",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "case 21 /* OP.GT */: ts[sp - 2] = ((ts[sp - 2] === ts[sp - 1] && ts[sp - 2] !== 2 ? 0 : 2));",
+   "to": "case 21 /* OP.GT */: ts[sp - 2] = ((ts[sp - 2] !== 2 && ts[sp - 1] !== 2 ? 0 : 2));",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "bar_index > 100 is T"
+  },
+  {
+   "id": "E105-ALG-DRIFT",
+   "mutant": "the algebra changes in taintTags.js and the loop is not regenerated",
+   "file": "app/src/components/chart/engine/runtime/taintTags.js",
+   "from": "(x === 1 && y === 1 ? 0 : 2)",
+   "to": "(2)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "is exactly what the generator makes"
+  },
+  {
+   "id": "E105-GEN-INLINE",
+   "mutant": "the generator inlines an algebra function that is not one line of parameters and operators",
+   "file": "app/scripts/gen-vm-taint.mjs",
+   "from": "if (!params.every((q) => /^[a-z]$/.test(q)) || !/^[\\s\\d()?:=!&|<>+-]*$/.test(rest)) {",
+   "to": "if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/vmTaintGenerated.test.js",
+   "expectRed": "stops by name on an algebra function"
+  },
+  {
+   "id": "E105-JOIN-STACK",
+   "mutant": "a region closes without tainting what its arms left on the stack (a ternary lowered to branches)",
+   "file": "app/src/components/chart/engine/runtime/vmTaint.js",
+   "from": "for (let k = rSp[rTop - 1]; k < sp; k += 1) ts[k] = 2",
+   "to": "void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintVm.test.js",
+   "expectRed": "a value an arm leaves on the stack"
+  }
+ ]
+}
