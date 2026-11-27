@@ -137,15 +137,16 @@ export function createRegistry({
     const idle = []
     let shown = null
     for (const [key, e] of entries) {
-      if (e.subs.size) (shown ??= new Set()).add(parseKey(key)?.sym)
-      if (e.refs === 0 && e.subs.size === 0) idle.push([key, e])
-    }
-    const rank = (key, e) => {
       const sym = parseKey(key)?.sym
-      if (e.dwell && !shown?.has(sym)) return 0
-      return e.shown && recent.includes(sym) ? 2 : 1
+      if (e.subs.size) (shown ??= new Set()).add(sym)
+      if (e.refs === 0 && e.subs.size === 0) idle.push([key, e, sym, 1])
     }
-    idle.sort((a, b) => rank(a[0], a[1]) - rank(b[0], b[1]) || a[1].used - b[1].used)
+    // (each entry ranked once, never inside the sort's comparator: a full registry evicts on every landing now)
+    for (const it of idle) {
+      const [, e, sym] = it
+      it[3] = e.dwell && !shown?.has(sym) ? 0 : (e.shown && recent.includes(sym) ? 2 : 1)
+    }
+    idle.sort((a, b) => a[3] - b[3] || a[1].used - b[1].used)
     for (const [key, e] of idle) {
       if (entries.size <= maxKeys && totalBars <= barBudget) break
       if (key === keep) continue
