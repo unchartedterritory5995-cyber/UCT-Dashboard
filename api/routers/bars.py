@@ -1358,6 +1358,11 @@ def _serve_bars_impl(
     # (index/breadth were intercepted before the tier-marking functions) can't report
     # a STALE label carried over from a previous request on this same anyio thread.
     _mark_serve("entry")
+    # ⛔ (2026-11-27) ...and the PHASE MARKS with it. `_time_reset` ran only inside
+    # `_get_bars_inner`, so a branch that never enters it (delisted, breadth, index...)
+    # emitted the PREVIOUS request's `get_bars;dur=` marks from this reused thread: CPRX's
+    # empty intraday answer carried a live serve's 39 ms phases and read as a cache hit.
+    _bars_fetch._time_reset()
     response = None
     crashed = False
     # Path classification for the "server-include today's daily bar" append

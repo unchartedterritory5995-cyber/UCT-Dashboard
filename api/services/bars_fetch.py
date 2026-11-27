@@ -4081,13 +4081,24 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str 
 
     hit = cache.get(cache_key)
     if hit is not None:
+        _mark_serve("delisted-mem")
         return JSONResponse(content=hit, headers={"Cache-Control": "no-store"})
 
     # A dead company has no intraday feed worth serving from decades-old daily aggs —
-    # only D/W/M are meaningful. Intraday TFs return empty (the chart defaults to D).
+    # only D/W/M are meaningful.
+    # ⛔ (2026-11-27, CPRX) THE EMPTY ANSWER SAYS SO. This used to return a bare
+    # `{"bars": []}`: no `no_data`, no reason, no serve label. The client cannot tell that
+    # from a live chart with nothing yet, so a member opening CPRX (acquired 2026-07-15,
+    # in the bulk registry) on any intraday tf saw a blank chart, and the response read
+    # `Server-Timing: bars;desc="entry"` (the reset label) like an empty cache hit. The
+    # shape is the router's `_no_data_response`: 200, an empty list, `no_data`, the reason.
+    # Not cached: the registry decides, so a registry correction takes effect at once.
     if not date_tf:
-        return JSONResponse(content={"ticker": serve_key, "tf": tf, "bars": []},
+        _mark_serve("delisted-no-intraday")
+        return JSONResponse(content={"ticker": serve_key, "tf": tf, "bars": [],
+                                     "no_data": True, "reason": "delisted"},
                             headers={"Cache-Control": "no-store"})
+    _mark_serve("delisted")
 
     # Frozen store: once SQLite holds this entity's bars (under serve_key), serve them — the
     # data is immutable, so a stored series is authoritative and never re-fetched.
