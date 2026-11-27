@@ -12247,7 +12247,8 @@ function StockChartBody({
     // the chart on screen, and a flip records its own (chart/useDoubleBuffer.js)
     recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full',
       boardHiddenNow(boardVisibilityRef.current) ? null : paintMember)
-    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
+    // (owner, 2026-11-27) and the replay cutoff it drew under: in change-date mode a hidden chart flips only under the front's
+    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars, cutoff: replayCutoffRef.current || null }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -20265,6 +20266,11 @@ function StockChartBody({
       // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
       // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
       pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
+      // (owner, 2026-11-27) the double buffer prepares a hidden chart in the front's view MODE (chart/doubleBuffer.js): the
+      // rows its frame is counted in (a frame reaching past them is a short paint), and the replay view lock the next
+      // symbol switch frames from (a pan or zoom in change-date mode; null outside replay or with none)
+      rows: bars.length,
+      replayLock: replayCutoffRef.current && replayViewLockedRef.current && replayLockedViewRef.current ? { ...replayLockedViewRef.current } : null,
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
@@ -20300,6 +20306,14 @@ function StockChartBody({
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = f.activeRange != null ? { val: f.activeRange, from, to } : null
       userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
+      // (owner, 2026-11-27) the double buffer's mirror also carries the front's REPLAY view lock (getDateMeta replayLock);
+      // a frame without the key (UCT Agent's Undo) leaves it as it is. Replay only: outside it there is none to hold.
+      if ('replayLock' in f) {
+        const rl = f.replayLock
+        if (rl && replayCutoffRef.current && Number.isFinite(rl.barsFromRight) && rl.width > 0) {
+          replayViewLockedRef.current = true; replayLockedViewRef.current = { barsFromRight: rl.barsFromRight, width: rl.width }
+        } else if (!rl) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      }
     } catch { /* noop */ }
   }
   useEffect(() => {

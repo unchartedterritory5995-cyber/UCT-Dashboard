@@ -10,14 +10,16 @@
 //
 //   • A press to the row the shadow holds, when the shadow's chart has REPORTED a pass of that symbol at the front
 //     chart's timeframe, session and the widget's settings, holding the bars the store gives that key NOW (review of
-//     #2922, F3), with the two charts' views alike (F1), and no replay (F6): the FLIP. The layers swap roles in the
-//     press's render (`front` is state); in its commit the handles swap QUIETLY (the shown one's muted feeds catch up
-//     there, the live developing bar included), focus inside the old front moves to the new one (F5), and the group
+//     #2922, F3), drawn under the widget's replay cutoff, with the two charts' views alike (F1: the view MODE): the
+//     FLIP. The layers swap roles in the press's render (`front` is state); in its commit the handles swap QUIETLY (the
+//     shown one's muted feeds catch up there, the live developing bar included), focus inside the old front moves to the new one (F5), and the group
 //     member's paint is recorded as a 'flip' for the switch-speed instrument.
 //   • Any other press: the NORMAL switch of the front pane, exactly today's path.
 //   • After every change of the front's symbol: the hidden pane is set, in idle time (a transition), to the row ahead
 //     in the direction of travel (doubleBuffer.nextShadowSym). After a change of the front's view, and after each pass
-//     of the shadow, the shadow MIRRORS the front's zoom in idle time (doubleBuffer.mirrorFrameFor, F1).
+//     of the shadow, the shadow MIRRORS the front's view mode in idle time: its locks (a view lock: a range, a pan, a
+//     zoom; a replay view lock) at the frame they give it, or its zoom width (doubleBuffer.mirrorFrameFor, F1). The
+//     replay cutoff reaches both layers as a prop (owner, 2026-11-27: instant zoomed out and in change-date mode).
 //   • (F2) The board's shadow budget is the BOARD SLOT's (its layer handle), and a widget on a board that is not shown
 //     gives its shadow back (and drops the hidden pane) until the board is shown again.
 //
@@ -36,7 +38,7 @@ import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint } from './paintLog'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
 
 /** The bars array a chart of the reported symbol, timeframe and session hands the library NOW, by the chart's own
@@ -46,7 +48,8 @@ import {
  *  Never creates a registry entry. */
 export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
-  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: null, hasOverride: false })
+  // (owner, 2026-11-27) under the cutoff the chart drew at: an intraday replay reads its own window (chartKeyFor)
+  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false })
   if (!key) return null
   return _barsOf(key, report)
 }
@@ -86,7 +89,8 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {boolean} o.eligible        doubleBufferEligible(...) for this widget (stable for its life)
  * @param {string} o.sym              the symbol the widget shows now (useSymbolHandoff's)
  * @param {object|null} o.settings    the pane's stored settings (identity)
- * @param {boolean} o.replay          a replay cutoff is set on the widget (no flip: F6)
+ * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
+ *                                    drew under the same one
  * @param {object} o.scope            the board's group store (the shadow budget's scope when there is no board handle)
  * @param {object|null} o.member      the identity the widget's chart paints under (PaintMemberContext)
  * @param {object|null} o.parentVis   the board's layer handle, or null
@@ -94,7 +98,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {() => Element[]} o.layerEls each layer's wrapper element
  * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
@@ -171,11 +175,11 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
     const f = buf.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, replay } : null
+    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null } : null
     const report = slotOk && buf.syms[s] === sym ? reportsRef.current[s] : null
     const view = () => {
       const p = panes ? panes() : []
-      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.())
+      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
     let d = flipDecision(want, report, barsNowFor, view)
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
@@ -233,11 +237,13 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         const front = p[b.front], shadow = p[1 - b.front]
         if (!front || !shadow || !b.syms[1 - b.front]) return
         let frame = null
-        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.()) } catch { frame = null }
+        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
         // (N4) restoreView also writes the view lock under the pane's key, which both layers share
-        // (`uct.charts.viewLock.<chartId>`): a frame is only made for a front with NO lock (mirrorFrameFor), and it
-        // carries none, so the write removes a lock that the front does not hold either; read again here, at the write
-        if (frame && !front.getDateMeta?.()?.frame?.locked) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
+        // (`uct.charts.viewLock.<chartId>`): the frame carries the FRONT's locks, so the write stores the lock the front
+        // holds; read again here, at the write, so a lock the member changed in between is never overwritten
+        let fits = false
+        try { fits = mirrorStillFits(frame, front.getDateMeta?.()) } catch { fits = false }
+        if (frame && fits) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
       })
     }, MIRROR_DEBOUNCE_MS)
   }
@@ -249,7 +255,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
 
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
-    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, settings: settingsRef.current }
+    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
     // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
     // the board's first paint, and is still set long before the first press
