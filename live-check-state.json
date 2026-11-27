@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=1 master commit not promoted yet (oldest landed 18 min ago): the deploy checks FAILED on b45ece24b8, so nothing new goes live until a fix lands on master|tests:nightly NEW failures=run 45066472928 found 4 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 45066472928)",
-  "posted_at": "2026-11-27T06:13:44.326435+00:00",
+  "fingerprint": "tests:nightly NEW failures=run 45066472928 found 4 NEW failures against the previous valid master run|tests:nightly full suite=no VALID master run for over 36 h (newest valid is run 45066472928)",
+  "posted_at": "2026-11-27T06:52:45.196993+00:00",
   "reason": "new stuck item"
 }
