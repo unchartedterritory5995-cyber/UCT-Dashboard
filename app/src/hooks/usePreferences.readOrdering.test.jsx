@@ -11,9 +11,21 @@
 //       after it, until `settlePreferenceWrites`; then a read lands the server's value
 //   RO4 CONTROL: a read that began after a refused write answered lands the server's value (the server is the
 //       authority; the refused value does not stick)
+// Review of #2928:
+//   RO5 (red first, L2) a write whose POST answers after its 30 s hold expired (a read meanwhile put the old value
+//       back): once it succeeds, the written value is on screen again
+//   RO6 (red first, L1) the boot read (the request main.jsx started at page load) lands under a write made before the
+//       hook's fetcher took it: the write is not undone
+// Review of #2929:
+//   RO7 (red first) after a late success is put back, a read follows: a newer value written by another device after
+//       it lands (it is not masked until the next 5-minute read)
+//   RO8 a newer local write of the key made before the late answer stays (the late settle puts nothing back)
+//   RO9 a late REFUSAL puts nothing back
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { mutate as mutateGlobal } from 'swr'
+vi.mock('../lib/bootFetch', () => ({ takeBootPreferences: (...a) => boot.take(...a) }))
+const boot = vi.hoisted(() => ({ next: null, take() { const p = this.next; this.next = null; return p } }))
 import usePreferences, {
   PREFS_URL, refreshPreferences, mergeIntoPreferenceCache, settlePreferenceWrites, __resetRevisionStateForTests,
 } from './usePreferences'
@@ -21,6 +33,8 @@ import usePreferences, {
 let server
 let gate
 let postStatus
+let postGate
+let afterPost
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 const deferred = () => { let resolve; const promise = new Promise((r) => { resolve = r }); return { promise, resolve } }
 const isRead = (init) => !init || !init.method || String(init.method).toUpperCase() === 'GET'
@@ -30,7 +44,10 @@ beforeEach(async () => {
   await mutateGlobal(PREFS_URL, undefined, { revalidate: false })
   server = { a: '1', b: '1' }
   gate = null
+  postGate = null
+  afterPost = null
   postStatus = 200
+  boot.next = null
   global.fetch = vi.fn(async (url, init) => {
     if (isRead(init)) {
       const g = gate                  // the gate current when the read BEGINS
@@ -38,9 +55,11 @@ beforeEach(async () => {
       if (g) await g.promise
       return json(answer)
     }
+    if (postGate) { const g = postGate; await g.promise }
     if (postStatus !== 200) return json({ detail: 'refused' }, postStatus)
     const body = JSON.parse(init.body || '{}')
     if (body && body.key) server = { ...server, [body.key]: body.value }
+    if (afterPost) { const f = afterPost; afterPost = null; f() }   // another device writes right after
     return json({ ok: true })
   })
 })
@@ -98,5 +117,76 @@ describe('a read never undoes a newer local write', () => {
     expect(result.current.prefs.a, 'NON-VACUITY: the refused value stays on screen until a read').toBe('4')
     await act(async () => { await refreshPreferences() })
     expect(result.current.prefs.a).toBe('1')
+  })
+})
+
+describe('a read never undoes a newer local write (review of #2928)', () => {
+  it('RO5 (red first) a write that succeeds after its hold expired is put back on screen', async () => {
+    const { result } = await mounted()
+    const g = deferred()
+    postGate = g
+    let w
+    await act(async () => { w = result.current.setPref('a', '6') })     // the POST waits
+    expect(result.current.prefs.a).toBe('6')
+    const realNow = Date.now
+    const t0 = realNow()
+    vi.spyOn(Date, 'now').mockImplementation(() => t0 + 31000)           // the 30 s hold is over
+    await act(async () => { await refreshPreferences() })               // the server still has '1'
+    expect(result.current.prefs.a, 'NON-VACUITY: an expired hold lets the read land').toBe('1')
+    await act(async () => { g.resolve(); await w })                     // the write succeeds after all
+    expect(server.a).toBe('6')
+    expect(result.current.prefs.a, 'a write that succeeded late left the old value on screen').toBe('6')
+  })
+
+  it('RO6 (red first) the boot read lands under a write made before the fetcher took it', async () => {
+    // the cache holds a value (an earlier read), and this tab merges into it ...
+    await act(async () => { await mutateGlobal(PREFS_URL, { a: '1', b: '1' }, { revalidate: false }) })
+    await act(async () => { await mergeIntoPreferenceCache('a', '8') })
+    // ... while the request main.jsx started at page load still answers the old value
+    boot.next = Promise.resolve(json({ a: '1', b: '2' }))
+    const { result } = renderHook(() => usePreferences())
+    await waitFor(() => expect(result.current.prefs.b, 'NON-VACUITY: the boot answer landed').toBe('2'))
+    expect(result.current.prefs.a, 'the boot answer undid a newer local write').toBe('8')
+  })
+})
+
+describe('a late answer (review of #2929)', () => {
+  async function expiredWrite(result, value) {
+    const g = deferred()
+    postGate = g
+    let w
+    await act(async () => { w = result.current.setPref('a', value) })
+    const t0 = Date.now()
+    vi.spyOn(Date, 'now').mockImplementation(() => t0 + 31000)          // the hold is over
+    await act(async () => { await refreshPreferences() })              // a read lands the old value
+    expect(result.current.prefs.a, 'NON-VACUITY: the old value is back on screen').toBe('1')
+    return { g, w }
+  }
+
+  it('RO7 (red first) after a late success a read follows: another device\'s newer value lands', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    afterPost = () => { server = { ...server, a: 'Z' } }                // written elsewhere right after ours
+    await act(async () => { g.resolve(); await w })
+    await waitFor(() => expect(result.current.prefs.a, 'the server\'s newer value stayed masked').toBe('Z'))
+  })
+
+  it('RO8 a newer local write made before the late answer stays', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    let w2
+    await act(async () => { w2 = result.current.setPref('a', '9') })     // queued behind the first POST
+    await act(async () => { g.resolve(); await w; await w2 })
+    expect(server.a).toBe('9')
+    await waitFor(() => expect(result.current.prefs.a, 'the late settle undid a newer write').toBe('9'))
+  })
+
+  it('RO9 a late refusal puts nothing back', async () => {
+    const { result } = await mounted()
+    const { g, w } = await expiredWrite(result, '6')
+    postStatus = 500
+    await act(async () => { g.resolve(); await w })
+    expect(server.a).toBe('1')
+    expect(result.current.prefs.a, 'a refused write was put back on screen').toBe('1')
   })
 })

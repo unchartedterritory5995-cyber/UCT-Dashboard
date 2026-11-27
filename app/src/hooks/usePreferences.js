@@ -63,6 +63,11 @@ let _inflightRead = null
 //     or not, and the note is forgotten when such a read lands.
 // The server stays the authority: nothing here is posted, and a value is held only against reads
 // that cannot have seen it.
+//   ⚠️ (review of #2928, L3) A landed read is TAGGED as the server's base even when it carries this
+// tab's own unconfirmed values laid over it, so a later setPrefMerged merges onto them (sequential
+// edits compose, as on screen); if the earlier write then fails, the merge re-sends its part. Here
+// "server base" means the server's answer with this tab's newer writes over it, not exactly what
+// the server holds.
 const LOCAL_WRITE_HOLD_MS = 30000
 let _writeSeq = 0
 const _localWrites = new Map()   // key -> { seq, value, open, at, settled }
@@ -71,13 +76,27 @@ function noteLocalWrite(key, value, { open = false } = {}) {
   _localWrites.set(key, { seq: _writeSeq, value, open, at: Date.now(), settled: open ? null : _writeSeq })
   return _writeSeq
 }
-/** The write of `key` noted as `seq` answered (a newer write of the key keeps its own state). */
-function settleLocalWrite(key, seq) {
+/** The write of `key` noted as `seq` answered (a newer write of the key keeps its own state). `ok` + `op`: it was
+ *  confirmed for this member. (Review of #2928, L2) Confirmed after its hold expired, a read may already have put the
+ *  old value back: the confirmed value goes back into the cache. */
+function settleLocalWrite(key, seq, { ok = false, op = null } = {}) {
   const w = _localWrites.get(key)
   if (!w || w.seq !== seq || !w.open) return
+  const expired = Date.now() - w.at >= LOCAL_WRITE_HOLD_MS
   _writeSeq += 1
   w.open = false
   w.settled = _writeSeq
+  if (!expired || !ok || !op) return
+  const value = w.value
+  mutateGlobal(PREFS_URL, (prev) => {
+    if (op.stale()) return prev
+    if (!prev || typeof prev !== 'object' || prev[key] === value) return prev
+    return derive(prev, value === undefined ? (() => { const n = { ...prev }; delete n[key]; return n })() : { ...prev, [key]: value })
+  }, { revalidate: false })
+  // (review of #2929) and a read that begins now: what the server holds after this write (another tab's or device's
+  // newer value included) lands at once, not at the next 5-minute read (the board apply re-reads the same way)
+  if (op.stale()) return
+  mutateGlobal(PREFS_URL)
 }
 /** The write a caller merged with `{ pending: true }` reached the server, or was given up: settle it. */
 export function settlePreferenceWrites(keys) {
@@ -98,7 +117,7 @@ function landRead(data, startSeq) {
       if (!out) out = { ...data }
       if (w.value === undefined) delete out[k]
       else out[k] = w.value
-    } else {
+    } else if (!w.open) {
       _localWrites.delete(k)
     }
   }
@@ -206,10 +225,12 @@ const fetcher = url => {
   // untagged `{}` — SWR discards it anyway (the member change mutated the key after it started),
   // and if it ever did not, an untagged object can never be merged onto or posted.
   const op = beginPrefsOp()
-  const startSeq = _writeSeq   // the local writes this read cannot hold (landRead)
+  let startSeq = _writeSeq   // the local writes this read cannot hold (landRead)
   // The first read takes the request main.jsx started as the page loaded (lib/bootFetch.js), and only
   // when the boot sign-in check named THIS member; anything else, or a failed boot request, fetches.
   const boot = url === PREFS_URL ? takeBootPreferences(prefsUser()) : null
+  // (review of #2928, L1) the boot request began at page load, before any write this module noted
+  if (boot) startSeq = 0
   // (A member change meanwhile: the next step drops whatever this hands it; no second request for it.)
   const p = (boot ? boot.then(r => { if (op.stale()) return r; return r || fetch(url) }) : fetch(url)).then(
     r => {
@@ -674,7 +695,7 @@ export default function usePreferences(enabled = true) {
       // returns false — it is NOT saved and nothing claims it was.
       const r = await queueWrite(key, () => postPref(key, serialized, op))
       if (op.stale()) return false
-      if (noted != null) settleLocalWrite(key, noted)
+      if (noted != null) settleLocalWrite(key, noted, { ok: !!(r && r.ok && !r.stale), op })
       if (!r.ok || r.stale) {
         // A 4xx/5xx used to read exactly like success. It is still reported —
         // that is MOB-09's real requirement — but it is reported by the RETURN
@@ -798,7 +819,7 @@ export default function usePreferences(enabled = true) {
     // never gets an unhandled rejection.
     return queueWrite(key, () => postPref(key, serialized, op)).then((r) => {
       if (op.stale()) return r
-      if (noted != null) settleLocalWrite(key, noted)
+      if (noted != null) settleLocalWrite(key, noted, { ok: !!(r && r.ok && !r.stale), op })
       return r
     }, () => {
       // Revert on failure — same contract as setPref, and never into another member's cache.

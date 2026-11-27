@@ -148,3 +148,22 @@ def test_count_reports_what_a_scan_would_read(stores, capsys):
     out = capsys.readouterr().out
     assert "layout_rows=7" in out and "estimated_peak_mb=" in out
     assert SECRET_NAME not in out and TICKER not in out
+
+
+def test_the_scan_connection_is_query_only(stores):
+    # (review of #2927) mode=ro AND query_only: the pragma is on for every connection the scan opens
+    ldb, vdb = stores
+    for path in (ldb, vdb):
+        conn = scan._open_ro(path)
+        try:
+            assert conn.execute("PRAGMA query_only").fetchone()[0] == 1
+        finally:
+            conn.close()
+
+
+def test_the_scan_never_loads_a_whole_table():
+    # (review of #2927) bounded on the pod: every multi-row read streams (fetchmany); nothing loads a table whole
+    import inspect
+    src = inspect.getsource(scan)
+    assert "fetchall(" not in src
+    assert "fetchmany(" in src

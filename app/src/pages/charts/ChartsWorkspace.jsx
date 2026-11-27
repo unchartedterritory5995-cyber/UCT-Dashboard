@@ -2835,7 +2835,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       return
     }
     // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
-    if (UCT_DEFAULT_OFFERED || d.fromTemplate) switchLayout(d.layout)
+    if (UCT_DEFAULT_OFFERED || d.fromTemplate) {
+      // (review of #2928, L4) its origin is the pointer of the same preferences, as a loaded board's (F-C)
+      boardOriginRef.current = parsePref(prefs?.charts_active_template, null)?.id ?? null
+      switchLayout(d.layout)
+    }
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
   }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState, switchLayout])
 
