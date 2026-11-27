@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "e103 task B: Fred RS's start-free drawings off the listing (runtimeColumns.js::computeStartFree, runtime/startLatched.js). Each gate of the release must be able to fail: the rating labels are never released, a moved setting is refused, a chart short of 502 bars is refused, an edited script is refused.",
+ "mutants": [
+  {
+   "id": "E103-B1",
+   "mutant": "the rating labels are released with the dots (the start-latched filter keeps everything)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    for (const o of p.live) (isStartFreeDot(o) ? live : latched).push(o)",
+   "to": "    for (const o of p.live) (o ? live : latched).push(o)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "the dots served, the rating withheld by name"
+  },
+  {
+   "id": "E103-B2",
+   "mutant": "a moved setting is admitted (the run computes something other than the script as written)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (given && (typeof given !== 'object' || Object.keys(given).length)) return false",
+   "to": "  if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "a moved setting"
+  },
+  {
+   "id": "E103-B3",
+   "mutant": "the 502-bar floor is dropped",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (!Array.isArray(rows) || rows.length < START_FREE_MIN_BARS) return false",
+   "to": "  if (!Array.isArray(rows)) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "bars is refused"
+  },
+  {
+   "id": "E103-B4",
+   "mutant": "the identity check is removed (any script that draws is released this way)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  return sourceSha256Of(compute.source) === FRED_RS_SOURCE_SHA256",
+   "to": "  return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "an edited script"
+  }
+ ]
+}
