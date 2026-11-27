@@ -37,6 +37,12 @@ import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from
 import { ensureChartSources, exchangeLookupTickers } from './useSecondarySources'
 import { clearBreadth } from './breadthSupply'
 import { otherSymbolSourceNotesFor } from './ast/symbolSubstitution'
+import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const pine = (lines) => ['//@version=5', 'indicator("breadth")', ...lines].join('\n')
 function docOf(src) {

@@ -13,6 +13,12 @@ import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, warmu
 import { runtimeRequestSupply, sessionDaysOf, __sessionDayMemoOffForTests } from '../requestSupply.js'
 import * as OTHER from '../../otherSymbols.js'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition.js'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 // every ET-day the supply formats is counted (the formatter itself, wrapped)
 vi.mock('../../otherSymbols.js', async (importOriginal) => {
