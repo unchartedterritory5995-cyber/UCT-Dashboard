@@ -2396,7 +2396,8 @@ export function createPrefetch(o = {}) {
       if (keys.length >= CANDIDATE_POOL_K) break
       const T = String(s0 || '').trim().toUpperCase()
       if (!_isSym(T)) continue
-      const k = to != null ? keyFor(T, tf, { showExtended, window: { to } }) : keyFor(T, tf)
+      // (review of #2979) the PANE's session on both branches: 60m regular hours and extended are two keys (`_60` / `_60e`)
+      const k = keyFor(T, tf, { showExtended, window: to != null ? { to } : null })
       const p = k ? parseKey(k) : null
       if (!p || (to != null) !== !!p.window || keys.includes(k)) continue
       keys.push(k)
@@ -2421,7 +2422,9 @@ export function createPrefetch(o = {}) {
         if (signal.aborted) return
         if (p.window) {                                    // a date's window: no edge copy, the background warm lane
           const h = S().peek(k)
-          if (!(h?.restSeen && HANDOFF_PAINTS.includes(h.status))) _defer(k, 'background', { depth: 4000, warm: true })
+          // (review of #2979) under the candidate's OWN signal (never the shared _defer batch, which carries none): a list
+          // that drops the candidate aborts its window ask, so a ticker typed past never reaches the origin
+          if (!(h?.restSeen && HANDOFF_PAINTS.includes(h.status))) await prefetch([k], { priority: 'background', depth: 4000, warm: true, signal })
           return
         }
         if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'visible', signal }); return }   // the edge's history
