@@ -227,6 +227,8 @@ import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/art
 import RecentlyDeleted from '../components/artifactHistory/RecentlyDeleted'
 import styles from './Watchlists.module.css'
 import { useChartsSym } from './charts/ChartsSymContext'
+import { groupDateFor } from '../components/chart/groupViewDate'
+import { viewWindowOfDate } from '../components/chart/viewWindow'
 import { fetchTf } from '../components/chart/timeframes'
 import { enter as enterReview, publish as publishReview } from './charts/review/reviewSession'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
@@ -1264,7 +1266,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // virtualized list is nudged fully into view a frame later, as a list rendered outright is. Its own ref, because
   // ScanRows' effect (which runs first) clears clickSelectRef.
   const clickNudgeRef = useRef(null)
-  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs } = useChartsSym()
+  const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs, group: hubGroup } = useChartsSym()
+  const hubGroupRef = useRef(hubGroup)
+  hubGroupRef.current = hubGroup
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
@@ -2356,6 +2360,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // started 0.4-0.5 s after landing, behind the next row (a jumping member presses the target next).
     const urgentNext = jump && !next.includes(jump) ? [jump, next[0]].filter(Boolean) : next
     const keep = jump ? [jump, ...keep0.filter((x) => x !== jump)] : keep0
+    // ⭐ (zero-network PR 1.3) the colour's charts at a past date read the WINDOW ending there on intraday: the next rows
+    // are pinned and warmed on that key (groupViewDate; null at the present and on D/W/M)
+    const groupDay = groupDateFor(hubGroupRef.current)
+    const windowOf = (t) => (groupDay ? viewWindowOfDate(groupDay, t) : null)
     const sendWarm = () => {
       const holds = _holdsRef.current
       for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }
@@ -2369,7 +2377,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // registry's LRU took them first, and each came back a local copy asked for in full (2026-11-24 replay)
         // `live` (2026-11-25): the next rows the way the member is moving ride the bars stream as `ahead` pairs, so the
         // first press after a minute roll finds that row as current as the chart on screen (createNeighborHold `live`)
-        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep })
+        holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep, ...(windowOf(tf) ? { viewWindow: windowOf(tf) } : {}) })
       }
       warmMemFromIDB(around, tfs)
       // (2026-11-28, plan 1.7) the rows around: device + edge only (data/barStore/prefetch `edge`), never /api/bars
@@ -2390,7 +2398,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         trace.push({ at: Math.round(performance.now()), sym: selectedSym, rerun, stride, jump, urgent: urgentNext, tfs })
         if (trace.length > 200) trace.splice(0, trace.length - 200)
       }
-      for (const tf of tfs) prefetchBars(urgentNext, tf, { urgent: true })
+      for (const tf of tfs) prefetchBars(urgentNext, tf, { urgent: true, ...(windowOf(tf) ? { viewWindow: windowOf(tf) } : {}) })
     }
     if (hurried) { sendWarm(); return undefined }
     const cancel = afterPaint(sendWarm)

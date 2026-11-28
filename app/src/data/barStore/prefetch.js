@@ -1502,7 +1502,10 @@ export function createPrefetch(o = {}) {
     for (const sym of tickers) { _defer(keyFor(sym, tf, { showExtended }), priority, opts); tickerMeta(sym) }
   }
 
-  function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
+  // `viewWindow` (zero-network PR 1.3): the urgent next rows are warmed on the window the group's charts read at the
+  // member's date; the rows further out are left to the date's own window warm (chart/useDateWindowWarm)
+  function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false, viewWindow = null } = {}) {
+    const wOpts = viewWindow && Number.isFinite(viewWindow.to) ? { window: { to: viewWindow.to } } : null
     if (!tickers?.length) return
     const syms = tickers.filter(Boolean)
     tellSymbolWarmers(syms, tf, { priority: priority || urgent })
@@ -1513,7 +1516,7 @@ export function createPrefetch(o = {}) {
       // (a waiting lane request never reaches the network). ⛔ PER TIMEFRAME (2026-11-19): a list
       // linked to a daily AND an hourly chart warms both on every press; aborting every other key
       // made the second call cancel the first timeframe's next rows.
-      const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf)))
+      const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf, wOpts || {})))
       const callTf = parseKey([...keep][0] || '')?.tf
       for (const [k, c] of urgentCtl) {
         if (!keep.has(k) && parseKey(k)?.tf === callTf) {
@@ -1522,7 +1525,7 @@ export function createPrefetch(o = {}) {
         }
       }
       for (const sym of syms.slice(0, nUrgent)) {
-        const k = keyFor(sym, tf)
+        const k = keyFor(sym, tf, wOpts || {})
         if (!k) continue
         if (!urgentCtl.has(k)) urgentCtl.set(k, new AbortController())
         const c = urgentCtl.get(k)
@@ -1540,7 +1543,7 @@ export function createPrefetch(o = {}) {
         tickerMeta(sym)
       }
     }
-    _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
+    if (!wOpts) _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
   }
 
   /**
@@ -1947,10 +1950,14 @@ export function createPrefetch(o = {}) {
       }
     }
     return {
-      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined, keep: keepSyms = null, live: liveSyms = null } = {}) {
+      // `viewWindow` (zero-network PR 1.3): the window the group's charts read at the member's date ({to}: chart/viewWindow);
+      // every key below is then THAT window's, the one a chart at the date subscribes (chartKeyFor). The tail, live and
+      // deepening rows are plain-key work (they skip a window key by their own rules).
+      set(syms, tf, { showExtended, deep = null, tail: tailSyms = null, selected = undefined, keep: keepSyms = null, live: liveSyms = null, viewWindow = null } = {}) {
+        const kOpts = viewWindow && Number.isFinite(viewWindow.to) ? { showExtended, window: { to: viewWindow.to } } : { showExtended }
         const st = S()
         const want = new Map()
-        for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
+        for (const sym of syms || []) { const k = keyFor(sym, tf, kOpts); if (k) want.set(k, true) }
         for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
         for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
         held = want
@@ -1964,7 +1971,7 @@ export function createPrefetch(o = {}) {
         const share = keepers.has(keeper) ? _keepShare() : 0
         const keepWant = new Map()
         for (const sym of (keepSyms || []).slice(0, share)) {
-          const k = keyFor(sym, tf, { showExtended })
+          const k = keyFor(sym, tf, kOpts)
           if (!k || keepWant.has(k)) continue
           if (kept.has(k)) keepWant.set(k, true)
           else if (_holdsRows(st.peek(k))) { st.registry.acquire(k); keepWant.set(k, true) }
@@ -1990,7 +1997,7 @@ export function createPrefetch(o = {}) {
         tail = []
         tailExt = showExtended
         for (const sym of tailSyms || []) {
-          const k = keyFor(sym, tf, { showExtended })
+          const k = keyFor(sym, tf, kOpts)
           const p = k ? parseKey(k) : null
           if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !tail.includes(k)) tail.push(k)
         }
@@ -2003,7 +2010,7 @@ export function createPrefetch(o = {}) {
           const liveKeys = []
           for (const sym of liveSyms || []) {
             if (liveKeys.length >= NEIGHBOR_LIVE_ROWS) break
-            const k = keyFor(sym, tf, { showExtended })
+            const k = keyFor(sym, tf, kOpts)
             const p = k ? parseKey(k) : null
             if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !liveKeys.includes(k)) liveKeys.push(k)
           }
@@ -2016,7 +2023,7 @@ export function createPrefetch(o = {}) {
         const next = []
         const dates = []
         for (const sym of deep) {
-          const k = keyFor(sym, tf, { showExtended })
+          const k = keyFor(sym, tf, kOpts)
           const p = k ? parseKey(k) : null
           if (!p || p.window || !want.has(k) || next.includes(k) || dates.includes(k)) continue
           if (isIntradayTf(p.tf)) next.push(k)

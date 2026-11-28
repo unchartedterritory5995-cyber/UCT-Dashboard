@@ -34,6 +34,7 @@ import PendingSwitchCue, { usePendingCue } from '../../../components/chart/Pendi
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
+import { publishGroupDate } from '../../../components/chart/groupViewDate'
 import { createDateBoxNav } from './dateBoxNav'
 import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
 import { createDateWarm } from '../../../components/chart/dateWarm'
@@ -291,6 +292,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     const tfs = [c.tf, ...Array.from(c.tfs || [])]
     dateWarm.draft(Number.isFinite(ms) ? ms : null, { sym: c.sym, neighbors: scanNeighborsFor(c.sym), tfs, showExtended: !!paneExtRef.current })
   }, [dateWarm])
+  // ⭐ (PR 1.3) the lists on this colour warm their next rows on the window this chart reads at the date (groupViewDate)
+  const groupDateOwner = useId()
+  const groupDateDay = anchorKey ? viewDate.date : null
+  useEffect(() => {
+    publishGroupDate(activeColor, groupDateOwner, groupDateDay)
+    return () => publishGroupDate(activeColor, groupDateOwner, null)
+  }, [activeColor, groupDateOwner, groupDateDay])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
