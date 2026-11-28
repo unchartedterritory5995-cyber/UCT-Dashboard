@@ -646,6 +646,14 @@ _DAILY_READ_CODE = "D"
 #: ``ast_interpret.TF_LIVE_BASE_BARS`` (the quarter, read live only), bound to it
 #: by a test for the same forced reason as the table above.
 _TF_LIVE_BASE_BARS = dict(_TF_BASE_BARS, **{"3M": 63})
+#: ⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- the port of ``lint.js::INTRADAY_HTF_SPANS``: the span a read of MINUTES above an
+#: intraday chart counts its child in (the fewest chart bars such a bucket holds). ``forward`` is unchanged by it: a
+#: CLOSED read stays ``non-repainting``, a merge or a forming read keeps its badge.
+_INTRADAY_HTF_SPANS = {"30": 2, "60": 2, "120": 2, "240": 2}
+
+
+def _span_of(table: Dict[str, int], code: str) -> Optional[int]:
+    return table.get(code, _INTRADAY_HTF_SPANS.get(code))
 
 
 def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -878,7 +886,7 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # child that DOES read forward still converts, rounded UP, because an
             # understated forward window is the direction that lies.
             code = str(node.get("value"))
-            span = _TF_BASE_BARS.get(code)
+            span = _span_of(_TF_BASE_BARS, code)
             if code == _DAILY_READ_CODE and len(args) == 1:
                 # ⭐⭐ U-DAILY (e96) -- a daily read on a chart below a day (``ast_interpret.DAILY_READ``): its child runs
                 # on DAILY bars and each chart bar reads the LAST FINISHED day, so back is the child's daily reach plus
@@ -902,7 +910,7 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # value is decided by bar ``i + 1``'s date, so a forming newest bar's value
             # moves once that bar closes mid-period: ``preview-repaints``.
             code = str(node.get("value"))
-            span = _TF_BASE_BARS.get(code)
+            span = _span_of(_TF_BASE_BARS, code)
             if len(args) != 1 or span is None:
                 reach_of[id(node)] = unknown(
                     "a higher-timeframe node carries one child and a timeframe this "
@@ -929,7 +937,7 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # daily bars of its own week. Any positive value yields the same badge,
             # so this is stated for the reader rather than for the verdict.
             code = str(node.get("value"))
-            span = _TF_LIVE_BASE_BARS.get(code)
+            span = _span_of(_TF_LIVE_BASE_BARS, code)
             if len(args) != 1 or span is None:
                 reach_of[id(node)] = unknown(
                     "a live higher-timeframe node carries one child and a timeframe "

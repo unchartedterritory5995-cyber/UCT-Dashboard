@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!-- SYNTHETIC fixture (2026-11-27): invented companies, CIKs and accession numbers in the shape of
+     EDGAR's getcurrent Atom feed (compare feed_S-1.atom, a recorded one). Not a recording. -->
+<feed xmlns="http://www.w3.org/2005/Atom">
+<title>Latest Filings</title>
+<updated>2026-11-27T17:00:00-05:00</updated>
+<entry>
+<title>424B4 - Example Offering Co 6 (0009990105) (Filer)</title>
+<link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/9990105/999999999926900105/9999999999-26-900105-index.htm"/>
+<summary type="html">
+ &lt;b&gt;Filed:&lt;/b&gt; 2026-11-27 &lt;b&gt;AccNo:&lt;/b&gt; 9999999999-26-900105 &lt;b&gt;Size:&lt;/b&gt; 1 MB
+</summary>
+<updated>2026-11-27T16:00:00-05:00</updated>
+<category scheme="https://www.sec.gov/" label="form type" term="424B4"/>
+<id>urn:tag:sec.gov,2008:accession-number=9999999999-26-900105</id>
+</entry>
+<entry>
+<title>424B4/A - Sample Shelf Holdings 6 (0009990205) (Filer)</title>
+<link rel="alternate" type="text/html" href="https://www.sec.gov/Archives/edgar/data/9990205/999999999926900205/9999999999-26-900205-index.htm"/>
+<summary type="html">
+ &lt;b&gt;Filed:&lt;/b&gt; 2026-11-27 &lt;b&gt;AccNo:&lt;/b&gt; 9999999999-26-900205 &lt;b&gt;Size:&lt;/b&gt; 1 MB
+</summary>
+<updated>2026-11-27T15:00:00-05:00</updated>
+<category scheme="https://www.sec.gov/" label="form type" term="424B4/A"/>
+<id>urn:tag:sec.gov,2008:accession-number=9999999999-26-900205</id>
+</entry>
+</feed>

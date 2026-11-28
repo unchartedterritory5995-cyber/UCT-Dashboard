@@ -94,7 +94,7 @@
 // this file has, it is the only one, and `sentence.test.js` measures it by
 // rendering through a manifest whose keys were rebuilt in reverse order.
 
-import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, MULTI_STATES, TICKER_SHAPE } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS, MULTI_STATES, TICKER_SHAPE, INTRADAY_HTF_CODES } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -1059,6 +1059,18 @@ function renderTf(node, rules, inputs, depth, path, trace) {
     trace.push({ path, rule: 'tf' })
     const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
     return `${inner} on daily bars, as of the last finished day`
+  }
+  // ⭐⭐ E101 INTRADAY-HTF (2026-11-28) — A READ OF MINUTES ABOVE THE CHART says which bar it is read on, as the daily
+  // read does: the last CLOSED one for `tf` (the bucket before the one this bar is in), the bar that closes each one for
+  // Pine's merge, "so far" for the forming one. ⛔ The code is one of `INTRADAY_HTF_CODES` (whole minutes), so the phrase
+  // is total; any other code keeps the refusal below.
+  if (INTRADAY_HTF_CODES.includes(String(node.value))) {
+    const bars = `${String(node.value)} minute bar`
+    trace.push({ path, rule: node.type === 'tf_live' ? 'tf_live' : node.type === 'tf_merge' ? 'tf_merge' : 'tf' })
+    const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+    if (node.type === 'tf_live') return `${inner} so far this ${bars}`
+    if (node.type === 'tf_merge') return `${inner} on ${bars}s, from the bar that closes each ${bars}`
+    return `${inner} on ${bars}s, as of the last closed ${bars}`
   }
   const liveNoun = node.type === 'tf_live' ? TF_LIVE_NOUN[String(node.value)] : undefined
   const word = TF_WORD[String(node.value)]

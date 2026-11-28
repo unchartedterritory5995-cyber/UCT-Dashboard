@@ -11,7 +11,8 @@
 //
 // No dependency on React, the BarStore or the DOM: it runs on the page or in a Worker, and `fetch`
 // is a parameter so the tests drive it.
-import { PieceError, T_UNIT, encodeSymbol, decodeColumns, toFloats } from './piece'
+import { PieceError, T_UNIT, encodeSymbol } from './piece'
+import { sharedLakeDecoder } from './decoder'
 import { adjustColumns, cleanSplitTable } from './adjust'
 
 export const HIST_BASE = '/api/hist'
@@ -130,15 +131,20 @@ async function mapLimit(items, limit, fn) {
 }
 
 /**
- * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => (Promise<void> | null) }} o
+ * @param {{ fetch?: typeof fetch, base?: string, maxParallel?: number, yieldTask?: () => (Promise<void> | null), decoder?: { decode: Function, warm?: Function } }} o
  *   `yieldTask` (also per `loadBars` call): asked before each piece's decode; a promise is awaited (the decode runs in a
  *   later task), null runs it at once. Default `nextTask`.
+ *   `decoder` (decoder.js `createLakeDecoder`): decodes a piece's header + body into float columns, at once or as a
+ *   Promise. Default: the page's shared one (its worker).
  */
 export function createHistorySource(o = {}) {
   const doFetch = o.fetch ?? ((...a) => fetch(...a))
   const yieldTask = o.yieldTask ?? nextTask
   const base = o.base ?? HIST_BASE
   const maxParallel = o.maxParallel ?? MAX_PARALLEL
+  // ⭐ (2026-11-28) a piece is decoded by `decoder` (decoder.js): in the page's worker once it is ready, inline before
+  // that and where no worker can run; the same columns either way
+  const decoder = o.decoder ?? sharedLakeDecoder()
   const indexes = new Map()      // lake symbol -> Promise<index | null>
 
   const get = (url, signal) => doFetch(url, { credentials: 'same-origin', signal })
@@ -150,6 +156,7 @@ export function createHistorySource(o = {}) {
     let p = indexes.get(symbol)
     if (p) { indexes.delete(symbol); indexes.set(symbol, p) }   // most recently used last
     if (!p) {
+      try { decoder.warm?.() } catch { /* inline decodes */ }   // (an index is a round trip before any piece)
       p = (async () => {
         const res = await get(`${base}/v1/index/${encodeSymbol(symbol)}.json`, signal)
         if (res.status === 404) return null
@@ -244,12 +251,20 @@ export function createHistorySource(o = {}) {
       // a load given up while it waited is not decoded (the abort a fetch in flight would have thrown)
       if (signal?.aborted) throw signal.reason ?? new DOMException('The load was aborted', 'AbortError')
     }
-    const d = decodeColumns(headerJson, bytes)
-    const hd = d.header
+    // (`urgent`: no yield means a paint waits on this load, so its decode never queues behind other pieces; `signal`: a
+    // load given up while its decode waits in the decoder's queue is dropped there, never decoded)
+    // (`isUrgent`: the yield's own answer to "does a paint wait on this load now", when it has one: network.js)
+    let d = decoder.decode(headerJson, bytes, { urgent: !w, signal, isUrgent: typeof wait?.urgentNow === 'function' ? wait.urgentNow : null })
+    if (d && typeof d.then === 'function') {
+      d = await d
+      // (a load given up while the worker decoded is not handed on, as above)
+      if (signal?.aborted) throw signal.reason ?? new DOMException('The load was aborted', 'AbortError')
+    }
+    const { header: hd, ...cols } = d
     if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
       throw new PieceError(`${symbol} ${series}/${entry.period}: the answer is a different piece`)
     }
-    return clip(toFloats(d), entry)
+    return clip(cols, entry)
   }
 
   /**

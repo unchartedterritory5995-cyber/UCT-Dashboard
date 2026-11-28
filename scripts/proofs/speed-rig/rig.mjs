@@ -25,6 +25,7 @@
 // Sends no OS keys: key presses are DevTools-dispatched into this run's own page.
 // ⛔ The repo is PUBLIC and Actions logs are public: nothing here prints or writes a credential, a cookie or a token
 // (scrub() below runs over every line printed and every file written; the workflow scans the artifacts again).
+import { dateCoverOf, viewCovers, viewBeforeListing, deepEarliest, lakeSeriesFor, dailySource } from './rig_dates.mjs'
 import { readFileSync, writeFileSync as writeFileSyncRaw, openSync, writeSync, closeSync, mkdirSync } from 'node:fs'
 import os from 'node:os'
 import { startApp, sleep, BASE, browserVersion } from './launch.mjs'
@@ -369,6 +370,9 @@ async function probeMemory(port) {
   } finally { try { ws.close() } catch { /* closed */ } }
 }
 const out = { startedUtc: new Date().toISOString(), tf: TF, set: SET, flips: [], dwell: DWELL, cheapSampler: CHEAP_SAMPLER, origin: ORIGIN }
+// (2026-11-28) the switches a CPU profile ran on: 100 us sampling and the profile's alignment loop inflate their timings,
+// so grade.py marks them PROFILED and never times them
+out.profiled = [...new Set([...PROFILE_FLIPS, ...TYPED_PROF])].sort((x, y) => x - y)
 // (speed rig) the isolation store is written as its keys and sizes only: a pref VALUE never enters a result
 const save = () => writeFileSync(OUT, JSON.stringify(out, function (k, v) { return k === 'store' && this && this.mode === 'browser' && v && typeof v === 'object' ? Object.keys(v).map((x) => `${x}:${String(v[x]).length}`) : v }, 1))
 // --headless=1 (+ --chrome-version=<x.y.z.w>): an OFF-SCREEN Chrome (headless=new draws real frames) for a run
@@ -1212,14 +1216,55 @@ try {
   if (GO_TO_DATE) {
     const focused = await run(`(()=>{const W=document.querySelector('[data-widget-id="flip-chart"]');const el=W?[...W.querySelectorAll('[data-guide="chart.goToDate"]')].find((e)=>!e.closest('[inert]')):null;if(!el)return false;el.focus();return document.activeElement===el})()`)
     if (!focused) throw new Error('no Time Navigator date box on the flip chart')
+    // ⛔ (2026-11-28: every cloud date pass measured the PRESENT) THE FIELD IS SELECTED FIRST. Focus fills the box with the
+    // date on screen and selects it a frame later (ChartDateNav onFocus: requestAnimationFrame(select)); text typed before
+    // that frame was APPENDED to today's date, the 8-digit mask kept today, and Enter went to today. So: wait for the
+    // frame, select the field's whole text, then type.
+    await sleep(120)
+    await run(`(()=>{const el=document.activeElement;if(el&&el.select)el.select();return el&&el.selectionStart===0&&el.selectionEnd===String(el.value||'').length})()`)
     await c.send('Input.insertText', { text: GO_TO_DATE.replace(/[^0-9]/g, '') })
     await sleep(150)
+    const typedAs = await run(`(()=>{const el=document.activeElement;return el?String(el.value||''):null})()`)
+    // the view before Enter (a jump must MOVE it) and the symbol's earliest bar by an independent read (the API's
+    // deepest page for this timeframe, as --live-accuracy reads it): an 'earliest bars' landing must be THAT bar
+    const VIEW_JS0 = `(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`
+    const viewBefore = await run(VIEW_JS0)
+    // the symbol's earliest bar by the product's DEEP sources, never the live /api/bars window a chart can be stuck on, and
+    // never a deep live-path ask (that kicks a backfill write per symbol on production): D/W/M the deep daily store
+    // (/api/bars-history; exhausted when it answers fewer rows than asked), intraday the history lake's index (its oldest
+    // piece's first bar: the index is the whole stored history)
+    const earliestRaw = await run(`(async()=>{const sel=document.querySelector('[data-watch-sym][aria-selected="true"]');const sym=sel&&sel.getAttribute('data-watch-sym');if(!sym)return {sym:null,list:[]};const tf=${JSON.stringify(String(TF))};const series=${JSON.stringify(lakeSeriesFor(TF))};const list=[];let daily=null;try{if(tf==='D'||tf==='W'||tf==='M'){const want=12500;const r=await fetch('/api/bars-history/'+encodeURIComponent(sym)+'?tf='+tf+'&bars='+want,{credentials:'include'});let j=null;try{j=await r.json()}catch(e){j=null}const a=Array.isArray(j)?j:(j&&(j.bars||j.data||j.candles))||[];const x=a[0];daily={ok:r.ok,sealed:!!(j&&j.sealed===true),partial:!!(j&&j.partial),header:r.headers.get('X-Bars-History'),first:x?(x.t!=null?x.t:x.time):null,n:a.length,want}}else if(series){const enc='s-'+[...new TextEncoder().encode(sym.toUpperCase().replace(/-/g,'.'))].map((b)=>(b>=48&&b<=57)||(b>=65&&b<=90)?String.fromCharCode(b):'_'+b.toString(16).toUpperCase().padStart(2,'0')).join('');const r=await fetch('/api/hist/v1/index/'+enc+'.json',{credentials:'same-origin'});if(r.ok){const j=await r.json();const per=(j&&j.series&&j.series[series])||{};let lo=null;for(const e of Object.values(per)){if(!e||!Number.isFinite(e.first))continue;const f=Number.isFinite(e.from)?Math.max(e.first,e.from):e.first;if(lo==null||f<lo)lo=f}list.push({source:'lake',t:lo,exhausted:lo!=null})}else list.push({source:'lake',t:null,status:r.status})}}catch(e){list.push({source:'error',t:null,error:String(e).slice(0,80)})}return {sym,list,daily}})()`)
+    // (the deep daily answer is judged here, by rig_dates.dailySource: only a sealed, non-partial answer is a source)
+    if (earliestRaw && earliestRaw.daily) earliestRaw.list.push(dailySource(earliestRaw.daily))
+    const earliest = deepEarliest(earliestRaw && earliestRaw.list)
     await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
     await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
-    await sleep(2500)
-    out.goToDate = { asked: GO_TO_DATE, view: await run(`(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`) }
+    // ⛔ WAIT UNTIL THE VIEW COVERS THE ASKED DATE, and stop the pass if it never does: a pass that measures the present
+    // under a date label is worse than no pass (grade.py grades it INVALID)
+    const VIEW_JS = `(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`
+    const want = dateCoverOf(GO_TO_DATE)
+    const t0 = Date.now()
+    let v = null
+    let landed = false
+    let landedAs = null
+    while (Date.now() - t0 < 15000) {
+      await sleep(250)
+      v = await run(VIEW_JS)
+      if (v && viewCovers(v, want)) { landed = true; landedAs = 'covers'; break }
+      // a symbol that LISTED after the asked date has no bar there: the chart frames its earliest bars (its first bar at
+      // the view's left edge, logical 0), which is the date's frame for that symbol. Only once its history is whole: a
+      // first bar that later loads older rows moves, so the check waits for the view to hold still at index 0 for 2 s.
+      if (v && viewBeforeListing(v, want, viewBefore, earliest)) {
+        if (!landedAs) landedAs = { at: Date.now(), from: v.from }
+        else if (landedAs.from === v.from && Date.now() - landedAs.at >= 2000) { landed = true; landedAs = 'earliest-bars'; break }
+      } else if (landedAs && typeof landedAs === 'object') landedAs = null
+    }
+    if (landedAs && typeof landedAs === 'object') landedAs = null
+    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedAs, landedInMs: landed ? Date.now() - t0 : null, view: v, viewBefore, earliest, earliestSources: earliestRaw && earliestRaw.list, wantDay: want && want.day }
     console.log(`go to date: ${JSON.stringify(out.goToDate)}`)
     save()
+    if (!landed) throw new Error(`go to date ${GO_TO_DATE}: the view never reached it in 15 s (typed as ${JSON.stringify(typedAs)}, view ${JSON.stringify(v && { from: v.from, to: v.to })})`)
+    await sleep(1000)   // the landed frame settles before the first switch
   }
   if (ZOOM_MAX) {
     out.zoomMax = {}

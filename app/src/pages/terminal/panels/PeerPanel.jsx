@@ -22,7 +22,9 @@ import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presenta
 import styles from './myNamesPanel.module.css'
 
 export const PEERS_N = 12
-export const peersUrl = (sym) => `/api/groups/peers?sym=${encodeURIComponent(sym)}&n=${PEERS_N}`
+// prefer=licensed: the server reads the held Massive related-companies list first (built nightly,
+// api/services/related_peers.py) and falls back to the peer engine above when none is held.
+export const peersUrl = (sym) => `/api/groups/peers?sym=${encodeURIComponent(sym)}&n=${PEERS_N}&prefer=licensed`
 export const PERF_URL = '/api/watchlist-performance'
 
 const stamped = (url) => jsonFetcher(url).then((d) => ({ body: d, receivedAt: new Date().toISOString() }))
@@ -32,6 +34,7 @@ const perfFetcher = ([url, key]) => jsonFetcher(url, {
 
 /** Where the peer list came from, in plain words (the route's own `source`). */
 export const SOURCE_TEXT = {
+  licensed: 'Licensed data from Massive',
   taxonomy: 'UCT theme',
   industry: 'Same industry',
   macro: 'Index and macro board',
@@ -100,7 +103,9 @@ export default function PeerPanel({ sym }) {
   const body = peers.data?.body
   const asOf = peers.data?.receivedAt || null
   usePanelFreshness(asOf && all.length
-    ? panelAsOf('UCT peer groups (themes, industry), live prices, daily closes', asOf)
+    ? panelAsOf(body?.source === 'licensed'
+      ? 'Massive related companies (held nightly), live prices, daily closes'
+      : 'UCT peer groups (themes, industry), live prices, daily closes', asOf)
     : null)
 
   if (!s) {

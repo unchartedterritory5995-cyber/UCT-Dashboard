@@ -39,7 +39,7 @@ import {
 } from '../authoringIntent'
 import { printFormula } from '../../engine/ast/pine'
 import { assertCanonical, astHash, TABLE } from '../../engine/ast/parse'
-import { isBelowADay } from '../../engine/ast/interpret'
+import { isBelowADay, intradayHtfRefusal } from '../../engine/ast/interpret'
 import { expandCalls, collapseExpansions, ExpansionRefusal } from '../../engine/ast/callExpansions'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
@@ -74,6 +74,7 @@ export const CROSS_CONTEXT = Object.freeze({
   tfCodes: Object.freeze([...CROSS.tfCodes]),
   // ⭐⭐ U-DAILY (e96) — the codes a `tf` read may name on a chart below a day only (`D`: the last finished day)
   tfBelowADayCodes: Object.freeze([...CROSS.tfBelowADayCodes]),
+  tfIntradayCodes: Object.freeze([...CROSS.tfIntradayCodes]),
   tfLiveCodes: Object.freeze([...CROSS.tfLiveCodes]),
   calculationTimeframes: Object.freeze([...CROSS.calculationTimeframes]),
 })
@@ -144,10 +145,17 @@ export function gateTree(tree, scope, key, gateCtx = null) {
         throw err('tree:symbol-ambiguous', `${key}: ${t} also names a market index or commodity outside UCT's bar store, so which instrument it means can't be settled.`, { output: key })
       }
     }
+    // ⭐⭐ E101 INTRADAY-HTF (2026-11-28) — and 30 / 60 / 120 / 240 minutes (`crossContext.tfIntradayCodes`: the last
+    // closed bucket) above a chart below a day whose minutes divide it (`intradayHtfRefusal`, the evaluator's one decision)
+    const intradayHere = belowADay && CROSS_CONTEXT.tfIntradayCodes.includes(String(n.value))
+      && intradayHtfRefusal(String(n.value), String(gateCtx.tf)) === null
     if (n.type === 'tf' && !CROSS_CONTEXT.tfCodes.includes(n.value)
-        && !(belowADay && CROSS_CONTEXT.tfBelowADayCodes.includes(n.value))) {
-      throw err('tree:timeframe', `${key}: a formula can read the weekly or monthly timeframe inside it, not "${String(n.value)}"`
-        + `${CROSS_CONTEXT.tfBelowADayCodes.includes(n.value) ? ' (a daily read is for a chart below a day)' : ''}.`, { output: key })
+        && !(belowADay && CROSS_CONTEXT.tfBelowADayCodes.includes(n.value)) && !intradayHere) {
+      const intradayWhy = CROSS_CONTEXT.tfIntradayCodes.includes(String(n.value))
+        ? ` (${belowADay ? intradayHtfRefusal(String(n.value), String(gateCtx.tf)) : 'a read of minutes is for a chart below a day, below those minutes'})` : ''
+      throw err('tree:timeframe', `${key}: a formula can read the weekly or monthly timeframe inside it, on a chart below `
+        + `a day the daily one, and there 30, 60, 120 or 240 minutes above the chart, not "${String(n.value)}"`
+        + `${CROSS_CONTEXT.tfBelowADayCodes.includes(n.value) ? ' (a daily read is for a chart below a day)' : ''}${intradayWhy}.`, { output: key })
     }
     if (n.type === 'tf_live' && !CROSS_CONTEXT.tfLiveCodes.includes(n.value)) {
       throw err('tree:timeframe', `${key}: a forming-period read names the weekly or monthly timeframe only, not "${String(n.value)}".`, { output: key })

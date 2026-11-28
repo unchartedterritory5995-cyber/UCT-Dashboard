@@ -251,10 +251,22 @@ def test_the_daily_read_given_at_once_costs_one_call(conv, clean_env, model):
     assert r["ok"] is True and len(client.calls) == 1, (r.get("gate"), r.get("reason"))
 
 
-def test_a_daily_read_on_a_daily_chart_is_sent_back(conv, clean_env, model):
+def test_a_daily_read_on_a_daily_chart_is_mended_to_the_value_itself(conv, clean_env, model):
+    """⭐⭐ (2026-11-28) found live (the fifty-set's f34 on a daily chart): the door refused a daily read on a daily chart
+    and the turn ran out of calls, so the member was told to rephrase. On a DAILY chart that read IS the value itself (the
+    refusal's own sentence), so it is unwrapped in the same call (`mend_daily_read_on_days`), recorded by name."""
     client = model([emits(DAILY_BUILD), emits(STAND_IN)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=DAILY)
-    assert len(client.calls) == 2 and r["ok"] is True, (r.get("gate"), r.get("reason"))     # on a daily chart 14 bars ARE 14 days
+    assert len(client.calls) == 1 and r["ok"] is True, (r.get("gate"), r.get("reason"))     # on a daily chart 14 bars ARE 14 days
+    assert '"tf"' not in json.dumps((r.get("envelope") or {}).get("ops"))
+    assert conv.MEND_DAILY_READ_ON_DAYS in json.dumps(r.get("usage") or {}), r.get("usage")
+
+
+def test_a_daily_read_on_a_weekly_chart_is_still_sent_back(conv, clean_env, model):
+    """⛔ CONTROL: on a weekly chart the value itself is a WEEKLY value, a different number, so nothing is unwrapped."""
+    client = model([emits(DAILY_BUILD), emits(STAND_IN)])
+    r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart={**DAILY, "tf": "W"})
+    assert len(client.calls) == 2, (r.get("gate"), r.get("reason"))
     assert "the last finished day on each bar of a chart BELOW A DAY" in json.dumps(client.calls[1]["messages"])
 
 

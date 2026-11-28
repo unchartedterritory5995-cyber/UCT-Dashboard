@@ -36,6 +36,11 @@ import { doorTick } from './doorDeadline.js'
 // ⭐ engine-40 bytes: this re-export edge places the member-text guard-id rule (`guardIdText.js`, its ONE
 // authority) inside this module's chunk, which every chart-side wrap site already loads. Import it
 // from `./guardIdText.js`; this line exists for chunk placement (see that file's header).
+/** ⭐⭐ E101 INTRADAY-HTF — the intraday codes a higher-timeframe read may name above an intraday chart (30 / 60 / 120 /
+ *  240 minutes). Declared here, in the grammar every reader imports (`interpret.js` re-exports it, `sentence.js` words
+ *  it), so no reader holds a copy. */
+export const INTRADAY_HTF_CODES = Object.freeze(['30', '60', '120', '240'])
+
 export { withoutGuardIds, GUARD_NAMESPACES, GUARD_ID_SOURCE } from './guardIdText.js'
 
 // --------------------------------------------------------------------------- //

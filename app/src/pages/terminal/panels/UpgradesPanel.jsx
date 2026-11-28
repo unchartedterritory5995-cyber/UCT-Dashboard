@@ -14,18 +14,31 @@
 // it reports a date only when the payload has one (`wire_date` / `date` / `generated_at` at the top,
 // or an item's own `at`), and otherwise says the list is undated and when it is replaced.
 // ⛔ A failed read is an error with Retry, never "no analyst actions".
-import { useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+//
+// ⭐ GAP AUDIT P1 + R3 (2026-11-28): THE WHOLE LIST, AND ANY HELD DAY. The panel now reads the same route
+// with `full=1` (the latest wire's day, uncapped) or `date=YYYY-MM-DD` (exactly that day), served from the
+// dated store (api/services/analyst_history.py; the shape is in upgradesModel.js). That answer folds in the
+// nightly FMP analyst pass's upgrades and downgrades, each row naming its source, so a day the wire did not
+// cover still has actions. `UPDG 2026-11-20` (args.js `etDate`) or the Day picker chooses the day, and the
+// pick writes back to the command. A day not held says so, never a neighbouring day. An older server that
+// answers the capped shape is still read with the old wording (`dayMeta(body).full` is false).
+import { useId, useMemo, useState } from 'react'
+import {
+  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+} from '../../../components/terminal'
 import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCurrency, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
+import Select from '../../../components/ui/Select'
+import { LATEST, dayLabel, dayMeta, dayOptions, normUpgradesDate, sourceTag, upgradesDayArgs, upgradesUrl } from './upgradesModel'
 import styles from './marketPanels.module.css'
 
 export const UPGRADES_URL = '/api/analyst-actions'
 const POLL_MS = 5 * 60 * 1000
 const SOURCE = 'UCT morning wire (analyst actions)'
+const SOURCE_FULL = 'UCT morning wire and the nightly FMP analyst pass (analyst actions)'
 
 /** The kinds the list can be cut by. `bucket` is the payload key; `token` is what the chip writes
  *  into the command (`UPDG UP`); `cap` is the most the server keeps of that kind. */
@@ -95,7 +108,8 @@ export function stampOf(raw) {
 
 /**
  * Pure: the payload as rows, in the server's order (upgrades, then downgrades, then target changes).
- * Each row: `{ key, order, kind, sym, firm, action, tone, from, to, rating, target, targetText, at }`.
+ * Each row: `{ key, order, kind, sym, firm, action, tone, from, to, rating, target, targetText, at, source }`
+ * (`source` is 'wire' / 'fmp' on the dated answer, null on the capped one).
  * `counts` is per kind; `builtOn` is the date or instant the payload gives for the list (its own
  * top-level date, else the newest item time), or null; `wireStatus` is the server's own verdict on
  * that date (`fresh` / `stale` / `unknown`) when it sends one.
@@ -126,6 +140,7 @@ export function analystActions(body) {
         target,
         targetText: target == null ? text(a.price_target) || null : null,
         at: stampOf(a.at),
+        source: ['wire', 'fmp'].includes(text(a.source).toLowerCase()) ? text(a.source).toLowerCase() : null,
       })
     }
   }
@@ -157,38 +172,79 @@ const firstDirFor = (key) => (key === 'target' ? 'desc' : 'asc')
 const byOrder = (a, b) => a.order - b.order
 const LIST_ORDER = { key: 'order', dir: 'asc' }
 
-export default function UpgradesPanel({ kind: kindProp = null }) {
-  const inPanel = useInTerminalPanel()
+export default function UpgradesPanel({ kind: kindProp = null, date: dateProp = null }) {
   const writeBack = usePanelWriteBack()
-  const read = useMarketRead(UPGRADES_URL, { refreshInterval: POLL_MS })
-  const base = useMemo(() => analystActions(read.body), [read.body])
-  // A new `UPDG DOWN` remounts the panel (the shell keys the body on code + args), so the typed
-  // kind only ever seeds the state.
+  // A new `UPDG DOWN 2026-11-20` remounts the panel (the shell keys the body on code + args), so the
+  // typed kind and day only ever seed the state.
   const [kind, setKind] = useState(() => normKind(kindProp))
+  const [date, setDate] = useState(() => normUpgradesDate(dateProp))
+  // A pick writes itself into the command (`UPDG DOWN 2026-11-20`) where the registry takes the words,
+  // so a reload keeps it; otherwise it is plain component state (commandWriteBack.js).
+  const pick = (next) => {
+    const now = { kind, date, ...next }
+    setKind(now.kind)
+    setDate(now.date)
+    writeBack(upgradesDayArgs(UPGRADE_KINDS[now.kind].token, now.date))
+  }
+  // Keyed by day: a new day is a new read, so one day's list is never drawn under another day's date.
+  return <UpgradesDay key={date || 'latest'} date={date} kind={kind} onPick={pick} />
+}
+
+function DayPicker({ date, meta, onPick }) {
+  const id = useId()
+  return (
+    <label className={`${styles.muted} ${styles.pick}`} htmlFor={id}>
+      Day{' '}
+      <Select id={id} value={date || LATEST} className={styles.chip} data-testid="terminal-updg-day"
+        options={dayOptions(meta.dates, date)} onChange={(e) => onPick({ date: normUpgradesDate(e.target.value) })} />
+    </label>
+  )
+}
+
+function UpgradesDay({ date, kind, onPick }) {
+  const inPanel = useInTerminalPanel()
+  // A past day does not change, so only the latest day polls.
+  const read = useMarketRead(upgradesUrl(date), { refreshInterval: date ? 0 : POLL_MS })
+  const base = useMemo(() => analystActions(read.body), [read.body])
+  const meta = useMemo(() => dayMeta(read.body), [read.body])
   // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
   // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
   const [sort, setSort] = usePanelSort(LIST_ORDER)
   const rows = useMemo(() => sortRows(rowsOfKind(base.rows, kind), sort, { valueOf, isNumeric, tiebreak: byOrder }), [base.rows, kind, sort])
-  const report = panelAsOf(SOURCE, base.builtOn)
+  const asOf = date ? (meta.date || date) : base.builtOn
+  const report = panelAsOf(meta.full ? SOURCE_FULL : SOURCE, asOf)
   const builtText = report.age?.asOfDate || null
   usePanelFreshness(base.rows.length ? report : null)
   usePanelSymbolRows(rows.map((r) => r.sym), UPGRADE_KINDS[kind].plural, { total: base.counts[kind] })
+  const shown = dayLabel(date)
+  const back = date ? (
+    <button type="button" className={styles.chip} onClick={() => onPick({ date: null })} data-testid="terminal-updg-latest">Back to the latest wire</button>
+  ) : null
 
-  // The chip writes itself into the command (`UPDG DOWN`) where the registry takes the word, so a
-  // reload keeps it; otherwise it is plain component state (commandWriteBack.js).
-  const pick = (next) => { setKind(next); writeBack(upgradesCommandArgs(next)) }
-
-  if (read.loading) return <PanelSkeleton label="Loading analyst actions" testId="terminal-updg-loading" />
+  if (read.loading) return <PanelSkeleton label={shown ? `Loading analyst actions for ${shown}` : 'Loading analyst actions'} testId="terminal-updg-loading" />
   if (read.error && !read.body) {
     const locked = !canRetry(read.error)
     return (
       <PanelState kind={failureKind(read.error)} title={failureText(read.error, 'Analyst actions')} testId="terminal-updg-error"
-        action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>
+        action={locked ? back : <><button type="button" className={styles.chip} onClick={read.retry}>Retry</button>{back}</>}>
         {locked ? null : `That is not the same as no analyst actions. Retry${inPanel?.code ? `, or run ${inPanel.code} again` : ''}.`}
       </PanelState>
     )
   }
-  if (!base.rows.length) {
+  if (date && meta.full && !meta.held) {
+    return (
+      <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-updg" data-kind={kind} data-date={date}>
+        <div className={styles.toolbar} role="toolbar" aria-label="Analyst actions controls">
+          <DayPicker date={date} meta={meta} onPick={onPick} />
+        </div>
+        <PanelState kind="empty" title={`No analyst actions held for ${shown}.`} testId="terminal-updg-not-held" action={back}>
+          No morning wire was recorded for that day, and the nightly FMP pass holds no upgrades or downgrades dated it.
+          Days are kept for {meta.retentionDays || 400} days; pick a day from the list to read one that is held.
+        </PanelState>
+      </div>
+    )
+  }
+  if (!base.rows.length && !date) {
     return (
       <PanelState kind="empty" title="No analyst actions to show yet." testId="terminal-updg-empty"
         action={<button type="button" className={styles.chip} onClick={read.retry}>Check again</button>}>
@@ -200,28 +256,41 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
 
   const capped = Object.entries(UPGRADE_KINDS).filter(([k, m]) => m.cap && base.counts[k] >= m.cap).map(([, m]) => m.plural)
   return (
-    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-updg" data-kind={kind}>
+    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-updg" data-kind={kind} data-date={date || ''}>
       <div className={styles.toolbar} role="toolbar" aria-label="Analyst actions controls">
         <div className={styles.group} role="group" aria-label="Kind">
           {Object.entries(UPGRADE_KINDS).map(([key, m]) => (
-            <button key={key} type="button" className={styles.chip} aria-pressed={key === kind} onClick={() => pick(key)}
+            <button key={key} type="button" className={styles.chip} aria-pressed={key === kind} onClick={() => onPick({ kind: key })}
               data-testid={`terminal-updg-kind-${key}`}>{m.chip} ({base.counts[key]})</button>
           ))}
         </div>
+        {meta.full ? <DayPicker date={date} meta={meta} onPick={onPick} /> : null}
+        {back}
         {sort.key !== 'order' ? (
           <button type="button" className={styles.chip} onClick={() => setSort(LIST_ORDER)} data-testid="terminal-updg-sort-reset">List order</button>
         ) : null}
       </div>
       {read.error && <p className={styles.note} role="status">{failureText(read.error, 'Analyst actions')} Showing the last read.</p>}
-      {base.wireStatus === 'stale' && (
+      {!date && base.wireStatus === 'stale' && (
         <p className={styles.note} role="status" data-testid="terminal-updg-stale">
           {builtText ? `This list is from the morning wire of ${builtText}. ` : 'This list is from an earlier morning wire. '}
           Today&apos;s list has not arrived yet.
         </p>
       )}
+      {meta.full && !meta.storeOk && (
+        <p className={styles.note} role="status" data-testid="terminal-updg-store">
+          Earlier days could not be read just now, so the day list may be short. This is the latest wire&apos;s list.
+        </p>
+      )}
+      {meta.full && meta.cut.length ? (
+        <p className={styles.note} role="status" data-testid="terminal-updg-cut">
+          The server sends at most {meta.cutLimit} of each kind, so the list is cut at the end for{' '}
+          {listWords(meta.cut.map((c) => (c.total != null ? `${c.list} (${c.total} in all)` : c.list)))}.
+        </p>
+      ) : null}
       {!rows.length ? (
         <PanelState kind="empty" compact title={`No ${UPGRADE_KINDS[kind].plural} in this list.`} testId="terminal-updg-none">
-          Pick another kind to see the rest.
+          {base.rows.length ? 'Pick another kind to see the rest.' : 'Pick another day to read a different list.'}
         </PanelState>
       ) : (
         <div className={styles.tableBox} data-fold="550">
@@ -242,13 +311,16 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.key} data-testid={`terminal-updg-row-${r.sym}`} data-kind={r.kind}>
+                <tr key={r.key} data-testid={`terminal-updg-row-${r.sym}`} data-kind={r.kind} data-source={r.source || ''}>
                   <td>
                     <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                     <PanelSymbol sym={r.sym} className={styles.sym} />
                   </td>
                   <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.firm || 'Not given'}</td>
-                  <td className={r.tone === 'up' ? styles.up : r.tone === 'down' ? styles.down : undefined}>{r.action}</td>
+                  <td className={r.tone === 'up' ? styles.up : r.tone === 'down' ? styles.down : undefined}>
+                    {r.action}
+                    {sourceTag(r.source) ? <><br /><span className={styles.muted} data-testid="terminal-updg-source">{sourceTag(r.source)}</span></> : null}
+                  </td>
                   <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{r.rating || 'Not given'}</td>
                   <td>{r.target != null ? formatCurrency(r.target) : r.targetText || 'Not given'}</td>
                 </tr>
@@ -257,17 +329,33 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
           </table>
         </div>
       )}
-      <p className={styles.muted} data-testid="terminal-updg-method">
-        Analyst rating and price-target changes from the UCT morning wire, across the whole market. The server keeps up to{' '}
-        {UPGRADE_KINDS.upgrades.cap} upgrades (new coverage is counted with them), {UPGRADE_KINDS.downgrades.cap} downgrades
-        and {UPGRADE_KINDS.targets.cap} target changes
-        {capped.length ? `, so there may be more ${listWords(capped)} than shown` : ''}.
-        {builtText
-          ? ` List dated ${builtText}.`
-          : ' The server does not say which morning this list is from; it is replaced when the next morning wire arrives, before the open on trading days.'}
-        {' '}Click a symbol to load it into the linked panels; type a row number to do the same.
-        {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
-      </p>
+      {meta.full ? (
+        <p className={styles.muted} data-testid="terminal-updg-method">
+          Analyst rating and price-target changes from the UCT morning wire, across the whole market, plus upgrades and
+          downgrades from the nightly FMP analyst pass (marked FMP pass; it gives no price target, and a call both sources
+          name is shown once, from the wire). Every action held for the day is listed.
+          {date
+            ? ` Showing ${shown}${meta.wireHeld ? '' : '; no morning wire was recorded for this day, so every row comes from the FMP pass'}.`
+            : builtText
+              ? ` List dated ${builtText}.`
+              : ' The server does not say which morning this list is from; it is replaced when the next morning wire arrives, before the open on trading days.'}
+          {meta.fmpMayGrow ? ` The FMP pass reaches most stocks once a week, so more FMP rows can still arrive for this day for up to ${meta.fmpSettleDays || 7} days after it.` : ''}
+          {' '}Click a symbol to load it into the linked panels; type a row number to do the same.
+          {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
+        </p>
+      ) : (
+        <p className={styles.muted} data-testid="terminal-updg-method">
+          Analyst rating and price-target changes from the UCT morning wire, across the whole market. The server keeps up to{' '}
+          {UPGRADE_KINDS.upgrades.cap} upgrades (new coverage is counted with them), {UPGRADE_KINDS.downgrades.cap} downgrades
+          and {UPGRADE_KINDS.targets.cap} target changes
+          {capped.length ? `, so there may be more ${listWords(capped)} than shown` : ''}.
+          {builtText
+            ? ` List dated ${builtText}.`
+            : ' The server does not say which morning this list is from; it is replaced when the next morning wire arrives, before the open on trading days.'}
+          {' '}Click a symbol to load it into the linked panels; type a row number to do the same.
+          {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
+        </p>
+      )}
     </div>
   )
 }

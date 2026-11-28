@@ -46,7 +46,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+ORDER = ['INVALID', 'EARLIEST_BARS', 'PROFILED', 'WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
 #: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the switch's symbol disagree on its developing close by more
 #: than this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
 #: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
@@ -451,6 +451,7 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
         first = set()
         for p in sorted(raw, key=lambda q: q.get('key') or 0):
             r = grade_switch(p, rec, tfs, exp)
+            mark_pass(r, rec, p)
             r['pass'] = run_base(n)   # an A/B run's '<pass>@<k>' grades as its pass
             r['tickers'] = ticker_class(r.get('sym'), planned, reused, first)
             results.append(r)
@@ -461,6 +462,9 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
             problems.append(f"{n}: INCONCLUSIVE ({str(rec.get('error') or '')[:160]})")
+        # (2026-11-28) a date pass whose view never reached its date measured some other view under a date's name
+        if not date_landed(rec):
+            problems.append(f"{n}: INVALID: asked to go to {rec['goToDate'].get('asked')} and the view never reached it ({json.dumps((rec['goToDate'].get('view') or {}))[:120]})")
     # every pass record, even one without a jump file (a pass stopped before its first switch)
     for p in glob.glob(os.path.join(d, 'COV-*.json')):
         n = os.path.basename(p)[:-5]
@@ -491,6 +495,8 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
                 g['flags'][fl] = g['flags'].get(fl, 0) + 1
             if r.get('full') is not None:
                 g['full'].append(r['full'])
+            if r.get('earliestFull') is not None:
+                g.setdefault('earliest', []).append(r['earliestFull'])
             if r.get('warm'):
                 g['warm'][r['warm']] = g['warm'].get(r['warm'], 0) + 1
             if r.get('focus') is False:
@@ -519,7 +525,9 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
     rows = {k: {'switches': g['n'], 'failed': g['fail'], 'flags': g['flags'], 'p50': pct(g['full'], 0.5), 'p100': pct(g['full'], 1),
-                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None} for k, g in by.items()}
+                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None,
+                'earliest': {'n': len(g['earliest']), 'p50': pct(g['earliest'], 0.5), 'p100': pct(g['earliest'], 1)} if g.get('earliest') else None}
+            for k, g in by.items()}
     order = sorted((h.get('position', 0), h['pass'], h.get('side')) for h in hs if h.get('side'))
     return {'dir': d, 'run': run, 'order': order, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
             'expect': exp, 'labels': {k: sorted(v) for k, v in labels.items()}, 'rows': rows, 'problems': problems, 'results': results}
@@ -557,6 +565,10 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
             c = cmp['rows'].get(k)
             line += f" {c['p50'] if c else '-'} | {c['p100'] if c else '-'} | {c['failed'] if c else '-'} |"
         out.append(line)
+    ea = [(k, r['earliest']) for k, r in sorted(g['rows'].items()) if r.get('earliest')]
+    if ea:
+        out += ['', "EARLIEST_BARS (a date before the symbol listed: its earliest bars, verified; kept OUT of the p50 / p100 above):"]
+        out += [f"- {k}: {e['n']} switches, p50 {e['p50']} p100 {e['p100']}" for k, e in ea]
     if g['problems']:
         out += ['', 'Problems:'] + [f'- {p}' for p in g['problems']]
     return '\n'.join(out)
@@ -638,9 +650,72 @@ def ab_table(ga: dict, gb: dict) -> str:
     return '\n'.join(out)
 
 
+def mark_pass(r: dict, rec: dict, p: dict) -> dict:
+    """A switch's marks from its PASS: INVALID (asked a date the view never reached; never timed), EARLIEST_BARS (the date
+    was before the symbol listed: its earliest bars, verified by the rig; its own class, never a plain pass), PROFILED (a
+    CPU-profiled switch: 100 us sampling and the alignment loop inflate it; never timed)."""
+    if not date_landed(rec):
+        r['flags'] = sorted(set(r['flags']) | {'INVALID'})
+        r['full'] = None
+    elif (rec.get('goToDate') or {}).get('landedAs') == 'earliest-bars':
+        # its own class: kept out of the p50 / p100 (another frame than the date's), its time reported apart
+        r['flags'] = sorted(set(r['flags']) | {'EARLIEST_BARS'})
+        r['earliestFull'], r['full'] = r.get('full'), None
+    if p.get('i') in set(rec.get('profiled') or []):
+        r['flags'] = sorted(set(r['flags']) | {'PROFILED'})
+        r['full'] = None
+    return r
+
+
+def _day_of(t):
+    """A chart time ('YYYY-MM-DD', {year, month, day} or epoch seconds) as a day string, or None."""
+    if isinstance(t, str):
+        return t[:10] if re.match(r'^\d{4}-\d{2}-\d{2}', t) else None
+    if isinstance(t, dict) and t.get('year'):
+        return f"{int(t['year'])}-{int(t.get('month', 1)):02d}-{int(t.get('day', 1)):02d}"
+    if isinstance(t, (int, float)):
+        return datetime.fromtimestamp(t - 5 * 3600, tz=timezone.utc).strftime('%Y-%m-%d')
+    return None
+
+
+def date_landed(rec: dict) -> bool:
+    """False for a pass that was asked to go to a date and whose record does not say the view reached it. A record from
+    before the rig checked this has no `landed`: its recorded view is judged against the asked day (both ends needed)."""
+    g = rec.get('goToDate')
+    if not g:
+        return True
+    if 'landed' in g:
+        return g['landed'] is True
+    m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', str(g.get('asked') or ''))
+    v = g.get('view') or {}
+    if not m or v.get('from') is None or v.get('to') is None:
+        return False
+    day = f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+    if isinstance(v['from'], (int, float)) and isinstance(v['to'], (int, float)):
+        s = datetime(int(m.group(3)), int(m.group(1)), int(m.group(2)), tzinfo=timezone.utc).timestamp()
+        return v['from'] < s + 86400 + 6 * 3600 and v['to'] >= s
+    a, z = _day_of(v['from']), _day_of(v['to'])
+    return bool(a and z and a <= day <= z)
+
+
 def self_check() -> None:
     """Synthetic switches the rules must tell apart: a clean one-paint switch, a late one, and a switch whose chart
     rescales after its first paint. A grader that passed (or failed) all three would hold nothing."""
+    # a date pass: INVALID unless its view reached the date (the 2026-11-28 cloud passes sat at the present)
+    assert date_landed({}) and date_landed({'goToDate': {'asked': '1/3/2006', 'landed': True}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'landed': False}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2026-05-29', 'to': '2026-12-08'}}})
+    assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2005-08-01', 'to': '2006-01-03'}}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': 1795438800, 'to': 1795788000}}})
+    assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': 1136210400, 'to': 1136320000}}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2005-08-01'}}})   # no 'to': never vacuous
+    mk = lambda rec, i=0: mark_pass({'flags': [], 'full': 40}, rec, {'i': i})  # noqa: E731
+    assert mk({'goToDate': {'asked': '1/3/2006', 'landed': False}}) == {'flags': ['INVALID'], 'full': None}
+    assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'earliest-bars'}}) == {'flags': ['EARLIEST_BARS'], 'full': None, 'earliestFull': 40}
+    assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'covers'}}) == {'flags': [], 'full': 40}
+    assert mk({'profiled': [3, 4, 5]}, 4) == {'flags': ['PROFILED'], 'full': None} and mk({'profiled': [3, 4, 5]}, 2) == {'flags': [], 'full': 40}
+    assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2005, 'month': 8, 'day': 1}, 'to': {'year': 2006, 'month': 1, 'day': 3}}}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2026, 'month': 5, 'day': 29}, 'to': {'year': 2026, 'month': 12, 'day': 8}}}})
     def fr(t, sym, close, ni=999, lr=(899, 999), y0=100.0):
         return {'t': t, 'c': {'flip-chart': {'hs': sym, 'lr': list(lr), 'nb': ['2026-11-27', close], 'ni': ni, 'y0': y0, 'y1': y0 - 3, 'r': [0, 0, 400, 300]}}}
     exp = {'day': '2026-11-27', 'week': '2026-11-23', 'month': '2026-11-01', 'intraday': {}, 'dayHow': 'given', 'intradayHow': 'given'}

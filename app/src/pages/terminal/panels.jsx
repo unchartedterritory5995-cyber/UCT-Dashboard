@@ -64,6 +64,8 @@ export const PANEL_IMPORTERS = {
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
   EarningsReaction: () => import('../research/depth/EarningsReactionPanel'),
   Ftd: () => import('../research/depth/FtdPanel'),
+  // bare FTD (2026-11-27): the biggest fails across the market in the newest SEC period
+  FtdMarket: () => import('./panels/FtdMarketPanel'),
   MentionSeries: () => import('../research/depth/MentionSeriesPanel'),
   // COV-12 congressional trades: the Depth panel for a ticker, a terminal-native list without one
   CongressTrades: () => import('../research/depth/CongressTradesPanel'),
@@ -136,6 +138,8 @@ export const PANEL_IMPORTERS = {
   Dilution: () => import('./panels/DilutionPanel'),
   // OIC (2026-11-19): one stock's open interest per contract against the recorded day before, from UCT's options log
   OiChange: () => import('./panels/OiChangePanel'),
+  // bare OIC (2026-11-27): the biggest open-interest changes across the whole options log
+  OiMarket: () => import('./panels/OiMarketPanel'),
   // TIDEH (2026-11-19): each finished session's Market Tide totals, from the store the server fills after the close
   TideHistory: () => import('./panels/TideHistoryPanel'),
   // SEASB: the index funds and the sector funds, month by month (the market's SEAS).
