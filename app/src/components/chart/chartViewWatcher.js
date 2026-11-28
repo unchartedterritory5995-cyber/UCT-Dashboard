@@ -36,6 +36,8 @@ export function watchChartView({
   extraKey,
   loopFactory = createAdaptiveFrameLoop,
   win = typeof window !== 'undefined' ? window : null,
+  // the loop's pause gate (adaptiveFrameLoop.js `gate`): a hidden layer board's overlay (boardVisibility.js `boardLoopGate`)
+  gate = null,
 }) {
   let loop = null
   let chartSub = null
@@ -96,7 +98,7 @@ export function watchChartView({
     }
   }
 
-  loop = loopFactory({ tick })
+  loop = loopFactory(gate ? { tick, gate } : { tick })
   loop.start()
   win?.addEventListener?.('resize', wake)
   return {

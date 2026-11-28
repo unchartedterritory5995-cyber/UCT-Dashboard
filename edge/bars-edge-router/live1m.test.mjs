@@ -13,7 +13,7 @@ import fs from "node:fs";
 import zlib from "node:zlib";
 
 import worker from "./worker.js";
-import { parseLive1mPath, handleLive1m, LIVE1M_PREFIX, EDGE_KEY_PATH } from "./live1m.js";
+import { parseLive1mPath, handleLive1m, LIVE1M_PREFIX, EDGE_KEY_PATH, HEAD_EDGE_TTL, TODAY_EDGE_TTL } from "./live1m.js";
 import { HIST_PREFIX } from "./history.js";
 import { decodeFrame, frameRows } from "../../app/src/lib/minuteFrames/codec.js";
 
@@ -146,7 +146,27 @@ test("only an entitled caller gets anything, and the bucket is not even asked ot
   }
 });
 
-test("a minute file is kept at the edge after one R2 read; head and today never are", async () => {
+/** caches.default with expiry: a put's `max-age` is honoured against `clock.t`. */
+function ttlCache(clock) {
+  const store = new Map();
+  const log = { match: [], put: [] };
+  return {
+    store, log,
+    async match(k) {
+      log.match.push(String(k));
+      const v = store.get(String(k));
+      if (!v || clock.t - v.at >= v.ttl * 1000) return undefined;
+      return new Response(v.bytes.slice());
+    },
+    async put(k, res) {
+      log.put.push(String(k));
+      const ttl = Number((/max-age=(\d+)/.exec(res.headers.get("cache-control") || "") || [0, 0])[1]);
+      store.set(String(k), { bytes: new Uint8Array(await res.arrayBuffer()), at: clock.t, ttl });
+    },
+  };
+}
+
+test("a minute file is kept at the edge after one R2 read", async () => {
   const cache = fakeCache();
   const env = { CHART_EDGE_SECRET: SECRET, LIVE1M: bucket() };
   await ask(P("0930.bin"), { cache, env });
@@ -154,13 +174,58 @@ test("a minute file is kept at the edge after one R2 read; head and today never 
   assert.deepEqual(env.LIVE1M.asked, [`live1m/${DAY}/0930.bin`]);
   assert.equal(second.res.headers.get("x-bars-edge"), "live1m-edge");
   assert.ok(cache.log.put[0].includes(EDGE_KEY_PATH));
-  for (const f of ["head.json", "today.bin"]) {
-    await ask(P(f), { cache, env });
-    await ask(P(f), { cache, env });
+});
+
+test("⭐ head.json is kept HEAD_EDGE_TTL (2 s) at the edge: 500 members polling cost R2 one read per 2 s", async () => {
+  const clock = { t: 1_000_000 };
+  const cache = ttlCache(clock);
+  const env = { CHART_EDGE_SECRET: SECRET, LIVE1M: bucket() };
+  const heads = () => env.LIVE1M.asked.filter((k) => k.endsWith("head.json")).length;
+  for (let i = 0; i < 500; i++) {
+    const { res } = await ask(P("head.json"), { cache, env });
+    assert.equal(res.headers.get("cache-control"), "no-store", "the browser never keeps it");
   }
-  assert.equal(env.LIVE1M.asked.filter((k) => k.endsWith("head.json")).length, 2);
-  assert.equal(env.LIVE1M.asked.filter((k) => k.endsWith("today.bin")).length, 2);
-  assert.equal(cache.log.put.length, 1);
+  assert.equal(heads(), 1);
+  clock.t += HEAD_EDGE_TTL * 1000 - 1;
+  await ask(P("head.json"), { cache, env });
+  assert.equal(heads(), 1, "still inside 2 s");
+  clock.t += 1;
+  await ask(P("head.json"), { cache, env });
+  assert.equal(heads(), 2, "a head is never more than 2 s late");
+});
+
+test("⭐ today.bin is kept TODAY_EDGE_TTL under the head's today_seq: a new roll is a new key at once", async () => {
+  const clock = { t: 1_000_000 };
+  const cache = ttlCache(clock);
+  const env = { CHART_EDGE_SECRET: SECRET, LIVE1M: bucket() };
+  const todays = () => env.LIVE1M.asked.filter((k) => k.endsWith("today.bin")).length;
+  for (let i = 0; i < 3; i++) await ask(P("today.bin"), { cache, env });
+  assert.equal(todays(), 1);
+  assert.ok(cache.log.put.some((k) => k.endsWith("today.bin?today_seq=329")), cache.log.put.join(" "));
+  // the publisher rolls: today.bin first, then the head naming it
+  env.LIVE1M.store.set(`live1m/${DAY}/today.bin`, GZ.slice());
+  env.LIVE1M.store.set(`live1m/${DAY}/head.json`, new TextEncoder().encode('{"day":20261118,"seq":340,"today_seq":339}'));
+  clock.t += HEAD_EDGE_TTL * 1000;                       // the head copy expires; the today copy has not
+  await ask(P("today.bin"), { cache, env });
+  assert.equal(todays(), 2, "the new head's seq is a new key");
+  await ask(P("today.bin"), { cache, env });
+  assert.equal(todays(), 2);
+  clock.t += TODAY_EDGE_TTL * 1000;
+  await ask(P("today.bin"), { cache, env });
+  assert.equal(todays(), 3, "never older than 60 s");
+});
+
+test("today.bin is not kept when the head cannot be read or names no seq", async () => {
+  for (const head of ['{"day":20261118,"seq":3}', "not json", null]) {
+    const clock = { t: 1_000_000 };
+    const cache = ttlCache(clock);
+    const env = { CHART_EDGE_SECRET: SECRET, LIVE1M: bucket() };
+    if (head === null) env.LIVE1M.store.delete(`live1m/${DAY}/head.json`);
+    else env.LIVE1M.store.set(`live1m/${DAY}/head.json`, new TextEncoder().encode(head));
+    for (let i = 0; i < 2; i++) assert.equal((await ask(P("today.bin"), { cache, env })).res.status, 200);
+    assert.equal(env.LIVE1M.asked.filter((k) => k.endsWith("today.bin")).length, 2, String(head));
+    assert.ok(!cache.log.put.some((k) => k.includes("today.bin")), String(head));
+  }
 });
 
 test("head is JSON, no-store; today is gzip, no-store", async () => {

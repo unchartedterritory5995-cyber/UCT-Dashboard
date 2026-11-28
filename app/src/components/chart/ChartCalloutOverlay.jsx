@@ -1,4 +1,5 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useContext } from 'react'
+import { BoardVisibilityContext, boardLoopGate } from './boardVisibility'
 import { watchChartView } from './chartViewWatcher'
 
 // Renders text callouts (Model Book catalysts) AmiBroker-style: each label sits
@@ -31,6 +32,10 @@ function roundRectPath(ctx, x, y, w, h, r) {
 // Without a look, nothing about the Model Book's catalysts changes.
 
 export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callouts, color = '#ffffff', bottomFrac = 0.82, look = null }) {
+  // the board this chart sits on (board keep-alive): the view watcher parks on a hidden layer board
+  const boardVisibility = useContext(BoardVisibilityContext)
+  const boardVisibilityRef = useRef(boardVisibility)
+  boardVisibilityRef.current = boardVisibility
   const canvasRef = useRef(null)
   const rafRef = useRef(null)
   // Study (2026-11-08, the owner: the choosable candles should show it, "slightly animated"; and "no throbbing gold"): with
@@ -487,6 +492,7 @@ export default function ChartCalloutOverlay({ chartRef, seriesRef, bars, callout
     const watcher = watchChartView({
       chartRef,
       seriesRef,
+      gate: boardLoopGate(boardVisibilityRef.current),
       onRange: () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current)
         rafRef.current = requestAnimationFrame(() => trackedRef.current?.())

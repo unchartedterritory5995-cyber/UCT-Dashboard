@@ -3579,6 +3579,16 @@
     "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": {"retired": "2026-11-04", "state": "always on", "note": "Flag retired 2026-11-04 (notebook simplification): it was 1 on web, so the capability is always on and the code no longer reads the variable. A value left on Railway is inert (the owner removes it). To restore the gate, git revert the retiring commit.", "member_facing": {"label": "Visual playbook", "where": "Notebook"}}
   },
   "build_flags": {
+    "VITE_BOARD_KEEPALIVE": {
+      "status": "dark",
+      "where": [],
+      "owner": "owner",
+      "railway_value": "UNSET",
+      "baked_value": "'' (empty - the ENV mirror in Dockerfile.web)",
+      "baked_measured_on": "not measured (declared 2026-11-27 with the read, #2881)",
+      "last_changed": "never set",
+      "note": "The board keep-alive's build default (app/src/pages/charts/boardKeepAlive.js, read once per workspace AFTER localStorage `uct.boardKeepAlive`, which wins). '1' keeps the board a member's switch leaves mounted, hidden in React <Activity>, and a switch back to the same layout shows it instead of mounting it again. '2' is the LAYER mode (#2901): the kept board stays mounted and laid out under the board in front (visibility hidden, inert), its effects alive and its work paused through its visibility handle; a switch back flips its visibility. Unset is the DEVICE DEFAULT (owner directive 2026-11-27, keep-alive on by default once proven): the layer mode where navigator.deviceMemory reports at least KEEPALIVE_MIN_DEVICE_GB, or reports nothing on a window wider than 1024 px; off otherwise. '0' forces off (storage '0' is a member's opt-out). A kept board goes after 30 minutes without a show. The vitest suite runs with '0' (vite.config.js test.env)."
+    },
     "VITE_BARSTORE": {
       "status": "armed",
       "where": [

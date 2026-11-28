@@ -1,0 +1,95 @@
+# promotion-gate: no — PR-only. It never runs on a master push; a red here holds the PR, before the merge.
+# ─── THE WORKSPACE AND WIDGET SUITES UNDER THE KEEP-ALIVE'S LAYER MODE (PRODUCTION'S DEFAULT) ────────────────────────
+#
+# ⚰️ WHY (2026-11-27, review of #2911, M2). The board keep-alive's LAYER mode is the default in production
+# (app/src/pages/charts/boardKeepAlive.js: a kept board stays mounted, hidden, beside the one in front), while the
+# default suites run with it OFF (app/vite.config.js test.env: UCT_TEST_KEEPALIVE unset => '0'). The first run of these
+# suites in the layer mode found 8 reds, two of them product bugs (a deleted layout kept as a hidden board; the switch
+# mark left on the hidden grid). This lane runs the same suites the way production runs them, on every PR that changes
+# the workspace, its widgets or the keep-alive's own code.
+#
+# In pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores, the
+# no-network wrapper), as chart rails runs. No secrets, no pull_request_target, read-only token.
+name: keep-alive layer lane (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'app/src/pages/charts/**'
+      - 'app/src/pages/Watchlists*'
+      - 'app/src/pages/ThemeTrackerPage*'
+      - 'app/src/components/chart/boardVisibility*'
+      - 'app/src/components/chart/boardLayer*'
+      - 'app/src/components/chart/pane/**'
+      - 'app/src/components/StockChart.jsx'
+      - 'app/src/data/barStore/useBarSnapshot*'
+      - 'app/src/hooks/useLivePrices*'
+      - 'app/src/hooks/useRealtimePrices*'
+      - 'app/src/hooks/useRealtimeBarPrices*'
+      - 'app/src/hooks/useSymbolHandoff*'
+      # the layer-gated chart files (review of #2911)
+      - 'app/src/components/chart/useBarSnapshotBars*'
+      - 'app/src/components/chart/adaptiveFrameLoop*'
+      - 'app/src/components/chart/chartViewWatcher*'
+      - 'app/src/components/chart/ChartDrawingOverlay*'
+      - 'app/src/components/chart/ChartCalloutOverlay*'
+      - 'app/src/components/chart/SetupMoveOverlay*'
+      - 'app/src/pages/charts/widgets/**'
+      - 'app/src/hooks/useMarketOpen*'
+      # this job's own definition and environment
+      - '.github/workflows/keepalive-layer-lane.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'app/vite.config.js'
+      - 'app/src/test-setup.js'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not), as pine heavy
+  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+  CI_TOOLS: .pine-heavy-ci
+  NODE_OPTIONS: --max-old-space-size=6144
+  # ⭐ the whole point: the suites below run with the keep-alive in the LAYER mode (app/vite.config.js test.env)
+  UCT_TEST_KEEPALIVE: '2'
+
+jobs:
+  layer:
+    name: keep-alive layer lane (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: The workspace and widget suites, layer mode, this shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s); rc=0
+          (cd app && bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run \
+            src/pages/charts src/pages/Watchlists src/pages/ThemeTracker src/components/chart/pane \
+            src/agent/agentGuideTargets.test.js src/agent/agentGuideControls.test.js \
+            --shard="$SHARD/3" --maxWorkers=2 --reporter=default) || rc=$?
+          echo "keep-alive layer lane, shard $SHARD/3: wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc

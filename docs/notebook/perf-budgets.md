@@ -1276,3 +1276,50 @@ one timer on the wall-clock minute boundary shared by all of them, plus a wake o
 `focus` so a laptop opened in the morning reads the current session at once. The hook is in the main chunk, so the
 Notebook's first open grew: CI read 2,263,406 B at baf6e4ffe7 against the 2,263,041 B line (+365 B). The owner approved
 a raise ("I approve", 2026-11-27): max 2,263,041 -> 2,264,065 B (+1,024 B, headroom), listed in `owner_raises`.
+
+## 2026-11-27: +2,048 B for the board keep-alive layer mode (#2901), owner directive
+
+#2901 (the board keep-alive's layer mode) pauses a hidden board's work through its board-visibility handle
+(`components/chart/boardVisibility.js`). The handle is read by hooks the whole app shares (`useLivePrices`,
+`useRealtimePrices`, `useRealtimeBarPrices`, `useBarSnapshot`, `useSymbolHandoff`), so it sits in the main chunk, and
+the Notebook's first open grew: CI read 2,265,502 B at 7246dfa732 against the 2,264,065 B line (+1,437 B). Moving it to a
+lazy chunk would mean those shared hooks lazy-load their own pause, which costs more than it saves. Raised by the
+owner's directive of 2026-11-27 ("I dont want to hold anything ever... we need it all done"), relayed by the
+coordinator, who confirms this raise with the owner: max 2,264,065 -> 2,266,113 B (+2,048 B, headroom for #2911's
+default-on change), listed in `owner_raises`.
+
+## 2026-11-27: +2,048 B for the double-buffered next row's board visibility API (#2918), owner standing approval
+
+#2918 extends the board visibility handle (`components/chart/boardVisibility.js`) for the double-buffered next row: a
+CURRENT hidden handle whose bar feed is forwarded in an idle task, QUIET show and hide, NESTED handles for a chart slot,
+and the one layer primitive (`components/chart/boardLayer.js`). The handle is read by the shared bar-store hook
+(`useBarSnapshot`), so it sits in the main chunk, and the Notebook's first open grew: CI read 2,266,846 B at fb20844257
+against the 2,266,113 B line (+733 B). Raised by the owner's standing approval of budget raises, given 2026-11-27
+("just raise the budget and get it done", then "always"): max 2,266,113 -> 2,268,161 B (+2,048 B, headroom for the
+double-buffered row itself, #2922), listed in `owner_raises`.
+
+## 2026-11-27: +4,096 B for a first paint that holds the rows its view will draw (#2934), owner standing approval
+
+#2934 makes a symbol's first paint wait for the rows its view will draw: the chart records its view width on its paint
+token (`components/chart/paintLog.js`), the handoff and the double buffer read it (`useSymbolHandoff`, `useDoubleBuffer`),
+the daily first page is a covering page (`utils/barsBackfill.js`), the header follows the symbol the chart last painted,
+and the typed warm fetches every linked chart's key (`data/barStore/prefetch.js`). The handoff and bar-store hooks are
+shared, so this sits in the main chunk, and the Notebook's first open grew: CI read 2,268,832 B at 14e9a22bd6 against
+the 2,268,161 B line (+671 B). Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just raise
+the budget and get it done", then "always"): max 2,268,161 -> 2,272,257 B (+4,096 B, headroom for the stacked
+typed-universe / prefetch PR), listed in `owner_raises`.
+
+## 2026-11-28: +8,192 B as ONE raise for the chart-speed queue, owner standing approval
+
+Master read 2,272,185 B at 2eb9294ed5 against the 2,272,257 B line, 72 B of headroom. Every pending PR that touches a
+shared chart hook then breached alone, each by a few hundred bytes. CI read 2,272,459 B for #2951 (bars never spliced
+across a hole), 2,272,451 B for #2967 (a REST answer older than the live tick), 2,272,842 B for perf/ma-columns-direct,
+2,272,285 B for perf/quote-push-cookie-once and 2,273,036 B for feat/agent-open-to-members, and #2959 adds +31 B. Their
+deltas over master sum to about 2,200 B. Raising for each one in turn would cost one budget PR per merge. This is one
+raise sized for the whole queue: max 2,272,257 -> 2,280,449 B (+8,192 B). That covers the PRs above plus about 6 KB for
+the chart-speed PRs still in flight. Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just
+raise the budget and get it done", then "always"), and listed in `owner_raises`.
+
+The bytes job checks out the pull request's merge commit, so it reads this budget from master once this lands. A PR
+whose last bytes run was red goes green on its next push or re-run against the new base. A re-run of the OLD run keeps
+the old merge SHA, so push or re-trigger the run instead.

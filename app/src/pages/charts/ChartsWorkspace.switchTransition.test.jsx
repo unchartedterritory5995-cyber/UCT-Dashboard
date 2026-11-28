@@ -88,6 +88,9 @@ import ChartsWorkspace from './ChartsWorkspace'
 beforeEach(() => {
   gridCommits.length = 0
   try { localStorage.clear() } catch { /* */ }
+  // the switch mark is the REMOUNT path's (a new grid under the old one's widget ids); a layer keep-alive switch shows
+  // a kept grid as it was, or mounts a fresh one, and marks nothing: pinned off (the default may be on)
+  try { localStorage.setItem('uct.boardKeepAlive', '0') } catch { /* */ }
   globalThis.fetch = vi.fn(async (url) => {
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
     if (String(url).startsWith('/api/watchlists')) return json([])

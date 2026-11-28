@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "START-TAINT part 1 (runtime/taintCfg.js): each branch's join and the write set of everything either arm may write. Each rule must be able to fail.",
+ "mutants": [
+  {
+   "id": "TC-1",
+   "mutant": "a conditional branch's jump target is dropped (only the fall-through arm is walked)",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "    case OP.JUMP_IF_FALSE: return [pc + 1, a]",
+   "to": "    case OP.JUMP_IF_FALSE: return [pc + 1]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "BOTH arms"
+  },
+  {
+   "id": "TC-2",
+   "mutant": "the walk runs through the join (writes after the branch leak into its set)",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "    if (seen.has(pc) || pc === join || pc === branch) continue",
+   "to": "    if (seen.has(pc) || pc === branch) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "nothing at or after the join"
+  },
+  {
+   "id": "TC-3",
+   "mutant": "a var initialiser (JUMP_IF_INIT) is not a branch",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "const BRANCHES = new Set([OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT])",
+   "to": "const BRANCHES = new Set([OP.JUMP_IF_FALSE])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "initialiser"
+  },
+  {
+   "id": "TC-4",
+   "mutant": "a call site's persist base is not applied",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "    for (const x of d.persist) out.persist.add(pb + x)",
+   "to": "    for (const x of d.persist) out.persist.add(x)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "the site's writes are absolute"
+  },
+  {
+   "id": "TC-5",
+   "mutant": "a skipped call site's history hand-off cells are left out",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "    for (let k = 0; k < (f.historyCount || 0); k += 1) out.held.add((site.historyBase || 0) + k)",
+   "to": "    for (let k = 0; k < 0; k += 1) out.held.add((site.historyBase || 0) + k)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "the site's writes are absolute"
+  },
+  {
+   "id": "TC-6",
+   "mutant": "nested call sites are not folded in",
+   "file": "app/src/components/chart/engine/runtime/taintCfg.js",
+   "from": "      for (const kind of WRITE_KINDS) if (kind !== 'locals') for (const x of inner[kind]) out[kind].add(x)",
+   "to": "      for (const kind of []) if (kind !== 'locals') for (const x of inner[kind]) out[kind].add(x)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/taintCfg.test.js",
+   "expectRed": "the site's writes are absolute"
+  }
+ ]
+}

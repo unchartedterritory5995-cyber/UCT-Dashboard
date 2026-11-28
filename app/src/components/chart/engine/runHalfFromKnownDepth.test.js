@@ -26,6 +26,12 @@ import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHas
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
 import { OWN_DAILY_KEY } from './otherSymbols'
 import { clearSecondaryBars } from './secondaryBars'
+import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 vi.setConfig({ testTimeout: 300000 })
 
@@ -185,6 +191,9 @@ describe('the product path: Fred RS\'s run half through the real runtime worker,
       const n = RS_CHART.length
       const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === n - 1)
       expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
+      // (e103) off a daily chart Fred RS's two labels are constant: the start-free release (`computeStartFree`), which
+      // answers before the curtain this file turns on, draws them and withholds nothing
+      expect(runtimeObjectsOf(cols).startLatched).toBeUndefined()
     } finally {
       registry.uninstallUserDefinition(def.id)
     }

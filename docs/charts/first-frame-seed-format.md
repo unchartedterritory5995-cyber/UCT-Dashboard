@@ -15,13 +15,17 @@ byte a lake piece body, so `app/src/data/historyLake/piece.js` `decodeBody` deco
 
 | tf   | `tunit` (s) | N (newest bars) | which bars                                                         |
 |------|-------------|-----------------|--------------------------------------------------------------------|
-| `1`  | 60          | 600             | regular session only                                               |
-| `5`  | 300         | 300             | regular session only                                               |
-| `15` | 900         | 300             | regular session only                                               |
-| `30` | 1800        | 300             | regular session only                                               |
+| `1`  | 60          | 1000            | regular session only                                               |
+| `5`  | 300         | 1000            | regular session only                                               |
+| `15` | 900         | 1000            | regular session only                                               |
+| `30` | 1800        | 1000            | regular session only                                               |
 | `60` | 1800        | 1000            | regular session only, the `'60'` key's stored 09:30-anchored grid  |
 | `D`  | 86400       | 350             | every daily bar; W and M are derived on the device from D          |
 
+* **Intraday depth 1000 (2026-11-28, owner decision, zero-network switch PR 1.6).** `1` `5` `15` `30` were 600 / 300 /
+  300 / 300: a device copy draws a view whole only from `COVER_ROWS` (600, `app/src/data/barStore/coverRows.js`) rows
+  on, so a 300-row copy never covered and every present-day intraday switch on a never-viewed ticker waited for the
+  network. `FFSEED_DEPTH_<tf>` on the worker overrides each (a variable, no code). Sizes: section 7.
 * **The bars are `/api/bars`' bars**, value for value: the builder reads them through the two calls
   `/api/bars` answers a warm request with (`bars_sqlite.get_bars` + `bars_fetch._fmt_sqlite_bars`:
   split-adjusted, sanitized, 4-decimal store grain), reading the same row count the chart's first
@@ -312,6 +316,21 @@ split-adjusts intraday), not by enough to move these sizes.
 | all  |      |       | 10.0 M    | **79.5 MB** |      | 127.8 MB |        |
 
 (MB = 10^6 bytes. bytes/bar excludes the trailer, ~0.28-0.29 MB per pack.)
+
+**Re-measured 2026-11-28 at the new depths** (zero-network PRs 1.6 and 3.1; as-of 2026-11-25, the same builder
+and encoder, intraday from the history lake's 2026 packs, D from a `bars.db` copy; build seconds on the dev PC
+under shared load, one timeframe at a time as the worker runs them):
+
+| tf | N | symbols | bars | pack | bytes/bar | short | build |
+|----|---|---------|------|------|-----------|-------|-------|
+| `1`  | 1000 | 3,528 | 3,452,540 | **18.1 MB** | 5.15 | 135 | 167 s |
+| `5`  | 1000 | 3,528 | 3,474,076 | **22.6 MB** | 6.41 | 98  | 89 s  |
+| `15` | 1000 | 3,528 | 3,511,578 | **26.0 MB** | 7.33 | 40  | 104 s |
+| `30` | 1000 | 3,528 | 3,507,231 | **28.0 MB** | 7.89 | 44  | 117 s |
+| `60` | 1000 | 3,528 | 3,501,709 | **30.1 MB** | 8.53 | 56  | 120 s |
+
+`1` `5` `15` `30` at 1000 are 94.7 MB together, +58.1 MB over 600 / 300 / 300 / 300 (36.6 MB). `short`: the
+store holds fewer than N regular-session bars (recent listings), packed as they are.
 
 * 94 of the 3,639 symbols were left out of every timeframe: no bars, or a series that ends before
   the as-of session (names no longer trading). 0 refused as inexact.

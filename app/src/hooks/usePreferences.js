@@ -42,6 +42,88 @@ const readFailedOnce = () => { _lastReadOk = false }
 // and would have erased the member's comparison slots B/C/D.
 let _inflightRead = null
 
+// ─── A READ NEVER UNDOES A NEWER LOCAL WRITE (2026-11-27, the live sweep's S3b) ──────────────────────
+//
+// Measured on production: a preferences read that began before a dock switch answered after it, and
+// `refreshPreferences` put its answer into the cache whole, so the switch's new `charts_active_template`
+// (merged into the cache at the click) went back to the OLD pointer under the NEW board, and the dock's
+// auto-save then wrote the new board into the old layout's row (fixed at the save by #2926). SWR drops
+// a hook read that a mutation overtook, but `refreshPreferences` is a mutation itself, and a later
+// mutation with older data wins.
+//
+// So every local write of a key (setPref's optimistic value, setPrefMerged's, a merge into the cache)
+// is noted with a sequence number, and a read lands with the keys written AFTER it began, or still
+// unconfirmed, laid over its answer:
+//   * `seq`: when the cache took the value. A read that began before it cannot hold it.
+//   * `open`: the write that carries it to the server has not answered yet (setPref / setPrefMerged's
+//     POST; a merge the caller marks `pending`, such as the workspace's one-write board apply, until
+//     it calls `settlePreferenceWrites`). An open write holds over ANY read, for at most
+//     LOCAL_WRITE_HOLD_MS (a write that never answers cannot pin a value for the session).
+//   * `settled`: when it answered. A read that began after that holds the server's answer, refused
+//     or not, and the note is forgotten when such a read lands.
+// The server stays the authority: nothing here is posted, and a value is held only against reads
+// that cannot have seen it.
+//   ⚠️ (review of #2928, L3) A landed read is TAGGED as the server's base even when it carries this
+// tab's own unconfirmed values laid over it, so a later setPrefMerged merges onto them (sequential
+// edits compose, as on screen); if the earlier write then fails, the merge re-sends its part. Here
+// "server base" means the server's answer with this tab's newer writes over it, not exactly what
+// the server holds.
+const LOCAL_WRITE_HOLD_MS = 30000
+let _writeSeq = 0
+const _localWrites = new Map()   // key -> { seq, value, open, at, settled }
+function noteLocalWrite(key, value, { open = false } = {}) {
+  _writeSeq += 1
+  _localWrites.set(key, { seq: _writeSeq, value, open, at: Date.now(), settled: open ? null : _writeSeq })
+  return _writeSeq
+}
+/** The write of `key` noted as `seq` answered (a newer write of the key keeps its own state). `ok` + `op`: it was
+ *  confirmed for this member. (Review of #2928, L2) Confirmed after its hold expired, a read may already have put the
+ *  old value back: the confirmed value goes back into the cache. */
+function settleLocalWrite(key, seq, { ok = false, op = null } = {}) {
+  const w = _localWrites.get(key)
+  if (!w || w.seq !== seq || !w.open) return
+  const expired = Date.now() - w.at >= LOCAL_WRITE_HOLD_MS
+  _writeSeq += 1
+  w.open = false
+  w.settled = _writeSeq
+  if (!expired || !ok || !op) return
+  const value = w.value
+  mutateGlobal(PREFS_URL, (prev) => {
+    if (op.stale()) return prev
+    if (!prev || typeof prev !== 'object' || prev[key] === value) return prev
+    return derive(prev, value === undefined ? (() => { const n = { ...prev }; delete n[key]; return n })() : { ...prev, [key]: value })
+  }, { revalidate: false })
+  // (review of #2929) and a read that begins now: what the server holds after this write (another tab's or device's
+  // newer value included) lands at once, not at the next 5-minute read (the board apply re-reads the same way)
+  if (op.stale()) return
+  mutateGlobal(PREFS_URL)
+}
+/** The write a caller merged with `{ pending: true }` reached the server, or was given up: settle it. */
+export function settlePreferenceWrites(keys) {
+  for (const k of keys || []) {
+    const w = _localWrites.get(k)
+    if (w && w.open) settleLocalWrite(k, w.seq)
+  }
+}
+/** A read that began at `startSeq` lands: the keys it cannot have seen keep their local value, and the
+ *  notes it does cover are forgotten. Returns the answer to cache (the same object when nothing holds). */
+function landRead(data, startSeq) {
+  if (!data || typeof data !== 'object' || !_localWrites.size) return data
+  const now = Date.now()
+  let out = null
+  for (const [k, w] of _localWrites) {
+    const openHold = w.open && now - w.at < LOCAL_WRITE_HOLD_MS
+    if (openHold || w.seq > startSeq || (w.settled != null && w.settled > startSeq)) {
+      if (!out) out = { ...data }
+      if (w.value === undefined) delete out[k]
+      else out[k] = w.value
+    } else if (!w.open) {
+      _localWrites.delete(k)
+    }
+  }
+  return out || data
+}
+
 // ─── Where the cached value CAME FROM ────────────────────────────────────────
 //
 // ⛔⛔ "A read succeeded" is not "the cache holds that read's answer". A setPref during the FIRST
@@ -143,9 +225,12 @@ const fetcher = url => {
   // untagged `{}` — SWR discards it anyway (the member change mutated the key after it started),
   // and if it ever did not, an untagged object can never be merged onto or posted.
   const op = beginPrefsOp()
+  let startSeq = _writeSeq   // the local writes this read cannot hold (landRead)
   // The first read takes the request main.jsx started as the page loaded (lib/bootFetch.js), and only
   // when the boot sign-in check named THIS member; anything else, or a failed boot request, fetches.
   const boot = url === PREFS_URL ? takeBootPreferences(prefsUser()) : null
+  // (review of #2928, L1) the boot request began at page load, before any write this module noted
+  if (boot) startSeq = 0
   // (A member change meanwhile: the next step drops whatever this hands it; no second request for it.)
   const p = (boot ? boot.then(r => { if (op.stale()) return r; return r || fetch(url) }) : fetch(url)).then(
     r => {
@@ -156,7 +241,7 @@ const fetcher = url => {
         if (op.stale()) return {}
         _lastReadOk = true
         if (j && typeof j === 'object') _lastGoodAnswer = j
-        return tagServer(j)
+        return tagServer(landRead(j, startSeq))
       }, err => {
         if (op.stale()) throw err
         readFailedOnce(); throw err
@@ -332,6 +417,7 @@ export function resetPreferencesState() {
   _failedWrites.clear(); _inflightRead = null; _lastGoodAnswer = null
   if (_rereadTimer) clearTimeout(_rereadTimer)
   _rereadTimer = null; _rereadAttempts = 0; _rereadTotal = 0; _pendingMerges.length = 0
+  _localWrites.clear()
 }
 
 /** "Whose preferences these are" changed (AuthContext publishes it: lib/prefsSession.js). */
@@ -473,6 +559,7 @@ export async function refreshPreferences({ signal } = {}) {
   // the previous member's, and its callers re-seed boards from what it returns (review: B's cache
   // tagged as the server's with A's fields, then posted into B's account).
   const op = beginPrefsOp()
+  const startSeq = _writeSeq   // ⛔ a newer local write is never undone by this answer (landRead)
   let res
   let data
   try {
@@ -496,9 +583,10 @@ export async function refreshPreferences({ signal } = {}) {
   _lastReadOk = true
   _lastGoodAnswer = data
   noteServerBase()
-  await mutateGlobal(PREFS_URL, tagServer(data), { revalidate: false })
+  const landed = landRead(data, startSeq)
+  await mutateGlobal(PREFS_URL, tagServer(landed), { revalidate: false })
   if (op.stale()) return null
-  return { ...DEFAULTS, ...data }
+  return { ...DEFAULTS, ...landed }
 }
 
 /**
@@ -517,14 +605,18 @@ export async function refreshPreferences({ signal } = {}) {
 // it (`const op = beginPrefsOp()` … `mergeIntoPreferenceCache(key, answer, op)`): a door answer for
 // the previous member is then never merged into the next member's cache. Without `op` the
 // operation starts at the call.
-export async function mergeIntoPreferenceCache(key, updater, op = beginPrefsOp()) {
+// `{ pending: true }`: the value is the caller's OWN write still on its way to the server (the workspace's
+// one-write board apply): it holds over every read until the caller calls `settlePreferenceWrites`.
+export async function mergeIntoPreferenceCache(key, updater, op = beginPrefsOp(), { pending = false } = {}) {
   await mutateGlobal(PREFS_URL, (prev) => {
     if (op.stale()) return prev
     if (!prev || typeof prev !== 'object') return prev
     const current = parsePref(prev[key], undefined)
     const next = typeof updater === 'function' ? updater(current) : updater
     if (next === undefined) return prev
-    return derive(prev, { ...prev, [key]: typeof next === 'string' ? next : JSON.stringify(next) })
+    const serialized = typeof next === 'string' ? next : JSON.stringify(next)
+    noteLocalWrite(key, serialized, { open: pending })
+    return derive(prev, { ...prev, [key]: serialized })
   }, { revalidate: false })
 }
 
@@ -559,8 +651,10 @@ export default function usePreferences(enabled = true) {
     // (derive: the result is server-based only when what it was built on was — an optimistic
     // write onto an EMPTY cache is not a base anyone may merge onto)
     const op = givenOp || beginPrefsOp()
+    let noted = null   // this write's note (landRead): open until its POST answers
     mutate(prev => {
       if (op.stale()) return prev
+      noted = noteLocalWrite(key, serialized, { open: true })
       return derive(prev, { ...DEFAULTS, ...prev, [key]: serialized })
     }, false)
 
@@ -601,6 +695,7 @@ export default function usePreferences(enabled = true) {
       // returns false — it is NOT saved and nothing claims it was.
       const r = await queueWrite(key, () => postPref(key, serialized, op))
       if (op.stale()) return false
+      if (noted != null) settleLocalWrite(key, noted, { ok: !!(r && r.ok && !r.stale), op })
       if (!r.ok || r.stale) {
         // A 4xx/5xx used to read exactly like success. It is still reported —
         // that is MOB-09's real requirement — but it is reported by the RETURN
@@ -617,6 +712,7 @@ export default function usePreferences(enabled = true) {
       // over-broad and turned that green test red; the narrow fix is the
       // non-ok branch alone.
       if (op.stale()) return false
+      if (noted != null) settleLocalWrite(key, noted)   // the revert's read below must land the server's value
       mutate()
       return false
     }
@@ -662,6 +758,7 @@ export default function usePreferences(enabled = true) {
     let serialized = null
     let updaterError = null
     let unknownBase = false
+    let noted = null   // this merge's note (landRead): open until its POST answers
     const op = givenOp || beginPrefsOp()   // the member this merge is FOR
 
     // ⛔⛔ NEVER POST A MERGE ONTO A BASE THAT HAS NOT BEEN READ. Before the first read answers, the
@@ -696,6 +793,8 @@ export default function usePreferences(enabled = true) {
 
       const resolved = resolveWriteValue(key, current, next)
       serialized = typeof resolved === 'string' ? resolved : JSON.stringify(resolved)
+      // a merge onto an unread base is provisional (replayed onto the server's value, never posted): not noted
+      if (!unknownBase) noted = noteLocalWrite(key, serialized, { open: true })
       return derive(prev, { ...base, [key]: serialized })
     }, false)
     if (op.stale()) return false
@@ -718,9 +817,14 @@ export default function usePreferences(enabled = true) {
     // resolves would make that handling unreachable. The revert therefore hangs
     // off the returned promise, which still resolves — a fire-and-forget caller
     // never gets an unhandled rejection.
-    return queueWrite(key, () => postPref(key, serialized, op)).catch(() => {
+    return queueWrite(key, () => postPref(key, serialized, op)).then((r) => {
+      if (op.stale()) return r
+      if (noted != null) settleLocalWrite(key, noted, { ok: !!(r && r.ok && !r.stale), op })
+      return r
+    }, () => {
       // Revert on failure — same contract as setPref, and never into another member's cache.
       if (op.stale()) return
+      if (noted != null) settleLocalWrite(key, noted)
       mutate()
     })
   }, [mutate])

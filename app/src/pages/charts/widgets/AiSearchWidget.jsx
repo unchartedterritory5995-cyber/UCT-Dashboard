@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, Suspense, lazy } from 'react'
+import { forwardWhileShown, useLayerBoard } from '../../../components/chart/boardVisibility'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
@@ -675,11 +676,14 @@ export default function AiSearchWidget({
   const askedRef = useRef(false)
 
   // Rotate the loading status line so a long search reads as progress, not a hang.
+  const layerBoard = useLayerBoard()
+  // (review of #2901, H3) on a hidden layer keep-alive board this does nothing; the show runs it once, in its own task
   useEffect(() => {
     if (!loading) { setPhase(0); return undefined }
-    const t = setInterval(() => setPhase((p) => (p + 1) % SEARCH_PHASES.length), 2400)
-    return () => clearInterval(t)
-  }, [loading])
+    const f = forwardWhileShown(layerBoard, () => setPhase((p) => (p + 1) % SEARCH_PHASES.length))
+    const t = setInterval(f.cb, 2400)
+    return () => { clearInterval(t); f.stop() }
+  }, [loading, layerBoard])
 
   // Chat-style autoscroll: follow the newest turn while it streams in.
   useEffect(() => {

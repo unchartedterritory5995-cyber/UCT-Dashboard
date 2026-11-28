@@ -62,7 +62,7 @@ function rowsOf(sym, tf) {
   return out
 }
 
-async function run(ANSWER) {
+async function run(ANSWER, join = 'lake') {
   S.calls = []
   S.n = 0
   S.ids = new Map()
@@ -139,7 +139,11 @@ async function run(ANSWER) {
   await settle(() => candleRows() > 0)
   const before = view()
   // the lake's whole depth joins behind the view (what network.lakeSeed dispatches)
-  await act(async () => { M.store.registry.dispatch(key, { type: M.ACTION.LAKE_HIT, key, payload: { sym: 'RB', bars: rowsOf('RB', '5') } }) })
+  // (join 'scroll': the history deepening's window, the store's SCROLL_BACK: the older rows plus the bar at the seam)
+  const older = rowsOf('RB', '5').filter((b) => b.t <= M.store.peek(key).bars[0].t)
+  await act(async () => { M.store.registry.dispatch(key, join === 'scroll'
+    ? { type: M.ACTION.SCROLL_BACK, key, gen: M.store.peek(key).gen, payload: { bars: older } }
+    : { type: M.ACTION.LAKE_HIT, key, payload: { sym: 'RB', bars: rowsOf('RB', '5') } }) })
   const joined = M.store.peek(key).bars.length
   await settle(() => candleRows() !== before.rows)
   const after = view()
@@ -191,5 +195,25 @@ describe('control: COVER_ROWS raw rows with extended hours do not cover a regula
 
   it('...and rightly: painted alone, the later lake join changes what is on screen', () => {
     expect(r.after.onScreen).not.toBe(r.before.onScreen)
+  })
+})
+
+// (2026-11-27, coordinator ruling: the background deepening lands in idle time) WHEN it lands changes nothing on screen
+// only if the deepening itself changes nothing on screen: the history window (SCROLL_BACK) joined behind a covering view.
+describe('the history deepening (SCROLL_BACK) behind a covering view moves nothing on screen', () => {
+  let r
+  beforeAll(async () => { r = await run(1800, 'scroll') }, 300_000)
+
+  it('the same visible window, the same price scale on every series, every on-screen value', () => {
+    expect(r.viewRows).toBeGreaterThanOrEqual(r.cover)
+    expect(r.after.edge).toEqual(r.before.edge)
+    expect(r.after.times).toBe(r.before.times)
+    expect(r.after.scales).toBe(r.before.scales)
+    expect(r.after.onScreen).toBe(r.before.onScreen)
+  })
+
+  it('non-vacuous: the window joined (the store holds older rows, the series more rows)', () => {
+    expect(r.joined).toBeGreaterThan(r.held)
+    expect(r.after.rows).toBeGreaterThan(r.before.rows)
   })
 })

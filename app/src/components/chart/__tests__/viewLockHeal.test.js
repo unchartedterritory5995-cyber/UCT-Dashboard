@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   viewLockIsCompounded, healedViewLock, healViewLocksOnce, _resetViewLockHealForTests,
   VIEW_LOCK_KEY, VIEW_LOCK_KEY_PREFIX, VIEW_LOCK_HEAL_FLAG,
+  healViewLocksV2Once, withoutVerticalHalf, VIEW_LOCK_HEAL_FLAG_V2, axisDoubleClickLock,
 } from '../viewLockHeal'
 
 // [label, top, bottom] — nine axis drags that did NOT compound (15–25% of the pane each)
@@ -131,5 +132,66 @@ describe('healViewLocksOnce — the sweep, once per device', () => {
     expect(healViewLocksOnce(broken)).toBeNull()
     _resetViewLockHealForTests()
     expect(healViewLocksOnce(null)).toBeNull()
+  })
+})
+
+// ─── v2 (2026-11-26): every vertical half goes, once per device; nothing else is touched ─────────────────────
+describe('heal v2: every stored vertical half, once', () => {
+  beforeEach(() => { _resetViewLockHealForTests() })
+  const SLOT2 = { anchorFrac: 0.92917, width: 137.4227180526068, tf: 'D', top: 0.3223, bottom: 0.3057 }   // measured, UCT slot 2
+
+  it('drops the vertical half of a SYMMETRIC lock v1 spares (the slot-2 lock), keeps the horizontal half', () => {
+    expect(viewLockIsCompounded(SLOT2)).toBe(false)
+    const st = memoryStorage({ [VIEW_LOCK_KEY_PREFIX + 'w-l-1']: JSON.stringify(SLOT2) })
+    const done = healViewLocksV2Once(st, () => 'T')
+    expect(done).toEqual({ healed: 1, at: 'T' })
+    const after = JSON.parse(st.getItem(VIEW_LOCK_KEY_PREFIX + 'w-l-1'))
+    expect(after).toEqual({ anchorFrac: SLOT2.anchorFrac, width: SLOT2.width, tf: 'D', top: null, bottom: null, vLocked: false })
+  })
+
+  it('runs ONCE: the flag stops a second run, on this page and on the next', () => {
+    const st = memoryStorage({ [VIEW_LOCK_KEY]: JSON.stringify(SLOT2) })
+    expect(healViewLocksV2Once(st, () => 'T')).toEqual({ healed: 1, at: 'T' })
+    // a NEW vertical half authored after the heal (a real drag) must survive the next load
+    st.setItem(VIEW_LOCK_KEY, JSON.stringify(SLOT2))
+    expect(healViewLocksV2Once(st)).toBeNull()                 // same page
+    _resetViewLockHealForTests()
+    expect(healViewLocksV2Once(st)).toBeNull()                 // next page: the flag holds
+    expect(JSON.parse(st.getItem(VIEW_LOCK_KEY)).top).toBe(0.3223)
+    expect(JSON.parse(st.getItem(VIEW_LOCK_HEAL_FLAG_V2))).toEqual({ healed: 1, at: 'T' })
+  })
+
+  it('NEVER removes a key: a lock with no horizontal half keeps its key, vertical half nulled', () => {
+    const st = memoryStorage({ [VIEW_LOCK_KEY_PREFIX + 'v-only']: JSON.stringify({ top: 0.2, bottom: 0.4 }) })
+    healViewLocksV2Once(st, () => 'T')
+    expect(st.getItem(VIEW_LOCK_KEY_PREFIX + 'v-only')).not.toBeNull()
+    expect(JSON.parse(st.getItem(VIEW_LOCK_KEY_PREFIX + 'v-only'))).toEqual({ top: null, bottom: null, vLocked: false })
+  })
+
+  it('a missing, vertical-less or corrupt lock is a no-op (byte-identical), and other keys are never read or written', () => {
+    const H_ONLY = JSON.stringify({ anchorFrac: 0.9, width: 100, tf: 'D', top: null, bottom: null })
+    const init = {
+      [VIEW_LOCK_KEY_PREFIX + 'h-only']: H_ONLY,
+      [VIEW_LOCK_KEY_PREFIX + 'corrupt']: '{not json',
+      [VIEW_LOCK_KEY_PREFIX + 'null']: 'null',
+      [VIEW_LOCK_KEY_PREFIX + 'array']: '[1,2]',
+      'uct.charts.other': JSON.stringify({ top: 0.3, bottom: 0.3 }),
+      [VIEW_LOCK_HEAL_FLAG]: JSON.stringify({ healed: 0, at: 'v1' }),
+    }
+    const st = memoryStorage(init)
+    expect(healViewLocksV2Once(st, () => 'T')).toEqual({ healed: 0, at: 'T' })
+    const after = st.dump()
+    for (const [k, v] of Object.entries(init)) expect(after[k], k).toBe(v)
+    expect(healViewLocksV2Once(memoryStorage(), () => 'T')).toBeNull()   // settled on this page already
+    _resetViewLockHealForTests()
+    expect(healViewLocksV2Once(null)).toBeNull()
+  })
+
+  it('withoutVerticalHalf / axisDoubleClickLock are total', () => {
+    for (const bad of [null, undefined, 3, 'x', [], {}, { top: null, bottom: null }]) expect(withoutVerticalHalf(bad)).toBeNull()
+    expect(withoutVerticalHalf({ top: 0.1 })).toEqual({ top: null, bottom: null, vLocked: false })
+    expect(axisDoubleClickLock(null)).toEqual({ changed: false, lock: null })
+    expect(axisDoubleClickLock({ ...SLOT2 })).toEqual({ changed: true, lock: { ...SLOT2, top: null, bottom: null, vLocked: false } })
+    expect(axisDoubleClickLock({ top: 0.2, bottom: 0.2 })).toEqual({ changed: true, lock: null })   // no horizontal half left
   })
 })

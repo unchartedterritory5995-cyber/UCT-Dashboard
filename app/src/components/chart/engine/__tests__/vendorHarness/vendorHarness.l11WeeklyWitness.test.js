@@ -31,6 +31,14 @@ import { computeRuntimeColumns, runtimeWarmupOf } from '../../runtime/runtimeCol
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../../runtimeKill'
 import { __admitEveryRunHalfForTests, __resetRunHalfAdmissionForTests } from '../../runHalfRailSeam'
+import { setOffListingCurtainEnabled as __e102Curtain, __startFreeReleaseOffForTests as __e103StartFree } from '../../runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+// (e103) and they grade the CURTAIN's picture, so Fred RS's start-free release (`computeStartFree`), which answers an
+// off-listing Fred RS run before the curtain, is switched off here
+__e102BeforeAll(() => { __e102Curtain(true); __e103StartFree(true) })
+__e102AfterAll(() => { __e102Curtain(false); __e103StartFree(false) })
 
 vi.setConfig({ testTimeout: 240000 })
 

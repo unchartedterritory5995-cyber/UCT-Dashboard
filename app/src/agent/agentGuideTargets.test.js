@@ -58,7 +58,8 @@ describe('every walkthrough points at a real control', () => {
     it(`${f.id}: each target is rendered by the product`, () => {
       for (let t of targetsOf(f)) {
         if (typeof t === 'object' && t.widgetType) {
-          expect(source).toContain('data-widget-type={w.type}')
+          // the board in front names its widgets' types; a kept (hidden) board does not (ChartsWorkspace renderGrid `hidden`)
+          expect(source.includes('data-widget-type={w.type}') || source.includes('data-widget-type={hidden ? undefined : w.type}'), 'data-widget-type').toBe(true)
           if (t.guide) expect(source, t.guide).toContain(`data-guide="${t.guide}"`)
           // a column title is named from its label: aria-label={`Sort by ${label}`}
           if (t.aria) expect(source.includes(`aria-label="${t.aria}"`) || (/^Sort by /.test(t.aria) && source.includes('aria-label={`Sort by ${label}`}')), t.aria).toBe(true)

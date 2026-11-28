@@ -43,7 +43,7 @@ MASTER's copy of this file in two places:
            nothing the merge group's run says about itself: it recomputes the scope from the commit, and posts with a
            GitHub App's token. success ONLY for no-agent-paths, or for agent-paths when (a) no self-protected path
            differs between the commit and the master commit the group is built on (an entry AHEAD may have edited the
-           Agent CI machinery), (b) the clock is outside the weekday deploy freeze windows, and (c) every required
+           Agent CI machinery), and (b) every required
            Agent job (master's agent-ci.yml) is success under the queue workflow's call in that run. self-protected is
            ALWAYS failure (AUDIT's local evidence decides), and so is anything unreadable. Never pending.
            Whatever goes wrong while deciding is POSTED as a failure; API calls are tried 3 times (transport / 5xx /
@@ -340,12 +340,12 @@ FOLLOW_MASTER_REF = "refs/agent-ci-verdict/master"
 FOLLOW_DEPTH = 50
 #: the environment variable that holds the GitHub App's installation token: the ONLY token the follower POSTs with
 VERDICT_TOKEN_ENV = "AGENT_CI_VERDICT_TOKEN"
-#: D2.1 (AUDIT on #2495): deploy freeze windows, weekdays, wall clock in FREEZE_TZ, both ends included. An entry that
-#: needs Agent evidence is failed inside one. ⚠️ The clock is read when the VERDICT is decided, which is seconds
-#: before the entry lands; and this knows no market holiday (a holiday that falls on a weekday is treated as a
-#: trading day: an Agent entry is refused in the window for nothing, which is the safe side).
-FREEZE_TZ = "America/New_York"
-FREEZE_WINDOWS = (((9, 20), (9, 45)), ((15, 30), (16, 15)))
+#: ⛔⛔ NO TIME-WINDOW FREEZE (owner ruling 2026-11-27, verbatim: "fuck the deploy freeze i dont ever want to hold
+#: anything back from deploying ever"). Until then the follower refused an entry that needs Agent evidence inside the
+#: day's market rushes (D2.1, AUDIT on #2495; NYSE-calendar-aware with a bounded dataset FLOOR since #2850). That
+#: refusal, its windows, the FLOOR and its calendar reader are removed: an entry is judged on its evidence at any
+#: clock. The calendar dataset stays an Agent path and SELF_PROTECTED (tools/agent_ci_evidence.py, unchanged); the
+#: follower no longer reads it. Rails: tests/test_agent_ci_required.py, "NO TIME-WINDOW FREEZE IN THE MERGE QUEUE".
 MACHINERY_EDITED = "; an entry ahead edits the Agent CI machinery: AUDIT decides"
 APP_REACH = ": only the two posters may reach the verdict App"
 #: that workflow's job that CALLS agent-ci.yml. The Actions API reports a called workflow's jobs as
@@ -407,6 +407,11 @@ WORKFLOW_DIR = ".github/workflows"
 VERDICT_ENVIRONMENT = "agent-ci-verdict"
 #: the two workflow files that post agent-ci-required, and in each the ONE job that may name the environment
 POSTER_JOBS = {FOLLOWER_WORKFLOW.as_posix(): "verdict", f"{WORKFLOW_DIR}/agent-ci-required.yml": "status"}
+#: OTHER environments a named job may declare, each as ONE LITERAL value (owner-approved 2026-11-28, #2957): the
+#: history lake's refresh job reads its R2 and vendor keys from `history-lake` (master only). Never the verdict
+#: environment, never an expression, never another job or another value: anything else is still a finding.
+OTHER_ENVIRONMENT_JOBS = {f"{WORKFLOW_DIR}/history-lake-daily.yml": ("refresh", "history-lake")}
+assert all(env != VERDICT_ENVIRONMENT for _job, env in OTHER_ENVIRONMENT_JOBS.values())
 #: where a job may take a reusable workflow from: this repository's own tree, which this same scan reads
 LOCAL_REUSABLE = "./" + WORKFLOW_DIR + "/"
 #: (c) the backstop's two needles, compared case-insensitively (GitHub reads vars / secrets names that way)
@@ -508,10 +513,14 @@ def workflow_problems(files: dict) -> list[str]:
             bad.append(f"{name}: does not parse as YAML ({type(e).__name__})")
             continue
         poster_job = POSTER_JOBS.get(path)
+        other = OTHER_ENVIRONMENT_JOBS.get(path)
         for where, key, value in _walk(doc):
             if _is(key, "environment"):                                                        # (a)
                 job = where[1] if len(where) >= 2 and where[0] == "jobs" else None
-                if poster_job is None:
+                if poster_job is None and other is not None and where == ("jobs", other[0]):
+                    if key != "environment" or not isinstance(value, str) or value != other[1]:
+                        bad.append(f"{name}: job {other[0]}'s environment is not the literal {other[1]}")
+                elif poster_job is None:
                     bad.append(f"{name}: job {job} declares an environment" if len(where) == 2 and job is not None
                                else f"{name}: an `environment` key at {'.'.join(map(str, where)) or 'the top'}")
                 elif where != ("jobs", poster_job):
@@ -744,23 +753,6 @@ def write_outputs(values: dict, path=None) -> None:
             fh.write(f"{key}={_safe(value)}\n")
 
 
-def freeze_window(now) -> str | None:
-    """The deploy freeze window the instant `now` falls in, as "09:20-09:45 ET", or None. `now` is an AWARE datetime
-    (a naive one raises: a clock that cannot be placed is not a clock). Weekdays only, both ends included, read in
-    FREEZE_TZ's wall clock, so the UTC instants move with daylight saving. No market holiday is known here."""
-    import zoneinfo
-    if now.tzinfo is None or now.utcoffset() is None:
-        raise ValueError("freeze_window needs an aware datetime")
-    local = now.astimezone(zoneinfo.ZoneInfo(FREEZE_TZ))
-    if local.weekday() >= 5:
-        return None
-    at = (local.hour, local.minute, local.second)
-    for (h1, m1), (h2, m2) in FREEZE_WINDOWS:
-        if (h1, m1, 0) <= at <= (h2, m2, 0):
-            return f"{h1:02d}:{m1:02d}-{h2:02d}:{m2:02d} ET"
-    return None
-
-
 def _utcnow():
     import datetime
     return datetime.datetime.now(datetime.timezone.utc)
@@ -803,9 +795,9 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
     against its first parent), and for an entry that needs Agent evidence it also requires, in this order:
       * every self-protected path byte-identical between the commit and the master commit the group is built on
         (machinery_edits: an entry AHEAD may have edited what this entry's jobs ran with);
-      * the clock outside the deploy freeze windows (freeze_window);
       * every required Agent job (master's agent-ci.yml) listed under the queue workflow's call in THAT run, success.
-    An entry that touches no Agent path needs none of this and is success. Anything unreadable is failure."""
+    An entry that touches no Agent path needs none of this and is success. Anything unreadable is failure.
+    `now` is accepted and not read: no clock refuses an entry (owner ruling 2026-11-27)."""
     ev = _evidence()
     git = _git_reader(root, run, log)
     if git("the merge group and master, fetching", "fetch", "--no-tags", "--quiet", "--filter=blob:none", f"--depth={FOLLOW_DEPTH}",
@@ -835,9 +827,6 @@ def follow_verdict(root, api: Api, run_id, head_sha: str, head_ref: str, now, ru
         if hits:
             head = f"{len(hits)} self-protected path(s) differ from master, e.g. {hits[0]}"
             return FAILURE, head[:140 - len(MACHINERY_EDITED)] + MACHINERY_EDITED
-        window = freeze_window(now)
-        if window:
-            return FAILURE, f"deploy freeze window {window} on weekdays: an Agent entry does not land in it; queue it again afterwards"
         required = required_jobs(doc)
         try:
             jobs = run_jobs(api, run_id)

@@ -66,6 +66,7 @@
 // re-add, which `mergeSettingsOverride` already understands.
 
 import { validateInputValue } from './defSchema'
+import { PIN_SCALE_CHOICES } from './placement'
 import { legacyInstanceId, newInstanceId, stackRank, normalizeInstances } from './instances'
 import { instanceTombstone, isInstanceTombstone } from '../instanceShape'
 import { getDefinition, listDefinitions } from './nativeRegistry'
@@ -1673,6 +1674,26 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   })
 
   return { ...withInstances(cs, next, registry), volumeOverlayIndicators }
+}
+
+/**
+ * ⭐ PIN TO SCALE (2026-11-26) — the member's "Same as price" / "No scale" pick for an instance on
+ * price (`placement.pinScaleOf` reads it).
+ *
+ * ⛔⛔ EVERY PICK IS WRITTEN, INCLUDING ONE EQUAL TO THE DEFAULT. Unlike the optional keys whose
+ * default deletes, the stored value here IS the record that the member chose: the default is READ
+ * (`placement.defaultPinScaleOf`; Fred RS's moved from "No scale" back to "Same as price" on
+ * 2026-11-27), so a member's pick must hold whatever the default does next.
+ * Refused by identity (unknown choice, unknown instance, the value already stored).
+ *
+ * @param {'price'|'none'} mode
+ */
+export function setInstancePinScale(cs, instanceId, mode, registry) {
+  if (!PIN_SCALE_CHOICES.includes(mode)) return cs
+  return rewriteInstance(cs, instanceId, registry, (i) => {
+    if (i.placement && i.placement.pinScale === mode) return i
+    return { ...i, placement: { ...(i.placement || {}), pinScale: mode } }
+  })
 }
 
 // ─── 2026-09-28: stroke, calculation timeframe, visibility, duplicate ─────────

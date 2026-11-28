@@ -221,6 +221,9 @@ const ACKNOWLEDGED_CHART = [
   // rails, bucket-grid parity. Run green (5 files / 37 tests) BEFORE this line was added;
   // `test:chart` covers it.
   'src/components/chart/rails',
+  // Fred RS's house copy (2026-11-27, #2942): the owner's TradingView settings as a new instance's values,
+  // recognised by name or by script. Run green (1 file / 9 tests) BEFORE this line was added; `test:chart` covers it.
+  'src/components/chart/house',
 ]
 
 /** Every `src/`-ish path that any `test*` script hands to vitest. */

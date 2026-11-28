@@ -140,7 +140,10 @@ afterEach(() => {
   window.history.pushState({}, '', '/')
 })
 
-const widgets = (type) => document.querySelectorAll(`[data-testid="body-${type}"]`)
+// the board in front: under the keep-alive (boardKeepAlive.js; production's default) a kept board stays mounted
+// hidden beside it, so a lookup that means "on screen" looks inside the slot marked data-board-current
+const front = () => document.querySelector('[data-board-current]') || document.body
+const widgets = (type) => front().querySelectorAll(`[data-testid="body-${type}"]`)
 
 test('a layout picked while ALREADY on /charts opens; a second pick opens the other; a re-pick of the first opens it again', async () => {
   renderAtCharts()

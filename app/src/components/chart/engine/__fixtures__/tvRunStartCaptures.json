@@ -1,0 +1,2505 @@
+{
+ "schema": "uct.tv-run-start-captures/v1",
+ "about": "TradingView's first bar of a study run, per exhausted capture: bar COUNTS and bar TIMES only (no prices, no plot values). Derived 2026-11-27 by FRED from %LOCALAPPDATA%/uct-vendor-batch captures (1,921 captures, 374 distinct rows; D:/e98-scratch/history-parity/tv-first-bar.json). `bars` = bars held after requestMoreData stopped growing; `barsAfterFirstChunk` = bars after the chunk holding the first bar, in the exchange timezone. docs/pine/HISTORY-PARITY.md.",
+ "intraday": [
+  {
+   "tf": "1",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-09-21 08:00",
+   "bars": 21856,
+   "barsAfterFirstChunk": 19453,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "1",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-09-21 08:00",
+   "bars": 22216,
+   "barsAfterFirstChunk": 19813,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "1",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-09-21 08:00",
+   "bars": 22257,
+   "barsAfterFirstChunk": 19854,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-15 08:00",
+   "bars": 20620,
+   "barsAfterFirstChunk": 19852,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-15 08:00",
+   "bars": 20622,
+   "barsAfterFirstChunk": 19854,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-17",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20096,
+   "barsAfterFirstChunk": 19136,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-17",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20112,
+   "barsAfterFirstChunk": 19152,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20412,
+   "barsAfterFirstChunk": 19452,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20514,
+   "barsAfterFirstChunk": 19554,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20587,
+   "barsAfterFirstChunk": 19627,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20706,
+   "barsAfterFirstChunk": 19746,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20706,
+   "barsAfterFirstChunk": 19746,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-06-22 08:00",
+   "bars": 20737,
+   "barsAfterFirstChunk": 19777,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NASDAQ:AZTA",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-12-01 14:30",
+   "bars": 20325,
+   "barsAfterFirstChunk": 19931,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NASDAQ:BGIN",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-10-21 14:50",
+   "bars": 6244,
+   "barsAfterFirstChunk": 5790,
+   "chunk": "week",
+   "case": "whole-history"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-12-15 13:00",
+   "bars": 20156,
+   "barsAfterFirstChunk": 19751,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-15",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20257,
+   "barsAfterFirstChunk": 19475,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20340,
+   "barsAfterFirstChunk": 19558,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20596,
+   "barsAfterFirstChunk": 19814,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20606,
+   "barsAfterFirstChunk": 19824,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20607,
+   "barsAfterFirstChunk": 19825,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20608,
+   "barsAfterFirstChunk": 19826,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20681,
+   "barsAfterFirstChunk": 19899,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20682,
+   "barsAfterFirstChunk": 19900,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-04-27 08:00",
+   "bars": 20703,
+   "barsAfterFirstChunk": 19921,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "5",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2026-05-04 08:00",
+   "bars": 20233,
+   "barsAfterFirstChunk": 19412,
+   "chunk": "week",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-08-01 08:00",
+   "bars": 21107,
+   "barsAfterFirstChunk": 19763,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-06-02 08:00",
+   "bars": 20886,
+   "barsAfterFirstChunk": 19670,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-06-02 08:00",
+   "bars": 20993,
+   "barsAfterFirstChunk": 19777,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-06-02 08:00",
+   "bars": 21019,
+   "barsAfterFirstChunk": 19803,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-06-02 08:00",
+   "bars": 21030,
+   "barsAfterFirstChunk": 19814,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "15",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-06-02 08:00",
+   "bars": 21157,
+   "barsAfterFirstChunk": 19941,
+   "chunk": "month",
+   "case": "cap"
+  },
+  {
+   "tf": "30",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-01-02 09:00",
+   "bars": 23195,
+   "barsAfterFirstChunk": 15150,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "30",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-01-02 09:00",
+   "bars": 23195,
+   "barsAfterFirstChunk": 15150,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "30",
+   "symbol": "NASDAQ:AZTA",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 13:30",
+   "bars": 22296,
+   "barsAfterFirstChunk": 18438,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "30",
+   "symbol": "NASDAQ:BGIN",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-10-21 14:30",
+   "bars": 2713,
+   "barsAfterFirstChunk": 1860,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "30",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2022-01-03 13:30",
+   "bars": 20883,
+   "barsAfterFirstChunk": 16831,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "30",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 19818,
+   "barsAfterFirstChunk": 14399,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "30",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 19831,
+   "barsAfterFirstChunk": 14412,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "30",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 19837,
+   "barsAfterFirstChunk": 14418,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "45",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2023-01-03 09:00",
+   "bars": 21506,
+   "barsAfterFirstChunk": 16014,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": false,
+   "firstBarUTC": "2015-01-02 14:30",
+   "bars": 20861,
+   "barsAfterFirstChunk": 19097,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23561,
+   "barsAfterFirstChunk": 19532,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23615,
+   "barsAfterFirstChunk": 19586,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": false,
+   "firstBarUTC": "2015-01-02 14:30",
+   "bars": 20889,
+   "barsAfterFirstChunk": 19125,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23631,
+   "barsAfterFirstChunk": 19602,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23634,
+   "barsAfterFirstChunk": 19605,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "BITSTAMP:BTCUSD",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "Etc/UTC",
+   "extendedHours": true,
+   "firstBarUTC": "2024-01-01 00:00",
+   "bars": 25215,
+   "barsAfterFirstChunk": 16433,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "BITSTAMP:BTCUSD",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "Etc/UTC",
+   "extendedHours": true,
+   "firstBarUTC": "2024-01-01 00:00",
+   "bars": 25216,
+   "barsAfterFirstChunk": 16434,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "BITSTAMP:BTCUSD",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "Etc/UTC",
+   "extendedHours": true,
+   "firstBarUTC": "2024-01-01 00:00",
+   "bars": 25298,
+   "barsAfterFirstChunk": 16516,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23629,
+   "barsAfterFirstChunk": 19600,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23631,
+   "barsAfterFirstChunk": 19602,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:AZTA",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2017-01-03 10:00",
+   "bars": 21214,
+   "barsAfterFirstChunk": 19112,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:BGIN",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2025-10-21 14:00",
+   "bars": 1871,
+   "barsAfterFirstChunk": 1361,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23538,
+   "barsAfterFirstChunk": 19560,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 23539,
+   "barsAfterFirstChunk": 19561,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-21",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2018-01-19 15:00",
+   "bars": 21628,
+   "barsAfterFirstChunk": 19532,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:JPM",
+   "captureDate": "2026-11-20",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 21414,
+   "barsAfterFirstChunk": 17724,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": false,
+   "firstBarUTC": "2024-03-21 16:30",
+   "bars": 4648,
+   "barsAfterFirstChunk": 3281,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10319,
+   "barsAfterFirstChunk": 7409,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10347,
+   "barsAfterFirstChunk": 7437,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10348,
+   "barsAfterFirstChunk": 7438,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10354,
+   "barsAfterFirstChunk": 7444,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10357,
+   "barsAfterFirstChunk": 7447,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "60",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-23",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 17:00",
+   "bars": 10392,
+   "barsAfterFirstChunk": 7482,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "65",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2021-01-04 09:00",
+   "bars": 22199,
+   "barsAfterFirstChunk": 18422,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "120",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2016-01-04 09:00",
+   "bars": 21905,
+   "barsAfterFirstChunk": 19890,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "195",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2010-01-04 09:00",
+   "bars": 21221,
+   "barsAfterFirstChunk": 19962,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "240",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-25",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2007-01-03 09:00",
+   "bars": 20024,
+   "barsAfterFirstChunk": 19020,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "240",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": false,
+   "firstBarUTC": "2000-01-03 14:30",
+   "bars": 13503,
+   "barsAfterFirstChunk": 13001,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "240",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2007-01-03 09:00",
+   "bars": 20028,
+   "barsAfterFirstChunk": 19024,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "240",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-26",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2004-01-02 13:00",
+   "bars": 20581,
+   "barsAfterFirstChunk": 19826,
+   "chunk": "year",
+   "case": "cap"
+  },
+  {
+   "tf": "240",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-25",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2018-01-19 13:00",
+   "bars": 7459,
+   "barsAfterFirstChunk": 6715,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "240",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 16:00",
+   "bars": 2657,
+   "barsAfterFirstChunk": 1879,
+   "chunk": "year",
+   "case": "whole-history"
+  },
+  {
+   "tf": "240",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-25",
+   "exchangeTz": "America/New_York",
+   "extendedHours": true,
+   "firstBarUTC": "2024-03-21 16:00",
+   "bars": 2682,
+   "barsAfterFirstChunk": 1904,
+   "chunk": "year",
+   "case": "whole-history"
+  }
+ ],
+ "date": [
+  {
+   "tf": "1D",
+   "symbol": "AMEX:BHB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1995-08-15 13:30",
+   "bars": 7206
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:BRBS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1999-04-08 13:30",
+   "bars": 2299
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:ITRG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2017-12-05 14:30",
+   "bars": 2192
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:PRK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1990-08-31 13:30",
+   "bars": 8577
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-15",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8507
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8508
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8509
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8510
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8511
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8512
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-23",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8513
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "1993-01-29 14:30",
+   "bars": 8515
+  },
+  {
+   "tf": "1D",
+   "symbol": "AMEX:TMP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-06-02 13:30",
+   "bars": 8907
+  },
+  {
+   "tf": "1D",
+   "symbol": "BITSTAMP:BTCUSD",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2011-08-18 00:00",
+   "bars": 5537
+  },
+  {
+   "tf": "1D",
+   "symbol": "BITSTAMP:BTCUSD",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2011-08-18 00:00",
+   "bars": 5541
+  },
+  {
+   "tf": "1D",
+   "symbol": "CME_MINI:ES1!",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1997-09-08 22:00",
+   "bars": 7386
+  },
+  {
+   "tf": "1D",
+   "symbol": "FX:EURUSD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1971-01-03 22:00",
+   "bars": 14365
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "1980-12-12 14:30",
+   "bars": 11569
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1980-12-12 14:30",
+   "bars": 11572
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1980-12-12 14:30",
+   "bars": 11573
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "1980-12-12 14:30",
+   "bars": 11576
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ADP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14822
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 667
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 668
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 669
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 670
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 671
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ALAB",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2024-03-20 13:30",
+   "bars": 672
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AMZN",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1997-05-15 13:30",
+   "bars": 7426
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ANAB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2017-01-26 14:30",
+   "bars": 2470
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:APPN",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2017-05-25 13:30",
+   "bars": 2386
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ARDX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2014-06-19 13:30",
+   "bars": 3125
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AROW",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1980-09-18 13:30",
+   "bars": 10280
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ATRO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 11457
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AVPT",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2019-11-05 14:30",
+   "bars": 1722
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:AZTA",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "1995-02-02 14:30",
+   "bars": 8003
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:BCPC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-06-03 13:30",
+   "bars": 9288
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:BOKF",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1991-09-05 13:30",
+   "bars": 8502
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:BRKR",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2000-08-04 13:30",
+   "bars": 6613
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CASS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1996-07-02 13:30",
+   "bars": 6860
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CBSH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13124
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CENT",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-07-15 13:30",
+   "bars": 8361
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CHY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2003-05-28 13:30",
+   "bars": 5911
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CINF",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 13473
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CMCSA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 12948
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:COST",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "1986-02-11 14:30",
+   "bars": 10274
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CRWV",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2025-03-28 13:30",
+   "bars": 412
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CRWV",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2025-03-28 13:30",
+   "bars": 411
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:CYRX",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2005-01-31 14:30",
+   "bars": 5251
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:DBVT",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2014-10-22 13:30",
+   "bars": 3039
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:DGICA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-04-24 13:30",
+   "bars": 6315
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:EXC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14811
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:FIZZ",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1991-09-13 13:30",
+   "bars": 8590
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:FLEX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1994-03-18 14:30",
+   "bars": 8221
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:FROG",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2020-09-16 13:30",
+   "bars": 1553
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:GCT",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2022-08-18 13:30",
+   "bars": 1069
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:GOOG",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2014-03-27 13:30",
+   "bars": 3183
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:HBNC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1987-08-04 13:30",
+   "bars": 6319
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:HCSG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1983-11-29 14:30",
+   "bars": 10777
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:IPAR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1988-02-04 14:30",
+   "bars": 9522
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:IRWD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2010-02-03 14:30",
+   "bars": 4227
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:JJSF",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-02-04 14:30",
+   "bars": 10254
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:KMB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:KOD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2018-10-04 13:30",
+   "bars": 2044
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:KRNY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2005-02-24 14:30",
+   "bars": 5471
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:MBWM",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1997-10-24 13:30",
+   "bars": 7268
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:META",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "2012-05-18 13:30",
+   "bars": 3649
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:MGEE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13762
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:MIDD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1987-08-10 13:30",
+   "bars": 9513
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:MU",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1984-06-01 13:30",
+   "bars": 10703
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NFLX",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2002-05-23 13:30",
+   "bars": 6164
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NTGR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2003-07-31 13:30",
+   "bars": 5866
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "1999-01-22 14:30",
+   "bars": 6999
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "1999-01-22 14:30",
+   "bars": 7000
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1999-01-22 14:30",
+   "bars": 7002
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "1999-01-22 14:30",
+   "bars": 7005
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ONB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1984-06-20 13:30",
+   "bars": 10365
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:PECO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2021-07-15 13:30",
+   "bars": 1346
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:PRE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2021-07-16 13:30",
+   "bars": 1324
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:PZZA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-06-08 13:30",
+   "bars": 8423
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:QCRH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-10-06 13:30",
+   "bars": 7417
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:QQQ",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "1999-03-10 14:30",
+   "bars": 6967
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:QQQ",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1999-03-10 14:30",
+   "bars": 6969
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:QQQ",
+   "captureDate": "2026-11-23",
+   "firstBarUTC": "1999-03-10 14:30",
+   "bars": 6971
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:RBCAA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1998-07-22 13:30",
+   "bars": 7122
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:ROCK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-11-05 14:30",
+   "bars": 8304
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:SSP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1988-06-29 13:30",
+   "bars": 9661
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:TRS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2007-05-18 13:30",
+   "bars": 4910
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:TSLA",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2010-06-29 13:30",
+   "bars": 4125
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:TSLA",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2010-06-29 13:30",
+   "bars": 4126
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:UNTY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1995-11-21 14:30",
+   "bars": 7072
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:URBN",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-11-09 14:30",
+   "bars": 8305
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:VLY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1981-05-29 13:30",
+   "bars": 10829
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:VTRS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1980-03-17 14:30",
+   "bars": 11750
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:WDC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1973-01-26 14:30",
+   "bars": 13157
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:WEYS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 11298
+  },
+  {
+   "tf": "1D",
+   "symbol": "NASDAQ:WTBA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1995-01-06 14:30",
+   "bars": 6500
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:A",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "1999-11-18 14:30",
+   "bars": 6792
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:A",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "1999-11-18 14:30",
+   "bars": 6796
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AAP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-11-29 14:30",
+   "bars": 6285
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ABT",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14818
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2018-01-19 14:30",
+   "bars": 2222
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ADT",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "2018-01-19 14:30",
+   "bars": 2226
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AER",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2006-11-21 14:30",
+   "bars": 5030
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AGL",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "2021-04-15 13:30",
+   "bars": 1405
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AGL",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "2021-04-15 13:30",
+   "bars": 1406
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AGL",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "2021-04-15 13:30",
+   "bars": 1407
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AGL",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "2021-04-15 13:30",
+   "bars": 1412
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AIG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13767
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AIV",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1994-07-22 13:30",
+   "bars": 8139
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ALK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14813
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AMC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2013-12-18 14:30",
+   "bars": 3251
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:APD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ARMK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2013-12-12 14:30",
+   "bars": 3255
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:AXP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13772
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BAP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1995-10-25 13:30",
+   "bars": 7796
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BAX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14820
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BBD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-11-21 14:30",
+   "bars": 6290
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BBWI",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1973-02-09 14:30",
+   "bars": 13478
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BDX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14817
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BEN",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1983-09-23 13:30",
+   "bars": 10827
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BF.A",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-04 14:30",
+   "bars": 13404
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BFH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-06-08 13:30",
+   "bars": 6402
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BHP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 13042
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BMI",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1971-10-28 13:30",
+   "bars": 12555
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BOX",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2010-10-28 13:30",
+   "bars": 3600
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16319
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:BWA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-08-13 13:30",
+   "bars": 8376
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CAG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13751
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CIG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1996-11-18 14:30",
+   "bars": 7529
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CM",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1997-11-13 14:30",
+   "bars": 7298
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CNX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1999-04-30 13:30",
+   "bars": 6934
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:COP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14817
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CRH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1989-07-10 13:30",
+   "bars": 7694
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CTVA",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2019-05-24 13:30",
+   "bars": 1885
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:CX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1999-09-15 13:30",
+   "bars": 6839
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:D",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14819
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:DB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1996-11-18 14:30",
+   "bars": 7538
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:DHR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1969-12-10 14:30",
+   "bars": 14356
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:DOV",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14738
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:DTE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16320
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:EHC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-09-24 13:30",
+   "bars": 10052
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:FDS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1996-06-28 13:30",
+   "bars": 7639
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:FDX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1978-04-12 14:30",
+   "bars": 12254
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:FLO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1969-01-02 14:30",
+   "bars": 13833
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:FMC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:FTI",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-06-14 13:30",
+   "bars": 6398
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:GCO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:GE",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16330
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:GFI",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1976-06-18 13:30",
+   "bars": 12703
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:HD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1981-09-22 13:30",
+   "bars": 11381
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:HPQ",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16333
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:HUBB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14292
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:IP",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16332
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:IRS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1994-12-20 14:30",
+   "bars": 7912
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:J",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1971-05-24 13:30",
+   "bars": 13701
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:JEF",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14644
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:JPM",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1969-03-05 14:30",
+   "bars": 14551
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:KBH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-08-01 13:30",
+   "bars": 10130
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:KO",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "1962-01-03 14:30",
+   "bars": 16331
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:LNC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1969-08-20 13:30",
+   "bars": 14438
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:LOW",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13770
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MAS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14804
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MDU",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14804
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MET",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2000-04-05 13:30",
+   "bars": 6698
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MKL",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-12-12 14:30",
+   "bars": 9995
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MRK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1962-01-02 14:30",
+   "bars": 16325
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MUR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14818
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:MYE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-11-06 14:30",
+   "bars": 12940
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14747
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NEM",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14820
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NI",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NOC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14820
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NVGS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2007-01-09 14:30",
+   "bars": 3453
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:NVR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1985-07-22 13:30",
+   "bars": 10402
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:O",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1994-10-18 13:30",
+   "bars": 8078
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:ODC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1978-05-10 13:30",
+   "bars": 10692
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:OIS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2001-02-09 14:30",
+   "bars": 6484
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:OXY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14814
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PEO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14790
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PFE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PHG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-10-31 14:30",
+   "bars": 13606
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PNR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 13565
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PPL",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14818
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:PUK",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2000-06-28 13:30",
+   "bars": 6640
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-15",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 666
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-16",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 667
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 668
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 669
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 670
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 671
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-25",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 673
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RDDT",
+   "captureDate": "2026-11-26",
+   "firstBarUTC": "2024-03-21 13:30",
+   "bars": 674
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RIG",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1993-05-28 13:30",
+   "bars": 8429
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:RVT",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1986-11-19 14:30",
+   "bars": 10078
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:SBS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2002-05-10 13:30",
+   "bars": 6165
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:SBSW",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2013-02-11 14:30",
+   "bars": 3467
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:SKE",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2014-02-14 14:30",
+   "bars": 2536
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:STWD",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2009-08-12 13:30",
+   "bars": 4347
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:SUZ",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2005-09-15 13:30",
+   "bars": 3167
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:T",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1983-11-21 14:30",
+   "bars": 10834
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TGS",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1994-11-17 14:30",
+   "bars": 8039
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:THC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1971-04-28 13:30",
+   "bars": 13983
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TKC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2000-07-11 13:30",
+   "bars": 6628
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TKR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14818
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14612
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TRN",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13772
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TSM",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "1997-10-08 13:30",
+   "bars": 7326
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:TSN",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 13534
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:UMC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "2000-09-19 13:30",
+   "bars": 6583
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:VFC",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14762
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:VNO",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14356
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:VSH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1973-03-06 14:30",
+   "bars": 13082
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:VYX",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1996-12-11 14:30",
+   "bars": 7534
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:VZ",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1983-11-21 14:30",
+   "bars": 10835
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:WMB",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14819
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:WOR",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-12-15 14:30",
+   "bars": 13572
+  },
+  {
+   "tf": "1D",
+   "symbol": "NYSE:WY",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1968-01-02 14:30",
+   "bars": 14821
+  },
+  {
+   "tf": "1D",
+   "symbol": "OANDA:EURUSD",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "2002-05-05 21:00",
+   "bars": 6376
+  },
+  {
+   "tf": "1M",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "1980-12-01 14:30",
+   "bars": 552
+  },
+  {
+   "tf": "1M",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-18",
+   "firstBarUTC": "1999-01-01 14:30",
+   "bars": 335
+  },
+  {
+   "tf": "1M",
+   "symbol": "NYSE:JPM",
+   "captureDate": "2026-11-22",
+   "firstBarUTC": "1969-03-03 14:30",
+   "bars": 693
+  },
+  {
+   "tf": "1W",
+   "symbol": "AMEX:SPY",
+   "captureDate": "2026-11-19",
+   "firstBarUTC": "1993-01-25 14:30",
+   "bars": 1765
+  },
+  {
+   "tf": "1W",
+   "symbol": "NASDAQ:AAPL",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1980-12-08 14:30",
+   "bars": 2398
+  },
+  {
+   "tf": "1W",
+   "symbol": "NASDAQ:CBSH",
+   "captureDate": "2026-11-21",
+   "firstBarUTC": "1972-04-03 14:30",
+   "bars": 2850
+  },
+  {
+   "tf": "1W",
+   "symbol": "NASDAQ:NVDA",
+   "captureDate": "2026-11-17",
+   "firstBarUTC": "1999-01-18 14:30",
+   "bars": 1453
+  },
+  {
+   "tf": "1W",
+   "symbol": "NYSE:JPM",
+   "captureDate": "2026-11-20",
+   "firstBarUTC": "1969-03-03 14:30",
+   "bars": 3012
+  }
+ ],
+ "studyStartsBeforeLoaded": {
+  "tf": "15",
+  "symbol": "AMEX:SPY",
+  "captureDate": "2026-11-15",
+  "loadedFirstBarUTC": "2026-06-25 22:15",
+  "loadedBars": 6343,
+  "studyBarIndexAtFirstLoadedBar": 14433
+ }
+}
