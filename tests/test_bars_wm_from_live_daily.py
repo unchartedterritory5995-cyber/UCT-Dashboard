@@ -44,6 +44,10 @@ def store(monkeypatch, tmp_path):
         if hasattr(bars_fetch, name):
             monkeypatch.setattr(bars_fetch, name, _no_provider)
     bars_fetch.cache.delete_prefix("bars_AAA_")
+    import threading as _th
+    print("DIAG date_delta_sem=%s warm=%s bg_delta=%s threads=%s" % (
+        bars_fetch._date_delta_sem._value, bars_fetch._date_delta_warm_sem._value, bars_fetch._bg_delta_sem._value,
+        sorted(t.name for t in _th.enumerate())), flush=True)
     yield
     bars_sqlite._drop_local_conn()
     bls._reset_for_tests()
