@@ -135,7 +135,8 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
       const { WINDOW_FILL_RETRY_S } = await import('./network')
       let filling = true
       const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))
-      const { network, timers, fire } = netT(request)
+      const { registry, network, timers, fire } = netT(request)
+      registry.acquire(KW)   // the prepare pins the entry it asks for (prefetch.prepareForDisplay)
       const woke = []
       network.subscribeAnswered(KW, () => woke.push(network.filling(KW)))
       await network.fetchOnce(KW, { priority: 'visible' })
@@ -168,13 +169,15 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
     it('bounded: a window that never completes is asked WINDOW_FILL_ROUNDS more times, then left; a warm alone is not repeated', async () => {
       const { WINDOW_FILL_ROUNDS } = await import('./network')
       const request = vi.fn(async () => ({ ...ok(), filling: true }))
-      const { network, timers, fire } = netT(request)
+      const { registry, network, timers, fire } = netT(request)
+      registry.acquire(KW)
       await network.fetchOnce(KW, { priority: 'visible' })
       let rounds = 0
       while (await fire(3000)) rounds++
       expect(rounds).toBe(WINDOW_FILL_ROUNDS)
       expect(request).toHaveBeenCalledTimes(1 + WINDOW_FILL_ROUNDS)
       const w = netT(vi.fn(async () => ({ ...ok(), filling: true })))
+      w.registry.acquire(KW)
       await w.network.fetchOnce(KW, { priority: 'background', warm: true })
       expect(w.timers.filter((t) => t.ms === 3000).length, 'a shed-able warm with no chart: not repeated').toBe(0)
     })
