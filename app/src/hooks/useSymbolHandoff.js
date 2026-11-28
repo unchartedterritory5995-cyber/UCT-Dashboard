@@ -202,7 +202,9 @@ function paintsWholeNow(sym, tf, sess, need = COVER_ROWS) {
  * A native code, or a custom code on a D/W/M base, is returned unchanged.
  */
 export function routeView(tf, need) {
-  const spec = isNativeTf(String(tf)) ? null : resampleSpec(String(tf))
+  // (the BarStore only: there a custom chart reads its base key from the store, the key this coordinator counts; the
+  // legacy source's custom chart fetches its own base window, which this coordinator has no view of: straight through)
+  const spec = !BARSTORE || isNativeTf(String(tf)) ? null : resampleSpec(String(tf))
   if (!spec || spec.kind !== 'intradaySession' || !INTRADAY.has(String(spec.base))) return { tf, need }
   return { tf: String(spec.base), need: baseBarsFor(String(tf), need) }
 }

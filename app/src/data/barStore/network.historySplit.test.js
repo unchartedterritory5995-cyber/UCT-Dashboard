@@ -115,9 +115,8 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
   it('a history join that adds nothing older notifies subscribeSettled (the entry did not move), and the depth is no longer due', async () => {
     const w = world({ history: 'nothing-older' })
     const settled = vi.fn()
+    const off = w.net.subscribeSettled(w.key, settled)   // (before the ask: the fake answers within the first tick)
     w.net.fetchOnce(w.key, { depth: w.depth })
-    await vi.advanceTimersByTimeAsync(1)
-    const off = w.net.subscribeSettled(w.key, settled)
     await vi.advanceTimersByTimeAsync(50)
     expect(histCalls(w)).toHaveLength(1)
     expect(settled).toHaveBeenCalledTimes(1)
@@ -128,9 +127,8 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
   it('CONTROL: a history that fails (the split turns off) does not notify a settle: the full read it queues moves the entry', async () => {
     const w = world({ history: 'throw' })
     const settled = vi.fn()
+    w.net.subscribeSettled(w.key, settled)   // (before the ask, as above: otherwise this control could not fail)
     w.net.fetchOnce(w.key, { depth: w.depth })
-    await vi.advanceTimersByTimeAsync(1)
-    w.net.subscribeSettled(w.key, settled)
     await vi.advanceTimersByTimeAsync(50)
     expect(histCalls(w)).toHaveLength(1)
     expect(settled).not.toHaveBeenCalled()
