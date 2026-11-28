@@ -10,10 +10,10 @@ docs/charts/first-frame-seed-format.md.
 WHAT IS IN A PACK (defaults; `FFSEED_DEPTH_<TF>` overrides):
 
     tf   newest N bars   which bars
-    1    600             regular session (RTH) only, 09:30 <= ET start < close (13:00 on a half day)
-    5    300             RTH only
-    15   300             RTH only
-    30   300             RTH only
+    1    1000            regular session (RTH) only, 09:30 <= ET start < close (13:00 on a half day)
+    5    1000            RTH only
+    15   1000            RTH only
+    30   1000            RTH only
     60   1000            RTH only, the stored 'session' grid (09:30, 10:30 ... 15:30 half bar):
                          the chart's '60' key, NOT the clock-hour '60e' grid
     D    350             every daily bar (W and M are derived on the device from D)
@@ -89,7 +89,13 @@ def _int_env(name: str, default: int) -> int:
 
 PREFIX = "ffseed"                      # R2 key prefix
 SEED_TFS = fmt.TFS                     # 1 5 15 30 60 D
-DEFAULT_DEPTH = {"1": 600, "5": 300, "15": 300, "30": 300, "60": 1000, "D": 350}
+#: ⭐ 1 / 5 / 15 / 30 at 1000 (2026-11-28, owner decision, zero-network switch PR 1.6). A device copy draws a view whole
+#: only from COVER_ROWS (app/src/data/barStore/coverRows.js, 600) rows on: a 300-row copy never covered, so every
+#: present-day intraday switch on a never-viewed ticker still waited for the network (60-90 ms). 1000 covers the default
+#: view with its 200-bar lookback and leaves the depth join behind the left edge. Measured cost: section 7 of
+#: docs/charts/first-frame-seed-format.md (+~67 MB of packs, one download per device; the nightly delta grows by
+#: nothing: one session's bars a symbol either way). Pinned >= COVER_ROWS by tests/test_ffseed.py.
+DEFAULT_DEPTH = {"1": 1000, "5": 1000, "15": 1000, "30": 1000, "60": 1000, "D": 350}
 #: The chart's first-paint ask per timeframe (app/src/utils/barsBackfill.js): intraday
 #: `firstPaintBarsFor(tf, false)` = min(1199, max(600, ceil(target / (390/960)))), D = 600.
 #: Pinned by tests/test_ffseed.py against the JS source.
