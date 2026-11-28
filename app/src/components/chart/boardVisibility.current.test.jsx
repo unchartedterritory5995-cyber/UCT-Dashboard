@@ -301,6 +301,13 @@ describe('kept boards stay out of a press (review of #3052)', () => {
       const batches = new Set(runs.filter((r) => r[0] === bi).map((r) => r[2]))
       expect(batches.size, `board ${bi} caught up in more than one task`).toBe(1)
     }
+    // shown and hidden again, a board's feeds go on catching up (a show leaves no feed blocked)
+    boards[0].set('visible'); boards[0].set('hidden')
+    runs.length = 0
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS)
+    tick()
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS + 50)
+    expect(runs.filter((r) => r[0] === 0).length, 'after a show and a hide, the board no longer catches up').toBe(3)
     for (const f of feeds) f.stop()
   })
 })
