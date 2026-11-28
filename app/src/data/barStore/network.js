@@ -321,7 +321,10 @@ export function createNetwork({
   // (the rate-limited tail's repeat for a one-shot ask: `_send`) one timer per key, after Retry-After (bounded), while a
   // one-shot ask or a pin still holds the key
   const limitTimers = new Map()
-  const wantHolders = new Map()   // key -> waiting displays that passed a wantSignal (deepPrime)
+  // key -> the Set of live waiters' signals (deepPrime wantSignal). Cleared with deepWanted (the join settled, the want
+  // expired), so a waiter that finished without aborting leaves nothing behind; at most WANT_HOLDERS_MAX keys.
+  const wantHolders = new Map()
+  const WANT_HOLDERS_MAX = 500
   const limitRounds = new Map()   // key -> rate-limited tail answers in a row
   function _armLimitRetry(key, retryAfterMs) {
     if (limitTimers.has(key)) return
@@ -694,6 +697,7 @@ export function createNetwork({
     if (until == null) return false
     if (now() < until) return true
     deepWanted.delete(key)
+    wantHolders.delete(key)
     return false
   }
   /** ⭐ THE ONE AUTHORITY FOR "IS THE DEEP HISTORY DUE" on this page (`deepPending` and the tail's trigger): did the
@@ -709,6 +713,7 @@ export function createNetwork({
    *  recovers) records nothing, so a later key life asks again (review of #2869). Waiters are released either way. */
   function _settleDeep(key, joined = true) {
     deepWanted.delete(key)
+    wantHolders.delete(key)   // (the waiters' asks are answered: none of them holds the key any more)
     const held = registry.peek(key)?.bars.length
     if (joined && held != null) {
       deepSettled.delete(key)
@@ -980,7 +985,11 @@ export function createNetwork({
         // display holding for it keeps waiting, inside its hang guard, instead of committing a copy without its tail as
         // current. Past the rounds it is the error it always was.
         // (the count is the KEY's, not the record's: a one-shot ask's record is collected when it settles)
-        if (kind === 'tail' && (e?.status === 429 || e?.status === 503) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
+        // ⛔ (2026-11-28, chart rails: StockChart.warmingTimeout) ...BUT A 503 `warming` IS AN ANSWER: the server telling
+        // the chart it is fetching a name it may never find (a typo, a made-up ticker). The chart shows it and gives up
+        // honestly after WARMING_GIVE_UP_MS, which counts from the error it sees: held here, it never saw one and its
+        // skeleton spun on. Only a 429, or a 503 that is not `warming` (a shed), holds.
+        if (kind === 'tail' && (e?.status === 429 || (e?.status === 503 && !e?.warming)) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
           limitRounds.set(r.key, (limitRounds.get(r.key) || 0) + 1)
           if (limitRounds.size > 500) limitRounds.delete(limitRounds.keys().next().value)
           if (!(r.refs > 0)) _armLimitRetry(r.key, e?.retryAfterMs)
@@ -1332,10 +1341,19 @@ export function createNetwork({
       if (want && !wantSignal?.aborted) {
         deepWanted.set(key, now() + DEEP_WANT_MS)
         if (wantSignal) {
-          wantHolders.set(key, (wantHolders.get(key) || 0) + 1)
+          let set = wantHolders.get(key)
+          if (!set) {
+            set = new Set()
+            wantHolders.set(key, set)
+            while (wantHolders.size > WANT_HOLDERS_MAX) wantHolders.delete(wantHolders.keys().next().value)
+          }
+          set.add(wantSignal)
+          // ⛔ an abort counts only against the waiters it was one of: after a settle (the set gone) or a newer want (a new
+          // set), an old prepare's late abort must not take the key's want away
           wantSignal.addEventListener?.('abort', () => {
-            const n = (wantHolders.get(key) || 1) - 1
-            if (n > 0) { wantHolders.set(key, n); return }
+            if (wantHolders.get(key) !== set) return
+            set.delete(wantSignal)
+            if (set.size) return
             wantHolders.delete(key)
             deepWanted.delete(key)
           }, { once: true })
@@ -1484,6 +1502,8 @@ export function createNetwork({
     /** (review of #2947, M1) The key's last tail answer was the server's `filling` one: a window still landing, its rows
      *  short of what it will hold. A later complete answer clears it. */
     // (N1) ...also after the key's record went (a one-shot ask's record is collected when it settles): a repeat still due
+    /** (diagnostics, rails) live waiters on the key's deep join that passed a wantSignal */
+    wantHolders(key) { return wantHolders.get(key)?.size ?? 0 },
     filling(key) { return !!keys.get(key)?.filling || fillRounds.has(key) },
     /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
     subscribeAnswered(key, cb) {

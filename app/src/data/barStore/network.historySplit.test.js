@@ -194,6 +194,42 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(tailBars(w)).toEqual([FIRST_PAINT_BARS, dateCoverMaxFor('D')])
   })
 
+  // (review of #3012, follow-up) a waiter that finished without aborting leaves nothing behind; an old waiter's late
+  // abort never takes a NEWER want away
+  it('wantHolders: cleared when the join settles; a late abort from a settled waiter does not cancel a newer want', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    let release
+    const w = world({ historyGate: new Promise((r) => { release = r }), pin: false })
+    const old = new AbortController()
+    w.net.deepPrime(w.key, { want: true, wantSignal: old.signal })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.net.wantHolders(w.key)).toBe(1)
+    release()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(w.net.wantHolders(w.key), 'the settled join clears its waiters').toBe(0)
+    // a later life of the key (reset): the history is due again and a NEW waiter wants it; the settled waiter aborts late
+    w.registry.invalidate(w.key, 'history_rev')
+    const nw = new AbortController()
+    w.net.deepPrime(w.key, { want: true, wantSignal: nw.signal })
+    expect(w.net.wantHolders(w.key)).toBe(1)
+    old.abort()
+    expect(w.net.wantHolders(w.key), 'the old waiter takes nothing away').toBe(1)
+    nw.abort()
+    expect(w.net.wantHolders(w.key)).toBe(0)
+    // two live waiters: one leaving keeps the other's want (its fallback still fires)
+    const h2 = world({ history: 'hang', pin: false })
+    const x = new AbortController(), y = new AbortController()
+    h2.net.deepPrime(h2.key, { want: true, wantSignal: x.signal })
+    h2.net.deepPrime(h2.key, { want: true, wantSignal: y.signal })
+    h2.net.fetchOnce(h2.key, { depth: h2.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    x.abort()
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(h2), 'the remaining waiter still gets its fallback').toEqual([FIRST_PAINT_BARS, dateCoverMaxFor('D')])
+  })
+
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
   it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
     const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')

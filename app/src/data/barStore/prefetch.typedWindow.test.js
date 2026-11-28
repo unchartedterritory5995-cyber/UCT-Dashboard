@@ -36,6 +36,18 @@ describe('warmTypedSymbol with a viewWindow', () => {
     expect(intraday.some((c) => c.q.tf === '5')).toBe(true)
     expect(intraday.some((c) => c.q.tf === '15'), 'the linked 15m window too').toBe(true)
   })
+  // (review of #3004, LOW) the window is keyed on the PANE's session: its ETH can differ from the global
+  it('the pane on extended hours: the window and the linked window ask session=eth; on regular hours, rth', async () => {
+    for (const [ext, want] of [[true, 'eth'], [false, 'rth']]) {
+      const w = await boot()
+      w.pf.warmTypedSymbol('REAL', '5', { alsoTfs: ['15'], viewWindow: w.viewWindowOfDate('2025-03-14', '5'), showExtended: ext })
+      await vi.advanceTimersByTimeAsync(200)
+      await w.server.drain({ advance: () => vi.advanceTimersByTimeAsync(200) })
+      const intraday = w.server.calls.filter((c) => c.q.sym === 'REAL' && ['5', '15'].includes(c.q.tf))
+      expect(intraday.length, `non-vacuity (${want})`).toBeGreaterThan(1)
+      for (const c of intraday) expect(c.url, `${want}: ${c.url}`).toMatch(new RegExp(`[?&]session=${want}(?:&|$)`))
+    }
+  })
   it('a partial word nobody knows asks nothing', async () => {
     const w = await boot()
     w.store.lakeHas = async () => false

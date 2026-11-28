@@ -62,8 +62,9 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await flush()
     expect(pending.length).toBe(1)
     pending[0].resolve({ bars: [1] })
-    expect(await a).toEqual({ bars: [1] })
-    expect(await b).toEqual({ bars: [1] })
+    // (the answer carries the time its data is as of, `_asOfMs`, since #2967)
+    expect(await a).toEqual(expect.objectContaining({ bars: [1] }))
+    expect(await b).toEqual(expect.objectContaining({ bars: [1] }))
   })
 
   it('a shed (503) holds urgent / grid / background until the backoff lifts; visible still goes', async () => {
@@ -126,7 +127,7 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await expect(p1).rejects.toMatchObject({ name: 'AbortError' })
     expect(pending[0].opts.signal.aborted).toBe(false)          // p2 still holds it
     pending[0].resolve({ bars: [7] })
-    expect(await p2).toEqual({ bars: [7] })
+    expect(await p2).toEqual(expect.objectContaining({ bars: [7] }))
     const a3 = new AbortController()
     const p3 = lane.barsLaneRequest('/x/solo', { priority: 'visible', signal: a3.signal })
     await flush()

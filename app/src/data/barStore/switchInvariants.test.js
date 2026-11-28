@@ -239,6 +239,14 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
         expect(timers.some((t) => t.ms >= 2000), `${status}: Retry-After honoured`).toBe(true)
       }
     })
+    it('a 503 `warming` is the error at once (the chart shows it and gives up on its own clock)', async () => {
+      const request = vi.fn(async () => { throw Object.assign(new Error('warming'), { status: 503, warming: true, retryAfterMs: 3000 }) })
+      const { registry, network, timers } = netT(request)
+      registry.acquire(K)
+      await network.fetchOnce(K, { priority: 'visible' })
+      expect(registry.peek(K)?.error?.warming ?? registry.peek(K)?.error, 'the warming error reaches the entry').toBeTruthy()
+      expect(timers.some((t) => t.ms === 3000), 'no hold repeat').toBe(false)
+    })
     it('bounded: past RATE_LIMIT_HOLD_ROUNDS in a row it is the error it always was (the hold ends)', async () => {
       const { RATE_LIMIT_HOLD_ROUNDS } = await import('./network')
       const request = vi.fn(async () => { throw limited() })
