@@ -85,7 +85,6 @@
 
 import { IND_TOKENS } from '../designTokens'
 import { paneMode, NO_STACK_MAIN_MARGINS } from './paneLayout'
-import { isHouseCopyMeta } from '../house/houseNames'
 import { parsePaneOfTarget } from './sourceRef'
 import { readoutConditionOpen } from './readoutSchema'
 
@@ -341,13 +340,17 @@ export function ownScaleOf(def) {
  *
  * STORED on the instance as `placement.pinScale`, and only ever by the member's pick
  * (`instanceControls.setInstancePinScale`): every pick writes its value, so a stored value is
- * itself the record that the member chose. Absent → the DEFAULT:
+ * itself the record that the member chose. Absent → the DEFAULT, 'price', for EVERY definition.
  *
- *   · an unedited member copy of a UCT house indicator (`houseNames.isHouseCopyMeta`, Fred RS)
- *     → 'none', which is how the owner's TradingView has it pinned. Read here, never written,
- *     so every chart that already holds a Fred copy gets it with no migration write, and a
- *     member who picked "Same as price" keeps that.
- *   · everything else → 'price', byte-identical to before this existed.
+ * ⚰️ (#2828, 2026-11-27) an unedited member copy of a UCT house indicator (Fred RS) defaulted to
+ * 'none', on the reading that the owner's TradingView has it pinned so. MEASURED on the owner's live
+ * TradingView chart (FLYW 1D, 2026-11-27): Fred's source sits on the MAIN price scale (one pane, one
+ * right scale holding every source; the autoscale fits candles and the RS line together, the line
+ * parked under the candles by its Offset), exactly TradingView's default for an `overlay = true`
+ * study. So Fred defaults to 'price' like everything else, and joins the price autoscale
+ * (`placement.joinPriceScale`); "No scale" stays the member's explicit pick. Read here, never
+ * written, so every chart that already holds a Fred copy with no stored pick moves back with no
+ * migration write, and a member who picked "No scale" keeps that.
  *
  * ⛔ A definition that declared `ownScale` (UCT RS) answers its own rule above; it is not offered
  * the choice (`pinScaleOffered`), and a stray stored value is ignored for it.
@@ -359,8 +362,8 @@ export const PIN_SCALE_LABELS = Object.freeze({ [PIN_SCALE_PRICE]: 'Same as pric
 export const PIN_SCALE_PREFIX = 'pin:'
 
 /** The answer when the member has not picked: see `pinScaleOf`. */
-export function defaultPinScaleOf(def) {
-  return def && typeof def === 'object' && isHouseCopyMeta(def.meta) ? PIN_SCALE_NONE : PIN_SCALE_PRICE
+export function defaultPinScaleOf(_def) {
+  return PIN_SCALE_PRICE
 }
 
 /** The member's stored pick, or null when there is none (or it is not a known choice). */

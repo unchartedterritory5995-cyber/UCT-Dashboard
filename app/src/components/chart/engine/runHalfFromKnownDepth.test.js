@@ -191,6 +191,9 @@ describe('the product path: Fred RS\'s run half through the real runtime worker,
       const n = RS_CHART.length
       const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === n - 1)
       expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
+      // (e103) off a daily chart Fred RS's two labels are constant: the start-free release (`computeStartFree`), which
+      // answers before the curtain this file turns on, draws them and withholds nothing
+      expect(runtimeObjectsOf(cols).startLatched).toBeUndefined()
     } finally {
       registry.uninstallUserDefinition(def.id)
     }

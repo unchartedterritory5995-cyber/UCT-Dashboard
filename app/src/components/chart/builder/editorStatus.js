@@ -234,7 +234,8 @@ export const FAMILIES = Object.freeze([
   {
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
-      'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges', 'runtime:listing-unverified',
+      'runtime:time-budget', 'runtime:history-start', 'runtime:start-latched-state', 'runtime:warmup-never-converges',
+      'runtime:listing-unverified',
       'chart:scalar-current-only',
       // door robustness: a plot past a host-lane compute budget, refused by the member door by name
       'budget:lookback', 'budget:series', 'budget:nodes',

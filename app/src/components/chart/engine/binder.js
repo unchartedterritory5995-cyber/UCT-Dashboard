@@ -83,6 +83,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './defin
 import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, drawsRunObjectsOn, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
+import { startLatchedOf } from './runtime/startLatched.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -1742,7 +1743,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // C40) draws nothing; its reason reached only the layer's meta until now.
         const rStop = payload.status && payload.status !== 'ok' && objPayload
           ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
-        const rWhy = runtimeWithheldWhy(payload.withheld)
+        // ⭐⭐ (e103) a drawing withheld because its value latches the chart's start (`startLatched.js`): said by its code
+        const latchedNote = startLatchedOf(payload)
+        const rWhy0 = runtimeWithheldWhy(payload.withheld)
+        const rWhy = latchedNote ? { ...(rWhy0 || {}), [latchedNote.guard]: latchedNote.reason } : rWhy0
         // ⭐ the run half drew this instance's drawings on this chart: say so (`servedByRun`)
         publishDrops(inst.instanceId, rstate,
           { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null, servedByRun: true })
