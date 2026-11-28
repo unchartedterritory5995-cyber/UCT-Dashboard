@@ -30,6 +30,9 @@ vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return () => false } }))
 const painted = vi.hoisted(() => [])
 vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) => { painted.push(a) } }))
+// the rows the store holds for the shadow's row, counted in the view's session (0: uncountable, the check stands aside)
+const held = vi.hoisted(() => ({ rows: 0 }))
+vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => held.rows }))
 
 const { useDoubleBuffer, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
@@ -61,6 +64,7 @@ function mount(over = {}) {
 const report = (result, i, sym, cutoff = null, anchor = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff, anchor }) })
 
 beforeEach(() => {
+  held.rows = 0
   vi.useFakeTimers()
   vi.stubGlobal('requestIdleCallback', undefined)
   painted.length = 0
@@ -124,6 +128,26 @@ describe('useDoubleBuffer', () => {
     expect(painted.some((a) => a[0] === 'BBB' && a[3] === 'flip' && a[4] === member && a[2] > 0)).toBe(true)
     await idle()
     expect(h.result.current.syms).toEqual(['CCC', 'BBB'])   // the old front takes the next row ahead
+  })
+
+  // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, then the deep
+  // history's join rescaled both charts) a shadow whose rows do not cover the view is not flippable: the normal switch
+  it('H12 a shadow short of the view (its rows < viewNeed) is refused: the normal switch', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    held.rows = COVER_ROWS - 1
+    const h = await ready()
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)                  // the front switched, no flip
+    expect(db.doubleBufferStats().flips).toBe(0)
+  })
+
+  it('H12b control: a shadow whose rows cover the view flips', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    held.rows = COVER_ROWS
+    const h = await ready()
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
   })
 
   it('H2b no report from the shadow yet (its chart has not committed the row): the normal switch', async () => {

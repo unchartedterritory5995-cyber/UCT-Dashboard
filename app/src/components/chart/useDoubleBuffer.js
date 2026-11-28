@@ -12,8 +12,8 @@
 //     chart's timeframe, session and the widget's settings, holding the bars the store gives that key NOW (review of
 //     #2922, F3), drawn under the widget's replay cutoff, with the two charts' views alike (F1: the view MODE): the
 //     FLIP. The layers swap roles in the press's render (`front` is state); in its commit the handles swap QUIETLY (the
-//     shown one's muted feeds catch up there, the live developing bar included), focus inside the old front moves to the new one (F5), and the group
-//     member's paint is recorded as a 'flip' for the switch-speed instrument.
+//     shown one's muted feeds catch up there, the live developing bar included), focus inside the old front moves to the
+//     new one (F5), and the group member's paint is recorded as a 'flip' for the switch-speed instrument.
 //   • Any other press: the NORMAL switch of the front pane, exactly today's path.
 //   • After every change of the front's symbol: the hidden pane is set, in idle time (a transition), to the row ahead
 //     in the direction of travel (doubleBuffer.nextShadowSym). After a change of the front's view, and after each pass
@@ -35,7 +35,8 @@ import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
-import { recordPaint } from './paintLog'
+import { recordPaint, viewNeed } from './paintLog'
+import { heldRows } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
   doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
@@ -185,6 +186,16 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
       return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
     let d = flipDecision(want, report, barsNowFor, view)
+    // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
+    // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
+    // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
+    // press takes the normal switch, which holds for a covering page.
+    if (d.flip && BARSTORE && report) {
+      const need = viewNeed(member)
+      let rows = 0
+      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, upTo: need }) || 0 } catch { rows = 0 }
+      if (rows && rows < need) d = { flip: false, why: 'shadow-short' }
+    }
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {

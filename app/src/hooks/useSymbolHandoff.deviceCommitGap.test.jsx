@@ -72,7 +72,9 @@ function rows(tf, from, upto) {
   for (let t = from; t + tf * 60 <= upto; t += tf * 60) out.push({ t, ...px(t) })
   return out
 }
-const yday = (tf) => rows(tf, et(9, 30) - DAY, et(16, 0) - DAY)
+// (2026-11-27) the device copy covers the view: a switch paints a held copy at once only when it holds the rows the
+// view draws (useSymbolHandoff viewNeed, COVER_ROWS for the default view), so the history before today spans 45 days
+const yday = (tf) => { const out = []; for (let d = 45; d >= 1; d--) out.push(...rows(tf, et(9, 30) - d * DAY, et(16, 0) - d * DAY)); return out }
 /** A device copy of `tf` complete through `through`; `forming`: its last row is the bucket in progress. */
 function devCopy(tf, through, { forming = false, lagMs = 0 } = {}) {
   const closed = [...yday(tf), ...rows(tf, et(9, 30), through)]

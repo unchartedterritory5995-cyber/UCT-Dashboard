@@ -71,7 +71,8 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
+import { PaintMemberContext, viewNeed } from '../paintLog'
 import { BARSTORE } from '../barStoreSwitch'
 import { publishTypedNext } from '../neighborFrames'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
@@ -234,8 +235,11 @@ const SHIFT_F = chordById('SHIFT_F')
  *
  * ref → { openSettings(), focus(), changeSymbol(sym) }
  */
+/** How long the header may keep the last DRAWN symbol after a new one is committed and not yet drawn (ChartPane). */
+export const SHOWN_FALLBACK_MS = 1500
+
 function ChartPane({
-  sym,
+  sym: chartSym,
   tf,
   onSymbolChange = null,
   onTypedIntent = null,
@@ -287,6 +291,27 @@ function ChartPane({
   // passes onStore (even before its first edit, when stored is still null),
   // so this must key off both, not `stored` alone.
   const isOwnChartSurface = stored === null && !onStore
+
+  // ⭐⭐ THE HEADER FOLLOWS THE CANDLES (2026-11-27, owner on production: typing BL over REZI, the first frame showed the
+  // header "BL" over REZI's chart and watermark). Everything this pane DISPLAYS about the symbol (the identity row, its
+  // logo, company, day change, flags, the region's name) reads `sym`, the symbol the chart last DREW (StockChart
+  // `onSymbolPainted`, called inside the paint pass, so the header's re-render lands in the same frame as the candles).
+  // The chart itself, its search and every action read `chartSym`, the symbol committed to it. A plain ticker only: a
+  // series that never paints through a pass (economic, pair, theme index) shows `chartSym` at once; and a chart that has
+  // not drawn the committed symbol within SHOWN_FALLBACK_MS (an error, an empty answer) shows it anyway, with its own state.
+  const [paintedSym, setPaintedSym] = useState(chartSym)
+  const onSymbolPainted = useCallback((s) => {
+    const u = String(s || '')
+    setPaintedSym((prev) => (String(prev || '').toUpperCase() === u.toUpperCase() ? prev : u))
+  }, [])
+  const _plain = (x) => /^[A-Z0-9.^-]{1,12}$/i.test(String(x || ''))
+  const _sameSym = String(paintedSym || '').toUpperCase() === String(chartSym || '').toUpperCase()
+  useEffect(() => {
+    if (_sameSym) return undefined
+    const t = setTimeout(() => setPaintedSym(chartSym), SHOWN_FALLBACK_MS)
+    return () => clearTimeout(t)
+  }, [_sameSym, chartSym])
+  const sym = (_sameSym || !_plain(chartSym) || !_plain(paintedSym)) ? chartSym : paintedSym
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   // Fundamentals feed ONLY ChartMetaRow, which `compact`/`mini` density drops
@@ -416,6 +441,8 @@ function ChartPane({
   })
   // the canvas's own rule on the canvas's own settings (useChartSurfaceSettings `canvasCs`)
   const extHoursOn = resolveShowExtended(canvasCs)
+  const extOnRef = useRef(false)   // the typed warm's cover check reads the session the chart shows
+  extOnRef.current = !!extHoursOn
 
   // ⭐⭐ T5b — THE BAR COUNT THE `window_dependent` BADGE NAMES.
   //
@@ -1156,9 +1183,17 @@ function ChartPane({
   // (review of #2868) ...and only once the warm's LAKE JOIN has landed (storeLakeJoined): the join replaces the key's rows
   // with a new array 30-400 ms after the warm settles, and a frame prepared on the rows before it is filed under an array
   // Enter no longer reads. Nothing is named for a chart that has moved to another symbol meanwhile.
-  const symRef = useRef(sym)
-  symRef.current = sym
+  const symRef = useRef(chartSym)
+  symRef.current = chartSym
   const typedNextRef = useRef(null)
+  // ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...OR AT ONCE, when the warm's rows already COVER the
+  // view (paintLog viewNeed, the switch's own rule). The double buffer's shadow takes the typed next symbol from here
+  // (useDoubleBuffer retargets on publishTypedNext) and Enter flips to it in the key's task; waiting for the lake join
+  // (30-400 ms more) left Enter before the shadow had even mounted. A short copy still waits for the join; the join that
+  // lands later behind the left edge re-renders the shadow in idle time, and the flip proves its bars are the store's NOW.
+  const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
   const handleTypedIntent = useCallback((s) => {
     const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
@@ -1170,6 +1205,14 @@ function ChartPane({
     Promise.resolve(warm).then((r) => {
       if (!live()) return
       if (r === 'unknown' || r === 'superseded') { publishTypedNext(center, null); return }
+      if (r) {
+        let covers = false
+        try {
+          const need = viewNeed(paintMemberRef.current)
+          covers = (storeHeldRows(s, effectiveTf, { showExtended: extOnRef.current, upTo: need }) || 0) >= need
+        } catch { covers = false }
+        if (covers) publishTypedNext(center, s)
+      }
       return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
     }).catch(() => {})
   }, [effectiveTf])
@@ -1489,7 +1532,8 @@ function ChartPane({
         onKeyDown={handleChartKeyDown}
       >
         <StableStockChart
-          sym={sym}
+          sym={chartSym}
+          onSymbolPainted={onSymbolPainted}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
           onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}
