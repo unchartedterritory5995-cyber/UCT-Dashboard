@@ -61,6 +61,10 @@ export const DAILY_POLL_MS = 300_000
 /** Error backoff: first retry, cap. */
 export const ERROR_RETRY_MS = 1500
 export const ERROR_RETRY_MAX_MS = 30_000
+/** (2026-11-28, the cloud sweep) A tail answered 429 or 503 is asked again, at most this many times in a row, before
+ *  the key counts as answered with the error: meanwhile a display holding for the key's answer keeps waiting (inside its
+ *  hang guard) instead of committing a lake / device copy without its tail as current. */
+export const RATE_LIMIT_HOLD_ROUNDS = 3
 /** A terminal `no_data` key is re-asked this rarely (a listing can start trading). */
 export const NO_DATA_POLL_MS = 300_000
 /**
@@ -305,6 +309,24 @@ export function createNetwork({
     }, WINDOW_FILL_RETRY_S * 1000)
   }
 
+  // (the rate-limited tail's repeat for a one-shot ask: `_send`) one timer per key, after Retry-After (bounded), while a
+  // one-shot ask or a pin still holds the key
+  const limitTimers = new Map()
+  const wantHolders = new Map()   // key -> waiting displays that passed a wantSignal (deepPrime)
+  const limitRounds = new Map()   // key -> rate-limited tail answers in a row
+  function _armLimitRetry(key, retryAfterMs) {
+    if (limitTimers.has(key)) return
+    const ms = Math.min(ERROR_RETRY_MAX_MS, Math.max(ERROR_RETRY_MS, Number.isFinite(retryAfterMs) ? retryAfterMs : 0))
+    limitTimers.set(key, setTimer(() => {
+      limitTimers.delete(key)
+      const r = keys.get(key)
+      if (!registry.has(key) || r?.refs > 0) return   // gone, or a chart's own loop asks again
+      if (!(r?.once > 0 || (registry.refs?.(key) ?? 0) > 0)) return
+      api.fetchOnce(key, { priority: 'visible' }).catch(() => {})
+    }, ms))
+    if (limitTimers.size > 500) { const [k0, t0] = limitTimers.entries().next().value; clearTimer(t0); limitTimers.delete(k0) }
+  }
+
   function _noteAnswered(r) {
     if (r.answered || keys.get(r.key) !== r) return
     r.answered = true
@@ -370,6 +392,9 @@ export function createNetwork({
     // depth): an abort of the queued one (kick's invalidate, an idle eviction) re-asks through _schedule/_tail without the
     // mark, and only a marked read ended `fullDue`, so the depth stayed "due" for good. Captured when the job runs.
     const fullRead = asked || (!side && !!r.splitOff)
+    // (2026-11-28, the cloud sweep) the cover fallback's ONE tail (`_armEdgeFallback`) asks the whole page a view can draw
+    const coverPage = !!r.coverPage
+    r.coverPage = false
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -377,6 +402,7 @@ export function createNetwork({
     const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover })
     const split = _splitFor(r, p)
     let bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
+    if (split && coverPage) bars = Math.min(wanted, Math.max(dateCoverFor(p.tf, r.cover), r.cover || 0, dateCoverMaxFor(p.tf)))
     // ⭐⭐ (2026-11-27, approved: the server-tail numbers) THE COVERING DAILY PAGE COMES FROM THE EDGE. A view's cover asked
     // of the origin is a 2,000-row sqlite read and JSON build: 18-275 ms of server work on a cold name (bars-api
     // Server-Timing, production), behind a 76-96 ms network floor. The deep sealed history is edge-cached (br, HIT in
@@ -506,7 +532,13 @@ export function createNetwork({
     r.edgeTimer = setTimer(() => {
       r.edgeTimer = null
       if (keys.get(r.key) !== r || !api.deepPending(r.key)) return   // gone, or the history joined in time
+      // ⛔ (review of #3012, F-D) ONLY WHILE SOMETHING STILL SHOWS, HOLDS OR WAITS FOR THE KEY. The record lives while its
+      // stuck history job is in flight, so a held arrow through a W/M list during an edge miss sent one 2,000-row origin
+      // tail per row passed, the prepares long aborted. A chart on it (refs), a pin (the handoff's holdUntilShown, a
+      // prepare's acquire) or a waiting display whose ask was not given up (deepWanted) is what makes the cover worth it.
+      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) return
       r.edgeFallback = true
+      r.coverPage = true
       // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits
       // on IS that request: a cover tail queued behind it ran only once the edge answered, which is the wait this exists
       // to end. With the slot busy, the cover is asked BESIDE it (`r.side`, the only second request a key ever sends).
@@ -723,8 +755,24 @@ export function createNetwork({
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
+        if (quiet()) { if (fullRead) r.fullDue = false; return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null } }
+        // ⛔⛔ (2026-11-28, the cloud sweep: COV-def-m1-typed LNG, /api/bars/LNG?tf=15 answered 429 three times, and the chart
+        // showed the lake copy WITHOUT its tail, a 2-day-stale newest bar, then the fresh tail 100 ms later) A RATE-LIMITED
+        // TAIL IS NOT AN ANSWER. A 429 / 503 is asked again after its Retry-After (the loop's backoff for a chart, one timer
+        // for a held one-shot ask), up to RATE_LIMIT_HOLD_ROUNDS times in a row, and meanwhile the key is NOT answered: a
+        // display holding for it keeps waiting, inside its hang guard, instead of committing a copy without its tail as
+        // current. Past the rounds it is the error it always was.
+        // (the count is the KEY's, not the record's: a one-shot ask's record is collected when it settles)
+        if (kind === 'tail' && (e?.status === 429 || e?.status === 503) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
+          limitRounds.set(r.key, (limitRounds.get(r.key) || 0) + 1)
+          if (limitRounds.size > 500) limitRounds.delete(limitRounds.keys().next().value)
+          if (!(r.refs > 0)) _armLimitRetry(r.key, e?.retryAfterMs)
+          // (review of #3012, LOW) a rate-limited FULL read is still to come: `fullDue` stays until its repeat settles
+          return { error: true, limited: true, retryAfterMs: e?.retryAfterMs ?? null }
+        }
         if (fullRead) r.fullDue = false   // (F1) the full read settled (failed): nothing more is coming from it
-        if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
+        // (review of #3012, LOW) the rounds end with the error: the key's next ask starts a fresh count
+        limitRounds.delete(r.key)
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
           registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: e?.warming ? 'warming' : String(e?.status || 'network') } })
@@ -746,6 +794,7 @@ export function createNetwork({
       // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
       // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
       if (kind === 'tail') {
+        limitRounds.delete(r.key)
         const was = r.filling || fillRounds.has(r.key)   // (the record may be a new one: a one-shot's is collected)
         r.filling = json?.filling === true
         _noteAnswered(r)
@@ -1056,9 +1105,27 @@ export function createNetwork({
      * the NEWEST text's tail queued behind the older texts' histories. An aborted prime leaves the lane and is forgotten
      * (the history job then asks for itself, as for a prime that failed).
      */
-    deepPrime(key, { priority = 'urgent', want = false, signal = null } = {}) {
+    deepPrime(key, { priority = 'urgent', want = false, signal = null, wantSignal = null } = {}) {
       if (signal?.aborted || !api.deepPending(key)) return Promise.resolve(false)
-      if (want) deepWanted.set(key, now() + DEEP_WANT_MS)
+      // `wantSignal` (review of #3012, F-D): the waiting display's own ask; when every such waiter has given up, the key
+      // is no longer wanted (its cover fallback then sends nothing)
+      if (want && !wantSignal?.aborted) {
+        deepWanted.set(key, now() + DEEP_WANT_MS)
+        if (wantSignal) {
+          wantHolders.set(key, (wantHolders.get(key) || 0) + 1)
+          wantSignal.addEventListener?.('abort', () => {
+            const n = (wantHolders.get(key) || 1) - 1
+            if (n > 0) { wantHolders.set(key, n); return }
+            wantHolders.delete(key)
+            deepWanted.delete(key)
+          }, { once: true })
+        }
+      }
+      // ⭐⭐ (2026-11-28, the cloud sweep: zoomed-out W/M waited on /api/bars-history 5-22 s server-side while the origin's
+      // /api/bars?tf=W&bars=2000 answered in 467 ms) ANY DISPLAY WAITING ON A DEEP JOIN gets the cover fallback, not only a
+      // tail cut to EDGE_TAIL_BARS: still unjoined EDGE_FALLBACK_MS later, the origin is asked the whole page a view can
+      // draw (the deepest tail page, DATE_COVER_MAX), so the hold's hang-time commit is nearly whole, not ~600 rows
+      if (want && isDateTf(parseKey(key)?.tf)) { const rw = _rec(key); if (!rw.edgeFallback) _armEdgeFallback(rw) }
       // The depth was lost since the key's last join (the entry was evicted and rebuilt): ask again.
       const r = keys.get(key)
       if (r?.histAsked && !(r.inflight?.kind === 'scroll') && deepSettled.has(key)) r.histAsked = false

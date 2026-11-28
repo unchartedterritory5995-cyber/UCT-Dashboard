@@ -1458,7 +1458,7 @@ export function createPrefetch(o = {}) {
       // its history due for certain, so it leaves before the read; a saved copy that turns out deep
       // (its history joined on an earlier visit) is not due, and takes the old path.
       const t0 = now()
-      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
+      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })
       const hyd = _hydrate(key, URGENT)
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
@@ -1466,7 +1466,7 @@ export function createPrefetch(o = {}) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null, cover })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
-      S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
+      S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
       const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {}, cover })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
