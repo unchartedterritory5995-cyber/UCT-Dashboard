@@ -15387,12 +15387,17 @@ function StockChartBody({
   // no-data answer) the hold ends with still no bars, so nothing above changes and nothing re-ran updateChart: the OLD
   // timeframe stayed on screen under the skeleton past the bound (StockChart.tfSwitchFromDaily C7). The release runs it
   // once, so the empty arm shows the chart's honest loading / no-data state instead.
+  // ⛔ Through a ref, never the effect's own closure: an effect keyed on the hold alone outlives a symbol switch, and its
+  // closure (this render's `updateChart` and `filteredBars`) kept the outgoing symbol's bars alive
+  // (StockChart.closureChains STRICT). The ref holds only the newest render's.
   const _holdWasRef = useRef(false)
+  const _holdReleaseRef = useRef(null)
+  _holdReleaseRef.current = () => { if (!filteredBars?.length) updateChart() }
   useEffect(() => {
     const was = _holdWasRef.current
     _holdWasRef.current = !!_tfSwitchHold
-    if (was && !_tfSwitchHold && !filteredBars?.length) updateChart()
-  }, [_tfSwitchHold])  // eslint-disable-line react-hooks/exhaustive-deps
+    if (was && !_tfSwitchHold) _holdReleaseRef.current?.()
+  }, [_tfSwitchHold])
 
   // ⭐ THE STORE'S DEVELOPING-BAR PAINT (P3-S2) — under BARSTORE the ONLY candle / volume update()
   // (the legacy writers are not mounted: chart/legacyLiveWriters.js; railed by
