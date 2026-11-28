@@ -183,7 +183,8 @@ def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), 
         feed = None if daily is None else (lambda d: daily(d, clock["ms"] // 1000))
         return mfp.Publisher(put=r2.put, get=r2.get, live=is_live, grace_s=grace_s,
                              roll_every=roll_every, epoch=epoch, now_ms=lambda: clock["ms"],
-                             prefix="live1m/", daily=feed)
+                             prefix="live1m/", daily=feed,
+                             with_av=False)   # the committed day fixtures carry no av (the default is on since 2026-11-28)
 
     pub = None
     late_set = set(late)

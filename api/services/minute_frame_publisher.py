@@ -42,7 +42,7 @@ day's `today.bin` (read back from R2 at start) and links its first frame to the 
 there through `prev_seq`; minutes it was not alive for are simply missing, and every reader
 sees the hole the same way.
 
-THE DAY'S DAILY BAR AFTER THE CLOSE (MINUTE_FRAMES_WITH_DAILY=1, default off). From the regular
+THE DAY'S DAILY BAR AFTER THE CLOSE (MINUTE_FRAMES_WITH_DAILY, default ON since 2026-11-28). From the regular
 close (16:00 ET, 13:00 on a half day) to 20:00, every frame carries a DAILY section (minute_frames
 FLAG_DAILY): each symbol's daily bar for the day exactly as the server holds it, i.e. the row bars-api
 writes from the whole-market snapshot's `day` object (`bars_live_store.daily_rows_from_snapshot`, the
@@ -82,12 +82,21 @@ def enabled() -> bool:
     return os.environ.get("MINUTE_FRAMES_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
+# ⭐ BOTH ON BY DEFAULT (2026-11-28, owner decision, zero-network switch PR 3.4: "the developing D bar on, with `av`, plus
+# MINUTE_FRAMES_WITH_DAILY=1"). `av` (the vendor's accumulated day volume, +75% frame bytes) is what lets the device
+# paint TODAY'S forming D bar with the server's day volume mid-session (deviceStore/forming.js DEVICE_FORMING_DAILY);
+# the DAILY section is the server's own day row after the close (DEVICE_DAILY_SERVER_ROW). Either is switched off by
+# setting its variable to "0" on stream-ingest (a `--set` restarts it: after hours only).
+def _flag(name: str, default: str) -> bool:
+    return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _with_av() -> bool:
-    return os.environ.get("MINUTE_FRAMES_WITH_AV", "0").strip().lower() in ("1", "true", "yes", "on")
+    return _flag("MINUTE_FRAMES_WITH_AV", "1")
 
 
 def _with_daily() -> bool:
-    return os.environ.get("MINUTE_FRAMES_WITH_DAILY", "0").strip().lower() in ("1", "true", "yes", "on")
+    return _flag("MINUTE_FRAMES_WITH_DAILY", "1")
 
 
 def regular_close_seq(day: int) -> int:

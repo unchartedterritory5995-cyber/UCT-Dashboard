@@ -146,6 +146,7 @@ DAY = "2026-11-18"
 
 
 def _pub(r2, clock, live=lambda: True, **kw):
+    kw.setdefault("with_av", False)          # these rails pin the layout without av (its own rails pass with_av=True)
     return mfp.Publisher(put=r2.put, get=r2.get, live=live, grace_s=5, roll_every=5, epoch=42,
                          now_ms=lambda: clock["ms"], prefix="live1m/", **kw)
 
@@ -261,7 +262,7 @@ def test_a_restart_resumes_today_links_prev_seq_and_never_republishes_a_seq():
     published_1205 = r2.objects[f"live1m/{DAY}/1205.bin"]
     # a deploy: a new process, a new epoch, 12:06-12:08 never seen; it also hears 12:05 again
     b = mfp.Publisher(put=r2.put, get=r2.get, live=lambda: True, grace_s=5, roll_every=5, epoch=43,
-                      now_ms=lambda: clock["ms"], prefix="live1m/")
+                      now_ms=lambda: clock["ms"], prefix="live1m/", with_av=False)
     clock["ms"] = (m0 + 9) * 60000 + 1000
     b.on_am("AAPL", _am(m0 + 8))
     _run_to(b, clock, (m0 + 9) * 60 + 5)
@@ -541,10 +542,11 @@ def test_the_daily_feed_starts_only_with_its_flag(monkeypatch):
         def __call__(self, day):
             return None
     monkeypatch.setattr(mfp, "DailyFeed", _Fake)
-    monkeypatch.delenv("MINUTE_FRAMES_WITH_DAILY", raising=False)
+    monkeypatch.setenv("MINUTE_FRAMES_WITH_DAILY", "0")
     mfp._reset_for_tests()
     assert mfp.publisher().daily is None and started == []
-    monkeypatch.setenv("MINUTE_FRAMES_WITH_DAILY", "1")
+    # ON by default since 2026-11-28 (zero-network PR 3.4): unset is armed
+    monkeypatch.delenv("MINUTE_FRAMES_WITH_DAILY", raising=False)
     mfp._reset_for_tests()
     assert isinstance(mfp.publisher().daily, _Fake) and started == [1]
     mfp._reset_for_tests()
@@ -610,3 +612,18 @@ def test_the_daily_rows_are_read_on_the_encode_thread_never_in_tick():
     assert len(pub.tick()) == 1 and feed.asked == []                 # the loop thread built the frame alone
     pub.encode_pending()
     assert feed.asked == [20261118]
+
+
+def test_av_and_the_daily_section_are_on_by_default_and_off_only_by_name(monkeypatch):
+    """Zero-network PR 3.4 (2026-11-28): frames carry `av` (the device's forming D volume) and, after the close, the
+    server's day row, unless stream-ingest sets the variable to "0"."""
+    for name, fn in (("MINUTE_FRAMES_WITH_AV", mfp._with_av), ("MINUTE_FRAMES_WITH_DAILY", mfp._with_daily)):
+        monkeypatch.delenv(name, raising=False)
+        assert fn() is True, name
+        for off in ("0", "false", "off", "no"):
+            monkeypatch.setenv(name, off)
+            assert fn() is False, (name, off)
+        monkeypatch.setenv(name, "1")
+        assert fn() is True
+    monkeypatch.delenv("MINUTE_FRAMES_WITH_AV", raising=False)
+    assert mfp.Publisher(put=lambda *a: True).with_av is True
