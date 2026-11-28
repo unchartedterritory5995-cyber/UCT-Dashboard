@@ -98,8 +98,5 @@ describe('a key family the colour stops reading (review of #3020, follow-up)', (
     expect(w.pf.abortUrgentFamily('5', null)).toBe(2)
     expect(w.pf._stats().urgent).toBe(0)
   })
-  it('the wiring: Watchlists aborts the family of every variant that dropped out', () => {
-    const wl = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/Watchlists.jsx'), 'utf8')
-    expect(wl).toMatch(/for \(const \[vid, v\] of _variantsRef\.current\) if \(!ids\.has\(vid\)\) \{ try \{ abortUrgentFamily\(v\.tf, v\.viewWindow\) \}/)
-  })
+  // (review of #3024) the wiring is railed behaviourally: pages/listUrgentWarm.test.js (two lists over one store)
 })
