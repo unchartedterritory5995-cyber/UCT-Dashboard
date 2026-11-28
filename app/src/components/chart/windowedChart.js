@@ -121,12 +121,17 @@ export function renderWindowStartFor(bars, rows) {
   return k < RENDER_WINDOW_MIN_SAVED ? 0 : k
 }
 
-/** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`). */
-export function extendedStart(ws, from, span) {
+/** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`).
+ *  `held`: the rows the library holds now (window start to end). ⚡ (review of #2955) A WIDE VIEW'S EXTENSION AT LEAST
+ *  DOUBLES THE WINDOW: a continuous zoom-out widens the view every wheel tick, so a one-screen reach re-set every series
+ *  (2-3 screens of rows each) every few ticks. Reaching `held` more rows makes the re-sets of a zoom-out geometric: their
+ *  rows add up to about twice the final window, in a handful of extensions. A narrow view keeps its reach exactly. */
+export function extendedStart(ws, from, span, held = 0) {
   if (!(ws > 0) || !Number.isFinite(from)) return ws
   const s = Number.isFinite(span) && span > 0 ? span : 0
   if (from - marginFor(s) >= ws) return ws
-  const want = Math.max(0, Math.floor(from) - reachFor(s))
+  const h = wide(s) && Number.isFinite(held) && held > 0 ? Math.floor(held) : 0
+  const want = Math.max(0, Math.floor(from) - Math.max(reachFor(s), h))
   const next = Math.floor(want / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
   return next < ws ? next : ws
 }
@@ -373,7 +378,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   /** Make sure full index `from` (and a screen before it) is inside the window. */
   function ensureFrom(from, span = st.span) {
     if (!(st.ws > 0)) return
-    const next = extendedStart(st.ws, from, span)
+    const full = primary ? series.get(primary)?.full : null
+    const next = extendedStart(st.ws, from, span, full ? full.length - st.ws : 0)
     if (next < st.ws) extendTo(next)
   }
   /** Move the window END right to full index `newWe` (null: to the newest bar): every series re-set, primary first. */
