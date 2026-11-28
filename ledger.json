@@ -4266,6 +4266,36 @@
     "ATRO",
     "FLNG"
    ]
+  },
+  {
+   "id": "cloud/46113269150-1/COV-def-dd-arrows",
+   "at": "2026-11-28T05:42:00+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AMP",
+    "DTE",
+    "ABCB",
+    "CG",
+    "J",
+    "JXN",
+    "ERIE",
+    "GLBE",
+    "EXC",
+    "REYN",
+    "LTH",
+    "CACI",
+    "CEF"
+   ]
+  },
+  {
+   "id": "cloud/46113269150-1/COV-def-tabs",
+   "at": "2026-11-28T05:42:00+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VTRS",
+    "SWKS",
+    "CRVL"
+   ]
   }
  ]
 }
