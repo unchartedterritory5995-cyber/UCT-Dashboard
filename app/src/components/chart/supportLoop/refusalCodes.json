@@ -286,6 +286,7 @@
   "runtime:INSTRUCTIONS_PER_BAR",
   "runtime:TypeError",
   "runtime:array",
+  "runtime:bar-cap",
   "runtime:block-value",
   "runtime:build",
   "runtime:builtin-args",

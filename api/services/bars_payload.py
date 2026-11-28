@@ -31,10 +31,24 @@ from __future__ import annotations
 import time as _time
 import typing
 
-import orjson
 from fastapi.responses import ORJSONResponse
 
-_OPTS = orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
+# ⛔ orjson is imported where it is USED, never at module top. bars_fetch imports this module,
+# and a dozen light callers import bars_fetch only for its NYSE calendar (`_is_nyse_holiday`)
+# inside a try/except that falls back to "every weekday is a session". The master deploy
+# gate runs those callers in a minimal environment without orjson, so a top-level import here
+# broke the import of bars_fetch there, the calendar fell back silently, and Labor Day read as
+# a trading day (tests/test_discord_render_ops.py, 2026-11-28). This matches what the module
+# replaced: fastapi's ORJSONResponse also only needs orjson when it renders.
+
+
+def _orjson():
+    import orjson
+    return orjson
+
+
+def _opts(oj):
+    return oj.OPT_NON_STR_KEYS | oj.OPT_SERIALIZE_NUMPY
 
 #: Test-only: when True, `PayloadResponse` behaves like the pre-S1 path (renders at
 #: construction, and `payload_of` re-parses the bytes). The golden rails serve every
@@ -44,7 +58,8 @@ LEGACY_REPARSE = False
 
 def dumps(payload) -> bytes:
     """The bytes `ORJSONResponse` would produce for `payload` (the one encoder)."""
-    return orjson.dumps(payload, option=_OPTS)
+    oj = _orjson()
+    return oj.dumps(payload, option=_opts(oj))
 
 
 class PayloadResponse(ORJSONResponse):
@@ -107,7 +122,7 @@ def payload_of(response):
     if isinstance(response, PayloadResponse) and not LEGACY_REPARSE:
         p = response.payload
         return dict(p) if isinstance(p, dict) else p
-    return orjson.loads(response.body)
+    return _orjson().loads(response.body)
 
 
 def render_once(response) -> float | None:

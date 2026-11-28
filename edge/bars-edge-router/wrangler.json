@@ -1,0 +1,38 @@
+{
+  "$schema": "https://unpkg.com/wrangler@4.166.0/config-schema.json",
+  "name": "bars-edge-router",
+  "main": "entry.js",
+  "compatibility_date": "2026-09-02",
+  "workers_dev": true,
+  "preview_urls": false,
+  "keep_vars": true,
+  "routes": [
+    { "pattern": "uctintelligence.com/api/bars/*", "zone_name": "uctintelligence.com" },
+    { "pattern": "uctintelligence.com/api/hist/*", "zone_name": "uctintelligence.com" },
+    { "pattern": "uctintelligence.com/api/seed/*", "zone_name": "uctintelligence.com" },
+    { "pattern": "uctintelligence.com/api/stream/bars*", "zone_name": "uctintelligence.com" },
+    { "pattern": "*.uctintelligence.com/*", "zone_name": "uctintelligence.com" }
+  ],
+  "r2_buckets": [
+    { "binding": "HISTORY", "bucket_name": "uct-bars-snapshots" },
+    { "binding": "LIVE1M", "bucket_name": "uct-bars-snapshots" }
+  ],
+  "vars": {
+    "HISTORY_PREFIX": "hist/",
+    "STREAM_EDGE_ALL": "1",
+    "STREAM_EDGE_ORIGIN": "https://stream-edge-production.up.railway.app"
+  },
+  "cache": { "enabled": true, "cross_version_cache": true },
+  "exports": {
+    "default": { "type": "worker", "cache": { "enabled": false } },
+    "LakePiece": { "type": "worker", "cache": { "enabled": true } },
+    "BarsTail": { "type": "worker", "cache": { "enabled": true } }
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "redact_query_string": false,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "persist": true, "invocation_logs": true },
+    "traces": { "enabled": false, "persist": true, "head_sampling_rate": 1 }
+  }
+}

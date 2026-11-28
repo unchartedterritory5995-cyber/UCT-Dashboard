@@ -28,6 +28,8 @@ import WidgetHeader from './WidgetHeader'
 import { useBodySurface } from './uctSurface'
 import { UctHeaderSlotContext, UCT_ONE_ROW_MIN_W, UCT_ICON_ONLY_TITLE } from './uctHeaderSlot'
 import { WidgetChromeContext } from './widgetChromeContext'
+import { WidgetLookContext } from './widgetLookContext'
+import { editsOwnLook } from './matchChartLook'
 import { effectiveGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -175,6 +177,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // The main board's mount queue: called with this widget's id once its first content is up.
   onPanelReady }) {
   const slotReady = useCallback(() => onPanelReady?.(widget.id), [onPanelReady, widget.id])
+  const ws = useWorkspace()
   // The slot can hold several widgets of different types as tabs; resolve the one
   // currently showing. A tab-less slot resolves to the base widget unchanged.
   const active = resolveActiveTab(widget)
@@ -187,7 +190,18 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // whole-widget callbacks for callers that don't supply it (base tab only).
   const replace = (nextWidget) => onReplaceWidget?.(widget.id, nextWidget)
   const handleActiveColorChange = (c) => (onReplaceWidget ? replace(patchActiveTabColor(widget, c)) : onColorChange?.(c))
-  const handleActiveOptsChange = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
+  const writeActiveOpts = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
+  // "Widgets match the chart" (owner 11-27): while the board's link is on, a widget whose
+  // member changes its OWN colours steps out of the link (opts.ownLook), so the next chart
+  // change never paints over what they picked. Columns, fonts, sorting etc. don't count.
+  const matchChartOnBoard = !!ws?.matchChart?.on
+  const handleActiveOptsChange = (opts) => {
+    if (matchChartOnBoard && active.type !== 'chart' && opts && !opts.ownLook && !active.opts?.ownLook
+      && editsOwnLook(active.opts?.settings, opts.settings)) {
+      return writeActiveOpts({ ...opts, ownLook: true })
+    }
+    return writeActiveOpts(opts)
+  }
   const handleAddTab = onReplaceWidget && !noTabs ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
   // Non-chart widgets follow the app theme when uncustomized: on the light theme
   // the workspace otherwise keeps this .widget dark (border + chrome). This flag
@@ -205,7 +219,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // in the map, so Fundamentals / Theme Tracker / AI Search / Scanner get no variable
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
-  const { widgetCanvasByType, widgetCanvasById, chartsTheme } = useWorkspace() || {}
+  const { widgetCanvasByType, widgetCanvasById, chartsTheme } = ws || {}
   // FREEZE a theme-following widget's app theme at placement. `frozenTheme` drives TWO
   // things that must agree: the JS body colors (published on PlacedThemeContext, read by
   // the widget's usePlacedTheme) and the chrome tokens (the .widgetFrozenLight class for
@@ -411,12 +425,22 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
     controls: uct ? ctrlSlotEl : null,
     claim: uct ? setRowKey : null,
   }), [uct, wideHeader, slotEl, ctrlSlotEl, tabbedUct, subSlotEl])
+  const ownLook = !!active.opts?.ownLook
+  const lookCtx = useMemo(() => (ws ? {
+    type: active.type,
+    ownLook,
+    setOwnLook: (own) => writeActiveOpts({ ...(active.opts || {}), ownLook: !!own }),
+  } : null),
+  // writeActiveOpts/active.opts are read at click time through the latest render's closure
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [!!ws, active.type, ownLook, active.opts, widget])
   const subRow = tabbedUct ? <div className={styles.uctSubRow} ref={setSubSlotEl} data-uct-subrow="" /> : null
   const body = (
     <div className={styles.widgetBody} ref={bodyRef}>
       {mounted
         ? (
           <UctHeaderSlotContext.Provider value={headerSlots}>
+            <WidgetLookContext.Provider value={lookCtx}>
             <WidgetBody
               groupId={groupId}
               type={active.type}
@@ -425,6 +449,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
               onOptsChange={handleActiveOptsChange}
               slotReady={onPanelReady ? slotReady : null}
             />
+            </WidgetLookContext.Provider>
           </UctHeaderSlotContext.Provider>
         )
         // Header/chrome above still renders — RGL's geometry and the layout the
