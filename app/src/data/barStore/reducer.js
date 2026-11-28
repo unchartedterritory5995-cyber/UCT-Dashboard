@@ -875,7 +875,13 @@ function applyRest(state, action, ctx, kind) {
         // (`_asOfMs`, utils/prefetchBars _chartLaneFetch) orders it against the bar's last trade (mergePushBar `older`).
         const asOf = numOrNull(p._asOfMs)
         const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym, ...(asOf != null && finite(dev.tradeTs) ? { tradeTs: asOf } : {}) })
-        if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
+        // (review of #2967) `asOf` is serverNow() at the send, an ESTIMATE that can run ahead of the trade clock: it ORDERS
+        // the answer and is never kept as the bar's trade time. Left on the bar, a real tick traded between the send and
+        // the estimate was judged older and its close dropped. The bar keeps its last REAL trade time (the answer's own, if newer).
+        if (m.kind === 'update') {
+          const merged = asOf != null && finite(dev.tradeTs) ? { ...m.bar, tradeTs: finite(devIn.tradeTs) ? Math.max(dev.tradeTs, devIn.tradeTs) : dev.tradeTs } : m.bar
+          dev = fromChartDev(merged, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
+        }
       }
       // The server answered for this very bucket: a restored (LOCAL) forming bar is now its.
       if (dev && dev.src === DEV_SRC.LOCAL) dev = Object.freeze({ ...dev, src: DEV_SRC.SERVER })
