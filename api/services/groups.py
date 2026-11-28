@@ -801,11 +801,36 @@ def _theme_peers_payload(theme_id: str, theme_name: str, seed_hy: str,
     }
 
 
-def resolve_peers(sym: str, n: int) -> dict:
+def _licensed_peers_payload(seed_hy: str, n: int) -> dict | None:
+    """The held licensed peers (Massive related companies, built nightly by
+    api/services/related_peers.py), cut to chartable names, or None when nothing
+    usable is held. Never asks the vendor, never builds. A read failure is None,
+    so the caller's fallback runs."""
+    try:
+        from api.services import related_peers
+        held = related_peers.held_peers(seed_hy, n, chartable=is_chartable)
+    except Exception:
+        return None
+    if not held:
+        return None
+    return {"seed": seed_hy, "group_id": None, "group_name": related_peers.GROUP_NAME,
+            "peers": held["peers"], "source": related_peers.SOURCE,
+            "source_name": related_peers.SOURCE_NAME, "as_of": held["as_of"]}
+
+
+def resolve_peers(sym: str, n: int, prefer_licensed: bool = False) -> dict:
     """Peers = the seed's primary theme's other chartable holdings, same
     sub-theme floated to the top, ranked by today's move. On a taxonomy miss,
-    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers."""
+    falls back to the seed's INDUSTRY cohort, then to grounded-Haiku AI peers.
+
+    prefer_licensed (the Terminal's PEER asks for it; /charts and the profile
+    cards do not): the held Massive related-companies list is read FIRST, and
+    everything below is the unchanged fallback for a stock with none held."""
     seed_hy = normalize_sym(sym)
+    if prefer_licensed:
+        licensed = _licensed_peers_payload(seed_hy, n)
+        if licensed:
+            return licensed
     row = resolve_primary_theme(sym)
     if not row:
         # The seed FRONTS a theme (it is the theme's ETF, not a holding).

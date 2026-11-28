@@ -181,7 +181,7 @@ function Footer({ credits }) {
         EIA&apos;s figures. Pump prices are the EIA&apos;s Monday survey. No futures prices and no forecasts. A series
         name opens it on the chart.
       </p>
-      {credits.map((c) => <p key={c.key} data-testid="terminal-oil-credit" data-source={c.key}>{c.text}</p>)}
+      {credits.map((c) => <p key={c.key} data-testid="terminal-oil-credit" data-source={c.key} data-share-notice="">{c.text}</p>)}
     </div>
   )
 }

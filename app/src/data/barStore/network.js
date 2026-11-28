@@ -230,6 +230,10 @@ export function idleLand(fn, { timeout = DEEPEN_IDLE_TIMEOUT_MS, now = () => Dat
  * @param {ReturnType<import('./registry').createRegistry>} o.registry
  * @param {(url:string, opts:{priority:string, signal:AbortSignal}) => Promise<object>} [o.request]
  */
+/** (2026-11-28) a PARTIAL /api/bars-history answer (the web's shallow fallback) is asked again after these waits; the
+ *  last repeats until a sealed, non-partial answer comes or the key goes */
+export const PARTIAL_RETRY_MS = Object.freeze([5000, 15000, 60000])
+
 export function createNetwork({
   registry, request = barsLaneRequest, promote = promoteLaneRequest,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
@@ -257,6 +261,10 @@ export function createNetwork({
   // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
   // entry to join into never settles (review of #1795).
   const lakeSettled = new Map()
+  /** (2026-11-28) key -> the depth at which a lake load proved it holds ALL the lake's history (historyFeed `complete`) */
+  const lakeComplete = new Map()
+  /** (review of #3038) key -> the depth at which the deep D/W/M history joined from a SEALED, NON-PARTIAL answer */
+  const deepComplete = new Map()
   const LAKE_SETTLED_MAX = 2000
   // ⭐ DEEP D/W/M HISTORY, ONE PAINT (2026-11-19, owner: "about 200 bars instantly and then the rest
   // shortly after, definitely in 2 phases"). A daily chart painted the copy it held (the pack's ~300
@@ -387,6 +395,7 @@ export function createNetwork({
     const r = keys.get(key)
     if (r?.inflight) { try { r.inflight.ac?.abort() } catch { /* gone */ } r.inflight = null }
     if (r?.side) { try { r.side.ac?.abort() } catch { /* gone */ } r.side = null }
+    _dropPartial(r)   // (review of #3050) an evicted key's partial retry goes with it
   }) ?? null
 
   // ── one request ───────────────────────────────────────────────────────────
@@ -775,15 +784,18 @@ export function createNetwork({
     return _send(r, 'scroll', url, priority, async (json) => {
       if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
       if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
+      // ⛔ (2026-11-28) the web's shallow fallback (the worker's deep origin did not answer) answers sealed AND partial:
+      // its rows are joined for display, but the deep history is not here (see `_retryPartial`)
+      const partial = json.partial === true
       const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
       const before = registry.getSnapshot(r.key)
       if (rows.length && prependOlder(before.bars, rows) === before.bars) {
         // nothing older, or another price basis at the join: refused whole (#1116's seam rule)
-        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0 }
+        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0, partial }
       }
-      if (!rows.length) return { ok: true, added: 0 }
+      if (!rows.length) return { ok: true, added: 0, partial }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
-      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
+      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history', partial }
     }, viaPrime).then((res) => {
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
@@ -795,7 +807,25 @@ export function createNetwork({
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
-      if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // ⛔⛔ (2026-11-28) A PARTIAL ANSWER IS NOT THE DEEP HISTORY. Settled as joined, the key's depth read "done" for its
+      // whole life and a worker outage left the member on a short D/W/M chart. Its waiters are released (its rows are on
+      // screen), nothing is recorded as joined, and the deep history is asked again with backoff until a sealed,
+      // non-partial answer comes (`_retryPartial`).
+      if (!res?.aborted) {
+        // `partialSettled`: nothing more is coming NOW (the hold does not wait DEEP_WANT_MS on every revisit of a key whose
+        // deep origin is down), while nothing is recorded as joined
+        if (res?.ok && res.partial === true) { r.partialSettled = true; _settleDeep(r.key, false); _retryPartial(r) }
+        else { r.partialTries = 0; if (res?.ok) r.partialSettled = false; _settleDeep(r.key, !!res?.ok) }
+      }
+      // (review of #3038) the whole D/W/M history is here only after a sealed, NON-partial answer joined
+      deepComplete.delete(r.key)
+      if (res?.ok && res.partial !== true && keys.get(r.key) === r) {
+        const held = registry.peek(r.key)?.bars.length
+        if (held != null) {
+          deepComplete.set(r.key, held)
+          if (deepComplete.size > LAKE_SETTLED_MAX) deepComplete.delete(deepComplete.keys().next().value)
+        }
+      }
       // (review of #2938, T1) a slow history names itself: the edge MISS rate is what the fallback above pays for
       const ms = now() - askedAt
       if (ms > EDGE_FALLBACK_MS && !res?.aborted) {
@@ -806,6 +836,38 @@ export function createNetwork({
       return res
     })
   }
+
+  /** (review of #3050) A key something still shows, holds or waits for (#3012 F-D's rule), still in the registry (read
+   *  without creating it: a retry never resurrects an evicted entry). */
+  const _heldNow = (r) => registry.has(r.key) && (r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))
+  /** A partial deep answer: ask the history again after PARTIAL_RETRY_MS[n] (the last repeats, jittered), while the key is
+   *  held; paused while the page is hidden; dropped when nothing holds the key (shown again, its history is asked anew). */
+  function _retryPartial(r) {
+    if (r.partialTimer != null) return
+    const i = r.partialTries = (r.partialTries || 0) + 1
+    const last = i - 1 >= PARTIAL_RETRY_MS.length - 1
+    const base = PARTIAL_RETRY_MS[Math.min(i - 1, PARTIAL_RETRY_MS.length - 1)]
+    const ms = last ? Math.round(base * (0.85 + Math.random() * 0.3)) : base
+    r.partialTimer = setTimer(() => {
+      r.partialTimer = null
+      if (keys.get(r.key) !== r) return
+      if (!_heldNow(r)) { _forgetPartial(r); return }
+      if (isHidden()) { r.partialPaused = true; return }
+      r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
+      _drain(r)
+    }, ms)
+  }
+  /** (review of #3050) The retry is dropped: the record forgets the partial answer too, so the key's next life (a chart
+   *  opening it, a tail answer rebuilding an evicted entry) asks its deep history again instead of reading it as "done"
+   *  (`histAsked` kept and `partialSettled` true left a D/W/M chart short for the record's life). */
+  const _forgetPartial = (r) => {
+    if (!r) return
+    if (r.partialTimer != null) { clearTimer(r.partialTimer); r.partialTimer = null }
+    r.partialPaused = false
+    if (r.partialSettled) { r.partialSettled = false; r.histAsked = false }
+    r.partialTries = 0
+  }
+  const _dropPartial = _forgetPartial
 
   /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
   function lakeCarriesKey(key) {
@@ -1136,6 +1198,8 @@ export function createNetwork({
 
   const offVisible = onVisible(() => {
     for (const r of keys.values()) if (r.paused && r.refs > 0) { r.paused = false; _schedule(r, 0) }
+    // (review of #3050) a partial retry that came due while hidden asks now
+    for (const r of keys.values()) if (r.partialPaused) { r.partialPaused = false; if (_heldNow(r)) { r.queue.push({ run: () => _historyJob(r), resolve: () => {} }); _drain(r) } else _forgetPartial(r) }
   })
 
   const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.side && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
@@ -1172,6 +1236,7 @@ export function createNetwork({
       if (r.timer != null) { clearTimer(r.timer); r.timer = null }
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
       if (r.side) { r.side.ac?.abort(); r.side = null }
+      _dropPartial(r)
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
       // (review of #2947, LOW) the last chart left: a window's filling repeat goes with it unless the entry is still pinned
       const f = fillRounds.get(key)
@@ -1247,24 +1312,31 @@ export function createNetwork({
       // (a piece already waiting in the lake decoder's queue when the load becomes awaited goes to the worker first)
       yieldTask.urgentNow = () => lakeAwaited.has(key)
       let failed = false
+      let complete = false
+      let joined = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
+          complete = got?.complete === true
           const cur = registry.peek(key)
-          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) { joined = !!cur && !!got && Array.isArray(got.bars); return false }
           // ⚡ (2026-11-27) A LOAD THAT PROVABLY ADDS NOTHING IS NOT INGESTED (reducer.lakeCopyAddsNothing): the chart's
           // background warm re-reads the lake on every visit of a board, and the settled-depth skip above does not hold
           // across a new key life or an entry no server answered (about 40-48 ms a board click, profiled). The dispatch
           // stays, empty, for the registry's own bookkeeping (the entry marked used, the eviction check), as
           // persist.hydrateMem does for a saved copy that adds nothing.
           if (lakeCopyAddsNothing(cur, got.bars)) {
+            joined = true   // the entry already holds every row the lake gave
             registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: [] } })
             return false
           }
           const before = cur.bars.length
           registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
           const after = registry.peek(key)
+          // (review of #3038) a load whose rows the reducer refused (another price basis, a lake ending before the held
+          // oldest bar: a hole) proves nothing about the whole history
           if (!after || after.bars.length <= before) return false
+          joined = true
           return after.restSeen ? 'join' : 'seed'
         })
         .catch(() => { failed = true; return false })
@@ -1285,6 +1357,13 @@ export function createNetwork({
           lakeSettled.delete(key)
           lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
+          lakeComplete.delete(key)
+          // complete only when the rows joined (or added nothing new) on an entry the server answered in this life: a
+          // seed before the answer can be discarded by it (another basis), so it never stamps the key
+          if (complete && joined && cur.restSeen) {
+            lakeComplete.set(key, held)
+            if (lakeComplete.size > LAKE_SETTLED_MAX) lakeComplete.delete(lakeComplete.keys().next().value)
+          }
           _noteSettled(key)
         })
       lakeSeeds.set(key, p)
@@ -1314,6 +1393,26 @@ export function createNetwork({
      * entry holds no more than one tail answer's rows (a deeper copy, here or saved in this browser,
      * had its history joined), and its join has not settled on this page at the depth it holds now.
      */
+    /**
+     * ⭐ (2026-11-28, zoomed-out short shadows) IS `key`'s WHOLE HISTORY HERE, honestly? Not "nothing is due" (a failed,
+     * partial or pending read can leave that), but proved: D/W/M, the deep SEALED history joined at the depth held (the
+     * split on; a partial or unsealed answer never settles it); intraday, a lake load that read the index and took every
+     * older piece (`complete`), settled at the depth held, with the server's answer of this life held. Unknown is false.
+     */
+    historyComplete(key) {
+      const p = parseKey(key)
+      const r = keys.get(key)
+      const cur = registry.peek(key)
+      if (!p || p.window || !cur || !cur.bars.length) return false
+      const held = cur.bars.length
+      if (isDateTf(p.tf)) {
+        const at = deepComplete.get(key)
+        return barsHistorySplitEnabled() && !r?.splitOff && _deepJoinedAt(key, held) && at != null && held >= at
+      }
+      if (!isIntradayTf(p.tf) || !cur.restSeen) return false
+      const at = lakeComplete.get(key)
+      return at != null && held >= at && !api.lakePending(key)
+    },
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
@@ -1321,6 +1420,8 @@ export function createNetwork({
       // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
       // read filled it in (a short paint, then the jump).
       if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
+      // (review of #3050) a partial answer was the last word: nothing more is coming NOW (its retry still asks)
+      if (keys.get(key)?.partialSettled) return false
       if (_whole(key)) return false                // the entry holds the whole series: nothing older to join
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false

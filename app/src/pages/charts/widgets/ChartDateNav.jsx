@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ChartDateNav.module.css'
-import { parseDate } from '../../../components/chart/dateText'
+import { parseDate, maskMDY } from '../../../components/chart/dateText'
 
 // Time Navigator — the top-bar date box (MarketSmith-style). Sits between the
 // timeframe buttons and the info fields. Type a date + Enter (or pick from the
@@ -28,26 +28,7 @@ const fmtDate = (ms) => {
 // Smart M/D/YYYY mask: the user types digits only and the slashes appear on their
 // own. Month/day take 2 digits only when the first two form a valid value (so "15…"
 // → 1/5, but "12…" → 12/…); the trailing year takes up to 4. Never requires a "/".
-const maskMDY = (raw) => {
-  const d = String(raw || '').replace(/\D/g, '').slice(0, 8)
-  if (!d) return ''
-  let i = 0
-  // month
-  let mlen
-  if (d[0] === '0') mlen = 2
-  else if (d[0] === '1') mlen = (d.length > 1 && '012'.includes(d[1])) ? 2 : 1
-  else mlen = 1
-  const month = d.slice(i, i + mlen); i += mlen
-  if (i >= d.length) return month
-  // day
-  let dlen
-  if (d[i] === '0' || d[i] === '1' || d[i] === '2') dlen = 2
-  else if (d[i] === '3') dlen = (d.length > i + 1 && '01'.includes(d[i + 1])) ? 2 : 1
-  else dlen = 1
-  const day = d.slice(i, i + dlen); i += dlen
-  if (i >= d.length) return `${month}/${day}`
-  return `${month}/${day}/${d.slice(i, i + 4)}`
-}
+// The mask is shared with the Breadth Monitor's date box: `maskMDY` in components/chart/dateText.js.
 
 // Exported so the Breadth Monitor reuses this exact calendar (breadth/BreadthDateNav.jsx).
 export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, onPickDate, onPickYear, onClose, themeVars }) {

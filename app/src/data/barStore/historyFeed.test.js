@@ -88,6 +88,18 @@ describe('historyFeed', () => {
     expect((await feed.olderBars(keyOf({ sym: 'NOPE', tf: '5' }), first + 1e7)).exhausted).toBe(true)
   })
 
+  // ⭐ (2026-11-28) `complete`: these rows are ALL the lake holds before the time (the index read, every older piece taken)
+  it('says complete only when it took every older piece of a series the index holds', async () => {
+    const key = keyOf({ sym: SYM, tf: '5' })
+    const first = INDEX.series['5']['2026Q2'].first
+    const q3last = INDEX.series['5']['2026Q3'].last
+    expect((await feedOver(edge()).olderBars(key, q3last + 1, { bars: 100000 })).complete).toBe(true)    // everything older
+    expect((await feedOver(edge()).olderBars(key, q3last + 1, { bars: 5 })).complete).toBe(false)        // the newest 5 only
+    expect((await feedOver(edge()).olderBars(key, first, { bars: 10 })).complete).toBe(true)             // nothing older
+    expect((await feedOver(edge()).olderBars(keyOf({ sym: SYM, tf: '15' }), first + 1e7)).complete).toBe(false)   // no 15m series
+    expect((await feedOver(edge()).olderBars(keyOf({ sym: 'NOPE', tf: '5' }), first + 1e7)).complete).toBeFalsy() // no index
+  })
+
   it('maps 60m on the session grid and on the clock grid to their own series', async () => {
     const feed = feedOver(edge())
     const rth = keyOf({ sym: SYM, tf: '60' })

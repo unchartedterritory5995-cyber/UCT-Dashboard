@@ -49,7 +49,7 @@
 export const SHARE_POLICY = Object.freeze({
   own: Object.freeze({ image: true, file: true, why: 'your own records' }),
   uct: Object.freeze({ image: true, file: true, why: 'written by UCT, with no licensed data in it' }),
-  public: Object.freeze({ image: true, file: true, why: 'public records read from the SEC or the US Treasury' }),
+  public: Object.freeze({ image: true, file: true, why: 'public records read from the SEC, the CFTC, the US Treasury or the federal statistics agencies' }),
   derived: Object.freeze({ image: false, file: false, why: 'worked out from licensed market data; the licensing register has no row that allows a member export' }),
   vendor: Object.freeze({ image: false, file: false, why: 'licensed or third-party data; the licensing register restricts passing it on' }),
   team: Object.freeze({ image: false, file: false, why: 'the trading team\'s archive is not shared outside the product' }),
@@ -66,7 +66,22 @@ const CLASS_CODES = {
   // Read straight from the SEC (EDGAR, the fails-to-deliver files), or from the US Treasury's own
   // published daily par yield curve (RATES: register row T-95, class A, no vendor in the path).
   // DILU is the SEC's own filing index for one company, classified (register row T-96, class A).
-  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD', 'RATES', 'DILU'],
+  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD', 'RATES', 'DILU',
+    // COT: the CFTC's own Commitments of Traders files, legacy and by trader type, and the stored
+    // weekly note written only from them (register rows T-82 and T-105, class A, "member +
+    // optional public").
+    'COT',
+    // AUCT: the US Treasury's own auction tables from Fiscal Data, read keyless (the same publisher
+    // as RATES, row T-95; the econ registry's `fiscaldata` source: "US federal government work,
+    // public domain", no notice required).
+    'AUCT',
+    // ECON, LIQ, OIL: the econ service's series, each from the primary agency (BLS, BEA, Census,
+    // DOL, FHFA, the Fed Board, the New York Fed, the Treasury's Fiscal Data, the EIA), every one
+    // GREEN and cleared in api/services/econ/registry/series.json ("US federal government work,
+    // public domain"; FRED is refused there and in the register's FRED section). Several agencies
+    // REQUIRE their notice wherever the data is shown: each panel marks its credit lines
+    // `data-share-notice`, and shareRead carries them, whole, into every picture and file.
+    'ECON', 'LIQ', 'OIL'],
   // The trading team's archive, or numbers worked out from its calls.
   team: ['WHO', 'HIS', 'CHK'],
   // UCT's own analytics over licensed prices: ranks, returns over a window, breadth, regime.

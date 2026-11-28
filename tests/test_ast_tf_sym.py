@@ -230,6 +230,20 @@ def test_max_lookback_and_interpret_refuse_THE_SAME_timeframes(code):
         return False
 
     lookback_refused = refuses(lambda: ast_interpret.max_lookback(tree))
+    # ⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- a read of MINUTES is the JS lane's (the chart draws it); this lane counts it in
+    # `max_lookback` (a formula that holds one is saved and drawn on an intraday chart) and refuses it by name on every
+    # stated chart (it does not resample intraday bars), and the scan door, the one base-less consumer that would run it
+    # on daily bars, refuses it up front (`test_a_timeframe_the_engine_cannot_resample_is_NOT_stamped_scannable`).
+    if code in ast_interpret.INTRADAY_HTF_CODES:
+        assert not lookback_refused, "max_lookback refused %r, so a formula holding it could not be saved" % (code,)
+        for base in ("5", "15", "D"):
+            assert refuses(lambda: ast_interpret.interpret(tree, _bars(), opts={"tf": base})), (
+                "this lane computed %r on a %r chart, which it does not resample" % (code, base))
+        from api.services import scan_definition
+        definition = {"compute": {"kind": "ast", "ast": tree, "fn": "x", "trees": {"p": tree}, "scanPlot": "p"}}
+        with pytest.raises(scan_definition.ScanRefused):
+            scan_definition.assert_scannable(definition)
+        return
     # ⭐⭐ U-DAILY (e96) -- the one code whose answer depends on the chart: a daily read is evaluated on a chart BELOW A
     # DAY, so that is where the two gates are asked about it. On a daily base the evaluator refuses it by name, and the
     # one base-less consumer that would run it on daily bars, the scan door, refuses it up front by its own gate
@@ -262,8 +276,10 @@ def test_and_the_agreement_is_NOT_vacuous_it_accepts_and_refuses_within_the_set(
     assert accepted, "both gates refuse every timeframe — the agreement is vacuous"
     assert refused, "both gates accept every timeframe — the guard is gone"
     # ⭐⭐ U-DAILY (e96): and the daily read, the one code read on a chart below a day (not a resample)
-    assert set(accepted) == set(ast_interpret.TF_RESAMPLABLE) | {ast_interpret.DAILY_READ}, (
-        "the set that survives max_lookback is not TF_RESAMPLABLE and the daily read: %r" % (accepted,))
+    # ⭐⭐ E101 (2026-11-28): and the minute codes (`INTRADAY_HTF_CODES`), which the scan door refuses up front
+    assert set(accepted) == (set(ast_interpret.TF_RESAMPLABLE) | {ast_interpret.DAILY_READ}
+                             | (set(ast_interpret.INTRADAY_HTF_CODES) & set(_TF_CODES))), (
+        "the set that survives max_lookback is not TF_RESAMPLABLE, the daily read and the minute codes: %r" % (accepted,))
 
 
 def test_a_daily_read_is_refused_on_a_daily_base_and_at_the_scan_door():

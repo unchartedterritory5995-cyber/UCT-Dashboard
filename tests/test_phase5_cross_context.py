@@ -185,7 +185,9 @@ def test_P5_the_models_schema_offers_the_scope_wrappers_with_their_bounds(conv):
     assert refs[-3:] == ["sym", "tf", "tf_live"]
     assert s["$defs"]["sym"]["properties"]["value"]["pattern"] == CROSS["tickerPattern"]
     # ⭐⭐ U-DAILY (e96): and D, the last finished day, whose chart (below a day) the door checks by name
-    assert s["$defs"]["tf"]["properties"]["value"]["enum"] == ["W", "M", "D"] == CROSS["tfCodes"] + CROSS["tfBelowADayCodes"]
+    # ⭐⭐ E101 (2026-11-28): and the minute codes, on a chart below a day whose minutes divide them (`check_intraday_reads`)
+    assert s["$defs"]["tf"]["properties"]["value"]["enum"] == ["W", "M", "D", "30", "60", "120", "240"] \
+        == CROSS["tfCodes"] + CROSS["tfBelowADayCodes"] + CROSS["tfIntradayCodes"]
     assert s["$defs"]["tf_live"]["properties"]["value"]["enum"] == ["W", "M"]
     tool = conv.anthropic_tool()["input_schema"]
     assert "sym" in tool["$defs"] and "tf_live" in tool["$defs"]
@@ -204,9 +206,20 @@ def test_P5_the_scope_bounds_refuse_terminally_and_by_name(conv, model, tree, ga
         assert leak not in r["reason"].replace("symbol", "")
 
 
-def test_P5_an_intraday_tf_inside_a_formula_is_a_schema_fault_not_an_author(conv):
+def test_P5_an_intraday_tf_inside_a_formula_is_authored_below_it_and_refused_by_name_elsewhere(conv):
+    """⭐⭐ E101 (2026-11-28): `tf(close, '60')` (the last closed hour) passes the schema, and WHERE it may be used is the
+    door's by-name check (`check_intraday_reads`): a chart below a day whose minutes divide 60 builds it."""
+    hour = env(1, [{"op": "set_output_tree", "output": "value",
+                    "tree": {"type": "tf", "value": "60", "args": [CLOSE]}}])
+    got = conv.check_envelope(hour, 1)
+    conv.check_intraday_reads(got, {"sym": "NVDA", "tf": "15"})        # must not raise
+    for chart in ({"sym": "NVDA", "tf": "D"}, {"sym": "NVDA", "tf": "45"}, {"sym": "NVDA", "tf": "60"}, None):
+        with pytest.raises(conv._Refused) as exc:
+            conv.check_intraday_reads(got, chart)
+        assert exc.value.gate == "envelope:intraday-read-placement"
+    # ⛔ a code the schema never offers stays a schema fault
     bad = env(1, [{"op": "set_output_tree", "output": "value",
-                   "tree": {"type": "tf", "value": "60", "args": [CLOSE]}}])
+                   "tree": {"type": "tf", "value": "45", "args": [CLOSE]}}])
     with pytest.raises(conv._Refused) as exc:
         conv.check_envelope(bad, 1)
     assert exc.value.gate == "envelope:schema"

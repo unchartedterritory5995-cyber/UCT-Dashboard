@@ -274,6 +274,14 @@ TF_BASE_BARS = {"W": 5, "M": 21}
 #: not stated, or is not `"D"`, refuses by name (`_assert_live_resamplable`).
 TF_LIVE_RESAMPLABLE = TF_RESAMPLABLE + ("3M",)
 
+#: ⭐⭐ E101 INTRADAY-HTF -- the port of ``parse.js::INTRADAY_HTF_CODES``: the minute codes a higher-timeframe read may name
+#: above an intraday chart, and ``interpret.js::INTRADAY_HTF_MIN_SPAN``, the span the lookback sum counts its child in.
+#: ⛔ THIS LANE DOES NOT RESAMPLE THEM (``tests/test_ast_intraday_htf_fail_closed.py``): with a stated chart such a read is
+#: refused by name; with none (a door's chart-free check, which asks only whether a tree runs) nothing is computed for it
+#: and its column is empty, as the JS lane withholds it.
+INTRADAY_HTF_CODES = ("30", "60", "120", "240")
+INTRADAY_HTF_MIN_SPAN = 2
+
 #: Base bars per forming period, for the lookback sum — `TF_BASE_BARS` plus the
 #: quarter (three 21-bar months; rounded UP, the safe direction).
 TF_LIVE_BASE_BARS = dict(TF_BASE_BARS, **{"3M": 63})
@@ -4442,6 +4450,9 @@ def max_lookback(ast: Any) -> int:
             if kind == "tf" and code == DAILY_READ:
                 seen[id(node)] = seen[id(node["args"][0])] + 1
                 continue
+            if code in INTRADAY_HTF_CODES:                 # ⭐⭐ E101: counted at the fewest chart bars a bucket holds
+                seen[id(node)] = (seen[id(node["args"][0])] + 1) * INTRADAY_HTF_MIN_SPAN
+                continue
             _assert_resamplable(code)
             span = TF_BASE_BARS[code]
             seen[id(node)] = (seen[id(node["args"][0])] + 1) * span
@@ -4453,6 +4464,9 @@ def max_lookback(ast: Any) -> int:
             # multiplied by the span, rounded UP because a lookback that is too
             # small answers off a warmup it never had.
             code = str(node.get("value"))
+            if code in INTRADAY_HTF_CODES:                 # ⭐⭐ E101
+                seen[id(node)] = max(1, seen[id(node["args"][0])] * INTRADAY_HTF_MIN_SPAN)
+                continue
             _assert_live_resamplable(code)
             seen[id(node)] = max(1, seen[id(node["args"][0])] * TF_LIVE_BASE_BARS[code])
             continue
@@ -9047,6 +9061,15 @@ def _interpret_column(ast: Any, bars: List[dict],
             return out
         if kind in ("tf", "tf_live", "tf_merge"):
             code = str(n.get("value"))
+            # ⭐⭐ E101 INTRADAY-HTF -- a read of minutes: nothing is computed on a chart not stated (empty, as the JS lane
+            # withholds it), and on a stated one it is refused by name: this lane does not resample intraday bars
+            if code in INTRADAY_HTF_CODES:
+                if (opts or {}).get("tf") is None:
+                    return _nan_col(length)
+                _refuse("interpret:timeframe",
+                        "%r minutes is a read of a higher intraday timeframe, which the chart's own engine draws; this "
+                        "lane (alerts, scans, the server's runs) does not resample intraday bars, so it answers nothing "
+                        "rather than a value nobody measured" % code)
             # ⭐ C47 — a forming read may also name the quarter, from daily bars.
             if kind == "tf_live":
                 _assert_live_resamplable(code, (opts or {}).get("tf"))

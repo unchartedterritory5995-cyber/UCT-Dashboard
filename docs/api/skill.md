@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (809)
+## Member session reads (811)
 
 ### Limits
 
@@ -161,7 +161,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/alerts/webhooks` | paid | member-workspace |  |
 | GET | `/api/alerts/webhooks/{webhook_id}/deliveries` | paid | member-workspace | {webhook_id} |
 | GET | `/api/analogs` | paid | market-analytics | setup_type (required), regime=ALL, sector, limit=5, symbol |
-| GET | `/api/analyst-actions` | paid | research |  |
+| GET | `/api/analyst-actions` | paid | research | date, full=0, limit |
 | GET | `/api/analyst/{sym}` | paid | research | {sym}, debug=0 |
 | GET | `/api/artifact-versions/status` | member | member-workspace |  |
 | GET | `/api/artifact-versions/{kind}/deleted` | member | member-workspace | {kind} |
@@ -359,7 +359,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/gex/compare` | member | options-flow | ticker (required), dte=all |
 | GET | `/api/gex/data` | member | options-flow | ticker (required), dte=all, adjusted=False |
 | GET | `/api/groups` | paid | market-analytics |  |
-| GET | `/api/groups/peers` | paid | market-analytics | sym (required), n=8 |
+| GET | `/api/groups/peers` | paid | market-analytics | sym (required), n=8, prefer |
 | GET | `/api/groups/{group_id}/top` | paid | market-analytics | {group_id}, n=9, by=today |
 | GET | `/api/hub/planned-trades` | member | member-workspace | limit=200 |
 | GET | `/api/inbound-alerts/receiver` | member | inbound-alerts |  |
@@ -374,7 +374,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/indicator-support/reports/mine` | member | screener |  |
 | GET | `/api/indicator-support/reports/mine/{report_id}` | member | screener | {report_id} |
 | GET | `/api/insider/clusters` | paid | research |  |
-| GET | `/api/insider/feed` | paid | research | scope |
+| GET | `/api/insider/feed` | paid | research | scope, side, days |
 | GET | `/api/insider/{ticker}` | paid | research | {ticker} |
 | GET | `/api/insider/{ticker}/has-buy` | paid | research | {ticker}, days=30 |
 | GET | `/api/intraday-update` | paid | market-data |  |
@@ -623,6 +623,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
+| GET | `/api/options-screener/oi-change` | paid | options-analytics | view=stocks, side=any |
 | GET | `/api/options-screener/oi-change/{sym}` | paid | options-analytics | {sym}, side=any |
 | GET | `/api/options-screener/screen` | paid | options-analytics |  |
 | GET | `/api/options-screener/sizzle` | paid | options-analytics |  |
@@ -696,6 +697,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/filings-feed/{sym}` | paid | research | {sym}, form |
 | GET | `/api/research/financial-history/{sym}` | paid | research | {sym}, period=quarter |
 | GET | `/api/research/financials/{sym}` | paid | research | {sym} |
+| GET | `/api/research/ftd-market` | paid | research | rank=shares |
 | GET | `/api/research/ftd/{sym}` | paid | research | {sym} |
 | GET | `/api/research/group-stats` | paid | research | kind=sector, name, part |
 | GET | `/api/research/history/{sym}` | paid | research | {sym}, days=90 |
