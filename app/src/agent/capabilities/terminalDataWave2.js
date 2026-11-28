@@ -25,6 +25,9 @@
 //
 // Dark by construction: each is registered only while the server serves its own kind (UCT_AGENT_DATA_KINDS, fail closed; an
 // isolated kind also needs its own UCT_AGENT_ISOLATED_KINDS entry or every read is refused).
+// ROUTING: the five ride in their own `marketAnswers` group since 2026-11-24 (routing.js: they left `data`, by `actions`, when
+// their kinds were armed in production, so `data` keeps its size). Each one's own words (WAVE2_ROUTE_WORDS) are added to
+// that group AND to the stock `data` group (unchanged there) only while it is registered. Before:
 // ROUTING: the five ride in the stock `data` group (by domain). Each one's own words (WAVE2_ROUTE_WORDS) are added to that
 // group only while it is registered, so on a dark server routing is byte-identical to the base.
 import { registerCapability } from '../capabilities'
@@ -510,15 +513,16 @@ export const WAVE2_ROUTE_WORDS = Object.freeze({
     /\b(?:said|say|says|mention(?:ed|s|ing)?|talk(?:ed|s|ing)? about|discuss(?:ed|es|ing)?) (?:\w+ ){0,6}?(?:on|in|during) (?:the|their|its|a|recent|last|latest) (?:\w+ ){0,2}?calls?\b/,
   ],
 })
-const dataGroup = () => GROUPS.find(g => g.id === 'data')
-/** Adds (or takes back) ONE capability's words on the data group; the group's own words are never touched. */
+/** The groups that carry these words: `marketAnswers` (where the actions are) and `data` (its selection unchanged). */
+const routeGroups = () => GROUPS.filter(g => g.id === 'data' || g.id === 'marketAnswers')
+/** Adds (or takes back) ONE capability's words on those groups; the groups' own words are never touched. */
 function armRoutes(key, on) {
-  const g = dataGroup()
-  if (!g) return
-  for (const re of WAVE2_ROUTE_WORDS[key]) {
-    const at = g.words.indexOf(re)
-    if (on && at < 0) g.words.push(re)
-    if (!on && at >= 0) g.words.splice(at, 1)
+  for (const g of routeGroups()) {
+    for (const re of WAVE2_ROUTE_WORDS[key]) {
+      const at = g.words.indexOf(re)
+      if (on && at < 0) g.words.push(re)
+      if (!on && at >= 0) g.words.splice(at, 1)
+    }
   }
 }
 

@@ -102,13 +102,14 @@ const BASE = [
   H(3, 'SYNTHETIC: NVDA and AMD rally while NVDA leads', ['NVDA', 'AMD']),
 ]
 
-function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent } = {}) {
+function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent, members, paid = true } = {}) {
   let widget = <TradeExchangeNewsWidget color="A" opts={opts} onOptsChange={onOptsChange} />
   // `agent`: what UCT Agent provides News ({ useAsk, openAgent }); a stub here, or null for "no Agent". Omitted = the real exports.
   if (agent !== undefined) widget = <NewsAgentContext.Provider value={agent}>{widget}</NewsAgentContext.Provider>
   // `role`: the signed-in member's role, for what only an admin sees (UCT Agent's mark).
-  // Unset = no AuthProvider, which the widget treats as a member.
-  const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: true }}>{widget}</AuthContext.Provider> : widget)
+  // Unset = no AuthProvider, which the widget treats as a member. `members`: the auth payload's member door
+  // (uct_agent_members_enabled, UCT_AGENT_MEMBERS_ENABLED=1); `paid`: the account's isPaid.
+  const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: paid, featureStatus: { measured: true, features: members === true ? [{ id: 'uct_agent_members_enabled', label: 'UCT Agent', where: 'Charts', state: 'released' }] : [] } }}>{widget}</AuthContext.Provider> : widget)
   act(() => feed.set({ status: 'live', items, lastSeq: items.length, replayUntil: items.length, lastHeadlineAt: NOW }))
   return { ...utils, onOptsChange }
 }
@@ -833,6 +834,29 @@ describe('Explanation', () => {
     expect(panel.querySelector('img')).toBeNull()
   })
 
+  it('MEMBER DOOR OPEN (UCT_AGENT_MEMBERS_ENABLED=1): a paid member reads it in UCT Agent\'s voice by default', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    setAgentFlag(null)
+    const { container } = mount({}, BASE, vi.fn(), { role: 'member', members: true })
+    fireEvent.click(explainBtn(container, 2))
+    const panel = await screen.findByRole('region', { name: 'Explanation' })
+    await within(panel).findByText(EXPL.explanation)
+    expect(panel.firstElementChild.textContent).toContain('UCT Agent')
+  })
+
+  it('MEMBER DOOR OPEN: neutral for a member who switched the Agent off here, and for an unpaid account', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
+    for (const [flag, paid] of [[false, true], [null, false]]) {
+      setAgentFlag(flag)
+      const { container, unmount } = mount({}, BASE, vi.fn(), { role: 'member', members: true, paid })
+      fireEvent.click(explainBtn(container, 2))
+      const panel = await screen.findByRole('region', { name: 'Explanation' })
+      await within(panel).findByText(EXPL.explanation)
+      expect(panel.textContent, `flag ${flag} paid ${paid}`).not.toContain('UCT Agent')
+      unmount()
+    }
+  })
+
   it('a member with the switch ON (a shared browser) still reads the neutral heading', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok()))
     setAgentFlag(true)
@@ -1019,6 +1043,15 @@ describe('Ask UCT Agent', () => {
       expect(calls).toEqual([])                                           // the Agent was never even asked to mount
       unmount()
     }
+  })
+
+  it('MEMBER DOOR OPEN (UCT_AGENT_MEMBERS_ENABLED=1): a paid member gets the box; door closed, the same member does not', async () => {
+    setAgentFlag(null)
+    const shut = await open({ role: 'member', agent: agent() })
+    expect(within(shut.panel).queryByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeNull()
+    shut.unmount()
+    const { panel } = await open({ role: 'member', agent: agent(), members: true })
+    expect(within(panel).getByRole('textbox', { name: 'Ask UCT Agent about this headline' })).toBeTruthy()
   })
 
   it('no box until the server says News questions are on: not while that is read (null), not when off (false)', async () => {
