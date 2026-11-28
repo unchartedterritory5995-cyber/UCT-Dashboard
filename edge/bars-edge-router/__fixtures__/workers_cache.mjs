@@ -6,7 +6,7 @@
  *   - an explicit `max-age` keeps ANY other status for that long (so a 401 marked cacheable WOULD be kept);
  *   - no Cache-Control: the documented defaults, 200/203/204 two hours, 300/301 twenty minutes, 404/410
  *     three minutes, 405/414/501 one minute, anything else not kept;
- *   - keyed by path + query (Workers Cache: no host, no cookie, no header);
+ *   - keyed by path + query, or the caller's `cf.cacheKey` (Workers Cache: no host, no cookie, no header);
  *   - fresh for max-age seconds of the injected clock, then served stale for stale-while-revalidate seconds
  *     while ONE refresh runs (Workers Cache collapses concurrent misses and refreshes the same way).
  * `ignoreMaxAge: true` makes it hand back an expired copy anyway: a cache that misbehaves, to prove the
@@ -19,11 +19,12 @@ export function cachedEntry(handler, { now = () => Date.now(), ignoreMaxAge = fa
   const log = { runs: 0, requests: [], revalidations: 0 };
   return {
     store, log,
-    async fetch(request) {
+    async fetch(request, opts = {}) {
       const req = request instanceof Request ? request : new Request(request);
       log.requests.push(req);
       const u = new URL(req.url);
-      const key = u.pathname + u.search;
+      // `cf.cacheKey` (same-account ctx.exports callers) REPLACES path + query in the key, as Workers Cache does
+      const key = (opts && opts.cf && opts.cf.cacheKey) || u.pathname + u.search;
       const hit = req.method === "GET" ? store.get(key) : undefined;
       const age = hit ? now() - hit.at : 0;
       if (hit && (ignoreMaxAge || age < hit.maxAge * 1000)) {

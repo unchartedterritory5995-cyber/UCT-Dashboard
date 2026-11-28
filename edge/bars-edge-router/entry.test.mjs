@@ -11,21 +11,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { registerHooks } from "node:module";
+import * as nodeModule from "node:module";
 
-registerHooks({
-  resolve(specifier, context, next) {
-    if (specifier === "cloudflare:workers") return { url: "uct-stub:cloudflare-workers", shortCircuit: true };
-    return next(specifier, context);
-  },
-  load(url, context, next) {
-    if (url === "uct-stub:cloudflare-workers") {
-      return { format: "module", shortCircuit: true,
-        source: "export class WorkerEntrypoint { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }" };
-    }
-    return next(url, context);
-  },
-});
+const STUB = "export class WorkerEntrypoint { constructor(ctx, env) { this.ctx = ctx; this.env = env; } }";
+if (typeof nodeModule.registerHooks === "function") {           // node >= 22.15 / 23.5: in-thread hooks
+  nodeModule.registerHooks({
+    resolve(specifier, context, next) {
+      if (specifier === "cloudflare:workers") return { url: "uct-stub:cloudflare-workers", shortCircuit: true };
+      return next(specifier, context);
+    },
+    load(url, context, next) {
+      if (url === "uct-stub:cloudflare-workers") return { format: "module", shortCircuit: true, source: STUB };
+      return next(url, context);
+    },
+  });
+} else {                                                          // node 20 (the CI lane): a loader thread
+  const loader = `export async function resolve(s, c, n) {
+    if (s === "cloudflare:workers") return { url: "data:text/javascript," + encodeURIComponent(${JSON.stringify(STUB)}), shortCircuit: true };
+    return n(s, c);
+  }`;
+  nodeModule.register("data:text/javascript," + encodeURIComponent(loader));
+}
 
 const entry = await import("./entry.js");
 const worker = (await import("./worker.js")).default;

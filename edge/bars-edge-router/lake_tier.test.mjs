@@ -11,8 +11,8 @@ import { readFileSync } from "node:fs";
 
 import worker from "./worker.js";
 import {
-  serveLakePiece, lakePiecePath, parseLakePiecePath, lakeTier, readObject, splitPiece, LAKE_ENTRY,
-  LAKE_PIECE_ORIGIN, HIST_PREFIX,
+  serveLakePiece, lakePiecePath, lakeCacheKey, parseLakePiecePath, lakeTier, readObject, splitPiece, LAKE_ENTRY,
+  LAKE_PIECE_ORIGIN, HIST_PREFIX, encodeSymbol,
 } from "./history.js";
 import { cachedEntry } from "./__fixtures__/workers_cache.mjs";
 
@@ -36,7 +36,7 @@ for (const c of CASES) {
 }
 const pathOf = (c, { crc = c.header.crc, off = PLACE.get(c.name).off, n = PLACE.get(c.name).n } = {}) =>
   `/api/hist/${c.relpath}?c=${crc}&o=${off}&n=${n}`;
-const rangeOf = (c) => { const p = PLACE.get(c.name); return { offset: p.off, length: p.n, crc: c.header.crc }; };
+const rangeOf = (c) => { const p = PLACE.get(c.name); return { offset: p.off, length: p.n, crc: c.header.crc, enc: encodeSymbol(c.header.symbol) }; };
 
 const b64u = (bytes) => Buffer.from(new Uint8Array(bytes)).toString("base64")
   .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -133,11 +133,12 @@ test("⛔ only a validated whole piece is cacheable: every other answer of LakeP
   const pb = PLACE.get(b.name);
   const bad = [
     [lakePiecePath(PLACE.get(a.name).key, { ...rangeOf(a), crc: a.header.crc + 1 }), 409],   // CRC moved
-    [lakePiecePath(PLACE.get(a.name).key, { offset: pb.off, length: pb.n, crc: a.header.crc }), 409],
-    [lakePiecePath(PLACE.get(b.name).key, { offset: pb.off, length: pb.n + 100000, crc: b.header.crc }), 409],   // short read
+    [lakePiecePath(PLACE.get(a.name).key, { ...rangeOf(a), offset: pb.off, length: pb.n }), 409],
+    [lakePiecePath(PLACE.get(b.name).key, { ...rangeOf(b), enc: rangeOf(a).enc }), 409],                // B's bytes, A's name
+    [lakePiecePath(PLACE.get(b.name).key, { ...rangeOf(b), length: pb.n + 100000 }), 409],   // short read
     [lakePiecePath(`${PREFIX}packs/1/2001-01.pack`, rangeOf(a)), 404],                          // no object
-    ["/p/hist/v1/index/s-AAPL.json/0/100/1", 404],                                                // not a pack
-    ["/p/../packs/1/2026-11.pack/0/100/1", 404],
+    ["/p/hist/v1/index/s-AAPL.json/s-AAPL/0/100/1", 404],                                         // not a pack
+    ["/p/../packs/1/2026-11.pack/s-AAPL/0/100/1", 404],
     ["/anything", 404],
   ];
   for (const [path, status] of bad) {
@@ -218,8 +219,10 @@ test("the copy's key is the exact content, and its path is not a routed path", (
   assert.deepEqual(parseLakePiecePath(p), { key, series: c.series, period: c.period, range: rangeOf(c) });
   assert.notEqual(lakePiecePath(key, { ...rangeOf(c), crc: c.header.crc + 1 }), p, "a new CRC is a new key");
   assert.ok(!p.startsWith(HIST_PREFIX), "never a path the routed Worker answers");
-  for (const bad of ["/p/packs/1/2026-13.pack/0/100/1", "/p/packs/7/2026.pack/0/100/1", "/p/packs/1/2026-11.pack/0/9/1",
-    "/p/packs/1/2026-11.pack/01/100/1", "/p/packs/1/2026-11.pack/0/100/1/x", "/p/x/../packs/1/2026-11.pack/0/100/1"]) {
+  assert.equal(lakeCacheKey(key, { ...rangeOf(c), offset: 999 }), lakeCacheKey(key, rangeOf(c)), "a moved piece keeps its key");
+  for (const bad of ["/p/packs/1/2026-13.pack/s-A/0/100/1", "/p/packs/7/2026.pack/s-A/0/100/1", "/p/packs/1/2026-11.pack/s-A/0/9/1",
+    "/p/packs/1/2026-11.pack/s-A/01/100/1", "/p/packs/1/2026-11.pack/s-A/0/100/1/x", "/p/x/../packs/1/2026-11.pack/s-A/0/100/1",
+    "/p/packs/1/2026-11.pack/0/100/1", "/p/packs/1/2026-11.pack/s-a/0/100/1"]) {
     assert.equal(parseLakePiecePath(bad), null, bad);
   }
 });
@@ -234,4 +237,41 @@ test("readObject: a data-center hit is used before the network's copy is asked",
     { origin: "https://uctintelligence.com", cache, lake: async () => { asked += 1; return new Response("x"); } });
   assert.equal(got.cached, true);
   assert.equal(asked, 0);
+});
+
+test("⭐ a republished pack that MOVES a piece keeps its network copy: the key is the content, not the place", async () => {
+  const c = CASES[1];
+  const { env, ctx, lake } = rig();
+  const first = await ask(pathOf(c), { env, ctx });
+  assert.equal(first.status, 200);
+  assert.equal(lake.log.runs, 1);
+  // the daily refresh rewrites the pack: 777 bytes of other pieces now sit in front of this one
+  const pl = PLACE.get(c.name);
+  const old = PACKS.get(pl.key);
+  const moved = new Uint8Array(old.length + 777);
+  moved.set(old, 777);
+  env.HISTORY = bucket(new Map([[pl.key, moved]]));
+  const again = await ask(pathOf(c, { off: pl.off + 777 }), { env, ctx });
+  assert.equal(again.status, 200);
+  assert.equal(lake.log.runs, 1, "the moved piece was a network-copy hit");
+  assert.deepEqual(env.HISTORY.asked, [], "R2 was not asked");
+  assert.deepEqual(new Uint8Array(await again.arrayBuffer()), new Uint8Array(await first.arrayBuffer()));
+  // and a CHANGED piece (new CRC) is a new key
+  assert.notEqual(lakeCacheKey(pl.key, rangeOf(c)), lakeCacheKey(pl.key, { ...rangeOf(c), crc: c.header.crc + 1 }));
+});
+
+test("the data center's copy is keyed by content too: a moved piece is still a hit there", async () => {
+  const c = CASES[1];
+  const range = rangeOf(c);
+  const store = new Map();
+  const cache = { match: async (k) => (store.has(k) ? new Response(store.get(k).slice()) : undefined),
+    put: async (k, r) => { store.set(k, new Uint8Array(await r.arrayBuffer())); } };
+  const b = bucket();
+  const first = await readObject(b, PLACE.get(c.name).key, range, { origin: "https://uctintelligence.com", cache });
+  first.keep();
+  await new Promise((r) => setTimeout(r, 0));
+  const moved = await readObject(b, PLACE.get(c.name).key, { ...range, offset: range.offset + 777 },
+    { origin: "https://uctintelligence.com", cache });
+  assert.equal(moved.cached, true);
+  assert.equal(b.asked.length, 1);
 });

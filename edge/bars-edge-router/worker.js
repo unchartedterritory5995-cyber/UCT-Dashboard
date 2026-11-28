@@ -384,6 +384,21 @@ export async function classifyRequest(request, secret, nowSeconds) {
   return MISSING;
 }
 
+/** A best-effort prefetch: a GET/HEAD of /api/bars/<sym> carrying `warm=1`. */
+export function isPrefetchRead(url, method) {
+  return HEDGE_METHODS.has(String(method || "GET").toUpperCase())
+    && /^\/api\/bars\/[^\/?#]+$/.test(url.pathname) && url.searchParams.get("warm") === "1";
+}
+
+/** The answer to a prefetch while the tier breaker is open: the tier's own deliberate-shed shape. */
+export function breakerShed() {
+  return new Response(JSON.stringify({ error: "warm-shed", reason: "tier-breaker-open" }), {
+    status: 503,
+    headers: { "content-type": "application/json", "cache-control": "no-store", "retry-after": "5",
+               [TIER_SHED_HEADER]: "warm-shed", "x-bars-edge": "breaker-shed" },
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -484,6 +499,12 @@ export default {
         if (shared) return shared;
       } catch (_e) { /* the copy failing is the old path */ }
     }
+
+    // ⛔ A PREFETCH NEVER ADDS TO A STRUGGLING TIER (2026-11-28 capacity plan). While the breaker is open the
+    // reads go to web, and a best-effort `warm=1` prefetch would double that load for nothing a member sees:
+    // it is answered the tier's own deliberate shed (503 + Retry-After + X-Bars-Shed: warm-shed), which the
+    // client already treats as "nothing now".
+    if (isPrefetchRead(url, request.method) && TIER_BREAKER.isOpen()) return breakerShed();
 
     return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts,
                        hedgeFor(url.pathname));

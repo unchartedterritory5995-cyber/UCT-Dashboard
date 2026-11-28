@@ -253,3 +253,25 @@ test("tailAnswerCacheable is the whole rule", () => {
   assert.equal(tailAnswerCacheable(200, h(), null), false);
   assert.equal(tailAnswerCacheable(200, h(), [GOOD]), false);
 });
+
+test("⛔ while the tier breaker is open a warm=1 prefetch is shed 503 (no origin asked); a paint still goes to web", async () => {
+  const r = rig();
+  TIER_BREAKER.open("web-fallback");
+  try {
+    const shed = await ask("/api/bars/KLIC?tf=D&bars=2000&warm=1", r);
+    assert.equal(shed.res.status, 503);
+    assert.equal(shed.res.headers.get("x-bars-shed"), "warm-shed");
+    assert.equal(shed.res.headers.get("retry-after"), "5");
+    assert.equal(shed.res.headers.get("cache-control"), "no-store");
+    assert.deepEqual(shed.origins, []);
+    const anon = await ask("/api/bars/KLIC?tf=D&warm=1", r, { cookie: false });
+    assert.equal(anon.res.status, 503, "shed for everyone: it is load, not entitlement");
+    const paint = await ask("/api/bars/KLIC?tf=D&bars=2000", r);
+    assert.equal(paint.origins.length, 1, "a real read is still served");
+  } finally {
+    TIER_BREAKER.reset();
+  }
+  const warm = await ask("/api/bars/KLIC?tf=D&warm=1", r);
+  assert.equal(warm.res.status, 200, "breaker closed: the prefetch goes through");
+  assert.equal(warm.origins.length, 1);
+});

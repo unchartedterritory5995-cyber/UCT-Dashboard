@@ -157,9 +157,12 @@ const FOREVER = "private, max-age=31536000, immutable";
 export const PIECE_EDGE_TTL = 31536000;
 export const EDGE_KEY_PATH = "/api/hist/__edge/";
 
-/** The cache key for one piece: the object, its place and its CRC, on a path only this Worker serves. */
+/** The cache key for one piece: the object, its symbol, its length and its CRC (2026-11-28: its CONTENT, not
+ *  its place: a daily refresh moves unchanged pieces inside the rewritten pack, and an offset in the key made
+ *  every one of them a miss), on a path only this Worker serves. Without a symbol (an older caller), the place. */
 export function edgeCacheKey(origin, key, range) {
-  return `${origin}${EDGE_KEY_PATH}${encodeURI(key)}?o=${range.offset}&n=${range.length}&c=${range.crc}`;
+  const who = range.enc ? `s=${range.enc}` : `o=${range.offset}`;
+  return `${origin}${EDGE_KEY_PATH}${encodeURI(key)}?${who}&n=${range.length}&c=${range.crc}`;
 }
 
 function defaultCache() {
@@ -178,8 +181,12 @@ function defaultCache() {
 //  - THE CACHED ENTRYPOINT HAS NO ROUTE. `LakePiece` (entry.js) is reachable only through
 //    `ctx.exports.LakePiece`, called by handleHistory AFTER the entitlement check. No hostname, route or
 //    workers.dev URL reaches it, so nothing anonymous can read the cache behind it.
-//  - ITS KEY IS THE EXACT CONTENT: object key, offset, length and CRC, all in the PATH (Workers Cache keys
-//    on path + query; the path alone cannot be re-ordered). A republished pack is a new CRC, a new key.
+//  - ITS KEY IS THE EXACT CONTENT, NOT ITS PLACE: object, symbol, length and CRC (`cf.cacheKey`, below).
+//    A daily refresh rewrites the current period's pack and moves almost every piece in it; a key with the
+//    offset would send every one of them cold to R2 after each refresh. Without it, only a piece whose bytes
+//    changed (a new CRC) is a new key. The offset rides in the request path, for a fill only.
+//  - LakePiece checks the bytes it fills with are THIS symbol's piece of that series and period with that
+//    CRC, so no request can file another symbol's bytes under a symbol's key.
 //  - ONLY A VALIDATED WHOLE PIECE IS CACHEABLE (200, `public`, a year). Everything else is `no-store`:
 //    Workers Cache would otherwise keep a 404 for 3 minutes by default.
 //  - THE GATEWAY STILL VALIDATES what comes back (symbol, series, period, CRC) exactly as from R2, and
@@ -187,20 +194,25 @@ function defaultCache() {
 //  - `env.LAKE_TIER === "0"` turns it off (a plain variable, no code change).
 export const LAKE_ENTRY = "LakePiece";
 export const LAKE_PIECE_ORIGIN = "https://lake-piece.internal";
-const LAKE_PATH_RE = /^\/p\/((?:(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/)*packs\/(1|5|15|30|60|60e)\/([0-9Q-]+)\.pack)\/(0|[1-9]\d{0,14})\/([1-9]\d{0,14})\/(0|[1-9]\d{0,14})$/;
+const LAKE_PATH_RE = /^\/p\/((?:(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/)*packs\/(1|5|15|30|60|60e)\/([0-9Q-]+)\.pack)\/(s-(?:[A-Z0-9]|_[0-9A-F]{2}){1,64})\/(0|[1-9]\d{0,14})\/([1-9]\d{0,14})\/(0|[1-9]\d{0,14})$/;
 
-/** The cached entrypoint's path for one piece: the object, its place and its CRC. */
+/** The cached entrypoint's path for one piece: the object, the symbol, its place and its CRC. */
 export function lakePiecePath(key, range) {
-  return `/p/${key}/${range.offset}/${range.length}/${range.crc}`;
+  return `/p/${key}/${range.enc}/${range.offset}/${range.length}/${range.crc}`;
+}
+
+/** The piece's Workers Cache key: its CONTENT (object, symbol, length, CRC), never its offset. */
+export function lakeCacheKey(key, range) {
+  return `/p/${key}/${range.enc}/${range.length}/${range.crc}`;
 }
 
 /** What a cached-entrypoint path names, or null. Nothing else reaches the bucket from there. */
 export function parseLakePiecePath(pathname) {
   const m = LAKE_PATH_RE.exec(String(pathname || ""));
   if (!m) return null;
-  const [, key, series, period, o, n, c] = m;
+  const [, key, series, period, enc, o, n, c] = m;
   if (!(PERIOD_RE[series] || YEAR_RE).test(period)) return null;
-  const range = { offset: Number(o), length: Number(n), crc: Number(c) };
+  const range = { offset: Number(o), length: Number(n), crc: Number(c), enc };
   if (range.length < 10 || range.length > MAX_PIECE_BYTES) return null;
   return { key, series, period, range };
 }
@@ -229,7 +241,8 @@ export async function serveLakePiece(request, env) {
   const bytes = new Uint8Array(await obj.arrayBuffer());
   const piece = bytes.length === what.range.length ? splitPiece(bytes) : null;
   const h = piece && piece.header;
-  if (!h || h.series !== what.series || h.period !== what.period || h.crc !== what.range.crc) {
+  if (!h || h.series !== what.series || h.period !== what.period || h.crc !== what.range.crc
+      || encodeSymbol(h.symbol) !== what.range.enc) {
     return lakeRefusal(409, "piece_changed");
   }
   return new Response(request.method === "HEAD" ? null : bytes, {
@@ -248,7 +261,8 @@ export function lakeTier(env, ctx) {
   if (env && env.LAKE_TIER === "0") return null;
   const entry = ctx && ctx.exports && ctx.exports[LAKE_ENTRY];
   if (!entry || typeof entry.fetch !== "function") return null;
-  return (key, range) => entry.fetch(new Request(LAKE_PIECE_ORIGIN + lakePiecePath(key, range)));
+  return (key, range) => entry.fetch(new Request(LAKE_PIECE_ORIGIN + lakePiecePath(key, range)),
+    { cf: { cacheKey: lakeCacheKey(key, range) } });
 }
 
 /** The bytes for (key, range): a piece through this data center's copy, an index (range null) from R2
@@ -301,7 +315,7 @@ export async function handleHistory(request, env, entitled, ctx) {
   if (what.kind === "piece") {
     const o = url.searchParams.get("o"), n = url.searchParams.get("n"), c = url.searchParams.get("c");
     if (!UINT_RE.test(o || "") || !UINT_RE.test(n || "") || !UINT_RE.test(c || "")) return plain(400, "piece_needs_c_o_n");
-    range = { offset: Number(o), length: Number(n), crc: Number(c) };
+    range = { offset: Number(o), length: Number(n), crc: Number(c), enc: what.enc };
     if (range.length < 10 || range.length > MAX_PIECE_BYTES) return plain(400, "piece_length_out_of_range");
   }
   let ok = false;
