@@ -38,6 +38,7 @@ function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-1
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
       if (history === 'hang') return new Promise(() => {})   // a cold edge (MISS) still building it
       if (history === 'unsealed') return { ticker: 'SIM', tf: 'D', bars: [], sealed: false }
+      if (history === 'nothing-older') return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(50, '2026-11-09').map((t) => bar(t)) }
       if (history === 'other-basis') return { ticker: 'SIM', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t, 50)) }
       if (history === 'foreign') return { ticker: 'OTHER', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
@@ -107,6 +108,30 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
     expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(1399)   // the view's rows, without the edge
+  })
+
+  // ⭐⭐ (2026-11-28, the cold-coverage run: W + M held ~4 s) A JOIN THAT ADDS NOTHING MOVES NO ENTRY, so a waiter woken
+  // only by the entry never learned that nothing more was coming; the settle now tells its own listeners
+  it('a history join that adds nothing older notifies subscribeSettled (the entry did not move), and the depth is no longer due', async () => {
+    const w = world({ history: 'nothing-older' })
+    const settled = vi.fn()
+    const off = w.net.subscribeSettled(w.key, settled)   // (before the ask: the fake answers within the first tick)
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(settled).toHaveBeenCalledTimes(1)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    off()
+  })
+
+  it('CONTROL: a history that fails (the split turns off) does not notify a settle: the full read it queues moves the entry', async () => {
+    const w = world({ history: 'throw' })
+    const settled = vi.fn()
+    w.net.subscribeSettled(w.key, settled)   // (before the ask, as above: otherwise this control could not fail)
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(settled).not.toHaveBeenCalled()
   })
 
   it('CONTROL: a history that lands in time asks no second tail', async () => {
@@ -217,8 +242,17 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(calendarSealedDate('D', et(2026, 11, 28, 10, 0))).toBe('2026-11-27')    // Sat -> the half day
     expect(calendarSealedDate('D', et(2026, 11, 10, 23, 30))).toBe('2026-11-09')   // 23:30 ET Tue is still Tue
     expect(calendarSealedDate('D', et(2026, 11, 11, 0, 30))).toBe('2026-11-10')    // 00:30 ET Wed rolls
-    expect(calendarSealedDate('W', et(2026, 11, 10, 10, 0))).toBe('')              // W/M keep the held-bars rule
-    expect(calendarSealedDate('M', et(2026, 11, 10, 10, 0))).toBe('')
+    // ⭐ (2026-11-28, cold-arch 3.3 item 1) W and M by the calendar too: the server's labels (a week's calendar Friday, a
+    // month's 1st) of the newest period before the current one (this week's Monday, this month's 1st, ET)
+    expect(calendarSealedDate('W', et(2026, 11, 10, 10, 0))).toBe('2026-11-06')    // Tue -> the previous Friday
+    expect(calendarSealedDate('W', et(2026, 11, 9, 9, 0))).toBe('2026-11-06')      // Mon: this week is not sealed
+    expect(calendarSealedDate('W', et(2026, 11, 8, 12, 0))).toBe('2026-10-30')     // Sun: the week of 11-02 still runs
+    expect(calendarSealedDate('W', et(2026, 11, 28, 10, 0))).toBe('2026-11-20')    // Sat: production's d that day
+    expect(calendarSealedDate('W', et(2026, 4, 6, 10, 0))).toBe('2026-04-03')      // a Good Friday is still the label
+    expect(calendarSealedDate('M', et(2026, 11, 10, 10, 0))).toBe('2026-10-01')
+    expect(calendarSealedDate('M', et(2026, 11, 1, 0, 30))).toBe('2026-10-01')     // the 1st: October is sealed
+    expect(calendarSealedDate('M', et(2026, 1, 15, 10, 0))).toBe('2025-12-01')     // across the year
+    expect(calendarSealedDate('M', et(2026, 11, 30, 23, 30))).toBe('2026-10-01')   // 23:30 ET on the 30th is still November
     // a ticker that did not trade yesterday still asks the calendar's URL (the one the sweep warmed)
     expect(historySealedDate('D', ['2026-11-04', '2026-11-05'], et(2026, 11, 10, 10, 0))).toBe('2026-11-09')
     expect(historySealedDate('W', ['2026-10-30', '2026-11-06', '2026-11-09'], et(2026, 11, 10, 10, 0))).toBe('2026-11-06')

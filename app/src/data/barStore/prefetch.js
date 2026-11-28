@@ -77,6 +77,7 @@ import { bucketEndUnix } from '../../components/chart/liveBuckets'
 import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, isRthBar } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
+import { isKnownTicker } from '../../lib/tickerUniverse'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
@@ -1173,7 +1174,7 @@ export function createPrefetch(o = {}) {
     if (signal?.aborted) return false             // (review of #2938) a linked join the next text cancelled
     if (!S().deepPending?.(key)) return false     // already whole here (or saved whole), or the split is off
     const p = parseKey(key)
-    S().deepPrime?.(key, { priority })
+    S().deepPrime?.(key, { priority, signal })
     const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false, cover, signal })
     return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
   }
@@ -1316,12 +1317,17 @@ export function createPrefetch(o = {}) {
       const offEntry = reg.subscribe(key, wake, { wake: 'all' })
       let offAnswered = null
       try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      // (2026-11-28) ...and on its depth SETTLING (network.subscribeSettled): a history join or a lake load that added
+      // nothing moves no entry, and is exactly how a waiter learns nothing more is coming (deepPending / lakePending false)
+      let offSettled = null
+      try { offSettled = st.network?.subscribeSettled?.(key, wake) || null } catch { offSettled = null }
       let set = watchers.get(key)
       if (!set) { set = new Set(); watchers.set(key, set) }
       set.add(wake)
       return () => {
         try { offEntry() } finally {
           if (offAnswered) offAnswered()
+          if (offSettled) offSettled()
           set.delete(wake)
           if (!set.size && watchers.get(key) === set) watchers.delete(key)
         }
@@ -2178,7 +2184,11 @@ export function createPrefetch(o = {}) {
       // The lake's index and newest pieces are fetched NOW, before anything is decided (a prefix's
       // index is a cheap 404): by Enter the pieces are in the browser for the lake paint.
       try { S().primeLake?.(key) } catch { /* a warm only */ }
-      if (!packIngesting()) {
+      // ⭐ (2026-11-28, cold-arch 3.3 item 2) A TICKER THE UNIVERSE HOLDS IS ASKED AT ONCE: neither the pack's daily read
+      // (up to INTENT_HYDRATE_RACE_MS) nor the lake's index (up to INTENT_LAKE_INDEX_WAIT_MS, ~130 ms cold) is asked to
+      // vouch for it. They stay the authorities for text the universe does not hold (an ETF or a name outside it).
+      const known = isKnownTicker(T)
+      if (known !== true && (known === false || !packIngesting())) {
         const d = await _raced(_hydrate(keyFor(T, 'D')), INTENT_HYDRATE_RACE_MS)
         if (typed !== mine) return 'superseded'
         if (d !== undefined && !d?.depth) {
@@ -2215,6 +2225,19 @@ export function createPrefetch(o = {}) {
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
+  /** (cold-arch 3.3 item 2) Is typed text that nothing holds a ticker? The search's universe first (lib/tickerUniverse,
+   *  synchronous), then the lake's index (raced INTENT_LAKE_INDEX_WAIT_MS). With no universe held and the pack still
+   *  ingesting, yes: nothing can vouch either way, so it is asked, as before. A universe that does not hold the text is a
+   *  word against it: the lake decides, pack or no pack (a new member's prefixes no longer reach the origin).
+   *  `gone()`: a newer text took the typed slot meanwhile. Never rejects. */
+  async function _typedIsTicker(T, gone) {
+    const known = isKnownTicker(T)
+    if (known === true) return true
+    if (known === null && packIngesting()) return true
+    const inLake = await _raced(Promise.resolve().then(() => S().lakeHas?.(T) ?? false).catch(() => false), INTENT_LAKE_INDEX_WAIT_MS)
+    return !gone() && inLake === true
+  }
+
   function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0 } = {}) {
     if (!sym || !tf) return null
     if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover)
@@ -2244,7 +2267,7 @@ export function createPrefetch(o = {}) {
       // has it fetched now (network.deepPrime) and its tail asked for the chart's depth, so the join
       // lands while the member is still typing and Enter paints the whole chart at once.
       const deep = !!s0?.depth && !!S().deepPending?.(key)
-      if (deep) S().deepPrime?.(key, { priority: 'urgent' })
+      if (deep) S().deepPrime?.(key, { priority: 'urgent', signal: ctl.signal })   // (the next text aborts it)
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         _tellTyped(typedSym, tf, alsoTfs)
@@ -2252,13 +2275,34 @@ export function createPrefetch(o = {}) {
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
-      // ⛔ A PREFIX IS NOT A TICKER: with the pack held, uncached text is a partial word.
-      if (!s0?.depth && !packIngesting()) return 'unknown'
-      const depth = deep ? (fullBarsFor(String(tf)) || 0) : 0
+      // ⛔ A PREFIX IS NOT A TICKER: uncached text is asked only when an authority says it is one.
+      // ⭐⭐ (2026-11-28, cold-arch 3.3 item 2) ...AND THE UNIVERSE IS THE FIRST AUTHORITY. This line was
+      // `if (!s0?.depth && !packIngesting()) return 'unknown'`: with the daily pack held, a never-opened ticker the pack lacks
+      // sent NOTHING while it was typed, and its first frame waited on the origin after Enter (production, cold typed D:
+      // the request left 27-50 ms after Enter, the first frame 209-315 ms after it). Now: a ticker of the search's universe
+      // (lib/tickerUniverse) is asked at once; other text is asked once the lake's index knows the symbol (the intraday
+      // warm's second authority: an ETF or a name outside the universe); while the pack ingests nothing can vouch either
+      // way, so it is asked, as before.
+      // ⭐ ...FROM THE EDGE. A cold key's deep sealed history is due: it is asked NOW (deepPrime, the calendar's `d`, D, W and
+      // M alike) at the chart's full depth, so the origin answers only the newest rows of the view's cover (network
+      // EDGE_TAIL_BARS) and the history the edge holds brings the rest; the warm reports once they joined, so Enter paints
+      // the whole chart from memory. The next text aborts this one (the `typed` slot above): one typed tail at a time.
+      let cold = false
+      if (!s0?.depth) {
+        if (!(await _typedIsTicker(typedSym, () => typed !== mine))) return typed !== mine ? 'superseded' : 'unknown'
+        if (typed !== mine) return 'superseded'
+        cold = !!S().deepPending?.(key)
+        if (cold) S().deepPrime?.(key, { priority: 'urgent', signal: ctl.signal })
+        _tellTyped(typedSym, tf, alsoTfs)
+        _fetchLinked(typedSym, tf, alsoTfs, ctl.signal, cover)
+      }
+      const depth = deep || cold ? (fullBarsFor(String(tf)) || 0) : 0
       const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false, cover })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
-      if (answered && !s0?.depth && typed === mine) { _tellTyped(typedSym, tf, alsoTfs); _fetchLinked(typedSym, tf, alsoTfs, ctl.signal, cover) }   // the authority just said it is real
+      // (the join of the history asked above lands a moment after the tail: the warm reports the whole chart, bounded)
+      if (answered && (deep || cold) && typed === mine && S().deepPending?.(key)) await S().deepJoined?.(key, DEEP_JOIN_WAIT_MS)
+      if (ctl.signal.aborted && !mine.kept) return false
       return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }

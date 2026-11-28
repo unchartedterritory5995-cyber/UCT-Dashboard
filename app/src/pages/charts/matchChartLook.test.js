@@ -11,9 +11,12 @@ const gradChart = (id, x, y, top = '#0c3a30', bottom = '#0a1838') => ({
 })
 
 describe('matchChartLook', () => {
-  it('is off unless the layout says on', () => {
-    expect(matchChartOn({})).toBe(false)
+  it('is ON by default; only a recorded off turns it off', () => {
+    expect(matchChartOn({})).toBe(true)
+    expect(matchChartOn({ widgets: [] })).toBe(true)
     expect(matchChartOn({ matchChart: { on: true } })).toBe(true)
+    expect(matchChartOn({ matchChart: { on: false } })).toBe(false)
+    expect(matchChartOn(null)).toBe(false)
   })
 
   it('follows the named chart, else the top-left one', () => {
