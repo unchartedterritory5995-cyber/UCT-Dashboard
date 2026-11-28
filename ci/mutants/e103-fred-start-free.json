@@ -1,21 +1,21 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "e103 task B: Fred RS's start-free drawings off the listing (runtimeColumns.js::computeStartFree, runtime/startLatched.js). Each gate must be able to fail: the daily rating labels are never released, the non-daily constant labels are released exactly, a moved setting is refused, a daily chart short of 502 bars is refused, an edited script is refused.",
+ "about": "e103 task B: Fred RS's start-free drawings off the listing (runtimeColumns.js::computeStartFree, runtime/startLatched.js). Each gate must be able to fail: the daily rating labels are never released, the non-daily constant labels are released exactly, a moved setting is refused, a daily chart short of 502 bars is refused, an edited script is refused. (owner, 2026-11-27) Also at moved settings on the allow-list, checked by value, with a Historical type keeping only labels among the run's newest 50.",
  "mutants": [
   {
    "id": "E103-B1",
    "mutant": "the daily rating labels are released with the dots (the start-latched filter keeps everything)",
    "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
-   "from": "    for (const o of p.live) (isStartFreeOnChart(o, tf) ? live : latched).push(o)",
-   "to": "    for (const o of p.live) (o ? live : latched).push(o)",
+   "from": "      ;(survives && isStartFreeOnChart(o, tf) ? live : latched).push(o)",
+   "to": "      ;(o ? live : latched).push(o)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
    "expectRed": "on a DAILY chart off the listing both labels are withheld by name"
   },
   {
    "id": "E103-B2",
-   "mutant": "a moved setting is admitted (the run computes something other than the script as written)",
+   "mutant": "any setting is admitted, listed or not, in range or not (the run computes something other than the script as written)",
    "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
-   "from": "  if (given && (typeof given !== 'object' || Object.keys(given).length)) return false",
+   "from": "  if (!startFreeSettingsAdmit(ctx && ctx.runtimeInputs)) return false",
    "to": "  if (false) return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
    "expectRed": "a moved setting"
@@ -64,6 +64,51 @@
    "to": "  return true || p.style === 'label_center'",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
    "expectRed": "a constant label"
+  },
+  {
+   "id": "E103-B8",
+   "mutant": "every label survives off the listing (the newest-50 filter dropped): a Historical dot TradingView's collector may have deleted is drawn",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "      const survives = !(o && o.family === 'label') || kept.has(o.id)",
+   "to": "      const survives = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "THE TWO-START ORACLE"
+  },
+  {
+   "id": "E103-B9",
+   "mutant": "any moved setting refuses the release (#2919's first rule): UCT's default draws nothing off the listing",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (!startFreeSettingsAdmit(ctx && ctx.runtimeInputs)) return false",
+   "to": "  if (ctx && ctx.runtimeInputs && Object.keys(ctx.runtimeInputs).length) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "at the owner's preset"
+  },
+  {
+   "id": "E103-B10",
+   "mutant": "a Historical run does not name its oldest dots",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    ...(historical && !short ? [START_FREE_OLDEST_DOTS_REASON] : [])]",
+   "to": "    ]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "the oldest named"
+  },
+  {
+   "id": "E103-B11",
+   "mutant": "a look-back past the script's maxval (253) is admitted",
+   "file": "app/src/components/chart/engine/runtime/startLatched.js",
+   "from": "const isLen = (v) => Number.isInteger(v) && v >= 1 && v <= 252",
+   "to": "const isLen = (v) => Number.isInteger(v) && v >= 1 && v <= 253",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "checked by value"
+  },
+  {
+   "id": "E103-B12",
+   "mutant": "the comparative symbol is admitted (the run is served SP:SPX only)",
+   "file": "app/src/components/chart/engine/runtime/startLatched.js",
+   "from": "  SpxValue: (v) => typeof v === 'number' && Number.isFinite(v) && v > 0,",
+   "to": "  lineTicker: () => true,\n  SpxValue: (v) => typeof v === 'number' && Number.isFinite(v) && v > 0,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "a moved setting outside the start-free list"
   }
  ]
 }
