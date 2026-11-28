@@ -15382,6 +15382,18 @@ function StockChartBody({
     updateChart()
   }, [updateChart])
 
+  // ⭐ (B3, 2026-11-28) A TIMEFRAME HOLD THAT ENDS WITH NOTHING TO PAINT CLEARS THE OLD FRAME. While a switch holds, the
+  // hook hands the chart no bars and updateChart keeps the previous timeframe's series; at the bound (or a terminal
+  // no-data answer) the hold ends with still no bars, so nothing above changes and nothing re-ran updateChart: the OLD
+  // timeframe stayed on screen under the skeleton past the bound (StockChart.tfSwitchFromDaily C7). The release runs it
+  // once, so the empty arm shows the chart's honest loading / no-data state instead.
+  const _holdWasRef = useRef(false)
+  useEffect(() => {
+    const was = _holdWasRef.current
+    _holdWasRef.current = !!_tfSwitchHold
+    if (was && !_tfSwitchHold && !filteredBars?.length) updateChart()
+  }, [_tfSwitchHold])  // eslint-disable-line react-hooks/exhaustive-deps
+
   // ⭐ THE STORE'S DEVELOPING-BAR PAINT (P3-S2) — under BARSTORE the ONLY candle / volume update()
   // (the legacy writers are not mounted: chart/legacyLiveWriters.js; railed by
   // engine/__tests__/r1StoreWriterCensus.test.js). ONE function, two triggers:

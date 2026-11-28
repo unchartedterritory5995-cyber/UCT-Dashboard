@@ -267,9 +267,12 @@ export function useBarSnapshotBars({
   // nothing else (`_tfSwitchHold` below), yet its subscription re-rendered the whole chart when the new key's first
   // answer landed on EVERY symbol switch, a render that changed nothing on screen (`StockChart.switchStateRenders.test`).
   // Off a timeframe switch the hook reads the store's value as it renders and is not woken by it.
-  // (the daily-to-intraday hold's condition, below: computed here because it subscribes `_answered` too)
+  // (the empty-switch hold's condition, below: computed here because it subscribes `_answered` too)
+  // ⭐ (B3, 2026-11-28) EVERY timeframe press of one symbol, not only D / W / M -> intraday: intraday -> D on a cold D
+  // key, intraday -> W / M, and a CUSTOM timeframe (`_customBars` is null until its native base key loads) handed the
+  // chart nothing too, and the empty arm cleared it (StockChart.tfSwitchFromDaily C4-C7).
   const _shown = _shownTfRef?.current || null
-  const _fromOtherTf = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !!key
+  const _fromOtherTf = !_hasOverride && !replayCutoff && !!key
     && !!_shown && _shown.sym === sym && String(_shown.tf) !== String(resolvedTf)
   const _answered = useSyncExternalStore(
     useCallback((cb) => (key && (_isTfSwitch || _fromOtherTf) ? store.network.subscribeAnswered(key, cb) : () => {}),

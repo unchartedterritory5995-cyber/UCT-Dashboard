@@ -6,6 +6,11 @@
 //   C1 D painted, press 1m on a cold key (slow answer): no empty candle set and no blank frame before the 1m rows land;
 //      the 1m rows then paint
 //   C2 bounded: a 1m key that never answers shows the chart's loading skeleton after the bound (TF_SWITCH_EMPTY_HOLD_MS)
+// (B3, lane C) the same rule for EVERY timeframe press of one symbol, the other directions included:
+//   C4 1m painted, D pressed on a cold key · C5 1m -> W · C6 1m -> 4h (a CUSTOM timeframe: its base 60m key is cold):
+//      no empty candle set and no blank frame before the new rows land, then they paint
+//   C7 bounded, every direction: held at most TF_SWITCH_EMPTY_HOLD_MS, then the honest loading state (the skeleton),
+//      never a blank canvas without it and never the old timeframe's candles past the bound
 //   C3 (re-review of #3033) the 1m key first answers 503 `warming`, then rows: still no empty set and no blank frame
 //      and the held frame is not dropped for the cold-load skeleton (red under the early-answer release, measured)
 // Runs with the bar store on (the hold lives in its hook, and production builds run it). All prices are synthetic.
@@ -162,9 +167,24 @@ function days(n = 300) {
   }
   return out
 }
+function weeks(n = 120) {
+  const out = []
+  const end = Date.UTC(2026, 10, 9)   // a Monday
+  for (let i = n - 1; i >= 0; i--) out.push({ t: new Date(end - i * 7 * 86400000).toISOString().slice(0, 10), o: 50, h: 52, l: 48, c: 51, v: 5000 })
+  return out
+}
+function hours() {
+  const out = []
+  for (const d of [9, 10, 11]) {
+    for (let t = et(d, 9, 30); t < et(d, 16, 0) && t <= NOW; t += 3600) out.push({ t, o: 50, h: 50.4, l: 49.6, c: 50.1, v: 900 })
+  }
+  return out
+}
+const rowsOf = (tf) => (tf === '1' ? minutes() : tf === '60' ? hours() : tf === 'W' ? weeks() : tf === 'M' ? weeks(30) : days())
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
-// the server: daily answers at once; the 1m key answers after `minuteLatency` (Infinity = never)
-function serve({ minuteLatency, warmingFirst = false }) {
+// the server: every key answers at once except `slow` (default the 1m key), which answers after `minuteLatency`
+// (Infinity = never). D / W / M / the 60m base each answer rows of their own shape.
+function serve({ minuteLatency, warmingFirst = false, slow = '1' }) {
   let warm = warmingFirst ? 1 : 0
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
@@ -173,7 +193,7 @@ function serve({ minuteLatency, warmingFirst = false }) {
     if (h) return Promise.resolve(ok({ ticker: 'SYN', tf: 'D', sealed: true, bars: days() }))
     const m = u.match(/\/api\/bars\/([^?]+)\?tf=([^&]+)/)
     if (!m) return Promise.resolve(ok({}))
-    if (m[2] !== '1') return Promise.resolve(ok({ ticker: 'SYN', tf: m[2], bars: days() }))
+    if (m[2] !== slow) return Promise.resolve(ok({ ticker: 'SYN', tf: m[2], bars: rowsOf(m[2]) }))
     if (warm > 0) {
       warm--
       const r = { ok: false, status: 503, headers: { get: () => '1' }, json: async () => ({ ticker: 'SYN', tf: '1', bars: [], error: 'warming' }) }
@@ -181,7 +201,7 @@ function serve({ minuteLatency, warmingFirst = false }) {
       return new Promise((res) => setTimeout(() => res(r), 60))
     }
     if (!Number.isFinite(minuteLatency)) return new Promise(() => {})
-    return new Promise((res) => setTimeout(() => res(ok({ ticker: 'SYN', tf: '1', bars: minutes() })), minuteLatency))
+    return new Promise((res) => setTimeout(() => res(ok({ ticker: 'SYN', tf: m[2], bars: rowsOf(m[2]) })), minuteLatency))
   }))
 }
 const candle = () => T.series.find(s => s.__ctor === _real.CandlestickSeries)
@@ -218,6 +238,21 @@ async function dailyThenPress1m({ minuteLatency, warmingFirst = false }) {
   view.rerender(<StockChart sym="SYN" tf="1" backgroundWarm={false} forceExtendedHours={false} />)
   return { view, blanks, covers, t0, stop: () => clearInterval(id) }
 }
+
+async function pressFrom1m(to, { latency, slow }) {
+  serve({ minuteLatency: latency, slow })
+  const view = render(<StockChart sym="SYN" tf="1" backgroundWarm={false} forceExtendedHours={false} />)
+  await wait(500)
+  expect(BARSTORE_ON).toBe(true)
+  expect(realCandles().length, 'the 1m chart painted').toBeGreaterThan(0)
+  const before = realCandles().at(-1).time
+  T.empties.length = 0
+  const blanks = []
+  const id = setInterval(() => { if (!realCandles().length) blanks.push(Date.now()) }, 2)
+  view.rerender(<StockChart sym="SYN" tf={to} backgroundWarm={false} forceExtendedHours={false} />)
+  return { view, blanks, before, stop: () => clearInterval(id) }
+}
+const skeleton = () => document.querySelector('[aria-busy="true"]')
 
 describe('a timeframe press from a daily chart never empties the chart (real StockChart)', () => {
   it('C1 D painted, 1m pressed on a cold key: no empty set and no blank frame before the 1m rows land, then they paint', async () => {
@@ -259,5 +294,33 @@ describe('a timeframe press from a daily chart never empties the chart (real Sto
     await wait(TF_SWITCH_EMPTY_HOLD_MS + 600)
     stop()
     expect(screen.queryByRole('status', { busy: true }) || document.querySelector('[aria-busy="true"]'), 'the loading skeleton').not.toBeNull()
+    expect(realCandles().length, 'the old daily candles on screen past the bound').toBe(0)
   }, 15_000)
+
+  for (const [to, slow, label] of [['D', 'D', 'C4 1m -> D'], ['W', 'W', 'C5 1m -> W'], ['240', '60', 'C6 1m -> 4h (custom, its 60m base cold)']]) {
+    it(`${label}: no empty set and no blank frame before the new rows land, then they paint`, async () => {
+      const { blanks, stop, before } = await pressFrom1m(to, { latency: 400, slow })
+      await wait(250)
+      expect(T.empties, 'an empty candle set before the new rows landed').toEqual([])
+      expect(blanks, 'a blank frame before the new rows landed').toEqual([])
+      await wait(900)
+      stop()
+      expect(realCandles().length, 'the new rows painted').toBeGreaterThan(0)
+      expect(realCandles().at(-1).time, 'the new timeframe is on screen').not.toBe(before)
+      expect(T.empties).toEqual([])
+      expect(blanks).toEqual([])
+    })
+
+    it(`C7 ${label}, never answered: held at most the bound, then the skeleton, never the old candles past it`, async () => {
+      const { blanks, stop, before } = await pressFrom1m(to, { latency: Infinity, slow })
+      await wait(300)
+      expect(T.empties, 'held while the answer is in flight').toEqual([])
+      await wait(TF_SWITCH_EMPTY_HOLD_MS + 400)
+      stop()
+      expect(skeleton(), 'the loading skeleton after the bound').not.toBeNull()
+      expect(realCandles().some((c) => c.time === before), 'the old timeframe on screen past the bound').toBe(false)
+      // a blank canvas only ever under the skeleton: no blank frame before the release
+      expect(blanks.every((t) => t >= T.empties[0]), 'a blank frame before the release').toBe(true)
+    }, 15_000)
+  }
 })
