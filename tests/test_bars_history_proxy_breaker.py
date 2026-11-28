@@ -32,9 +32,10 @@ def _env(monkeypatch):
     sign_in_bars_caller(monkeypatch)
     monkeypatch.setenv("BARS_HISTORY_PROXY_ENABLED", "1")
     monkeypatch.setenv("BARS_HISTORY_ORIGIN_URL", "http://worker.internal:8080")
-    bars_mod._history_breaker_reset_for_tests()
+    _reset = getattr(bars_mod, "_history_breaker_reset_for_tests", lambda: None)   # absent before the breaker landed
+    _reset()
     yield
-    bars_mod._history_breaker_reset_for_tests()
+    _reset()
 
 
 @contextmanager
