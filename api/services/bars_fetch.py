@@ -1404,6 +1404,8 @@ def _wm_stored_daily_current(ticker_up: str, d_last=_D_UNREAD) -> bool:
         now = _wm_now_et()
         if _wm_in_live_window(now):
             return False
+        if not _wm_daily_poll_settled(now):
+            return False
         if d_last is _D_UNREAD:
             d_last = _sqlite.get_last_ts(ticker_up, "D")
         if not d_last:
@@ -1411,6 +1413,22 @@ def _wm_stored_daily_current(ticker_up: str, d_last=_D_UNREAD) -> bool:
         return int(d_last) >= _wm_required_daily_ymd(now)
     except Exception:                      # noqa: BLE001 — unknown: the store as it is, as before
         return False
+
+
+def _wm_daily_poll_settled(now) -> bool:
+    """The live daily poll succeeded AFTER the close of the latest session (`_wm_required_daily_ymd`), on the wall
+    clock: the stored daily then holds that session's settled bar. Unknown (no success in this process, e.g. after a
+    restart) = not settled.
+    ⛔⛔ (review of #3001, residual) a poll that died mid-session while the pod stayed up left TODAY's 11:00 partial
+    row as the stored daily's tail; from 20:00 and all weekend the stored path derived W/M from it with no
+    revalidation (`_fresh_needed = False`)."""
+    from api.services import bars_live_store as _bls
+    wall = _bls._state.get("daily_last_ok_wall")
+    if wall is None:
+        return False
+    ymd = str(_wm_required_daily_ymd(now))
+    day = datetime(int(ymd[:4]), int(ymd[4:6]), int(ymd[6:]))
+    return float(wall) >= float(_session_window(day, "rth")[1])
 
 
 def _wm_in_live_window(now) -> bool:
@@ -1526,6 +1544,29 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D
     if bars and len(rows) > max(int(bars), len(stored_rows)):
         rows = rows[-max(int(bars), len(stored_rows)):]
     return rows, rows[-1][0]
+
+
+def _wm_cold_behind(ticker_up: str, tf: str, tail, d_last) -> bool:
+    """The stored W/M tail is behind the stored daily AND the serve-time reconcile cannot make it current, because
+    the daily lacks a session of the period: the answer must come from the provider first (Layer 4's bounded,
+    deduped `_bounded_date_delta`, serving the store at its deadline), never stale-while-revalidate.
+    Behind = the daily's tail is in a LATER period, or in the same period with another close."""
+    try:
+        if not d_last:
+            return False
+        key_d, k = _wm_key_of(tf, int(d_last)), int(tail[0])
+        if k > key_d:
+            return False                   # the W/M row is ahead of the daily: nothing to bring forward
+        drows = _sqlite.get_bars(ticker_up, "D", _RECONCILE_DAILY_ROWS[tf])
+        if not drows:
+            return False
+        in_p = [r for r in drows if _wm_key_of(tf, int(r[0])) == key_d]
+        complete = _wm_period_rows_complete(tf, key_d, in_p, int(d_last))
+        if k == key_d:
+            return (not complete) and float(tail[4]) != float(drows[-1][4])
+        return not (complete and key_d == _wm_next_key(tf, k))
+    except Exception:                      # noqa: BLE001 — unknown: stale-while-revalidate, as before
+        return False
 
 
 def _wm_live_fresh(ticker_up: str, tf: str, last_ts) -> bool:
@@ -2371,31 +2412,100 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     volume only grows inside a period, so the side with more volume is the fresher one; equal or
     less volume keeps the stored bar (newest wins, never regress). Sealed weeks are never touched.
     A daily week NEWER than the last weekly key (a Monday before the W store has this week) is
-    appended under its Friday key, the key `_resample_weekly_iso` would stamp."""
+    appended under its Friday key, the key `_resample_weekly_iso` would stamp.
+    ⛔ (review of #3001) only from a daily that holds EVERY session of the period (`_reconcile_developing_period`):
+    a week rebuilt from a daily with a hole lacks a session."""
+    return _reconcile_developing_period(ticker, "W", weekly)
+
+
+def _reconcile_developing_month(ticker: str, monthly: list[dict]) -> list[dict]:
+    """The developing MONTH from the stored daily, the monthly twin of `_reconcile_developing_week`.
+    ⛔⛔ (review of #3001, (b)) in RTH an uncovered name's first M answer was the stored M row, which can be WEEKS old
+    (ACIW M 61.26 against its 52.24 daily): uncovered = outside the snapshot, any name that did not print the previous
+    session (thin ETFs, preferreds, halts), every name after a day the poll was down."""
+    return _reconcile_developing_period(ticker, "M", monthly)
+
+
+#: newest stored daily rows the serve-time reconcile reads: a week, or a month (<= 23 sessions), plus margin
+_RECONCILE_DAILY_ROWS = {"W": 8, "M": 26}
+
+
+def _wm_period_end_ymd(tf: str, key: int) -> int:
+    if tf == "W":
+        return int(key)
+    s = str(int(key))
+    y, m = int(s[:4]), int(s[4:6])
+    nxt = datetime(y + (m == 12), 1 if m == 12 else m + 1, 1)
+    return int((nxt - timedelta(days=1)).strftime("%Y%m%d"))
+
+
+def _wm_period_rows_complete(tf: str, key: int, rows, d_last: int) -> bool:
+    """`rows` (the stored daily rows of the period `key`) are exactly the NYSE sessions from the period's start
+    through its end or the daily's tail, whichever is first: no hole at its start, inside, or at its end."""
+    start = _wm_period_start(tf, key)
+    end = min(_wm_period_end_ymd(tf, key), int(d_last))
+    have = sorted(int(r[0]) for r in rows)
+    want = []
+    s, e = str(start), str(end)
+    d, last = datetime(int(s[:4]), int(s[4:6]), int(s[6:])), datetime(int(e[:4]), int(e[4:6]), int(e[6:]))
+    while d <= last:
+        if _is_trading_day_ymd(d):
+            want.append(int(d.strftime("%Y%m%d")))
+        d += timedelta(days=1)
+    return bool(want) and have == want
+
+
+def _wm_next_key(tf: str, key: int) -> int:
+    s = str(int(key))
+    d = datetime(int(s[:4]), int(s[4:6]), int(s[6:]))
+    if tf == "W":
+        return int((d + timedelta(days=7)).strftime("%Y%m%d"))
+    return int(datetime(d.year + (d.month == 12), 1 if d.month == 12 else d.month + 1, 1).strftime("%Y%m%d"))
+
+
+def _reconcile_developing_period(ticker: str, tf: str, out_rows: list[dict]) -> list[dict]:
+    """The developing W/M period(s) rebuilt from the stored daily at the serve chokepoint (read-only, no provider
+    call): the stored tail is replaced when the daily derives MORE volume for it (newest wins, never regress), and the
+    NEXT period is appended when the daily already runs into it. Each one only from a daily holding every session of
+    that period so far (`_wm_period_rows_complete`); the first period that fails ends the walk (never a gap)."""
     try:
-        drows = _sqlite.get_bars(ticker, "D", 8)
+        drows = _sqlite.get_bars(ticker, "D", _RECONCILE_DAILY_ROWS[tf])
     except Exception:
-        return weekly
+        return out_rows
     if not drows:
-        return weekly
-    daily = []
+        return out_rows
+    daily, kept = [], []
     for ts, o, h, l, c, v in drows:
         if None in (o, h, l, c) or min(o, h, l, c) <= 0:
             continue
-        s = str(ts)
-        daily.append({"t": f"{s[:4]}-{s[4:6]}-{s[6:]}", "o": o, "h": h, "l": l, "c": c, "v": v or 0})
-    derived = _resample_weekly_iso(daily)
+        sd = str(ts)
+        kept.append((ts, o, h, l, c, v))
+        daily.append({"t": f"{sd[:4]}-{sd[4:6]}-{sd[6:]}", "o": o, "h": h, "l": l, "c": c, "v": v or 0})
+    if not daily:
+        return out_rows
+    derived = _resample_weekly_iso(daily) if tf == "W" else _resample_monthly_iso(daily)
     if not derived:
-        return weekly
-    last_key = weekly[-1]["t"]
-    out = list(weekly)
-    for wk in derived:
-        if wk["t"] == last_key:
-            if (wk.get("v") or 0) > (out[-1].get("v") or 0):
-                out[-1] = wk
-        elif wk["t"] > last_key:
-            out.append(wk)
-    return out
+        return out_rows
+    try:
+        d_last = int(kept[-1][0])
+        out = list(out_rows)
+        for p in derived:
+            k = int(p["t"].replace("-", ""))
+            tail = int(out[-1]["t"].replace("-", ""))
+            if k < tail:
+                continue
+            in_p = [r for r in kept if _wm_key_of(tf, int(r[0])) == k]
+            complete = _wm_period_rows_complete(tf, k, in_p, d_last)
+            if k == tail:
+                if complete and (p.get("v") or 0) > (out[-1].get("v") or 0):
+                    out[-1] = p
+                continue
+            if k != _wm_next_key(tf, tail) or not complete:
+                break
+            out.append(p)
+        return out
+    except Exception:                      # noqa: BLE001 — the store as it is
+        return out_rows
 
 
 # ⭐ THE ONE EXTENDED-SESSION RULE lives in `api/services/extended_session.py` (a light module, so the live gate and the
@@ -2497,6 +2607,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
             pass  # best-effort: never let the guard blank a chart
     if ticker and weekly and out:
         out = _reconcile_developing_week(ticker, out)
+    elif ticker and tf == "M" and out:
+        out = _reconcile_developing_month(ticker, out)
     if ticker and date_tf and out:
         try:
             from api.services.bars_sanitize import sanitize_daily_bars
@@ -5726,10 +5838,14 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # W/M on a live daily (`_wm_overlay`): the answer carries the periods the stored daily derives, whatever happens to
     # their write (background, deduped, never awaited); `wm_drv` on Server-Timing is the derive's cost.
     _wm_live = False
+    _wm_cold = False
     if tf in ("W", "M") and stored_rows:
-        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars, _sqlite.get_last_ts(ticker_up, "D"))
+        _d_last_wm = _sqlite.get_last_ts(ticker_up, "D")
+        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars, _d_last_wm)
         if _ov is not None:
             stored_rows, last_ts, _wm_live = _ov[0], _ov[1], True
+        else:
+            _wm_cold = _wm_cold_behind(ticker_up, tf, stored_rows[-1], _d_last_wm)
         _time_ck("wm_drv")
 
     # SQLite has fresh data AND enough rows for this request count.
@@ -5792,6 +5908,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         and (not _is_cold_stale_intraday(tf, last_ts) or _intraday_deblockable(tf, last_ts))
         and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
         and not _is_cold_stale_weekly(tf, last_ts)
+        and not _wm_cold
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
