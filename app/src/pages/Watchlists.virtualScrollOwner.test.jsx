@@ -111,7 +111,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); HUB = null })
 
-test('V1 a selected row of a virtualized list is not scrollIntoView'd (ScanRows placed it)', async () => {
+test("V1 a selected row of a virtualized list is not scrollIntoView'd (ScanRows placed it)", async () => {
   HUB = 'S5'
   render(<Watchlists embedded pickList="user:wl1" pickName="Long List" />)
   await screen.findAllByText('Long List')
@@ -131,7 +131,7 @@ test('V2 control: a selection far down the virtualized list is still brought int
   expect(V.calls).toContainEqual({ index: 150, align: 'center' })
 })
 
-test('V3 control: a row of a list rendered outright is still scrollIntoView'd', async () => {
+test("V3 control: a row of a list rendered outright is still scrollIntoView'd", async () => {
   HUB = 'AVGO'
   render(<Watchlists embedded pickList="user:wl2" pickName="Short List" />)
   await screen.findAllByText('Short List')
