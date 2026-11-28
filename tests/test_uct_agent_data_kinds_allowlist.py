@@ -120,25 +120,83 @@ def test_config_reports_the_active_kinds(monkeypatch):
     assert cfg["data"] is True and cfg["data_kinds"] == ["quote", "quotes"] and cfg["scan"] is False
 
 
-# W2 release gate (#734/#746): production's EXACT UCT_AGENT_DATA_KINDS (web, 2026-11-03). The W2 history kind stays
-# dark and no isolated kind is readable, for any purpose, with UCT_AGENT_ISOLATED unset (as in production).
-PROD_KINDS = ("instrument.resolve,quote,quotes,bars.daily,fundamentals,earnings,news.company,themes,"
-              "screen.run,screen.count,screen.saved")
+# PRODUCTION'S EXACT VALUES (web), armed 2026-11-24 by the integrator under the owner's delegation of 2026-11-24 ("you
+# decide it all and get it all done"), generated from the code (kinds.py's isolated set minus the exclusions), never by
+# hand. UCT_AGENT_ISOLATED=1, every armed isolated kind named on its own in UCT_AGENT_ISOLATED_KINDS (D9) and served for
+# purpose "answer" only (ADR-005 unchanged). The Railway commands: docs/agent/program/RESUME.md. The browser half:
+# app/src/agent/agentProdKinds.test.js (the same list). Each excluded kind's reason: docs/feature_flags.json
+# knobs.UCT_AGENT_ISOLATED_KINDS.
+PROD_ISOLATED_KINDS = ("breadth.current,ratings,rs.leadership,analyst.actions,highsLows.session,levels.darkpool,"
+                       "highsLows.yearly,themes.rotation,confluence.board,earnings.expectedMove,levels.gamma,flow.topPicks,"
+                       "flow.record,earnings.reactions,earnings.season,group.drill,short.interest,short.list,"
+                       "seasonality.stock,seasonality.board,options.tideHistory,options.oiChange,rates.treasury,"
+                       "market.regime,stock.setups,stock.eventsTimeline,uct20.list,options.ivHistory,dilution.watch,"
+                       "stock.corporateActions,calendar.ipos,calendar.dividends,rates.auctions,rates.realYields,stock.stats,"
+                       "stock.volumeFootprint,stock.factorExposure,stock.setupHistory,company.publicRecords,ownership.funds,"
+                       "groups.rank,groups.crowding,earnings.seasonBySector,estimates.revisionBreadth,options.ivRankLeaders,"
+                       "ipo.lockups,cot.byTrader,estimates.history,analyst.ratings,company.segments,stock.failsToDeliver,"
+                       "company.deals,insider.market,market.history,econ.latest,market.liquidity,market.oil,market.analogs")
+PROD_KINDS_BEFORE_ISOLATED = ("instrument.resolve,quote,quotes,bars.daily,fundamentals,earnings,news.company,themes,screen.run,"
+                              "screen.count,screen.saved,cot.positioning,history.eventStudy")
+PROD_KINDS = PROD_KINDS_BEFORE_ISOLATED + "," + PROD_ISOLATED_KINDS
+PROD_EXCLUDED = (
+    "earnings.callSearch",
+    "earnings.callThemes",
+    "fed.watch",
+    "catalysts.board",
+    "sectors.performance",
+    "index.quote",
+    "commodity.quote",
+    "crypto.quote",
+    "research.company",
+    "knowledge.search",
+    "setup.playbook",
+    "setup.record",
+    "leaders.longRun",
+)
 
 
-def test_production_kind_list_keeps_history_and_isolated_kinds_dark(monkeypatch, ran):
+def _production(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.KINDS_ENV, PROD_KINDS)
-    assert gw.enabled_kinds() == frozenset(PROD_KINDS.split(","))
-    assert "history.eventStudy" in _all()                         # registered server-side (non-vacuity)…
-    assert _read("history.eventStudy")["status"] == "refused"     # …but not switched on
-    isolated = [n for n in _all() if gw.registry().get(n).model_isolated]
-    assert {"breadth.current", "ratings"} <= set(isolated)
-    for name in isolated:
+    monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, PROD_ISOLATED_KINDS)
+
+
+def test_production_kind_list_serves_the_armed_kinds_and_keeps_the_excluded_dark(monkeypatch, ran):
+    _production(monkeypatch)
+    names = set(_all())
+    armed, armed_iso = PROD_KINDS.split(","), PROD_ISOLATED_KINDS.split(",")
+    assert len(armed) == len(set(armed)) == 71 and len(armed_iso) == 58
+    assert set(armed) <= names and set(PROD_EXCLUDED) <= names     # no typo: every name is a registered kind
+    assert not set(PROD_EXCLUDED) & set(armed)
+    assert gw.enabled_kinds() == frozenset(armed)
+    isolated = {n for n in names if gw.registry().get(n).model_isolated}
+    assert gw.isolated_kinds() == frozenset(armed_iso)
+    assert set(armed_iso) <= isolated                               # the isolation list names isolated kinds only
+    assert isolated & set(armed) == set(armed_iso)                  # D9: every served isolated kind has its own entry
+    for name in PROD_EXCLUDED:
         for purpose in ("answer", "scan", "research"):
             assert _read(name, purpose)["status"] == "refused", (name, purpose)
-    assert _read("bars.daily")["status"] == "ok"                  # the served kinds still serve
-    assert "history.eventStudy" not in ran and not set(isolated) & set(ran)
+    assert not set(PROD_EXCLUDED) & set(ran)
+    for name in armed_iso:                                          # served to the member, for an answer only
+        assert _read(name, "answer")["status"] == "ok", name
+        for purpose in ("scan", "research"):
+            out = _read(name, purpose)
+            assert out["status"] == "refused" and "never used for research" in out["notes"][0], (name, purpose)
+    for name in ("cot.positioning", "history.eventStudy", "bars.daily"):
+        assert _read(name)["status"] == "ok", name
+
+
+def test_production_isolated_kinds_are_refused_while_the_isolation_master_switch_is_off(monkeypatch, ran):
+    """The order of the two Railway commands matters only for the member's view; the server fails closed either way:
+    with UCT_AGENT_DATA_KINDS set but UCT_AGENT_ISOLATED unset, no isolated kind is served."""
+    _production(monkeypatch)
+    monkeypatch.delenv(gw.ISOLATED_ENV)
+    for name in PROD_ISOLATED_KINDS.split(","):
+        assert _read(name)["status"] == "refused", name
+    assert not set(PROD_ISOLATED_KINDS.split(",")) & set(ran)
+    assert _read("cot.positioning")["status"] == "ok"
 
 
 def test_a_bars_args_shape_from_before_from_still_matches_after_the_server_fill():

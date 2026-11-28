@@ -49,10 +49,11 @@ describe('the view word matches the panel that owns it', () => {
 describe('the code', () => {
   it('INS keeps its label, group and panel; the market variant takes the view word; there is no per-stock INS', () => {
     expect(INS_CODE).toBe('INS')
-    expect(BY_CODE.INS.market).toEqual({ panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] })
+    expect(BY_CODE.INS.market).toEqual({ panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' },
+      { kind: 'insSide', prop: 'side' }, { kind: 'insWindow', prop: 'window' }] })
     expect(BY_CODE.INS.ticker).toBeUndefined()
     expect(BY_CODE.INS.group).toBe('Market')
-    expect(BY_CODE.INS.label).toBe('Insider buying (market-wide, last 7 days)')
+    expect(BY_CODE.INS.label).toBe('Insider trades (market-wide buys or sales, last 7 to 90 days)')
     expect(variantFor('INS', false)).toMatchObject({ scope: 'market' })
   })
 

@@ -15,7 +15,8 @@ import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshnes
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import WarmingState from './WarmingState'
-import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
+import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, windowTokens, withArgsKey } from './relativeMath'
+import { usePanelWriteBack } from './commandWriteBack'
 import styles from './comparePanels.module.css'
 
 export const REL_MAX = 6
@@ -87,6 +88,14 @@ export default function RelPanel({ sym, lookback, ...props }) {
   const syms = useMemo(() => relSymbols(sym, props), [sym, withKey])
   const [win, setWin] = useState(REL_WINDOWS.includes(lookback) ? lookback : '6M')
   useEffect(() => { if (REL_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
+  // Customization pass 1: the window chip writes itself into the command (`REL ... 6M`, the
+  // registered `lookback` argument), so a reload, a saved board and a share link keep it. Outside
+  // the shell it is component state.
+  const writeBack = usePanelWriteBack()
+  const pickWin = (w) => {
+    if (w === win) return
+    if (!writeBack(windowTokens(props, w), sym || null)) setWin(w)
+  }
   // A typed window this panel cannot draw is SAID, never silently replaced (the CORR pattern).
   const unapplied = lookback && !REL_WINDOWS.includes(lookback) ? lookback : null
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
@@ -125,7 +134,7 @@ export default function RelPanel({ sym, lookback, ...props }) {
     <div className={styles.wrap} data-testid="terminal-rel">
       <div className={styles.toolbar} role="group" aria-label="Window">
         {REL_WINDOWS.map((w) => (
-          <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
+          <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => pickWin(w)}>{w}</button>
         ))}
         <BoardFromList syms={shownSyms} label={`REL ${win}`} testId="terminal-rel-board" />
       </div>

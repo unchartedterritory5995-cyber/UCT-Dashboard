@@ -5,7 +5,7 @@
   setup.record      a setup's historical record: floored, labelled, with a 95 % interval; never "proven edge"
 
 Gates (all must hold): the gateway (UCT_AGENT_DATA=1, the kind in UCT_AGENT_DATA_KINDS), require_admin_dark on the
-route, and UCT_AGENT_KNOWLEDGE=1 (checked by each kind's validate, read per request). Read-only; no external call.
+route (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1), and UCT_AGENT_KNOWLEDGE=1 (checked by each kind's validate, read per request). Read-only; no external call.
 """
 from __future__ import annotations
 

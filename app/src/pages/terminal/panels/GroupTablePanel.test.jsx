@@ -22,6 +22,7 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import GroupTablePanel from './GroupTablePanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { groupStatsUrl } from './groupStatsModel'
 import { groupDrillCommand } from './groupDrillModel'
 import { COMPUTING, INDUSTRY_BOARD, NOT_BUILT, SECTOR_BOARD } from './__fixtures__/groupStatsFixture'
@@ -43,13 +44,14 @@ function serve(routes) {
 }
 const asked = () => [...new Set(jsonFetcher.mock.calls.map(([url]) => url))]
 
-function renderPanel(props = {}, { rerun = vi.fn(), open = vi.fn(), setFreshness = vi.fn() } = {}) {
+function renderPanel(props = {}, { rerun = vi.fn(), open = vi.fn(), setFreshness = vi.fn(), saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><GroupTablePanel {...props} /></ViewHost> : <GroupTablePanel {...props} />
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open, run: vi.fn(), rerun, publish: vi.fn(), publishRows: vi.fn() }}>
           <TerminalPanelContext.Provider value={{ code: 'GRPS', density: 'comfortable', inset: true }}>
-            <GroupTablePanel {...props} />
+            {body}
           </TerminalPanelContext.Provider>
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
@@ -352,4 +354,26 @@ describe('GRPS follows the member\'s theme and passes axe', () => {
     await screen.findByTestId('terminal-grps-error')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('GRPS each view keeps its own sort (customization pass 1)', () => {
+  it('a sort picked on one view is found again on going back, another view opens on its own default; kept on remount', async () => {
+    serve({ [SECTORS]: SECTOR_BOARD })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-grps-table')
+    const start = screen.getByTestId('terminal-grps-table').getAttribute('data-sort')
+    fireEvent.click(screen.getByTestId('terminal-grps-sort-f:pe_ttm'))
+    const picked = screen.getByTestId('terminal-grps-table').getAttribute('data-sort')
+    expect(picked).not.toBe(start)
+    fireEvent.change(screen.getByTestId('terminal-grps-view'), { target: { value: 'margins' } })
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe('name:asc')
+    fireEvent.change(screen.getByTestId('terminal-grps-view'), { target: { value: 'overview' } })
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe(picked)
+    cleanup()
+    serve({ [SECTORS]: SECTOR_BOARD })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-grps-table')
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe(picked)
+  })
 })

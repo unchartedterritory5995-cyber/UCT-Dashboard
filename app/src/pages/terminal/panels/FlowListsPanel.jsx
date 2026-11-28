@@ -23,6 +23,7 @@ import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import {
   formatCompactTerminal, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -82,16 +83,26 @@ function FailedRead({ read, what, code, body = 'That is not the same as an empty
 const CLICK_LINE = 'Click a symbol to load it into the linked panels; type a row number to do the same.'
 const STUDY_LINE = 'A list says which stocks to study; it is not a forecast or a recommendation.'
 
+/** A flow grade as a number to sort by: A+ highest, then A, A-, B+ ... (a letter grade sorts wrong as text). */
+export function gradeRank(g) {
+  const m = /^([A-F])([+-]?)$/.exec(String(g || '').trim().toUpperCase())
+  if (!m) return null
+  return (70 - m[1].charCodeAt(0)) * 3 + (m[2] === '+' ? 2 : m[2] === '-' ? 0 : 1)
+}
+
 function CreamList({ code }) {
   // The pace follows the server's own word that it is still building (as the open board does).
   const [building, setBuilding] = useState(false)
   const read = useMarketRead(CREAM_URL, { refreshInterval: building ? BUILD_POLL_MS : CREAM_POLL_MS })
   const view = useMemo(() => creamRead(read.body), [read.body])
   if ((view.state === 'computing') !== building) setBuilding(view.state === 'computing')
+  const table = usePanelTable({ columns: CREAM_COLUMNS })
+  const sorted = useMemo(() => table.apply(view.rows), [view.rows, table.apply])
+  const show = table.shows
   const what = FLOW_LISTS.cream.what
   // The time the server built this list when it says so; an older server only names the day.
   usePanelFreshness(view.state === 'ok' && view.rows.length ? panelAsOf(SOURCE, view.builtAt || view.date) : null)
-  usePanelSymbolRows(view.rows.map((r) => r.sym), 'Cream of the Crop', { total: view.rows.length })
+  usePanelSymbolRows(sorted.map((r) => r.sym), 'Cream of the Crop', { total: view.rows.length })
 
   if (read.loading) return <PanelSkeleton label="Loading Cream of the Crop" testId="terminal-flwl-loading" />
   if (read.error && !read.body) return <FailedRead read={read} what={what} code={code} />
@@ -133,38 +144,28 @@ function CreamList({ code }) {
           {view.counts.all === 1 ? 'position' : 'positions'}{day ? ` for ${day}` : ''}.
           {view.net ? ` Across the whole market that day: ${money(view.net.bull)} of bullish premium and ${money(view.net.bear)} of bearish premium.` : ''}
         </span>
+        <PanelColumns table={table} testId="terminal-flwl-cream-columns" />
       </div>
       <div className={styles.tableBox} data-fold="510">
         <table className={styles.table} data-testid="terminal-flwl-cream"
           aria-label={`Cream of the Crop${day ? ` for ${day}` : ''}, ${view.rows.length} ${view.rows.length === 1 ? 'position' : 'positions'}`}>
-          <thead>
-            <tr>
-              <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={`${styles.wrapCell} ${styles.snugTight}`}>Contract</th>
-              <th scope="col" title="Which way the position leans">Direction</th>
-              <th scope="col" title="Dollars paid at the ask on this contract in the session">Premium</th>
-              <th scope="col" title="The flow grade of the position, A+ best">Grade</th>
-              <th scope="col" className={`${styles.phoneHide} ${styles.snugWrap}`} title="Contracts bought at the ask, against the open interest before the session">Volume vs open interest</th>
-              <th scope="col" className={styles.phoneHide} title="Contracts bought at the ask in the session">Contracts</th>
-              <th scope="col" className={`${styles.phoneHide} ${styles.snugWrap}`}>Days to expiry</th>
-            </tr>
-          </thead>
+          <PanelTableHead table={table} testId="terminal-flwl-cream" />
           <tbody>
-            {view.rows.map((r, i) => (
+            {sorted.map((r, i) => (
               <tr key={r.key} data-testid={`terminal-flwl-row-${r.sym}`} data-direction={r.direction}>
                 <td>
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>
-                <td className={toneOf(r.direction)}>{directionWords(r)}</td>
-                <td>{money(r.premium)}</td>
-                <td>{r.grade || 'Not graded'}</td>
-                <td className={styles.phoneHide}>
+                {show('c.contract') && <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>}
+                {show('c.direction') && <td className={toneOf(r.direction)}>{directionWords(r)}</td>}
+                {show('c.premium') && <td>{money(r.premium)}</td>}
+                {show('c.grade') && <td>{r.grade || 'Not graded'}</td>}
+                {show('c.voi') && <td className={styles.phoneHide}>
                   {r.newStrike ? 'New strike' : r.volToOi == null ? NA : `${formatNumber(r.volToOi, { decimals: 1 })}×`}
-                </td>
-                <td className={styles.phoneHide}>{formatNumber(r.contracts, { decimals: 0, absent: NA })}</td>
-                <td className={styles.phoneHide}>{formatNumber(r.daysLeft, { decimals: 0, absent: NA })}</td>
+                </td>}
+                {show('c.contracts') && <td className={styles.phoneHide}>{formatNumber(r.contracts, { decimals: 0, absent: NA })}</td>}
+                {show('c.dte') && <td className={styles.phoneHide}>{formatNumber(r.daysLeft, { decimals: 0, absent: NA })}</td>}
               </tr>
             ))}
           </tbody>
@@ -195,6 +196,22 @@ function CreamList({ code }) {
   )
 }
 
+/** Customization pass 1: each list's columns (components/terminal/PanelTable). The server's order is
+ *  the default (Cream: grade, then premium; the open board: net premium) and decides which rows are
+ *  listed; a header click sorts the rows listed. The keys carry the list's letter (`c.` / `o.`), so
+ *  the columns each list hides are its own; the panel keeps one sort, the list on screen's. */
+export const CREAM_COLUMNS = Object.freeze([
+  { key: 'c.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'c.contract', label: 'Contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`, title: 'Sorts by days to expiry' },
+  { key: 'c.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the position leans' },
+  { key: 'c.premium', label: 'Premium', sort: (r) => r.premium, title: 'Dollars paid at the ask on this contract in the session' },
+  { key: 'c.grade', label: 'Grade', sort: (r) => gradeRank(r.grade), title: 'The flow grade of the position, A+ best' },
+  { key: 'c.voi', label: 'Volume vs open interest', sort: (r) => r.volToOi, phoneHide: true, thClass: styles.snugWrap,
+    title: 'Contracts bought at the ask, against the open interest before the session' },
+  { key: 'c.contracts', label: 'Contracts', sort: (r) => r.contracts, phoneHide: true, title: 'Contracts bought at the ask in the session' },
+  { key: 'c.dte', label: 'Days to expiry', firstDir: 'asc', sort: (r) => r.daysLeft, phoneHide: true, thClass: styles.snugWrap },
+])
+
 function OpenBoard({ code }) {
   // The pace follows the server's own word that it is still building. `building` is adjusted
   // during render from the last answer (no effect, so no extra pass through an old value).
@@ -203,7 +220,9 @@ function OpenBoard({ code }) {
   const view = useMemo(() => boardRead(read.body), [read.body])
   if ((view.state === 'computing') !== building) setBuilding(view.state === 'computing')
   const [all, setAll] = useState(false)
-  const rows = useMemo(() => (all ? view.rows : view.rows.slice(0, MAX_ROWS)), [view.rows, all])
+  const table = usePanelTable({ columns: OPEN_COLUMNS })
+  const show = table.shows
+  const rows = useMemo(() => table.apply(all ? view.rows : view.rows.slice(0, MAX_ROWS)), [view.rows, all, table.apply])
   const what = FLOW_LISTS.open.what
   usePanelFreshness(view.state === 'ok' && view.rows.length ? panelAsOf(SOURCE, view.builtAt) : null)
   usePanelSymbolRows(rows.map((r) => r.sym), 'the open flow board', { total: view.rows.length })
@@ -251,6 +270,7 @@ function OpenBoard({ code }) {
           bullish, {count(bearish)} leaning bearish
           {view.openContracts != null ? `, across ${count(view.openContracts)} open ${view.openContracts === 1 ? 'contract' : 'contracts'}` : ''}.
         </span>
+        <PanelColumns table={table} testId="terminal-flwl-open-columns" />
       </div>
       {cutByServer ? (
         <p className={styles.note} role="status" data-testid="terminal-flwl-cut">
@@ -261,19 +281,8 @@ function OpenBoard({ code }) {
       <div className={styles.tableBox} data-fold="480">
         <table className={styles.table} data-testid="terminal-flwl-open"
           aria-label={`Open flow board, ${rows.length} ${rows.length === 1 ? 'stock' : 'stocks'}`}>
-          <thead>
-            <tr>
-              <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={`${styles.wrapCell} ${styles.snugTight}`} title="The stock's largest open contract by premium">Largest contract</th>
-              <th scope="col" title="Which way the open premium leans">Direction</th>
-              <th scope="col" title="Bullish premium less bearish premium on the open contracts">Net premium</th>
-              {/* Two merged columns, so the board fits a half-width panel without cutting its last columns off. */}
-              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}
-                title="Bullish premium, then bearish premium, on the open contracts, and the bullish share of the two">Bullish and bearish premium</th>
-              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}
-                title="The stock's move from the earliest trade behind these positions to the latest one on the tape, and that first trade's date">Stock since first trade</th>
-            </tr>
-          </thead>
+          {/* Two merged columns (bullish and bearish premium), so the board fits a half-width panel. */}
+          <PanelTableHead table={table} testId="terminal-flwl-open" />
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key} data-testid={`terminal-flwl-row-${r.sym}`} data-direction={r.direction || ''}>
@@ -281,17 +290,17 @@ function OpenBoard({ code }) {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>
-                <td className={toneOf(r.direction)}>{directionWords(r)}</td>
-                <td className={tone(r.net)}>{r.net == null ? NA : signedMoney(r.net)}</td>
-                <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
+                {show('o.contract') && <td className={`${styles.wrapCell} ${styles.snugTight}`}>{contractText(r)}</td>}
+                {show('o.direction') && <td className={toneOf(r.direction)}>{directionWords(r)}</td>}
+                {show('o.net') && <td className={tone(r.net)}>{r.net == null ? NA : signedMoney(r.net)}</td>}
+                {show('o.split') && <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
                   {money(r.bull)} / {money(r.bear)}
                   {r.bullShare == null ? null : <span className={styles.muted}>{` (${formatPercent(r.bullShare, { decimals: 0 })}${NBSP}bullish)`}</span>}
-                </td>
-                <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
+                </td>}
+                {show('o.since') && <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
                   <span className={tone(r.stockPct)}>{formatPercent(r.stockPct, { decimals: 1, signed: true, absent: NA })}</span>
                   <span className={styles.muted}>{r.since ? ` since${NBSP}${unbroken(r.since)}` : ' (first trade date not given)'}</span>
-                </td>
+                </td>}
               </tr>
             ))}
           </tbody>
@@ -318,6 +327,19 @@ function OpenBoard({ code }) {
     </>
   )
 }
+
+/** The open flow board's columns (see CREAM_COLUMNS above). */
+export const OPEN_COLUMNS = Object.freeze([
+  { key: 'o.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'o.contract', label: 'Largest contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: "The stock's largest open contract by premium (sorts by days to expiry)" },
+  { key: 'o.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the open premium leans' },
+  { key: 'o.net', label: 'Net premium', sort: (r) => r.net, title: 'Bullish premium less bearish premium on the open contracts' },
+  { key: 'o.split', label: 'Bullish and bearish premium', sort: (r) => r.bullShare, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: 'Bullish premium, then bearish premium, on the open contracts, and the bullish share of the two (sorts by the bullish share)' },
+  { key: 'o.since', label: 'Stock since first trade', sort: (r) => r.stockPct, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: "The stock's move from the earliest trade behind these positions to the latest one on the tape, and that first trade's date" },
+])
 
 export default function FlowListsPanel({ list: listProp = null }) {
   const inPanel = useInTerminalPanel()

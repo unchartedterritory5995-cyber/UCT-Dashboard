@@ -32,6 +32,7 @@ import FieldError from '../../../components/ui/FieldError'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -201,20 +202,25 @@ function CutFooter({ shown, total, losers, many, onMore, testId = 'terminal-pchg
   )
 }
 
+/** Customization pass 1: the stock table's columns (components/terminal/PanelTable). The ranking (the
+ *  biggest gainers or losers, the chip) decides which stocks are listed and is the default order; a
+ *  header click sorts the stocks listed. The same columns serve one group's stocks. */
+export const PCHG_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'pct', label: 'Change', sort: (r) => r.pct, title: 'Percent change from the start close to the end close' },
+  { key: 'close', label: 'Close then and now', sort: (r) => r.endClose, thClass: styles.wrapCell,
+    title: 'The split-adjusted close on the start day, then on the end day, and the change in dollars (sorts by the end close)' },
+  { key: 'industry', label: 'Industry', type: 'text', sort: (r) => r.industry || r.sector || null, phoneHide: true, thClass: styles.wrapCell },
+])
+
 /** Stocks, one per row: the whole-market list, or the stocks of one group. */
-function StockTable({ rows, side, label, testId = 'terminal-pchg-table' }) {
+function StockTable({ rows, side, label, testId = 'terminal-pchg-table', table }) {
+  const shows = table.shows
   return (
     <div className={styles.tableBox}>
       <table className={styles.table} data-testid={testId} data-side={side} aria-label={label}>
-        <thead>
-          <tr>
-            <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-            <th scope="col" title="Percent change from the start close to the end close">Change</th>
-            {/* Two closes and the dollar change share one column, so the table fits a half-width panel. */}
-            <th scope="col" className={styles.wrapCell} title="The split-adjusted close on the start day, then on the end day, and the change in dollars">Close then and now</th>
-            <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}>Industry</th>
-          </tr>
-        </thead>
+        {/* Two closes and the dollar change share one column, so the table fits a half-width panel. */}
+        <PanelTableHead table={table} testId={testId} />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-pchg-row-${r.sym}`}>
@@ -222,16 +228,16 @@ function StockTable({ rows, side, label, testId = 'terminal-pchg-table' }) {
                 <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                 <PanelSymbol sym={r.sym} className={styles.sym} />
               </td>
-              <td className={tone(r.pct)}>{signedPct(r.pct)}</td>
-              <td className={styles.wrapCell}>
+              {shows('pct') && <td className={tone(r.pct)}>{signedPct(r.pct)}</td>}
+              {shows('close') && <td className={styles.wrapCell}>
                 {r.pct === null ? NA : (
                   <>
                     {money(r.startClose)} to {money(r.endClose)}
                     <span className={styles.muted}>{` (${signedMoney(r.dollars)})`}</span>
                   </>
                 )}
-              </td>
-              <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.industry || r.sector || 'Not given'}</td>
+              </td>}
+              {shows('industry') && <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.industry || r.sector || 'Not given'}</td>}
             </tr>
           ))}
         </tbody>
@@ -243,7 +249,9 @@ function StockTable({ rows, side, label, testId = 'terminal-pchg-table' }) {
 function Results({ req, side, code, today }) {
   const { read, view } = usePeriodRead(req.url, periodRead)
   const [limit, setLimit] = useState(PAGE_ROWS)
-  const shown = useMemo(() => sideRows(view.rows, side, limit), [view.rows, side, limit])
+  const table = usePanelTable({ columns: PCHG_COLUMNS })
+  const ranked = useMemo(() => sideRows(view.rows, side, limit), [view.rows, side, limit])
+  const shown = useMemo(() => ({ ...ranked, rows: table.apply(ranked.rows) }), [ranked, table.apply])
   const blocked = blockedState({ read, view, req, code, today, unit: 'stocks' })
   usePanelFreshness(!blocked ? panelAsOf(SOURCE, view.endDay) : null)
   usePanelSymbolRows(!blocked ? shown.rows.map((r) => r.sym) : [],
@@ -264,6 +272,7 @@ function Results({ req, side, code, today }) {
           {count(total)} {plural(total, 'stock', 'stocks')} ranked from the close of {startDay} to the close of {endDay}:{' '}
           {count(breadth.up)} rose, {count(breadth.down)} fell{breadth.flat ? `, ${count(breadth.flat)} did not move` : ''}.
         </span>
+        <PanelColumns table={table} testId="terminal-pchg-columns" />
       </div>
       {view.partial ? (
         <p className={styles.note} role="status" data-testid="terminal-pchg-partial">
@@ -272,8 +281,8 @@ function Results({ req, side, code, today }) {
           look better than it was.
         </p>
       ) : null}
-      <StockTable rows={shown.rows} side={side}
-        label={`${losers ? 'Biggest losers' : 'Biggest gainers'} from ${startDay} to ${endDay}, ${shown.rows.length} of ${total} ${plural(total, 'stock', 'stocks')}`} />
+      <StockTable rows={shown.rows} side={side} table={table}
+        label={`${losers ? 'Biggest losers' : 'Biggest gainers'} from ${startDay} to ${endDay}, ${shown.rows.length} of ${total} ${plural(total, 'stock', 'stocks')}${table.sort ? ', sorted by the column header' : ''}`} />
       <CutFooter shown={shown.rows.length} total={total} losers={losers} many="stocks"
         onMore={() => setLimit((n) => Math.min(MAX_ROWS, n + PAGE_ROWS))} />
       <CoverageNote cov={view.coverage} />
@@ -292,7 +301,7 @@ function Results({ req, side, code, today }) {
 
 /** The stocks of one sector, industry or theme, each with its own change between the same two closes.
  *  `read` and `view` are the stock ranking's read (GroupResults owns it, with the panel's rows). */
-function GroupStocks({ group, unit, side, startDay, endDay, read, view, members, shown, onMore, onBack, backRef, ownPanel = null }) {
+function GroupStocks({ group, unit, side, startDay, endDay, read, view, members, shown, onMore, onBack, backRef, ownPanel = null, table }) {
   const u = PERIOD_UNITS[unit]
   const losers = side === 'losers'
   const stocksFailed = !read.loading && view.state !== 'ok' && view.state !== 'computing'
@@ -323,7 +332,7 @@ function GroupStocks({ group, unit, side, startDay, endDay, read, view, members,
         </p>
       ) : null}
       {read.loading ? null : members.total ? (
-        <StockTable rows={shown} side={side} testId="terminal-pchg-members"
+        <StockTable rows={shown} side={side} testId="terminal-pchg-members" table={table}
           label={`The stocks in ${group.name} from ${startDay} to ${endDay}, ${losers ? 'biggest losers' : 'biggest gainers'} first, ${shown.length} of ${members.total}`} />
       ) : (
         <PanelState kind="empty" compact role="status" testId="terminal-pchg-members-empty" title={`The server sent no stock list for ${group.name}.`}>
@@ -359,7 +368,8 @@ function GroupResults({ req, unit, side, code, today }) {
   const stocks = usePeriodRead(openGroup ? req.url : null, periodRead)
   const [memberLimit, setMemberLimit] = useState(PAGE_ROWS)
   const members = useMemo(() => groupMemberRows(openGroup, stocks.view.state === 'ok' ? stocks.view.rows : [], side), [openGroup, stocks.view, side])
-  const shownMembers = useMemo(() => members.rows.slice(0, memberLimit), [members, memberLimit])
+  const memberTable = usePanelTable({ columns: PCHG_COLUMNS })
+  const shownMembers = useMemo(() => memberTable.apply(members.rows.slice(0, memberLimit)), [members, memberLimit, memberTable.apply])
   // One publisher for the panel's numbered rows: the stocks of the open group, and nothing while
   // the list on screen is a list of groups (a row number must never load a stock that is not shown).
   usePanelSymbolRows(openGroup && !stocks.read.loading ? shownMembers.map((r) => r.sym) : [],
@@ -388,7 +398,7 @@ function GroupResults({ req, unit, side, code, today }) {
         <GroupStocks group={openGroup} unit={unit} side={side} startDay={startDay} endDay={endDay} read={stocks.read} view={stocks.view}
           members={members} shown={shownMembers} onMore={() => setMemberLimit((n) => Math.min(MAX_ROWS, n + PAGE_ROWS))}
           ownPanel={req.range ? groupDrillCommand({ kind: unit, name: openGroup.name, range: req.range }) : null}
-          backRef={backRef} onBack={() => { returnTo.current = openGroup.name; setOpenName(null) }} />
+          backRef={backRef} table={memberTable} onBack={() => { returnTo.current = openGroup.name; setOpenName(null) }} />
       </>
     )
   }

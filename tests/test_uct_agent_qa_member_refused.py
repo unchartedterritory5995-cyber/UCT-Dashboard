@@ -1,4 +1,5 @@
-"""agent-qa G4 — a signed-in NON-admin member is refused on the Agent routes, before any provider call.
+"""agent-qa G4 — a signed-in NON-admin member is refused on the Agent routes, before any provider call, while the
+member door is closed (UCT_AGENT_MEMBERS_ENABLED unset: the default); and let in once it is open (`1`).
 
 Until now admin-only was covered by a code-level check (every route Depends on require_admin_dark) and by the
 signed-out 401s. This drives the REAL app (api.main:app) through the REAL auth chain: a real users row, a real
@@ -14,6 +15,9 @@ overridden, so the refusal measured here is the one production would give.
     record each call, and the per-member daily request counter must not move.
   * NON-VACUITY: the same requests from an ADMIN do reach the spies (the model client on /turn and /turn/stream, the
     quote and instrument.resolve adapters on /data), so a spy that could never fire cannot make the refusals pass.
+  * THE MEMBER DOOR (UCT_AGENT_MEMBERS_ENABLED=1; decided 2026-11-24 by the integrator under the owner's delegation of
+    2026-11-24): the same paid member reaches the same spies; an unpaid member is still 402; the budget page
+    (GET /api/agent/budget) stays admin-only; any value but `1` keeps the 403.
 """
 from __future__ import annotations
 
@@ -29,6 +33,7 @@ from api.services.uct_agent.marketdata import envelope as env
 from api.services.uct_agent.marketdata import gateway as gw
 
 DATA_KINDS = "quote,instrument.resolve"
+MEMBERS_ENV = "UCT_AGENT_MEMBERS_ENABLED"
 REPLY = {"disposition": "answer", "reply": "agent-qa stub answer.", "question": None, "ops": [],
          "unsupported_category": None, "research": None}
 TURN_BODY = {"message": "what is NVDA trading at?", "context": {}}
@@ -55,7 +60,8 @@ def client(app):
 
 @pytest.fixture(autouse=True)
 def _flags(monkeypatch):
-    for name in (gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, "UCT_AGENT_STREAM", "UCT_AGENT_COST_CAP_DAILY"):
+    for name in (gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, "UCT_AGENT_STREAM", "UCT_AGENT_COST_CAP_DAILY",
+                 MEMBERS_ENV):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.KINDS_ENV, DATA_KINDS)
@@ -236,3 +242,64 @@ def test_control_admin_turn_reaches_the_model_client(client, spies, admin, route
     assert r.status_code == 200, r.text[:300]
     assert "messages.create" in spies["model"], spies
     assert spies["takes"], "an admin turn charges the daily counter"
+
+
+# ── THE MEMBER DOOR OPEN (UCT_AGENT_MEMBERS_ENABLED=1): the same paid member is let in ───────────────────
+
+@pytest.fixture()
+def door_open(monkeypatch):
+    monkeypatch.setenv(MEMBERS_ENV, "1")
+    yield
+
+
+def test_DOOR_OPEN_a_paid_member_config_is_served_and_says_members(client, spies, door_open, member):
+    r = _call(client, member, "config")
+    assert r.status_code == 200, r.text[:200]
+    assert r.json()["members"] is True and r.json()["data_kinds"] == ["instrument.resolve", "quote"]
+
+
+@pytest.mark.parametrize("kind", ["quote", "instrument.resolve"])
+def test_DOOR_OPEN_a_paid_member_data_reaches_the_adapter(client, spies, door_open, member, kind):
+    r = _call(client, member, "data", kind)
+    assert r.status_code == 200, r.text[:200]
+    assert spies["adapters"] == [kind]
+
+
+@pytest.mark.parametrize("route", ["turn", "turn/stream"])
+def test_DOOR_OPEN_a_paid_member_turn_reaches_the_model_client_and_is_metered(client, spies, door_open, member, route):
+    r = _call(client, member, route)
+    assert r.status_code == 200, r.text[:300]
+    assert "messages.create" in spies["model"], spies
+    assert spies["takes"], "a member turn charges the member's daily counter"
+
+
+@pytest.mark.parametrize("route,kind", CASES)
+def test_DOOR_OPEN_an_UNPAID_member_is_still_refused_402_with_no_provider_call(
+        client, spies, door_open, free_member, route, kind):
+    r = _call(client, free_member, route, kind)
+    assert r.status_code == 402, (route, kind, r.status_code, r.text[:200])
+    assert spies["model"] == [] and spies["adapters"] == [] and spies["takes"] == []
+
+
+def test_DOOR_OPEN_the_budget_page_stays_admin_only(client, spies, door_open, member, admin):
+    r = client.get("/api/agent/budget", cookies=member["cookies"])
+    assert r.status_code == 403 and r.json().get("detail") == "Admin access required"
+    assert client.get("/api/agent/budget", cookies=admin["cookies"]).status_code == 200
+
+
+def test_DOOR_CLOSED_the_budget_page_is_admin_only_too(client, spies, member, admin):
+    assert client.get("/api/agent/budget", cookies=member["cookies"]).status_code == 403
+    assert client.get("/api/agent/budget", cookies=admin["cookies"]).status_code == 200
+
+
+def test_DOOR_CLOSED_an_admin_reads_members_false(client, spies, admin):
+    r = _call(client, admin, "config")
+    assert r.status_code == 200 and r.json()["members"] is False
+
+
+@pytest.mark.parametrize("value", ["0", "true", "admin", "yes", ""])
+def test_DOOR_any_value_but_1_keeps_a_paid_member_out(client, spies, member, monkeypatch, value):
+    monkeypatch.setenv(MEMBERS_ENV, value)
+    r = _call(client, member, "config")
+    assert r.status_code == 403, (value, r.status_code)
+    assert spies["model"] == [] and spies["adapters"] == [] and spies["takes"] == []

@@ -218,6 +218,11 @@ function normalizePanel(p, channelIds, usedIds) {
   }
   if (p.linkable === false) out.linkable = false
   if (p.popout === true) out.popout = true
+  // Customization pass 1: how the member arranged the panel (sort, hidden columns, filters).
+  // Kept only when well formed and small (components/terminal/panelView.js); absent otherwise,
+  // so a board that never used it serialises exactly as before.
+  const view = normalizeView(p.view)
+  if (view) out.view = view
   return out
 }
 
@@ -572,6 +577,20 @@ export function setDensity(layout, density) {
   return DENSITIES.includes(density) ? { ...layout, density } : layout
 }
 
+/** The panel with this id, its `view` replaced (customization pass 1). A view that cleans to
+ *  nothing removes the key, so a panel put back to its defaults stores what it stored before.
+ *  Unknown id: the layout unchanged. Never touches the command (code, args): no remount. */
+export function setPanelView(layout, panelId, view) {
+  const panels = layout?.panels || []
+  const i = panels.findIndex((p) => p.id === panelId)
+  if (i < 0) return layout
+  const clean = normalizeView(view)
+  const { view: _old, ...rest } = panels[i]
+  const next = panels.slice()
+  next[i] = clean ? { ...rest, view: clean } : rest
+  return { ...layout, panels: next }
+}
+
 // ── pop-out and share encodings (URL-safe base64 of compact JSON) ─────────────
 
 function b64urlEncode(text) {
@@ -590,7 +609,8 @@ function b64urlDecode(token) {
 
 /** The URL a popped-out panel opens: the panel and the security it showed, frozen. */
 export function popoutHref(panel, sym) {
-  return `/terminal?popout=${b64urlEncode(JSON.stringify({ c: panel.code, s: sym || null, a: panel.args || [] }))}`
+  const view = normalizeView(panel.view)
+  return `/terminal?popout=${b64urlEncode(JSON.stringify({ c: panel.code, s: sym || null, a: panel.args || [], ...(view ? { w: view } : {}) }))}`
 }
 
 /** A pop-out token back into a stand-alone, unlinked panel — or null for a bad token. */
@@ -599,7 +619,8 @@ export function decodePopout(token) {
     const v = JSON.parse(b64urlDecode(token))
     if (!isObj(v) || typeof v.c !== 'string') return null
     return { id: 'popout', code: canonicalCode(v.c.slice(0, 12)), channel: null, sym: upperSym(v.s),
-      args: Array.isArray(v.a) ? v.a.filter((a) => typeof a === 'string').slice(0, 8) : [], group: 'N' }
+      args: Array.isArray(v.a) ? v.a.filter((a) => typeof a === 'string').slice(0, 8) : [], group: 'N',
+      ...(normalizeView(v.w) ? { view: normalizeView(v.w) } : {}) }
   } catch { return null }
 }
 
@@ -832,4 +853,42 @@ export function toggleFavorite(library, code) {
 
 export function setKeepCalendar(library, on) {
   return { ...library, keepCalendar: on === true }
+}
+
+// ── a panel's VIEW: the board's own guard (customization pass 1). The same rule as the panel kit's
+// `normalizeView` (components/terminal/panelView.js), copied ON PURPOSE: a module the two shared would be
+// a chunk of its own, and its name would ride the Notebook's first-open preload lists (the Notebook
+// budget, 2026-11-28). boardModel.viewParity.test.js holds the two equal. Change both or neither.
+const VIEW_KEY_RE = /^[A-Za-z][A-Za-z0-9_.-]{0,39}$/
+const viewKeyOk = (k) => (typeof k === 'string' && VIEW_KEY_RE.test(k) ? k : null)
+function viewValue(v) {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined
+  if (typeof v === 'string') return v.length <= 80 ? v : undefined
+  return undefined
+}
+/** A stored view cleaned to `{ sort?, cols?, filters? }` within the kit's bounds, or undefined. */
+export function normalizeView(v) {
+  if (!isObj(v)) return undefined
+  const out = {}
+  const s = v.sort
+  if (isObj(s) && viewKeyOk(s.key) && (s.dir === 'asc' || s.dir === 'desc')) out.sort = { key: s.key, dir: s.dir }
+  if (isObj(v.cols) && Array.isArray(v.cols.hidden)) out.cols = { hidden: [...new Set(v.cols.hidden.map(viewKeyOk).filter(Boolean))].slice(0, 24) }
+  if (isObj(v.filters)) {
+    const f = {}
+    let n = 0
+    for (const [k, val] of Object.entries(v.filters)) {
+      if (n >= 8) break
+      const key = viewKeyOk(k)
+      const x = viewValue(val)
+      if (!key || x === undefined) continue
+      f[key] = x
+      n += 1
+    }
+    if (n) out.filters = f
+  }
+  if (!Object.keys(out).length) return undefined
+  let size
+  try { size = new TextEncoder().encode(JSON.stringify(out)).length } catch { return undefined }
+  return size > 1024 ? undefined : out
 }

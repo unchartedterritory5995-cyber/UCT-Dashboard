@@ -101,6 +101,33 @@ export function saveStoredSpec(spec, storage = globalThis.localStorage) {
   try { if (storage) storage.setItem(EVST_STORE_KEY, JSON.stringify(spec)) } catch { /* not kept: the panel still shows it */ }
 }
 
+/**
+ * Customization pass 1: the study as the panel's VIEW (components/terminal/panelView.js), so it is
+ * saved with the board, a saved board and a share link, and two EVST panels keep two studies. A view
+ * keeps at most 8 plain values, so the study is packed into 8 short fields:
+ *   k kind · s the series fields joined by '|' (in KIND_FIELDS order) · op · t threshold · m symbol
+ *   h windows joined by ',' · ep episodes · en entry
+ * Pure; `specFromView(specToView(spec))` is `spec` for every spec `normSpec` accepts.
+ */
+export function specToView(spec) {
+  const s = normSpec(spec)
+  if (!s) return null
+  return {
+    k: s.kind, s: KIND_FIELDS[s.kind].map((f) => s[f]).join('|'), op: s.op, t: s.threshold, m: s.symbol,
+    h: s.horizons.join(','), ep: s.episodes, en: s.entry,
+  }
+}
+
+/** The study a view holds, or null (no study kept, or not one this panel can send). Pure. */
+export function specFromView(filters) {
+  if (!isObj(filters) || !KINDS.includes(filters.k)) return null
+  const parts = String(filters.s ?? '').split('|')
+  const raw = { kind: filters.k, op: filters.op, threshold: filters.t, symbol: filters.m, horizons: String(filters.h ?? ''),
+    episodes: filters.ep, entry: filters.en }
+  KIND_FIELDS[filters.k].forEach((f, i) => { raw[f] = parts[i] ?? '' })
+  return normSpec(raw)
+}
+
 /** A spec from storage or an example, or null when it is not one this panel can send. Pure. */
 export function normSpec(raw) {
   if (!isObj(raw) || !KINDS.includes(raw.kind)) return null

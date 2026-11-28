@@ -16,9 +16,8 @@
 import { useId, useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCompactTerminal, formatNumberMax, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
 
@@ -42,6 +41,26 @@ export function familyRows(family) {
 const factorText = (f) => (Number.isFinite(Number(f)) && f !== null ? `${formatNumberMax(Number(f), { maxDecimals: 2, absent: '' })}x` : 'n/a')
 const weightText = (w) => (Number.isFinite(Number(w)) && w !== null ? `${formatNumberMax(Number(w), { maxDecimals: 2, absent: '' })}%` : 'n/a')
 
+const finiteOr = (v) => (v !== null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null)
+
+/** Customization pass 1: the two tables' columns (components/terminal/PanelTable). Each keeps its
+ *  own hidden columns (keys `f.` and `h.`); the panel keeps one sort, the table last sorted (the
+ *  other shows its own order). The holdings shown are the top 25 by weight and stay that set; a
+ *  header click sorts them. */
+export const ETF_FAMILY_COLUMNS = Object.freeze([
+  { key: 'f.ticker', label: 'ETF', type: 'text', sort: (r) => r.ticker, required: true },
+  { key: 'f.dir', label: 'Side', type: 'text', sort: (r) => r.dir },
+  { key: 'f.factor', label: 'Factor', sort: (r) => finiteOr(r.factor) },
+  { key: 'f.vol', label: 'Avg $ volume', sort: (r) => finiteOr(r.vol), thClass: styles.phoneHide },
+  { key: 'f.name', label: 'Name', type: 'text', sort: (r) => r.name || null, thClass: styles.phoneHide },
+])
+export const ETF_HOLDING_COLUMNS = Object.freeze([
+  { key: 'h.sym', label: 'Symbol', type: 'text', sort: (h) => h.sym, required: true },
+  { key: 'h.weight', label: 'Weight', sort: (h) => finiteOr(h.weight) },
+  { key: 'h.name', label: 'Name', type: 'text', sort: (h) => h.name || null, thClass: styles.phoneHide },
+  { key: 'h.sector', label: 'Sector', type: 'text', sort: (h) => h.sector || null, thClass: styles.phoneHide },
+])
+
 function familyNote(err) {
   if (err?.status === 402) return 'The leveraged and inverse ETF list is part of the paid plan.'
   if (err?.timedOut) return 'The leveraged and inverse ETF list did not answer within 30 seconds.'
@@ -59,11 +78,13 @@ export default function EtfPanel({ sym }) {
 
   const held = useMemo(() => (Array.isArray(holdings.data?.body?.holdings) ? holdings.data.body.holdings : [])
     .filter((h) => h && h.sym), [holdings.data])
-  const fam = useMemo(() => familyRows(family.data?.body), [family.data])
+  const famTable = usePanelTable({ columns: ETF_FAMILY_COLUMNS })
+  const heldTable = usePanelTable({ columns: ETF_HOLDING_COLUMNS })
+  const fam = useMemo(() => famTable.apply(familyRows(family.data?.body)), [family.data, famTable.apply])
   const underlying = String(family.data?.body?.underlying || '').toUpperCase() || null
   const knownEtf = Array.isArray(etfs.data?.symbols) ? etfs.data.symbols.includes(s) : null
   const isEtf = held.length > 0 || knownEtf === true
-  const shown = held.slice(0, HOLDINGS_SHOWN)
+  const shown = useMemo(() => heldTable.apply(held.slice(0, HOLDINGS_SHOWN)), [held, heldTable.apply])
 
   usePanelSymbolRows([...fam.map((r) => r.ticker), ...shown.map((h) => h.sym)], `ETF exposure of ${s}`)
   const asOf = holdings.data?.receivedAt || family.data?.receivedAt || null
@@ -112,24 +133,17 @@ export default function EtfPanel({ sym }) {
           </p>
         ) : (
           <div className={styles.tableBox}>
+            <PanelColumns table={famTable} testId="terminal-etf-family-columns" />
             <table className={styles.table} data-testid="terminal-etf-family" aria-label={`Leveraged and inverse ETFs on ${leveragedEtf ? underlying : s}`}>
-              <thead>
-                <tr>
-                  <th scope="col">ETF</th>
-                  <th scope="col">Side</th>
-                  <th scope="col">Factor</th>
-                  <th scope="col" className={styles.phoneHide}>Avg $ volume</th>
-                  <th scope="col" className={styles.phoneHide}>Name</th>
-                </tr>
-              </thead>
+              <PanelTableHead table={famTable} testId="terminal-etf-family" />
               <tbody>
                 {fam.map((r, i) => (
                   <tr key={r.ticker} data-testid={`terminal-etf-family-row-${r.ticker}`} aria-current={r.ticker === s ? 'true' : undefined}>
                     <td><span className={styles.rowNum} aria-hidden="true">{i + 1}</span><PanelSymbol sym={r.ticker} className={styles.sym} />{r.ticker === s ? <span className={styles.lede}> (this one)</span> : null}</td>
-                    <td>{r.dir}</td>
-                    <td>{factorText(r.factor)}</td>
-                    <td className={styles.phoneHide}>{formatCompactTerminal(Number.isFinite(Number(r.vol)) && r.vol !== null ? Number(r.vol) : NaN, { money: true, absent: 'n/a' })}</td>
-                    <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.name || 'n/a'}</td>
+                    {famTable.shows('f.dir') && <td>{r.dir}</td>}
+                    {famTable.shows('f.factor') && <td>{factorText(r.factor)}</td>}
+                    {famTable.shows('f.vol') && <td className={styles.phoneHide}>{formatCompactTerminal(Number.isFinite(Number(r.vol)) && r.vol !== null ? Number(r.vol) : NaN, { money: true, absent: 'n/a' })}</td>}
+                    {famTable.shows('f.name') && <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.name || 'n/a'}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -151,22 +165,16 @@ export default function EtfPanel({ sym }) {
           </p>
         ) : (
           <div className={styles.tableBox}>
+            <PanelColumns table={heldTable} testId="terminal-etf-holdings-columns" />
             <table className={styles.table} data-testid="terminal-etf-holdings" aria-label={`Holdings of ${s}`}>
-              <thead>
-                <tr>
-                  <th scope="col">Symbol</th>
-                  <th scope="col">Weight</th>
-                  <th scope="col" className={styles.phoneHide}>Name</th>
-                  <th scope="col" className={styles.phoneHide}>Sector</th>
-                </tr>
-              </thead>
+              <PanelTableHead table={heldTable} testId="terminal-etf-holdings" />
               <tbody>
                 {shown.map((h, i) => (
                   <tr key={h.sym} data-testid={`terminal-etf-holding-${h.sym}`}>
                     <td><span className={styles.rowNum} aria-hidden="true">{fam.length + i + 1}</span><PanelSymbol sym={h.sym} className={styles.sym} /></td>
-                    <td>{weightText(h.weight)}</td>
-                    <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{h.name || 'n/a'}</td>
-                    <td className={styles.phoneHide}>{h.sector || 'n/a'}</td>
+                    {heldTable.shows('h.weight') && <td>{weightText(h.weight)}</td>}
+                    {heldTable.shows('h.name') && <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{h.name || 'n/a'}</td>}
+                    {heldTable.shows('h.sector') && <td className={styles.phoneHide}>{h.sector || 'n/a'}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -174,7 +182,7 @@ export default function EtfPanel({ sym }) {
           </div>
         )}
         {held.length > HOLDINGS_SHOWN ? (
-          <p className={styles.muted} data-testid="terminal-etf-more">Showing the top {HOLDINGS_SHOWN} of {held.length} holdings by weight.</p>
+          <p className={styles.muted} data-testid="terminal-etf-more">Showing the top {HOLDINGS_SHOWN} of {held.length} holdings by weight{heldTable.sort ? ', sorted here by the column header you picked' : ''}.</p>
         ) : null}
       </section>
 

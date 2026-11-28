@@ -289,3 +289,81 @@ def series(sym: str) -> dict:
             "description": rows[-1][3], "cusip": rows[-1][4],
             "latest": points[-1], "peak": peak, "days_reported": len(points),
             "mismatched_files": [f[0] for f in ok if f[1] == "count_mismatch"]}
+
+# ── The market list (2026-11-27, the Terminal's bare `FTD`) ─────────────────────────────────────
+#
+# The biggest fails across every security in the NEWEST ingested half-month file: per security, its
+# largest single-day balance in that period (shares, and shares times the file's own price that day),
+# its newest balance in the period, and on how many of the period's settlement dates it was listed.
+# Balances are BALANCES: a peak is one day's balance, never a sum of days. The price is the SEC file's
+# own price column (no market-data vendor in the path). Ranked by shares or by value, at most
+# MARKET_CAP rows, cut from the smaller end and said. Read from the local store only; the answer is held
+# in this module per file (name and fetch time), so it is worked out once per ingest, never per request.
+MARKET_RANKS = ("shares", "value")
+MARKET_CAP = 50
+_market_lock = threading.Lock()
+_market_held: dict = {}            # (file name, fetched_at) -> {"shares": [...], "value": [...], ...}
+
+
+def _market_build(c, name: str, first: str, last: str) -> dict:
+    rows = c.execute(
+        "SELECT symbol, settle_date, quantity, price, description FROM ftd "
+        "WHERE file=? AND symbol IS NOT NULL AND symbol != '' AND settle_date BETWEEN ? AND ? "
+        "ORDER BY symbol, settle_date", (name, first, last)).fetchall()
+    days = sorted({r[1] for r in rows})
+    by: dict = {}
+    for sym, d, q, px, desc in rows:
+        e = by.get(sym)
+        value = round(q * px, 2) if px is not None and q is not None else None
+        if e is None:
+            e = by[sym] = {"symbol": sym, "description": desc, "days_listed": 0,
+                           "peak": None, "peak_value": None, "latest": None}
+        e["days_listed"] += 1
+        if desc:
+            e["description"] = desc
+        point = {"settle_date": d, "quantity": q, "price": px, "value": value}
+        if e["peak"] is None or (q or 0) > (e["peak"]["quantity"] or 0):
+            e["peak"] = point
+        if value is not None and (e["peak_value"] is None or value > e["peak_value"]["value"]):
+            e["peak_value"] = point
+        e["latest"] = point                 # rows are in date order: the last one seen is the newest
+    every = list(by.values())
+    by_shares = sorted(every, key=lambda e: (-(e["peak"]["quantity"] or 0), e["symbol"]))
+    with_value = [e for e in every if e["peak_value"] is not None]
+    by_value = sorted(with_value, key=lambda e: (-e["peak_value"]["value"], e["symbol"]))
+    return {"securities": len(every), "settle_dates": len(days), "no_price": len(every) - len(with_value),
+            "shares": by_shares[:MARKET_CAP], "value": by_value[:MARKET_CAP], "valued": len(with_value)}
+
+
+def market_list(rank: str = "shares") -> dict:
+    """REQUEST PATH: the local store only. The biggest fails of the newest ingested period."""
+    if rank not in MARKET_RANKS:
+        raise ValueError("rank must be shares or value")
+    with _conn() as c:
+        files = c.execute("SELECT name, state, first_date, last_date, fetched_at FROM ftd_file "
+                          "WHERE state IN ('ok', 'count_mismatch') AND first_date IS NOT NULL ORDER BY name DESC").fetchall()
+        base = {"source": SOURCE, "rank": rank, "cap": MARKET_CAP,
+                "basis": "Each security's largest single-day fails-to-deliver BALANCE in the period (never a sum "
+                         "of days), its newest balance in the period, and on how many of the period's settlement "
+                         "dates it was listed. Value is that day's balance times the SEC file's own price."}
+        if not files:
+            return {**base, "state": "not_ingested", "rows": [],
+                    "reason": "no fails-to-deliver file has been ingested yet"}
+        name, state, first, last, fetched = files[0]
+        key = (name, fetched)
+        with _market_lock:
+            held = _market_held.get(key)
+        if held is None:
+            held = _market_build(c, name, first, last)
+            with _market_lock:
+                _market_held.clear()          # one period is held: the newest
+                _market_held[key] = held
+    out = {**base, "file": name, "period": {"from": first, "through": last}, "fetched_at": fetched,
+           "count_mismatch": state == "count_mismatch", "securities": held["securities"],
+           "settle_dates": held["settle_dates"], "no_price": held["no_price"]}
+    ranked = held[rank]
+    total = held["securities"] if rank == "shares" else held["valued"]
+    if not ranked:
+        return {**out, "state": "none_reported", "rows": [], "total": total,
+                "reason": f"no fails reported between {first} and {last}"}
+    return {**out, "state": "ok", "rows": [dict(r) for r in ranked], "total": total, "cut": total > len(ranked)}

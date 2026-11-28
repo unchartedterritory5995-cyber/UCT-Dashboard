@@ -112,6 +112,16 @@ def ftd_route(sym: str, _user: dict = Depends(require_paid)):
     return svc.series(_sym(sym))
 
 
+# The Terminal's bare `FTD` (2026-11-27): the biggest fails of the newest ingested period, from the
+# same local store and behind the same switch and paid gate. A plain `def`: one local SQLite read,
+# worked out once per ingested file and held in the service module.
+@router.get("/api/research/ftd-market", dependencies=[Depends(_ftd_armed)])
+def ftd_market_route(rank: str = Query(default="shares", pattern="^(shares|value)$"),
+                     _user: dict = Depends(require_paid)):
+    from api.services import ftd_dataset as svc
+    return svc.market_list(rank)
+
+
 # ── FT-080 room attention series (the /buzz mention store) ──────────────────
 
 def _mention_series_armed() -> None:

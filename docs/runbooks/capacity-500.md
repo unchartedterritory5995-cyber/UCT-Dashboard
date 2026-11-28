@@ -218,7 +218,67 @@ If Railway offers Enterprise per-replica sizes above 32 GB, more processes fit i
 
 **Harness.** `tools/capacity_replay/run_topology.py` runs #2962's REAL topology: N processes on one `DATA_DIR` with `BARS_API_WORKERS=N` (one elects leader; followers hand leader-only work to it over the loopback port), sandboxed (read-only immutable copy of a real store, loopback-only sockets, no vendor), the member model of section 1, members swept per case, a fresh `DATA_DIR` and fresh processes per case, a free-commit-memory floor, and the share of requests the leader answered for a follower (`X-Bars-Served-By`). On Windows each process has its own port and the clients round-robin (uvicorn's shared `listen` fails there); production shares one socket.
 
-**Status (2026-11-28): the measurement has NOT run.** Two `heavy_lock run --solo` tickets (1 h and 4 h waits) timed out behind another solo holder on the shared dev box (held 3.5 h+). To run it: `python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --solo --timeout 3600 --label "capacity-500 topology replay" -- python tools/capacity_replay/run_topology.py --src <a #2962 checkout> --procs 4 --mode edge --members 200,300,400,500` (free commit memory >= 10 GB first; the driver stops under 9 GB). Planned cases `edge` x {1 process: 100, 200 members; 2: 200, 300; 4: 200, 300, 400, 500} and `old` x {4: 300}. A box of this size can only show the per-process slope and the leader's share, not 500 members' full origin load (that is ~1,500 req/s against a handful of local processes).
+**Measured 2026-11-28 on a GitHub runner** (`tests/test_capacity_replay_ci.py` via `remote_tests.py`, Actions run 46137497499, the harness of
+this PR with its gate forced on in a throwaway commit): 8 vCPU / 31 GB (`vars.FAST_RUNNER`), #2962's REAL Linux shape
+(`uvicorn workers=N` on one socket, `BARS_API_WORKERS=N`), a SYNTHETIC store (`synth_store.py`: 1,500 tickers, 400 with
+intraday, 11.0 M rows, 0.7 GB; the real schema and keys, random-walk prices, no production data), the `edge` member
+model, 10 s ramp + 30 s measured per case, the load generator ON THE SAME RUNNER (4 aiohttp processes).
+
+| processes | members | offered req/s | OK req/s | p50 ms | p95 ms | p99 ms | timeouts | 503 sheds | handed to leader | RSS per bars-api process |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 (solo) | 40 | 111 | 111 | 3 | 27 | 64 | 0 | 0 | - | 0.6 GB |
+| 1 | 70 | 208 | 207 | 5 | 55 | **113** | 0 | 3 | - | 0.9 GB |
+| 1 | 100 | 297 | 297 | 474 | 1,415 | 1,746 | 0 | 4 | - | 1.3 GB |
+| 2 (leader + 1) | 80 | 238 | 238 | 3 | 24 | 48 | 0 | 0 | 0.0% | 0.6 GB |
+| 2 | 140 | 421 | 421 | 6 | 356 | **557** | 0 | 5 | 0.0% | 0.9-1.0 GB |
+| 2 | 200 | 607 | 594 | 7,331 | 8,051 | 8,290 | 364 | 27 | 0.0% | 1.3 GB |
+| 4 (leader + 3) | 160 | 487 | 487 | 2 | 26 | **48** | 0 | 0 | 0.0% | 0.6-0.8 GB |
+| 4 | 280 | 849 | 849 | 1,203 | 2,186 | 2,348 | 0 | 11 | 0.0% | 1.0-1.1 GB |
+| 4 | 400 | 1,242 | 216 | 6,859 | 8,410 | 8,772 | 30,987 | 2 | 0.0% | 1.2-1.3 GB |
+
+**Re-run with the runner SPLIT (Actions run 46161013278):** bars-api pinned to CPUs 0-3, the load generator to 4-7
+(`sched_setaffinity`), so the servers never lose a core to the clients:
+
+| processes (on 4 dedicated vCPUs) | clean: OK req/s, p99 | saturated |
+|---|---|---|
+| 1 (solo) | 207 req/s, p99 95 ms (297 req/s: p99 1.1 s) | between ~210 and ~300 |
+| 2 (leader + 1) | 422 req/s, p99 94 ms | 607 req/s: p99 3.7 s |
+| 4 (leader + 3) | **849 req/s, p99 124 ms** | 1,247 req/s: p99 6.3 s |
+
+**~210 req/s per process, linear from 1 to 4 processes** on dedicated cores; hand-off share 0.0%; RSS 0.5-0.9 GB per
+process when clean, 1.2-1.3 GB saturated. 12 processes at that rate would be ~2,500 req/s on 12+ free vCPUs, if a
+Railway vCPU matches a runner vCPU (unmeasured), against the 1,503 req/s 500-member edge-first peak.
+
+What it says:
+- **The topology works and scales close to linearly** on this runner: ~210-300 req/s per process at the knee (1 process
+  clean at 207, collapsing at ~300; 2 processes clean at 421 with p99 557 ms; 4 processes clean at 487, saturated by 849
+  with p99 2.3 s). Past the knee a case COLLAPSES (queues, 8 s timeouts, OK req/s falls): there is no graceful plateau,
+  which is why the alarms page at the planned peak x 1.3, far below the knee of the size chosen.
+- **The leader carried nothing extra (0.0% handed off)** in this steady state: every series stored and current, no
+  holes, no cold tickers, and best-effort kicks go to the leader as kicks, not requests. The hand-off share under COLD
+  load (first views, holes, a swap) is NOT measured here.
+- **RSS grows with load**, 0.6 GB idle to 1.3 GB per process at saturation, on a 0.7 GB store; the production store and
+  caches are larger, so #2962's 2 GB-a-process budget stands.
+
+⛔ **What one runner cannot show.** The 4 load-generator processes and the bars-api processes share 8 vCPUs, so at 4
+processes the runner, not bars-api, is the ceiling; it cannot drive a 500-member peak (~1,500 req/s edge-first). A
+separate load-generator machine is not possible in this lane: it is ONE job, and GitHub-hosted runners accept no
+inbound connection from another job (a self-hosted runner pair, or the load generator on the dev box against a
+cloud host, would be needed). The synthetic store is 0.7 GB, so the OS page cache is warmer than production's.
+
+**What it means for the sizing (still a forecast for Railway):** ~200-250 req/s per process clean on an 8-vCPU runner
+puts 12 processes at ~2,400-3,000 req/s IF the 32-vCPU container scales the same and a Railway process is no slower
+(section 2 assumed local / 2: on that assumption, ~1,200-1,500). The 500-member edge-first peak is 1,503 req/s, so 12
+processes carry it on the optimistic reading and only just on the conservative one; 2 x the peak needs edge tails or a
+second service either way (section 3.1 stands). `BARS_API_WORKERS` stays unset until a Railway-side measurement.
+
+**The dev-box run (real store copy, Windows, one port per process) ran 2026-11-28 and is NOT usable as a ceiling.**
+Every case was overloaded from its first sweep point (1 process at 100 members already offered 306 req/s), and the
+failures were the CLIENT's: 17,307 of 18,418 requests in the 1-process case were `ClientConnectorError` (the Windows
+load generator could not connect), so it measured the box's sockets, not bars-api. One real-store fact it did give:
+with a real store (holes, unheld series) the leader answered **0.03-0.22%** of requests for the followers (2 and 4
+processes), against 0.0% on the synthetic store. Per-process private memory there: 1.5-1.9 GB under load, which
+supports the 2 GB-a-process budget.
 
 **What the harness has shown (a smoke, not a measurement):** 2 processes, `edge` mode, 20 members, 10 s: roles `leader` + `follower`, 67.8 req/s offered, 65.3 OK, **6.8% of requests answered by the leader for the follower** (a cold start: every series is new to the follower's memory cache), 13 sheds (503 `warming`), private memory 1.0 / 1.3 GB per process.
 

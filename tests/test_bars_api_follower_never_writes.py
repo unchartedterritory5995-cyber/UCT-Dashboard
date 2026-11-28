@@ -29,10 +29,43 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch, tmp_path):
+    """⛔ CONTAINMENT (2026-11-28: this file, in company, turned test_bars_wm_from_live_daily red on the bars gate).
+    Every test here leaves the process as it found it: the role and its lock, the roles module's caches and queues,
+    the leader's hand-off server and every thread a test started (joined), bars_sqlite's floors / proof buffers /
+    thread-local connection / store path, and the session-wide meta flusher is never started from here."""
+    from api.services import bars_sqlite as bs
+    from api.services import bars_fetch as bf
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("BARS_API_WORKERS", raising=False)
+    for name in ("_mem_floors", "_pending_floors", "_pending_verified", "_pending_seals"):
+        monkeypatch.setattr(bs, name, dict(getattr(bs, name)))
+    monkeypatch.setattr(bs, "_floors_cache", {})
+    monkeypatch.setattr(bs, "_local", threading.local())
+    monkeypatch.setattr(bs, "_DB_PATH", bs._DB_PATH)
+    monkeypatch.setattr(bs, "_ensure_meta_flusher", lambda: None)
+    if hasattr(bs, "_proc_store_ident"):
+        monkeypatch.setattr(bs, "_proc_store_ident", None)
+    for name in ("_deferred", "_index_wanted", "_token_cache"):
+        if hasattr(roles, name):
+            monkeypatch.setattr(roles, name, {})
+    monkeypatch.setattr(roles, "_want_q", [])
+    monkeypatch.setattr(roles, "LEADER_PORT", roles.LEADER_PORT)
+    monkeypatch.setattr(bf, "_inflight", type(bf._inflight)(what="single-flight fetch"))
+    before = set(threading.enumerate())
     roles._release_for_tests()
     yield
-    roles._release_for_tests()
+    srv = getattr(roles, "_server", None)
+    if srv is not None:
+        try:
+            srv.shutdown()
+            srv.server_close()
+        except Exception:  # noqa: BLE001
+            pass
+        roles._server = None
+    roles._release_for_tests()                    # role -> solo: the publisher / watch / reload loops end
+    for t in set(threading.enumerate()) - before:
+        if t.name.startswith("bars-api-") and t.name != "bars-api-want":
+            t.join(timeout=3)
 
 
 def _mkstore(path, gen: int, rows: int = 3):
@@ -151,6 +184,9 @@ def test_a_follower_process_writing_during_a_swap_leaves_a_sound_store_it_then_r
     # ...and its thread-local connection to the tmp store: restored with `_local`, so a later test on this thread never
     # reads this test's store through a connection the restored `_DB_PATH` no longer names.
     monkeypatch.setattr(bars_sqlite, "_local", threading.local())
+    # ...and the swap's floor bump must not START the process-wide meta flusher: it would run for the rest of the
+    # session and flush later tests' in-process proofs out of their buffers (Linux CI, test_bars_wm_from_live_daily).
+    monkeypatch.setattr(bars_sqlite, "_ensure_meta_flusher", lambda: None)
     monkeypatch.setenv("BARS_API_WORKERS", "2")
     db, new = tmp_path / "bars.db", tmp_path / "incoming.db"
     _mkstore(db, gen=1)
@@ -488,9 +524,15 @@ def test_the_deepfill_kick_on_every_intraday_first_paint_never_hands_off(monkeyp
     monkeypatch.setattr(bf, "_DEEPFILL_ENABLED", True)
     monkeypatch.setattr(bf, "_deepfill_once", lambda *a: pytest.fail("a follower ran a deep fill"))
     cache.invalidate(f"deepfill_AAPL_5_{bf._depth_tier(1199)}")
+    ttls = []
+    real_set = cache.set
+    monkeypatch.setattr(cache, "set", lambda k, v, ttl=None, **kw: (ttls.append((k, ttl)), real_set(k, v, ttl=ttl)))
     bf._maybe_kick_deepfill("AAPL", "5", 1199)
-    bf._maybe_kick_deepfill("AAPL", "5", 1199)              # throttled by the local marker
-    assert deferred == [("BG", "/api/bars/AAPL?tf=5&bars=1199")]
+    bf._maybe_kick_deepfill("AAPL", "5", 1199)              # a burst: throttled by the local marker
+    assert deferred == [("KICK", "deepfill", ["AAPL", "5", 1199])]   # the LEADER runs the kick itself
+    # the follower's marker is a burst guard (seconds), never the 6 h TTL a dropped kick would then wait out
+    assert [t for k, t in ttls if k.startswith("deepfill_")] == [bf._FOLLOWER_DEEPFILL_MARK_S]
+    assert bf._FOLLOWER_DEEPFILL_MARK_S <= 60 < bf._DEEPFILL_TTL
 
 
 def test_every_best_effort_kick_defers_in_a_follower(monkeypatch, deferred):
@@ -524,7 +566,7 @@ def test_a_follower_serves_an_answer_whose_path_kicked_a_refresh(monkeypatch, de
         bf._maybe_kick_deepfill("MSFT", "15", 600)
         return {"here": True}
     assert bam._served_here_or_by_leader("/api/bars/MSFT", {"tf": "15", "bars": 600}, serve) == {"here": True}
-    assert deferred and deferred[-1][1].startswith("/api/bars/MSFT?")
+    assert deferred and deferred[-1] == ("KICK", "deepfill", ["MSFT", "15", 600])
 
 
 def test_the_leader_replays_a_deferred_request_in_the_background(monkeypatch):
@@ -596,3 +638,69 @@ def test_a_follower_history_read_goes_through_the_origin_entry_and_hands_off_wit
         assert sent and sent[0][0].startswith("/api/bars-history/SPY?") and "gzip" in sent[0][1]
     finally:
         roles._role = "solo"
+
+
+# ── follow-up review: the leader runs a deferred deep fill itself; history hand-offs share one build; sheds ──────
+
+def _leader_port(monkeypatch):
+    import socket
+    so = socket.socket()
+    so.bind(("127.0.0.1", 0))
+    port = so.getsockname()[1]
+    so.close()
+    monkeypatch.setattr(roles, "LEADER_PORT", port)
+    monkeypatch.setenv("BARS_API_WORKERS", "2")
+    assert roles.elect() == "leader"
+    roles.start_leader_services()
+    return port
+
+
+def test_the_leader_runs_a_followers_deepfill_kick_through_its_own_throttle(monkeypatch):
+    from api.services import bars_fetch as bf
+    got = []
+    monkeypatch.setattr(bf, "_maybe_kick_deepfill", lambda t, tf, b: got.append((t, tf, b)))
+    _leader_port(monkeypatch)
+    try:
+        code, _ = roles.forward_to_leader("POST", "/internal/kick", json.dumps(
+            {"kind": "deepfill", "args": ["AAPL", "5", 1199]}).encode(), "")
+        assert code == 200 and got == [("AAPL", "5", 1199)]
+        code, _ = roles.forward_to_leader("POST", "/internal/kick", json.dumps(
+            {"kind": "__import__", "args": ["os"]}).encode(), "")
+        assert code == 404                                  # an allowlist of names, never a callable
+    finally:
+        roles._server.shutdown()
+        roles._server = None
+
+
+def test_handed_off_history_reads_of_one_url_share_one_build(monkeypatch):
+    import api.bars_api_main as bam
+    import api.routers.bars as rb
+    from fastapi.responses import JSONResponse
+    builds = []
+
+    def build(ticker, tf, bars, v, d):
+        builds.append(ticker)
+        time.sleep(0.3)
+        return JSONResponse({"t": ticker})                  # not `public`: the memo keeps nothing, the flight shares
+    monkeypatch.setattr(rb, "serve_bars_history", build)
+    outs = []
+    ths = [threading.Thread(target=lambda: outs.append(bam._history_for_follower("SPY", "D", 500, "", "", "gzip")))
+           for _ in range(6)]
+    for t in ths:
+        t.start()
+    for t in ths:
+        t.join()
+    assert len(builds) == 1 and len(outs) == 6 and all(o[0] == 200 for o in outs)
+
+
+def test_a_hand_off_shed_is_one_the_edge_reads_as_deliberate(monkeypatch):
+    """A 503 the edge does not recognise (tail.js isDeliberateTierShed) is a tier FAILURE there: the read goes to
+    web, another store, and the 20 s breaker opens. Every hand-off shed carries a recognised tag + Retry-After."""
+    import re
+    src = open(os.path.join(REPO, "edge", "bars-edge-router", "tail.js"), encoding="utf-8").read()
+    allowed = set(re.findall(r'"([a-z-]+)"', re.search(r"DELIBERATE_SHED_REASONS = new Set\(\[([^\]]*)\]", src).group(1)))
+    monkeypatch.setattr(roles, "LEADER_PORT", 9)                 # nobody listens: the unreachable-leader shed
+    code, headers, _ = roles.proxy_to_leader("/api/bars/AAPL?tf=5", 0.0)
+    h = {k.lower(): v for k, v in headers}
+    assert code == 503 and h.get("retry-after") and h.get("x-bars-shed") in allowed
+    assert dict((k.lower(), v) for k, v in roles.SHED_HEADERS)["x-bars-shed"] in allowed

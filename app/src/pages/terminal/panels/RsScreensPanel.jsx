@@ -27,8 +27,9 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  panelAsOf, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -75,14 +76,41 @@ export function rsScreenCell(key, r) {
   }
 }
 
+/** Customization pass 1: a screen's columns as the shared header takes them (components/terminal/
+ *  PanelTable). The screen's own order is the default and decides which stocks are on the page; a
+ *  header click sorts the stocks shown. Place sorts 1 first (it is a rank). Each screen has its own
+ *  columns, so the keys carry the screen (`<id>.<column>`): a column one screen hides is its own. */
+const RSS_NUMERIC = new Set(['rs', 'place', 'days', 'price', 'chgPct'])
+export function rssTableColumns(screen, columns) {
+  const id = String(screen?.id || 'rss').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20) || 'rss'
+  return columns.map((c) => ({
+    ...c,
+    key: `${id}.${c.key}`,
+    col: c.key,
+    required: c.key === 'sym',
+    type: RSS_NUMERIC.has(c.key) ? 'number' : 'text',
+    firstDir: c.key === 'place' ? 'asc' : undefined,
+    sort: c.key === 'sym' ? (x) => x.sym
+      : RSS_NUMERIC.has(c.key) ? (x) => x[c.key]
+        : c.key === 'group' || c.key === 'tag' ? (x) => x[c.key] || null
+          : (x) => x.parts?.[c.key] || null,
+    // The header class as before the shared header: a wrap column gives back its floor, any other may take two lines.
+    thClass: [c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : styles.mediumWrap].join(' '),
+  }))
+}
+
 function RsScreenList({ screen }) {
   const body = useMemo(() => JSON.stringify(rsScanBody(screen)), [screen])
   const r = useSWR([RS_SCAN_URL, 'terminal-rss', screen.id, body], fetchScan, { revalidateOnFocus: false })
   const view = useMemo(() => rsScanView(r.data?.body, screen), [r.data, screen])
-  const columns = useMemo(() => rsScreenColumns(screen), [screen])
+  const shape = useMemo(() => rsScreenColumns(screen), [screen])
+  const columnSpec = useMemo(() => rssTableColumns(screen, shape), [screen, shape])
+  const table = usePanelTable({ columns: columnSpec })
+  const columns = table.visible
+  const rows = useMemo(() => table.apply(view.rows), [view.rows, table.apply])
   const asOf = view.session || view.snapshotDate
   usePanelFreshness(view.ok ? panelAsOf(SOURCE, asOf) : null)
-  usePanelSymbolRows(view.rows.map((x) => x.sym), screen.name, { total: view.total })
+  usePanelSymbolRows(rows.map((x) => x.sym), screen.name, { total: view.total })
   const retry = () => r.mutate()
   const listName = `The ${screen.name} screen`
 
@@ -111,8 +139,8 @@ function RsScreenList({ screen }) {
   const method = (
     <p className={styles.muted} data-testid="terminal-rss-method">
       {view.total > view.rows.length
-        ? `Showing the first ${formatNumber(view.rows.length, { decimals: 0 })} of ${formatNumber(view.total, { decimals: 0 })} in the screen's own order. `
-        : view.rows.length ? `${formatNumber(view.rows.length, { decimals: 0 })} ${view.rows.length === 1 ? 'stock' : 'stocks'}, in the screen's own order. ` : ''}
+        ? `Showing the first ${formatNumber(view.rows.length, { decimals: 0 })} of ${formatNumber(view.total, { decimals: 0 })} in the screen's own order${table.sort ? ', sorted here by the column header you picked' : ''}. `
+        : view.rows.length ? `${formatNumber(view.rows.length, { decimals: 0 })} ${view.rows.length === 1 ? 'stock' : 'stocks'}, in the screen's own order${table.sort ? ', sorted here by the column header you picked' : ''}. ` : ''}
       This is the screen as the Screener opens it, with its own rules, from the nightly screener snapshot
       {view.session ? ` (ratings as of ${view.session})` : view.snapshotDate ? ` (as of ${view.snapshotDate})` : ''}. RS Rating is
       our own 1 to 99 rating of a stock&apos;s price strength against the market. A list says which stocks to study; it is
@@ -138,23 +166,15 @@ function RsScreenList({ screen }) {
   return (
     <>
       {r.error && <p className={styles.note} role="status">{failureText(r.error, listName)} Showing the last read.</p>}
+      <div className={styles.head}><PanelColumns table={table} testId="terminal-rss-columns" /></div>
       <div className={styles.tableBox} data-fold={RS_SCREEN_FOLD[screen.id]}>
         <table className={styles.table} data-testid="terminal-rss-table" aria-label={`${screen.name}, ${view.rows.length} ${view.rows.length === 1 ? 'stock' : 'stocks'}`}>
-          <thead>
-            <tr>
-              {columns.map((c) => (
-                <th scope="col" key={c.key} title={c.title}
-                  className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : styles.mediumWrap].join(' ').trim() || undefined}>
-                  {c.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
+          <PanelTableHead table={table} testId="terminal-rss" />
           <tbody>
-            {view.rows.map((x, i) => (
+            {rows.map((x, i) => (
               <tr key={x.sym} data-testid={`terminal-rss-row-${x.sym}`}>
                 {columns.map((c) => {
-                  if (c.key === 'sym') {
+                  if (c.col === 'sym') {
                     return (
                       <td key={c.key}>
                         <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
@@ -162,7 +182,7 @@ function RsScreenList({ screen }) {
                       </td>
                     )
                   }
-                  const cell = rsScreenCell(c.key, x)
+                  const cell = rsScreenCell(c.col, x)
                   return (
                     <td key={c.key}
                       className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : '', tone(cell.toneOf) || ''].join(' ').trim() || undefined}>

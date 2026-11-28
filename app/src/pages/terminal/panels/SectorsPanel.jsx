@@ -19,6 +19,7 @@ import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
@@ -86,6 +87,15 @@ export function sectorRows(body) {
 /** Half the track at most: a bar grows from the middle, right for a gain and left for a loss. */
 const barWidth = (share) => `${Math.round(share * 500) / 10}%`
 
+/** Customization pass 1: the table's columns (components/terminal/PanelTable). The ranking (strongest
+ *  first) is the default; a header click sorts by sector name, fund or the period's return. The fund
+ *  is what a click loads, so it always shows. */
+export const SECTOR_COLUMNS = Object.freeze([
+  { key: 'name', label: 'Sector', type: 'text', sort: (r) => r.name, thClass: styles.wrapCell },
+  { key: 'sym', label: 'Fund', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a fund to load it into the linked panels' },
+  { key: 'pct', label: 'Return', sort: (r) => r.pct },
+])
+
 export default function SectorsPanel({ period: periodProp = null }) {
   const inPanel = useInTerminalPanel()
   const writeBack = usePanelWriteBack()
@@ -96,8 +106,10 @@ export default function SectorsPanel({ period: periodProp = null }) {
   // Only an answer for THIS period is drawn (the previous period's is kept while this one loads).
   const body = read.body && read.body.period === period ? read.body : null
   const board = useMemo(() => sectorRows(body), [body])
+  const table = usePanelTable({ columns: SECTOR_COLUMNS })
+  const rows = useMemo(() => table.apply(board.rows), [board.rows, table.apply])
   usePanelFreshness(board.rows.length ? panelAsOf(SOURCE, read.receivedAt) : null)
-  usePanelSymbolRows(board.rows.map((r) => r.sym), 'sector funds')
+  usePanelSymbolRows(rows.map((r) => r.sym), 'sector funds')
 
   // The chip writes itself into the command (`SCTR 1M`) where the registry takes a window, so a
   // reload keeps it; otherwise it is plain component state (commandWriteBack.js).
@@ -136,6 +148,7 @@ export default function SectorsPanel({ period: periodProp = null }) {
               data-testid={`terminal-sectors-period-${key}`}>{p.chip}</button>
           ))}
         </div>
+        <PanelColumns table={table} testId="terminal-sectors-columns" />
       </div>
       {state || (
         <>
@@ -148,25 +161,23 @@ export default function SectorsPanel({ period: periodProp = null }) {
           )}
           <div className={styles.tableBox}>
             <table className={styles.table} data-testid="terminal-sectors-table"
-              aria-label={`Sector funds ranked by ${meta.column.toLowerCase()}, strongest first`}>
-              <thead>
-                <tr>
-                  <th scope="col" className={styles.wrapCell}>Sector</th>
-                  <th scope="col" title="Click a fund to load it into the linked panels">Fund</th>
-                  <th scope="col">{meta.column}</th>
-                </tr>
-              </thead>
+              aria-label={table.sort ? 'Sector funds, sorted by the column header' : `Sector funds ranked by ${meta.column.toLowerCase()}, strongest first`}>
+              <PanelTableHead testId="terminal-sectors"
+                table={{ ...table, visible: table.visible.map((c) => (c.key === 'pct' ? { ...c, label: meta.column } : c)) }} />
               <tbody>
-                {board.rows.map((r, i) => (
+                {rows.map((r, i) => (
                   <tr key={r.sym} data-testid={`terminal-sectors-row-${r.sym}`}>
-                    <td className={styles.wrapCell}>
+                    {table.shows('name') && <td className={styles.wrapCell}>
                       <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                       {/* The sector opens GRP beside this panel: its stocks ranked. 1 month and 3 months carry over; a fund GRP does not know stays plain text. */}
                       <PanelCommand cmd={sectorFundOf(r.sym) ? groupDrillCommand({ fund: r.sym, range: period }) : ''}
                         label={`Open the stocks of ${r.name}, ranked`}>{r.name}</PanelCommand>
-                    </td>
-                    <td><PanelSymbol sym={r.sym} className={styles.sym} /></td>
+                    </td>}
                     <td>
+                      {table.shows('name') ? null : <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>}
+                      <PanelSymbol sym={r.sym} className={styles.sym} />
+                    </td>
+                    {table.shows('pct') && <td>
                       <div className={bars.barRow}>
                         <span className={bars.track} aria-hidden="true">
                           <span className={bars.mid} />
@@ -177,14 +188,14 @@ export default function SectorsPanel({ period: periodProp = null }) {
                           {formatPercent(r.pct, { decimals: 2, signed: true })}
                         </span>
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className={styles.muted} data-testid="terminal-sectors-method">
-            The {SECTOR_FUND_COUNT} SPDR sector funds, strongest first. Today compares each fund&apos;s latest daily bar with the
+            The {SECTOR_FUND_COUNT} SPDR sector funds, {table.sort ? 'sorted by the column header you picked (ranked strongest first)' : 'strongest first'}. Today compares each fund&apos;s latest daily bar with the
             one before it; 1 week, 1 month and 3 months look back {SECTOR_PERIODS['1W'].sessions}, {SECTOR_PERIODS['1M'].sessions} and{' '}
             {SECTOR_PERIODS['3M'].sessions} trading days. The server recomputes the ranking
             about every 15 minutes. Each bar is sized against the biggest move on the board, and a sign (+/−) marks every

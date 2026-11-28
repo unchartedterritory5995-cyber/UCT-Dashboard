@@ -20,6 +20,15 @@
 //            few panels the shell leaves flush (the chart, the calendar) — see FLUSH_PANELS.
 import { createContext, createElement, useContext, useEffect } from 'react'
 
+/**
+ * Customization pass 1 (2026-11-27): a panel's VIEW (sort, hidden columns, filters), the
+ * `{ view, setView(next) }` the shell's `Panel` provides from the panel record. `setView` saves
+ * the view with the board (the layout's own debounced write) WITHOUT re-running the command, so
+ * the panel is not remounted. `null` outside a terminal panel; read it through `usePanelView`
+ * (usePanelView.js), which falls back to component state there.
+ */
+export const PanelViewContext = createContext(null)
+
 /** `null` outside a terminal panel. Provided by `Panel` in pages/terminal/TerminalShell.jsx. */
 export const TerminalPanelContext = createContext(null)
 

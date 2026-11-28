@@ -30,6 +30,7 @@ import HighsLowsPanel, {
   isAnswerFor, normGroup, normSide,
 } from './HighsLowsPanel'
 import { stampedKey } from './marketRead'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { NHNL_SERIES_URL, PULSE_MIN_POINTS } from './highsLowsPulseModel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -86,12 +87,13 @@ const byUrl = (map) => async (url) => {
   throw Object.assign(new Error(`unserved ${url}`), { status: 500 })
 }
 
-function renderPanel(props = {}, { run = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn() } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><HighsLowsPanel {...props} /></ViewHost> : <HighsLowsPanel {...props} />
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open: vi.fn(), run, rerun: vi.fn(), publish: vi.fn(), publishRows }}>
-          <HighsLowsPanel {...props} />
+          {body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>,
@@ -606,4 +608,29 @@ describe('HILO chart of highs against lows through the session', () => {
     await screen.findByTestId('terminal-hilo-highs-row-AAA')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('HILO sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('one sort orders both lists and the row numbers follow; sort and hidden columns survive a remount', async () => {
+    jsonFetcher.mockResolvedValue(LIVE)
+    const saved = savedView()
+    const { publishRows } = renderPanel({}, { saved })
+    await screen.findByTestId('terminal-hilo-highs')
+    fireEvent.click(screen.getByTestId('terminal-hilo-highs-sort-pct'))
+    expect(symsOf('highs')).toEqual(['AAA', 'BBB', 'CCC'])   // a missing change sinks
+    fireEvent.click(screen.getByTestId('terminal-hilo-lows-sort-pct'))
+    expect(symsOf('highs')).toEqual(['BBB', 'AAA', 'CCC'])
+    expect(symsOf('lows')).toEqual(['EEE', 'DDD'])
+    expect(publishRows).toHaveBeenLastCalledWith(['$BBB', '$AAA', '$CCC', '$EEE', '$DDD'])
+    expect(screen.getByTestId('terminal-hilo-method').textContent).toContain('Sorted by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-hilo-columns'))
+    fireEvent.click(screen.getByTestId('terminal-hilo-columns-col-price'))
+    cleanup()
+    jsonFetcher.mockResolvedValue(LIVE)
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-hilo-highs')
+    expect(symsOf('lows')).toEqual(['EEE', 'DDD'])
+    expect(within(screen.getByTestId('terminal-hilo-highs')).queryByRole('columnheader', { name: 'Price' })).toBeNull()
+    expect(screen.getByTestId('terminal-hilo-highs-row-AAA').textContent).not.toContain('$391.62')
+  })
 })

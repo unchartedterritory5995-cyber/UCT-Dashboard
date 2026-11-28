@@ -65,7 +65,7 @@ def _form(form: Optional[str]) -> Optional[str]:
     if not form:
         return None
     f = form.upper().strip()
-    if not _FORM_RE.match(f) or not filings_feed.in_scope(f):
+    if not _FORM_RE.match(f) or not filings_feed.form_filter_ok(f):
         raise HTTPException(status_code=400, detail="Not a form this feed carries")
     return f
 
