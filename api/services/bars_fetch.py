@@ -1401,13 +1401,45 @@ def _wm_stored_daily_current(ticker_up: str, d_last=_D_UNREAD) -> bool:
     served W/M without today, turned revalidation off, and wrote that older close over a W/M row `_delta_weekly`/
     `_delta_monthly` had already brought through today (they write W/M, never D)."""
     try:
+        now = _wm_now_et()
+        if _wm_in_live_window(now):
+            return False
         if d_last is _D_UNREAD:
             d_last = _sqlite.get_last_ts(ticker_up, "D")
         if not d_last:
             return False
-        return int(d_last) >= _wm_required_daily_ymd()
+        return int(d_last) >= _wm_required_daily_ymd(now)
     except Exception:                      # noqa: BLE001 — unknown: the store as it is, as before
         return False
+
+
+def _wm_in_live_window(now) -> bool:
+    """A session day from the 09:30 open until the live daily poll's window closes (`bars_live_store._in_daily_window`,
+    20:00 ET): the stored daily is still MOVING, so only a live-covered daily may derive W/M then.
+    ⛔⛔ (delta review of #3001, (d)) A stored daily can hold TODAY's bar in session while `covered(t, "D")` is False: a
+    snapshot name whose D has a hole (the poll writes today's row for every snapshot ticker, `covered` also needs
+    `_daily_contiguous`), a dead daily poll (D frozen), a name outside the snapshot whose D a D read refreshed. Deriving
+    from it then set `_fresh_needed = False` and pinned W/M for the 900 s TTL with no revalidation. In the window the old
+    stale-while-revalidate path runs instead."""
+    from api.services import bars_live_store as _bls
+    return (_is_trading_day_ymd(now) and now.hour * 60 + now.minute >= _RTH_OPEN_MINUTES_SERVER
+            and _bls._in_daily_window(now))
+
+
+def _wm_daily_contiguous(rows, start: int) -> bool:
+    """The stored daily rows from `start` (YYYYMMDD) through their newest are exactly the NYSE sessions of that span:
+    no hole, no row on a non-session day. A W/M period derived from a daily with a hole is WRONG (it lacks a session)."""
+    days = [int(r[0]) for r in rows if int(r[0]) >= int(start)]
+    if not days:
+        return False
+    s, e = str(int(start)), str(max(days))
+    d, end = datetime(int(s[:4]), int(s[4:6]), int(s[6:])), datetime(int(e[:4]), int(e[4:6]), int(e[6:]))
+    want = []
+    while d <= end:
+        if _is_trading_day_ymd(d):
+            want.append(int(d.strftime("%Y%m%d")))
+        d += timedelta(days=1)
+    return sorted(set(days)) == want and len(days) == len(want)
 
 
 def _wm_key_of(tf: str, ymd: int) -> int:
@@ -1424,8 +1456,13 @@ def _wm_period_start(tf: str, key: int) -> int:
 
 def _wm_derived_periods(ticker_up: str, tf: str, wm_last: int):
     """The W/M periods the stored daily derives from the period holding `wm_last` onward (iso bars), or None."""
-    rows = _sqlite.get_bars_since(ticker_up, "D", _wm_period_start(tf, wm_last) - 1)
+    start = _wm_period_start(tf, wm_last)
+    rows = _sqlite.get_bars_since(ticker_up, "D", start - 1)
     if not rows:
+        return None
+    # ⛔⛔ (delta review of #3001) a daily with a hole in the span derives NOTHING: deriving rewrote an EARLIER, completed
+    # week/month from the holed daily over a correct stored row (`_wm_ahead_of_daily` checks only the last period)
+    if not _wm_daily_contiguous(rows, start):
         return None
     daily = _fmt_sqlite_bars(rows, "D", ticker_up)
     periods = _resample_weekly_iso(daily, ticker_up) if tf == "W" else _resample_monthly_iso(daily, ticker_up)
