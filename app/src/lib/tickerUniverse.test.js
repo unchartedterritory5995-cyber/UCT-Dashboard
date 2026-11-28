@@ -67,3 +67,49 @@ describe('tickerUniverse', () => {
     expect(isKnownTicker('NVDA')).toBe(null)
   })
 })
+
+// ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TICKERS THE TYPED TEXT CAN STILL BECOME, best first.
+describe('rankedCompletions', () => {
+  const SYMS = ['CRBG', 'CRBN', 'CRM', 'CRWD', 'CR', 'XCRM']
+  const POP = [40, 300, 2, 3, 0, 1]     // CR has no number (0)
+  const load = (pop = POP) => ensureTickerUniverse({ fetchImpl: vi.fn(async () => ({ ok: true, json: async () => ({ v: 'p', symbols: SYMS, pop }) })) })
+
+  it('nothing while no list is held, for empty text, or when nothing starts with the text', async () => {
+    const { rankedCompletions } = await import('./tickerUniverse')
+    expect(rankedCompletions('CR')).toEqual([])
+    await load()
+    expect(rankedCompletions('')).toEqual([])
+    expect(rankedCompletions('ZZ')).toEqual([])
+  })
+
+  it('prefix only (never a contains match), the exact text first, then popularity; at most k', async () => {
+    const { rankedCompletions } = await import('./tickerUniverse')
+    await load()
+    expect(rankedCompletions('CR', 3)).toEqual(['CR', 'CRM', 'CRWD'])
+    expect(rankedCompletions('CRB', 3)).toEqual(['CRBG', 'CRBN'])
+    expect(rankedCompletions('CR', 10)).not.toContain('XCRM')
+    expect(rankedCompletions('C', 2)).toEqual(['CRM', 'CRWD'])
+  })
+
+  it('the member\'s score leads popularity; the excluded symbol is never returned', async () => {
+    const { rankedCompletions } = await import('./tickerUniverse')
+    await load()
+    const score = (s) => (s === 'CRBN' ? 2 : 0)
+    expect(rankedCompletions('CRB', 3, { score })).toEqual(['CRBN', 'CRBG'])
+    expect(rankedCompletions('C', 3, { score, exclude: 'crm' })).toEqual(['CRBN', 'CRWD', 'CRBG'])
+  })
+
+  it('without `pop` (an older answer or copy): shorter first, then A-Z', async () => {
+    const { rankedCompletions } = await import('./tickerUniverse')
+    await load(null)
+    expect(rankedCompletions('CR', 4)).toEqual(['CR', 'CRM', 'CRBG', 'CRBN'])
+  })
+
+  it('the ranks are kept in this browser\'s copy', async () => {
+    const { rankedCompletions } = await import('./tickerUniverse')
+    await load()
+    __resetTickerUniverseForTests({ cache: false })
+    await ensureTickerUniverse({ fetchImpl: vi.fn() })
+    expect(rankedCompletions('C', 2)).toEqual(['CRM', 'CRWD'])
+  })
+})
