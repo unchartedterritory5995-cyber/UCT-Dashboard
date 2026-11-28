@@ -248,6 +248,12 @@
  *  period (a week, a month, a longer intraday bar), and so are the assistant's two higher-timeframe stop rules. The
  *  Python lane refuses such a tree by name (`tests/test_ast_intraday_htf_fail_closed.py`). Mutants
  *  `ci/mutants/e101-intraday-htf.json` (9). */
+/** NUMBER PENDING = (engine e100 train; fix/static-color-new-fill-opacity; live by the owner's ruling 2026-11-28, FRED's pixel probe: TradingView paints a
+ *  static color.new(#2962ff, 90) band at alpha byte 26) A STATIC
+ *  fill band whose colour is color.new / color.rgb with a transparency paints (100 - t) / 100, TradingView's decimal
+ *  alpha, not the floating 1 - t/100 (pine.js resolveFillHandles, door 2 in memberDocumentMigration and
+ *  user_definitions). Among whole t only 90 paints a different byte (26, was 25); per-bar colours are unchanged.
+ *  Re-keys translation caches; saved door-1 bands move only where their stored value is still door 1's own. */
 /** NUMBER PENDING = (engine e100 train; fix/hma-floor-sqrt) THE HULL AVERAGE'S ROOT WINDOW IS floor(sqrt(n)), NOT
  *  round(sqrt(n)), in every Hull path: the formula lane and the runtime lane's ta.hma (interpret.js hullWindows), the
  *  Python twin (ast_interpret.py _hma_col), the native moving-average overlay (movingAverages.js hma) and the closed

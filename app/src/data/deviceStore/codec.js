@@ -104,7 +104,25 @@ export function parseTrailer(bytes, dataEnd, { tf = null } = {}) {
     for (let k = 0; k < SEED_FIELDS.length; k++) cols[SEED_FIELDS[k]][i] = e[k]
     row.set(syms[i], i)
   }
-  return { tf: T, tunit: tr.tunit, comp: tr.comp, build: tr.build ?? null, asof: tr.asof ?? null, count: n, row, ...cols }
+  return { tf: T, tunit: tr.tunit, comp: tr.comp, build: tr.build ?? null, asof: tr.asof ?? null, count: n, row, ...cols,
+    ...wholeOf(tr, 'pack') }
+}
+
+/**
+ * ⭐ WHOLE (2026-11-28, the full-depth daily pack; format doc section 3): `whole: true` says every symbol's window is
+ * its WHOLE served series as of `asof` (nothing older exists on the server) except the symbols in `partial`. Two
+ * optional keys: absent, nothing is whole (every older pack, every intraday pack). Malformed: the file is refused.
+ * Returns {whole: boolean, partial: Set} for an index.
+ */
+export function wholeOf(tr, what) {
+  if (!Object.hasOwn(tr, 'whole')) return { whole: false, partial: new Set() }
+  if (tr.whole !== true || !Array.isArray(tr.partial) || !tr.partial.every((x) => typeof x === 'string')) fail(`${what}: whole / partial`)
+  return { whole: true, partial: new Set(tr.partial) }
+}
+
+/** Is row `sym` of `index` its whole served series (see wholeOf)? */
+export function isWhole(index, sym) {
+  return index?.whole === true && !index.partial?.has(sym)
 }
 
 /** One index row as a plain object (diagnostics / tests). */

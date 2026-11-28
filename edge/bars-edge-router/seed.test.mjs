@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import worker from "./worker.js";
-import { parseSeedPath, parseRange, edgeCacheKey, handleSeed, PACK_TYPE, DEFAULT_PREFIX } from "./seed.js";
+import { parseSeedPath, parseRange, edgeCacheKey, handleSeed, PACK_TYPE, DEFAULT_PREFIX, TEE_MAX_BYTES } from "./seed.js";
 import { decodeBody } from "../../app/src/data/historyLake/piece.js";
 
 const FIX = JSON.parse(readFileSync(new URL("./__fixtures__/ffseed.json", import.meta.url), "utf8"));
@@ -155,6 +155,38 @@ test("the second read of a pack comes from this data center's copy, not R2", asy
   // the copy never answers without entitlement
   const anon = await ask(path, { env, cache, cookie: false });
   assert.equal(anon.res.status, 401);
+});
+
+test("a pack above TEE_MAX_BYTES is never teed: the client streams R2, the edge copy fills from its own read", async () => {
+  // review of zero-network PR 3.1 (E1): a tee of the 128.8 MB full-depth D pack buffers the slow client's gap in the
+  // Worker's memory, next to the 128 MB isolate limit
+  const big = new Uint8Array(TEE_MAX_BYTES + 4096);
+  for (let i = 0; i < big.length; i += 997) big[i] = i & 255;
+  const env = { CHART_EDGE_SECRET: SECRET, SEED: bucket() };
+  env.SEED.store.set(`ffseed/${FIX.build}/D.ffs`, big);
+  const cache = memCache();
+  const realTee = ReadableStream.prototype.tee;
+  let tees = 0;
+  ReadableStream.prototype.tee = function (...a) { tees++; return realTee.apply(this, a); };
+  try {
+    const { res, body } = await ask(`/api/seed/v1/${FIX.build}/D.ffs`, { env, cache });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-length"), String(big.length));
+    assert.deepEqual(body, big);
+    assert.equal(tees, 0, "a big pack is never teed");
+    assert.deepEqual(env.SEED.asked, [`get ffseed/${FIX.build}/D.ffs`, `get ffseed/${FIX.build}/D.ffs`], "its copy is its own R2 read");
+    const copy = cache.m.get(edgeCacheKey("https://uctintelligence.com", `ffseed/${FIX.build}/D.ffs`));
+    assert.ok(copy, "the edge copy is still made");
+    assert.deepEqual(copy.bytes, big);
+    // a small pack keeps the one read and the tee
+    tees = 0;
+    const tf = Object.keys(PACKS).find((k) => k !== "D");
+    const small = await ask(`/api/seed/v1/${FIX.build}/${tf}.ffs`, { env, cache });
+    assert.deepEqual(small.body, PACKS[tf]);
+    assert.equal(tees, 1);
+  } finally {
+    ReadableStream.prototype.tee = realTee;
+  }
 });
 
 test("the manifest is short-lived and never copied at the edge", async () => {

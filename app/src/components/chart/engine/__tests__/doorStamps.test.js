@@ -34,8 +34,8 @@ const docOf = (p) => JSON.parse(read(p)).definition
 /** The hypothetical next door the fixture names (both suites define the same one). */
 const isLegacy = (v) => !Number.isInteger(v) || v <= 4
 const FUTURE_RULES = Object.freeze({
-  1: stampedFillOpacity,
-  2: (stamp, pv) => ((stamp.via === 'none' && !isLegacy(pv)) ? FIXTURE.future.modernNoneOpacity : stampedFillOpacity(stamp, pv)),
+  2: stampedFillOpacity,
+  3: (stamp, pv) => ((stamp.via === 'none' && !isLegacy(pv)) ? FIXTURE.future.modernNoneOpacity : stampedFillOpacity(stamp, pv)),
 })
 
 function applyOps(doc, ops) {

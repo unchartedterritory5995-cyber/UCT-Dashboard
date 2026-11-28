@@ -64,9 +64,19 @@ export function setDailyExpressionAdmissionForMeasurement(on) {
   _measurement = on === null || on === undefined ? null : on === true
 }
 
+/** ⭐⭐ Is the row live by an owner ruling (`ownerLive`: a date and the owner's words)? Owner, 2026-11-28: "anything and
+ *  everything goes live for all. We only have us building right now and no testers besides me yet" (memory
+ *  `feedback_admins_only_everything_live`). The evidence the registry's rule asks for is still reported as it stands
+ *  (`dailyExpressionAdmissionReasons`); Q-DAILY-1 is the check that drives the next fix, not a hold. */
+export function dailyExpressionOwnerLive(row = WITNESS) {
+  return !!row && typeof row.ownerLive === 'object' && row.ownerLive !== null
+    && typeof row.ownerLive.date === 'string' && typeof row.ownerLive.words === 'string' && row.ownerLive.words.length > 0
+}
+
 /** Is a daily expression above an intraday chart admitted on the runtime lane? */
 export function dailyExpressionAdmitted() {
   if (_measurement !== null) return _measurement
+  if (dailyExpressionOwnerLive(WITNESS)) return true
   return dailyExpressionAdmissionReasons(WITNESS).length === 0
 }
 
