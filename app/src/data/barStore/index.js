@@ -37,6 +37,8 @@ export const STATUS_TICK_MS = 15_000
  *  (`watchLive`; the watchlist's next 1-2 rows on each of the board's intraday timeframes). One more is refused (its row
  *  keeps the switch's own rule: it asks after a roll). The mux's own backstop is barsStreamManager.AHEAD_MAX_PAIRS. */
 export const NEIGHBOR_LIVE_MAX_KEYS = 4
+/** (P3) The front chart's habitual next timeframes watched live beyond the rows' NEIGHBOR_LIVE_MAX_KEYS (ChartWidget's dwell). */
+export const FRONT_LIVE_KEYS = 2
 const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
 
 /**
@@ -251,13 +253,15 @@ export function createBarStore(o = {}) {
      * fallback, no polling, no requests). Refcounted; at most NEIGHBOR_LIVE_MAX_KEYS keys per page, the rest refused (a
      * no-op release). Returns the release.
      */
-    watchLive(key, { session = 'rth' } = {}) {
+    watchLive(key, { session = 'rth', front = false } = {}) {
       let wl = watched.get(key)
       if (!wl) {
         // refused: a no-op release that says so (the hold asks again once, later: review of #2721, LOW)
-        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS) { const no = () => {}; no.refused = true; return no }
+        // (P3) the front chart's habitual timeframes (`front`) have FRONT_LIVE_KEYS of their own beyond the rows' cap;
+        // the wire cap (barsStreamManager AHEAD_MAX_PAIRS) still holds, and takes them first
+        if (!key || watched.size >= NEIGHBOR_LIVE_MAX_KEYS + (front ? FRONT_LIVE_KEYS : 0)) { const no = () => {}; no.refused = true; return no }
         registry.acquire(key)
-        const off = live.attach(key, { session, pushOnly: true })
+        const off = live.attach(key, { session, pushOnly: true, front })
         wl = { n: 0, stop: () => { try { off() } catch { /* ignore */ } registry.release(key) } }
         watched.set(key, wl)
       }

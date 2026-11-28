@@ -2,6 +2,8 @@
 // and timeframe warms every OTHER timeframe on its bar (a custom code as its native base: 4h / 2h -> 60, 45m -> 15), the
 // member's habitual next timeframes first; never before the page's first chart paint, never in replay; a press on the
 // bar records the habit. On the REAL ChartWidget + ChartPane; StockChart is a stub.
+// (P3) after the dwell the two habitual timeframes' INTRADAY keys are watched live as the front chart's `ahead` pairs
+// (store.watchLive front: true), released when the timeframe moves on; never at a date, never a D/W/M key.
 import { render, cleanup, act } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -9,7 +11,14 @@ import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 import { WidgetDoorContext } from '../widgetDoors'
 
-const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false }))
+const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false, watches: [] }))
+vi.mock('../../../components/chart/barStoreSwitch', async (orig) => ({ ...(await orig()), BARSTORE: true }))
+vi.mock('../../../data/barStore/index', async (orig) => {
+  const m = await orig()
+  const watchLive = (key, o) => { const w = { key, o, released: false }; captured.watches.push(w); return () => { w.released = true } }
+  // the real store, its watchLive observed (the replay path reads the store too)
+  return { ...m, getBarStore: () => new Proxy(m.getBarStore(), { get: (t, k) => (k === 'watchLive' ? watchLive : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) }) }
+})
 vi.mock('../../../components/StockChart', () => ({
   default: (props) => { captured.props = props; return <span data-testid="chart-sym">{props.sym}</span> },
 }))
@@ -25,7 +34,7 @@ vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ alerts: 
 vi.mock('../../../hooks/useFundamentalSnapshot', () => ({ default: () => ({ data: null, isLoading: false }) }))
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, setPrefMerged: () => {}, loading: false }), parsePref: (_r, f) => f }))
 vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
-vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
+vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null, prefetchTickerMeta: () => {} }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
 vi.mock('../../../utils/barsWarm', async (orig) => ({
   ...(await orig()),
@@ -64,7 +73,7 @@ const optsFor = (tf) => ({ tf, settings: { header: { timeframes: BAR } } })
 beforeEach(() => {
   vi.useFakeTimers()
   __resetTfHabitForTests()
-  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null
+  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null; captured.watches.length = 0
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
@@ -128,4 +137,23 @@ test('CONTROL: in replay the chart warms nothing here (the replay warm owns its 
   render(<Wrap initialOpts={optsFor('D')} replayCutoff="2020-03-16" />)
   act(() => { vi.advanceTimersByTime(TF_DWELL_MS * 3) })
   expect(captured.warms).toHaveLength(0)
+})
+
+test('(P3) after the dwell the habitual INTRADAY keys are watched live as the front chart pairs, released on the next press', () => {
+  render(<Wrap initialOpts={optsFor('D')} />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS - 5) })
+  expect(captured.watches).toHaveLength(0)                       // not before the dwell
+  act(() => { vi.advanceTimersByTime(10) })
+  // D's habitual next timeframes: W (a date key: not streamed) and 4h (its native base 60): one watch, the 60m key
+  expect(captured.watches.map((w) => w.key)).toHaveLength(1)
+  expect(captured.watches[0].key).toMatch(/_60/)
+  expect(captured.watches[0].o).toMatchObject({ front: true })
+  act(() => { ctl.setOpts(optsFor('W')) })                       // the member pressed on: released
+  expect(captured.watches[0].released).toBe(true)
+})
+
+test('(P3) CONTROL: no live watch at a date the member went to, nor in replay', () => {
+  render(<Wrap initialOpts={optsFor('D')} replayCutoff="2020-03-16" />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS * 3) })
+  expect(captured.watches).toHaveLength(0)
 })

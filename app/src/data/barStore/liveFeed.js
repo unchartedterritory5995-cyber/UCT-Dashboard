@@ -375,13 +375,14 @@ export function createLiveFeed({
     return a
   }
 
-  function _attachPushOnly(key, session) {
+  function _attachPushOnly(key, session, front = false) {
     const p = parseKey(key)
     const off = []
     if (p && !p.window && isIntradayTf(p.tf) && pushEnabled()) {
       off.push(stream.subscribe(p.sym, streamTf(p), {
         session: streamSession(p, session),
         ahead: true,
+        front,
         onBar: (data) => { if (!attached.has(key)) _dispatchFrame(key, data) },
       }))
     }
@@ -391,10 +392,10 @@ export function createLiveFeed({
   return {
     /** Start the live subscriptions of `key` (refcounted). Returns its detach function.
      *  `pushOnly`: a row ahead of the member (its push frames only, as an `ahead` pair; see `pushOnly` above). */
-    attach(key, { session = 'rth', pushOnly: ahead = false } = {}) {
+    attach(key, { session = 'rth', pushOnly: ahead = false, front = false } = {}) {
       if (ahead) {
         let b = pushOnly.get(key)
-        if (!b) { b = _attachPushOnly(key, session); pushOnly.set(key, b) }
+        if (!b) { b = _attachPushOnly(key, session, front); pushOnly.set(key, b) }
         b.refs++
         let gone = false
         return () => {

@@ -16,6 +16,8 @@
 //       AHEAD pairs; a row leaving is released; clear() releases all; a hidden page subscribes none
 //   L2b ...only while the member navigates: TAIL_ACTIVE_MS after the last selection change they are released
 //   L3  the page cap: at most NEIGHBOR_LIVE_MAX_KEYS keys ride the stream as a neighbour (the store's watchLive)
+//   L3b (P3) the front chart's habitual timeframes (`front: true`) have FRONT_LIVE_KEYS places beyond that cap
+//   L1e (P3) a front-watched key the server sheds (no frame ever): today's rule, the switch asks (never shown short)
 //   L4  (review of #2721) a live re-sort (the same selection) never changes the rows on the stream (it would reconnect the
 //       chart's own stream); a press does
 //   L5  (review, LOW) the page turning hidden, or the session ending, mid-window releases them within LIVE_RECHECK_MS
@@ -137,6 +139,18 @@ describe('L: a next row the push stream has kept current through the roll is sho
     vi.setSystemTime(at(10, 1, 0) + 500)
     expect(w.pf.peekDisplayable('AAA', '1')).toBe(false)
     hold.clear()
+    w.store.dispose()
+  })
+
+  it('L1e a front-watched key the server sheds (no frame ever): the #2708 rule, the switch asks', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    await warmNext(w, ['AAA'])
+    const off = w.store.watchLive(w.k('AAA'), { front: true })      // on the stream as the front chart's, never delivered
+    expect(off.refused).toBeFalsy()
+    vi.setSystemTime(at(10, 1, 0) + 500)
+    expect(w.pf.peekDisplayable('AAA', '1'), 'a shed key was shown without the closed minute').toBe(false)
+    off()
     w.store.dispose()
   })
 
@@ -263,6 +277,20 @@ describe('L2: the hold puts the rows ahead on the stream, bounded', () => {
     expect(w.stream.ahead()).toEqual(['A2:1', 'A3:1', 'A4:1', 'A5:1'])
     for (const f of [...off, again]) f()
     expect(w.stream.ahead()).toEqual([])
+    w.store.dispose()
+  })
+
+  it('L3b the front chart keys have FRONT_LIVE_KEYS places beyond the rows cap; past them, refused', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const { FRONT_LIVE_KEYS } = await import('./index')
+    expect(FRONT_LIVE_KEYS).toBe(2)
+    const rows = ['A1', 'A2', 'A3', 'A4'].map((s) => w.store.watchLive(w.k(s)))
+    expect(w.store.watchLive(w.k('A5')).refused, 'a fifth row').toBe(true)
+    const fr = ['F1', 'F2'].map((s) => w.store.watchLive(w.k(s), { front: true }))
+    expect(fr.map((f) => !!f.refused), 'the front chart keys').toEqual([false, false])
+    expect(w.store.watchLive(w.k('F3'), { front: true }).refused, 'a third front key').toBe(true)
+    for (const f of [...rows, ...fr]) f()
     w.store.dispose()
   })
 
