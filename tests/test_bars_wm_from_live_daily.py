@@ -432,20 +432,21 @@ def test_a_derived_answer_reads_the_stored_daily_tail_once(store, monkeypatch, c
 # poll, a name outside the snapshot whose D a D read refreshed. Deriving from it set `_fresh_needed = False` and pinned
 # W/M for 900 s with no revalidation, and an EARLIER completed period was rewritten from the holed daily.
 def _seed_holed(tf, last, hole, monkeypatch, drop_tail=0, sym="AAA"):
-    """The stored W/M table built from the FULL daily (correct rows; the last `drop_tail` periods absent, so the stored
-    tail is an earlier, COMPLETED period), and a stored D missing the session `hole`."""
+    """A stored D missing the session `hole`, and a stored W/M table that is correct: with `drop_tail`, built from the
+    FULL daily with the last periods absent (the stored tail is an earlier, COMPLETED period); otherwise built from the
+    sessions before the hole (an older, smaller developing tail)."""
     full = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
             for i, d in enumerate(_sessions_through(last))]
     holed = [b for b in full if b["t"] != hole.isoformat()]
     assert len(holed) == len(full) - 1, "the hole is not a session of the seed"
     bars_sqlite.put_bars(sym, "D", holed, date_tf=True)
     rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
-    stored = [dict(p) for p in rs(full)]
     if drop_tail:
-        stored = stored[:-drop_tail]
+        stored = [dict(p) for p in rs(full)][:-drop_tail]
     else:
-        stored[-1]["c"] = stored[-1]["l"]
-        stored[-1]["v"] = int(stored[-1]["v"]) - 1
+        # an OLDER stored tail: built from the sessions before the hole, so it has LESS volume than the holed derive and
+        # the ahead guard (`_wm_ahead_of_daily`) cannot be what stops the derive; only the contiguity check can
+        stored = [dict(p) for p in rs([b for b in full if b["t"] < hole.isoformat()])]
     bars_sqlite.put_bars(sym, tf, stored, date_tf=True)
     monkeypatch.setattr(bls, "covered", lambda t, k: False)
     for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
