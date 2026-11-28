@@ -34,9 +34,9 @@ class _Spy:
     def __init__(self):
         self.calls = []
 
-    def emit(self, key, severity, message, metadata=None):
+    def emit(self, key, severity, message, metadata=None, *, email=True):
         self.calls.append({"key": key, "severity": severity, "message": message,
-                           "metadata": metadata or {}})
+                           "metadata": metadata or {}, "email": email})
         return True
 
 
@@ -207,3 +207,16 @@ def test_the_health_payload_carries_the_record_beside_the_window():
     Both, never one instead of the other."""
     snap = observe._live_stall_record()
     assert "lifetime_max_ms" in snap and "recent" in snap
+
+
+# ── owner ruling 2026-11-27: only a stall that breaks something emails ───────
+
+def test_only_a_tier1_stall_emails_the_owner(spy):
+    """Owner 2026-11-27, after ~30 `loop_stalled` emails a day: email only the freezes that
+    actually break something. Tier 1 (>= the 3,000 ms Discord ack budget) still emails; tier 2
+    (1-3 s past the uptime floor) still pages Discord and is still recorded, but sends no email."""
+    stall_record.note(9000.0, uptime_s=50.0, now=1_000_000.0)          # tier 1
+    stall_record._write_cooldown(0.0)
+    stall_record.note(1500.0, uptime_s=5000.0, now=2_000_000.0)        # tier 2
+    assert [(c["metadata"]["tier"], c["email"]) for c in spy.calls] == [(1, True), (2, False)]
+    assert all(c["severity"] == "critical" for c in spy.calls), "tier 2 must still page Discord"

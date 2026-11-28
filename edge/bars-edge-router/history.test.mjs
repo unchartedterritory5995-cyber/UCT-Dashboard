@@ -414,7 +414,8 @@ test("edge copy: bytes that did not validate are never kept, and kept bytes are 
   assert.deepEqual(cache.log.put, []);
   // whatever sits under a key, a read still checks it: B's bytes under A's key are a 409, not B
   const pa = PLACE.get(a.name);
-  cache.store.set(edgeCacheKey("https://uctintelligence.com", pa.key, { offset: pa.off, length: pa.n, crc: a.header.crc }),
+  cache.store.set(edgeCacheKey("https://uctintelligence.com", pa.key,
+    { offset: pa.off, length: pa.n, crc: a.header.crc, enc: encodeSymbol(a.header.symbol) }),
     bytesOf(b.b64).subarray(0, pa.n));
   const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
   const { res } = await askEdge(pathOf(a), cache, { env });

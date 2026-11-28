@@ -6271,6 +6271,38 @@ export function anyInstalledRuntimeDefinition() {
   return false
 }
 
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — THE DOCUMENTS THIS MEMBER'S CHARTS WILL HAND THE RUNTIME WORKER, in the form the
+ *  worker runs them (a run half as `runHalfDefOf` makes it, a runtime document as installed), each with stand-in bars,
+ *  for the worker's WARM job (`runtimeAsync.warmRuntimeLane({warm})`): their first run in a fresh worker pays the
+ *  compiler's and the VM's start-up, and it is paid before the chart's first real job. At most `max`; stand-in daily
+ *  bars, nothing drawn or kept from them. */
+export function runtimeWarmDocuments(max = 2) {
+  const out = []
+  for (const d of _userById.values()) {
+    if (out.length >= max) break
+    const c = d && d.compute
+    if (!c) continue
+    let def = null
+    if (c.kind === 'runtime' && typeof c.source === 'string') def = d
+    else if (c.runtimeObjects && typeof c.runtimeObjects.source === 'string' && c.runtimeObjects.outputs) def = runHalfDefOf(d, c.runtimeObjects)
+    if (def) out.push({ def, rows: warmRows(), ctx: { tf: 'D', newestBarIsForming: false, historyFromListing: true } })
+  }
+  return out
+}
+let _warmRows = null
+/** 300 stand-in daily bars (a gentle wave), made once per page. */
+function warmRows() {
+  if (_warmRows) return _warmRows
+  const rows = []
+  const t0 = Date.UTC(2025, 0, 2) / 1000
+  for (let i = 0; i < 300; i += 1) {
+    const c = 100 + 10 * Math.sin(i / 13) + i * 0.05
+    rows.push({ t: t0 + i * 86400, o: c - 0.5, h: c + 1, l: c - 1, c, v: 1e6 })
+  }
+  _warmRows = rows
+  return rows
+}
+
 /**
  * @returns {object|null} the definition, or null when nothing is registered under `defId`.
  *
