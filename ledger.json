@@ -8470,6 +8470,36 @@
     "ALT",
     "KCHV"
    ]
+  },
+  {
+   "id": "cloud/46154819651-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:28:32+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SENEA",
+    "UAA",
+    "CRBU",
+    "RPC",
+    "BMRC",
+    "MPB",
+    "GRVY",
+    "UAMY",
+    "BALY",
+    "POET",
+    "IVVD",
+    "TBLD",
+    "VBNK"
+   ]
+  },
+  {
+   "id": "cloud/46154819651-1/COV-def-tabs",
+   "at": "2026-11-28T14:28:32+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VCX",
+    "RLX",
+    "XFOR"
+   ]
   }
  ]
 }
