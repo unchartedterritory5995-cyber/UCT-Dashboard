@@ -191,7 +191,7 @@ function Footer({ credits }) {
       <p>
         {`Each part is the agency's own figure, as published. Net liquidity is a UCT calculation from them: on each H.4.1 Wednesday, reverse repo is that day's print or, when there is none, the nearest earlier print within ${RRP_LOOKBACK_DAYS} days. It describes the figures; it is not a forecast. A series name opens it on the chart.`}
       </p>
-      {credits.map((c) => <p key={c.key} data-testid="terminal-liq-credit" data-source={c.key}>{c.text}</p>)}
+      {credits.map((c) => <p key={c.key} data-testid="terminal-liq-credit" data-source={c.key} data-share-notice="">{c.text}</p>)}
     </div>
   )
 }

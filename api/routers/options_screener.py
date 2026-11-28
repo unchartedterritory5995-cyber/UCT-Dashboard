@@ -11,6 +11,9 @@
   GET /api/options-screener/oi-change/{sym}  -- one stock's open interest per contract
                                                 against the logged session before
                                                 (the Terminal's OIC panel)
+  GET /api/options-screener/oi-change        -- the biggest open-interest changes across the
+                                                whole log, by stock or by contract (bare OIC;
+                                                `oi_market.py`, held, built in the background)
 
 All of them read OUR options log's prebuilt per-session files
 (`api/services/research/options_screener.py`); nothing scans the universe per request.
@@ -35,6 +38,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.options_analytics import oi_change as oic
+from api.services.options_analytics import oi_market as oim
 from api.services.research import iv_rank_leaders as ivr
 from api.services.research import options_screener as svc
 
@@ -85,6 +89,21 @@ def options_iv_rank(_user: dict = Depends(require_paid)):
     """The highest and lowest IV rank across the options log (OSCR RICH / OSCR CHEAP). Only the
     list the evening build holds: the log is never read on the request."""
     return ivr.get_leaders()
+
+
+@router.get("/oi-change", dependencies=[Depends(_armed)])
+def options_oi_change_market(view: str = "stocks", side: str = "any", _user: dict = Depends(require_paid)):
+    """The biggest open-interest changes across the whole options log (the Terminal's bare `OIC`), by stock
+    or by contract. Answers at once from the lists this server holds: `computing` (200) while the one
+    background build scans the two screen files; a log that could not be read is a 503 in words."""
+    try:
+        out = oim.market_change(view, side)
+    except oic.BadQuery as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    if out.get("status") == "unavailable":
+        raise HTTPException(status_code=503,
+                            detail=f"The options log is unavailable: {out.get('error')}")
+    return out
 
 
 @router.get("/oi-change/{sym}", dependencies=[Depends(_armed)])

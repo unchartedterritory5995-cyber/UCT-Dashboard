@@ -1,9 +1,11 @@
 """COV-09 -- a live feed of new SEC filings, per ticker and market-wide.
 The Research > Filings feed tab.
 
-Forms: 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D / 13G and
-S-1 -- amendments included. Every row cites its accession number and links to
-the filing's SEC index page.
+Forms: 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D / 13G,
+S-1, and the share-offering forms S-3, S-3ASR, 424B1-424B5, 424B7 and S-8 --
+amendments included. Every row cites its accession number and links to the
+filing's SEC index page. `form=DILUTION` (FORM_GROUPS) reads S-1, S-3, S-3ASR,
+the 424B prospectuses and S-8 together: the market-wide dilution watch.
 
 Two reads, both through `fundamentals_pit.sec_client` (the repo's one SEC path:
 one declared User-Agent, one process-wide limiter, bounded backoff):
@@ -47,14 +49,25 @@ ENABLED_ENV = "FILINGS_FEED_ENABLED"
 SOURCE_FEED = "SEC EDGAR latest-filings feed"
 SOURCE_SUBMISSIONS = "SEC EDGAR submissions"
 
-FEED_FORMS = ("8-K", "10-Q", "10-K", "4", "SCHEDULE 13D", "SCHEDULE 13G", "S-1")
+# The share-offering forms (2026-11-27, the market-wide dilution watch): a shelf registration (S-3, and
+# S-3ASR, a well-known seasoned issuer's shelf, effective on filing), a prospectus or supplement for
+# shares being sold off a registration (424B1-424B5, 424B7; 424B6 is not a share-sale form and 424B8
+# is a late filing of the others), and S-8 (shares for an employee stock plan). S-1 is already read.
+# The same forms DILU classes for one company (api/services/dilution_watch.py), read market-wide here
+# from the same latest-filings feed, one request per form per poll like the rest.
+DILUTION_FORMS = ("S-1", "S-3", "S-3ASR", "424B1", "424B2", "424B3", "424B4", "424B5", "424B7", "S-8")
+FEED_FORMS = ("8-K", "10-Q", "10-K", "4", "SCHEDULE 13D", "SCHEDULE 13G") + DILUTION_FORMS
+# A group name the `form` filter takes beside one form: every base form in the group.
+FORM_GROUPS = {"DILUTION": DILUTION_FORMS}
 FEED_COUNT = 100
 # R8: every cap is PER FORM. A single cap across forms let a heavy Form 4
 # filer's insider paperwork fill all 60 ticker rows (and Form 4 / 8-K volume
 # fill the market's 600) before the form filter ran, so "10-K" answered "none"
 # for a company that had filed one.
-MARKET_KEEP = 600                 # total ceiling, never reached by one form alone
 MARKET_KEEP_PER_FORM = 100        # = FEED_COUNT: one poll's worth per form
+# The total ceiling is every form's own cap added up, so a busy form can never push a quiet one out
+# (it was 600 for 7 forms; 16 forms at 100 each is 1,600 rows, about a megabyte held).
+MARKET_KEEP = MARKET_KEEP_PER_FORM * len(FEED_FORMS)
 TICKER_ROWS = 60                  # per form
 _SUBMISSIONS_SCAN = 1000          # EDGAR's `recent` block holds up to 1000
 POLL_MINUTES = int(os.environ.get("FILINGS_FEED_POLL_MINUTES", "5"))
@@ -130,6 +143,25 @@ def base_form(form: str) -> str:
 
 def in_scope(form: str) -> bool:
     return base_form(form) in FEED_FORMS
+
+
+def form_filter_ok(form: str) -> bool:
+    """May the `form` filter take this word: one in-scope form, or a FORM_GROUPS name."""
+    return in_scope(form) or (form or "").strip().upper() in FORM_GROUPS
+
+
+def forms_of(form: Optional[str]) -> Optional[frozenset]:
+    """The base forms one `form` filter keeps (a group's forms, or the one form); None = every form."""
+    if not form:
+        return None
+    f = (form or "").strip().upper()
+    return frozenset(FORM_GROUPS[f]) if f in FORM_GROUPS else frozenset({base_form(f)})
+
+
+def form_label(form: str) -> str:
+    """A filter's words in a reason: a group says which forms it is."""
+    f = (form or "").strip().upper()
+    return "share-offering (S-1, S-3, 424B or S-8)" if f == "DILUTION" else base_form(f)
 
 
 def index_url(cik: Any, accession: str) -> str:
@@ -321,8 +353,9 @@ def market_feed(*, form: Optional[str] = None, now: Optional[float] = None) -> d
         return {"state": "pending", "source": SOURCE_FEED, "rows": None,
                 "reason": f"the feed has not been polled yet on this server; it polls every {POLL_MINUTES} minutes"}
     rows = snap["rows"]
-    if form:
-        rows = [r for r in rows if base_form(r["form"]) == base_form(form)]
+    keep = forms_of(form)
+    if keep is not None:
+        rows = [r for r in rows if base_form(r["form"]) in keep]
     age = (now or time.time()) - snap["polled_at"]
     state = "ok" if age <= 3 * POLL_MINUTES * 60 else "stale"
     failed = sorted(f for f, s in snap["forms"].items() if s.get("state") != "ok")
@@ -334,8 +367,8 @@ def market_feed(*, form: Optional[str] = None, now: Optional[float] = None) -> d
         out["partial"] = f"these forms could not be read on the last poll: {', '.join(failed)}"
     if not rows:
         # R8: an empty market read used to be `ok` with no rows and no reason.
-        scope = base_form(form) if form else "in-scope"
-        if form and base_form(form) in failed:
+        scope = form_label(form) if form else "in-scope"
+        if keep is not None and keep <= set(failed):
             out["reason"] = f"the last poll could not read the {scope} feed"
         elif state == "ok":
             out["state"] = "none_in_scope"
@@ -420,14 +453,15 @@ def ticker_feed(sym: str, *, form: Optional[str] = None) -> dict:
              if r["cik"] == snap["cik"] and r["accession"] not in have]
     rows = sorted(newer + rows, key=lambda r: (r.get("accepted") or r.get("filed") or "", r["accession"]),
                   reverse=True)
-    if form:
-        rows = [r for r in rows if base_form(r["form"]) == base_form(form)]
+    keep = forms_of(form)
+    if keep is not None:
+        rows = [r for r in rows if base_form(r["form"]) in keep]
     out = {"state": "ok", "ticker": sym, "cik": snap["cik"], "company": snap.get("company"),
            "source": SOURCE_SUBMISSIONS, "fetched_at": snap.get("fetched_at"),
            "merged_from_feed": len(newer), "rows": rows}
     if not rows:
         out["state"] = "none_in_scope"
         out["reason"] = ("SEC's recent-filings list for this company holds no "
-                         + (form or "8-K, 10-Q, 10-K, Form 4, 13D/G or S-1") + " filing"
+                         + (form_label(form) if form else "8-K, 10-Q, 10-K, Form 4, 13D/G, S-1, S-3, 424B or S-8") + " filing"
                          + f" (up to {TICKER_ROWS} of each form are kept)")
     return out
