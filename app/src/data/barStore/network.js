@@ -328,7 +328,12 @@ export function createNetwork({
   const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
 
   // `full`: never a `since=` delta (the switch's one re-ask of an own answer still behind: prefetch._askOwn)
-  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false } = {}) {
+  // `fullRead`: the full read a failed edge history queued (F1: its settle, and no other tail's, ends `fullDue`)
+  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false, fullRead: asked = false } = {}) {
+    // ⛔ (review of #2989, LOW) ANY non-side tail of a split-off key IS its full read (the split off, it asks the whole
+    // depth): an abort of the queued one (kick's invalidate, an idle eviction) re-asks through _schedule/_tail without the
+    // mark, and only a marked read ended `fullDue`, so the depth stayed "due" for good. Captured when the job runs.
+    const fullRead = asked || (!side && !!r.splitOff)
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -389,12 +394,19 @@ export function createNetwork({
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
       const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
-      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
+      // ⭐⭐ (2026-11-28, COV-zo-wm-typed SPGI / AMH held to the 4 s hang guard) A DEPTH LEFT "DUE" IS A HISTORY ASKED. A
+      // monthly view zoomed out asks its cover (1,187 rows) and no deeper depth, so `wantNow` was the ask and no history was
+      // queued, while deepPending still read "due" (held <= DATE_COVER_MAX, never joined): the daily hold waited for a join
+      // nothing would bring. Where a view's cover was asked (`r.cover`: a shown, typed or linked key, never a warm, B1) and
+      // the depth is still due after the answer, the history is asked; its join (or its "nothing older") settles it.
+      // (A tail shorter than its ask is NOT proof the listing ended: the origin may hold less than the edge's history.)
+      const coverDue = r.cover > 0 && api.deepPending(r.key)
+      if (split && !r.histAsked && !joinedHere && ((wantNow > bars && wantNow > (after?.depth ?? 0)) || coverDue)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
-    }, { front, side })
+    }, { front, side, fullRead })
   }
 
   /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
@@ -496,7 +508,9 @@ export function createNetwork({
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
         r.splitOff = true
-        _queueTail(r, r.priority)
+        // ⛔ (F1, 2026-11-28) the full read it queues is still to come: the depth stays due until it settles (deepPending)
+        r.fullDue = true
+        _queueTail(r, r.priority, { fullRead: true })   // (only THIS read's settle clears `fullDue`: _send)
         _drain(r)
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
@@ -642,7 +656,7 @@ export function createNetwork({
     }
   }
 
-  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null, side = false } = {}) {
+  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null, side = false, fullRead = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
@@ -661,6 +675,7 @@ export function createNetwork({
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
+        if (fullRead) r.fullDue = false   // (F1) the full read settled (failed): nothing more is coming from it
         if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
@@ -674,6 +689,10 @@ export function createNetwork({
       // new entry it would create (a `since=` delta would land on an EMPTY entry as "answered"). Dropped; the next
       // chart or warm of the key asks again, on its own life.
       if (!registry.has(r.key)) return { aborted: true, evicted: true }
+      // (F1) a split-off key's full read answered: cleared BEFORE its rows land, so the wake they cause reads it settled.
+      // ⛔ ONLY that read (review of #2989): the edge fallback's side cover, or any other tail, settling while it is still
+      // queued is a shallow answer, and clearing on it read the depth done before the full depth landed
+      if (fullRead) r.fullDue = false
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       const out = await onJson(json)
       if (kind === 'tail') _noteAnswered(r)
@@ -884,6 +903,7 @@ export function createNetwork({
       if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
+      let failed = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
@@ -904,9 +924,12 @@ export function createNetwork({
           if (!after || after.bars.length <= before) return false
           return after.restSeen ? 'join' : 'seed'
         })
-        .catch(() => false)
+        .catch(() => { failed = true; return false })
         .finally(() => {
           if (lakeSeeds.get(key) === p) { lakeSeeds.delete(key); lakeAwaited.delete(key) }
+          // ⛔ (F2, 2026-11-28) A LOAD THAT FAILED SETTLED NOTHING: recorded as settled at what is held, it read "nothing more
+          // is coming" (lakePending false) and woke the hold to paint the shallow rows. Still due; a later load asks again.
+          if (failed) return
           const cur = registry.peek(key)
           const held = cur?.bars.length
           if (held == null) return          // nothing to join into: still due when the key is built
@@ -951,7 +974,10 @@ export function createNetwork({
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
-      if (keys.get(key)?.splitOff) return false
+      // ⛔ (F1, 2026-11-28) the edge failed, so the full depth comes from the origin: due until that read settles. It read
+      // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
+      // read filled it in (a short paint, then the jump).
+      if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
@@ -1107,11 +1133,13 @@ export function createNetwork({
       set.add(cb)
       return () => { set.delete(cb); if (!set.size && answerSubs.get(key) === set) answerSubs.delete(key) }
     },
-    /** Requests in flight for `key` (0|1), or across all keys. */
+    /** Requests in flight for `key` (0|1, or 2 while the edge fallback's cover runs beside a stuck history: `r.side`), or
+     *  across all keys. */
     inflight(key) {
-      if (key != null) return keys.get(key)?.inflight ? 1 : 0
+      const of = (r) => (r?.inflight ? 1 : 0) + (r?.side ? 1 : 0)
+      if (key != null) return of(keys.get(key))
       let n = 0
-      for (const r of keys.values()) if (r.inflight) n++
+      for (const r of keys.values()) n += of(r)
       return n
     },
     stats() { return { keys: keys.size, requests, inflight: api.inflight() } },
