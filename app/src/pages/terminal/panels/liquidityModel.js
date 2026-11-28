@@ -50,6 +50,35 @@ export const CHANGE_WEEKS = Object.freeze([1, 4, 13, 52])
 export const SENTENCE_WEEKS = 4
 /** Reverse repo for a Wednesday without a print: the nearest earlier print within this many days. */
 export const RRP_LOOKBACK_DAYS = 3
+
+// ── the line's span: a typed argument (settings pass, 2026-11-28) ────────────────────────────────
+// `LIQ 1Y`, `LIQ 5Y`; bare `LIQ` is two years, today's line. It is an ARGUMENT, not a view, because a
+// longer span changes what is READ (the line's history read starts further back): it shows in the command line,
+// a saved board and a share link, and the chips write it back (usePanelWriteBack). One year reads the same
+// 25 months as two (one shared cache entry, and every change under the headline keeps the history it needs);
+// five years reads 61 months. args.js keeps a copy of the words (pinned by args.lineRange.test.js).
+export const LINE_RANGES = Object.freeze({
+  '1y': Object.freeze({ word: '1Y', weeks: 52, months: 25, words: '1 year', last: 'the last year' }),
+  '2y': Object.freeze({ word: '2Y', weeks: 104, months: 25, words: '2 years', last: 'the last two years' }),
+  '5y': Object.freeze({ word: '5Y', weeks: 260, months: 61, words: '5 years', last: 'the last five years' }),
+})
+export const DEFAULT_LINE_RANGE = '2y'
+export const LINE_RANGE_ARG_WORDS = Object.freeze({ '1Y': '1y', '2Y': '2y', '5Y': '5y' })
+const ownKey = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+export const parseLineRange = (tok) => { const k = String(tok ?? '').trim().toUpperCase(); return ownKey(LINE_RANGE_ARG_WORDS, k) ? LINE_RANGE_ARG_WORDS[k] : null }
+export const normLineRange = (v) => (ownKey(LINE_RANGES, v) ? v : parseLineRange(v) || DEFAULT_LINE_RANGE)
+/** Pure: the command's words for a span (none for the default, so the command stays bare). */
+export const lineRangeArgs = (range) => { const r = normLineRange(range); return r === DEFAULT_LINE_RANGE ? [] : [LINE_RANGES[r].word] }
+
+/** Pure: a line longer than today's that reaches back before the first value held starts at that value
+ *  (`heldFrom`), so a series held for fewer years than asked is not drawn as years of gaps. The default span
+ *  is never trimmed (today's line, gaps and all). */
+function trimLeading(rows, weeks, hasValue) {
+  if (weeks <= LINE_WEEKS) return { rows, heldFrom: null }
+  const first = rows.findIndex(hasValue)
+  if (first <= 0) return { rows, heldFrom: null }
+  return { rows: rows.slice(first), heldFrom: rows[first].date }
+}
 /** A daily part's "1 week before": the print on or before the day a week earlier, at most this many days before it. */
 export const WEEK_LOOKBACK_DAYS = 3
 
@@ -102,9 +131,9 @@ export const historyStart = (today) => monthStartBefore(today, 25)
 /** The daily parts' reads start two months back (a week before the newest print, with room for holidays). */
 export const shortStart = (today) => monthStartBefore(today, 2)
 
-/** `{ symbol: url }` for the five history reads. */
-export function historyUrls(today) {
-  const long = historyStart(today)
+/** `{ symbol: url }` for the five history reads (the line's three over `range`, LINE_RANGES). */
+export function historyUrls(today, range = DEFAULT_LINE_RANGE) {
+  const long = monthStartBefore(today, LINE_RANGES[normLineRange(range)].months)
   const short = shortStart(today)
   if (!long || !short) return {}
   const out = {}
@@ -232,10 +261,11 @@ export function netLiquidityLine(inputs, { weeks = LINE_WEEKS } = {}) {
       net: missing.length ? null : av - tv - rv, missing,
     })
   }
+  const { rows: kept, heldFrom } = trimLeading(rows, weeks, (x) => x.net != null)
   return {
-    end, rows, weeks,
-    gaps: rows.filter((r) => r.net == null).length,
-    shifted: rows.filter((r) => r.net != null && r.rrpShifted).length,
+    end, rows: kept, weeks, heldFrom,
+    gaps: kept.filter((r) => r.net == null).length,
+    shifted: kept.filter((r) => r.net != null && r.rrpShifted).length,
   }
 }
 
@@ -385,7 +415,7 @@ export function partRow(spec, series, points, { today = null, alt = null, altPoi
  *                line, head, changes, sentence, picture, next, note }
  * `state` 'bad_shape' for a latest answer that is not the route's shape (drawn as a failed read).
  */
-export function liquidityRead({ latest, histories = {}, historyFailed = {}, lineState = 'ok', today = null } = {}) {
+export function liquidityRead({ latest, histories = {}, historyFailed = {}, lineState = 'ok', today = null, weeks = LINE_WEEKS } = {}) {
   const by = latestBySymbol(latest)
   if (!by) return { state: 'bad_shape', parts: [], net: null, credits: [], newestT: null }
   const merged = (s) => mergePoints(histories[s] || null, by[s]?.points || [])
@@ -402,7 +432,7 @@ export function liquidityRead({ latest, histories = {}, historyFailed = {}, line
       assets: { points: merged(SYM.assets), meta: assets?.meta },
       tga: { points: merged(SYM.tgaWeekly), meta: by[SYM.tgaWeekly]?.meta },
       rrp: { points: merged(SYM.rrp), meta: by[SYM.rrp]?.meta },
-    })
+    }, { weeks })
     const head = headlineRow(line)
     Object.assign(net, {
       line, head,

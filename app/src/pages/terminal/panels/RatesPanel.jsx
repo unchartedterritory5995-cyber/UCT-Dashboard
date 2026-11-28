@@ -31,6 +31,7 @@
 // while the app is hidden.
 import { useId, useMemo, useState } from 'react'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import { formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -38,6 +39,7 @@ import {
   RATES_CODE, RATES_URL, SOURCE, bpText, breakevenSentence, curveGeometry, curveWords, dayText, daysBetween, etDayOf,
   ratesRead, realAsOfSentence, realCheckWords, realMissingWords,
   spreadGeometry, spreadHistoryWords, spreadSentence, spreadTrendSentence, unavailableWords, yieldText,
+  DEFAULT_RATES_RANGE, DEFAULT_RATES_SPREAD, RATES_RANGES, RATES_SPREADS, historyWindow, rangeWords, ratesRange, ratesSpread,
 } from './ratesModel'
 import styles from './marketPanels.module.css'
 import own from './ratesPanel.module.css'
@@ -118,18 +120,60 @@ function CurvePicture({ view }) {
   )
 }
 
+const SPREAD_FALLBACK = { '10y2y': '10-year minus 2-year', '10y3m': '10-year minus 3-month' }
+const SPREAD_CHIP = { '10y2y': '10Y-2Y', '10y3m': '10Y-3M' }
+
 function SpreadPicture({ view }) {
-  const spread = view.spreads.find((s) => s.key === '10y2y')
-  const label = spread ? `${spread.long} minus ${spread.short}` : '10-year minus 2-year'
-  const geo = useMemo(() => spreadGeometry(view.history, 's10y2y'), [view.history])
-  if (!geo) return null
+  // Settings pass (2026-11-28): which spread and how far back are the panel's VIEW, kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { spread: DEFAULT_RATES_SPREAD, range: DEFAULT_RATES_RANGE } })
+  const key = ratesSpread(pv.filters.spread)
+  const range = ratesRange(pv.filters.range)
+  const labelOf = (k) => {
+    const s = view.spreads.find((x) => x.key === k)
+    return s ? `${s.long} minus ${s.short}` : SPREAD_FALLBACK[k]
+  }
+  const label = labelOf(key)
+  const hist = useMemo(() => historyWindow(view.history, range), [view.history, range])
+  const geo = useMemo(() => spreadGeometry(hist, RATES_SPREADS[key]), [hist, key])
+  const picker = (
+    <div className={styles.toolbar} role="toolbar" aria-label="Spread picture settings" data-testid="terminal-rates-spread-settings">
+      <div className={styles.group} role="group" aria-label="Spread">
+        {Object.keys(RATES_SPREADS).map((k) => (
+          <button key={k} type="button" className={styles.chip} aria-pressed={key === k} onClick={() => setPv({ filters: { spread: k } })}
+            title={labelOf(k)} data-testid={`terminal-rates-line-${k}`}>{SPREAD_CHIP[k]}</button>
+        ))}
+      </div>
+      <div className={styles.group} role="group" aria-label="How far back">
+        {RATES_RANGES.map((r) => (
+          <button key={r.key} type="button" className={styles.chip} aria-pressed={range === r.key} onClick={() => setPv({ filters: { range: r.key } })}
+            data-testid={`terminal-rates-span-${r.key}`}>{r.label}</button>
+        ))}
+      </div>
+    </div>
+  )
+  if (!geo) {
+    // The default picture with no history draws nothing, as before. A chosen spread or span with too few days
+    // says so, and the picker stays so the member can change it back.
+    if (key === DEFAULT_RATES_SPREAD && range === DEFAULT_RATES_RANGE) return null
+    return (
+      <figure className={own.figure} data-testid="terminal-rates-spread-history" data-spread={key} data-range={range}>
+        <span className={own.figTitle}>{label}</span>
+        {picker}
+        <p className={styles.muted} data-testid="terminal-rates-spread-none">
+          {`Too few days of the ${label} spread are held to draw ${rangeWords(range, view.history.years) || 'this span'} of it.`}
+        </p>
+      </figure>
+    )
+  }
   const words = spreadHistoryWords(geo, label)
+  const span = rangeWords(range, view.history.years)
   return (
-    <figure className={own.figure} data-testid="terminal-rates-spread-history">
-      <span className={own.figTitle}>{label}{view.history.years ? `, ${view.history.years} years` : ''}</span>
+    <figure className={own.figure} data-testid="terminal-rates-spread-history" data-spread={key} data-range={range}>
+      <span className={own.figTitle}>{label}{span ? `, ${span}` : ''}</span>
+      {picker}
       <svg className={own.chart} viewBox={`0 0 ${geo.w} ${geo.h}`} preserveAspectRatio="none" role="img" aria-label={words}>
         <path className={own.zero} d={`M0 ${geo.zeroY} L${geo.w} ${geo.zeroY}`} vectorEffect="non-scaling-stroke" data-series="zero" />
-        <path className={own.lineSpread} d={geo.path} vectorEffect="non-scaling-stroke" data-series="s10y2y" />
+        <path className={own.lineSpread} d={geo.path} vectorEffect="non-scaling-stroke" data-series={RATES_SPREADS[key]} />
       </svg>
       <div className={own.axis} aria-hidden="true">
         <span>{dayText(geo.first.date)}</span>

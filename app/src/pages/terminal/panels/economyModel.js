@@ -74,6 +74,14 @@ export const ECON_THEMES = Object.freeze([
   ]) }),
 ])
 
+/** The board's one setting (settings pass, 2026-11-28): every theme (`''`, today's board) or one of them.
+ *  The one read already carries every theme, so it is the panel's VIEW (kept with the board). Short names
+ *  for the chips; each theme's own title heads its table. */
+export const ECON_THEME_CHIPS = Object.freeze({ inflation: 'Inflation', jobs: 'Jobs', growth: 'Growth', housing: 'Housing', rates: 'Rates' })
+export const econTheme = (v) => (Object.prototype.hasOwnProperty.call(ECON_THEME_CHIPS, v) ? v : '')
+/** Pure: the board's themes, or the one chosen. */
+export const themesShown = (themes, theme = '') => (econTheme(theme) ? (themes || []).filter((t) => t.key === theme) : (themes || []))
+
 /** Every series the board asks for, once, in board order. */
 export const ECON_SYMBOLS = Object.freeze([...new Set(ECON_THEMES.flatMap((t) => t.rows.flatMap((r) => (r.alt ? [r.symbol, r.alt] : [r.symbol]))))])
 export const ECON_LATEST_URL = `/api/econ/latest?symbols=${ECON_SYMBOLS.join(',')}`

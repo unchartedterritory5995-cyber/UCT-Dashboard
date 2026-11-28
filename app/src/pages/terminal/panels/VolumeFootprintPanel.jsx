@@ -26,12 +26,14 @@
 // folds away.
 import { Fragment, useMemo } from 'react'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
   VFP_CODE, VFP_SOURCE, VFP_WHAT, adDates, bigDaysLine, bigVolumeCell, changeText, earningsNote, fillCell,
   filledCell, gapCell, gapDayCell, gapsLine, partialYearText, pivotCells, pivotsLine, plural, rangeText, sessionsText, sharesText,
   signOf, updownText, vfpPollMs, vfpRead, vfpUrl, windowText, windowsAsOf,
+  VFP_GAP_SIDES, VFP_GAP_SIZES, filterGaps, gapFilterWords, vfpGapSide, vfpGapSize,
 } from './volumeFootprintModel'
 import { dayText } from './ratesModel'
 import styles from './marketPanels.module.css'
@@ -212,6 +214,12 @@ function FillRow({ label, side, testId }) {
 function Gaps({ g, sym, earn, jumpPct }) {
   const flagged = g.rows.some((r) => r.check)
   const a = g.state === 'ok' ? g.summary.all : null
+  // Settings pass: which listed gaps are drawn is the panel's view, kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { gapSide: 'all', gapSize: 0, gapOpen: false } })
+  const pick = { side: vfpGapSide(pv.filters.gapSide), size: vfpGapSize(pv.filters.gapSize), open: pv.filters.gapOpen === true }
+  const filtered = pick.side !== 'all' || pick.size > 0 || pick.open
+  const rows = useMemo(() => filterGaps(g.rows, pick), [g.rows, pick.side, pick.size, pick.open])  // eslint-disable-line react-hooks/exhaustive-deps
+  const reset = () => setPv({ filters: { gapSide: 'all', gapSize: 0, gapOpen: false } })
   return (
     <Section title="Gaps" asOf={g.state === 'ok' && g.asOf ? `Every session from ${dayText(g.first)} to the close of ${dayText(g.asOf)}.` : closeOf(g.asOf)} testId="terminal-vfp-gaps">
       <p className={styles.lede} data-testid="terminal-vfp-gaps-line">{gapsLine(g, sym)}</p>
@@ -235,6 +243,29 @@ function Gaps({ g, sym, earn, jumpPct }) {
         </div>
       ) : null}
       {g.rows.length ? (
+        <div className={styles.toolbar} role="toolbar" aria-label="Gap list settings" data-testid="terminal-vfp-gap-settings">
+          <div className={styles.group} role="group" aria-label="Which way">
+            {Object.entries(VFP_GAP_SIDES).map(([k, label]) => (
+              <button key={k} type="button" className={styles.chip} aria-pressed={pick.side === k} onClick={() => setPv({ filters: { gapSide: k } })}
+                data-testid={`terminal-vfp-gap-side-${k}`}>{label}</button>
+            ))}
+          </div>
+          <div className={styles.group} role="group" aria-label="Smallest gap">
+            {VFP_GAP_SIZES.map((z) => (
+              <button key={z} type="button" className={styles.chip} aria-pressed={pick.size === z} onClick={() => setPv({ filters: { gapSize: z } })}
+                data-testid={`terminal-vfp-gap-size-${z}`}>{`${z || formatNumber(g.minGapPct)}%+`}</button>
+            ))}
+          </div>
+          <button type="button" className={styles.chip} aria-pressed={pick.open} onClick={() => setPv({ filters: { gapOpen: !pick.open } })}
+            data-testid="terminal-vfp-gap-open">Not filled yet</button>
+        </div>
+      ) : null}
+      {g.rows.length && !rows.length ? (
+        <PanelState kind="empty" compact role="status" testId="terminal-vfp-gaps-filtered-empty"
+          title={`None of the ${formatNumber(g.rows.length)} newest gaps listed matches: ${gapFilterWords(pick)}.`}
+          action={<button type="button" className={styles.chip} onClick={reset}>Show every listed gap</button>} />
+      ) : null}
+      {rows.length ? (
         <div className={styles.tableBox}>
           <table className={styles.table} data-testid="terminal-vfp-gaps-table" aria-label={`The newest gaps of ${formatNumber(g.minGapPct)}% or more in ${sym}, newest first`}>
             <thead>
@@ -245,7 +276,7 @@ function Gaps({ g, sym, earn, jumpPct }) {
               </tr>
             </thead>
             <tbody>
-              {g.rows.map((r) => {
+              {rows.map((r) => {
                 const gc = gapCell(r)
                 const dc = gapDayCell(r)
                 const fc = filledCell(r)
@@ -271,6 +302,9 @@ function Gaps({ g, sym, earn, jumpPct }) {
             </tbody>
           </table>
         </div>
+      ) : null}
+      {filtered && rows.length ? (
+        <p className={styles.muted} data-testid="terminal-vfp-gaps-filtered">{`Showing ${formatNumber(rows.length)} of the ${formatNumber(g.rows.length)} newest gaps listed: ${gapFilterWords(pick)}. The counts above take in every gap.`}</p>
       ) : null}
       {g.state === 'ok' && g.total > g.rows.length ? (
         <p className={styles.muted} data-testid="terminal-vfp-gaps-cut">{`Listing the newest ${formatNumber(g.rows.length)} of ${formatNumber(g.total)}; the counts above take in every one.`}</p>

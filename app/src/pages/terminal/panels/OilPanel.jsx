@@ -18,13 +18,15 @@
 //
 // WIDTH. The top lines wrap; the line is as wide as the panel; one four-column table of merged two- and
 // three-line cells that wrap between words in a snug or narrow panel. Nothing folds.
-import { useId, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { useMarketRead } from './marketRead'
+import { usePanelWriteBack } from './commandWriteBack'
 import { etToday } from './economyModel'
 import {
   OIL_CODE, OIL_HISTORY_POLL_MS, OIL_LATEST_URL, OIL_POLL_MS, OIL_SOURCE, OIL_SYMBOLS,
+  LINE_RANGES, dayWords, lineRangeArgs, normLineRange,
   historyPoints, historyStateOf, historyUrls, lineWords, nextSentence, noFigureText, oilFailure, oilRead, wantedHistory,
 } from './oilModel'
 import styles from './marketPanels.module.css'
@@ -61,21 +63,41 @@ function Head({ head }) {
   )
 }
 
-function StocksLine({ line, onRetry }) {
-  if (line.state === 'loading') return <PanelSkeleton label="Loading two years of crude oil stocks" testId="terminal-oil-line-loading" />
+/** The line's span: 1Y, 2Y (today's) or 5Y, written back into the command (`OIL 5Y`). */
+function RangeChips({ range, onPick }) {
+  return (
+    <div className={styles.toolbar} role="toolbar" aria-label="Crude oil stocks line settings">
+      <div className={styles.group} role="group" aria-label="How far back">
+        {Object.entries(LINE_RANGES).map(([k, spec]) => (
+          <button key={k} type="button" className={styles.chip} aria-pressed={range === k} onClick={() => onPick(k)}
+            data-testid={`terminal-oil-range-${k}`}>{spec.word}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function StocksLine({ line, onRetry, range, onRange, today }) {
+  const chips = <RangeChips range={range} onPick={onRange} />
+  if (line.state === 'loading') return <>{chips}<PanelSkeleton label={`Loading ${LINE_RANGES[range].words} of crude oil stocks`} testId="terminal-oil-line-loading" /></>
   if (line.state === 'failed') {
     return (
+      <>
+      {chips}
       <PanelState kind="error" compact testId="terminal-oil-line-error" title={lineWords('failed')}
         action={<button type="button" className={styles.chip} onClick={onRetry}>Retry</button>}>
         That is not the same as no figures. The table below is still read.
       </PanelState>
+      </>
     )
   }
-  if (line.state !== 'ok') return <p className={styles.muted} data-testid="terminal-oil-line-none">{lineWords(line.state)}</p>
+  if (line.state !== 'ok') return <>{chips}<p className={styles.muted} data-testid="terminal-oil-line-none">{lineWords(line.state)}</p></>
   const pic = line.picture
   return (
+    <>
+    {chips}
     <figure className={own.figure} data-testid="terminal-oil-line">
-      <span className={own.figTitle}>Crude oil stocks, 2 years, weekly</span>
+      <span className={own.figTitle}>{`Crude oil stocks, ${LINE_RANGES[range].words}, weekly`}</span>
       <svg className={own.chart} viewBox={`0 0 ${pic.w} ${pic.h}`} preserveAspectRatio="none" role="img" aria-label={pic.words}>
         <path className={own.line} d={pic.path} vectorEffect="non-scaling-stroke" data-series="crude" />
       </svg>
@@ -85,7 +107,13 @@ function StocksLine({ line, onRetry }) {
         <span>{pic.toText}</span>
       </div>
       <p className={styles.muted} data-testid="terminal-oil-line-words">{pic.words}</p>
+      {line.heldFrom ? (
+        <p className={styles.muted} data-testid="terminal-oil-held-from">
+          {`The figures held start with the week to ${dayWords(line.heldFrom, today)}, so the line starts there.`}
+        </p>
+      ) : null}
     </figure>
+    </>
   )
 }
 
@@ -186,10 +214,14 @@ function Footer({ credits }) {
   )
 }
 
-function Oil({ code, inPanel }) {
+function Oil({ code, inPanel, range: rangeProp }) {
   const [today] = useState(() => etToday(Date.now()))
+  // `OIL 5Y` remounts the panel (the shell keys the body on code + args), so the typed word only seeds the state.
+  const [range, setRange] = useState(() => normLineRange(rangeProp))
+  const writeBack = usePanelWriteBack()
+  const pickRange = (next) => { const r = normLineRange(next); setRange(r); writeBack(lineRangeArgs(r)) }
   const latest = useMarketRead(OIL_LATEST_URL, { refreshInterval: OIL_POLL_MS })
-  const [urls] = useState(() => historyUrls(today))
+  const urls = useMemo(() => historyUrls(today, range), [today, range])
   const want = wantedHistory(latest.body)
   const at = (s) => (want[s] ? urls[s] || null : null)
   const opts = { refreshInterval: OIL_HISTORY_POLL_MS }
@@ -213,12 +245,12 @@ function Oil({ code, inPanel }) {
     historyState[s] = historyStateOf(r ? { wanted: want[s], body: r.body, error: r.error, loading: r.loading } : null, s)
   }
   // nine short histories and one 105-week line: cheap, and it runs only when a read answers
-  const view = oilRead({ latest: latest.body, histories, historyState, today })
+  const view = oilRead({ latest: latest.body, histories, historyState, today, weeks: LINE_RANGES[range].weeks })
   const ok = !latest.loading && !!latest.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(OIL_SOURCE, view.newestT) : null)
 
   const frame = (state, body) => (
-    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-oil" data-state={state}>{body}</div>
+    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-oil" data-state={state} data-range={range}>{body}</div>
   )
   if (latest.loading) return frame('loading', <PanelSkeleton label="Loading the weekly oil figures" testId="terminal-oil-loading" />)
   if (!ok) {
@@ -235,7 +267,7 @@ function Oil({ code, inPanel }) {
     <>
       {latest.error ? <p className={styles.note} role="status" data-testid="terminal-oil-stale-read">{oilFailure(latest.error).title} Showing the last read.</p> : null}
       <Head head={view.head} />
-      <StocksLine line={view.line} onRetry={() => reads.USCRUDEINV.retry()} />
+      <StocksLine line={view.line} onRetry={() => reads.USCRUDEINV.retry()} range={range} onRange={pickRange} today={today} />
       {view.historyFailed ? (
         <div className={own.retryRow} data-testid="terminal-oil-history-failed">
           <p className={styles.muted}>Some of the history behind the year-ago figures could not be read just now.</p>
@@ -248,8 +280,8 @@ function Oil({ code, inPanel }) {
   ))
 }
 
-export default function OilPanel() {
+export default function OilPanel({ range = null }) {
   const inPanel = useInTerminalPanel()
   const code = inPanel?.code || OIL_CODE
-  return <Oil code={code} inPanel={inPanel} />
+  return <Oil code={code} inPanel={inPanel} range={range} />
 }

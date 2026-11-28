@@ -34,6 +34,7 @@ import {
   DILUTION_CODE, ROWS_SHOWN, SHELVES_SHOWN, SOURCE, dayText, dilutionRead, dilutionUrl, etDayOf, failedWords,
   horizonWords, minorCount, notesFor, rowDetail, rowsFor, shelfSentence, summarySentences, unavailableWords,
 } from './dilutionModel'
+import usePanelView from '../../../components/terminal/usePanelView'
 import styles from './marketPanels.module.css'
 
 export {
@@ -142,11 +143,19 @@ function Notes({ sym, view, today }) {
   )
 }
 
+// Settings pass (2026-11-28): a "show more" switch is kept in the panel's VIEW (usePanelView), so a reload, a
+// saved board and a share link reopen the panel the way the member left it. Off (today's panel) stores nothing.
+function useKeptSwitch(name) {
+  const [pv, setPv] = usePanelView({ filters: { [name]: false } })
+  const on = pv.filters[name] === true
+  return [on, (next) => setPv({ filters: { [name]: !!(typeof next === 'function' ? next(on) : next) } })]
+}
+
 function DilutionBody({ sym: s, code }) {
   const inPanel = useInTerminalPanel()
   const [today] = useState(todayIso)
-  const [allRows, setAllRows] = useState(false)
-  const [withMinor, setWithMinor] = useState(false)
+  const [allRows, setAllRows] = useKeptSwitch('allRows')
+  const [withMinor, setWithMinor] = useKeptSwitch('withMinor')
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(dilutionUrl(s), { refreshInterval: pace })
   const view = useMemo(() => dilutionRead(read.body), [read.body])

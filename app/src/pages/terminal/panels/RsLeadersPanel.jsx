@@ -10,7 +10,7 @@
 // without that body is an outage (error with Retry); a 402 or a switched-off route has no Retry.
 import { useMemo } from 'react'
 import { PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
-import { usePanelSort } from '../../../components/terminal/usePanelView'
+import usePanelView, { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'
@@ -20,6 +20,11 @@ import styles from './marketPanels.module.css'
 
 export const RS_URL = '/api/rs-rankings'
 export const TOP_N = 100
+/** How many leaders the panel lists (settings pass, 2026-11-28): the whole ranking is already held, so this is
+ *  the panel's VIEW (kept with the board), never a second read. The default is TOP_N, today's list. */
+export const RSL_SIZES = Object.freeze([50, 100, 250, 500])
+/** Pure: a stored size, or TOP_N for anything the panel does not offer. */
+export const rslSize = (v) => (RSL_SIZES.includes(v) ? v : TOP_N)
 const POLL_MS = 30 * 60 * 1000
 
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
@@ -63,7 +68,10 @@ export default function RsLeadersPanel() {
   // The server answers 503 {"status":"warming"} with Retry-After: 30 while it builds the ranking.
   const warming = !read.body && isWarmingError(read.error)
   const warmPoll = useWarmingPoll(warming, read.retry, { everyMs: 10_000, maxTries: 12 })
-  const board = useMemo(() => rsLeaders(read.body), [read.body])
+  // Settings pass: the list's length is the panel's view (`filters.top`), saved with the board.
+  const [pv, setPv] = usePanelView({ filters: { top: TOP_N } })
+  const size = rslSize(pv.filters.top)
+  const board = useMemo(() => rsLeaders(read.body, size), [read.body, size])
   // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
   // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
   const [sort, setSort] = usePanelSort({ key: 'order', dir: 'asc' })
@@ -91,12 +99,19 @@ export default function RsLeadersPanel() {
   return (
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-rsl">
       {read.error && <p className={styles.note} role="status">{failureText(read.error, 'RS rankings')} Showing the last read.</p>}
-      {sort.key !== 'order' ? (
-        <div className={styles.toolbar}>
+      <div className={styles.toolbar} role="toolbar" aria-label="RS leaderboard settings">
+        <div className={styles.group} role="group" aria-label="How many names">
+          <span className={styles.muted}>Show the top</span>
+          {RSL_SIZES.map((n) => (
+            <button key={n} type="button" className={styles.chip} aria-pressed={size === n}
+              onClick={() => setPv({ filters: { top: n } })} data-testid={`terminal-rsl-size-${n}`}>{n}</button>
+          ))}
+        </div>
+        {sort.key !== 'order' ? (
           <button type="button" className={styles.chip} onClick={() => setSort({ key: 'order', dir: 'asc' })}
             data-testid="terminal-rsl-sort-reset">Leaderboard order</button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-rsl-table" aria-label={`Top ${board.rows.length} by RS rank, sortable`}>
           <thead>

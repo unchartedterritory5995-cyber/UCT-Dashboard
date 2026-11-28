@@ -1,6 +1,6 @@
 // OIL (2026-11-21): the weekly oil report's code in the registry, how it parses, and the words that find it.
 //
-// OIL is market-wide and takes no argument. It is not a stock or fund in the site's universe. Its words must
+// OIL is market-wide; its one argument is the line's span (`OIL 5Y`, args.lineRange.test.js). It is not a stock or fund in the site's universe. Its words must
 // find it without taking a word another function already answers to.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -21,18 +21,18 @@ describe('OIL in the registry', () => {
     expect(BY_CODE.OIL.keywords).not.toContain('gas prices')
   })
 
-  it('the model names the code, it is registered once, in the Market group, market-wide, with no argument', () => {
+  it('the model names the code, it is registered once, in the Market group, market-wide, with the line span its one argument', () => {
     expect(OIL_CODE).toBe('OIL')
     expect(FUNCTIONS.filter((f) => f.code === 'OIL')).toHaveLength(1)
     expect(FUNCTION_GROUPS).toContain(BY_CODE.OIL.group)
     expect(BY_CODE.OIL.group).toBe('Market')
     expect(BY_CODE.OIL.label).toBe('Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)')
-    expect(BY_CODE.OIL.market).toEqual({ panel: 'Oil' })
+    expect(BY_CODE.OIL.market).toEqual({ panel: 'Oil', args: [{ kind: 'lineRange', prop: 'range' }] })
     expect(BY_CODE.OIL.ticker).toBeUndefined()
     expect(BY_CODE.OIL.market.flag).toBeUndefined()             // it says "switched off" itself, in words
     expect(exampleFor(BY_CODE.OIL)).toBe('OIL')
     expect(variantFor('OIL', false)).toMatchObject({ scope: 'market' })
-    expect(applyArgs(BY_CODE.OIL.market, ['WTI']).ignored).toEqual(['WTI'])      // no argument: said, never guessed at
+    expect(applyArgs(BY_CODE.OIL.market, ['WTI']).ignored).toEqual(['WTI'])      // not a span: said, never guessed at
     expect(typeof PANEL_IMPORTERS.Oil).toBe('function')
   })
 

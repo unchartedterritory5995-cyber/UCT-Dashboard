@@ -25,7 +25,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import {
   PanelCommand, PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
-import { usePanelSort } from '../../../components/terminal/usePanelView'
+import usePanelView, { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import CoverageLine from '../../../components/provenance/CoverageLine'
@@ -38,6 +38,18 @@ export const PIVOT_BAND = Object.freeze({ below: 5, through: 2 })
 export const MIN_RS_RANK = 70
 export const MAX_CLOSE_CV = 4
 export const MAX_ROWS = 200
+/** The RS rank floors the panel offers (settings pass, 2026-11-28). The scan itself always asks for
+ *  MIN_RS_RANK; a higher floor only narrows the list already read, so it is the panel's VIEW (kept with the
+ *  board), never a second scan. The scan is read best RS rank first, so a list the server cut at MAX_ROWS
+ *  still holds every name above a higher floor. */
+export const RS_FLOORS = Object.freeze([MIN_RS_RANK, 80, 90])
+export const rsFloor = (v) => (RS_FLOORS.includes(v) ? v : MIN_RS_RANK)
+/** Pure: the rows at or above `floor`, numbered again in the list's own order (closest to pivot first). */
+export function withRsFloor(rows, floor = MIN_RS_RANK) {
+  const list = Array.isArray(rows) ? rows : []
+  if (rsFloor(floor) === MIN_RS_RANK) return list
+  return list.filter((x) => x.rs != null && x.rs >= floor).map((x, i) => ({ ...x, order: i }))
+}
 
 const COLUMNS_READ = [
   'company', 'price', 'rs_rank', 'rs_line_trend', 'close_cv_pct', 'tight_consolidation',
@@ -177,7 +189,11 @@ export default function BreakoutPanel() {
   // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
   // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
   const [sort, setSort] = usePanelSort({ key: 'order', dir: 'asc' })
-  const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
+  // Settings pass: a higher RS floor is the panel's view (`filters.rs`), kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { rs: MIN_RS_RANK } })
+  const floor = rsFloor(pv.filters.rs)
+  const kept = useMemo(() => withRsFloor(board.rows, floor), [board.rows, floor])
+  const rows = useMemo(() => sortRows(kept, sort, { valueOf, isNumeric, tiebreak: byOrder }), [kept, sort])
   usePanelFreshness(r.data ? panelAsOf('UCT screener snapshot (nightly build)', board.asOf) : null)
   usePanelSymbolRows(rows.map((x) => x.sym), 'Breakout-ready', { total: board.total })
   const retry = () => r.mutate()
@@ -201,7 +217,8 @@ export default function BreakoutPanel() {
       From the nightly screener snapshot{board.asOf ? ` (as of ${board.asOf})` : ''}. A name is listed when the pattern
       engine's best active detection is bullish, price is within {PIVOT_BAND.below}% below its pivot or at most{' '}
       {PIVOT_BAND.through}% through it, the closes are tight (spread under {MAX_CLOSE_CV}%), the RS line vs SPY is
-      rising, and the RS rank is {MIN_RS_RANK} or higher. Click a symbol to open its DES, or Plan to write a trade plan.
+      rising, and the RS rank is {MIN_RS_RANK} or higher{floor > MIN_RS_RANK ? ` (this panel shows only ${floor} or higher)` : ''}.
+      {' '}Click a symbol to open its DES, or Plan to write a trade plan.
       {r.data?.receivedAt ? ` Read at ${formatTimeEt(r.data.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
     </p>
   )
@@ -227,14 +244,26 @@ export default function BreakoutPanel() {
           the highest RS rank are shown.
         </p>
       ) : null}
-      {sort.key !== 'order' ? (
-        <div className={styles.toolbar}>
+      <div className={styles.toolbar} role="toolbar" aria-label="Breakout list settings">
+        <div className={styles.group} role="group" aria-label="Lowest RS rank">
+          <span className={styles.muted}>RS rank</span>
+          {RS_FLOORS.map((n) => (
+            <button key={n} type="button" className={styles.chip} aria-pressed={floor === n}
+              onClick={() => setPv({ filters: { rs: n } })} data-testid={`terminal-brko-rs-${n}`}>{`${n}+`}</button>
+          ))}
+        </div>
+        {sort.key !== 'order' ? (
           <button type="button" className={styles.chip} onClick={() => setSort({ key: 'order', dir: 'asc' })}
             data-testid="terminal-brko-sort-reset">Closest to pivot first</button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
+      {!rows.length ? (
+        <PanelState kind="empty" compact role="status" title={`None of the ${formatNumber(board.rows.length, { decimals: 0 })} breakout-ready names has an RS rank of ${floor} or higher.`}
+          testId="terminal-brko-floor-empty"
+          action={<button type="button" className={styles.chip} onClick={() => setPv({ filters: { rs: MIN_RS_RANK } })}>{`Show RS rank ${MIN_RS_RANK}+`}</button>} />
+      ) : (
       <div className={styles.tableBox} data-fold="570">
-        <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-brko-table" aria-label={`${board.rows.length} breakout-ready names, sortable`}>
+        <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-brko-table" aria-label={`${rows.length} breakout-ready names, sortable`}>
           <thead>
             <tr>
               {COLUMNS.map((c) => (
@@ -267,6 +296,7 @@ export default function BreakoutPanel() {
           </tbody>
         </table>
       </div>
+      )}
       <CoverageLine coverage={r.data?.body?.coverage ?? null} density="widget" />
       {method}
     </div>

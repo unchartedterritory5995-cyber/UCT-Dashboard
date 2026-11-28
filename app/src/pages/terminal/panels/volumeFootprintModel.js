@@ -278,6 +278,30 @@ export function pivotsLine(p, sym) {
 }
 
 // section 4
+// ── the gap list's settings (settings pass, 2026-11-28) ──────────────────────────────────────
+// Which of the listed gaps are drawn: both ways (today's list), up only or down only; every size the server
+// keeps (its own floor, `minGapPct`) or only the bigger ones; filled or not, or only those not filled yet. The
+// answer already holds the newest GAPS_SHOWN gaps, so these are the panel's VIEW (kept with the board), never a
+// second read; the counts above the list always take in every gap.
+export const VFP_GAP_SIDES = Object.freeze({ all: 'Up and down', up: 'Up', down: 'Down' })
+export const VFP_GAP_SIZES = Object.freeze([0, 5, 10])
+export const vfpGapSide = (v) => (Object.prototype.hasOwnProperty.call(VFP_GAP_SIDES, v) ? v : 'all')
+export const vfpGapSize = (v) => (VFP_GAP_SIZES.includes(v) ? v : 0)
+/** Pure: the listed gaps that pass. `size` 0 is every listed gap (the server's own floor). */
+export function filterGaps(rows, { side = 'all', size = 0, open = false } = {}) {
+  const s = vfpGapSide(side)
+  const z = vfpGapSize(size)
+  return (rows || []).filter((r) => (s === 'all' || (s === 'up' ? r.up : !r.up))
+    && (!z || (r.gapPct != null && Math.abs(r.gapPct) >= z))
+    && (!open || !r.filled))
+}
+/** Pure: the filters in words, for the line under the list ("up gaps of 5% or more, not filled yet"). */
+export function gapFilterWords({ side = 'all', size = 0, open = false } = {}) {
+  const s = vfpGapSide(side)
+  const z = vfpGapSize(size)
+  return [s === 'all' ? 'gaps' : `${s} gaps`, z ? `of ${z}% or more` : null, open ? 'not filled yet' : null].filter(Boolean).join(' ').replace(' not', ', not')
+}
+
 export function gapsLine(g, sym) {
   if (g.state !== 'ok') return shortText(g)
   const since = g.first ? ` since ${dayText(g.first)}` : ''

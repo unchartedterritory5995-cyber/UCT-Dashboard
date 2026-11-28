@@ -25,6 +25,15 @@ export const STOCK_COMPUTING_POLL_MS = 3000
 
 export const statUrl = (sym) => `/api/research/stock-stats/${encodeURIComponent(sym)}`
 
+/** The drawdown list's one setting (settings pass, 2026-11-28): every decline the server lists (its own floor,
+ *  `minDepthPct`, today's list) or only the deeper ones. The answer already holds the list, so this is the
+ *  panel's VIEW (kept with the board); the line above the list always counts every decline. */
+export const STAT_DEPTHS = Object.freeze([0, 30, 50])
+export const statDepth = (v) => (STAT_DEPTHS.includes(v) ? v : 0)
+/** Pure: the listed declines at least `depth` percent deep (0 = every one listed). */
+export const deeperThan = (episodes, depth = 0) => (statDepth(depth)
+  ? (episodes || []).filter((e) => e.depthPct != null && Math.abs(e.depthPct) >= depth) : (episodes || []))
+
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const finite = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)

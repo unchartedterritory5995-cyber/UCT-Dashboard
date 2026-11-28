@@ -200,6 +200,31 @@ export const dateCell = (iso) => dayText(iso, { short: true }) || 'Not given'
 const plural = (n, one, many) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
 
 /** The line above the tables: how many are coming, the next one, and how many were held. */
+// ── the panel's settings (settings pass, 2026-11-28) ─────────────────────────────────────────
+// Which auctions are listed: every one (today's panel), the bills only, or the coupon auctions only (notes,
+// bonds, TIPS, floating rate notes). The one answer holds them all, so this is the panel's VIEW (kept with
+// the board), never a second read. A cash management bill is a bill.
+export const AUCT_KINDS = Object.freeze({
+  all: Object.freeze({ chip: 'Every auction', words: '' }),
+  coupons: Object.freeze({ chip: 'Notes and bonds', words: 'note, bond, TIPS or floating rate note' }),
+  bills: Object.freeze({ chip: 'Bills', words: 'bill' }),
+})
+export const DEFAULT_AUCT_KIND = 'all'
+export const auctKind = (v) => (Object.prototype.hasOwnProperty.call(AUCT_KINDS, v) ? v : DEFAULT_AUCT_KIND)
+export const isBill = (r) => r?.cmb === true || /\b(bill|cmb)\b/i.test(String(r?.type || ''))
+
+/** Pure: the read view with only `kind`'s auctions in both lists (days with none left out, counts again). */
+export function auctionsOfKind(view, kind = DEFAULT_AUCT_KIND) {
+  const k = auctKind(kind)
+  if (k === 'all' || !view || !Array.isArray(view.upcoming)) return view
+  const keep = (r) => (k === 'bills' ? isBill(r) : !isBill(r))
+  const narrow = (days) => days.map((d) => ({ ...d, rows: d.rows.filter(keep) })).filter((d) => d.rows.length)
+  const upcoming = narrow(view.upcoming)
+  const results = narrow(view.results)
+  const n = (days) => days.reduce((s, d) => s + d.rows.length, 0)
+  return { ...view, upcoming, results, upcomingCount: n(upcoming), resultCount: n(results) }
+}
+
 export function countLine(view, today) {
   const next = view.upcoming[0]
   const coming = view.upcomingCount
