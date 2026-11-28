@@ -7,3 +7,5 @@ data_*/
 edge/r2/
 edge/*.js
 !edge/entry.js
+topo_*.json
+smoke.json

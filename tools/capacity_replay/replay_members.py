@@ -258,6 +258,8 @@ async def main():
                     body = await r.read()
                     stv = r.headers.get("server-timing", "")
                     layer = stv.split('desc="', 1)[1].split('"', 1)[0] if 'desc="' in stv else ""
+                    if r.headers.get("X-Bars-Served-By") == "leader":
+                        layer = "leader:" + layer          # a follower handed this request to the leader (#2962)
                     st.add(round(ts - t0, 3), cls, r.status, round((time.monotonic() - ts) * 1000, 2), len(body), layer)
             except asyncio.TimeoutError:
                 st.add(round(ts - t0, 3), cls, 0, round((time.monotonic() - ts) * 1000, 2), 0, "timeout")

@@ -4,11 +4,18 @@ Safety, all enforced in this process before the app is imported:
   * the store is the box's bars.db opened READ-ONLY + immutable (sqlite URI), never written;
   * every outbound socket that is not loopback is refused (no vendor, no R2, no production);
   * vendor/R2 credentials are blanked; proxies point at a dead loopback port.
-Usage: python launch_bars_api.py <port> <src_dir> [<workers>]
+Usage: python launch_bars_api.py <port> <src_dir>
+
+⛔ ONE process only (review of #2966, L1). Several processes on one store are #2962's leader/follower topology,
+whose guards (the election, leader-only work, the swap barrier, the hand-off) live in the app's own startup:
+run it through `run_topology.py` (one port per process, the Windows-safe way) or `launch_workers.py` (uvicorn
+`workers=N`, one socket, as production), never by starting this launcher N times.
 """
 import os, sys, socket, sqlite3
 
-PORT = int(sys.argv[1]); SRC = sys.argv[2]; WORKERS = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+if len(sys.argv) != 3:
+    sys.exit("usage: launch_bars_api.py <port> <src_dir>  (several processes: run_topology.py / launch_workers.py)")
+PORT = int(sys.argv[1]); SRC = sys.argv[2]
 STORE = os.environ.get("REPLAY_STORE", "C:/data/bars.db")
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_%d" % PORT)
 os.makedirs(DATA, exist_ok=True)
@@ -21,7 +28,7 @@ for k in list(os.environ):
 os.environ.update({"DATA_DIR": DATA, "BARS_API_ENABLED": "1", "PORT": str(PORT),
                    "HTTP_PROXY": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9",
                    "NO_PROXY": "127.0.0.1,localhost", "BARS_OFFGRID_SWEEP": "0",
-                   "BARS_API_WORKERS": str(WORKERS), "TMPDIR": os.path.join(DATA, "tmp")})
+                   "BARS_API_WORKERS": "1", "TMPDIR": os.path.join(DATA, "tmp")})
 
 _real_connect = socket.socket.connect
 _real_connect_ex = socket.socket.connect_ex
@@ -77,7 +84,5 @@ _yp.fetch_history = _no_vendor
 _yp.run_in_pool = _no_vendor
 if __name__ != "__main__" or os.environ.get("REPLAY_NO_SERVE") == "1":
     pass        # a multiprocessing child (spawn re-imports this file as __mp_main__) or a profiling import
-elif WORKERS > 1 and hasattr(bam, "serve_multi"):
-    bam.serve_multi(port=PORT, workers=WORKERS, preload=__file__)
 else:
     bam.main()

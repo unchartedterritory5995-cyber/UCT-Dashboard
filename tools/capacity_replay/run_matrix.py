@@ -23,7 +23,7 @@ def free_gb():
 def proc_mem(pids):
     if not pids:
         return {}
-    q = " -or ".join("ProcessId=%d" % p for p in pids)
+    q = " OR ".join("ProcessId=%d" % p for p in pids)        # WQL: OR, not PowerShell's -or
     out = subprocess.run(["powershell", "-NoProfile", "-c",
                           "Get-CimInstance Win32_Process -Filter \"%s\" | %% { \"$($_.ProcessId) $($_.PrivatePageCount)\" }" % q],
                          capture_output=True, text=True).stdout.split()
