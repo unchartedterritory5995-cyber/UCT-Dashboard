@@ -8530,6 +8530,46 @@
     "VHI",
     "CCII"
    ]
+  },
+  {
+   "id": "cloud/46154940891-1/COV-date-D-arrows",
+   "at": "2026-11-28T14:29:59+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NVGS",
+    "VFF",
+    "OXLC",
+    "VLRS",
+    "OFLX",
+    "QFIN",
+    "BLDP",
+    "ADCT",
+    "BIXI",
+    "DMLP",
+    "BCAR",
+    "NX",
+    "SANA"
+   ]
+  },
+  {
+   "id": "cloud/46154940891-1/COV-date-15-arrows",
+   "at": "2026-11-28T14:29:59+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LKFN",
+    "MYGN",
+    "HTB",
+    "BMM",
+    "CATX",
+    "KBDC",
+    "FSCO",
+    "QNC",
+    "WNC",
+    "NTB",
+    "GTM",
+    "NEXA",
+    "LILA"
+   ]
   }
  ]
 }
