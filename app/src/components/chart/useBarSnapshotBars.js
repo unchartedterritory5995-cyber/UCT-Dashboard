@@ -49,6 +49,8 @@ export const LAKE_WARM_DWELL_MS = 2500
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
 const PAINTS = new Set([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** (#3034) How long a chart shows a cut short D/W/M key as loading before it says the full history could not be loaded. */
+export const CUT_SHORT_GIVE_UP_MS = 15000
 /** How long a chart must rest on (symbol, timeframe) before its older history starts loading. */
 export const DEEP_ARM_MS = 250
 /** How often one older-history window is asked again after an error / a `filling` answer. */
@@ -223,13 +225,30 @@ export function useBarSnapshotBars({
     && _devicePaintedRef.current !== _deviceView
     // eslint-disable-next-line react-hooks/purity
     && !!deviceRefusalOf(snap, { extended: !!showExtended, through: store.persist?.deviceThroughOf?.(key) ?? null, nowMs: serverNow(), killed: deviceStoreKillSeen() })
+  // ⛔⛔ (review of #3034, the owner's decision: a short chart must be impossible) A CUT SHORT IS NEVER PAINTED. A D/W/M key
+  // whose tail was cut to EDGE_TAIL_BARS while its deep history (and the cover page that stands in for it) is still out
+  // (network.cutShort) shows the chart's loading state, never 30 rows; it paints the moment the rows land. Still short
+  // CUT_SHORT_GIVE_UP_MS later, the chart says so honestly (`error.historyShort`: "couldn't load the full history", retry).
+  const _cutShortNow = useSyncExternalStore(
+    useCallback((cb) => (key && isDateTf(resolvedTf) && store.network?.subscribeSettled ? store.network.subscribeSettled(key, cb) : () => {}), [store, key, resolvedTf]),
+    () => (key && isDateTf(resolvedTf) ? !!store.cutShort?.(key) : false),
+    () => false,
+  )
+  const _cutShort = _cutShortNow && !_hasOverride && !replayCutoff
+  const [_cutGaveUpKey, _setCutGaveUpKey] = useState(null)
+  useEffect(() => {
+    if (!_cutShort) return undefined
+    const id = setTimeout(() => _setCutGaveUpKey(key), CUT_SHORT_GIVE_UP_MS)
+    return () => clearTimeout(id)
+  }, [_cutShort, key])
+  const _cutGaveUp = _cutShort && _cutGaveUpKey === key
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
   else if (_deviceRefused) chosen = null
   else if (_isCustomTf) chosen = _customBars
   else if (all?.length) {
-    if (isDateTf(resolvedTf)) chosen = _dailyLocalRefused ? null : all
+    if (isDateTf(resolvedTf)) chosen = (_dailyLocalRefused || _cutShort) ? null : all
     else if (status === STATUS.PROVISIONAL) chosen = _staleContext
     else if (PAINTS.has(status)) chosen = all
   } else if (_aggBars?.length) chosen = _aggBars
@@ -338,7 +357,7 @@ export function useBarSnapshotBars({
       newest_bar_is_forming: newestBarIsFormingOf(snap),
     }
   }, [snap])  // eslint-disable-line react-hooks/exhaustive-deps
-  const error = useMemo(() => {
+  const _snapError = useMemo(() => {
     const e = snap?.error
     if (!e || e === 'no_data') return undefined
     const err = new Error(String(e))
@@ -346,12 +365,19 @@ export function useBarSnapshotBars({
     err.status = /^\d{3}$/.test(String(e)) ? Number(e) : null
     return err
   }, [snap?.error])
+  const error = useMemo(() => {
+    if (!_cutGaveUp) return _snapError
+    const err = new Error('history_short')
+    err.historyShort = true
+    return err
+  }, [_cutGaveUp, _snapError])
 
   // ── mutate / isValidating: the store's own loop ────────────────────────────────
   // A revalidate is a KICK of the key's single slot (≤ 1 request per key). A payload handed in
   // (the frozen-chart watchdog's own full fetch) is NOT merged here: the store's next answer
   // is the one merge path (reducer), so the kick is what heals it.
   const mutate = useLatestCallback(() => {
+    _setCutGaveUpKey(null)   // (#3034) a retry of a cut short waits its own CUT_SHORT_GIVE_UP_MS again
     if (key) { try { store.network.kick(key) } catch { /* not subscribed yet */ } }
     return Promise.resolve(undefined)
   })
