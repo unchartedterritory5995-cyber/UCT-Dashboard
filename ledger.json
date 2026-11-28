@@ -8948,6 +8948,36 @@
     "BWAY",
     "ALRS"
    ]
+  },
+  {
+   "id": "cloud/46168368426-1/COV-def-dd-arrows",
+   "at": "2026-11-28T17:03:01+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ASTH",
+    "BBDC",
+    "WBTN",
+    "SMP",
+    "ACEL",
+    "XRN",
+    "VFS",
+    "ABEV",
+    "GASS",
+    "EIKN",
+    "PRTH",
+    "DMAA",
+    "BETR"
+   ]
+  },
+  {
+   "id": "cloud/46168368426-1/COV-def-tabs",
+   "at": "2026-11-28T17:03:01+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SBET",
+    "RMNI",
+    "GIC"
+   ]
   }
  ]
 }
