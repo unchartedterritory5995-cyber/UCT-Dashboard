@@ -37,6 +37,7 @@ import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
+import { setFlipProbe } from './flipReady'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
@@ -186,14 +187,19 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
   // effects (stats, the paint record, the focus) wait for the commit ──
-  if (eligible && sym && sym !== buf.syms[buf.front]) {
-    const f = buf.front
+  // ONE DECISION, ASKED TWICE: here at the press, and EARLIER by the handoff (flipReady.js), which shows at once a row the
+  // shadow can flip to instead of holding it (the two can never disagree: the same function, the same refs)
+  // (the panes accessor through a ref of its own, declared here: `decide` also runs from the probe, after this render)
+  const panesNowRef = useRef(panes)
+  panesNowRef.current = panes
+  const decide = (want_sym, b, okSlot, set, cut) => {
+    const f = b.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null } : null
-    const report = slotOk && buf.syms[s] === sym ? reportsRef.current[s] : null
+    const want = fr ? { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null } : null
+    const report = okSlot && b.syms[s] === want_sym ? reportsRef.current[s] : null
     const view = () => {
-      const p = panes ? panes() : []
+      const p = panesNowRef.current ? panesNowRef.current() : []
       return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
     let d = flipDecision(want, report, barsNowFor, view)
@@ -215,8 +221,32 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {
-      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row' : 'shadow-unreported' }
+      d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row' : 'shadow-unreported' }
     }
+    return { d, report }
+  }
+  const slotOkRef = useRef(slotOk)
+  slotOkRef.current = slotOk
+  const cutoffRef = useRef(cutoff)
+  cutoffRef.current = cutoff
+  const eligibleRef = useRef(eligible)
+  eligibleRef.current = eligible
+  const decideRef = useRef(decide)
+  decideRef.current = decide   // the probe asks THIS render's decision (its `member` and refs; never a stale closure)
+  // the handoff's early question (flipReady.js): would a press to `s` flip now? (read off the refs of the last render)
+  useLayoutEffect(() => {
+    if (!member) return undefined
+    setFlipProbe(member, (s) => {
+      const b = bufRef.current
+      if (!eligibleRef.current || !s || s === b.syms[b.front]) return false
+      try { return decideRef.current(s, b, slotOkRef.current, settingsRef.current, cutoffRef.current).d.flip === true } catch { return false }
+    })
+    return () => setFlipProbe(member, null)
+  }, [member])   // eslint-disable-line react-hooks/exhaustive-deps -- decide reads refs only
+  if (eligible && sym && sym !== buf.syms[buf.front]) {
+    const f = buf.front
+    const s = 1 - f
+    const { d, report } = decide(sym, buf, slotOk, settings, cutoff)
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {

@@ -43,6 +43,7 @@ import { deviceSource } from '../data/deviceStore/source'
 import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 import { inRegularSession } from '../data/deviceStore/fresh'
 import { onChartPaint, viewNeed, VIEW_LOOKBACK_ROWS } from '../components/chart/paintLog'
+import { flipReadyFor } from '../components/chart/flipReady'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -215,8 +216,12 @@ export function routeView(tf, need) {
  *   'now'        displayable and whole (or a code this coordinator does not govern): shown once its panes'
  *                server columns have landed (COLUMNS_WAIT_MS)
  *   'prepare'    the intraday prepare, then shown on what it reports */
-function sameTaskRoute(sym, viewTf, sess, viewNeedRows = COVER_ROWS) {
+function sameTaskRoute(sym, viewTf, sess, viewNeedRows = COVER_ROWS, member = null) {
   if (/^ECON:/i.test(String(sym))) return 'econ'
+  // ⭐⭐ (2026-11-28, COV-def-wm-arrows: the W+M board never moved on 5 of 12 presses) A ROW THE DOUBLE BUFFER'S SHADOW
+  // CAN FLIP TO IS SHOWN AT ONCE: the flip shows it whole (its own decision, asked early: chart/flipReady.js). The daily
+  // hold below held it instead, and a hold longer than the gap between presses was left for the next one.
+  if (member && flipReadyFor(member, sym)) return 'now'
   const { tf, need } = routeView(viewTf, viewNeedRows)   // (a custom intraday code: its native base's rows)
   if (dailyHoldNeeded(sym, tf, need)) return 'daily-hold'
   if (paintsWholeNow(sym, tf, sess, need)) return 'now'
@@ -267,10 +272,10 @@ function deviceRuleBeforeAnswer(sym, tf, sess) {
  *  in this task; else 'no-symbol' | 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns'. The member's canShowNow
  *  is this answer being null (the same checks in the same order as before); a tester's device diagnostics record it
  *  per switch (`gate`), so a measurement can say which member and which gate sent a group down the round. */
-function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS) {
+function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS, member = null) {
   if (!sym || !tf) return 'no-symbol'
   if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return 'settle'
-  const route = sameTaskRoute(sym, tf, sess, need)
+  const route = sameTaskRoute(sym, tf, sess, need, member)
   if (route === 'econ') return null
   if (route !== 'now') return `route:${route}`
   return columnsReadyFor(sym, tf) ? null : 'columns'
@@ -375,7 +380,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => {
-        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow, viewNeed(member))
+        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow, viewNeed(member), member)
         gateRef.current = { sym, gate }
         return gate === null
       },
@@ -516,7 +521,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
       const need = viewNeed(member)   // the rows the view this member shows will draw (read at the switch)
-      const route = sameTaskRoute(requestedSym, tf, sess, need)
+      const route = sameTaskRoute(requestedSym, tf, sess, need, member)
       const rv = routeView(tf, need)   // the key and rows the intraday prepare below waits on (a custom code: its base)
       if (scoped) noteSwitchRoute(group, requestedSym, route === 'prepare' ? ROUTE_PREPARE : route === 'daily-hold' ? ROUTE_DAILY_HOLD : ROUTE_NOW)
       if (route === 'econ') { commitNow(); return leaveHold }
