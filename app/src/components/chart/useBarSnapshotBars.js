@@ -361,10 +361,11 @@ export function useBarSnapshotBars({
     const tail = snap.developing?.t ?? (snap.bars.length ? snap.bars[snap.bars.length - 1].t : null)
     const f = expectedFormingBar(resolvedTf, serverNow(), { session: showExtended ? 'extended' : 'rth' })
     if (f != null && typeof tail === 'number' && tail < f) return true
-    // ⛔ (review of #3063) ...and a forming bar of the CURRENT bucket that no stream feeds, last written more than
-    // DEV_STALE_MS ago (a kept 60m copy read at 10:35, pressed at 11:20): the bucket as it was then, not now
-    return f != null && !!snap.developing && snap.developing.t >= f
-      && !store.live?.isStreamLive?.(key, _session) && devWrittenStale(snap.developing, snap, serverNow())
+    // ⛔ (review of #3063) ...and a forming bar of the CURRENT bucket last written more than DEV_STALE_MS ago (a kept 60m
+    // copy read at 10:35, pressed at 11:20): the bucket as it was then, not now. ⛔ No "the stream is live" exemption: the
+    // stream's PAIR status says nothing about THIS key (a D chart streams sym:1 for its own fold and the frames go to the
+    // D key only); a key the stream really feeds has a forming bar written seconds ago, which this rule already passes.
+    return f != null && !!snap.developing && snap.developing.t >= f && devWrittenStale(snap.developing, snap, serverNow())
   })()
   const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
     && (!(Array.isArray(chosen) && chosen.length > 0) || _behindForming) && !_settledEmpty

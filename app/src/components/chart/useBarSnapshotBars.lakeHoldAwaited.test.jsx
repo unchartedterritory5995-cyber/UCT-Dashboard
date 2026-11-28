@@ -246,4 +246,64 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     expect(h.result.current.bars ?? null, 'the gapped copy painted past the bound').toBe(null)
     off()
   })
+
+  // ⛔ (re-review of #3063, fix A) THE STREAM'S PAIR BEING LIVE IS NOT THIS KEY BEING FED: a D chart streams sym:1 for its
+  // own fold (the frames go to the D key), so a kept 1m-like copy answered 30+ s ago in the same bucket still holds
+  it('H7 (P2) the pair is streaming (another key is fed) but this kept copy was written 35 min ago: the press holds', async () => {
+    const w = world({ lakeDelayMs: 50, restDelayMs: 120 })
+    w.store.live.isStreamLive = () => true                            // the PAIR reads live
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})
+    w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(35 * 60 * 1000) })      // the same 60m bucket
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }
+    h.rerender(p)
+    expect(h.result.current._tfSwitchHold, 'a stale forming bar painted because the pair read live').toBe(true)
+    off()
+  })
+
+  // (re-review of #3063) A 503 `warming` IS NOT AN ANSWER FOR THE BEHIND RULE: the press keeps holding, then the rows
+  it('H8 (P2) a behind kept copy whose press is answered 503 warming first: still held (no gapped paint), then the rows', async () => {
+    const w = world({ lakeDelayMs: 50, restDelayMs: 80 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})
+    w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 3600 * 1000) })   // behind: two buckets
+    const real = w.request.getMockImplementation()
+    let warmLeft = 1
+    w.request.mockImplementation((url, o) => {
+      if (/[?&]tf=60/.test(url) && warmLeft > 0) {
+        warmLeft--
+        return new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('warming'), { status: 503, warming: true, retryAfterMs: 300 })), 40))
+      }
+      return real(url, o)
+    })
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }
+    h.rerender(p)
+    const tailBefore = w.store.peek(k60)?.bars.at(-1)?.t
+    let painted = null
+    for (let i = 0; i < 150 && painted == null; i++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+      h.rerender(p)
+      if (!h.result.current._tfSwitchHold && h.result.current.bars?.length) painted = h.result.current.bars.at(-1).t
+    }
+    expect(warmLeft, 'the warming answer came').toBe(0)
+    expect(painted, 'the rows painted').not.toBeNull()
+    expect(painted, 'the gapped copy painted after the warming answer').toBeGreaterThan(tailBefore)
+    off()
+  })
 })
