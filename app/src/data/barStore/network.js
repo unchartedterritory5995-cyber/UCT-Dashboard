@@ -259,6 +259,8 @@ export function createNetwork({
   const lakeSettled = new Map()
   /** (2026-11-28) key -> the depth at which a lake load proved it holds ALL the lake's history (historyFeed `complete`) */
   const lakeComplete = new Map()
+  /** (review of #3038) key -> the depth at which the deep D/W/M history joined from a SEALED, NON-PARTIAL answer */
+  const deepComplete = new Map()
   const LAKE_SETTLED_MAX = 2000
   // ⭐ DEEP D/W/M HISTORY, ONE PAINT (2026-11-19, owner: "about 200 bars instantly and then the rest
   // shortly after, definitely in 2 phases"). A daily chart painted the copy it held (the pack's ~300
@@ -777,15 +779,18 @@ export function createNetwork({
     return _send(r, 'scroll', url, priority, async (json) => {
       if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
       if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
+      // ⛔ (review of #3038) the web's shallow fallback answers sealed AND partial (the worker's deep origin did not answer):
+      // its rows are shown, but it is never "the whole history" (historyComplete)
+      const partial = json.partial === true
       const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
       const before = registry.getSnapshot(r.key)
       if (rows.length && prependOlder(before.bars, rows) === before.bars) {
         // nothing older, or another price basis at the join: refused whole (#1116's seam rule)
-        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0 }
+        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0, partial }
       }
-      if (!rows.length) return { ok: true, added: 0 }
+      if (!rows.length) return { ok: true, added: 0, partial }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
-      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
+      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history', partial }
     }, viaPrime).then((res) => {
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
@@ -798,6 +803,15 @@ export function createNetwork({
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
       if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // (review of #3038) the whole D/W/M history is here only after a sealed, NON-partial answer joined
+      deepComplete.delete(r.key)
+      if (res?.ok && res.partial !== true && keys.get(r.key) === r) {
+        const held = registry.peek(r.key)?.bars.length
+        if (held != null) {
+          deepComplete.set(r.key, held)
+          if (deepComplete.size > LAKE_SETTLED_MAX) deepComplete.delete(deepComplete.keys().next().value)
+        }
+      }
       // (review of #2938, T1) a slow history names itself: the edge MISS rate is what the fallback above pays for
       const ms = now() - askedAt
       if (ms > EDGE_FALLBACK_MS && !res?.aborted) {
@@ -1248,25 +1262,30 @@ export function createNetwork({
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
       let failed = false
       let complete = false
+      let joined = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
           complete = got?.complete === true
           const cur = registry.peek(key)
-          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) { joined = !!cur && !!got && Array.isArray(got.bars); return false }
           // ⚡ (2026-11-27) A LOAD THAT PROVABLY ADDS NOTHING IS NOT INGESTED (reducer.lakeCopyAddsNothing): the chart's
           // background warm re-reads the lake on every visit of a board, and the settled-depth skip above does not hold
           // across a new key life or an entry no server answered (about 40-48 ms a board click, profiled). The dispatch
           // stays, empty, for the registry's own bookkeeping (the entry marked used, the eviction check), as
           // persist.hydrateMem does for a saved copy that adds nothing.
           if (lakeCopyAddsNothing(cur, got.bars)) {
+            joined = true   // the entry already holds every row the lake gave
             registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: [] } })
             return false
           }
           const before = cur.bars.length
           registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
           const after = registry.peek(key)
+          // (review of #3038) a load whose rows the reducer refused (another price basis, a lake ending before the held
+          // oldest bar: a hole) proves nothing about the whole history
           if (!after || after.bars.length <= before) return false
+          joined = true
           return after.restSeen ? 'join' : 'seed'
         })
         .catch(() => { failed = true; return false })
@@ -1288,7 +1307,9 @@ export function createNetwork({
           lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
           lakeComplete.delete(key)
-          if (complete) {
+          // complete only when the rows joined (or added nothing new) on an entry the server answered in this life: a
+          // seed before the answer can be discarded by it (another basis), so it never stamps the key
+          if (complete && joined && cur.restSeen) {
             lakeComplete.set(key, held)
             if (lakeComplete.size > LAKE_SETTLED_MAX) lakeComplete.delete(lakeComplete.keys().next().value)
           }
@@ -1333,7 +1354,10 @@ export function createNetwork({
       const cur = registry.peek(key)
       if (!p || p.window || !cur || !cur.bars.length) return false
       const held = cur.bars.length
-      if (isDateTf(p.tf)) return barsHistorySplitEnabled() && !r?.splitOff && _deepJoinedAt(key, held)
+      if (isDateTf(p.tf)) {
+        const at = deepComplete.get(key)
+        return barsHistorySplitEnabled() && !r?.splitOff && _deepJoinedAt(key, held) && at != null && held >= at
+      }
       if (!isIntradayTf(p.tf) || !cur.restSeen) return false
       const at = lakeComplete.get(key)
       return at != null && held >= at && !api.lakePending(key)

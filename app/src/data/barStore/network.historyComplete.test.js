@@ -58,4 +58,21 @@ describe('historyComplete', () => {
     const w = world(vi.fn(async () => ({ bars: older(300), exhausted: false, complete: true })))
     expect(w.net.historyComplete(w.key)).toBe(false)
   })
+
+  // (review of #3038, MED) a lake load whose rows the reducer REFUSED proves nothing (another basis: a hole at the join)
+  it('C7 a lake load whose rows did not join (another price basis on the shared bars): not complete', async () => {
+    const other = (n) => older(n).map((b) => ({ ...b, o: 50, h: 51, l: 49, c: 50 }))
+    const w = await seeded(vi.fn(async () => ({ bars: other(300), exhausted: false, complete: true })))
+    expect(w.registry.peek(w.key).bars.length).toBe(12)              // refused: only the answer's rows
+    expect(w.net.historyComplete(w.key)).toBe(false)
+  })
+  // (review of #3038, LOW) a lake seed BEFORE the server's answer never stamps the key: the answer may discard its rows
+  it('C8 a lake load that landed before any server answer: not complete', async () => {
+    const w = world(vi.fn(async () => ({ bars: older(300), exhausted: false, complete: true })))
+    await w.net.lakeSeed(w.key)
+    await vi.advanceTimersByTimeAsync(0)
+    w.net.fetchOnce(w.key)
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.net.historyComplete(w.key)).toBe(false)
+  })
 })
