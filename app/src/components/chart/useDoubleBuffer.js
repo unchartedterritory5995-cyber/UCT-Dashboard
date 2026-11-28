@@ -32,6 +32,7 @@ import { getBarStore } from '../../data/barStore/index'
 import { legacyBars } from '../../data/barStore/adapter'
 import { keyOf } from '../../data/barStore/types'
 import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
+import { baseBarsFor } from './timeframes'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
@@ -218,7 +219,9 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     // at a past date (the date box, a replay cutoff) reads the window ending there, and the plain key's newest rows are
     // another set (short of the view, a flip refused that was ready; covering, a short window let through)
     if (d.flip && BARSTORE && report) {
-      const need = viewNeed(member)
+      // (2026-11-28) counted in the rows of the KEY the store holds: a custom timeframe's (4h, 2h) are its native base's
+      // (heldRows reads that key), so the view's need is asked in base rows too (timeframes.baseBarsFor; native: unchanged)
+      const need = baseBarsFor(String(report.tf), viewNeed(member))
       let rows = 0
       try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, viewWindow: reportWindow(report), upTo: need }) || 0 } catch { rows = 0 }
       // ...unless nothing more is coming for it (review of #2934, L3: the switch's own exemption, paintsWholeNow /

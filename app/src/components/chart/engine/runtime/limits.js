@@ -301,6 +301,28 @@ export class RuntimeLimitError extends Error {
   }
 }
 
+// ─── ⭐⭐ (owner, 2026-11-28: "decide what most resembles TradingView") — A CHART LONGER THAN `HISTORY` IS RUN ON ITS NEWEST BARS ──
+// ⚰️ CAPTURED (production, the runtime worker's replies, 2026-11-28): a 30m chart now loads 40,000-52,000 bars, and every
+// run over it was refused at bar 0 (`runtime:limit`, HISTORY), so Fred RS drew nothing there. TradingView, too, computes a
+// script only on the bars it has loaded for the chart, never a symbol's whole intraday history. So a run over more than
+// `HISTORY` bars starts at a later bar (`runtimeColumns.js::computeRuntimeColumnsKnown`), as a chart whose history does not
+// reach the listing (the off-listing rules decide what is drawn), and the bars before it are withheld by name. The ceiling
+// itself is unchanged. The start moves in steps of `RUN_BAR_CAP_STEP` bars, so a chart growing a bar at a time keeps
+// its run's start (and its incremental session) for that many bars.
+export const RUN_BAR_CAP_CODE = 'runtime:bar-cap'
+export const RUN_BAR_CAP_STEP = 2048
+/** The member's words for the bars before a capped run's start. */
+export function runBarCapSentence(ceiling) {
+  return `this chart holds more than ${Number(ceiling).toLocaleString('en-US')} bars, the most a script is computed over, so it `
+    + 'is computed on the newest bars, as TradingView computes a script on the bars it has loaded; nothing is drawn on the '
+    + 'older bars.'
+}
+/** The bar a run over `n` bars starts at under a `ceiling` (0: it covers them all). */
+export function runBarCapCut(n, ceiling = DEFAULT_LIMITS.HISTORY) {
+  if (!Number.isInteger(n) || !Number.isInteger(ceiling) || ceiling < 1 || n <= ceiling) return 0
+  return Math.min(n - 1, Math.ceil((n - ceiling) / RUN_BAR_CAP_STEP) * RUN_BAR_CAP_STEP)
+}
+
 export function resolveLimits(overrides) {
   if (!overrides) return DEFAULT_LIMITS
   const out = { ...DEFAULT_LIMITS }
