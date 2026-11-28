@@ -8439,6 +8439,17 @@
     "ANAB",
     "MGTX"
    ]
+  },
+  {
+   "id": "cloud/46139290381-1/COV-tf-def",
+   "at": "2026-11-28T11:26:45+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NATR",
+    "XNET",
+    "ADAM",
+    "YSS"
+   ]
   }
  ]
 }
