@@ -32,7 +32,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'OVER_30MS']
+ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'OVER_30MS']
 INTRA_MIN = {'1': 1, '5': 5, '15': 15, '30': 30, '45': 45, '60': 60, '120': 120, '240': 240}
 
 
@@ -172,6 +172,15 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     for cid in ids:
         pre = [f['c'][cid] for f in frames if f['t'] < key and f['c'].get(cid) and f['c'][cid].get('nb')]
         post = [f for f in frames if f['t'] >= key and f['c'].get(cid)]
+        # (2026-11-28) BLANK: the chart had bars before the key and a frame after it shows none (a blank chart was
+        # never flagged: frames with no newest bar were skipped). Any such frame fails the switch.
+        had = any(x.get('nb') for x in pre)
+        blank = [f for f in post if f['c'].get(cid) is not None and not f['c'][cid].get('nb')] if had else []
+        if blank:
+            flags.add('BLANK')
+            blank_at = (round(blank[0]['t'] - key), round(blank[-1]['t'] - key))
+        else:
+            blank_at = None
         # (2026-11-28, COV-zo-wm-typed presses 0 and 3, COV-zo-m1-typed 0, COV-date-D-typed 1) NO FRAME BEFORE THE KEY: the
         # sampler's first frame (+8-17 ms) still showed the PREVIOUS symbol (OSIS, BOKF, FSLY, NOW), and with no base it was
         # read as the new chart's first paint: "a short paint at 17 ms" (OSIS's 349 months) that was the old chart, "a stale
@@ -197,7 +206,7 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         else:
             k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
         if k0 is None:
-            detail[cid] = {'shown': None}
+            detail[cid] = {'shown': None, 'blank': blank_at}
             continue
         s = post[k0]['c'][cid]
         shown[cid] = post[k0]['t'] - key
@@ -468,6 +477,18 @@ def self_check() -> None:
     # (F7) STALE on a timeframe press is judged at its own timeframe
     e7 = expectations([('x', {}, [{'dir': 'tf', 'tf': '45', 'frames': [{'c': {'flip-chart': {'nb': [5000, 1]}}}]}], {'flip-chart': 'D'})], {})
     assert '45' in e7['intraday'], e7
+    # BLANK: the chart had bars, then a frame after the key shows none (both under the old header and at the target)
+    def bl(t, sym):
+        f = fr(t, sym, 0)
+        f['c']['flip-chart']['nb'] = None
+        return f
+    blank1 = {'i': 30, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), bl(1012, 'AAA'), fr(1029, 'BBB', 20)]}
+    blank2 = {'i': 31, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), bl(1012, 'BBB'), bl(1180, 'BBB'), fr(1260, 'BBB', 20)]}
+    nobars = {'i': 32, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [bl(990, 'AAA'), fr(1012, 'BBB', 20)]}
+    gb = [grade_switch(x, {'flips': []}, tfs, exp) for x in (blank1, blank2, nobars)]
+    assert 'BLANK' in gb[0]['flags'] and 'BLANK' in gb[1]['flags'], gb[:2]
+    assert 'BLANK' not in gb[2]['flags'], gb[2]   # a chart that never had bars before the key is the first paint's case
+    assert 'BLANK' not in g[0]['flags']
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
     print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
