@@ -34,7 +34,11 @@ describe('U-DAILY — the patch gate', () => {
   it('⛔ CONTROL — the weekly and monthly reads it already admitted are unchanged, on every chart', () => {
     const weekly = O('>', S('close'), { type: 'tf', value: 'W', args: [S('close')] })
     for (const ctx of [{ tf: '5' }, { tf: 'D' }, null]) expect(codeOf(() => gateTree(weekly, {}, 'value', ctx))).toBe(null)
-    expect(codeOf(() => gateTree({ type: 'tf', value: '60', args: [S('close')] }, {}, 'value', { tf: '5' }))).toBe('tree:timeframe')
+    // ⭐⭐ E101 (2026-11-28) — 60 minutes above a 5 minute chart is a formula's read now (the last closed hour); on a daily
+    // chart, above a chart whose minutes do not divide it, or on a chart not said, it is refused as before
+    const hour = { type: 'tf', value: '60', args: [S('close')] }
+    expect(codeOf(() => gateTree(hour, {}, 'value', { tf: '5' }))).toBe(null)
+    for (const ctx of [{ tf: 'D' }, { tf: '45' }, { tf: '60' }, null]) expect(codeOf(() => gateTree(hour, {}, 'value', ctx))).toBe('tree:timeframe')
   })
 
   it('reads its bounds from the shared file', () => {
