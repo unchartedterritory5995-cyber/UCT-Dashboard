@@ -99,9 +99,13 @@ export function serverTailOf(s) {
 }
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 /** A deep D/W/M history fetched ahead of its join (`deepPrime`) is kept this long for the key's
- *  history job to take, and at most this many at once (each ~1-2 MB parsed). */
+ *  history job to take, and at most this many at once (each ~1-2 MB parsed).
+ *  ⭐ (2026-11-28, zero-network plan 1.4 + 1.7, owner: "upgrade rather than downgrade") 16, was 4: the typed candidate
+ *  pool (3), the typed slot and its linked charts (up to 3), and a list's neighbour rows (up to 8) each prime one, and at
+ *  4 the oldest primes were evicted before their press, so the row the member reached asked its history again at the
+ *  flip. ~16-32 MB of client memory at the most, released as each is joined or after the TTL. */
 export const DEEP_PRIME_TTL_MS = 120_000
-export const DEEP_PRIME_MAX = 4
+export const DEEP_PRIME_MAX = 16
 /** The newest rows the origin answers for a daily view's cover whose deep history the edge brings (`_tailJob`). */
 export const EDGE_TAIL_BARS = 30
 /** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */

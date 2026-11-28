@@ -189,7 +189,7 @@ test('at the list edges the window shrinks instead of wrapping', () => {
   vi.clearAllMocks()
   const { result } = renderHook(() => useFocusSelection({ rows: rows(4) }))
   expect(prefetchBars).toHaveBeenLastCalledWith(['T1', 'T2'], 'D', { urgent: true })
-  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T1', 'T2', 'T3'], 'D', { priority: true })
+  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T1', 'T2', 'T3'], 'D', { priority: true, edge: true })   // (plan 1.7)
   act(() => result.current.select(3))
   expect(prefetchBars).toHaveBeenLastCalledWith([], 'D', { urgent: true })
 })

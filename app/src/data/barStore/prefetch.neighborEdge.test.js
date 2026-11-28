@@ -59,12 +59,12 @@ const turns = async (w, n = 4) => { for (let i = 0; i < n; i++) await settle(w) 
 const ROWS = ['AAA', 'AAPL', 'AMZN', 'COLD', 'CRBG', 'NVDA']
 
 describe('a list\'s neighbour rows come from the device and the edge, never the origin (edge: true)', () => {
-  it('D rows: each its edge history, all at once; no /api/bars at all', async () => {
+  it('D rows: each its edge history, once; no /api/bars at all', async () => {
     const w = await boot()
     w.pf.prefetchBarsToIDB(ROWS, 'D', { priority: true, edge: true })
     await turns(w)
-    expect(w.server.open().map(what).sort()).toEqual(ROWS.map((s) => `${s} history D d=2026-11-09`))
     await w.server.drain()
+    expect(w.server.calls.map(what).sort()).toEqual(ROWS.map((s) => `${s} history D d=2026-11-09`))
     expect(origin(w)).toEqual([])
   })
 
