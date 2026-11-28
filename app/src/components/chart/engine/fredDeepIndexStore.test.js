@@ -21,7 +21,7 @@ import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
 import { __admitEveryRunHalfForTests, __resetRunHalfAdmissionForTests } from './runHalfRailSeam'
 import { clearSecondaryBars } from './secondaryBars'
-import { OWN_DAILY_KEY, atOrBeforeGridOf } from './otherSymbols'
+import { OWN_DAILY_KEY, atOrBeforeGridOf, GRID_ROWS_BEFORE_CHART } from './otherSymbols'
 import { isTradingDay, closeTime } from '../../../lib/marketClock/sessionCalendar'
 import { DEFAULT_LIMITS, runBarCapCut, RUN_BAR_CAP_STEP, RUN_BAR_CAP_CODE } from './runtime/limits'
 import { isStartFreeDot } from './runtime/startLatched'
@@ -71,19 +71,21 @@ describe('the grid from the chart\'s first bar', () => {
     expect(FULL.length).toBeGreaterThan(DEFAULT_LIMITS.HISTORY)
     expect(CHART.length).toBeLessThan(DEFAULT_LIMITS.HISTORY / 4)
   })
-  it('is the same rows, byte for byte, as the whole grid from the newest row before the chart on', () => {
+  it('is the same rows, byte for byte, as the whole grid from the newest rows before the chart on', () => {
     const from = CHART[0].t
     const cut = atOrBeforeGridOf(SPX15, SPXD, '15', { from })
     expect(cut.length).toBeLessThan(FULL.length)
     const k = FULL.findIndex((r) => r.t >= from)
     expect(k).toBeGreaterThan(0)
-    // the one row before the chart: where the series' rows begin, so a missing chart bar stays a hole
+    // the rows before the chart: where the series' rows begin (a missing chart bar stays a hole), and a request
+    // expression's own look-back on the chart's first bars
+    expect(k).toBeGreaterThan(GRID_ROWS_BEFORE_CHART)
     expect(cut[0].t).toBeLessThan(from)
-    expect(JSON.stringify(cut)).toBe(JSON.stringify(FULL.slice(k - 1)))
+    expect(JSON.stringify(cut)).toBe(JSON.stringify(FULL.slice(k - GRID_ROWS_BEFORE_CHART)))
   })
-  it('a grid that ends before the chart begins keeps its newest row (every chart bar is the tail it was)', () => {
+  it('a grid that ends before the chart begins keeps its newest rows (every chart bar is the tail it was)', () => {
     const cut = atOrBeforeGridOf(SPX15, SPXD, '15', { from: FULL[FULL.length - 1].t + 86400 * 30 })
-    expect(JSON.stringify(cut)).toBe(JSON.stringify([FULL[FULL.length - 1]]))
+    expect(JSON.stringify(cut)).toBe(JSON.stringify(FULL.slice(-GRID_ROWS_BEFORE_CHART)))
   })
 })
 

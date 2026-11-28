@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Fred RS on deep intraday charts (2026-11-28): SP:SPX's extended-hours grid starts at the chart's first bar (plus the one row before it), so a deep index store never passes the run's 32,768-bar HISTORY ceiling, and a missing chart bar stays the hole it was.",
+ "about": "Fred RS on deep intraday charts (2026-11-28): SP:SPX's extended-hours grid starts at the chart's first bar (plus the 1,000 rows before it), so a deep index store never passes the run's 32,768-bar HISTORY ceiling, and a missing chart bar stays the hole it was.",
  "mutants": [
   {
    "id": "FDI-1",
@@ -13,10 +13,10 @@
   },
   {
    "id": "FDI-2",
-   "mutant": "the row before the chart's first bar is dropped (a hole at the chart's start reads as a depth gap)",
+   "mutant": "the rows before the chart's first bar are dropped (a hole at the chart's start reads as a depth gap)",
    "file": "app/src/components/chart/engine/otherSymbols.js",
-   "from": "        if (before) { out.push(before); before = null }",
-   "to": "        before = null",
+   "from": "        if (before.length) { out.push(...before); before.length = 0 }",
+   "to": "        before.length = 0",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredDeepIndexStore.test.js src/components/chart/engine/requestPageEdge.test.js",
    "expectRed": "refused as a hole"
   }
