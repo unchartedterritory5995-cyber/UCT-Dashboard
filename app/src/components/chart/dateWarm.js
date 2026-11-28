@@ -38,7 +38,7 @@ export function createDateWarm({ store = getBarStore, enabled = BARSTORE, touch 
   return {
     /**
      * The date box's draft parsed (`ms`: UTC midnight of a whole date, null while it is not one).
-     * @param {number|null} ms
+     * @param {number|null} ms the draft's date (chart/dateText parseDate(text, {whole: true}): the date Enter goes to)
      * @param {{sym: string, neighbors?: string[], tfs?: Iterable<string>, showExtended?: boolean}} ctx
      * @returns {string[]} the keys primed (none when nothing was due)
      */
@@ -71,16 +71,4 @@ export function createDateWarm({ store = getBarStore, enabled = BARSTORE, touch 
     /** Give the warm in flight up (a text that is no date any more). */
     cancel: stop,
   }
-}
-
-/** M/D/YYYY with a WHOLE four-digit year, as UTC-midnight ms (ChartDateNav's parse), else null: "3/14/20" may still
- *  become 2006, so a two- or three-digit year is no date yet. */
-export function wholeDraftDate(txt) {
-  const mm = String(txt || '').trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
-  if (!mm) return null
-  const m = +mm[1], d = +mm[2], y = +mm[3]
-  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1900) return null
-  const ms = Date.UTC(y, m - 1, d)
-  const back = new Date(ms)
-  return back.getUTCMonth() === m - 1 && back.getUTCDate() === d ? ms : null   // 2/30 is no date
 }

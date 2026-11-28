@@ -1,6 +1,7 @@
 // The date warmed digit by digit (zero-network plan PR 1.2, 2026-11-28): chart/dateWarm.js over a stub store facade.
 import { describe, it, expect, vi } from 'vitest'
-import { createDateWarm, wholeDraftDate, DATE_WARM_NEIGHBORS } from './dateWarm'
+import { createDateWarm, DATE_WARM_NEIGHBORS } from './dateWarm'
+import { parseDate } from './dateText'
 import { viewKeyFor } from '../../data/barStore/prefetch'
 import { viewWindowOfDate } from './viewWindow'
 
@@ -51,10 +52,11 @@ describe('createDateWarm', () => {
   })
 })
 
-describe('wholeDraftDate', () => {
-  it('a date only once its year is whole', () => {
-    expect(wholeDraftDate('3/14/2006')).toBe(ms('2006-03-14'))
-    expect(wholeDraftDate('12/1/2016')).toBe(ms('2016-12-01'))
-    for (const t of ['', '3', '3/1', '3/14/', '3/14/2', '3/14/20', '3/14/200', '2/30/2006', '13/1/2006']) expect(wholeDraftDate(t), t).toBe(null)
+describe('parseDate (the one parser: Enter and the warm agree)', () => {
+  it('a draft is a date once its year is 2 or 4 digits; it is the date Enter parses', () => {
+    expect(parseDate('3/14/2006', { whole: true })).toBe(ms('2006-03-14'))
+    expect(parseDate('3/14/06', { whole: true }), 'Enter goes to 2006: the warm warms it').toBe(ms('2006-03-14'))
+    for (const t of ['', '3', '3/1', '3/14/', '3/14/2', '3/14/200', '13/1/2006']) expect(parseDate(t, { whole: true }), t).toBe(null)
+    for (const t of ['3/14/06', '3/14/2006', '12/1/2016', '2/30/2006']) expect(parseDate(t, { whole: true }), t).toBe(parseDate(t))
   })
 })

@@ -33,7 +33,7 @@ import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
 import { createDateBoxNav } from './dateBoxNav'
 import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
-import { createDateWarm, wholeDraftDate } from '../../../components/chart/dateWarm'
+import { createDateWarm } from '../../../components/chart/dateWarm'
 import { scanNeighborsFor } from '../../../components/chart/neighborFrames'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
@@ -280,11 +280,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => () => dateWarm.cancel(), [dateWarm])
   const dateWarmCtx = useRef(null)
   dateWarmCtx.current = { sym, tf, tfs: groupTfSets?.[activeColor] }
-  const onDateDraft = useCallback((text) => {
+  const onDateDraft = useCallback((text, ms) => {
     const c = dateWarmCtx.current
     if (!c?.sym) return
     const tfs = [c.tf, ...Array.from(c.tfs || [])]
-    dateWarm.draft(wholeDraftDate(text), { sym: c.sym, neighbors: scanNeighborsFor(c.sym), tfs, showExtended: !!paneExtRef.current })
+    dateWarm.draft(Number.isFinite(ms) ? ms : null, { sym: c.sym, neighbors: scanNeighborsFor(c.sym), tfs, showExtended: !!paneExtRef.current })
   }, [dateWarm])
 
   // ── Crosshair sync across EVERY chart widget ──
