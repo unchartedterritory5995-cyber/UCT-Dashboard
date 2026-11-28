@@ -93,7 +93,8 @@ export function rssTableColumns(screen, columns) {
       : RSS_NUMERIC.has(c.key) ? (x) => x[c.key]
         : c.key === 'group' || c.key === 'tag' ? (x) => x[c.key] || null
           : (x) => x.parts?.[c.key] || null,
-    thClass: c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : styles.mediumWrap,
+    // The header class as before the shared header: a wrap column gives back its floor, any other may take two lines.
+    thClass: [c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : styles.mediumWrap].join(' '),
   }))
 }
 

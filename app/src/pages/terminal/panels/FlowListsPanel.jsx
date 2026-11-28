@@ -90,33 +90,6 @@ export function gradeRank(g) {
   return (70 - m[1].charCodeAt(0)) * 3 + (m[2] === '+' ? 2 : m[2] === '-' ? 0 : 1)
 }
 
-/** Customization pass 1: each list's columns (components/terminal/PanelTable). The server's order is
- *  the default (Cream: grade, then premium; the open board: net premium) and decides which rows are
- *  listed; a header click sorts the rows listed. The keys carry the list's letter (`c.` / `o.`), so
- *  the columns each list hides are its own; the panel keeps one sort, the list on screen's. */
-export const CREAM_COLUMNS = Object.freeze([
-  { key: 'c.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
-  { key: 'c.contract', label: 'Contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`, title: 'Sorts by days to expiry' },
-  { key: 'c.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the position leans' },
-  { key: 'c.premium', label: 'Premium', sort: (r) => r.premium, title: 'Dollars paid at the ask on this contract in the session' },
-  { key: 'c.grade', label: 'Grade', sort: (r) => gradeRank(r.grade), title: 'The flow grade of the position, A+ best' },
-  { key: 'c.voi', label: 'Volume vs open interest', sort: (r) => r.volToOi, phoneHide: true, thClass: styles.snugWrap,
-    title: 'Contracts bought at the ask, against the open interest before the session' },
-  { key: 'c.contracts', label: 'Contracts', sort: (r) => r.contracts, phoneHide: true, title: 'Contracts bought at the ask in the session' },
-  { key: 'c.dte', label: 'Days to expiry', firstDir: 'asc', sort: (r) => r.daysLeft, phoneHide: true, thClass: styles.snugWrap },
-])
-export const OPEN_COLUMNS = Object.freeze([
-  { key: 'o.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
-  { key: 'o.contract', label: 'Largest contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`,
-    title: "The stock's largest open contract by premium (sorts by days to expiry)" },
-  { key: 'o.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the open premium leans' },
-  { key: 'o.net', label: 'Net premium', sort: (r) => r.net, title: 'Bullish premium less bearish premium on the open contracts' },
-  { key: 'o.split', label: 'Bullish and bearish premium', sort: (r) => r.bullShare, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
-    title: 'Bullish premium, then bearish premium, on the open contracts, and the bullish share of the two (sorts by the bullish share)' },
-  { key: 'o.since', label: 'Stock since first trade', sort: (r) => r.stockPct, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
-    title: "The stock's move from the earliest trade behind these positions to the latest one on the tape, and that first trade's date" },
-])
-
 function CreamList({ code }) {
   // The pace follows the server's own word that it is still building (as the open board does).
   const [building, setBuilding] = useState(false)
@@ -222,6 +195,22 @@ function CreamList({ code }) {
     </>
   )
 }
+
+/** Customization pass 1: each list's columns (components/terminal/PanelTable). The server's order is
+ *  the default (Cream: grade, then premium; the open board: net premium) and decides which rows are
+ *  listed; a header click sorts the rows listed. The keys carry the list's letter (`c.` / `o.`), so
+ *  the columns each list hides are its own; the panel keeps one sort, the list on screen's. */
+export const CREAM_COLUMNS = Object.freeze([
+  { key: 'c.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'c.contract', label: 'Contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`, title: 'Sorts by days to expiry' },
+  { key: 'c.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the position leans' },
+  { key: 'c.premium', label: 'Premium', sort: (r) => r.premium, title: 'Dollars paid at the ask on this contract in the session' },
+  { key: 'c.grade', label: 'Grade', sort: (r) => gradeRank(r.grade), title: 'The flow grade of the position, A+ best' },
+  { key: 'c.voi', label: 'Volume vs open interest', sort: (r) => r.volToOi, phoneHide: true, thClass: styles.snugWrap,
+    title: 'Contracts bought at the ask, against the open interest before the session' },
+  { key: 'c.contracts', label: 'Contracts', sort: (r) => r.contracts, phoneHide: true, title: 'Contracts bought at the ask in the session' },
+  { key: 'c.dte', label: 'Days to expiry', firstDir: 'asc', sort: (r) => r.daysLeft, phoneHide: true, thClass: styles.snugWrap },
+])
 
 function OpenBoard({ code }) {
   // The pace follows the server's own word that it is still building. `building` is adjusted
@@ -338,6 +327,19 @@ function OpenBoard({ code }) {
     </>
   )
 }
+
+/** The open flow board's columns (see CREAM_COLUMNS above). */
+export const OPEN_COLUMNS = Object.freeze([
+  { key: 'o.sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'o.contract', label: 'Largest contract', firstDir: 'asc', sort: (r) => r.daysLeft, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: "The stock's largest open contract by premium (sorts by days to expiry)" },
+  { key: 'o.direction', label: 'Direction', type: 'text', sort: (r) => r.direction, title: 'Which way the open premium leans' },
+  { key: 'o.net', label: 'Net premium', sort: (r) => r.net, title: 'Bullish premium less bearish premium on the open contracts' },
+  { key: 'o.split', label: 'Bullish and bearish premium', sort: (r) => r.bullShare, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: 'Bullish premium, then bearish premium, on the open contracts, and the bullish share of the two (sorts by the bullish share)' },
+  { key: 'o.since', label: 'Stock since first trade', sort: (r) => r.stockPct, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: "The stock's move from the earliest trade behind these positions to the latest one on the tape, and that first trade's date" },
+])
 
 export default function FlowListsPanel({ list: listProp = null }) {
   const inPanel = useInTerminalPanel()
