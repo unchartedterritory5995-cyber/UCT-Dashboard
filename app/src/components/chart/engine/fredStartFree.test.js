@@ -20,10 +20,12 @@ import { runHalfOf, runtimeObjectsOf, runtimeWarmupOf, RUNTIME_OBJECTS_KEY } fro
 import {
   RUNTIME_START_LATCHED_GUARD, START_LATCHED_REASON, FRED_RS_SOURCE_SHA256, START_FREE_MIN_BARS, START_FREE_FROM_BAR,
   isStartFreeDot, isNonDailyTf, isConstantRatingLabel, FRED_RS_HEADING_TEXT, START_FREE_DOT_SHORT_REASON,
+  startFreeSettingsAdmit, historicalDotsOn, START_FREE_OLDEST_DOTS_REASON, START_FREE_SETTINGS,
 } from './runtime/startLatched'
+import { POOL_LIMITS } from './objectPool'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
-import { setRunHalfObjectEvidence } from './runHalfRailSeam'
+import { setRunHalfObjectEvidence, __admitEveryRunHalfForTests, __resetRunHalfAdmissionForTests } from './runHalfRailSeam'
 import { clearSecondaryBars } from './secondaryBars'
 import { OWN_DAILY_KEY } from './otherSymbols'
 
@@ -121,10 +123,13 @@ describe('the run, off the listing: the dots served, the rating withheld by name
 })
 
 describe('⛔ every gate refuses as before (`runtime:history-start`)', () => {
-  it('a moved setting (any member input) is not the script as written', () => {
+  it('a moved setting outside the start-free list (the RS MA type, the comparative symbol) is not the script as written', () => {
     const rows = chartOf(N)
-    expect(guardOf(() => computeRuntimeColumns(runDef(), rows, ctxOf(rows, { runtimeInputs: { lookback: 100 } }), { now: () => 0 })))
-      .toBe('runtime:history-start')
+    for (const moved of [{ typMa: 'SMA' }, { lineTicker: 'NASDAQ:NDX' }, { colorRS: '#ff0000' }, { ratingOnly: true },
+      { SpxValue: 7200, lenMa: 10 }]) {
+      expect(guardOf(() => computeRuntimeColumns(runDef(), rows, ctxOf(rows, { runtimeInputs: moved }), { now: () => 0 })),
+        JSON.stringify(moved)).toBe('runtime:history-start')
+    }
   })
   it(`a chart of ${START_FREE_MIN_BARS - 1} bars is refused; ${START_FREE_MIN_BARS} is served`, () => {
     const short = chartOf(START_FREE_MIN_BARS - 1)
@@ -254,5 +259,135 @@ describe('the product path: Fred RS\'s run half on an off-listing daily chart', 
     const rows = chartOf(START_FREE_MIN_BARS - 1)
     const rh = runHalfOf(registry.computeFor(def, rows, {}, ctxOf(rows)))
     expect(`${rh && rh.state}:${rh && rh.code}`).toBe('refused:runtime:history-start')
+  })
+})
+
+// ─── ⭐⭐ (owner, 2026-11-27) — AT THE OWNER'S TRADINGVIEW SETTINGS (UCT's Fred RS default, #2942) ─────────────────────
+// UCT's Fred RS opens at SpxValue 7200, offset 90, 'Historical RS New Highs', look-back 30. These rails hold the release
+// to: those settings admitted by value (nothing outside the list), and the Historical dots drawn off the listing being
+// exactly the ones TradingView keeps from ANY first bar (the newest labels its batched collector always keeps), proved by
+// running one chart from several first bars.
+const OWNER = Object.freeze({ SpxValue: 7200, offset: 90, rsNewHigh: 'Historical RS New Highs', lookback: 30 })
+const CAP = POOL_LIMITS.label.fallback
+const dotsOf = (cols) => runtimeObjectsOf(cols).live.filter(isStartFreeDot)
+/** a drawing's place by the bar's own TIME and its price, so two runs from different first bars compare */
+const placeOf = (rows) => (o) => `${rows[o.createdBar].t}|${o.props.y}`
+const STARTS = [1, 7, 23]
+
+describe('the start-free settings, checked by value', () => {
+  it("the owner's preset is admitted, and each listed setting is held to its declared range or options", () => {
+    expect(startFreeSettingsAdmit(OWNER)).toBe(true)
+    expect(startFreeSettingsAdmit({})).toBe(true)
+    expect(startFreeSettingsAdmit(undefined)).toBe(true)
+    expect(startFreeSettingsAdmit({ rsNewHigh: 'Historical RS New Highs  Before Price', rsNewLow: 'RS New Lows Before Price',
+      plotNewLow: true, lookback2: 252, lookback: 1, offset: 0, hideRSRat: true, sizeLabHigh: 'Large', blueDotCol: '#79d5f29e' })).toBe(true)
+    for (const bad of [{ lookback: 253 }, { lookback: 0 }, { lookback: 30.5 }, { lookback2: 300 }, { offset: -1 }, { offset: 2001 },
+      { SpxValue: 0 }, { SpxValue: 'x' }, { rsNewHigh: 'Historical RS New Lows' }, { rsNewLow: 'bogus' }, { plotNewHigh: 'yes' },
+      { sizeLabLow: 'huge' }, { typMa: 'SMA' }, { lineTicker: 'SP:SPX' }, { colorRS: '#0000ff' }, { ratingOnly: false }]) {
+      expect(startFreeSettingsAdmit(bad), JSON.stringify(bad)).toBe(false)
+    }
+    expect(startFreeSettingsAdmit('x')).toBe(false)
+    expect(Object.keys(START_FREE_SETTINGS)).not.toContain('lineTicker')
+  })
+  it('a Historical type, plotted, is the one whose oldest dots depend on the start', () => {
+    expect(historicalDotsOn(OWNER)).toBe(true)
+    expect(historicalDotsOn({})).toBe(false)
+    expect(historicalDotsOn({ ...OWNER, plotNewHigh: false })).toBe(false)
+    expect(historicalDotsOn({ plotNewLow: true })).toBe(true)
+    expect(historicalDotsOn({ rsNewHigh: 'RS New Highs Before Price' })).toBe(false)
+  })
+})
+
+describe("off the listing at the owner's preset: the Historical dots TradingView keeps from ANY start", () => {
+  it('SERVED on a daily chart: dots only, every one a start-free circle among the newest labels, the oldest named', () => {
+    const rows = chartOf(N)
+    const cols = computeRuntimeColumns(runDef(), rows, ctxOf(rows, { runtimeInputs: OWNER }), { now: () => 0 })
+    const p = cols[RUNTIME_OBJECTS_KEY]
+    expect(p.status).toBe('ok')
+    const dots = dotsOf(cols)
+    expect(dots.length, 'the preset makes one dot per new 30-bar high: many').toBeGreaterThan(20)
+    expect(p.live.every(isStartFreeDot)).toBe(true)
+    expect(dots.length).toBeLessThanOrEqual(CAP)
+    expect(p.live.some((o) => typeof o.props.text === 'string' && o.props.text !== '')).toBe(false)
+    expect(p.startLatched).toMatchObject({ guard: RUNTIME_START_LATCHED_GUARD })
+    expect(p.startLatched.reason).toContain(START_LATCHED_REASON)
+    expect(p.startLatched.reason).toContain(START_FREE_OLDEST_DOTS_REASON)
+    expect(runtimeWarmupOf(cols)).toMatchObject({ withheldBars: START_FREE_FROM_BAR })
+  })
+  it('⭐⭐ THE TWO-START ORACLE: the same chart from other first bars draws the SAME dots (bar and price)', () => {
+    const rows = chartOf(N)
+    const a = computeRuntimeColumns(runDef(), rows, ctxOf(rows, { runtimeInputs: OWNER }), { now: () => 0 })
+    resetRuntimeSessions()
+    const da = dotsOf(a).map(placeOf(rows))
+    expect(da.length).toBeGreaterThan(20)
+    for (const k of STARTS) {
+      const later = rows.slice(k)
+      const b = computeRuntimeColumns(runDef(), later, ctxOf(later, { runtimeInputs: OWNER }), { now: () => 0 })
+      resetRuntimeSessions()
+      expect(dotsOf(b).map(placeOf(later)), `first bar +${k}`).toEqual(da)
+    }
+  })
+  it("⛔ CONTROL, the fixture can tell: the RAW survivors (the collector's every label) differ between those starts", () => {
+    const rows = chartOf(N)
+    const raw = (r) => {
+      const cols = computeRuntimeColumns(runDef(), r, ctxOf(r, { runtimeInputs: OWNER, historyFromListing: true }), { now: () => 0 })
+      resetRuntimeSessions()
+      const p = cols[RUNTIME_OBJECTS_KEY]
+      expect(p.stats.collected, 'the collector ran').toBeGreaterThan(0)
+      return p.live.filter((o) => o.family === 'label' && /circle$/.test(String(o.props.style))).map(placeOf(r))
+    }
+    const all = raw(rows)
+    const differs = STARTS.filter((k) => JSON.stringify(raw(rows.slice(k))) !== JSON.stringify(all))
+    expect(differs.length, 'a start that moves the collector phase holds another set of oldest dots').toBeGreaterThan(0)
+  })
+  it('⛔ CONTROL: a newest-bar type at moved settings keeps its one dot and names nothing about the oldest dots', () => {
+    const rows = chartOf(N)
+    const cols = computeRuntimeColumns(runDef(), rows, ctxOf(rows, { runtimeInputs: { ...OWNER, rsNewHigh: 'RS New Highs' } }),
+      { now: () => 0 })
+    expect(dotsOf(cols).length).toBe(1)
+    expect(cols[RUNTIME_OBJECTS_KEY].startLatched.reason).not.toContain(START_FREE_OLDEST_DOTS_REASON)
+  })
+  it("SERVED on a 5m chart: the heading, the empty label and the dots, among TradingView's newest labels", () => {
+    const n = CHART5.length
+    const cols = computeRuntimeColumns(runDef(), CHART5, ctx5({ runtimeInputs: OWNER }), { now: () => 0 })
+    expect(newestLabelsOf(cols, n).map((o) => o.props.text)).toEqual([FRED_RS_HEADING_TEXT, ''])
+    const dots = dotsOf(cols)
+    expect(dots.length).toBeGreaterThan(0)
+    expect(dots.length + 2).toBeLessThanOrEqual(CAP)
+    expect(cols[RUNTIME_OBJECTS_KEY].startLatched.reason).toBe(START_FREE_OLDEST_DOTS_REASON)
+  })
+})
+
+describe("the product path at the owner's preset: Fred RS's run half off the listing", () => {
+  let def = null
+  beforeEach(() => {
+    __admitEveryRunHalfForTests()
+    const stored = JSON.parse(JSON.stringify(memberPaneDefinition({ source: RS, name: 'Fred RS', id: 'u_e103-owner' }).definition))
+    const { installed, errors } = registry.installUserDefinitions([stored])
+    expect(installed.length, errors.join(' | ')).toBe(1)
+    def = installed[0]
+  })
+  afterEach(() => { __resetRunHalfAdmissionForTests(); if (def) registry.uninstallUserDefinition(def.id); def = null })
+  /** the owner's preset keyed as the document declares each setting (a folded length is `param<N>`) */
+  const keyedOf = (d, byPine) => {
+    const manifest = (d.compute && d.compute.paramManifest) || {}
+    const out = {}
+    for (const [name, v] of Object.entries(byPine)) {
+      const spec = (d.inputs || []).find((x) => x && (x.key === name || (x.fromParam && manifest[x.fromParam]
+        && manifest[x.fromParam].sourceName === name)))
+      expect(spec, name).toBeTruthy()
+      out[spec.key] = v
+    }
+    return out
+  }
+  it('SERVED on a daily chart (was: refused runtime:history-start): the dots drawn, the rating withheld by name', () => {
+    const rows = chartOf(N)
+    const cols = registry.computeFor(def, rows, keyedOf(def, OWNER), ctxOf(rows))
+    const rh = runHalfOf(cols)
+    expect(`${rh && rh.state}:${rh && rh.code}`).toBe('served:null')
+    const p = cols[RUNTIME_OBJECTS_KEY]
+    expect(p.live.filter(isStartFreeDot).length).toBeGreaterThan(20)
+    expect(p.live.every(isStartFreeDot)).toBe(true)
+    expect(p.startLatched.reason).toContain(START_FREE_OLDEST_DOTS_REASON)
   })
 })

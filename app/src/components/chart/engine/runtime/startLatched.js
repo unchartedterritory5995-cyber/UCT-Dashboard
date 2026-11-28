@@ -73,6 +73,67 @@ export function isStartFreeOnChart(o, tf) {
 /** The words for a chart too short for the new-high dot's look-back (it may draw one TradingView's longer run would). */
 export const START_FREE_DOT_SHORT_REASON = `the RS new-high dot needs ${START_FREE_MIN_BARS} bars on this chart; it's shown once the chart holds them`
 
+// ─── ⭐⭐ (owner, 2026-11-27) — THE SETTINGS A MEMBER MAY MOVE AND KEEP THE START-FREE READING ─────────────────────────
+//
+// UCT's Fred RS opens at the owner's TradingView settings (`house/houseNames.withHouseCreateInputs`: SpxValue 7200,
+// offset 90, 'Historical RS New Highs', look-back 30), so "at its defaults" alone would leave every new instance refused
+// off the listing. Each setting below was read in the script (`docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine`)
+// and keeps the reading true, CHECKED BY VALUE (anything outside its declared range or options is refused as before):
+//   · `SpxValue`, `offset`: `rsRatio = SpxValue * offset / 100` (offset - 10 on weekly), one constant on every bar;
+//   · `lookback`, `lookback2`: `ta.highest(rs | high | low, n)` with 1 <= n <= 252 (`input.int(maxval = 252)`), inside
+//     `START_FREE_FROM_BAR` (252 + 250 bars);
+//   · `rsNewHigh`, `rsNewLow`: every option. The two newest-bar types draw one dot on `barstate.islast`; the two
+//     Historical types draw one circle per event at `(bar_index, rs)`, each event start-free from `START_FREE_FROM_BAR`,
+//     and which of them SURVIVE TradingView's label collector is handled by the run (`runtimeColumns.js::computeStartFree`);
+//   · `plotNewHigh`, `plotNewLow`, `hideRSRat`: whether a drawing is made, never a value it reads;
+//   · `blueDotCol`, `redDotCol`, `sizeLabHigh`, `sizeLabLow`: a dot's colour and size (`isStartFreeDot` reads neither).
+// ⛔ LEFT OUT, refused as before: `lineTicker` (the run is served SP:SPX), `colorRS` (`isConstantRatingLabel` checks the
+// script's blue), `ratingOnly` (it prints the latched number off a daily chart), the replay set and the MA settings.
+const isBool = (v) => typeof v === 'boolean'
+const isLen = (v) => Number.isInteger(v) && v >= 1 && v <= 252
+const oneOf = (...opts) => (v) => typeof v === 'string' && opts.includes(v)
+const anyColour = (v) => typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v))
+const SIZES = ['Tiny', 'Small', 'Normal', 'Large']
+export const RS_NEW_HIGH_TYPES = Object.freeze(['RS New Highs', 'RS New Highs Before Price', 'Historical RS New Highs',
+  'Historical RS New Highs  Before Price'])
+export const RS_NEW_LOW_TYPES = Object.freeze(['RS New Lows', 'RS New Lows Before Price', 'Historical RS New Lows',
+  'Historical RS New Lows  Before Price'])
+export const START_FREE_SETTINGS = Object.freeze({
+  SpxValue: (v) => typeof v === 'number' && Number.isFinite(v) && v > 0,
+  offset: (v) => Number.isInteger(v) && v >= 0 && v <= 2000,
+  lookback: isLen,
+  lookback2: isLen,
+  rsNewHigh: oneOf(...RS_NEW_HIGH_TYPES),
+  rsNewLow: oneOf(...RS_NEW_LOW_TYPES),
+  plotNewHigh: isBool,
+  plotNewLow: isBool,
+  hideRSRat: isBool,
+  blueDotCol: anyColour,
+  redDotCol: anyColour,
+  sizeLabHigh: oneOf(...SIZES),
+  sizeLabLow: oneOf(...SIZES),
+})
+/** Are the run's moved settings (`ctx.runtimeInputs`, keyed by Pine name) all ones the start-free reading survives? */
+export function startFreeSettingsAdmit(given) {
+  if (given === undefined || given === null) return true
+  if (typeof given !== 'object' || Array.isArray(given)) return false
+  for (const [k, v] of Object.entries(given)) {
+    const ok = Object.prototype.hasOwnProperty.call(START_FREE_SETTINGS, k) ? START_FREE_SETTINGS[k] : null
+    if (!ok || !ok(v)) return false
+  }
+  return true
+}
+/** Does this run draw one dot per event (a Historical type, plotted), whose oldest survivors depend on the chart's start? */
+export function historicalDotsOn(given) {
+  const g = given && typeof given === 'object' ? given : {}
+  const high = (g.plotNewHigh ?? true) === true && /^Historical/.test(g.rsNewHigh ?? 'RS New Highs')
+  const low = (g.plotNewLow ?? false) === true && /^Historical/.test(g.rsNewLow ?? 'Historical RS New Lows')
+  return high || low
+}
+/** The words for the oldest Historical dots, which TradingView's label collector keeps or not by bars this chart lacks. */
+export const START_FREE_OLDEST_DOTS_REASON = 'the oldest RS new-high dots depend on bars before this chart starts; '
+  + 'the newest are shown'
+
 /** The record a run that withheld its start-latched drawings carries on its payload (`startLatched`), or null. */
 export function startLatchedOf(payload) {
   const r = payload && typeof payload === 'object' ? payload.startLatched : null

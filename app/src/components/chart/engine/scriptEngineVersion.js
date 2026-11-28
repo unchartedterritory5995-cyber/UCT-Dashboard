@@ -224,7 +224,11 @@
  *  `runtimeColumns.js::computeStartFree`): the dots are drawn, every run column is NaN before bar 501; on a DAILY chart the
  *  rating labels are withheld by name, `runtime:start-latched-state`; off a daily chart (no number printed) the two
  *  constant labels are drawn on any chart length, and a chart under 502 bars withholds the dot by name. Changes the
- *  drawings served for Fred RS off the listing. */
+ *  drawings served for Fred RS off the listing. (owner, 2026-11-27, fix/fred-start-free-preset) ALSO AT MOVED SETTINGS
+ *  the reading survives, checked by value (`startLatched.js::START_FREE_SETTINGS`: SpxValue, offset, both look-backs, both
+ *  new-high/low types, the plot/hide switches, dot colours and sizes), so UCT's default (the owner's TradingView preset:
+ *  7200, 90, 'Historical RS New Highs', 30) draws there; a Historical type keeps only labels among the run's newest 50,
+ *  the ones TradingView's batched collector keeps from any first bar, and names the oldest dots. */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.
