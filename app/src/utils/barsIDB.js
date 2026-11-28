@@ -158,6 +158,31 @@ export function _hasOldSixtyMinGrid(bars, tf) {
   return false
 }
 
+/**
+ * ⛔ AN INTRADAY ENTRY HOLDING AN INTERIOR GAP OVER 7 DAYS IS A SPLICE (2026-11-27). Before
+ * #2951 the server could answer "the N bars before X" by walking through a hole nobody had
+ * fetched: MSFT 15m `to=2016-06-30` carried one 2008 row before 998 June-2016 rows, AAPL 60m
+ * stitched 2008/2012/2016/2020 islands. The server now cuts an answer at such a gap
+ * (`bars_fetch._contiguous_tail`); an entry cached from the old answers is treated as ABSENT,
+ * so that chart refetches ONCE, on its own open (no herd: CACHE_LOGIC_VERSION is NOT bumped,
+ * see above). 7 days = the server's `BARS_SPLICE_GAP_DAYS` (the longest market closure on
+ * record leaves a gap just under it). Cost: a name with a genuine multi-week halt in its
+ * cached window refetches on each open instead of reading IDB.
+ */
+export const SPLICE_GAP_S = 7 * 86400
+
+export function _hasSplicedGap(bars, tf) {
+  if (!['1', '5', '15', '30', '60'].includes(logicTfOf(String(tf))) || !Array.isArray(bars)) return false
+  let prev = null
+  for (let i = 0; i < bars.length; i++) {
+    const t = bars[i]?.t
+    if (typeof t !== 'number') continue
+    if (prev !== null && t - prev > SPLICE_GAP_S) return true
+    prev = t
+  }
+  return false
+}
+
 // Detect mid-session gaps in cached intraday bar series. mergeDelta can only
 // ADD bars and cannot fill a gap older than the latest cached timestamp, so
 // any gap that slipped in (FMP-shifted ts, dropped write, network failure
@@ -273,6 +298,7 @@ export function _entryReadable(entry, tf, nowMs = Date.now(), { history = false 
   if (history) {
     const born = Number.isFinite(entry.createdAt) ? entry.createdAt : (entry.savedAt || 0)
     return isIntraday && (nowMs - born) <= HISTORY_SEGMENT_MAX_AGE_MS && !_hasOldSixtyMinGrid(entry.bars, tf)
+      && !_hasSplicedGap(entry.bars, tf)
   }
   if (isIntraday) {
     // Only a GAPPED tail is discarded (a BEHIND one is a sound repair base — see idbGet).
@@ -284,6 +310,8 @@ export function _entryReadable(entry, tf, nowMs = Date.now(), { history = false 
   }
   // 60m grid move (2026-11-10): an old-layout entry is refetched, per chart, never in bulk.
   if (_hasOldSixtyMinGrid(entry.bars, tf)) return false
+  // A pre-#2951 splice (an interior gap over 7 days): refetched per chart, never in bulk.
+  if (isIntraday && _hasSplicedGap(entry.bars, tf)) return false
   return true
 }
 

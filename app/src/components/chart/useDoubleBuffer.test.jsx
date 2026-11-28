@@ -237,6 +237,29 @@ describe('useDoubleBuffer', () => {
     expect(h.result.current.front).toBe(1)
   })
 
+  // ⭐⭐ (2026-11-28, COV-def-wm-arrows) THE HANDOFF ASKS THIS DECISION EARLY (chart/flipReady.js): it releases a row the
+  // shadow can flip to instead of holding it. The probe's answer IS the press's decision: yes exactly where the press flips
+  it('H18 flipReadyFor answers the decision the press makes: yes for the reported shadow row; no for another row, the front, a short shadow', async () => {
+    const { flipReadyFor } = await import('./flipReady')
+    const h = await ready()
+    expect(flipReadyFor(member, 'BBB')).toBe(true)          // the shadow's reported row: the press would flip
+    expect(flipReadyFor(member, 'CCC')).toBe(false)         // another row: the normal switch
+    expect(flipReadyFor(member, 'AAA')).toBe(false)         // the front's own symbol: no press at all
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    held.rows = COVER_ROWS - 1
+    expect(flipReadyFor(member, 'BBB')).toBe(false)         // short of the view (H12): the press would not flip either
+    held.rows = COVER_ROWS + 1000
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)                  // ...and where it said yes, the press flipped
+  })
+
+  it('H18b unmounted, the widget answers nothing (its probe is taken away)', async () => {
+    const { flipReadyFor } = await import('./flipReady')
+    const h = await ready()
+    h.unmount()
+    expect(flipReadyFor(member, 'BBB')).toBe(false)
+  })
+
   it('H4 a press to another row is the normal switch of the front', async () => {
     const h = await ready()
     press(h, 'CCC')

@@ -17,7 +17,7 @@ import { memHas as _memHasRaw, memPutMonotonic as _memPutMono, memPeek as _memPe
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
 import { isBarsSymbol } from './barsSymbol'
-import { noteServerDate, monoNow } from '../lib/serverClock'
+import { noteServerDate, monoNow, serverNow } from '../lib/serverClock'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
@@ -527,6 +527,8 @@ export async function prepareForDisplay(sym, tf) {
 // StockChart's fetcher does (`warming`, `retryAfterMs`).
 export async function _chartLaneFetch(url, signal) {
   const sentAt = monoNow()
+  let sentServer = null
+  try { sentServer = serverNow() } catch { sentServer = null }
   const r = await fetch(url, signal ? { signal } : undefined)
   // ⭐ (2026-11-25) a bars answer is a sample of the server's clock (lib/serverClock.js: the roll decisions' `now`), on the
   // monotonic clock, and never one a cache could have served (review of #2733: its Date is the cached answer's, not now)
@@ -534,7 +536,20 @@ export async function _chartLaneFetch(url, signal) {
     const h = r.headers
     noteServerDate(h?.get?.('date'), { sentAt, receivedAt: monoNow(), age: h?.get?.('age') ?? null, cacheControl: h?.get?.('cache-control') ?? null })
   } catch { /* a sample only */ }
-  if (r.ok) return r.json()
+  if (r.ok) {
+    const j = await r.json()
+    // ⛔ (2026-11-28, review of #2956, F2) THE TIME THIS ANSWER'S DATA IS AS OF, on the server's clock: the send, or for
+    // an answer the edge served from its tail cache (`X-Tail-Age-Ms`), that long before the moment it was served. The
+    // reducer orders the answer's developing bar against the stream's last trade with it (reducer.js `_asOfMs`).
+    try {
+      if (j && typeof j === 'object' && !Array.isArray(j) && Number.isFinite(sentServer)) {
+        const age = Number(r.headers?.get?.('x-tail-age-ms'))
+        const asOf = Number.isFinite(age) && age > 0 ? serverNow() - age : sentServer
+        if (Number.isFinite(asOf)) j._asOfMs = Math.min(asOf, sentServer)
+      }
+    } catch { /* an ordering hint only */ }
+    return j
+  }
   const err = new Error(`HTTP ${r.status}`)
   err.status = r.status
   if (r.status === 503) {
