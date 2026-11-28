@@ -813,7 +813,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerInstRef = useRef([null, null])
   const layerElRef = useRef([null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, settings: activeStoredSettings, replay: !!replayCutoff,
+    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })

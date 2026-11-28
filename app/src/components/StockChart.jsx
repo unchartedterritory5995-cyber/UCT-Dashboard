@@ -9923,6 +9923,7 @@ function StockChartBody({
   // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
   const replayCutoffRef = useRef(null)
   replayCutoffRef.current = replayCutoff
+  __heavy.put('cutoff', replayCutoff)
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -12291,7 +12292,9 @@ function StockChartBody({
     // pass DREW, so its header, logo and day change follow the candles, never run ahead of them (ChartPane `shownSym`).
     // Called inside this pass: from the layout effect on a switch, so the header's re-render lands in the same frame.
     if (typeof onSymbolPaintedRef.current === 'function') { try { onSymbolPaintedRef.current(sym) } catch { /* the host's */ } }
-    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
+    // (owner, 2026-11-27) and the replay cutoff it drew under: in change-date mode a hidden chart flips only under the front's
+    // (review of #2936, INFO: the COMMITTED render's cutoff, as its bars are)
+    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars, cutoff: __heavy.committed.cutoff || null }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -20124,22 +20127,26 @@ function StockChartBody({
       // auto-scaling per symbol. Gated to the workspace carry (carryDragPlacement),
       // off during replay.
       if (carryDragPlacement && !replayCutoffRef.current) {
-        requestAnimationFrame(() => {
-          try {
-            const m = measureViewLockRef.current?.(chartRef.current, __heavy.committed.filteredBars)
-            if (!m || m.anchorFrac == null || !(m.width > 0)) return
+        // ⭐ (review of #2936, LOW-1) WRITTEN IN THE SAME TASK, from the range just set (the measure's own rule,
+        // _measureViewLock: anchorFrac = (lastIdx - from) / width). It used to wait one frame: a press inside that frame
+        // could flip the double buffer, and the frame then wrote the lock into the now-hidden old front, whose next
+        // mirror put the new front's (older) lock back in the shared key: the range lost on later switches and reload.
+        try {
+          const w = to - from
+          const anchorFrac = (lastIdx - from) / w
+          if (Number.isFinite(anchorFrac) && w > 0) {
             const prev = userLockedViewRef.current || {}
             userViewLockedRef.current = true
             userLockedViewRef.current = {
               ...prev,               // keep any vertical lock (top/bottom/vLocked)
-              anchorFrac: m.anchorFrac,
-              width: m.width,
+              anchorFrac,
+              width: w,
               tf: resolvedTf,        // width is in bars → must not apply on another tf
               hLocked: true,
             }
             persistViewLock()        // no-ops when viewLockKey unset; survives refresh on /charts
-          } catch { /* noop */ }
-        })
+          }
+        } catch { /* noop */ }
       }
     } catch { /* noop */ }
   }
@@ -20309,6 +20316,11 @@ function StockChartBody({
       // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
       // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
       pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
+      // (owner, 2026-11-27) the double buffer prepares a hidden chart in the front's view MODE (chart/doubleBuffer.js): the
+      // rows its frame is counted in (a frame reaching past them is a short paint), and the replay view lock the next
+      // symbol switch frames from (a pan or zoom in change-date mode; null outside replay or with none)
+      rows: bars.length,
+      replayLock: replayCutoffRef.current && replayViewLockedRef.current && replayLockedViewRef.current ? { ...replayLockedViewRef.current } : null,
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
@@ -20344,6 +20356,17 @@ function StockChartBody({
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = f.activeRange != null ? { val: f.activeRange, from, to } : null
       userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
+      // (owner, 2026-11-27) the double buffer's mirror also carries the front's REPLAY view lock (getDateMeta replayLock);
+      // a frame without the key (UCT Agent's Undo) leaves it as it is. Replay only: outside it there is none to hold.
+      if ('replayLock' in f) {
+        const rl = f.replayLock
+        if (rl && replayCutoffRef.current && Number.isFinite(rl.barsFromRight) && rl.width > 0) {
+          replayViewLockedRef.current = true; replayLockedViewRef.current = { barsFromRight: rl.barsFromRight, width: rl.width }
+          // (review of #2936, INFO) latched as a member's gesture latches it: the settling and pinned-right guards then
+          // leave the lock frame alone on the hidden chart's next retarget
+          userViewMovedRef.current = true
+        } else if (!rl) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      }
     } catch { /* noop */ }
   }
   useEffect(() => {
