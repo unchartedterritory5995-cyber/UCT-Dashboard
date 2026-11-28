@@ -8234,6 +8234,49 @@
     "MSBI",
     "PSEC"
    ]
+  },
+  {
+   "id": "cloud/46134916859-1/COV-def-dd-typed",
+   "at": "2026-11-28T10:48:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ARMP",
+    "DTIL",
+    "RIGL",
+    "CAC",
+    "LCID",
+    "SGML",
+    "MGRT",
+    "SPT",
+    "MDXG"
+   ]
+  },
+  {
+   "id": "cloud/46134916859-1/COV-zo-h4h2-typed",
+   "at": "2026-11-28T10:48:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CEPV",
+    "FORTY",
+    "SXC",
+    "CGEM",
+    "VRRM",
+    "VACI",
+    "QRVO",
+    "CDLR",
+    "LZ"
+   ]
+  },
+  {
+   "id": "cloud/46134916859-1/COV-tf-def",
+   "at": "2026-11-28T10:48:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NMFC",
+    "FRPH",
+    "REPX",
+    "AVBH"
+   ]
   }
  ]
 }
