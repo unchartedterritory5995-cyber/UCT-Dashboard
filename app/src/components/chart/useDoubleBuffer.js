@@ -41,7 +41,7 @@ import { setFlipProbe } from './flipReady'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, viewDetail, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
 
 /** The bars array a chart of the reported symbol, timeframe and session hands the library NOW, by the chart's own
@@ -212,9 +212,14 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     const fr = reportsRef.current[f]
     const want = fr ? { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null } : null
     const report = okSlot && b.syms[s] === want_sym ? reportsRef.current[s] : null
+    let detail = null
     const view = () => {
       const p = panesNowRef.current ? panesNowRef.current() : []
-      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
+      const fm = p[f]?.getDateMeta?.(), sm = p[s]?.getDateMeta?.()
+      const v = viewParity(fm, sm, { tf: fr?.tf })
+      // (diagnostics, 2026-11-28) a view refusal logs what it compared (doubleBufferStats().log[].view)
+      if (v !== 'ok') { try { detail = viewDetail(fm, sm, { tf: fr?.tf }) } catch { detail = null } }
+      return v
     }
     let d = flipDecision(want, report, barsNowFor, view)
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
@@ -240,7 +245,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     if (d.why === 'no-shadow') {
       d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row' : 'shadow-unreported' }
     }
-    return { d, report }
+    return { d, report, view: detail }
   }
   const slotOkRef = useRef(slotOk)
   slotOkRef.current = slotOk
@@ -265,11 +270,11 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
   if (eligible && sym && sym !== buf.syms[buf.front]) {
     const f = buf.front
     const s = 1 - f
-    const { d, report } = decide(sym, buf, slotOk, settings, cutoff, anchor)
+    const { d, report, view: viewSeen } = decide(sym, buf, slotOk, settings, cutoff, anchor)
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {
-      d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1,
+      d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1, view: String(d.why).startsWith('view') ? viewSeen : null,
       sinceSet: t.set[s] != null ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] != null ? Math.round(now - t.report[s]) : null,
     }
     if (d.flip) {
@@ -291,7 +296,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     const p = pendingRef.current
     if (!p) return
     pendingRef.current = null
-    noteDecision(p.d, p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport })
+    noteDecision(p.d, p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport, view: p.view })
     if (!p.d.flip) return
     recordPaint(p.sym, p.tf, p.bars, 'flip', member)
     try {
