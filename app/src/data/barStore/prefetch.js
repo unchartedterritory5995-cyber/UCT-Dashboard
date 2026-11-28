@@ -1531,7 +1531,7 @@ export function createPrefetch(o = {}) {
   function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false } = {}) {
     if (!tickers?.length) return
     tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
-    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended); return }
+    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended, { network: edge === true, tail: edge === 'tail' }); return }
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
@@ -1550,7 +1550,7 @@ export function createPrefetch(o = {}) {
    * members), so a flip still finds the row current; the press is what asks the origin. Not for `immediate` (the switch's
    * own ask). A key already held current and whole is left alone.
    */
-  function _warmFromEdge(tickers, tf, showExtended) {
+  function _warmFromEdge(tickers, tf, showExtended, { network = true, tail = false } = {}) {
     let n = 0
     for (const sym of [...new Set(tickers)]) {
       const k = keyFor(sym, tf, { showExtended })
@@ -1563,6 +1563,9 @@ export function createPrefetch(o = {}) {
       n++
       Promise.resolve().then(async () => {
         await _hydrate(k)                                                    // the device
+        // ('tail': a visible row's page in the chart's own URL, shared by the edge's tail cache; never `&warm=1`)
+        if (tail) { if (!(S().peek(k)?.restSeen && HANDOFF_PAINTS.includes(S().peek(k).status))) await prefetch([k], { priority: 'grid' }); return }
+        if (!network) return                                                 // ('device': a whole list, the device alone)
         if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid' }); return }   // the edge's history
         try { S().primeLake?.(k) } catch { /* a warm only */ }                // the edge's lake pieces
       }).catch(() => {})
@@ -2004,9 +2007,19 @@ export function createPrefetch(o = {}) {
     const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
     if (!list.length) return
     const tf = chartTf || 'D'
-    prefetchBarsToIDB(list.slice(0, memTop), tf, { priority: true, visible: true })
-    prefetchBarsToIDB(list.slice(memTop), tf, { priority: true })
-    if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
+    // ⭐ (2026-11-28, zero-network plan 1.7 follow-up, review of #2984) FROM THE DEVICE, NEVER THE ORIGIN: a list opening
+    // sent a `&warm=1` /api/bars for up to `cap` (500) rows, an origin ask per row the edge's tail cache cannot share. Now
+    // each row is read from the DEVICE only (prefetchBarsToIDB `edge: 'device'`): no /api/bars, and no deep history either
+    // (500 primed histories would be ~500 MB of edge reads, and the primes are kept 16 at a time). The rows around the
+    // selection get the neighbour warm (device + edge history / lake, `edge: true`) and the next ones their urgent tail, as
+    // before; a click on any other row asks its tail through the edge's shared tail cache. The intraday top rows still warm
+    // the edge's lake tier (edgeWarmList, below).
+    // ...and the rows ON SCREEN (memTop) also ask their page in the chart's own URL (no `&warm=1`), which the edge's tail
+    // cache shares across members: a first click on a visible row of a list just opened finds its server answer, as
+    // before (prefetch.keepAhead K1), without a per-member origin ask the edge cannot share.
+    prefetchBarsToIDB(list.slice(0, memTop), tf, { priority: true, visible: true, edge: 'tail' })
+    prefetchBarsToIDB(list.slice(memTop), tf, { priority: true, edge: 'device' })
+    if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true, edge: 'device' })
     warmMemFromIDB(list.slice(0, memTop), tf !== 'D' ? [tf, 'D'] : ['D'])
     edgeWarmList(list, { chartTf: tf })
   }
