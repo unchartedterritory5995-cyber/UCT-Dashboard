@@ -18,7 +18,9 @@ What changed from the PC copy, and why:
   * REUSED TICKERS (2026-11-28): the plan hands out never-used tickers first, then names past the ledger's reuse window
     (plan.REUSE_AFTER_DAYS); the rig records them (freshTickers.reused). Their switches are graded in their own row,
     'TICKERS reused', beside 'TICKERS never-used', at the top of the table: a reused name's browser is cold, its server
-    side may be warm, so only the never-used row is the fully cold number.
+    side may be warm, so only the never-used row is the fully cold number. Only a pass's FIRST switch to one of its
+    planned tickers counts there; every other switch naming a symbol (the board's fixed symbol, a tab revisit, the
+    second timeframe press on one ticker, a record with no plan) is 'TICKERS revisit/fixed'.
   * The summary: per pass, then per BOARD (zoom x board, arrows and typed together), p50 / p100 of the full frame,
     with every label the rig recorded (runner, CPU, Chrome, Cloudflare colo, production commit, isolation).
   * --compare <dir>: grade another sweep (the owner-PC run) with the SAME rules and print both side by side.
@@ -310,6 +312,20 @@ def pct(xs, q):
     return xs[min(len(xs) - 1, int(q * len(xs)))] if q < 1 else xs[-1]
 
 
+def ticker_class(sym, planned: set, reused: set, first: set):
+    """Which TICKERS row a switch counts in (2026-11-28, #3014 review): 'never-used' / 'reused' ONLY for the FIRST switch
+    to one of the pass's planned tickers (freshTickers.list + typed); every other switch that names a symbol (the board's
+    fixed start symbol, a tab revisit, the 2nd.. timeframe press on one ticker, a record with no plan) is
+    'revisit/fixed': it is not a cold ticker, whatever the ledger says. None for a switch that names no symbol."""
+    if not sym:
+        return None
+    s = str(sym).upper()
+    if s not in planned or s in first:
+        return 'revisit/fixed'
+    first.add(s)
+    return 'reused' if s in reused else 'never-used'
+
+
 def board_of(name: str) -> str:
     """COV-<zoom>-<board>-<pattern> -> '<zoom> <board>' (arrows and typed together); the others by their own name."""
     m = re.match(r'COV-(def|zo)-([^-]+)-(arrows|typed)$', name)
@@ -336,13 +352,14 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
     exp = expectations(passes, opts)
     results, by, labels = [], {}, {}
     for n, rec, raw, tfs in passes:
-        for p in raw:
+        ft = rec.get('freshTickers') or {}
+        planned = {str(x).upper() for x in (ft.get('list') or []) + (ft.get('typed') or [])}
+        reused = {str(x).upper() for x in (ft.get('reused') or [])}
+        first = set()
+        for p in sorted(raw, key=lambda q: q.get('key') or 0):
             r = grade_switch(p, rec, tfs, exp)
             r['pass'] = n
-            # (2026-11-28) a ticker the ledger handed out before (past its reuse window): cold in this browser, maybe
-            # warm on the server, so its switches are graded apart ('TICKERS reused' vs 'TICKERS never-used')
-            reused = {str(x).upper() for x in ((rec.get('freshTickers') or {}).get('reused') or [])}
-            r['reused'] = None if not r.get('sym') else str(r['sym']).upper() in reused
+            r['tickers'] = ticker_class(r.get('sym'), planned, reused, first)
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
@@ -362,7 +379,7 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
         except (OSError, ValueError):
             problems.append(f'{n}: unreadable')
     for r in results:
-        tk = [] if r.get('reused') is None else ['TICKERS ' + ('reused' if r['reused'] else 'never-used')]
+        tk = [] if r.get('tickers') is None else ['TICKERS ' + r['tickers']]
         for key in (r['pass'], 'BOARD ' + board_of(r['pass']), *tk):
             g = by.setdefault(key, {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0})
             g['n'] += 1
@@ -500,15 +517,22 @@ def self_check() -> None:
     assert 'BLANK' not in g[0]['flags']
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    # reused vs never-used: a pass's reused tickers (freshTickers.reused) are graded in their own row, the rest in theirs
+    # the ticker rows: only the FIRST switch to a PLANNED ticker is never-used / reused; a second switch to it, an
+    # unplanned symbol (the board's SPY) and a record with no plan count as revisit/fixed
+    fs = set()
+    assert [ticker_class(x, {'AAA', 'BBB'}, {'BBB'}, fs) for x in ('AAA', 'BBB', 'AAA', 'SPY', None)] == ['never-used', 'reused', 'revisit/fixed', 'revisit/fixed', None]
+    assert ticker_class('AAA', set(), set(), set()) == 'revisit/fixed'
     import tempfile
     with tempfile.TemporaryDirectory() as td:
-        for name, sw, reused in (('COV-def-dd-arrows', clean, ['BBB']), ('COV-def-dd-typed', late, [])):
-            json.dump({'flips': [], 'freshTickers': {'reused': reused}, 'tf': 'D'}, open(os.path.join(td, name + '.json'), 'w'))
-            json.dump([sw], open(os.path.join(td, name + '.jump.json'), 'w'))
+        again = {**late, 'i': 9, 'key': 5000, 'frames': [{**f, 't': f['t'] + 4000} for f in late['frames']]}
+        for name, sws, ftk in (('COV-def-dd-arrows', [clean], {'list': ['BBB'], 'reused': ['BBB']}),
+                               ('COV-def-dd-typed', [late, again], {'list': ['BBB'], 'reused': []}),
+                               ('COV-def-dd-old', [late], {})):
+            json.dump({'flips': [], 'freshTickers': ftk, 'tf': 'D'}, open(os.path.join(td, name + '.json'), 'w'))
+            json.dump(sws, open(os.path.join(td, name + '.jump.json'), 'w'))
         gd = grade_dir(td, {'expect-day': '2026-11-27'})
-        ru, nu = gd['rows'].get('TICKERS reused'), gd['rows'].get('TICKERS never-used')
-        assert ru and nu and ru['switches'] == 1 and ru['p100'] == 12 and nu['switches'] == 1 and nu['p100'] == 80, gd['rows']
+        ru, nu, rv = (gd['rows'].get('TICKERS ' + k) for k in ('reused', 'never-used', 'revisit/fixed'))
+        assert ru and nu and rv and ru['switches'] == 1 and ru['p100'] == 12 and nu['switches'] == 1 and rv['switches'] == 2, gd['rows']
         assert table(gd).index('TICKERS never-used') < table(gd).index('BOARD def dd'), 'the ticker split is not at the top of the table'
     print('grade self-check: ok (reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
 

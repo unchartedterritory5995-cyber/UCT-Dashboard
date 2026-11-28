@@ -120,6 +120,8 @@ def merge(a: dict, b: dict) -> dict:
         rid = str(r.get("id"))
         if rid not in seen:
             seen[rid] = {"id": rid, "at": r.get("at"), "source": r.get("source", "pc"), "tickers": [str(x).upper() for x in r.get("tickers", [])]}
+            if r.get("reused"):   # which of them a run took past the reuse window (plan.allocate): kept through every merge
+                seen[rid]["reused"] = [str(x).upper() for x in r["reused"]]
     out["runs"] = sorted(seen.values(), key=lambda r: (str(r.get("at") or ""), r["id"]))
     return out
 
@@ -171,7 +173,8 @@ def update(fn, message: str, git_dir: str | None = None, remote: str = "origin",
 def _local_to_shared(local: dict) -> dict:
     """The PC rig's used_tickers.json ({"runs": [{"id", "at", "tickers", ...}]}) as a shared ledger."""
     out = empty()
-    out["runs"] = [{"id": str(r.get("id")), "at": r.get("at"), "source": "pc", "tickers": [str(x).upper() for x in r.get("tickers", [])]}
+    out["runs"] = [{"id": str(r.get("id")), "at": r.get("at"), "source": "pc", "tickers": [str(x).upper() for x in r.get("tickers", [])],
+                    **({"reused": [str(x).upper() for x in r["reused"]]} if r.get("reused") else {})}
                    for r in local.get("runs", [])]
     return out
 
@@ -179,7 +182,8 @@ def _local_to_shared(local: dict) -> dict:
 def _write_local(path: str, shared: dict, local: dict) -> None:
     """Add the shared ledger's runs to the PC ledger (its own runs kept verbatim, fields and all); temp file + replace."""
     have = {str(r.get("id")) for r in local.get("runs", [])}
-    add = [{"id": r["id"], "at": r.get("at"), "source": r.get("source"), "tickers": r.get("tickers", [])}
+    add = [{"id": r["id"], "at": r.get("at"), "source": r.get("source"), "tickers": r.get("tickers", []),
+            **({"reused": r["reused"]} if r.get("reused") else {})}
            for r in shared.get("runs", []) if r["id"] not in have]
     local = dict(local)
     local["runs"] = list(local.get("runs", [])) + add
@@ -281,6 +285,14 @@ def self_check() -> None:
     at = datetime(2026, 11, 28, tzinfo=timezone.utc)
     assert used(m, None, at) == {"AA", "BB", "CC"}
     assert used(m, 10, at) == {"CC"}, used(m, 10, at)
+    # a run's `reused` names survive a merge and the PC copy (both directions)
+    mr = merge({"runs": [{"id": "c", "at": "2026-11-28", "tickers": ["AA", "QQ"], "reused": ["qq"]}]}, empty())
+    assert mr["runs"][0]["reused"] == ["QQ"], mr
+    assert _local_to_shared({"runs": [{"id": "p", "tickers": ["AA"], "reused": ["AA"]}]})["runs"][0]["reused"] == ["AA"]
+    with tempfile.TemporaryDirectory() as td:
+        lp = os.path.join(td, "used.json")
+        _write_local(lp, mr, {"runs": []})
+        assert json.load(open(lp, encoding="utf-8"))["runs"][0]["reused"] == ["QQ"]
     # the pool: liquid first, unranked last, and each exclusion counted (a rule that removes nothing is visible)
     pool, dropped = build_pool(["ZZ", "AA", "SPY", "QQQ", "DEAD", "BB", "bad sym"], [0, 2, 1, 3, 9, 1, 0], {"QQQ"}, {"DEAD"}, {"SPY"})
     assert pool == ["BB", "AA", "ZZ"], pool
