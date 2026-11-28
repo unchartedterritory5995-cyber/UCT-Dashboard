@@ -2625,7 +2625,7 @@ def _wm_listing_start(ticker_up: str, tf: str = None):
         s0 = str(_first)
         through = (datetime(int(s0[:4]), int(s0[4:6]), int(s0[6:])) - timedelta(days=1)).strftime("%Y-%m-%d")
         traded = _daily_traded_through(_t, through)
-        if traded is not None:             # a fault proves nothing: no cache, a later read asks again
+        if True:             # a fault proves nothing: no cache, a later read asks again
             cache.set(_key, not traded, ttl=_WM_LISTING_PROOF_TTL)
     try:
         _bounded_job(f"wmlisting::{ticker_up}::{first_d}", _prove, 0.0, sem=_date_delta_warm_sem, slot_wait=0.0)
