@@ -143,6 +143,11 @@ def test_a_follower_process_writing_during_a_swap_leaves_a_sound_store_it_then_r
     writes into the NEW file's WAL. The new store passes integrity_check, holds no follower row, the follower
     reads the new file after the swap (never an error), and the new file carries a floor taken at the swap."""
     from api.services import bars_sqlite, data_sync
+    # The swap bumps THIS process's store floor (a wholesale change voids every proof): keep it to this test, or every
+    # later test that marks a proof in the past reads "unverified".
+    monkeypatch.setattr(bars_sqlite, "_mem_floors", dict(bars_sqlite._mem_floors))
+    monkeypatch.setattr(bars_sqlite, "_pending_floors", dict(bars_sqlite._pending_floors))
+    monkeypatch.setattr(bars_sqlite, "_floors_cache", {})
     monkeypatch.setenv("BARS_API_WORKERS", "2")
     db, new = tmp_path / "bars.db", tmp_path / "incoming.db"
     _mkstore(db, gen=1)
