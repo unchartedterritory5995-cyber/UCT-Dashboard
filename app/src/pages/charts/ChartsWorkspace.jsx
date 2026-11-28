@@ -49,6 +49,7 @@ import { applyAppearanceToOtherCharts, countOtherCharts } from './chartAppearanc
 import { patchOptsWithTheme, themeAllChartWidgets, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
+import { matchChartOn, leadChartLook, leadChartWidget, applyLookToWidgets, globalPrefWrites, pickLook } from './matchChartLook'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
@@ -1532,14 +1533,22 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const applyThemeAllRef = useRef(null)
   const applyThemeAllWidgetsRef = useRef(null)
   const applyAppearanceAllRef = useRef(null)
+  const setMatchChartRef = useRef(null)
+  // The link as the controls read it: on (default) / off, and which chart leads right now.
+  const matchChartOnNow = matchChartOn(layout)
+  const matchChartLeadId = matchChartOnNow ? (leadChartWidget(layout.widgets, layout.matchChart?.chartId)?.id ?? null) : null
+  const matchChartState = useMemo(
+    () => ({ on: matchChartOnNow, chartId: matchChartLeadId != null ? String(matchChartLeadId) : null }),
+    [matchChartOnNow, matchChartLeadId],
+  )
   // ⭐ `canOpenCompare` (UCT RS 3-09): this workspace mounts the Compare Symbols
   // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
   const workspaceValue = useMemo(
-    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
-    [groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
+    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile, matchChart: matchChartState, setMatchChart: (on, chartId) => setMatchChartRef.current?.(on, chartId) }),
+    [matchChartState, groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
@@ -2040,6 +2049,92 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
   }, [scheduleSave, prefs, setPref, layout])
   applyThemeAllWidgetsRef.current = applyThemeToAllWidgets
+
+  // ── "Widgets match the chart" (owner 11-27) ───────────────────────────────
+  // A LIVE link, where "All widgets" above is a one-time copy: while layout.matchChart
+  // is on, every following widget is re-skinned whenever the lead chart's look changes
+  // (or a widget is added, or one opts back in). matchChartLook.js decides who follows
+  // and what changes; this effect only writes. Both writes are no-ops when nothing
+  // differs, so the save this triggers cannot re-trigger it.
+  const setMatchChart = useCallback((on, chartId = null) => {
+    setLayout(prev => {
+      const cur = prev.matchChart || null
+      // No chart named (the switch was flipped from a widget's ⚙): keep the one already followed,
+      // else pin today's top-left chart so the board doesn't change leads when charts move.
+      const pinned = chartId != null ? String(chartId) : (cur?.chartId ?? (leadChartWidget(prev.widgets, null)?.id ?? null))
+      // Off is RECORDED ({ on: false }): with the link on by default, a missing record means on.
+      const nextMc = on ? { on: true, chartId: pinned != null ? String(pinned) : null } : { on: false }
+      if (JSON.stringify(cur) === JSON.stringify(nextMc)) return prev
+      const next = { ...prev, matchChart: nextMc }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+  setMatchChartRef.current = setMatchChart
+  const matchChartLookTheme = useMemo(
+    () => (matchChartOn(layout) ? leadChartLook(layout, mergeChartSettings(prefs.chart_settings)) : null),
+    [layout, prefs.chart_settings],
+  )
+  const matchChartSig = matchChartLookTheme ? JSON.stringify(matchChartLookTheme) : ''
+  // Each global look pref is MERGED (setPrefMerged): only the look keys + the app-theme stamp
+  // change, onto the freshest stored blob, so the widget's other settings (columns, fonts,
+  // periods) can never be lost to a stale snapshot. One literal key per call site.
+  const writeMatchedPref = (key, blob) => {
+    if (typeof setPrefMerged !== 'function') return
+    const look = (cur) => ({ ...(cur && typeof cur === 'object' ? cur : {}), ...pickLook(blob) })
+    if (key === 'theme_tracker_settings') setPrefMerged('theme_tracker_settings', look)
+    else if (key === 'fundamentals_settings') setPrefMerged('fundamentals_settings', look)
+    else if (key === 'breadth_widget_settings') setPrefMerged('breadth_widget_settings', look)
+    else if (key === 'aisearch_settings') setPrefMerged('aisearch_settings', look)
+  }
+  const matchPrefWrittenRef = useRef({})   // { prefKey: { sig, look, before } } — what the sync last wrote (look keys only)
+  useEffect(() => {
+    if (!matchChartLookTheme || prefsLoading || !hydratedRef.current) return
+    const theme = matchChartLookTheme
+    setLayout(prev => {
+      if (!matchChartOn(prev)) return prev
+      const widgets = applyLookToWidgets(prev.widgets, theme)
+      if (widgets === prev.widgets) return prev
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+    // Theme Tracker / Fundamentals / Breadth / AI Search keep their look in ONE pref, written
+    // by their own ⚙ panels — so WidgetHost cannot see a member's colour edit there. Read it
+    // here instead: a pref that moved away from what this sync last wrote (same chart look)
+    // is the member's own pick, so that type steps out of the link rather than being reset.
+    const writes = globalPrefWrites(layout.widgets, theme, (key) => parsePref(prefs?.[key], null), themeRef.current)
+    const ownTypes = []
+    for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
+      const last = matchPrefWrittenRef.current[key]
+      // (`before` = the value our write replaced: still seeing it means the write has not landed yet)
+      const nowLook = JSON.stringify(pickLook(parsePref(prefs?.[key], null)))
+      if (writes[key] && last && last.sig === matchChartSig && last.look !== nowLook && last.before !== nowLook) ownTypes.push(type)
+    }
+    if (ownTypes.length) {
+      setLayout(prev => {
+        const mark = (t) => (t && ownTypes.includes(t.type) && !t.opts?.ownLook ? { ...t, opts: { ...(t.opts || {}), ownLook: true } } : t)
+        const widgets = prev.widgets.map(w => {
+          const nw = mark(w)
+          return Array.isArray(nw.wtabs) ? { ...nw, wtabs: nw.wtabs.map(mark) } : nw
+        })
+        const next = { ...prev, widgets }
+        scheduleSave(next)
+        return next
+      })
+    }
+    for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
+      if (!writes[key] || ownTypes.includes(type)) continue
+      matchPrefWrittenRef.current[key] = {
+        sig: matchChartSig,
+        look: JSON.stringify(pickLook(writes[key])),
+        before: JSON.stringify(pickLook(parsePref(prefs?.[key], null))),
+      }
+      writeMatchedPref(key, writes[key])
+    }
+    // The look signature + the board's shape are the triggers; `layout` itself changes on every drag.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchChartSig, prefsLoading, layout.widgets, prefs.theme_tracker_settings, prefs.fundamentals_settings, prefs.breadth_widget_settings, prefs.aisearch_settings])
 
   // ── "Open on Charts" deep link (/charts?sym=AMD&tf=15) ───────────────────
   // The reverse direction of the capture flow: a journal embed (or any other

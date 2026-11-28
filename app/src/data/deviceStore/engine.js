@@ -60,7 +60,7 @@
 //       charts' own bars and stream requests go first. A hint to the browser's scheduler, not a bandwidth cap; a
 //       browser that does not know the member ignores it, and the edge never sees it.
 
-import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC } from './codec'
+import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC, isWhole } from './codec'
 import { parseDelta, applyDelta, newSetOf } from './delta'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
@@ -363,6 +363,10 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     let seed
     try { seed = _decodeRow(L, i) } catch { L.bad++; return { out: null, why: 'bad' } }
     if (!seed) return { out: null, why: 'bad' }
+    // ⭐ WHOLE (the full-depth daily pack, codec.isWhole): the copy starts at the series' first served bar, so nothing
+    // older exists for a history join to add (source.js `wholeFrom`; the bar store skips the deep join). Today's
+    // overlay only appends, so the flag survives _append below.
+    const whole = isWhole(L.index, S)
     // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
     seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
     // ...unless its rows stop before that session's last bucket (_shortOfClose). Then:
@@ -384,6 +388,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       seed.through = seed.t[seed.t.length - 1]
       return { out: seed, why: 'seed-short' }
     }
+    if (whole) seed.whole = true
     if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
     // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
     // bar and continues this symbol's window across exactly one night.
@@ -391,6 +396,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
     const out = add.cols ? _append(seed, add.cols) : seed
     out.through = Math.max(seed.through, add.through)
+    if (whole) out.whole = true
     // today's forming bar is the copy's last row (forming.js): said so, for W / M and the reader
     if (add.forming && add.cols) out.forming = add.forming
     return { out, why: 'ok' }
@@ -512,6 +518,18 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       return a && names.has(a) ? a : null
     },
 
+    /** The stored timeframes of `manifest` whose build this engine does not hold (a download, delta or full, is due):
+     *  workerCore jitters the start of those (DOWNLOAD_JITTER_MS). A malformed entry counts as due (ingest refuses it). */
+    due(manifest) {
+      const out = []
+      for (const tf of STORED_TFS) {
+        const e = manifest?.tfs?.[tf]
+        if (!e) continue
+        if (!_isCurrent(live.get(tf), { ...e, build: manifest.build })) out.push(tf)
+      }
+      return out
+    },
+
     has(sym, tf) {
       const L = live.get(DERIVED_TFS[tf] ?? String(tf))
       return !!L && typeof sym === 'string' && L.index.row.has(sym.toUpperCase())
@@ -519,7 +537,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     buildOf(tf) { return live.get(DERIVED_TFS[tf] ?? String(tf))?.build ?? null },
     info() {
       const tfs = {}
-      for (const [tf, L] of live) tfs[tf] = { build: L.build, asof: L.index.asof, gen: L.gen, count: L.index.count, bytes: L.bytes, comp: L.index.comp, bad: L.bad, via: L.via ?? 'full' }
+      for (const [tf, L] of live) tfs[tf] = { build: L.build, asof: L.index.asof, gen: L.gen, count: L.index.count, bytes: L.bytes, comp: L.index.comp, bad: L.bad, via: L.via ?? 'full', whole: L.index.whole === true, partial: L.index.partial?.size ?? 0 }
       return { tfs }
     },
 
@@ -788,6 +806,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       const tr = {
         asof: dt.asof, base: dt.base, basis: dt.basis, build: dt.build, comp: dt.comp, depth: dt.depth,
         fields: [...SEED_FIELDS], grid: dt.grid, kind: 'ffseed', symbols, tf: dt.tf, tunit: dt.tunit, v: 1, via: 'delta',
+        // the new build's whole / partial, exactly as its full pack says them (delta.parseDelta: the delta carries them)
+        ...(dt.whole ? { whole: true, partial: [...dt.partial].sort() } : {}),
       }
       const tb = _enc.encode(JSON.stringify(tr))
       const tail = new Uint8Array(PACK_TAIL_BYTES)
@@ -804,6 +824,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       // 3. ⭐ THE CHECK, its only copy: READ IT BACK through the reader, the trailer then every record, as a
       //    chart will read them. decodeRecord holds each to the new build's bars/first/last and column CRC.
       const index = _indexOf(h, tf)
+      if (index.whole !== (dt.whole === true) || index.partial.size !== dt.partial.size || [...dt.partial].some((x) => !index.partial.has(x))) {
+        throw new IngestError('delta: the new file reads back another whole / partial')
+      }
       let buf = new Uint8Array(4096)
       for (const [sym, e] of Object.entries(symbols)) {
         const j = index.row.get(sym)

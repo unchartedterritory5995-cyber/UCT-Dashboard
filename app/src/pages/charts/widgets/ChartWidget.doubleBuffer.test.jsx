@@ -11,7 +11,17 @@
 //      later, in idle time, and comes back after the show
 //   W6 the two layers' charts are mounted once for the widget's life
 //   W7 (review of #2932) a typed Enter that flips leaves the focus in the front layer, as a typed switch does
-import { render, screen, act, fireEvent } from '@testing-library/react'
+//   W8 (owner, 2026-11-27) change-date mode at a 2006 date (the workspace's replay cutoff): a press to the row ahead flips
+//   W9 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock both layers hold, at the frame it gives): a press flips
+//   W10 (owner, 2026-11-27) the date box: go to 1/3/2006, arrow through 10 symbols: every chart opens at that date with
+//      the same span (both layers carry the anchor), presses flip where the hidden chart is ready; "Latest" clears it
+//   W11 Enter on an empty date field clears it; entering replay clears it
+//   W13 (review of #2947, H2) at the date the widget asks for the next rows' windows (useDateWindowWarm: its day and tf);
+//      at the present, none
+//   W12 (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and the zoom; 16 of 16 refused for a view
+//      lock) at the date the member zooms and pans the front: the date and the span follow its view, both layers carry
+//      them, the next press flips and opens there; a pan or zoom with no date set never sets one
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { Profiler, useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
@@ -39,24 +49,26 @@ vi.mock('../../../utils/prefetchBars', () => ({
 
 // Every identity-bearing child reports the symbol IT was given, so a mixed
 // state is directly observable rather than inferred.
-const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {}, unmounts: 0, mounts: 0 }))
+const renders = vi.hoisted(() => ({ bySym: {}, props: {}, storeBars: {}, unmounts: 0, mounts: 0, meta: null }))
 // The chart: shows its symbol, and like StockChart REPORTS each committed pass to its layer (chart/layerPaint.js) with the
 // bars the store gives its key at that commit, and publishes a date-nav API (a frame at the right edge, default zoom)
 vi.mock('../../../components/StockChart', async () => {
-  const { useContext, useLayoutEffect, useEffect } = await import('react')
+  const { useContext, useLayoutEffect, useEffect, useRef } = await import('react')
   const { LayerPaintContext } = await import('../../../components/chart/layerPaint')
   return {
     default: (props) => {
-      const { sym, tf, onDateNavApi } = props
+      const { sym, tf, onDateNavApi, replayCutoff, anchorDate, anchorWidth } = props
       renders.bySym[sym] = (renders.bySym[sym] || 0) + 1
       ;(renders.props[sym] = renders.props[sym] || []).push(props)
       const report = useContext(LayerPaintContext)
-      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym] }) })
+      const latest = useRef(props)
+      latest.current = props
+      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym], cutoff: replayCutoff || null, anchor: anchorWidth ? `${anchorDate}|${anchorWidth}` : null }) })
       useLayoutEffect(() => { renders.mounts += 1; return () => { renders.unmounts += 1 } }, [])
       useEffect(() => {
         if (typeof onDateNavApi !== 'function') return undefined
         const m = { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } }
-        onDateNavApi({ getDateMeta: () => m, restoreView: () => {} })
+        onDateNavApi({ getDateMeta: () => (typeof renders.meta === 'function' ? renders.meta(latest.current) : renders.meta) || m, restoreView: () => {}, stepBar: () => {}, goToDate: () => {}, goToYear: () => {} })
         return () => onDateNavApi(null)
       }, [onDateNavApi])
       return <span data-testid="chart-sym">{sym}</span>
@@ -113,6 +125,9 @@ vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, s
 vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
 vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
+// (review of #2947, H2) the date's window warm the widget asks for (components/chart/useDateWindowWarm.js has its rails)
+const dateWarms = vi.hoisted(() => [])
+vi.mock('../../../components/chart/useDateWindowWarm', () => ({ useDateWindowWarm: (a) => { dateWarms.push(a) } }))
 
 
 import ChartWidget from './ChartWidget'
@@ -126,7 +141,7 @@ import { BoardVisibilityContext, createBoardVisibility } from '../../../componen
 const NOW = new Date('2026-09-16T15:55:00-04:00').getTime()
 
 let setGroup = null
-function Wrap({ initial = 'AAA', scoped = true, board = null, log = null }) {
+function Wrap({ initial = 'AAA', scoped = true, board = null, log = null, cutoff = null }) {
   const [store] = useState(() => createGroupSymsStore({ A: initial, B: null, C: null, D: null }))
   const [groupSyms, setGroupSyms] = useState({ A: initial, B: null, C: null, D: null })
   setGroup = scoped ? (s) => store.set((p) => ({ ...p, A: s })) : (s) => setGroupSyms((p) => ({ ...p, A: s }))
@@ -138,7 +153,8 @@ function Wrap({ initial = 'AAA', scoped = true, board = null, log = null }) {
     crosshairBus: { emit: () => {}, subscribe: () => () => {} },
     aiSearchBus: { subscribe: () => () => {}, request: () => false },
     activeChartRef: { current: null },
-  }), [scoped, store, groupSyms])
+    replayCutoff: cutoff,
+  }), [scoped, store, groupSyms, cutoff])
   return (
     <MemoryRouter>
       <WorkspaceContext.Provider value={value}>
@@ -178,6 +194,7 @@ beforeEach(() => {
   nf.publishScanNeighbors('BBB', ['CCC'], ['AAA'])
   for (const k of Object.keys(renders.bySym)) delete renders.bySym[k]
   for (const k of Object.keys(renders.props)) delete renders.props[k]
+  renders.meta = null
 })
 afterEach(() => {
   vi.useRealTimers(); vi.unstubAllGlobals()
@@ -331,4 +348,141 @@ test('W7 (review of #2932) a typed Enter that flips leaves the focus in the fron
   expect(dbm.doubleBufferStats().flips).toBe(1)
   expect(symIn(layer('front'))).toBe('AAA')
   expect(layer('front').contains(document.activeElement)).toBe(true)
+})
+
+// (owner, 2026-11-27) instant scanning in change-date mode and zoomed out: the hidden pane is prepared in the front's mode
+test('W8 (owner) change-date mode at a 2006 date: both layers hold the cutoff; a press to the row ahead flips', async () => {
+  render(<Wrap cutoff="2006-03-15" />)
+  await settle()
+  expect(symIn(layer('shadow'))).toBe('BBB')
+  act(() => { setGroup('BBB') })
+  await settle(200)
+  expect(dbm.doubleBufferStats().flips).toBe(1)
+  expect(symIn(layer('front'))).toBe('BBB')
+})
+test('W9 (owner) zoomed out 2014-2026: a view lock both layers hold, at the frame it gives them; a press flips', async () => {
+  renders.meta = { frame: { fromRight: 2850, toRight: -150, locked: true, lock: { anchorFrac: 0.95, width: 3000, tf: 'D', top: null, bottom: null } },
+    activeRange: '12Y', priceAuto: true, replay: { mode: false }, rows: 6000, replayLock: null }
+  render(<Wrap />)
+  await settle()
+  act(() => { setGroup('BBB') })
+  await settle(200)
+  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBe(1)
+})
+
+// (owner, 2026-11-27) scanning charts AT a past date: the date box's anchor rides both layers' props
+const SYMS = ['S0', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8', 'S9']
+// the list names the rows around the one it is centred on, as the member moves (neighborFrames keeps a few centres)
+const listAt = (c) => { const i = SYMS.indexOf(c); nf.publishScanNeighbors(c, SYMS.slice(i + 1, i + 2), i ? [SYMS[i - 1]] : []) }
+const anchoredMeta = (p) => (p.anchorWidth
+  ? { frame: { fromRight: 4700, toRight: 4700 - p.anchorWidth, locked: false }, activeRange: null, priceAuto: true, replay: { mode: false },
+    rows: 6000, anchor: { date: p.anchorDate, width: p.anchorWidth }, anchorFrame: { fromRight: 4700, toRight: 4700 - p.anchorWidth }, anchorEarliest: false }
+  : { frame: { fromRight: 160, toRight: -5, locked: false }, activeRange: null, priceAuto: true, replay: { on: false } })
+function scanList() {
+  for (const s of SYMS) renders.storeBars[s] = Object.freeze([s, 1])
+  listAt('S0')
+  __setDoubleBufferBarsSourceForTests((key) => {
+    for (const sym of SYMS) if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: false, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[sym]
+    return null
+  })
+  renders.meta = anchoredMeta
+}
+const lastProps = (sym) => { const l = renders.props[sym] || []; return l[l.length - 1] }
+const dateField = () => layer('front').querySelector('input[placeholder="M/D/YYYY"]')
+const goTo = (text) => {
+  const f = dateField()
+  act(() => { f.focus() })
+  fireEvent.change(f, { target: { value: text } })
+  fireEvent.keyDown(f, { key: 'Enter' })
+}
+test('W10 (owner) go to 1/3/2006, arrow through 10 symbols: each opens at that date with the same span, flips where ready; Latest clears', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  goTo('01032006')
+  await settle()
+  const w = lastProps('S0').anchorWidth
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  expect(w).toBe(165)                                         // the member's span (the front's frame: 160 - -5)
+  // ⚠️ Under act() the handoff's show lands when the settle's act scope ends (its last tick), so the hidden pane's
+  // retarget, scheduled from that commit (afterPaint), runs only once time moves again: a press straight after the
+  // settle would race its own retarget (the member had zero time on the chart). `listAt` then a short look (100 ms of
+  // fake time) is the member's cadence: the list centres on the new row, the hidden pane takes the next one
+  for (const s of SYMS.slice(1)) {
+    act(() => { setGroup(s) })
+    await settle(400)
+    expect(symIn(layer('front'))).toBe(s)
+    expect(lastProps(s).anchorDate, `${s} opened at another date`).toBe('2006-01-03')
+    expect(lastProps(s).anchorWidth, `${s} opened at another span`).toBe(w)
+    expect(dbm.doubleBufferStats().last.at(-1), `${s} did not flip`).toBe(`${s}:flip`)   // every press at the date flips
+    act(() => { listAt(s) })
+    await settle(100)
+  }
+  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBe(9)
+  const latest = within(layer('front')).getByRole('button', { name: 'Back to the latest bar' })
+  fireEvent.click(latest)
+  await settle()
+  expect(lastProps('S9').anchorDate ?? null).toBe(null)
+  expect(within(layer('front')).queryByRole('button', { name: 'Back to the latest bar' })).toBe(null)
+  act(() => { setGroup('S8') })
+  await settle(400)
+  expect(lastProps('S8').anchorDate ?? null).toBe(null)       // back to the present
+})
+test('W12 at the date the member zooms and pans: the date and the zoom carry to the next symbol, and the press flips', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 2 }, { memberMoved: true }) })   // no date set: a plain pan
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null, 'a pan with no date set sent the chart back in time').toBe(null)
+  goTo('01032006')
+  await settle()
+  expect(lastProps('S0').anchorWidth).toBe(165)
+  // the member zooms the front out to 400 bars and pans its right edge to 2/15/2006; the gesture writes it a view lock
+  renders.meta = (p) => (p.sym === 'S0'
+    ? { ...anchoredMeta(p), rightMs: Date.parse('2006-02-15T21:00:00Z'),
+      frame: { fromRight: 4900, toRight: 4500, locked: true, lock: { anchorFrac: 12.25, width: 400, tf: 'D', top: null, bottom: null } } }
+    : anchoredMeta(p))
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 2 }, { memberMoved: true }) })
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 3 }, { memberMoved: true }) })     // one gesture, many ranges
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-02-15')
+  expect(lastProps('S0').anchorWidth).toBe(400)
+  expect(lastProps('S0').anchorFromView).toBe(true)                // the front keeps the member's own view
+  expect(symIn(layer('shadow'))).toBe('S1')
+  expect(lastProps('S1').anchorDate).toBe('2006-02-15')           // the hidden pane is framed there too
+  expect(lastProps('S1').anchorWidth).toBe(400)
+  act(() => { setGroup('S1') })
+  await settle()
+  expect(symIn(layer('front'))).toBe('S1')
+  expect(dbm.doubleBufferStats().last.at(-1), JSON.stringify(dbm.doubleBufferStats().why)).toBe('S1:flip')
+})
+test('W13 at the date the widget warms the next rows at that date; at the present it names no date', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ sym: 'S0', day: null })
+  goTo('01032006')
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ sym: 'S0', tf: 'D', day: '2006-01-03' })
+  fireEvent.click(within(layer('front')).getByRole('button', { name: 'Back to the latest bar' }))
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ day: null })
+})
+test('W11 (owner) Enter on an empty date field clears the date; entering replay clears it', async () => {
+  scanList()
+  const view = render(<Wrap initial="S0" />)
+  await settle()
+  goTo('01032006')
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  goTo('')
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null).toBe(null)
+  goTo('01032006')
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-01-03')
+  view.rerender(<Wrap initial="S0" cutoff="2006-06-30" />)
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null).toBe(null)
 })

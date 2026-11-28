@@ -4,7 +4,7 @@
  * worker's globals. Loaded by client.js, which is itself loaded lazily: none of this is in first-open
  * bytes.
  */
-import { createWorkerCore } from './workerCore'
+import { createWorkerCore, DOWNLOAD_JITTER_MS } from './workerCore'
 import { opfsIO } from './io'
 
 const tabId = (() => {
@@ -27,6 +27,8 @@ const core = createWorkerCore({
   fetchFn: (...a) => fetch(...a),
   tabId,
   engineOpts: { codeId },
+  // the START of every pack / delta download waits a random 0-10 min (workerCore DOWNLOAD_JITTER_MS)
+  jitterMs: DOWNLOAD_JITTER_MS,
 })
 
 self.onmessage = (e) => { core.onMessage(e.data) }

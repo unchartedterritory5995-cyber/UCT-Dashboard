@@ -61,6 +61,21 @@ describe('a first paint holds the rows the view will draw', () => {
     expect(viewNeed(m)).toBe(Math.ceil(425.1) + VIEW_LOOKBACK_ROWS)
   })
 
+  // ⭐ (the BL repro; the #2934 mutant M2 survived without this) THE DAILY HALF: the device's daily copy (~350 rows)
+  // painted at once whatever the view, then the deep history rescaled the chart. Short of the view while the deep
+  // history is still due, the daily switch holds; a copy that covers the view paints at once.
+  it('DAILY: a current device copy short of the view holds while the deep history is due', () => {
+    st.rows = 350
+    const { result } = flip('D')
+    expect(result.current).toBe('AAA')
+  })
+
+  it('DAILY control: a current device copy that covers the view paints at once', () => {
+    st.rows = COVER_ROWS
+    const { result } = flip('D')
+    expect(result.current).toBe('BBB')
+  })
+
   it("a CURRENT device copy SHORT of the view (~300 rows) does not paint at once: the switch prepares and waits", async () => {
     st.rows = 300
     const { result } = flip('5')
@@ -84,6 +99,17 @@ describe('a first paint holds the rows the view will draw', () => {
     expect(flip('1', m).result.current).toBe('AAA')
     st.rows = 425 + VIEW_LOOKBACK_ROWS
     expect(flip('1', m).result.current).toBe('BBB')
+  })
+
+  // B9 (2026-11-28, CRAI on a zoomed-out 15m board): the prepare is told the view's need, so a local copy short of it
+  // (the device's ~300 rows) asks the server instead of reporting 'current' on rows the handoff then refuses
+  it("the prepare is handed the view's need (the rows it must cover)", async () => {
+    const m = {}
+    noteMemberView(m, 425)
+    st.rows = 300
+    flip('15', m)
+    expect(prepareMock).toHaveBeenCalled()
+    expect(prepareMock.mock.calls[0][2]).toMatchObject({ need: 425 + VIEW_LOOKBACK_ROWS })
   })
 
   it('short, and nothing more is coming (the lake settled, the server answered): a young listing paints what there is', async () => {

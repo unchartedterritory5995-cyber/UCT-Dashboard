@@ -7,7 +7,7 @@ import ColorPanel from '../../../components/chart/ColorPanel'
 import ChoiceMenu from '../../../components/chart/ChoiceMenu'
 import { rowToggleClick } from './widgetMenuRowToggle'
 import Switch from '../../../components/ui/Switch'
-import WidgetThemeSection from './WidgetThemeSection'
+import WidgetThemeSection, { MatchChartRows } from './WidgetThemeSection'
 import styles from './NhnlSettingsPanel.module.css'
 import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
@@ -119,6 +119,7 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
               buttonClass={styles.uBtn} buttonLabel="UCT themes"
             />
           </Row>
+          <MatchChartRows Row={Row} styles={styles} />
           {showLogos !== null && onToggleLogos && (
             <>
               <div className={styles.sectionLabel}>Display</div>

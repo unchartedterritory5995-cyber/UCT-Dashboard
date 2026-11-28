@@ -27,8 +27,12 @@ import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
+import PendingSwitchCue, { usePendingCue } from '../../../components/chart/PendingSwitchCue'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
+import { noteMemberDate } from '../../../components/chart/viewDate'
+import { createDateBoxNav } from './dateBoxNav'
+import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
@@ -56,6 +60,8 @@ import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 // chart's right-click "Add widget" submenu never drifts from it.
 const ADD_WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
+/** (owner, 2026-11-27) a pan or zoom of the front chart at a date moves the date once it has rested this long. */
+const MEMBER_VIEW_REST_MS = 150
 
 // The chart capture (symbol, tf, visible range, merged settings) is built by ONE
 // shared builder, also used by the touch shell's Tools sheet (MobileChartsApp).
@@ -97,7 +103,7 @@ function useLayerCrosshair(crosshairBus, widgetIdRef, vis, layerSym) {
 }
 
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
+  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, matchChart, setMatchChart, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -208,6 +214,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
     member: switchMember,
   })
+  // (review of #2934, U1) a switch still held after PENDING_CUE_MS shows a small cue over the outgoing chart
+  const pendingCueSym = usePendingCue(requestedSym, sym)
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -232,6 +240,38 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => {
     if (replayCutoff && sym && replayWarmIntraday !== false) prefetchReplayTimeframes(sym, replayCutoff)
   }, [sym, replayCutoff, replayWarmIntraday])
+
+  // ⭐⭐ (owner, 2026-11-27: "on the change date tab and jumping through charts in 2006") THE DATE THE MEMBER WENT TO.
+  // The date box's jumps (Go to date, a year, the step buttons) anchor THIS widget at a date: both layers' charts get it
+  // (StockChart anchorDate + anchorWidth: the day's last bar at the right edge, the member's span), so every next symbol
+  // (an arrow, a typed ticker, a list click) opens there instead of snapping to the present, and the double buffer's
+  // hidden pane is framed there too. Cleared by the box's "Latest" (or Enter on an empty field), a range button or Reset
+  // view (onAnchorRelease), and entering replay; kept across a timeframe change. In memory only (the 8/19 incident was a
+  // STORED view that sent every search back in time). A plain pan or zoom never SETS it (the back-in-time guard stands),
+  // but WHILE it is set the member's own pan or zoom of the front chart MOVES it (`fromView`, below): the date and the
+  // zoom both carry to the next symbol (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and zoom).
+  const [viewDate, setViewDate] = useState(null)   // { date: 'YYYY-MM-DD', width: bars, fromView?: true } | null
+  const viewDateRef = useRef(viewDate)
+  viewDateRef.current = viewDate
+  const clearViewDate = useCallback(() => { setViewDate(null) }, [])
+  useEffect(() => { if (replayCutoff) setViewDate(null) }, [replayCutoff])
+  useEffect(() => {
+    // rightMs: NOON UTC of the date, which is that ET date (the window formula: etDate(rightMs))
+    noteMemberDate(switchMember, viewDate && !replayCutoff ? { rightMs: Date.parse(`${viewDate.date}T12:00:00Z`), offset: 0.5, width: viewDate.width, tf } : null)
+  }, [switchMember, viewDate, tf, replayCutoff])
+  // the newest bar the front chart showed while NOT anchored: the present (dateBoxNav; review of #2947, H1)
+  const presentRef = useRef(null)
+  const dateNav = useMemo(() => createDateBoxNav({
+    meta: () => paneRef.current?.getDateMeta?.() || null,
+    stepPane: (dir) => { paneRef.current?.stepBar?.(dir) },
+    setDate: setViewDate,
+    getDate: () => viewDateRef.current,
+    tf,
+    presentRef,
+  }), [tf])   // eslint-disable-line react-hooks/exhaustive-deps -- paneRef is a ref
+  const anchorKey = viewDate && !replayCutoff ? `${viewDate.date}|${viewDate.width}` : null
+  // ⭐ (review of #2947, H2) at a date on intraday the next rows' WINDOWS are warmed (the key each chart reads there)
+  useDateWindowWarm({ sym, tf, day: anchorKey ? viewDate.date : null, showExtendedRef: paneExtRef })
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -368,6 +408,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // active chart's comparison overlays + the % price scale). Reads live settings
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
+  const matchChartRef = useRef(matchChart)
+  matchChartRef.current = matchChart
   chartCsRef.current = chartCs
 
   // Chart Settings → "Apply to all charts" (owner 11-16): this surface's address in the layout (the slot's group id +
@@ -380,8 +422,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     return {
       count: () => countOtherCharts(source),
       apply: () => applyAppearanceToOtherCharts(source, chartCsRef.current),
+      // "Widgets match this chart" (owner 11-27): on = the board's widgets follow THIS chart.
+      matchWidgets: typeof setMatchChart === 'function'
+        ? { isOn: () => !!matchChartRef.current?.on && String(matchChartRef.current?.chartId ?? '') === String(chartId), set: (on) => setMatchChart(on, on ? chartId : null) }
+        : null,
     }
-  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts])
+  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts, setMatchChart, matchChart])
 
   // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
   // settings, tab or colour group itself — it reads them from HERE, as this
@@ -813,7 +859,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerInstRef = useRef([null, null])
   const layerElRef = useRef([null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, settings: activeStoredSettings, replay: !!replayCutoff,
+    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null, anchor: anchorKey,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })
@@ -822,7 +868,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [layerPaneRefs] = useState(() => [{ current: null }, { current: null }])
   const [layerElFns] = useState(() => [0, 1].map((i) => (el) => { layerElRef.current[i] = el }))
   // each layer's time range: the front's moves the shadow's zoom (useDoubleBuffer, F1)
-  const [layerTimeRange] = useState(() => [0, 1].map((i) => () => { dbViewChangedRef.current?.(i) }))
+  // (owner, 2026-11-27) ...and, while a date is set, the member's own move of the FRONT chart moves the date (dateNav
+  // fromView), once the gesture rests (a drag or a wheel fires a range per frame)
+  const memberViewTimerRef = useRef(0)
+  const memberViewRef = useRef(null)
+  memberViewRef.current = (i, info) => {
+    if (!info?.memberMoved || !viewDateRef.current) return
+    if (i != null && i !== dbFrontRef.current) return
+    clearTimeout(memberViewTimerRef.current)
+    memberViewTimerRef.current = setTimeout(() => { memberViewTimerRef.current = 0; dateNav.fromView() }, MEMBER_VIEW_REST_MS)
+  }
+  useEffect(() => () => clearTimeout(memberViewTimerRef.current), [])
+  const [layerTimeRange] = useState(() => [0, 1].map((i) => (r, info) => { dbViewChangedRef.current?.(i); memberViewRef.current?.(i, info) }))
+  const [paneTimeRange] = useState(() => (r, info) => { memberViewRef.current?.(null, info) })
   const dbViewChangedRef = useRef(null)
   dbViewChangedRef.current = db.viewChanged
   // the workspace's mount queue is released ONCE per widget, whichever layer's chart is ready first (F7)
@@ -874,7 +932,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // (F4) a host's price lines for THIS pane's symbol
             ...((paneSym === sym ? hostPriceLines : (hostOverlay?.priceLinesFor?.(paneSym) || null))?.length
               ? { priceLines: paneSym === sym ? hostPriceLines : hostOverlay.priceLinesFor(paneSym) } : {}),
-            ...(layerIdx != null ? { onTimeRangeChange: layerTimeRange[layerIdx] } : {}),
+            onTimeRangeChange: layerIdx != null ? layerTimeRange[layerIdx] : paneTimeRange,
             onCrosshairMove: reportCrosshair,
             subscribeCrosshair: paneSubscribeCrosshair,
             hotkeysActive: hotkeysIsActive,
@@ -915,6 +973,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // Replay mode: hide every bar after this ISO date (null = normal chart) + show
             // the "Exit Replay Mode" pill centered in this chart's clear top area.
             replayCutoff: replayCutoff || null,
+            // (owner, 2026-11-27) the date the member went to (the date box): every symbol opens framed there
+            anchorDate: anchorKey ? viewDate.date : null,
+            anchorWidth: anchorKey ? viewDate.width : null,
+            hideAnchorMarker: anchorKey ? true : undefined,
+            onAnchorRelease: anchorKey ? clearViewDate : undefined,
+            anchorFromView: anchorKey && viewDate.fromView ? true : undefined,
             // FULLY freeze live in replay: replay is static historical data, so kill the SSE
             // subscription + the per-tick live-price re-render (was left on, which churned the
             // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
@@ -979,7 +1043,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ) : null,
             // Time Navigator — seated right after the timeframe buttons, before the
             // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
-            tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars} />,
+            tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars}
+              nav={dateNav} anchored={!!anchorKey} onLatest={clearViewDate} />,
             tfBarRight: (
               <>
                 {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
@@ -1034,7 +1099,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     rail), so nothing about either needed header space. */}
               </>
             ),
-            overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
+            overlay: (ctxToast || pendingCueSym) ? (
+              <>
+                {ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null}
+                {pendingCueSym && (layerIdx == null || layerIdx === db.front) ? <PendingSwitchCue sym={pendingCueSym} /> : null}
+              </>
+            ) : null,
           }}
         />
   )

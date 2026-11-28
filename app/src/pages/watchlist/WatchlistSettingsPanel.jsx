@@ -12,7 +12,7 @@ import { rowToggleClick } from '../charts/widgets/widgetMenuRowToggle'
 import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
 import Switch from '../../components/ui/Switch'
-import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
+import WidgetThemeSection, { MatchChartRows } from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
 import useWidgetMenuPlacement from '../charts/widgets/useWidgetMenuPlacement'
@@ -216,6 +216,7 @@ export default function WatchlistSettingsPanel({
           <Row label="UCT theme" hint="whole-widget look">
             <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
+          <MatchChartRows Row={Row} styles={styles} />
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

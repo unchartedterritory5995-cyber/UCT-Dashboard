@@ -179,11 +179,16 @@ def build_delta(base_bytes: bytes, new_bytes: bytes, *, splits_symbols: Iterable
         stats[OP_NAMES[op]] += 1
         if op == OPS["merge"]:
             stats["merge_rows"] += rows
-    trailer = json.dumps({
+    dtr = {
         "v": FORMAT_VERSION, "kind": KIND, "tf": ntr["tf"], "tunit": ntr["tunit"], "basis": ntr["basis"],
         "grid": ntr["grid"], "comp": comp, "depth": ntr["depth"], "asof": ntr["asof"], "build": ntr["build"],
         "base": btr["build"], "base_asof": btr["asof"], "fields": list(ENTRY_FIELDS), "symbols": entries,
-    }, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    }
+    if ntr.get("whole") is True:
+        # ⭐ the NEW build's whole/partial (ffseed_format PackBuilder): a device rebuilding the pack from this delta
+        # writes them into its trailer, so a delta-built generation says what the full pack says (verify_delta checks)
+        dtr["whole"], dtr["partial"] = True, list(ntr.get("partial") or [])
+    trailer = json.dumps(dtr, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
     trailer = gzip.compress(trailer, 9, mtime=0)       # deterministic: same inputs, same bytes
     data = b"".join(blobs) + trailer + _TAIL.pack(len(trailer)) + MAGIC
     verify_delta(base_bytes, data, new_bytes)
@@ -228,6 +233,9 @@ def verify_delta(base_bytes: bytes, delta_bytes: bytes, new_bytes: bytes) -> Non
     """⛔ THE PROOF the builder runs before publishing: an independent apply of the delta onto the base
     gives back the new pack, symbol set and every column, exactly. One symbol at a time (bounded memory)."""
     ntr = fmt.read_trailer(new_bytes)
+    dtr = read_delta_trailer(delta_bytes)
+    if (dtr.get("whole") is True) != (ntr.get("whole") is True) or             sorted(dtr.get("partial") or []) != sorted(ntr.get("partial") or []):
+        raise DeltaError("the delta does not carry the new pack's whole/partial")
     seen = set()
     for sym, got in apply_delta_iter(base_bytes, delta_bytes):
         want = _decode(new_bytes, ntr, sym) if sym in ntr["symbols"] else None

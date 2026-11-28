@@ -1195,7 +1195,12 @@ function ChartPane({
   const paintMemberRef = useRef(paintMember)
   paintMemberRef.current = paintMember
   const handleTypedIntent = useCallback((s) => {
-    const warm = (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
+    // (review of #2934, B1) the typed key and its linked keys ask the rows this chart's view will draw (D/W/M: a cover page)
+    let cover = 0
+    try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
+    const warm = BARSTORE
+      ? storeWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current, cover })
+      : legacyWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
     if (!BARSTORE) return
     const center = symRef.current
@@ -1673,7 +1678,7 @@ function ChartPane({
              it one stable function, so a pane render does not re-render the chart);
              a re-created chart instance re-subscribes through StockChart's own
              `chartGen` instead of through this arrow's churn. */
-          onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
+          onTimeRangeChange={(r, info) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r, info) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
           onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}
           /* AFTER the host spread: the strip below reads this scope, so a host

@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { anchorHistoryDone } from './chart/anchorHistory'
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext, noteMemberView } from './chart/paintLog'
@@ -24,6 +25,7 @@ import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 /** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
@@ -1451,7 +1453,7 @@ function zoomLimitsOf(chart) {
     const w = ts?.width?.(), o = ts?.options?.() || {}
     if (!(Number.isFinite(w) && w > 0)) return null
     const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
-    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : MIN_BAR_SPACING
     return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
   } catch { return null }
 }
@@ -1921,7 +1923,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
-import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
+import { armRuntimeLaneWarm } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1934,7 +1936,8 @@ import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
-import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
+import { useBarSnapshotBars, viewWindowOfDate } from './chart/useBarSnapshotBars'
+import { deepPending as storeDeepPending } from '../data/barStore/prefetch'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
 // functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
 // so the rows a member is about to reach are derived in idle time and found on the switch.
@@ -1980,7 +1983,17 @@ engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
 // paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
 // for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
 // paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
-const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
+// ⭐⭐ (Fred RS run half, 2026-11-26) — AT BOOT NOW, NOT AFTER THE FIRST PAINT, AND WITH THE DOCUMENTS: the worker is
+// spawned as soon as the member's installed definitions say a chart will use the lane, and their run halves / runtime
+// documents are run once over stand-in bars as soon as it is ready (`runtimeWarmDocuments`, the WARM job), so the
+// chart's first real run meets a loaded, compiled, optimised worker. ⚰️ Measured (production-flag bundle, smoke@ AGL
+// 1D, n=20 reloads): the worker was spawned only when the first run was asked (after the host lane), and that run took
+// 520-650 ms from its post, against 390-440 ms in a worker that had already loaded. The worker loads on its own thread
+// and its bytes are its own chunk (no first-open bytes); the page's own cost is the 8 KB loader and one `new Worker`.
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js')
+  .then((m) => m.warmRuntimeLane({ warm: engineRegistry.runtimeWarmDocuments() }))
+const startNow = (fn) => fn()
+const nextTask = (fn) => { setTimeout(fn, 0) }
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -2016,6 +2029,13 @@ const _dateToMs = (v) => {
   if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
   const s = String(v)
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+}
+/** M/D/YYYY of a bar time or an ISO date, UTC (the date box's own format: ChartDateNav fmtDate). */
+const _mdy = (v) => {
+  const ms = _dateToMs(v)
+  if (!Number.isFinite(ms)) return ''
+  const d = new Date(ms)
+  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`
 }
 
 // Bars-worth of blank space to render on the LEFT when a framed window's start
@@ -4130,6 +4150,13 @@ function StockChartBody({
                               // slices data (contrast replayCutoff). User pan/zoom releases it.
   hideAnchorMarker = false,   // Study's replay (2026-11-08): frame to anchorDate as each day arrives, without the marker line
                               // (it would sit on the candle being drawn). View-only, like anchorDate itself.
+  anchorWidth = null,         // ⭐ (owner, 2026-11-27) the /charts date box: with anchorDate, the anchor day's last bar sits AT
+                              // the right edge (+0.5 bar, as Go to date puts it) with this many bars across, and a date
+                              // before the loaded rows frames the EARLIEST bars with a note. null = the Desk's default frame.
+  onAnchorRelease = null,     // () => void — the date-box anchor is handed back (a range button, Reset view): the host clears it
+  anchorFromView = false,     // (owner, 2026-11-27) the anchor was READ OFF this chart's view after the member panned or zoomed it
+                              // (the date box carries the date AND the zoom): a chart the member moved keeps its view at the new
+                              // anchor (no snap to the day's last bar); every other chart, and the next symbol, frames there
   exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
@@ -5279,11 +5306,12 @@ function StockChartBody({
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
   // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
-  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page. ⭐⭐ (2026-11-26) at boot, in the next task (not
+  // after the first paint, not in idle time: `warmRuntimeLaneNow` above says why).
   useEffect(() => {
     armRuntimeLaneWarm({
-      afterPaint: afterFirstChartPaint,
-      idle: whenIdle,
+      afterPaint: startNow,
+      idle: nextTask,
       permitted: runtimePaneEnabled,
       usesLane: engineRegistry.anyInstalledRuntimeDefinition,
       load: warmRuntimeLaneNow,
@@ -8096,6 +8124,8 @@ function StockChartBody({
   // to the component body so the right-click "Reset view" AND the floating
   // "scroll to present" button (shown when today's bar is off-screen) share ONE impl.
   const doResetView = () => {
+    // (owner, 2026-11-27) Reset view is the present's default: the date box's anchor is handed back
+    if (anchorCfgRef.current?.anchorWidth > 0) { try { onAnchorRelease?.() } catch { /* the host's */ } }
     try {
       // VERTICAL first: clear any manual price-scale drag / locked placement + autoscale.
       vertMarginsRef.current = null
@@ -9514,6 +9544,10 @@ function StockChartBody({
   const _storeDevPaintRef = useRef(null)
   // updateChart's handle on the store paint (stable; reads the ref at call time).
   const _paintStoreDev = useCallback((afterSetData) => { _storeDevPaintRef.current?.(afterSetData) }, [])
+  // (owner, 2026-11-27) the date box's anchor on intraday: the window ending at the date (chart/viewWindow), read by the
+  // bars (`@to=`) and by the neighbour frames (review of #2947, H2)
+  const _anchorViewWindow = useMemo(() => (anchorWidth > 0 && anchorDate && !replayCutoff ? viewWindowOfDate(anchorDate, resolvedTf) : null),
+    [anchorWidth, anchorDate, replayCutoff, resolvedTf])
   // ── Bar DATA region → chart/useLegacyChartBars.js | chart/useBarSnapshotBars.js (P3-S1 `useChartBars`) ──
   const {
     bars, data, error, mutate, isValidating, compareData, idbReadyForRef, idbBarsRef,
@@ -9522,6 +9556,9 @@ function StockChartBody({
     _histPrependOn, _loadOlder, _symU, _idbBasisMismatch, _staleContext, _tfSwitchHold,
   } = useChartBars({
     sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
+    // (owner, 2026-11-27) the date box's anchor: an intraday chart reads the window ending at the date (the key the
+    // switch's range-at-date request prepared: chart/viewDate.js)
+    viewWindow: _anchorViewWindow,
     compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
     _overlayActive, barCount, _depthKey, _fpDwellReady, _setFpDwellReady, _intradayDeepArmed,
@@ -9923,6 +9960,7 @@ function StockChartBody({
   // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
   const replayCutoffRef = useRef(null)
   replayCutoffRef.current = replayCutoff
+  __heavy.put('cutoff', replayCutoff)
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -11383,7 +11421,7 @@ function StockChartBody({
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -11818,9 +11856,14 @@ function StockChartBody({
   // gold marker line on the SAME bar the frame ends at.
   // anchorIdx < 0 ⇒ the anchor names no loaded bar ⇒ the whole feature is INERT: no
   // frame, no marker, no pill. A chart sitting at present must not offer "Back to today".
+  // ⭐ (owner, 2026-11-27) The date box's anchor (anchorWidth): a date BEFORE the loaded rows (a symbol listed after it, or
+  // its older rows still loading) frames the EARLIEST bars, with a note naming both dates: never the present, never blank.
+  const _anchorBox = anchorWidth > 0 && !!anchorDate
+  const _anchorFound = anchorDate ? lastAnchorIdx(__heavy.filteredBars, anchorDate) : -1
+  const anchorEarliest = _anchorBox && _anchorFound < 0 && (__heavy.filteredBars?.length || 0) > 0
   const anchorIdx = useMemo(
-    () => (anchorDate ? lastAnchorIdx(__heavy.filteredBars, anchorDate) : -1),
-    [anchorDate, filteredBars]  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
+    () => (anchorEarliest ? Math.min(__heavy.filteredBars.length - 1, Math.max(0, Math.ceil(anchorWidth) - 1)) : _anchorFound),
+    [anchorDate, anchorWidth, filteredBars]  /* eslint-disable-line react-hooks/exhaustive-deps -- the box (__heavy) is read at use time; the deps above are the values */
   )
   const anchorActive = anchorIdx >= 0
 
@@ -11850,7 +11893,8 @@ function StockChartBody({
   // anchorDate changed while the bar count held would frame the PREVIOUS anchor.
   const anchorCfgRef = useRef(null)
   anchorCfgRef.current = { anchorIdx, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
-    frameKey: `${sym}_${resolvedTf}`, barsLen: filteredBars?.length || 0 }
+    frameKey: `${sym}_${resolvedTf}`, barsLen: filteredBars?.length || 0,
+    anchorDate, anchorWidth: _anchorBox ? anchorWidth : null, anchorEarliest }
 
   // THE RULE: while an anchor bar exists and the user has not taken the view over, the
   // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
@@ -11911,10 +11955,14 @@ function StockChartBody({
   const applyAnchorFrame = (chart) => {
     const c = anchorCfgRef.current
     if (!chart || c.anchorIdx < 0) return false
-    const { from, to } = computeDefaultLogicalRange(
-      c.anchorIdx + 1, c.resolvedTf,
-      { dailyDefaultBars: c.dailyDefaultBars, leftBarPad: c.leftBarPad, rightPadBars: c.rightPadBars,
-        visibleBarsOverride: c.visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    // (owner, 2026-11-27) the date box's anchor: the day's last bar AT the right edge (+0.5 bar, Go to date's own
+    // placement: goToDateRightEdge) with the member's span, so the jump and every next symbol show the same frame
+    const { from, to } = c.anchorWidth > 0
+      ? { from: c.anchorIdx + 0.5 - c.anchorWidth, to: c.anchorIdx + 0.5 }
+      : computeDefaultLogicalRange(
+        c.anchorIdx + 1, c.resolvedTf,
+        { dailyDefaultBars: c.dailyDefaultBars, leftBarPad: c.leftBarPad, rightPadBars: c.rightPadBars,
+          visibleBarsOverride: c.visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
     anchorRangeRef.current = { from, to }
     try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { return false }
     scheduleAnchorReassert()
@@ -11926,15 +11974,17 @@ function StockChartBody({
   // follow-along pane advancing), date→null ("⟲ Back to today"). updateChart is memoized
   // without anchorDate, and no zoomKey moves on these, so WITHOUT this effect the marker
   // would jump to the new date while the viewport sat still.
-  const prevAnchorRef = useRef(anchorDate)
+  // (owner, 2026-11-27) keyed on the date AND the date box's span: a new span at the same date is a new frame too
+  const _anchorKey = anchorDate ? `${anchorDate}|${_anchorBox ? anchorWidth : ''}` : null
+  const prevAnchorRef = useRef(_anchorKey)
   useEffect(() => {
     const prev = prevAnchorRef.current
-    if (prev === anchorDate) return
+    if (prev === _anchorKey) return
     const chart = chartRef.current
     // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
     // that brings them (filteredBars is a dep) instead of dropping the transition.
     if (!chart || !__heavy.filteredBars || __heavy.filteredBars.length === 0) return
-    prevAnchorRef.current = anchorDate
+    prevAnchorRef.current = _anchorKey
     if (anchorDate) {
       // A new anchor is a FRESH user intent (they clicked a different moment), so it
       // re-takes a view the user had panned away from — the same re-arm a symbol or
@@ -11943,6 +11993,9 @@ function StockChartBody({
       // navigation, so this re-arm is correct under the RULE — keep it.
       // Inert if the anchor names no loaded bar.
       if (anchorIdx < 0) return
+      // (owner, 2026-11-27) an anchor read off THIS chart's own view after the member moved it is where the member put
+      // it: kept (re-framing would snap the right edge to the day's last bar, up to a session on intraday)
+      if (anchorFromView && userViewMovedRef.current) return
       userViewMovedRef.current = false
       applyAnchorFrame(chart)
       return
@@ -11956,7 +12009,16 @@ function StockChartBody({
       { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
         plotWidthPx: plotWidthOf(chart, containerRef.current) })
     try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
-  }, [anchorDate, anchorIdx, filteredBars, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride])
+  }, [_anchorKey, anchorIdx, filteredBars, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride])  // eslint-disable-line react-hooks/exhaustive-deps -- anchorDate is in _anchorKey
+
+  // (owner, 2026-11-27) THE DATE BOX'S ANCHOR BEFORE THE LOADED ROWS: ask for the whole history (D/W/M: their full depth
+  // holds every bar back to the listing; intraday reads its window at the date through the switch's range-at-date
+  // request, chart/viewDate.js), the same ask a Go to date past the loaded rows makes. Once: the depth then holds.
+  useEffect(() => {
+    if (!anchorEarliest || isIntraday || fetchDepth === _fullTarget) return
+    setFetchDepth(_fullTarget)
+    try { _histMutateRef.current?.() } catch { /* unbound mid-mount */ }
+  }, [anchorEarliest, isIntraday, fetchDepth, _fullTarget])  // eslint-disable-line react-hooks/exhaustive-deps -- setters and the mutate ref are stable
 
   // ⭐⭐ WHAT THE CHART DRAWS FROM THE PER-SYMBOL METADATA, IN ONE PLACE (metadata islands, 2026-11-20). These blocks
   // stood inside `updateChart`, which still runs them at the same point of its pass (`fresh`: its `_freshChart`).
@@ -12291,7 +12353,14 @@ function StockChartBody({
     // pass DREW, so its header, logo and day change follow the candles, never run ahead of them (ChartPane `shownSym`).
     // Called inside this pass: from the layout effect on a switch, so the header's re-render lands in the same frame.
     if (typeof onSymbolPaintedRef.current === 'function') { try { onSymbolPaintedRef.current(sym) } catch { /* the host's */ } }
-    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
+    // (owner, 2026-11-27) and the replay cutoff it drew under: in change-date mode a hidden chart flips only under the front's
+    // (review of #2936, INFO: the COMMITTED render's cutoff, as its bars are)
+    // (owner, 2026-11-27) and the date box's anchor it framed under (`date|width`)
+    if (layerPaint) {
+      const _ac = anchorCfgRef.current
+      const anchor = _ac?.anchorWidth > 0 && _ac.anchorDate ? `${_ac.anchorDate}|${_ac.anchorWidth}` : null
+      try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars, cutoff: __heavy.committed.cutoff || null, anchor }) } catch { /* a proof never costs a paint */ }
+    }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -12521,6 +12590,9 @@ function StockChartBody({
         // bug. Exact-range charts are frozen historical windows: never
         // auto-shift them.
         shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
+        // ⭐ (2026-11-28, cold-arch 3.3 item 7) zoomed all the way out, a daily chart holds 2014 to today: the library's
+        // 0.5 px floor held 787 bars on a 394 px plot (chart/zoomOutLimit.js)
+        minBarSpacing: MIN_BAR_SPACING,
       },
     }
 
@@ -20018,6 +20090,8 @@ function StockChartBody({
   // The window the last range button framed: getDateMeta reports that range only while the chart still shows it.
   const appliedRangeRef = useRef(null)
   const applyRange = (val) => {
+    // (owner, 2026-11-27) a range button frames from the present: the date box's anchor is handed back
+    if (anchorCfgRef.current?.anchorWidth > 0) { try { onAnchorRelease?.() } catch { /* the host's */ } }
     if (val === 'origin') {
       if (pendingNavRef.current) return   // already loading — ignore repeat clicks
       // ⛔⛔ LOADED DEPTH, NOT DESIRED DEPTH. This read `barCount === _fullTarget`,
@@ -20124,22 +20198,26 @@ function StockChartBody({
       // auto-scaling per symbol. Gated to the workspace carry (carryDragPlacement),
       // off during replay.
       if (carryDragPlacement && !replayCutoffRef.current) {
-        requestAnimationFrame(() => {
-          try {
-            const m = measureViewLockRef.current?.(chartRef.current, __heavy.committed.filteredBars)
-            if (!m || m.anchorFrac == null || !(m.width > 0)) return
+        // ⭐ (review of #2936, LOW-1) WRITTEN IN THE SAME TASK, from the range just set (the measure's own rule,
+        // _measureViewLock: anchorFrac = (lastIdx - from) / width). It used to wait one frame: a press inside that frame
+        // could flip the double buffer, and the frame then wrote the lock into the now-hidden old front, whose next
+        // mirror put the new front's (older) lock back in the shared key: the range lost on later switches and reload.
+        try {
+          const w = to - from
+          const anchorFrac = (lastIdx - from) / w
+          if (Number.isFinite(anchorFrac) && w > 0) {
             const prev = userLockedViewRef.current || {}
             userViewLockedRef.current = true
             userLockedViewRef.current = {
               ...prev,               // keep any vertical lock (top/bottom/vLocked)
-              anchorFrac: m.anchorFrac,
-              width: m.width,
+              anchorFrac,
+              width: w,
               tf: resolvedTf,        // width is in bars → must not apply on another tf
               hLocked: true,
             }
             persistViewLock()        // no-ops when viewLockKey unset; survives refresh on /charts
-          } catch { /* noop */ }
-        })
+          }
+        } catch { /* noop */ }
       }
     } catch { /* noop */ }
   }
@@ -20309,6 +20387,19 @@ function StockChartBody({
       // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
       // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
       pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
+      // (owner, 2026-11-27) the double buffer prepares a hidden chart in the front's view MODE (chart/doubleBuffer.js): the
+      // rows its frame is counted in (a frame reaching past them is a short paint), and the replay view lock the next
+      // symbol switch frames from (a pan or zoom in change-date mode; null outside replay or with none)
+      rows: bars.length,
+      // (owner, 2026-11-27) the date box's anchor and the frame it gives THESE rows (the double buffer's proof); whether
+      // the date is before them (its earliest bars are shown, with a note)
+      ...(() => {
+        const c = anchorCfgRef.current
+        if (!(c?.anchorWidth > 0) || !c.anchorDate || c.anchorIdx < 0) return { anchor: null, anchorFrame: null, anchorEarliest: false }
+        const to = c.anchorIdx + 0.5, from = to - c.anchorWidth, lastIdx = bars.length - 1
+        return { anchor: { date: c.anchorDate, width: c.anchorWidth }, anchorFrame: { fromRight: lastIdx - from, toRight: lastIdx - to }, anchorEarliest: !!c.anchorEarliest }
+      })(),
+      replayLock: replayCutoffRef.current && replayViewLockedRef.current && replayLockedViewRef.current ? { ...replayLockedViewRef.current } : null,
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
@@ -20344,6 +20435,17 @@ function StockChartBody({
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = f.activeRange != null ? { val: f.activeRange, from, to } : null
       userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
+      // (owner, 2026-11-27) the double buffer's mirror also carries the front's REPLAY view lock (getDateMeta replayLock);
+      // a frame without the key (UCT Agent's Undo) leaves it as it is. Replay only: outside it there is none to hold.
+      if ('replayLock' in f) {
+        const rl = f.replayLock
+        if (rl && replayCutoffRef.current && Number.isFinite(rl.barsFromRight) && rl.width > 0) {
+          replayViewLockedRef.current = true; replayLockedViewRef.current = { barsFromRight: rl.barsFromRight, width: rl.width }
+          // (review of #2936, INFO) latched as a member's gesture latches it: the settling and pinned-right guards then
+          // leave the lock frame alone on the hidden chart's next retarget
+          userViewMovedRef.current = true
+        } else if (!rl) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      }
     } catch { /* noop */ }
   }
   useEffect(() => {
@@ -20354,12 +20456,31 @@ function StockChartBody({
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
 
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+  // ⭐ (review of #2947, M2) "NO BARS AT THE DATE" ONLY ONCE THE WHOLE HISTORY IS HERE. A date before the loaded rows frames
+  // the earliest HELD bars (anchorEarliest), and D/W/M then ask their full depth: while it loads, a name that has bars
+  // at the date said it had none. Done: a host's own bars (no longer pending); intraday, its window answered; D/W/M, the
+  // full depth asked, settled, and (bar store) no deep history still due.
+  const _anchorHistoryDone = anchorHistoryDone({
+    anchorEarliest: !!anchorEarliest, hasOverride: !!barsOverride, overridePending: !!barsOverridePending, intraday: !!isIntraday,
+    validating: !!isValidating, fetchDepth, fullTarget: _fullTarget, store: !!BARSTORE, deepPending: () => storeDeepPending(sym, resolvedTf),
+  })
 
   return (
     <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendValueBounds, ...legendInks }}
       data-bar-currentness={barCurrentness ?? undefined}
       data-bar-tail={typeof _renderedTailT === 'number' ? _renderedTailT : undefined}
       data-live-badge={liveBadge}>
+      {anchorEarliest && filteredBars?.length > 0 && (_anchorHistoryDone ? (
+        // (owner, 2026-11-27) the date box went to a date this symbol has no bar at: say so, and which bars are shown
+        <div className={styles.replayBadge} role="status" data-view-date-note="">
+          {`No ${tfWatermarkLabel(resolvedTf)} bars at ${_mdy(anchorDate)}: showing the earliest, ${_mdy(filteredBars[0].t)}`}
+        </div>
+      ) : (
+        // (review of #2947, M2) its history is still loading: the earliest bars HELD are not the earliest it has
+        <div className={styles.replayBadge} role="status" data-view-date-loading="">
+          {`Loading ${tfWatermarkLabel(resolvedTf)} history to ${_mdy(anchorDate)}…`}
+        </div>
+      ))}
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%

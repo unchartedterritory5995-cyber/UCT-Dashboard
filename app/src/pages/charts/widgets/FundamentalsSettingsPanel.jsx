@@ -9,7 +9,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
 import ChoiceMenu from '../../../components/chart/ChoiceMenu'
-import WidgetThemeSection from './WidgetThemeSection'
+import WidgetThemeSection, { MatchChartRows } from './WidgetThemeSection'
 import styles from './FundamentalsSettingsPanel.module.css'
 import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
@@ -123,6 +123,7 @@ export default function FundamentalsSettingsPanel({ settings: s, onChange, onRes
           <Row label="UCT theme" hint="whole-widget look">
             <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
+          <MatchChartRows Row={Row} styles={styles} />
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

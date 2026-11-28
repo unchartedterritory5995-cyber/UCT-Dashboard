@@ -10,14 +10,16 @@
 //
 //   • A press to the row the shadow holds, when the shadow's chart has REPORTED a pass of that symbol at the front
 //     chart's timeframe, session and the widget's settings, holding the bars the store gives that key NOW (review of
-//     #2922, F3), with the two charts' views alike (F1), and no replay (F6): the FLIP. The layers swap roles in the
-//     press's render (`front` is state); in its commit the handles swap QUIETLY (the shown one's muted feeds catch up
-//     there, the live developing bar included), focus inside the old front moves to the new one (F5), and the group
-//     member's paint is recorded as a 'flip' for the switch-speed instrument.
+//     #2922, F3), drawn under the widget's replay cutoff, with the two charts' views alike (F1: the view MODE): the
+//     FLIP. The layers swap roles in the press's render (`front` is state); in its commit the handles swap QUIETLY (the
+//     shown one's muted feeds catch up there, the live developing bar included), focus inside the old front moves to the
+//     new one (F5), and the group member's paint is recorded as a 'flip' for the switch-speed instrument.
 //   • Any other press: the NORMAL switch of the front pane, exactly today's path.
 //   • After every change of the front's symbol: the hidden pane is set, in idle time (a transition), to the row ahead
 //     in the direction of travel (doubleBuffer.nextShadowSym). After a change of the front's view, and after each pass
-//     of the shadow, the shadow MIRRORS the front's zoom in idle time (doubleBuffer.mirrorFrameFor, F1).
+//     of the shadow, the shadow MIRRORS the front's view mode in idle time: its locks (a view lock: a range, a pan, a
+//     zoom; a replay view lock) at the frame they give it, or its zoom width (doubleBuffer.mirrorFrameFor, F1). The
+//     replay cutoff reaches both layers as a prop (owner, 2026-11-27: instant zoomed out and in change-date mode).
 //   • (F2) The board's shadow budget is the BOARD SLOT's (its layer handle), and a widget on a board that is not shown
 //     gives its shadow back (and drops the hidden pane) until the board is shown again.
 //
@@ -30,14 +32,16 @@ import { getBarStore } from '../../data/barStore/index'
 import { legacyBars } from '../../data/barStore/adapter'
 import { keyOf } from '../../data/barStore/types'
 import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
+import { baseBarsFor } from './timeframes'
 import { BARSTORE } from './barStoreSwitch'
-import { chartKeyFor } from './useBarSnapshotBars'
+import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
-import { heldRows } from '../../data/barStore/prefetch'
+import { setFlipProbe } from './flipReady'
+import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
 
 /** The bars array a chart of the reported symbol, timeframe and session hands the library NOW, by the chart's own
@@ -47,9 +51,19 @@ import {
  *  Never creates a registry entry. */
 export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
-  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: null, hasOverride: false })
+  // (owner, 2026-11-27) under the cutoff the chart drew at: an intraday replay reads its own window (chartKeyFor)
+  // (owner, 2026-11-27) and under the date box's anchor (`date|width`): an intraday chart's window at that date
+  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false, viewWindow: reportWindow(report) })
   if (!key) return null
   return _barsOf(key, report)
+}
+/** The window the reported chart read ({to}): an INTRADAY chart under a replay cutoff, or anchored at a date by the date
+ *  box, reads the window ending at that date (chartKeyFor, the replay's own first); null on D/W/M, a custom timeframe, or
+ *  at the present. */
+export function reportWindow(report) {
+  if (!report) return null
+  if (report.cutoff) return viewWindowOfDate(report.cutoff, report.tf)
+  return report.anchor ? viewWindowOfDate(String(report.anchor).split('|')[0], report.tf) : null
 }
 const _storeBars = (key, report) => {
   const store = getBarStore()
@@ -72,6 +86,23 @@ export function __setDoubleBufferStoreForTests(v) { _storeOn = v === null || v =
 /** Tests: what a key's bars are NOW (null restores the bar store). */
 export function __setDoubleBufferBarsSourceForTests(fn) { _barsOf = typeof fn === 'function' ? fn : _storeBars }
 
+/** ⭐ (review of #2934, L3) Is NOTHING MORE COMING for the reported key: D/W/M with no deep history due, intraday with no
+ *  lake depth due and the server's answer of this life held? The switch's exemption for a set shorter than the view
+ *  (useSymbolHandoff paintsWholeNow / dailyHoldNeeded): such a set is the whole chart. Unknown reads as false. */
+export function shadowWhole(report) {
+  try {
+    if (!report || !report.sym) return false
+    const tf = String(report.tf)
+    const sess = { showExtended: !!report.ext }
+    if (tf === 'D' || tf === 'W' || tf === 'M') return !deepPending(report.sym, tf, sess)
+    // (owner, 2026-11-27: charts at any date) an intraday chart at a past date drew the WINDOW ending there: the lake
+    // never joins a window (historyFeed lakeSeriesOfKey), so it is whole once the server answered it in this life
+    const viewWindow = reportWindow(report)
+    if (viewWindow) return (heldRows(report.sym, tf, { ...sess, viewWindow, answered: true, upTo: 1 }) || 0) > 0
+    return !lakePending(report.sym, tf, sess) && (heldRows(report.sym, tf, { ...sess, answered: true, upTo: 1 }) || 0) > 0
+  } catch { return false }
+}
+
 /** Can this widget be double-buffered at all (the page's switch, the store, a deciding board, a layer or no parent)? */
 export function doubleBufferEligible({ scope, color, parentVis }) {
   return doubleBufferOn() && _storeOn() && !!scope && !!color && (!parentVis || !!parentVis.layer)
@@ -87,7 +118,9 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {boolean} o.eligible        doubleBufferEligible(...) for this widget (stable for its life)
  * @param {string} o.sym              the symbol the widget shows now (useSymbolHandoff's)
  * @param {object|null} o.settings    the pane's stored settings (identity)
- * @param {boolean} o.replay          a replay cutoff is set on the widget (no flip: F6)
+ * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
+ *                                    drew under the same one
+ * @param {string|null} o.anchor     the date the member went to (the date box, `date|width`), or null: likewise
  * @param {object} o.scope            the board's group store (the shadow budget's scope when there is no board handle)
  * @param {object|null} o.member      the identity the widget's chart paints under (PaintMemberContext)
  * @param {object|null} o.parentVis   the board's layer handle, or null
@@ -95,7 +128,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {() => Element[]} o.layerEls each layer's wrapper element
  * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
@@ -168,32 +201,71 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
   // effects (stats, the paint record, the focus) wait for the commit ──
-  if (eligible && sym && sym !== buf.syms[buf.front]) {
-    const f = buf.front
+  // ONE DECISION, ASKED TWICE: here at the press, and EARLIER by the handoff (flipReady.js), which shows at once a row the
+  // shadow can flip to instead of holding it (the two can never disagree: the same function, the same refs)
+  // (the panes accessor through a ref of its own, declared here: `decide` also runs from the probe, after this render)
+  const panesNowRef = useRef(panes)
+  panesNowRef.current = panes
+  const decide = (want_sym, b, okSlot, set, cut, anch) => {
+    const f = b.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, replay } : null
-    const report = slotOk && buf.syms[s] === sym ? reportsRef.current[s] : null
+    const want = fr ? { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null } : null
+    const report = okSlot && b.syms[s] === want_sym ? reportsRef.current[s] : null
     const view = () => {
-      const p = panes ? panes() : []
-      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.())
+      const p = panesNowRef.current ? panesNowRef.current() : []
+      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
     let d = flipDecision(want, report, barsNowFor, view)
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
     // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
     // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
     // press takes the normal switch, which holds for a covering page.
+    // (owner, 2026-11-27: charts at any date) counted on the key the hidden chart DREW (reportWindow): an intraday chart
+    // at a past date (the date box, a replay cutoff) reads the window ending there, and the plain key's newest rows are
+    // another set (short of the view, a flip refused that was ready; covering, a short window let through)
     if (d.flip && BARSTORE && report) {
-      const need = viewNeed(member)
+      // (2026-11-28) counted in the rows of the KEY the store holds: a custom timeframe's (4h, 2h) are its native base's
+      // (heldRows reads that key), so the view's need is asked in base rows too (timeframes.baseBarsFor; native: unchanged)
+      const need = baseBarsFor(String(report.tf), viewNeed(member))
       let rows = 0
-      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, upTo: need }) || 0 } catch { rows = 0 }
-      if (rows && rows < need) d = { flip: false, why: 'shadow-short' }
+      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, viewWindow: reportWindow(report), upTo: need }) || 0 } catch { rows = 0 }
+      // ...unless nothing more is coming for it (review of #2934, L3: the switch's own exemption, paintsWholeNow /
+      // dailyHoldNeeded): a young listing's whole history is shorter than any view, and refusing it sent every press to
+      // the normal switch for no gain
+      if (rows && rows < need && !shadowWhole(report)) d = { flip: false, why: 'shadow-short' }
     }
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {
-      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row' : 'shadow-unreported' }
+      d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row' : 'shadow-unreported' }
     }
+    return { d, report }
+  }
+  const slotOkRef = useRef(slotOk)
+  slotOkRef.current = slotOk
+  const cutoffRef = useRef(cutoff)
+  cutoffRef.current = cutoff
+  const anchorRef = useRef(anchor)
+  anchorRef.current = anchor
+  const eligibleRef = useRef(eligible)
+  eligibleRef.current = eligible
+  const decideRef = useRef(decide)
+  decideRef.current = decide   // the probe asks THIS render's decision (its `member` and refs; never a stale closure)
+  // the handoff's early question (flipReady.js): would a press to `s` flip now? (read off the refs of the last render)
+  useLayoutEffect(() => {
+    if (!member) return undefined
+    setFlipProbe(member, (s) => {
+      const b = bufRef.current
+      if (!eligibleRef.current || !s || s === b.syms[b.front]) return false
+      try { return decideRef.current(s, b, slotOkRef.current, settingsRef.current, cutoffRef.current, anchorRef.current).d.flip === true } catch { return false }
+    })
+    return () => setFlipProbe(member, null)
+  }, [member])   // eslint-disable-line react-hooks/exhaustive-deps -- decide reads refs only
+  if (eligible && sym && sym !== buf.syms[buf.front]) {
+    const f = buf.front
+    const s = 1 - f
+    const { d, report } = decide(sym, buf, slotOk, settings, cutoff, anchor)
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {
@@ -244,11 +316,13 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
         const front = p[b.front], shadow = p[1 - b.front]
         if (!front || !shadow || !b.syms[1 - b.front]) return
         let frame = null
-        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.()) } catch { frame = null }
+        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
         // (N4) restoreView also writes the view lock under the pane's key, which both layers share
-        // (`uct.charts.viewLock.<chartId>`): a frame is only made for a front with NO lock (mirrorFrameFor), and it
-        // carries none, so the write removes a lock that the front does not hold either; read again here, at the write
-        if (frame && !front.getDateMeta?.()?.frame?.locked) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
+        // (`uct.charts.viewLock.<chartId>`): the frame carries the FRONT's locks, so the write stores the lock the front
+        // holds; read again here, at the write, so a lock the member changed in between is never overwritten
+        let fits = false
+        try { fits = mirrorStillFits(frame, front.getDateMeta?.()) } catch { fits = false }
+        if (frame && fits) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
       })
     }, MIRROR_DEBOUNCE_MS)
   }
@@ -260,7 +334,7 @@ export function useDoubleBuffer({ eligible, sym, settings, replay = false, scope
 
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
-    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, settings: settingsRef.current }
+    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, anchor: r.anchor || null, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
     // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
     // the board's first paint, and is still set long before the first press
