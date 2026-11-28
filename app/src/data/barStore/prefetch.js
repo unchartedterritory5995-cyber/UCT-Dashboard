@@ -237,6 +237,20 @@ export const LAKE_BEHIND_MAX_MS = 1200
  *  550, not 350 (2026-11-18): on production, never-opened 5m tickers' lake loads landed 441-458 ms
  *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
  *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
+/** ⛔ (review of #3063) A DEVELOPING BAR NOTHING FEEDS IS NOT THE FRONTIER FOR LONG: a copy whose forming bar no stream
+ *  keeps live and that was last written (its `rev`, ms) more than this ago shows the bucket as it was then (a 60m bar read
+ *  at 10:35, pressed at 11:20: 45 minutes of trades missing). The press then holds for its own answer (the timeframe
+ *  hold, useBarSnapshotBars). ⛔ NOT the symbol switch: its rules for a saved / warmed copy at the frontier (prefetch
+ *  typedStale, scanWarmTrace, useSymbolHandoff.deviceNoKey) paint it and let the answer update it; a symbol-path change
+ *  is its own decision (review of #3063). */
+export const DEV_STALE_MS = 10_000
+/** Was `dev` (a snapshot's developing bar) last written more than DEV_STALE_MS before `nowMs`? (no rev: its answer's
+ *  verified-through time; neither: stale) */
+export function devWrittenStale(dev, s, nowMs) {
+  if (!dev) return false
+  const at = Number.isFinite(dev.rev) ? dev.rev : (Number.isFinite(s?.verifiedThrough) ? s.verifiedThrough * 1000 : null)
+  return at == null || nowMs - at > DEV_STALE_MS
+}
 export const LAKE_JOIN_WAIT_MS = 550
 /** D/W/M: the longest the daily handoff's prepare waits, from Enter, for the deep history to join
  *  the tail answer (prepareDailyForDisplay). Just under the handoff's own bound (useSymbolHandoff

@@ -37,6 +37,8 @@ export const STATUS_TICK_MS = 15_000
  *  (`watchLive`; the watchlist's next 1-2 rows on each of the board's intraday timeframes). One more is refused (its row
  *  keeps the switch's own rule: it asks after a roll). The mux's own backstop is barsStreamManager.AHEAD_MAX_PAIRS. */
 export const NEIGHBOR_LIVE_MAX_KEYS = 4
+/** (P2) The keys a page's charts KEEP for their habitual next timeframes (store.keepKey): pinned, no stream. */
+export const HABIT_KEEP_MAX_KEYS = 4
 const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE])
 
 /**
@@ -64,6 +66,7 @@ export function createBarStore(o = {}) {
   const active = new Map()
   /** key → { n, stop } for the rows ahead riding the push stream (`watchLive`), at most NEIGHBOR_LIVE_MAX_KEYS */
   const watched = new Map()
+  const kept = new Map()      // (P2) key -> { n, stop }: the habitual next timeframes' keeps (keepKey)
   // the history lake (per-browser switch until its edge route is live; historyFeed.js)
   const history = o.history !== undefined ? o.history : (historyLakeEnabled() ? createHistoryFeed() : null)
   // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
@@ -253,6 +256,32 @@ export function createBarStore(o = {}) {
      * fallback, no polling, no requests). Refcounted; at most NEIGHBOR_LIVE_MAX_KEYS keys per page, the rest refused (a
      * no-op release). Returns the release.
      */
+    /**
+     * ⭐ (P2, 2026-11-28) A CHART'S HABITUAL NEXT TIMEFRAMES ARE KEPT (ChartWidget's dwell): the key is held in the registry
+     * (never evicted while kept) so its lake depth, joined during the dwell (lakeSeed), is there at the press. NO stream,
+     * no request: its status stays the clock's (deriveStatus), so a kept copy whose tail has aged reads behind and the
+     * press holds for its own answer (useBarSnapshotBars `_edgeProvisional`; the key's request record is collected when
+     * no chart holds it, so `answered` starts false again). Refcounted; at most HABIT_KEEP_MAX_KEYS keys a page, the rest
+     * refused (a no-op release that says so). Returns the release.
+     */
+    keepKey(key) {
+      let kp = kept.get(key)
+      if (!kp) {
+        if (!key || kept.size >= HABIT_KEEP_MAX_KEYS) { const no = () => {}; no.refused = true; return no }
+        registry.acquire(key)
+        kp = { n: 0, stop: () => registry.release(key) }
+        kept.set(key, kp)
+      }
+      kp.n++
+      let done = false
+      return () => {
+        if (done) return
+        done = true
+        if (--kp.n > 0) return
+        if (kept.get(key) === kp) kept.delete(key)
+        kp.stop()
+      }
+    },
     watchLive(key, { session = 'rth' } = {}) {
       let wl = watched.get(key)
       if (!wl) {
@@ -277,6 +306,8 @@ export function createBarStore(o = {}) {
     dispose() {
       for (const wl of [...watched.values()]) wl.stop()
       watched.clear()
+      for (const kp of [...kept.values()]) kp.stop()
+      kept.clear()
       for (const k of [...active.keys()]) {
         const a = active.get(k)
         for (const f of a.stops.splice(0).reverse()) { try { f?.() } catch { /* ignore */ } }

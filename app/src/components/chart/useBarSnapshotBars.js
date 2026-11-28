@@ -29,7 +29,7 @@ import { forwardWhileShown, useLayerBoard } from './boardVisibility'
 import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
-import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf } from '../../data/barStore/prefetch'
+import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS, deviceRefusalOf, devWrittenStale } from '../../data/barStore/prefetch'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { serverNow } from '../../lib/serverClock'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
@@ -350,8 +350,26 @@ export function useBarSnapshotBars({
   // 'empty_window', StockChart's no-data note; never a blank canvas, never the old timeframe)
   const _emptyWindowNote = _fromOtherTf && _answeredEmpty && snap?.error !== 'no_data'
   // ⛔ ONE bound: the timer below sets `done` at TF_SWITCH_EMPTY_HOLD_MS (no second age check beside it, review of #3033).
+  // ⛔ (P2, the lead's rule for a KEPT key) A COPY BEHIND THE CLOCK IS NOT A FRAME TO PAINT ON A PRESS: its newest bucket
+  // is older than the one forming now (a key the dwell kept, an entry the LRU held: nothing fed it since its last answer,
+  // and its stored status, derived then, still read 'current'), so until this key answers the press holds the shown
+  // frame (the same bounded hold) instead of painting the gapped rows and then the jump. Within the forming bucket, it
+  // paints at once.
+  // (review of #3063) a 503 `warming` is not an answer for this rule: it keeps holding (the store marks the key answered
+  // and keeps the copy chosen, so without this the gapped copy painted on the warming answer: lakeHoldAwaited H8)
+  const _answeredRows = _answered && snap?.error !== 'warming'
+  const _behindForming = _fromOtherTf && isIntraday && !_isCustomTf && !!snap && !_answeredRows && (() => {
+    const tail = snap.developing?.t ?? (snap.bars.length ? snap.bars[snap.bars.length - 1].t : null)
+    const f = expectedFormingBar(resolvedTf, serverNow(), { session: showExtended ? 'extended' : 'rth' })
+    if (f != null && typeof tail === 'number' && tail < f) return true
+    // ⛔ (review of #3063) ...and a forming bar of the CURRENT bucket last written more than DEV_STALE_MS ago (a kept 60m
+    // copy read at 10:35, pressed at 11:20): the bucket as it was then, not now. ⛔ No "the stream is live" exemption: the
+    // stream's PAIR status says nothing about THIS key (a D chart streams sym:1 for its own fold and the frames go to the
+    // D key only); a key the stream really feeds has a forming bar written seconds ago, which this rule already passes.
+    return f != null && !!snap.developing && snap.developing.t >= f && devWrittenStale(snap.developing, snap, serverNow())
+  })()
   const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
-    && !(Array.isArray(chosen) && chosen.length > 0) && !_settledEmpty
+    && (!(Array.isArray(chosen) && chosen.length > 0) || _behindForming) && !_settledEmpty
   useEffect(() => {
     if (!_emptyHold) return undefined
     const sw = _emptySwitchRef.current
@@ -361,7 +379,10 @@ export function useBarSnapshotBars({
   }, [_emptyHold, key])
   const _tfSwitchHold = (_isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)) || _emptyHold
   tfSwitchHoldRef.current = _tfSwitchHold
-  const bars = _tfSwitchHold ? null : chosen
+  // ⛔ (review of #3063) PAST THE BOUND, STILL BEHIND AND UNANSWERED: the honest loading state (no bars: the skeleton), never
+  // the gapped copy the hold was keeping off the screen
+  const _behindExpired = _behindForming && _emptySwitchRef.current.key === key && _emptySwitchRef.current.done
+  const bars = (_tfSwitchHold || _behindExpired) ? null : chosen
   // (what this chart has SHOWN of a device copy, per key and view: see `_deviceRefused`). ⛔ Written after the commit, never
   // during the render (review of #2558, P4-L1): a render React throws away (a transition something else suspends, an
   // interrupted render) would otherwise mark a view as shown that never was, and the next render, possibly after the bucket
