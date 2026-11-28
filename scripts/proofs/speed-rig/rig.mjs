@@ -141,6 +141,23 @@ const ZOOM_TO = arg('zoom-out-to', '')
 const TYPED_PROF = new Set(arg('typed-profile', '').split(',').filter(Boolean).map(Number))   // (cold-arch) CPU profile around these typed Enters
 const PHASE_JS = `(()=>{const P=window.__phase;if(!P)return null;const F=window.__flip;const k=(F&&F.keys&&F.keys[0])||performance.now();const req=P.req.filter((r)=>r.call>=k-3000).map((r)=>({...r,call:Math.round((r.call-k)*10)/10,hdr:r.hdr==null?null:Math.round((r.hdr-k)*10)/10,bodyS:r.bodyS==null?null:Math.round((r.bodyS-k)*10)/10,bodyE:r.bodyE==null?null:Math.round((r.bodyE-k)*10)/10,parseS:r.parseS==null?null:Math.round((r.parseS-k)*10)/10,parseE:r.parseE==null?null:Math.round((r.parseE-k)*10)/10}));const res=performance.getEntriesByType('resource').filter((e)=>e.startTime>=k-3000&&(e.name.indexOf('/api/bars')>=0||e.name.indexOf('/api/hist/')>=0)).map((e)=>({u:e.name.replace(location.origin,'').slice(0,160),s:Math.round((e.startTime-k)*10)/10,rqS:Math.round((e.requestStart-k)*10)/10,rsS:Math.round((e.responseStart-k)*10)/10,rsE:Math.round((e.responseEnd-k)*10)/10,conn:Math.round((e.connectEnd-e.connectStart)*10)/10,proto:e.nextHopProtocol,tx:e.transferSize,enc:e.encodedBodySize,dec:e.decodedBodySize,rs:e.responseStatus,st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}));let up=null;try{const U=window.__uctPaints;const a=Array.isArray(U)?U:(U&&(U.ring||U.list||U.items||(typeof U.slice==='function'?U:null)));up=a?a.slice(-40).map((x)=>({...x,at:typeof x.at==='number'?Math.round((x.at-k)*10)/10:x.at})):(U?Object.keys(U).slice(0,10):null)}catch(e){up=String(e)}return {key:k,req,res,uctPaints:up}})()`
 const GO_TO_DATE = arg('go-to-date', '')
+/** M/D/YYYY -> the asked ET day as 'YYYY-MM-DD' and its UTC-midnight seconds (a day's bars sit inside [s, s + 1 day + 6 h)). */
+export function dateCoverOf(mdy) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(mdy || '').trim())
+  if (!m) return null
+  const day = `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`
+  return { day, s: Date.UTC(+m[3], +m[1] - 1, +m[2]) / 1000 }
+}
+/** Does a visible time range ({from, to}: 'YYYY-MM-DD' strings on D/W/M, epoch seconds intraday) reach the asked day? */
+export function viewCovers(v, want) {
+  if (!v || !want || v.from == null || v.to == null) return false
+  if (typeof v.from === 'string') return v.from <= want.day && want.day <= v.to
+  if (typeof v.from === 'object' && v.from.year) {
+    const s = (t) => `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
+    return s(v.from) <= want.day && want.day <= s(v.to)
+  }
+  return v.from < want.s + 86400 + 6 * 3600 && v.to >= want.s
+}
 // --zoom-out-max=1 (owner, 2026-11-27: "it needs to be fully zoomed out"): before the pass, wheel EVERY chart of the
 // board out to its limit (until the view stops widening: D to its max, W/M to their whole history, intraday to its max)
 const ZOOM_MAX = arg('zoom-out-max', '') === '1'
@@ -1212,14 +1229,34 @@ try {
   if (GO_TO_DATE) {
     const focused = await run(`(()=>{const W=document.querySelector('[data-widget-id="flip-chart"]');const el=W?[...W.querySelectorAll('[data-guide="chart.goToDate"]')].find((e)=>!e.closest('[inert]')):null;if(!el)return false;el.focus();return document.activeElement===el})()`)
     if (!focused) throw new Error('no Time Navigator date box on the flip chart')
+    // ⛔ (2026-11-28: every cloud date pass measured the PRESENT) THE FIELD IS SELECTED FIRST. Focus fills the box with the
+    // date on screen and selects it a frame later (ChartDateNav onFocus: requestAnimationFrame(select)); text typed before
+    // that frame was APPENDED to today's date, the 8-digit mask kept today, and Enter went to today. So: wait for the
+    // frame, select the field's whole text, then type.
+    await sleep(120)
+    await run(`(()=>{const el=document.activeElement;if(el&&el.select)el.select();return el&&el.selectionStart===0&&el.selectionEnd===String(el.value||'').length})()`)
     await c.send('Input.insertText', { text: GO_TO_DATE.replace(/[^0-9]/g, '') })
     await sleep(150)
+    const typedAs = await run(`(()=>{const el=document.activeElement;return el?String(el.value||''):null})()`)
     await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
     await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
-    await sleep(2500)
-    out.goToDate = { asked: GO_TO_DATE, view: await run(`(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`) }
+    // ⛔ WAIT UNTIL THE VIEW COVERS THE ASKED DATE, and stop the pass if it never does: a pass that measures the present
+    // under a date label is worse than no pass (grade.py grades it INVALID)
+    const VIEW_JS = `(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`
+    const want = dateCoverOf(GO_TO_DATE)
+    const t0 = Date.now()
+    let v = null
+    let landed = false
+    while (Date.now() - t0 < 15000) {
+      await sleep(250)
+      v = await run(VIEW_JS)
+      if (v && viewCovers(v, want)) { landed = true; break }
+    }
+    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedInMs: landed ? Date.now() - t0 : null, view: v, wantDay: want && want.day }
     console.log(`go to date: ${JSON.stringify(out.goToDate)}`)
     save()
+    if (!landed) throw new Error(`go to date ${GO_TO_DATE}: the view never reached it in 15 s (typed as ${JSON.stringify(typedAs)}, view ${JSON.stringify(v && { from: v.from, to: v.to })})`)
+    await sleep(1000)   // the landed frame settles before the first switch
   }
   if (ZOOM_MAX) {
     out.zoomMax = {}

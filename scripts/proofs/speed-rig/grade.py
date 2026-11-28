@@ -46,7 +46,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+ORDER = ['INVALID', 'WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
 #: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the switch's symbol disagree on its developing close by more
 #: than this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
 #: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
@@ -451,6 +451,9 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
         first = set()
         for p in sorted(raw, key=lambda q: q.get('key') or 0):
             r = grade_switch(p, rec, tfs, exp)
+            if not date_landed(rec):
+                r['flags'] = sorted(set(r['flags']) | {'INVALID'})
+                r['full'] = None   # never a timing: it timed another view
             r['pass'] = run_base(n)   # an A/B run's '<pass>@<k>' grades as its pass
             r['tickers'] = ticker_class(r.get('sym'), planned, reused, first)
             results.append(r)
@@ -461,6 +464,9 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
             problems.append(f"{n}: INCONCLUSIVE ({str(rec.get('error') or '')[:160]})")
+        # (2026-11-28) a date pass whose view never reached its date measured some other view under a date's name
+        if not date_landed(rec):
+            problems.append(f"{n}: INVALID: asked to go to {rec['goToDate'].get('asked')} and the view never reached it ({json.dumps((rec['goToDate'].get('view') or {}))[:120]})")
     # every pass record, even one without a jump file (a pass stopped before its first switch)
     for p in glob.glob(os.path.join(d, 'COV-*.json')):
         n = os.path.basename(p)[:-5]
@@ -638,7 +644,33 @@ def ab_table(ga: dict, gb: dict) -> str:
     return '\n'.join(out)
 
 
+def date_landed(rec: dict) -> bool:
+    """False for a pass that was asked to go to a date and whose record does not say the view reached it (a record from
+    before the rig checked this has no `landed`: its view is judged here, a day string range against the asked day)."""
+    g = rec.get('goToDate')
+    if not g:
+        return True
+    if 'landed' in g:
+        return g['landed'] is True
+    m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', str(g.get('asked') or ''))
+    v = g.get('view') or {}
+    if not m or v.get('from') is None:
+        return False
+    day = f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+    if isinstance(v['from'], str):
+        return v['from'] <= day <= str(v.get('to'))
+    s = datetime(int(m.group(3)), int(m.group(1)), int(m.group(2)), tzinfo=timezone.utc).timestamp()
+    return v['from'] < s + 86400 + 6 * 3600 and (v.get('to') or 0) >= s
+
+
 def self_check() -> None:
+    # a date pass: INVALID unless its view reached the date (the 2026-11-28 cloud passes sat at the present)
+    assert date_landed({}) and date_landed({'goToDate': {'asked': '1/3/2006', 'landed': True}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'landed': False}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2026-05-29', 'to': '2026-12-08'}}})
+    assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2005-08-01', 'to': '2006-01-03'}}})
+    assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': 1795438800, 'to': 1795788000}}})
+    assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': 1136210400, 'to': 1136320000}}})
     """Synthetic switches the rules must tell apart: a clean one-paint switch, a late one, and a switch whose chart
     rescales after its first paint. A grader that passed (or failed) all three would hold nothing."""
     def fr(t, sym, close, ni=999, lr=(899, 999), y0=100.0):
