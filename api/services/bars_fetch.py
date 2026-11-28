@@ -24,6 +24,7 @@ import os as _os
 import threading as _threading
 import time as _time
 from datetime import datetime, timedelta
+from operator import itemgetter as _itemgetter, sub as _op_sub
 from zoneinfo import ZoneInfo as _ZI
 from fastapi import HTTPException, Request
 # ORJSONResponse serializes ~7-8x faster than the stdlib JSONResponse (measured:
@@ -46,6 +47,12 @@ from api.services.nyse_calendar import (
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
+# ⛔⛔ SEVERAL bars-api PROCESSES (BARS_API_WORKERS > 1, review of #2962 H1 + M1): every cap and single-flight map
+# below is a per-process object, so with N processes each "global" limit would be N times larger and the
+# followers would write the store the leader swaps. In a FOLLOWER they are leader-only (`bars_api_roles`): the
+# first claim raises `LeaderOnly` and the route hands the whole request to the leader, where the caps exist ONCE.
+# One process: plain semaphores / dicts / sets, exactly as before.
+from api.services import bars_api_roles as _roles
 from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
 # ⛔ SECURITY (2026-11-10): every service that imports this module (bars-api,
 # worker, flow-worker, web) talks to Massive with `apiKey=` in the query string;
@@ -168,7 +175,7 @@ def _massive_bar_row(bar) -> dict | None:
 # Prevents N concurrent requests for the same key from each making a separate
 # Massive API call.  The first thread that arrives becomes the "fetcher" and
 # sets the result into cache; all others wait on an Event and read from cache.
-_inflight: dict[str, _threading.Event] = {}
+_inflight: dict[str, _threading.Event] = _roles.LeaderOnlyDict(what="single-flight fetch")
 _inflight_lock = _threading.Lock()
 
 # Bounded concurrency for the SWR background delta-fetch threads ("bars-bg").
@@ -187,7 +194,7 @@ _inflight_lock = _threading.Lock()
 # once). 6 keeps background throughput reasonable while leaving the loop GIL
 # time. Tune via BARS_BG_DELTA_MAX.
 _BG_DELTA_MAX = max(2, int(_os.environ.get("BARS_BG_DELTA_MAX", "6")))
-_bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
+_bg_delta_sem = _roles.LeaderOnlySemaphore(_BG_DELTA_MAX, what="bg delta")
 
 # ── INTERACTIVE TAIL-HEAL RESERVE (2026-09-28) ───────────────────────────────
 # ⛔⛔ THE CLICK LOST TO THE LIST. Measured on production 2026-09-28 11:35 ET: a
@@ -202,7 +209,7 @@ _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 # Bounded: the total ceiling rises by exactly this many slots, all of them
 # reserved for member demand. Tune via BARS_INTERACTIVE_HEAL_MAX (0 disables).
 _INTERACTIVE_HEAL_MAX = max(0, int(_os.environ.get("BARS_INTERACTIVE_HEAL_MAX", "2")))
-_interactive_heal_sem = _threading.Semaphore(_INTERACTIVE_HEAL_MAX)
+_interactive_heal_sem = _roles.LeaderOnlySemaphore(_INTERACTIVE_HEAL_MAX, what="interactive heal")
 _req_ctx = _threading.local()
 
 
@@ -254,7 +261,9 @@ def start_request_budget() -> None:
     callers (seasonality, cot_prewarm, data_exports, discord...) are not behind the
     edge's 8 s abort, so they keep each wait's own ceiling and the D/W/M deltas stay
     blocking for them (review F3)."""
-    _req_ctx.budget_t0 = _time.monotonic()
+    # A request a bars-api FOLLOWER handed to its leader (`bars_api_main.serve_for_follower`) starts with what the
+    # follower already spent (`_req_ctx.budget_spent`), so the two together still fit the edge's abort.
+    _req_ctx.budget_t0 = _time.monotonic() - float(getattr(_req_ctx, "budget_spent", 0.0) or 0.0)
 
 
 def end_request_budget() -> None:
@@ -320,9 +329,9 @@ _REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4
 # replays can't saturate the single-process web pod's threadpool → the 524-outage class.
 # Warm requests are best-effort (skip when no slot); real chart requests wait for one.
 _REPLAY_COLD_CONCURRENCY = int(_os.environ.get("REPLAY_COLD_CONCURRENCY", "2"))
-_replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
+_replay_cold_sem = _roles.LeaderOnlySemaphore(_REPLAY_COLD_CONCURRENCY, what="replay cold fetch")
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
-_deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
+_deepfill_sem = _roles.LeaderOnlySemaphore(_DEEPFILL_MAX, what="deep fill")
 
 # 🔴 Global cap on CONCURRENT truly-cold Layer-4 provider fetches (a first-ever
 # ticker/tf with NO stored rows). Obscure/long-tail names take 15-22s to fetch;
@@ -336,7 +345,7 @@ _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 # in ~3s) instead of adding another 20s hold; the ticker warms on a retry once a slot
 # frees, or via the prewarmer/crawler. Tune via BARS_COLD_FETCH_CONCURRENCY.
 _COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
-_cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
+_cold_fetch_sem = _roles.LeaderOnlySemaphore(_COLD_FETCH_CONCURRENCY, what="cold fetch")
 
 # 🟡 Global cap on CONCURRENT best-effort WARM serves (background prefetch: opening a
 # theme/watchlist warms ~20 holdings at once, across MANY browsers = a lot of concurrent
@@ -379,6 +388,12 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
             _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
         _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
+    else:
+        # All of it was already stored: the fetch still PROVES its span (review #2951 L1),
+        # and a payload cached while the proof was missing (the startup prewarm runs with
+        # none) is a cut answer the proof now lets through whole: bust it as above.
+        _note_fetch_span(ticker_up, tf, fetched, _t0)
+        cache.delete_prefix(f"bars_{ticker_up}_{tf}_")
     return len(missing)
 
 
@@ -415,6 +430,12 @@ def _maybe_kick_deepfill(ticker: str, tf: str, bars: int) -> None:
     ticker_up = ticker.upper()
     marker = f"deepfill_{ticker_up}_{tf}_{_depth_tier(bars)}"
     if cache.get(marker) is not None:
+        return
+    if _roles.is_follower():
+        # ⛔ (review of #2962, round 2 H1) a best-effort kick NEVER hands the request off: every intraday first
+        # paint passes here. Throttle locally, let the leader replay the request in the background.
+        cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+        _roles.defer_to_leader("deepfill", marker)
         return
     if not _deepfill_sem.acquire(blocking=False):
         return
@@ -848,6 +869,7 @@ def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None
             fn(ticker_up, tf, min(ts), checked_at)
     except Exception:                      # noqa: BLE001 — a cover only widens what may seal
         pass
+    _note_fetch_span(ticker_up, tf, rows, checked_at)   # the gaps inside it are the provider's
 
 
 #: A provider answer asked at instant A proves "no newer bar" at most through A - TAIL_PROOF_LAG_S (and only as far
@@ -894,6 +916,7 @@ _market_probe_lock = _threading.Lock()
 
 def _fetch_reference_end(sym: str):
     """End (unix s) of `sym`'s newest PUBLISHED 1m REST bar (one request, newest first), or None."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     client = _get_client()
     now_utc = datetime.utcnow()
     url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(sym)}/range/1/minute"
@@ -908,6 +931,7 @@ def _fetch_reference_end(sym: str):
 def _fetch_market_reference_end():
     """One probe ROUND: the MAX over `_MARKET_REF_TICKERS` of each reference's newest published 1m bar end, or None
     when none answered. A failing reference never sinks the round."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from concurrent.futures import ThreadPoolExecutor
 
     def _one(sym):
@@ -1347,15 +1371,117 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
 #: started a write thread per name, all fighting for the SQLite write lock the live store's 1m/5m/D pushes use. A write
 #: that finds no slot is SKIPPED, never queued: the answer carries the derived bars anyway, and a later read writes.
 WM_WRITE_SLOTS = 2
-_WM_WRITE_SEM = _threading.BoundedSemaphore(WM_WRITE_SLOTS)
+_WM_WRITE_SEM = _roles.LeaderOnlyBoundedSemaphore(WM_WRITE_SLOTS, what="W/M write")
 
 
-def _wm_live_daily(ticker_up: str) -> bool:
+_D_UNREAD = object()   # `d_last` not read yet: the helper reads the stored daily tail itself
+
+
+def _wm_live_daily(ticker_up: str, d_last=_D_UNREAD) -> bool:
+    """May W/M be derived from the STORED daily on read? When the live store covers the daily (in session: alive, seen,
+    contiguous), OR when the stored daily itself runs into the present (`_wm_stored_daily_current`).
+    ⛔⛔ (2026-11-28, the cold-coverage sweep; reproduced on production for 16 of 19 rarely viewed names) `covered(t, "D")`
+    needs the live daily snapshot FLOWING, so after the close, on a weekend, and in session for a name outside the
+    snapshot it read False, the derive never ran, and the FIRST W/M answer was the stored W/M table: a developing month
+    whose close was two weeks old (ACIW 61.26 against its 52.24 daily, NHC 210.78 against 193.37) until the background
+    revalidation fixed the next ask. The answer the member sees first must never carry a W/M close older than the daily's.
+    `d_last`: the stored daily's newest bar when the caller already read it (one read per request)."""
+    return _wm_daily_source(ticker_up, d_last) is not None
+
+
+def _wm_daily_source(ticker_up: str, d_last=_D_UNREAD):
+    """The daily W/M may be derived from: "live" (the live store covers it), "stored" (`_wm_stored_daily_current`), or
+    None (no derive)."""
     try:
         from api.services import bars_live_store as _bls
-        return bool(_bls.covered(ticker_up, "D"))
+        if _bls.covered(ticker_up, "D"):
+            return "live"
     except Exception:                      # noqa: BLE001
+        pass
+    return "stored" if _wm_stored_daily_current(ticker_up, d_last) else None
+
+
+def _wm_now_et() -> datetime:
+    return datetime.now(_ZI("America/New_York"))
+
+
+def _wm_required_daily_ymd(now_et=None) -> int:
+    """The newest daily bar a stored daily must hold to run into the present: TODAY's (ET) once today is an NYSE session
+    and its 09:30 open has passed (half days included: they open at 09:30 too), the previous session's otherwise
+    (pre-market, overnight, weekend, holiday). ⛔ (review of #3001, F1) ET, never `_last_weekday_yyyymmdd`: its utcnow
+    runs a day ahead after 19:00/20:00 ET."""
+    now = now_et if now_et is not None else _wm_now_et()
+    if _is_trading_day_ymd(now) and now.hour * 60 + now.minute >= _RTH_OPEN_MINUTES_SERVER:
+        return int(now.strftime("%Y%m%d"))
+    from api.services import bars_live_store as _bls
+    return int(_bls._prev_session_ymd(now))
+
+
+def _wm_stored_daily_current(ticker_up: str, d_last=_D_UNREAD) -> bool:
+    """The stored daily's newest bar reaches `_wm_required_daily_ymd`: it runs into the present, so W/M derived from it
+    are as current as the daily the same store answers. A daily that ends before that is stale itself: no derive (the
+    old stale-while-revalidate path runs, as before, and the daily's own revalidation feeds the next read).
+    ⛔⛔ (review of #3001, F1) On a session day from the open on, a daily ending YESTERDAY is NOT current: deriving from it
+    served W/M without today, turned revalidation off, and wrote that older close over a W/M row `_delta_weekly`/
+    `_delta_monthly` had already brought through today (they write W/M, never D)."""
+    try:
+        now = _wm_now_et()
+        if _wm_in_live_window(now):
+            return False
+        if not _wm_daily_poll_settled(now):
+            return False
+        if d_last is _D_UNREAD:
+            d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if not d_last:
+            return False
+        return int(d_last) >= _wm_required_daily_ymd(now)
+    except Exception:                      # noqa: BLE001 — unknown: the store as it is, as before
         return False
+
+
+def _wm_daily_poll_settled(now) -> bool:
+    """The live daily poll succeeded AFTER the close of the latest session (`_wm_required_daily_ymd`), on the wall
+    clock: the stored daily then holds that session's settled bar. Unknown (no success in this process, e.g. after a
+    restart) = not settled.
+    ⛔⛔ (review of #3001, residual) a poll that died mid-session while the pod stayed up left TODAY's 11:00 partial
+    row as the stored daily's tail; from 20:00 and all weekend the stored path derived W/M from it with no
+    revalidation (`_fresh_needed = False`)."""
+    from api.services import bars_live_store as _bls
+    wall = _bls._state.get("daily_last_ok_wall")
+    if wall is None:
+        return False
+    ymd = str(_wm_required_daily_ymd(now))
+    day = datetime(int(ymd[:4]), int(ymd[4:6]), int(ymd[6:]))
+    return float(wall) >= float(_session_window(day, "rth")[1])
+
+
+def _wm_in_live_window(now) -> bool:
+    """A session day from the 09:30 open until the live daily poll's window closes (`bars_live_store._in_daily_window`,
+    20:00 ET): the stored daily is still MOVING, so only a live-covered daily may derive W/M then.
+    ⛔⛔ (delta review of #3001, (d)) A stored daily can hold TODAY's bar in session while `covered(t, "D")` is False: a
+    snapshot name whose D has a hole (the poll writes today's row for every snapshot ticker, `covered` also needs
+    `_daily_contiguous`), a dead daily poll (D frozen), a name outside the snapshot whose D a D read refreshed. Deriving
+    from it then set `_fresh_needed = False` and pinned W/M for the 900 s TTL with no revalidation. In the window the old
+    stale-while-revalidate path runs instead."""
+    from api.services import bars_live_store as _bls
+    return (_is_trading_day_ymd(now) and now.hour * 60 + now.minute >= _RTH_OPEN_MINUTES_SERVER
+            and _bls._in_daily_window(now))
+
+
+def _wm_daily_contiguous(rows, start: int) -> bool:
+    """The stored daily rows from `start` (YYYYMMDD) through their newest are exactly the NYSE sessions of that span:
+    no hole, no row on a non-session day. A W/M period derived from a daily with a hole is WRONG (it lacks a session)."""
+    days = [int(r[0]) for r in rows if int(r[0]) >= int(start)]
+    if not days:
+        return False
+    s, e = str(int(start)), str(max(days))
+    d, end = datetime(int(s[:4]), int(s[4:6]), int(s[6:])), datetime(int(e[:4]), int(e[4:6]), int(e[6:]))
+    want = []
+    while d <= end:
+        if _is_trading_day_ymd(d):
+            want.append(int(d.strftime("%Y%m%d")))
+        d += timedelta(days=1)
+    return sorted(set(days)) == want and len(days) == len(want)
 
 
 def _wm_key_of(tf: str, ymd: int) -> int:
@@ -1372,8 +1498,13 @@ def _wm_period_start(tf: str, key: int) -> int:
 
 def _wm_derived_periods(ticker_up: str, tf: str, wm_last: int):
     """The W/M periods the stored daily derives from the period holding `wm_last` onward (iso bars), or None."""
-    rows = _sqlite.get_bars_since(ticker_up, "D", _wm_period_start(tf, wm_last) - 1)
+    start = _wm_period_start(tf, wm_last)
+    rows = _sqlite.get_bars_since(ticker_up, "D", start - 1)
     if not rows:
+        return None
+    # ⛔⛔ (delta review of #3001) a daily with a hole in the span derives NOTHING: deriving rewrote an EARLIER, completed
+    # week/month from the holed daily over a correct stored row (`_wm_ahead_of_daily` checks only the last period)
+    if not _wm_daily_contiguous(rows, start):
         return None
     daily = _fmt_sqlite_bars(rows, "D", ticker_up)
     periods = _resample_weekly_iso(daily, ticker_up) if tf == "W" else _resample_monthly_iso(daily, ticker_up)
@@ -1395,30 +1526,42 @@ def _wm_derived_tail(ticker_up: str, tf: str, wm_last: int):
     return [p for p in periods if _wm_differs(held.get(int(p["t"].replace("-", ""))), p)]
 
 
-def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
+def _wm_ahead_of_daily(held, p) -> bool:
+    """The stored W/M row of the derived period `p` holds trading the stored daily does not: more volume, a higher high
+    or a lower low than the daily derives (`_delta_weekly`/`_delta_monthly` brought it further: they write W/M, never D)."""
+    return held is not None and (int(held[5] or 0) > int(p["v"] or 0) or float(held[2]) > float(p["h"])
+                                 or float(held[3]) < float(p["l"]))
+
+
+def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D_UNREAD):
     """READ PATH (review of #2742): (rows, last_ts) with the periods the stored LIVE daily derives laid over the stored
     W/M rows, from the period holding the stored tail onward, when that reaches the daily tail's period; None otherwise.
     The answer carries them whatever happens to their write: the differing periods are written on a deduped background
     job that no read ever waits for (in session the developing daily moves every few seconds, so nearly every cache-miss
-    read has one to write, and a read that waited for it fell back to the days-old table when the write was late)."""
-    if not _wm_live_daily(ticker_up):
-        return None
+    read has one to write, and a read that waited for it fell back to the days-old table when the write was late).
+    ⛔⛔ (review of #3001, F1) NEVER OVER A NEWER ROW: a stored W/M tail in a later period than the daily's tail, or (on
+    the stored-daily path) one holding trading the daily lacks (`_wm_ahead_of_daily`), is neither served over nor
+    written over: None, and the old path serves and revalidates it. `d_last`: the stored daily tail, if already read."""
     try:
-        wm_last = int(stored_rows[-1][0])
-        d_last = _sqlite.get_last_ts(ticker_up, "D")
-        if not d_last:
+        if d_last is _D_UNREAD:
+            d_last = _sqlite.get_last_ts(ticker_up, "D")
+        source = _wm_daily_source(ticker_up, d_last)
+        if source is None or not d_last:
             return None
+        wm_last = int(stored_rows[-1][0])
         periods = _wm_derived_periods(ticker_up, tf, wm_last)
         if not periods or int(periods[-1]["t"].replace("-", "")) != _wm_key_of(tf, int(d_last)):
             return None
         by = {int(r[0]): tuple(r) for r in stored_rows}
+        if source == "stored" and _wm_ahead_of_daily(by.get(int(periods[-1]["t"].replace("-", ""))), periods[-1]):
+            return None
         todo = [p for p in periods if _wm_differs(by.get(int(p["t"].replace("-", ""))), p)]
         for p in periods:
             k = int(p["t"].replace("-", ""))
             by[k] = (k, p["o"], p["h"], p["l"], p["c"], int(p["v"] or 0))
     except Exception:                      # noqa: BLE001 — the read serves the store as it is
         return None
-    if todo:
+    if todo and not _roles.defer_to_leader("wm-write", f"{ticker_up}_{tf}"):
         _bounded_job(f"wmderive_{ticker_up}_{tf}",
                      lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True), 0.0, sem=_WM_WRITE_SEM)
     rows = [by[k] for k in sorted(by)]
@@ -1427,13 +1570,38 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
     return rows, rows[-1][0]
 
 
+def _wm_cold_behind(ticker_up: str, tf: str, tail, d_last) -> bool:
+    """The stored W/M tail is behind the stored daily AND the serve-time reconcile cannot make it current, because
+    the daily lacks a session of the period: the answer must come from the provider first (Layer 4's bounded,
+    deduped `_bounded_date_delta`, serving the store at its deadline), never stale-while-revalidate.
+    Behind = the daily's tail is in a LATER period, or in the same period with another close."""
+    try:
+        if not d_last:
+            return False
+        key_d, k = _wm_key_of(tf, int(d_last)), int(tail[0])
+        if k > key_d:
+            return False                   # the W/M row is ahead of the daily: nothing to bring forward
+        drows = _sqlite.get_bars(ticker_up, "D", _RECONCILE_DAILY_ROWS[tf])
+        if not drows:
+            return False
+        in_p = [r for r in drows if _wm_key_of(tf, int(r[0])) == key_d]
+        complete = _wm_period_rows_complete(tf, key_d, in_p, int(d_last))
+        if k == key_d:
+            return (not complete) and float(tail[4]) != float(drows[-1][4])
+        return not (complete and key_d == _wm_next_key(tf, k))
+    except Exception:                      # noqa: BLE001 — unknown: stale-while-revalidate, as before
+        return False
+
+
 def _wm_live_fresh(ticker_up: str, tf: str, last_ts) -> bool:
     """`_needs_fresh`'s W/M rule on a live daily: the stored tail is the period of the daily's tail and holds exactly
     what the stored daily derives."""
-    if last_ts is None or not _wm_live_daily(ticker_up):
+    if last_ts is None:
         return False
     try:
         d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if not _wm_live_daily(ticker_up, d_last):
+            return False
         if not d_last or int(last_ts) != _wm_key_of(tf, int(d_last)):
             return False
         return _wm_derived_tail(ticker_up, tf, int(last_ts)) == []
@@ -2205,6 +2373,8 @@ def _since_async_heal() -> bool:
 
 
 def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, date_tf: bool) -> None:
+    if _roles.defer_to_leader("since-heal", cache_key):   # a follower: the leader heals, this tail answers now
+        return
     """Bounded, deduped background delta heal for the `since=` path (Phase 1.4).
     Mirrors the first-paint `_bg_delta` spawn: acquire a bars-bg slot non-blocking
     (skip if the pool is full — the stale local delta was already served and the next
@@ -2268,31 +2438,100 @@ def _reconcile_developing_week(ticker: str, weekly: list[dict]) -> list[dict]:
     volume only grows inside a period, so the side with more volume is the fresher one; equal or
     less volume keeps the stored bar (newest wins, never regress). Sealed weeks are never touched.
     A daily week NEWER than the last weekly key (a Monday before the W store has this week) is
-    appended under its Friday key, the key `_resample_weekly_iso` would stamp."""
+    appended under its Friday key, the key `_resample_weekly_iso` would stamp.
+    ⛔ (review of #3001) only from a daily that holds EVERY session of the period (`_reconcile_developing_period`):
+    a week rebuilt from a daily with a hole lacks a session."""
+    return _reconcile_developing_period(ticker, "W", weekly)
+
+
+def _reconcile_developing_month(ticker: str, monthly: list[dict]) -> list[dict]:
+    """The developing MONTH from the stored daily, the monthly twin of `_reconcile_developing_week`.
+    ⛔⛔ (review of #3001, (b)) in RTH an uncovered name's first M answer was the stored M row, which can be WEEKS old
+    (ACIW M 61.26 against its 52.24 daily): uncovered = outside the snapshot, any name that did not print the previous
+    session (thin ETFs, preferreds, halts), every name after a day the poll was down."""
+    return _reconcile_developing_period(ticker, "M", monthly)
+
+
+#: newest stored daily rows the serve-time reconcile reads: a week, or a month (<= 23 sessions), plus margin
+_RECONCILE_DAILY_ROWS = {"W": 8, "M": 26}
+
+
+def _wm_period_end_ymd(tf: str, key: int) -> int:
+    if tf == "W":
+        return int(key)
+    s = str(int(key))
+    y, m = int(s[:4]), int(s[4:6])
+    nxt = datetime(y + (m == 12), 1 if m == 12 else m + 1, 1)
+    return int((nxt - timedelta(days=1)).strftime("%Y%m%d"))
+
+
+def _wm_period_rows_complete(tf: str, key: int, rows, d_last: int) -> bool:
+    """`rows` (the stored daily rows of the period `key`) are exactly the NYSE sessions from the period's start
+    through its end or the daily's tail, whichever is first: no hole at its start, inside, or at its end."""
+    start = _wm_period_start(tf, key)
+    end = min(_wm_period_end_ymd(tf, key), int(d_last))
+    have = sorted(int(r[0]) for r in rows)
+    want = []
+    s, e = str(start), str(end)
+    d, last = datetime(int(s[:4]), int(s[4:6]), int(s[6:])), datetime(int(e[:4]), int(e[4:6]), int(e[6:]))
+    while d <= last:
+        if _is_trading_day_ymd(d):
+            want.append(int(d.strftime("%Y%m%d")))
+        d += timedelta(days=1)
+    return bool(want) and have == want
+
+
+def _wm_next_key(tf: str, key: int) -> int:
+    s = str(int(key))
+    d = datetime(int(s[:4]), int(s[4:6]), int(s[6:]))
+    if tf == "W":
+        return int((d + timedelta(days=7)).strftime("%Y%m%d"))
+    return int(datetime(d.year + (d.month == 12), 1 if d.month == 12 else d.month + 1, 1).strftime("%Y%m%d"))
+
+
+def _reconcile_developing_period(ticker: str, tf: str, out_rows: list[dict]) -> list[dict]:
+    """The developing W/M period(s) rebuilt from the stored daily at the serve chokepoint (read-only, no provider
+    call): the stored tail is replaced when the daily derives MORE volume for it (newest wins, never regress), and the
+    NEXT period is appended when the daily already runs into it. Each one only from a daily holding every session of
+    that period so far (`_wm_period_rows_complete`); the first period that fails ends the walk (never a gap)."""
     try:
-        drows = _sqlite.get_bars(ticker, "D", 8)
+        drows = _sqlite.get_bars(ticker, "D", _RECONCILE_DAILY_ROWS[tf])
     except Exception:
-        return weekly
+        return out_rows
     if not drows:
-        return weekly
-    daily = []
+        return out_rows
+    daily, kept = [], []
     for ts, o, h, l, c, v in drows:
         if None in (o, h, l, c) or min(o, h, l, c) <= 0:
             continue
-        s = str(ts)
-        daily.append({"t": f"{s[:4]}-{s[4:6]}-{s[6:]}", "o": o, "h": h, "l": l, "c": c, "v": v or 0})
-    derived = _resample_weekly_iso(daily)
+        sd = str(ts)
+        kept.append((ts, o, h, l, c, v))
+        daily.append({"t": f"{sd[:4]}-{sd[4:6]}-{sd[6:]}", "o": o, "h": h, "l": l, "c": c, "v": v or 0})
+    if not daily:
+        return out_rows
+    derived = _resample_weekly_iso(daily) if tf == "W" else _resample_monthly_iso(daily)
     if not derived:
-        return weekly
-    last_key = weekly[-1]["t"]
-    out = list(weekly)
-    for wk in derived:
-        if wk["t"] == last_key:
-            if (wk.get("v") or 0) > (out[-1].get("v") or 0):
-                out[-1] = wk
-        elif wk["t"] > last_key:
-            out.append(wk)
-    return out
+        return out_rows
+    try:
+        d_last = int(kept[-1][0])
+        out = list(out_rows)
+        for p in derived:
+            k = int(p["t"].replace("-", ""))
+            tail = int(out[-1]["t"].replace("-", ""))
+            if k < tail:
+                continue
+            in_p = [r for r in kept if _wm_key_of(tf, int(r[0])) == k]
+            complete = _wm_period_rows_complete(tf, k, in_p, d_last)
+            if k == tail:
+                if complete and (p.get("v") or 0) > (out[-1].get("v") or 0):
+                    out[-1] = p
+                continue
+            if k != _wm_next_key(tf, tail) or not complete:
+                break
+            out.append(p)
+        return out
+    except Exception:                      # noqa: BLE001 — the store as it is
+        return out_rows
 
 
 # ⭐ THE ONE EXTENDED-SESSION RULE lives in `api/services/extended_session.py` (a light module, so the live gate and the
@@ -2394,6 +2633,8 @@ def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> l
             pass  # best-effort: never let the guard blank a chart
     if ticker and weekly and out:
         out = _reconcile_developing_week(ticker, out)
+    elif ticker and tf == "M" and out:
+        out = _reconcile_developing_month(ticker, out)
     if ticker and date_tf and out:
         try:
             from api.services.bars_sanitize import sanitize_daily_bars
@@ -2507,6 +2748,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     The endpoint paginates via a `next_url` field; we follow it until either
     the response stops returning a next_url or we hit the safety page cap.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     multiplier = int(tf)  # 1, 5, 15, 30, 60
     # Lookback scales with max_bars. 16hr/day to account for extended hours.
     # Massive/Polygon retains deep intraday (verified: 1-min back to >=2010,
@@ -2586,6 +2828,7 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
     Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
     FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
     re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if tf == "60":
         src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base, session-anchored
         return _resample_derived("60", src) if src else []
@@ -2691,6 +2934,7 @@ def _paginate_massive_aggs(client, url: str) -> list[dict]:
 
 def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from FMP (paid tier). Reliable, no rate limits."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     import os, urllib.request
     fmp_key = os.environ.get("FMP_API_KEY", "")
     if not fmp_key:
@@ -2746,6 +2990,7 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from yfinance (fallback). Includes premarket + after-hours."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services.yfinance_pool import fetch_history as _yf_fetch
     from concurrent.futures import TimeoutError as _YfTimeout
     config = _YF_CONFIG.get(tf)
@@ -3042,6 +3287,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     here, but the underlying 30-min fetch goes through fetch_with_validation
     (which itself iterates Massive → FMP → yfinance with per-bar validation).
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     import logging as _log
     _logger = _log.getLogger(__name__)
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
@@ -3652,6 +3898,7 @@ def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
     tight cap (see _REQUEST_YF_DAILY_TIMEOUT) so a cold chart open never blocks
     on a slow Yahoo call.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     ticker_up = ticker.upper()
     # Skip tickers in a recent-failure backoff window (Yahoo IP throttle / delisted).
     if _yf_daily_in_backoff(ticker_up):
@@ -3700,6 +3947,7 @@ def _fetch_yf_only(ticker_up: str, tf: str, max_bars: int) -> list[dict]:
     yfinance — Massive has no index data. Daily uses period='max'; weekly /
     monthly resample that; intraday reuses the yfinance intraday path.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if tf in ("1", "5", "15", "30", "60"):
         return _fetch_intraday_yfinance(ticker_up, tf, max_bars)
     yf_sym = _YF_ONLY.get(ticker_up, ticker_up)
@@ -3843,6 +4091,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     invoked by the nightly universe warmer — live user requests never call
     yfinance, ensuring zero latency impact.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     # ~1.5 calendar days per trading day, capped at 30 years to avoid strftime crash
@@ -3864,6 +4113,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
 
 def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     """Fetch weekly bars — daily from Massive (+ yfinance if deep), resampled."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if deep:
         # Build deep daily series first, then resample. Need enough daily bars
         # to cover max_bars weeks: ~5 trading days/week + buffer.
@@ -3909,6 +4159,7 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
 
 def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if deep:
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
         monthly = _add_only_periods(daily, _resample_monthly_iso(daily), "M")
@@ -4170,6 +4421,279 @@ def _replay_effective_symbol(ticker: str, to_str: str) -> str:
     return ticker
 
 
+# ── NO SPLICE ACROSS AN UNPROVEN GAP (2026-11-27) ─────────────────────────────────
+# ⛔ MEASURED ON PRODUCTION: MSFT 15m `to=2016-06-30` bars=1000 answered 999 rows "spanning"
+# 2008-05-13 -> 2016-06-30: 998 dense rows of June 2016 plus ONE row from an older island
+# that an earlier replay had stored. AAPL 60m bars=20000 (the newest-N read) stitched
+# 2008/2012/2016/2020 islands into one series with four 3-4-year jumps. The store holds
+# whatever windows were ever fetched; a read of "the N rows before X" walks straight through
+# a hole nobody ever fetched, and both coverage checks (`len >= 0.9 * bars`, newest row within
+# 7 days) call the result covered, so the hole is never asked for. The chart draws the two
+# eras as adjacent candles, and its scroll-back then asks from the island's date, so the
+# skipped years are never requested at all.
+# ⭐ THE RULE: an intraday read is cut at the first gap longer than `_SPLICE_GAP_S` (newest
+# side kept) UNLESS the provider was asked for a stretch that spans the whole gap: then the
+# hole is what the provider has (a halt, a thin name) and the read continues through it.
+# Proof is per (ticker, tf), in process, merged, for `_PROVEN_SPAN_TTL`; a lost proof costs
+# one re-fetch, never a wrong answer. 7 calendar days: the longest market closure on record
+# (Sep 2001) leaves a gap just under 7 days between bars.
+_SPLICE_GAP_S = int(float(_os.environ.get("BARS_SPLICE_GAP_DAYS", "7")) * 86400)
+_PROVEN_SPAN_TTL = int(_os.environ.get("BARS_PROVEN_SPAN_TTL_SECONDS", str(24 * 3600)))
+_PROVEN_SPAN_MAX = 64
+_INTRADAY_TFS_SET = frozenset(("1", "5", "15", "30", "60"))
+# ⭐ ITS OWN STORE, NOT THE SHARED LRU. The app cache holds 1,000 keys and bars payloads churn
+# it; a proof evicted there would cost a thin name a re-fetch on every read. One small list of
+# (lo, hi) pairs per (ticker, tf) that was ever fetched.
+from api.services.cache import TTLCache as _TTLCache   # noqa: E402
+_proven_cache = _TTLCache(max_size=int(_os.environ.get("BARS_PROVEN_SPAN_KEYS", "50000")))
+
+
+def _proven_key(ticker_up: str, tf: str) -> str:
+    return f"vspan_{ticker_up}_{tf}"
+
+
+def proven_spans(ticker: str, tf: str) -> list:
+    """[(lo, hi), ...] unix-second stretches the provider has answered for (merged, sorted)."""
+    got = _proven_cache.get(_proven_key(str(ticker).upper(), tf))
+    return list(got) if got else []
+
+
+def note_provider_span(ticker: str, tf: str, lo: int, hi: int) -> None:
+    """Record that the provider answered for [lo, hi] and what it had there is stored."""
+    try:
+        lo, hi = int(lo), int(hi)
+        if tf not in _INTRADAY_TFS_SET or hi <= lo:
+            return
+        spans = sorted(proven_spans(ticker, tf) + [(lo, hi)])
+        merged: list = []
+        for a, b in spans:
+            if merged and a <= merged[-1][1] + 1:          # touching day bounds join too
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        _proven_cache.set(_proven_key(str(ticker).upper(), tf), merged[-_PROVEN_SPAN_MAX:],
+                          ttl=_PROVEN_SPAN_TTL)
+    except Exception:                      # noqa: BLE001 — a missing proof only costs a re-fetch
+        pass
+
+
+def _note_fetch_span(ticker_up: str, tf: str, rows, checked_at: float) -> None:
+    """A full / deep fetch asked at `checked_at` answered `rows` and they are stored: the
+    provider has nothing else between its oldest row and `checked_at`. ⛔ Never from a
+    FALLBACK answer (FMP RTH-only, yfinance 7 days): its holes are not the provider's."""
+    if tf not in _INTRADAY_TFS_SET or _last_intraday_fetch_was_fallback():
+        return
+    try:
+        ts = [int(b["t"]) for b in (rows or []) if isinstance(b.get("t"), (int, float))]
+        if ts:
+            note_provider_span(ticker_up, tf, min(ts), int(checked_at))
+    except Exception:                      # noqa: BLE001
+        pass
+
+
+_itemgetter0 = _itemgetter(0)
+
+
+def _contiguous_tail(ticker_up: str, tf: str, rows):
+    """The run of `rows` (oldest-first, ts first) ending at the newest row that crosses no
+    unproven gap. Non-intraday tfs and short reads pass through untouched.
+    ⚡ The warm path pays two C-level passes (itemgetter map + max over the deltas, ~1 ms
+    on 20,000 rows); the Python walk runs only on a read that HAS a long gap."""
+    if tf not in _INTRADAY_TFS_SET or not rows or len(rows) < 2:
+        return rows
+    gap = _SPLICE_GAP_S
+    try:
+        if rows[-1][0] - rows[0][0] <= gap:          # the whole read is shorter than one gap
+            return rows
+        ts = list(map(_itemgetter0, rows))
+        if max(map(_op_sub, ts[1:], ts[:-1])) <= gap:
+            return rows
+    except TypeError:                                 # a non-numeric ts: never guess, pass through
+        return rows
+    spans = proven_spans(ticker_up, tf)
+    newer = ts[-1]
+    for i in range(len(ts) - 1, 0, -1):
+        older = ts[i - 1]
+        if newer - older > gap and not any(lo <= older and newer <= hi for lo, hi in spans):
+            return rows[i:]
+        newer = older
+    return rows
+
+
+def read_newest(ticker: str, tf: str, n: int, with_raw: bool = False):
+    """THE chart read of a series' newest `n` rows: `bars_sqlite.get_bars` cut at the first
+    unproven gap (`_contiguous_tail`). Every path that SERVES (or seeds, or caches for serving)
+    a newest-N intraday window reads through this, never `get_bars` directly.
+
+    `with_raw=True` returns `(rows, stored_n)`: `stored_n` is how many rows the store HELD
+    for the ask, before the cut. ⛔ DEPTH IS JUDGED ON `stored_n`, NEVER ON THE CUT
+    (review #2951 M3): a cut is "do not draw across this hole", not "fetch the newest
+    window again". Counted as missing depth, a name the provider has not printed for days
+    (whose full fetch comes back stale, persists nothing and so proves nothing) was cut,
+    called partial and refetched on every poll. The hole behind a cut is filled by the
+    chart's own scroll-back (`to=`, `_fill_to_window`) and the background deepfill."""
+    t = str(ticker).upper()
+    raw = _sqlite.get_bars(t, tf, n)
+    rows = _contiguous_tail(t, tf, raw)
+    return (rows, len(raw or ())) if with_raw else rows
+
+
+def _et_day_bounds(ymd: str) -> tuple[int, int]:
+    d = datetime.strptime(str(ymd), "%Y-%m-%d")
+    tz = _ZI("America/New_York")
+    return (int(datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=tz).timestamp()),
+            int(datetime(d.year, d.month, d.day, 23, 59, 59, tzinfo=tz).timestamp()))
+
+
+def _rows_per_session(rows) -> float | None:
+    """Observed rows per ET session of a read (None under two sessions: too little to say)."""
+    try:
+        tz = _ZI("America/New_York")
+        days = {datetime.fromtimestamp(int(r[0]), tz).date() for r in rows}
+        return (len(rows) / len(days)) if len(days) >= 2 else None
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+def _to_window_lookback_days(tf: str, bars: int, run, density_rows=None) -> int:
+    """Calendar days to fetch before a `to=` window's oldest row (or before the cutoff when
+    nothing is stored) so the window can reach `bars`. Sized from the series' OBSERVED rows
+    per session; with no observation, from the REGULAR session (6.5 h), which over-fetches a
+    name that prints extended hours rather than under-fetching a thin one. ⛔ Never from
+    `16*60/tf`: that assumes every extended-hours slot prints, a stock prints ~31-47 of 64
+    15m slots, and the window came back SHORT (MSFT 15m: 998 of 1000)."""
+    mult = max(int(tf), 1)
+    density = (_rows_per_session(density_rows if density_rows is not None else run)
+               or max(1.0, 390.0 / mult))
+    need = int(bars) - (len(run) if run else 0)
+    need = max(1, min(need, _REPLAY_INTRADAY_COLD_BARS))
+    return min(_TO_FILL_ROUND_MAX_DAYS, max(10, int(need / max(density, 1.0) * 1.5) + 5))
+
+
+#: Rounds a `to=` window job may fetch further back while its contiguous run is short.
+_TO_FILL_MAX_ROUNDS = int(_os.environ.get("BARS_TO_FILL_MAX_ROUNDS", "4"))
+#: The widest window one fill round may ask for (also `_to_window_lookback_days`'s ceiling).
+_TO_FILL_ROUND_MAX_DAYS = 400
+#: The provider's intraday floor (Replay Mode, `_fetch_intraday_range`).
+_INTRADAY_FLOOR_YMD = "2003-09-01"
+
+
+#: (review of #3011, F2) the empty stretch before a window that proves a LISTING'S START. Two empty rounds as small as
+#: 10/20 days are a vendor gap or a halt, not the start of a series: they end the fill but prove nothing.
+_TO_LISTING_EMPTY_DAYS = 400
+
+
+def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
+                    from_ymd: str, to_ymd: str) -> tuple:
+    """Fetch [from_ymd, to_ymd], persist it, PROVE the span; while the contiguous run ending
+    at the cutoff is still short of `bars`, fetch the stretch before (window doubling) until
+    the count is reached, the provider's floor, `_TO_FILL_MAX_ROUNDS`, or two EMPTY windows
+    in a row (the provider has no more there: a listing's start; one empty window alone
+    does not stop it, a halt can outlast one). Raises on a provider or store fault, so the
+    caller leaves the window un-marked and the next ask retries. `fetch` is resolved by the
+    caller once, so every round asks the same provider.
+    Returns `(reason, count)`: `count` = the rows of the run ending at the cutoff; `reason` = "count" (the ask is
+    held), "floor" (the provider's floor reached), "listing" (two empty rounds spanning >= `_TO_LISTING_EMPTY_DAYS`,
+    or no DAILY bar before the run's oldest row: the series starts there), "gap" (two empty rounds and the daily says
+    the series traded before, or the provider faulted: proves nothing), "rounds" (rounds used up)."""
+    lo_ymd, hi_ymd = str(from_ymd), str(to_ymd)
+    empty_rounds = 0
+    empty_days = 0
+    run = []
+    for _round in range(max(1, _TO_FILL_MAX_ROUNDS)):
+        _t0 = _time.time()                 # this fetch's provider check instant
+        got = [b for b in fetch(ticker_up, tf, lo_ymd, hi_ymd, raise_errors=True)
+               if int(b.get("t", 0)) <= to_key]
+        if got:
+            try:
+                with _provider_write(_t0):
+                    _sqlite.put_bars(ticker_up, tf, got, date_tf=False)
+            except Exception as _we:       # noqa: BLE001
+                import logging as _log_tw
+                _log_tw.getLogger(__name__).warning(
+                    "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
+                    ticker_up, tf, hi_ymd, type(_we).__name__, _we)
+                raise
+        _span_days = (datetime.strptime(hi_ymd, "%Y-%m-%d") - datetime.strptime(lo_ymd, "%Y-%m-%d")).days
+        empty_rounds = 0 if got else empty_rounds + 1
+        empty_days = 0 if got else empty_days + _span_days
+        note_provider_span(ticker_up, tf, _et_day_bounds(lo_ymd)[0],
+                           min(int(to_key), _et_day_bounds(hi_ymd)[1]))
+        run = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
+        if len(run) >= int(bars):
+            return "count", len(run)
+        if lo_ymd <= _INTRADAY_FLOOR_YMD:
+            return "floor", len(run)
+        if empty_rounds >= 2:
+            if empty_days >= _TO_LISTING_EMPTY_DAYS:
+                return "listing", len(run)
+            # ⛔⛔ (review of #3011, F2 round 2) the rounds grow only x2 from density, so a RECENT listing's empty
+            # rounds span ~60 days, never 400: without a second fact it was never proven, and its window answered
+            # `filling` (or, scrolled back past the start, the warming 503) forever. The DAILY series is that fact:
+            # no daily bar in the stored daily or the provider's daily before the run's oldest row (before the
+            # cutoff, when the run is empty) = the series starts there.
+            try:
+                if run:
+                    _through = (datetime.fromtimestamp(int(run[0][0]), _ZI("America/New_York")).date()
+                                - timedelta(days=1)).isoformat()
+                else:
+                    _through = datetime.fromtimestamp(int(to_key), _ZI("America/New_York")).date().isoformat()
+            except Exception:              # noqa: BLE001
+                _through = None
+            if _through and _daily_traded_through(ticker_up, _through) is False:
+                return "listing", len(run)
+            return "gap", len(run)
+        # ⛔ EACH ROUND IS SIZED, NEVER BLINDLY DOUBLED (review #2951 L2). Doubling alone took a
+        # thin 1m name from a 400-day first window to 3,200 days by the last round. The next
+        # window is what the rows still missing need at the run's OBSERVED density
+        # (`_to_window_lookback_days`, <= 400 days); only after an EMPTY window (a halt the
+        # density says nothing about) does it grow, to twice the last one, still <= 400.
+        span = (datetime.strptime(hi_ymd, "%Y-%m-%d") - datetime.strptime(lo_ymd, "%Y-%m-%d")).days
+        days = _to_window_lookback_days(tf, bars, run)
+        if empty_rounds:
+            days = min(_TO_FILL_ROUND_MAX_DAYS, max(days, span * 2))
+        hi_ymd = lo_ymd
+        lo_ymd = max(_INTRADAY_FLOOR_YMD, (datetime.strptime(hi_ymd, "%Y-%m-%d")
+                                           - timedelta(days=days)).strftime("%Y-%m-%d"))
+    return "rounds", len(run)
+
+
+def _daily_traded_through(ticker_up: str, through_iso: str):
+    """Did the series trade on or before `through_iso` (YYYY-MM-DD)? True when the stored daily or the provider's
+    daily holds a bar there (the provider over the `_TO_LISTING_EMPTY_DAYS` before it); False when neither does and
+    the provider ANSWERED (no fault: `provider_fault_scope`); None when the provider faulted (unknown, proves nothing)."""
+    try:
+        through_key = int(through_iso.replace("-", ""))
+        if _sqlite.get_bars_before(ticker_up, "D", 1, through_key):
+            return True
+    except Exception:                      # noqa: BLE001 — the store unreadable: ask the provider
+        pass
+    try:
+        from api.services import massive, provider_fault_scope
+        d = datetime.strptime(through_iso, "%Y-%m-%d")
+        frm = (d - timedelta(days=_TO_LISTING_EMPTY_DAYS)).strftime("%Y-%m-%d")
+        with provider_fault_scope.scope() as sc:
+            raw = massive.get_agg_bars(ticker_up, frm, through_iso)
+        if raw:
+            return True
+        return False if sc.clean else None
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+#: (review of #3011, LOAD) after a window fetch that did not prove the window, re-asks inside this many seconds answer
+#: from the store (filling / warming) without a new provider fetch.
+_TO_WINDOW_FAIL_TTL = 20
+
+
+def _to_window_proven(marker, bars) -> bool:
+    """The `towin_*` marker proves the store holds all there is for an ask of `bars`: the fill ended FINAL (the
+    provider's floor, a listing's start) or it held at least `bars` rows. A marker set for a smaller ask in the same
+    depth tier does not prove a larger one; a marker of the old shape (`1`) proves nothing."""
+    return isinstance(marker, dict) and (bool(marker.get("final"))
+                                         or int(marker.get("n") or 0) >= min(int(bars), _REPLAY_INTRADAY_COLD_BARS))
+
+
 def _replay_warming_response(resp_ticker: str, tf: str) -> JSONResponse:
     """The deliberate warming 503 for a replay window still landing (edge passes it)."""
     _mark_serve("replay-warming")
@@ -4226,6 +4750,17 @@ def _bounded_job(key: str, fn, deadline: float, sem=None, slot_wait: float = 0.0
     return ev.wait(timeout=_bounded_wait(deadline))
 
 
+def _to_window_filling_response(resp_ticker: str, tf: str, bars_out: list) -> JSONResponse:
+    """A `to=` window answer holding FEWER bars than asked that nothing has proven final: the stored part, flagged
+    `filling` (the client re-asks it: `useBarSnapshotBars`) and `short` (not final), with Retry-After, and `no-store`:
+    a cached copy would answer the 3 s re-ask from the browser's HTTP cache (review of #3011, F3)."""
+    _mark_serve("to-filling")
+    r = JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": bars_out, "filling": True, "short": True},
+                     headers={"Cache-Control": "no-store"})
+    r.headers["Retry-After"] = "3"
+    return r
+
+
 def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
@@ -4253,9 +4788,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     resp_ticker = ticker_up
     ticker_up = _replay_effective_symbol(ticker_up, to_str)
     try:
-        rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        # ⛔ Never an older island spliced in and counted as coverage (see `_contiguous_tail`).
+        rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
     except Exception:
         rows = []
+    _date_done = False      # D/W/M: the deep fetch ANSWERED with rows and they were stored (all there is)
+    _date_proof = {"ok": False}
     if not rows and date_tf:
         # SQLite has nothing at/before the cutoff (e.g. a 2008 replay on a name whose deep
         # history never reached this pod — the sort read it from grouped-daily, not bars.db).
@@ -4272,16 +4810,23 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                     else _fetch_weekly(ticker_up, bars, deep=True) if tf == "W"
                     else _fetch_monthly(ticker_up, bars, deep=True))
             if deep:
-                try:
-                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
-                except Exception:
-                    pass
+                # ⛔ (review of #3011, F1) the proof is set only when the provider answered with rows AND they were
+                # stored. `_bounded_job` swallows a raise and `_done` only says the job ENDED, so "done" read a
+                # provider error as a proven-empty window and answered a TERMINAL 200 no_data.
+                _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
+                _date_proof["ok"] = True
+        _deep_fail_key = f"towinfail_{ticker_up}_{tf}_deep"
         try:
+            if cache.get(_deep_fail_key) is not None:      # (review of #3011, LOAD) just failed: no new fetch
+                return _replay_warming_response(resp_ticker, tf)
             _done = _bounded_job(f"replayto-deep::{ticker_up}::{tf}", _replay_deep_job,
                                  _DEEP_DEADLINE_SECONDS, sem=_replay_cold_sem,
                                  slot_wait=0.0 if warm else 1.0)
+            _date_done = bool(_done) and _date_proof["ok"]
+            if _done and not _date_proof["ok"]:
+                cache.set(_deep_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
-            if not rows and not _done:
+            if not rows and not _date_done:
                 return _replay_warming_response(resp_ticker, tf)
         except Exception:
             rows = rows or []
@@ -4305,15 +4850,26 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
-                and cache.get(_win_key) is None):
+        # ⛔ (2026-11-28) SHORT = FEWER THAN ASKED, not fewer than 0.9 x: 1,086 of 1,152 was served as complete
+        # with max-age=3600 (a short chart at a past date, pinned for an hour at the edge too).
+        if (not _intraday_window_missing and rows and len(rows) < int(bars)
+                and not _to_window_proven(cache.get(_win_key), bars)):
             _intraday_window_short = True
             try:
                 _fetch_to_str = datetime.fromtimestamp(
                     int(rows[0][0]), _ZI("America/New_York")).strftime("%Y-%m-%d")
             except Exception:
                 _intraday_window_short = False
-    if _intraday_window_missing or _intraday_window_short:
+    _win_fail_key = "towinfail_" + _win_key[len("towin_"):]
+    if (_intraday_window_missing or _intraday_window_short) and (
+            cache.get(_win_fail_key) is not None or _to_window_proven(cache.get(_win_key), bars)):
+        # ⛔ (review of #3011, LOAD) a fetch for this window just failed to prove it (or it is proven): re-polls answer
+        # from the store, never a new fetch per re-poll
+        _intraday_window_short = False
+        _intraday_window_missing_fetch = False
+    else:
+        _intraday_window_missing_fetch = _intraday_window_missing
+    if _intraday_window_missing_fetch or _intraday_window_short:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
@@ -4325,10 +4881,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
         # DEDUPED via _inflight so the burst from warming all intraday TFs on replay-start
         # (or a poll during the fetch) doesn't stampede the provider for the same window.
         try:
-            mult = int(tf)
-            bars_per_day = (16 * 60) // max(mult, 1)
             eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
-            lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
+            # Sized from the rows the series ACTUALLY prints per session (see
+            # `_to_window_lookback_days`); a missing window's stored rows are another era,
+            # so they count for density only, never toward the ask.
+            lookback_days = _to_window_lookback_days(
+                tf, eff_bars, rows if _intraday_window_short else [],
+                density_rows=rows)
             _to_d = datetime.strptime(_fetch_to_str, "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
             cold_key = f"replayto::{ticker_up}::{tf}::{_fetch_to_str}"
@@ -4355,27 +4914,22 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
-                            _t0 = _time.time()    # this fetch's provider check instant
-                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
-                                    if int(b.get("t", 0)) <= to_key]
-                            _stored_ok = True
-                            if deep:
-                                try:
-                                    with _provider_write(_t0):
-                                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                                except Exception as _we:   # noqa: BLE001
-                                    _stored_ok = False
-                                    import logging as _log_tw
-                                    _log_tw.getLogger(__name__).warning(
-                                        "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
-                                        ticker_up, tf, _fetch_to_str, type(_we).__name__, _we)
-                            # The provider has answered AND the answer is stored: what is
-                            # stored now is all there is. A failed fetch or a failed write
-                            # leaves the window un-marked, so the next ask retries it.
-                            if _stored_ok:
-                                cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
+                            # Fetch the window, persist it, PROVE its span, and keep
+                            # reaching back while the contiguous run ending at the cutoff
+                            # is still short (`_fill_to_window`).
+                            _why, _n = _fill_to_window(_fetch_intraday_range, ticker_up, tf, eff_bars,
+                                                       to_key, from_ymd, _fetch_to_str)
+                            # The provider has answered AND the answer is stored. It PROVES the window
+                            # only when the run holds the ask or the fill ended final (the floor, a
+                            # listing's start; review of #3011, F2): a short vendor gap or rounds used
+                            # up prove nothing. A failed fetch or a failed write RAISES out of the fill.
+                            if _why in ("floor", "listing") or _n >= int(eff_bars):
+                                cache.set(_win_key, {"n": int(_n), "final": _why in ("floor", "listing")},
+                                          ttl=_TO_WINDOW_TTL)
+                            else:
+                                cache.set(_win_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
                         except Exception:     # noqa: BLE001 — background
-                            pass
+                            cache.set(_win_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
                         finally:
                             _replay_cold_sem.release()
                             with _inflight_lock:
@@ -4397,7 +4951,7 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             else:
                 # another request is fetching this exact window — wait (bounded), then read
                 ev.wait(timeout=_bounded_wait(_win_wait + 0.5))
-            rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+            rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
             # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
             # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
             # cover the window — serving it as a 1 h-cacheable answer paints the wrong
@@ -4416,17 +4970,29 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
                 # window is real and in order: serve it now, flagged `filling`, and tell
                 # the client when the rest should be there.
-                _mark_serve("to-filling")
-                r = JSONResponse(
-                    content={"ticker": resp_ticker, "tf": tf,
-                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
-                    headers={"Cache-Control": "public, max-age=5"})
-                r.headers["Retry-After"] = "3"
-                return r
+                return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
         except Exception:
             rows = rows or []
+    # ⛔⛔ (2026-11-28) A WINDOW ANSWER IS COMPLETE ONLY WHEN IT HOLDS WHAT WAS ASKED OR THE STORE IS PROVEN TO HOLD ALL
+    # THERE IS (`_win_key`: set only after a cold fetch answered AND its rows were stored; D/W/M: the deep job ran).
+    # Members saw short charts at past dates (738-1,086 of 1,152 on cold windows): a cold fetch that got no slot
+    # (`_replay_cold_sem`) or whose thread failed re-read with `_replay_running` False and served the short rows as
+    # static history for an hour, and a window with NO stored rows fell to `_get_bars_inner`, the RECENT bars, which
+    # the client's cutoff turns into an EMPTY window.
+    _proven = _date_done if date_tf else _to_window_proven(cache.get(_win_key), bars)
     if not rows:
-        return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
+        if _proven:
+            # the fetch answered and nothing exists before the cutoff: an honest, settled empty answer
+            _mark_serve("to-no-data")
+            return JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": [],
+                                         "no_data": True, "reason": "no_provider_data"},
+                                headers={"Cache-Control": "public, max-age=300"})
+        return _replay_warming_response(resp_ticker, tf)       # never the recent bars: re-poll the window
+    if not date_tf and not _proven and (_intraday_window_missing or len(rows) < int(bars)):
+        if _intraday_window_missing:
+            # only another era is stored and nothing has proven the window empty: warming, never the wrong era
+            return _replay_warming_response(resp_ticker, tf)
+        return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
     _mark_serve("sqlite")
     payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     # A window that is STILL not covered (the fetch finished without reaching it) is
@@ -4460,6 +5026,8 @@ def kick_snapshot_warm(ticker: str, tf: str, need_before_ymd: int | None = None)
       deep-fill semaphore, with the caller's cutoff day so an already-deep
       store short-circuits instead of re-fetching 30 years.
     Returns whether a warm was dispatched."""
+    if _roles.defer_to_leader('kick_snapshot_warm', f"{ticker}_{tf}"):   # a follower: best effort, the leader runs it
+        return False
     if _os.environ.get("PYTEST_CURRENT_TEST"):
         return False
     tu = (ticker or "").strip().upper()
@@ -4639,7 +5207,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     else:
         # Degenerate since (parse failure / 0): preserve the old bounded window
         # rather than returning the entire history unbounded.
-        new_rows = _sqlite.get_bars(ticker_up, tf, bars)
+        new_rows = read_newest(ticker_up, tf, bars)
     delta = _fmt_sqlite_bars(new_rows, tf, ticker_up) if new_rows else []
 
     # Invalidate the full cache so the next non-delta request picks up fresh data
@@ -4712,7 +5280,7 @@ def shutdown_bars_warm_pool() -> None:
 # layer the moment the bg fetch lands. No request thread is ever held on a provider.
 _cold_bg_pool = _BarsWarmExecutor(max_workers=_COLD_FETCH_CONCURRENCY,
                                   thread_name_prefix="bars-cold-bg")
-_cold_bg_inflight: set[str] = set()
+_cold_bg_inflight: set[str] = _roles.LeaderOnlySet(what="cold bg fetch")
 _cold_bg_lock = _threading.Lock()
 _COLD_BG_QUEUE_MAX = _COLD_FETCH_CONCURRENCY * 4   # running + a small queue; drop beyond
 
@@ -4818,6 +5386,8 @@ def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     provider already answered "nothing" for is not re-asked until its TTL lapses."""
     if cold_negative(ticker_up, tf):
         return
+    if _roles.defer_to_leader("cold-fetch", f"{ticker_up}_{tf}"):
+        return                             # a follower: the leader fetches; this request sheds as before
     key = f"{ticker_up}_{tf}"
     with _cold_bg_lock:
         if key in _cold_bg_inflight or len(_cold_bg_inflight) >= _COLD_BG_QUEUE_MAX:
@@ -4973,12 +5543,12 @@ def _start_bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool):
 _DATE_DELTA_DEADLINE_SECONDS = float(
     _os.environ.get("BARS_DATE_DELTA_DEADLINE_SECONDS", "6.0"))
 _DATE_DELTA_MAX = max(1, int(_os.environ.get("BARS_DATE_DELTA_MAX", "8")))
-_date_delta_sem = _threading.Semaphore(_DATE_DELTA_MAX)
+_date_delta_sem = _roles.LeaderOnlySemaphore(_DATE_DELTA_MAX, what="D/W/M delta")
 # ⭐ Warm (`warm=1`) traffic may hold at most this many of the slots, so a list
 # pre-warm can never starve the chart a member clicked (review F3).
 _DATE_DELTA_WARM_MAX = max(1, min(_DATE_DELTA_MAX - 2, int(
     _os.environ.get("BARS_DATE_DELTA_WARM_MAX", str(max(1, _DATE_DELTA_MAX - 2))))))
-_date_delta_warm_sem = _threading.Semaphore(_DATE_DELTA_WARM_MAX)
+_date_delta_warm_sem = _roles.LeaderOnlySemaphore(_DATE_DELTA_WARM_MAX, what="D/W/M warm delta")
 #: How long an INTERACTIVE request may wait for a free slot (from its budget).
 _DATE_DELTA_SLOT_WAIT_S = 1.0
 #: In-process (non-edge) callers keep the original blocking semantics, with a
@@ -5064,7 +5634,7 @@ _TAIL_GAPFILL_RETRY_S = float(_os.environ.get("BARS_TAIL_GAPFILL_RETRY_S", "60")
 _TAIL_GAPFILL_MAX = max(1, int(_os.environ.get("BARS_TAIL_GAPFILL_MAX", "2")))
 _TAIL_GAPFILL_QUEUE_MAX = 500
 _TAIL_GAPFILL_MAX_KEYS = 20000
-_tail_gapfill_sem = _threading.Semaphore(_TAIL_GAPFILL_MAX)
+_tail_gapfill_sem = _roles.LeaderOnlySemaphore(_TAIL_GAPFILL_MAX, what="tail gap-fill")
 _tail_gapfill_at: dict = {}          # key -> monotonic instant before which no new pass
 _tail_gapfill_pending: dict = {}     # insertion-ordered queue of keys waiting for a slot
 _tail_gapfill_lock = _threading.Lock()
@@ -5076,6 +5646,8 @@ def _gapfill_disabled_in_tests() -> bool:
 
 def _kick_tail_gapfill(ticker_up: str, tf: str) -> bool:
     """Schedule the full-window gap-fill pass for (ticker, tf). True when started now."""
+    if _roles.defer_to_leader('_kick_tail_gapfill', f"{ticker_up}_{tf}"):   # a follower: best effort, the leader runs it
+        return False
     if _DELTA_GAPFILL_DAYS <= 0 or tf not in ("1", "5", "15", "30", "60"):
         return False
     # pytest NO-OP (same reason as `_maybe_kick_deepfill`): a background thread that
@@ -5546,11 +6118,12 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         last_ts = _sqlite.get_last_ts(ticker_up, tf)
         if last_ts is None:
             return None
-        stored_rows = _sqlite.get_bars(ticker_up, tf, bars)
+        stored_rows, _stored_n = read_newest(ticker_up, tf, bars, with_raw=True)
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
+        # Depth is the store's (`stored_n`): a cut is not missing depth (`read_newest`).
         if not stored_rows or not (
-            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
+            _stored_n >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
@@ -5606,7 +6179,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("live_drv")
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     _time_ck("last_ts")
-    stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+    # ⛔ Never an older island spliced in and counted as depth (see `_contiguous_tail`).
+    stored_rows, _stored_n = (read_newest(ticker_up, tf, bars, with_raw=True)
+                              if last_ts is not None else ([], 0))
     _time_ck("get_bars")
     # 60m grid migration, serve-time half (the bounded boot sweep is the other):
     # rows in the pre-2026-11-10 clock-hour layout are never served. The ticker's
@@ -5616,17 +6191,22 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         try:
             rebuild_sixty_min_grid(ticker_up)
             last_ts = _sqlite.get_last_ts(ticker_up, tf)
-            stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+            stored_rows, _stored_n = (read_newest(ticker_up, tf, bars, with_raw=True)
+                                      if last_ts is not None else ([], 0))
         except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
-            last_ts, stored_rows = None, []
+            last_ts, stored_rows, _stored_n = None, [], 0
 
     # W/M on a live daily (`_wm_overlay`): the answer carries the periods the stored daily derives, whatever happens to
     # their write (background, deduped, never awaited); `wm_drv` on Server-Timing is the derive's cost.
     _wm_live = False
+    _wm_cold = False
     if tf in ("W", "M") and stored_rows:
-        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars)
+        _d_last_wm = _sqlite.get_last_ts(ticker_up, "D")
+        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars, _d_last_wm)
         if _ov is not None:
             stored_rows, last_ts, _wm_live = _ov[0], _ov[1], True
+        else:
+            _wm_cold = _wm_cold_behind(ticker_up, tf, stored_rows[-1], _d_last_wm)
         _time_ck("wm_drv")
 
     # SQLite has fresh data AND enough rows for this request count.
@@ -5645,11 +6225,16 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # A 15m/30m/60m rebuilt from the live 5m changes every few seconds too: cache it as
     # briefly as a covered series (never pinned for the normal intraday TTL).
     _live_ttl = (_live or (_bls is not None and _live_derived_proof(ticker_up, tf) is not None)
-                 or (tf in ("W", "M") and _wm_live_daily(ticker_up)))
+                 # ⛔ (review of #3001, LOW) only a LIVE daily moves: W/M derived from a stored daily off-hours (a
+                 # weekend) keep the normal TTL, or 500 members re-derive unchanging data every 10 s
+                 or (tf in ("W", "M") and _bls is not None and _bls.covered(ticker_up, "D")))
     _time_ck("live_cov")
     _fresh_needed = False if _wm_live else (_needs_fresh(last_ts, tf, ticker_up) if stored_rows else True)
+    # The store's depth for this ask: the rows it HELD, before an unproven gap cut them (a
+    # cut is never missing depth, `read_newest`), or the W/M overlay's derived rows.
+    _depth_n = max(len(stored_rows), _stored_n)
     if stored_rows and not _fresh_needed and (
-        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
+        _depth_n >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
@@ -5687,6 +6272,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         and (not _is_cold_stale_intraday(tf, last_ts) or _intraday_deblockable(tf, last_ts))
         and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
         and not _is_cold_stale_weekly(tf, last_ts)
+        and not _wm_cold
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
@@ -5701,7 +6287,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # backfill of a stock with fewer bars than requested) — then it's NOT
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
-        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
+        is_partial = _depth_n < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
 
         # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
         # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF
@@ -5751,7 +6337,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         _mark_serve("deep-deadline")
                     if not _deep_tail_ok:
                         _mark_serve("delta-deadline")
-                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    fresh_rows = read_newest(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
                         "bars": _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up),
@@ -5838,7 +6424,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _sd_done = _bounded_delta(ticker_up, tf, last_ts, False)
                     if not _sd_done:
                         _mark_serve("sd-deadline")
-                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars) if _sd_done else stored_rows
+                    _sd_rows = read_newest(ticker_up, tf, bars) if _sd_done else stored_rows
                     if _sd_partial:
                         # Depth is still short: hand the (now tail-repaired) rows to the
                         # stale-while-revalidate block below, which serves them and kicks
@@ -5894,7 +6480,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             # spawn entirely — the stale payload is still served below and SWR
             # retries shortly, so freshness lags at most one poll instead of
             # the pod melting down under an unbounded thread pile-up.
-            if cache_key not in _inflight and _bg_delta_sem.acquire(blocking=False):
+            if _roles.defer_to_leader("swr-delta", cache_key):
+                pass                       # a follower: the stale payload answers, the leader refreshes
+            elif cache_key not in _inflight and _bg_delta_sem.acquire(blocking=False):
                 _bg_ev = _threading.Event()
                 _inflight[cache_key] = _bg_ev
 
@@ -5952,7 +6540,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         # the serve already read — this skips a redundant multi-thousand-row
                         # get_bars().fetchall() (SQLite-C holds the GIL) on every idle poll,
                         # which is the dominant bg-delta contention under a warm flood.
-                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars) if new else _stored
+                        fresh_rows = read_newest(_sym, _tf, _bars) if new else _stored
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
                             "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf, _sym),
@@ -6086,7 +6674,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _completed = _bounded_delta(ticker_up, tf, last_ts, date_tf)
                 if _completed:
                     # Read fresh rows from SQLite (includes the new bars)
-                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    fresh_rows = read_newest(ticker_up, tf, bars)
                     result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up)
                 else:
                     # Deadline expired or no capacity. Serve what we hold; the job
@@ -6325,6 +6913,7 @@ def fetch_with_validation(
     data while FMP/yfinance had the fresh session. Validation still gates every
     candidate — a stale source never licenses admitting a corrupt one.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services import source_circuit_breaker as _scb
 
     best_stale = None  # (last_session_yyyymmdd, payload, source) — freshest valid fallback

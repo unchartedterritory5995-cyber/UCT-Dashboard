@@ -16,9 +16,8 @@ import { useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
 
@@ -56,15 +55,18 @@ const num = (v) => (v !== null && v !== '' && Number.isFinite(Number(v)) ? Numbe
 const pct = (v, decimals = 1) => formatPercent(v, { decimals, signed: true, absent: 'n/a' })
 const tone = (v) => (v > 0 ? styles.up : v < 0 ? styles.down : undefined)
 
+// Customization pass 1: the columns as the shared header takes them (components/terminal/PanelTable).
+// The stock itself stays row 1 (each peer reads against it); a header click sorts the peers under it.
 const COLUMNS = [
-  { key: 'sym', label: 'Symbol' },
-  { key: 'last', label: 'Last' },
-  { key: 'pct', label: 'Today' },
-  { key: 'w1', label: '1W', phoneHide: true },
-  { key: 'm1', label: '1M' },
-  { key: 'm3', label: '3M', phoneHide: true },
-  { key: 'ytd', label: 'YTD', phoneHide: true },
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true },
+  { key: 'last', label: 'Last', sort: (r) => r.last },
+  { key: 'pct', label: 'Today', sort: (r) => r.pct },
+  { key: 'w1', label: '1W', sort: (r) => r.w1, thClass: styles.phoneHide },
+  { key: 'm1', label: '1M', sort: (r) => r.m1 },
+  { key: 'm3', label: '3M', sort: (r) => r.m3, thClass: styles.phoneHide },
+  { key: 'ytd', label: 'YTD', sort: (r) => r.ytd, thClass: styles.phoneHide },
 ]
+export const PEER_COLUMNS = COLUMNS
 
 function failureTitle(err, sym) {
   if (err?.status === 402) return 'Peers are part of the paid plan.'
@@ -84,14 +86,17 @@ export default function PeerPanel({ sym }) {
   const perfKey = all.length ? [PERF_URL, all.join(',')] : null
   const perf = useSWR(perfKey, perfFetcher, { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 })
 
-  const rows = useMemo(() => all.map((t) => {
+  const table = usePanelTable({ columns: COLUMNS })
+  const listed = useMemo(() => all.map((t) => {
     const p = prices[t] || {}
     const f = perf.data?.[t] || {}
     return { sym: t, self: t === s, last: num(p.price), pct: num(p.change_pct),
       w1: num(f['1w']), m1: num(f['1m']), m3: num(f['3m']), ytd: num(f.ytd) }
   }), [all, prices, perf.data, s])
+  const rows = useMemo(() => [...listed.filter((r) => r.self), ...table.apply(listed.filter((r) => !r.self))], [listed, table.apply])
+  const shows = table.shows
 
-  usePanelSymbolRows(all, `peers of ${s}`)
+  usePanelSymbolRows(rows.map((r) => r.sym), `peers of ${s}`)
   const body = peers.data?.body
   const asOf = peers.data?.receivedAt || null
   usePanelFreshness(asOf && all.length
@@ -140,19 +145,14 @@ export default function PeerPanel({ sym }) {
       <div className={styles.head}>
         {group ? <strong data-testid="terminal-peer-group">{group}</strong> : null}
         {sourceText ? <span className={styles.lede} data-testid="terminal-peer-source">{sourceText}</span> : null}
+        <PanelColumns table={table} testId="terminal-peer-columns" />
       </div>
       {alsoIn.length ? <p className={styles.muted} data-testid="terminal-peer-also">{s} is also in: {alsoIn.join(', ')}.</p> : null}
       {perf.error ? <p className={styles.note} role="status">1W, 1M, 3M and YTD could not be read just now; prices are still live.</p> : null}
 
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-peer-table" aria-label={`${s} and its peers`}>
-          <thead>
-            <tr>
-              {COLUMNS.map((c) => (
-                <th scope="col" key={c.key} className={c.phoneHide ? styles.phoneHide : undefined}>{c.label}</th>
-              ))}
-            </tr>
-          </thead>
+          <PanelTableHead table={table} testId="terminal-peer" />
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-peer-row-${r.sym}`} aria-current={r.self ? 'true' : undefined}>
@@ -161,12 +161,12 @@ export default function PeerPanel({ sym }) {
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                   {r.self ? <span className={styles.lede}> (this stock)</span> : null}
                 </td>
-                <td>{formatNumber(r.last, { decimals: 2, absent: 'n/a' })}</td>
-                <td className={tone(r.pct)}>{pct(r.pct, 2)}</td>
-                <td className={`${styles.phoneHide} ${tone(r.w1) || ''}`}>{pct(r.w1)}</td>
-                <td className={tone(r.m1)}>{pct(r.m1)}</td>
-                <td className={`${styles.phoneHide} ${tone(r.m3) || ''}`}>{pct(r.m3)}</td>
-                <td className={`${styles.phoneHide} ${tone(r.ytd) || ''}`}>{pct(r.ytd)}</td>
+                {shows('last') && <td>{formatNumber(r.last, { decimals: 2, absent: 'n/a' })}</td>}
+                {shows('pct') && <td className={tone(r.pct)}>{pct(r.pct, 2)}</td>}
+                {shows('w1') && <td className={`${styles.phoneHide} ${tone(r.w1) || ''}`}>{pct(r.w1)}</td>}
+                {shows('m1') && <td className={tone(r.m1)}>{pct(r.m1)}</td>}
+                {shows('m3') && <td className={`${styles.phoneHide} ${tone(r.m3) || ''}`}>{pct(r.m3)}</td>}
+                {shows('ytd') && <td className={`${styles.phoneHide} ${tone(r.ytd) || ''}`}>{pct(r.ytd)}</td>}
               </tr>
             ))}
           </tbody>
@@ -174,7 +174,7 @@ export default function PeerPanel({ sym }) {
       </div>
 
       <p className={styles.muted} data-testid="terminal-peer-method">
-        {s} is row 1, so each peer reads against it. Prices from the live feed; 1W to YTD from daily closes. A sign (+/-)
+        {s} is row 1, so each peer reads against it{table.sort ? '; the peers under it are sorted by the column header you picked' : ''}. Prices from the live feed; 1W to YTD from daily closes. A sign (+/-)
         marks every change, so color is never the only signal. Click a symbol, or type its row number, to load it.
         {asOf ? ` Peers as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

@@ -7,7 +7,7 @@ import zlib from 'node:zlib'
 import fixture from '../historyLake/__fixtures__/source.json'
 import { parsePrefix } from '../historyLake/piece'
 import { createHistorySource, HEADER_NAME } from '../historyLake/source'
-import { createHistoryFeed, lakeSeriesOfKey, historyLakeEnabled, lakeOnByDefault, appHistoryFeed, HISTORY_LAKE_KEY } from './historyFeed'
+import { createHistoryFeed, lakeSeriesOfKey, windowEndOf, historyLakeEnabled, lakeOnByDefault, appHistoryFeed, HISTORY_LAKE_KEY } from './historyFeed'
 import { keyOf } from './types'
 
 const INDEX = fixture.index
@@ -95,7 +95,9 @@ describe('historyFeed', () => {
     expect(lakeSeriesOfKey(rth)).toMatchObject({ series: '60', extended: false })
     expect(lakeSeriesOfKey(eth)).toMatchObject({ series: '60e', extended: true })
     expect(lakeSeriesOfKey(keyOf({ sym: SYM, tf: 'W' }))).toBe(null)
-    expect(lakeSeriesOfKey(`${keyOf({ sym: SYM, tf: '5' })}@to=1794000000`)).toBe(null)
+    // (PR 1.1) a window key is the lake's too, to its window's end (the origin's 23:59:59 ET cutoff of its date)
+    expect(lakeSeriesOfKey(`${keyOf({ sym: SYM, tf: '5' })}@to=1794000000`)).toMatchObject({ series: '5', to: windowEndOf(1794000000) })
+    expect(windowEndOf(1794000000) - 1794000000).toBeGreaterThan(0)
     const last60 = fixture.expected['60'].raw.t.at(-1)
     const last60e = fixture.expected['60e'].raw.t.at(-1)
     const a = await feed.olderBars(rth, last60 + 1, { bars: 3 })

@@ -84,6 +84,13 @@ def codec_cases() -> list:
             day=20261118, seq=721, prev_seq=720, epoch=7, minute=m, with_av=True,
             blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"] + (51_240_000.0,)})],
             daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_240_000.0)})),
+        # FLAG_DAILY_PREV (review of PR 3.4): every daily row carries the snapshot's prevDay close (NaN when absent)
+        ("daily_prev", dict(
+            day=20261118, seq=723, prev_seq=722, epoch=7, minute=m,
+            blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"]})],
+            daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_234_567.0, 149.12),
+                   "NVDA": (40.5, 41.0, 40.0, 40.75, 9_000_000.0, 181.6),
+                   "NOPREV": (2.0, 2.5, 1.5, 2.25, 10.0, None)})),
         ("daily_only", dict(
             day=20261118, seq=722, prev_seq=721, epoch=7, minute=m,
             blocks=[(m, mf.KIND_ONTIME, {})],
@@ -183,7 +190,8 @@ def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), 
         feed = None if daily is None else (lambda d: daily(d, clock["ms"] // 1000))
         return mfp.Publisher(put=r2.put, get=r2.get, live=is_live, grace_s=grace_s,
                              roll_every=roll_every, epoch=epoch, now_ms=lambda: clock["ms"],
-                             prefix="live1m/", daily=feed)
+                             prefix="live1m/", daily=feed,
+                             with_av=False)   # the committed day fixtures carry no av (the default is on since 2026-11-28)
 
     pub = None
     late_set = set(late)
@@ -313,8 +321,8 @@ def daily_feed(day: int, now_s: int):
     """A synthetic server daily feed (what bars-api's snapshot `day` rows would be) as of `now_s`: the
     official close differs from the last regular minute's, the volume is the consolidated day's and keeps
     growing after hours, BRK-B has no minute bar at all, LATECOMER's row first appears at 16:30."""
-    if day != int(DAILY_DAY.replace("-", "")):
-        return None
+    if day != int(DAILY_DAY.replace("-", "")) or now_s < _unix(DAILY_DAY, 16, 1):
+        return None    # this fixture day models the post-close rows only (the 16:00 frame is encoded at 16:01:05)
     after = max(0, now_s - _unix(DAILY_DAY, 16, 0))
     steps = min(after // 300, 24)                    # a new after-hours print every 5 minutes, until 18:00
     rows = {

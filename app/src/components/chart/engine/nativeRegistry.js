@@ -128,7 +128,7 @@ import { runtimeErrorWords } from './runtimeErrorText'
 // ⛔ One authority, three callers — this line is an alias, never a second copy.
 export { bindConstsFor }
 import { timeframeFlags } from '../indicators'
-import { smaOfSeries, emaOfSeries, maSeries, MA_TYPES, numbersToPoints } from '../movingAverages'
+import { smaOfSeries, emaOfSeries, smaColumn, emaColumn, maSeries, MA_TYPES, numbersToPoints } from '../movingAverages'
 import { TECH_CATEGORY as CAT } from '../technicalCategories'
 import * as S from '../technicalStudies'
 import { checkBudget } from './ast/budget'
@@ -1994,9 +1994,11 @@ const NATIVE_COMPUTE = {
     // honest test, and it accepts a plain array too.
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
-    // ⛔ SMA AND EMA TAKE THEIR SHIPPED PATHS UNCHANGED — every saved average.
-    if (p.maType === 'ema') return { ma: emaOfSeries(src, p.period, n) }
-    if (!p.maType || p.maType === 'sma') return { ma: smaOfSeries(src, p.period, n) }
+    // ⛔ SMA AND EMA TAKE THEIR SHIPPED PATHS UNCHANGED — every saved average. ⚡ (2026-11-28) Written straight into
+    // the column (`smaColumn` / `emaColumn`: the shipped loops, the same IEEE-754 numbers, no point object per bar);
+    // `toColumn` takes a column of the input's length as it is.
+    if (p.maType === 'ema') return { ma: ownColumn(emaColumn(src, p.period, n)) }
+    if (!p.maType || p.maType === 'sma') return { ma: ownColumn(smaColumn(src, p.period, n)) }
     const values = Array.from({ length: n }, (_, i) => (i < src.length ? src[i] : NaN))
     // ⛔ VWMA WEIGHTS BY **THIS CHART'S** VOLUME, so it is only offered a source
     // that lives on this chart's bars: a bar field or another instance's output.
@@ -2131,7 +2133,15 @@ const NATIVE_COMPUTE = {
  * "no pane" signal. It becomes an all-NaN column here, and `hasAnyFinite` is
  * the signal instead.
  */
+// The columns a native wrote itself (movingAverage's SMA / EMA): NaN-padded, finite values only, made for this compute.
+// Only these pass through `toColumn` as they are; any other array (a source column a native handed back, say) is read
+// as points, exactly as before, so no column is ever another column's array.
+const _ownColumns = new WeakSet()
+function ownColumn(col) { _ownColumns.add(col); return col }
+/** The test seam for that rule (movingAverages.columns.test.js M5): `toColumn` itself, and `ownColumn`. */
+export function __toColumnForTests(points, length, own = false) { return toColumn(own ? ownColumn(points) : points, length) }
 function toColumn(points, length) {
+  if (_ownColumns.has(points) && points.length === length) { _ownColumns.delete(points); return points }
   const col = new Float64Array(length)
   col.fill(NaN)
   if (!points) return col

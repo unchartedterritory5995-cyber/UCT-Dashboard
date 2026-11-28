@@ -23,9 +23,8 @@
 // WIDTH. The table scrolls sideways inside its own box (SidewaysScroll) with the name column pinned, as FA,
 // EE and FUND do; nothing folds. A column set keeps a view to a handful of columns.
 import { useMemo, useState } from 'react'
-import {
-  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { usePanelSortSlot } from '../../../components/terminal/usePanelView'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
 import SidewaysScroll from '../../../components/research/fmpDepth/SidewaysScroll'
@@ -34,7 +33,7 @@ import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import { groupDrillCommand } from './groupDrillModel'
 import {
-  DEFAULT_GROUPS_SORT, GROUPS_TABLE_CODE, GROUPS_VIEWS, GROUP_STATS_COMPUTING_POLL_MS, GROUP_STATS_KINDS, GROUP_STATS_POLL_MS,
+  GROUPS_TABLE_CODE, GROUPS_VIEWS, GROUP_STATS_COMPUTING_POLL_MS, GROUP_STATS_KINDS, GROUP_STATS_POLL_MS,
   GROUP_STATS_SOURCE, GROUP_STATS_WHAT, RANK_MOVER_WINDOWS, builtWords, columnHead, defaultGroupsSort, firstSortDir, fundStateWords,
   groupStatsUrl, groupsCommandArgs, groupsSortWords, moverWords, normGroupsKind, normGroupsView, placeText, placesText, rankMovers,
   rankScaleMax, rankStateWords, rankWindowWords, readGroupsTable, sortGroupsRows, tableCell, viewColumns, viewPart,
@@ -153,7 +152,11 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
   // only ever seed the state.
   const [kind, setKind] = useState(() => normGroupsKind(kindProp))
   const [view, setView] = useState(() => normGroupsView(viewProp))
-  const [sort, setSort] = useState(() => defaultGroupsSort(normGroupsView(viewProp)))
+  // Customization pass 1: each view of the table keeps its own sort with the board (the panel's view,
+  // one slot per view: `s.rank`, `s.growth`, ...), so a reload, a saved board and a share link keep it
+  // and switching views and back finds the sort the member left there. A view never sorted opens on
+  // its own default.
+  const [sort, setSort] = usePanelSortSlot(view, defaultGroupsSort(view))
   const [computing, setComputing] = useState(false)
   // CROWDING: the group whose stocks are open (null: the table)
   const [open, setOpen] = useState(null)
@@ -170,8 +173,6 @@ export default function GroupTablePanel({ kind: kindProp = null, view: viewProp 
     const v = normGroupsView(next)
     setView(v)
     setOpen(null)
-    if (v === 'rank' && view !== 'rank') setSort(defaultGroupsSort('rank'))
-    else if (sort.key !== 'name' && !GROUPS_VIEWS[v].columns.some((c) => c.key === sort.key)) setSort(DEFAULT_GROUPS_SORT)
     writeBack(groupsCommandArgs({ kind, view: v }))
   }
   const k = GROUP_STATS_KINDS[kind]

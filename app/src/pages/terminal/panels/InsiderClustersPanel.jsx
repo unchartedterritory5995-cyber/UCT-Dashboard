@@ -12,9 +12,8 @@
 // ⛔ A failed read is an error with Retry, never "no clusters"; a list not built yet says when it
 // will be; a read that left filings unread says how many.
 import { Fragment, useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
@@ -45,7 +44,9 @@ export default function InsiderClustersPanel({ onView = null }) {
   const writeBack = usePanelWriteBack()
   const read = useMarketRead(INS_CLUSTERS_URL, { refreshInterval: (latest) => clustersPollMs(latest?.body) })
   const view = useMemo(() => clustersRead(read.body), [read.body])
-  const [sort, setSort] = useState({ key: 'lastBuy', dir: 'desc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'lastBuy', dir: 'desc' })
   const [open, setOpen] = useState(() => new Set())
   const base = useMemo(() => (view.state === 'ok' ? view.rows : []), [view])
   const rows = useMemo(() => sortRows(base, sort, { valueOf, isNumeric, tiebreak: byOrder }), [base, sort])

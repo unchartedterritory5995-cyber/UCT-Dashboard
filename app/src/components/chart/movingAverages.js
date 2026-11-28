@@ -105,6 +105,56 @@ export function emaOfSeries(src, period, n) {
   return out
 }
 
+// ─── the shipped two, straight into a column (2026-11-28, section 3.3 change 5) ───
+//
+// ⚡ THE SAME ARITHMETIC, NO POINT OBJECTS. The chart's Moving Average (`nativeRegistry.movingAverage`) turned
+// `smaOfSeries` / `emaOfSeries`'s `{value}` points straight into a NaN-padded Float64Array (`toColumn`): one object
+// per bar per average, built and thrown away on every compute, over EVERY held bar (an intraday key holds 20-50k
+// with the lake: 4 averages x 28k bars = 112k objects in the key task of a switch whose columns were not prepared,
+// 4.2 ms of computeFor + toColumn in a profiled warm 5m re-open). These two run the shipped loops line for line (the
+// same running sum in the same order, the same seed, the same gap rule) and write each value where the point went,
+// so the column is bit for bit `toColumn(smaOfSeries(...))` (`movingAverages.columns.test.js`). Only finite values
+// are written, as toColumn wrote only finite ones.
+
+/** `toColumn(smaOfSeries(src, period, n), n)`, without the points. */
+export function smaColumn(src, period, n) {
+  const out = new Float64Array(n)
+  out.fill(NaN)
+  const p = Math.max(1, Math.floor(period) || 1)
+  let sum = 0
+  let have = 0
+  for (let i = 0; i < n; i++) {
+    const v = src[i]
+    if (Number.isFinite(v)) { sum += v; have++ } else { sum = 0; have = 0; continue }
+    if (have > p) { const drop = src[i - p]; if (Number.isFinite(drop)) sum -= drop; have-- }
+    if (have === p) { const x = sum / p; if (Number.isFinite(x)) out[i] = x }
+  }
+  return out
+}
+
+/** `toColumn(emaOfSeries(src, period, n), n)`, without the points. */
+export function emaColumn(src, period, n) {
+  const out = new Float64Array(n)
+  out.fill(NaN)
+  const p = Math.max(1, Math.floor(period) || 1)
+  const k = 2 / (p + 1)
+  let prev = null
+  let sum = 0
+  let have = 0
+  for (let i = 0; i < n; i++) {
+    const v = src[i]
+    if (!Number.isFinite(v)) { prev = null; sum = 0; have = 0; continue }
+    if (prev === null) {
+      sum += v; have++
+      if (have === p) { prev = sum / p; if (Number.isFinite(prev)) out[i] = prev }
+      continue
+    }
+    prev = v * k + prev * (1 - k)
+    if (Number.isFinite(prev)) out[i] = prev
+  }
+  return out
+}
+
 // ─── numeric cores (NaN for "nothing here") ─────────────────────────────────
 
 const nanArray = (n) => { const a = new Array(n); a.fill(NaN); return a }
@@ -217,7 +267,8 @@ export function tema(src, period) {
 export function hma(src, period) {
   const p = len(period)
   const half = Math.max(1, Math.floor(p / 2))
-  const root = Math.max(1, Math.round(Math.sqrt(p)))
+  // (2026-11-27, engine e100) FLOORED, as TradingView's `ta.hma` and the engine's `hullWindows` (FRED's Q-HMA capture)
+  const root = Math.max(1, Math.floor(Math.sqrt(p)))
   const near = wma(src, half)
   const full = wma(src, p)
   const raw = near.map((v, i) => (Number.isFinite(v) && Number.isFinite(full[i]) ? 2 * v - full[i] : NaN))

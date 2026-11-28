@@ -191,7 +191,7 @@ def is_bars_access_on_limiter(call) -> bool:
     return any(call is g for g in _PRODUCTS)
 
 
-def require_bars_service(authorization: str = Header(default="")) -> dict:
+async def require_bars_service(authorization: str = Header(default="")) -> dict:
     """THE gate for the dedicated bars-api app: a trusted service caller ONLY.
 
     ⛔⛔ NO MEMBER PATH HERE, AND THAT IS THE SECURITY PROPERTY RATHER THAN A
@@ -202,6 +202,10 @@ def require_bars_service(authorization: str = Header(default="")) -> dict:
 
     The public domain therefore answers exactly one caller: the web pod, which
     has already decided the member question.
+
+    ⚡ ASYNC (2026-11-28): a constant-time compare with no I/O, so it runs on the event loop. As a sync `def`
+    FastAPI ran it in anyio's DEFAULT thread pool, and the worker's deep-history origin queued its gate behind
+    whatever held that pool (tests/test_bars_history_origin_fast.py).
     """
     if _push_secret_ok(authorization):
         return {"via": "push_secret"}

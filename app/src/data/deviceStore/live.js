@@ -38,7 +38,7 @@
 // so the chart asks the server, exactly as before. liveFeed.js re-syncs from the day file when the
 // device merely MISSED frames that exist.
 //
-// ⭐ THE SERVER'S OWN DAY ROW AFTER THE CLOSE (forming.js DEVICE_DAILY_SERVER_ROW). When the frames carry it
+// ⭐ THE SERVER'S OWN DAY ROW, FROM THE OPEN (PR 3.4) (forming.js DEVICE_DAILY_SERVER_ROW). When the frames carry it
 // (codec FLAG_DAILY) and the consumer vouches that this device holds every row (`dailyOk`: it applied the
 // epoch's full set and every frame since), today's D bar IS that row: O/H/L/C/V exactly as received (the server's
 // check compares the raw row with the served D bar, so no rounding here), `forming: 'D'` until the 20:00 end of
@@ -86,7 +86,7 @@ function grow(s) {
  *   seed does not hold it (only those are kept)
  * @param {boolean} [o.formingIntraday]  hand out the 5/15/30/60 bucket in progress (forming.js; default its constant)
  * @param {boolean} [o.formingDaily]     hand out today's forming D bar (forming.js; default its constant)
- * @param {boolean} [o.dailyServerRow]   today's D bar from the server's own row after the close (forming.js
+ * @param {boolean} [o.dailyServerRow]   today's D bar from the server's own row (from the open: the developing bar) (forming.js
  *   DEVICE_DAILY_SERVER_ROW; the frames' DAILY section, consumer.js)
  */
 export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEVICE_FORMING_INTRADAY,
@@ -173,7 +173,7 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
       if (info.full) dailyRows.clear()
       for (const r of info.rows || []) {
         const name = nameOf(r.sym)
-        if (name) dailyRows.set(name, { o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })
+        if (name) dailyRows.set(name, { o: r.o, h: r.h, l: r.l, c: r.c, v: r.v, pc: r.pc ?? null })
       }
     },
     frameDone(info) {
@@ -194,13 +194,15 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
     if (!_TFS.has(tf)) return { res: null, why: 'tf' }
     if (seedAsof !== prevSessionISO(day)) return { res: null, why: 'other-session' }
     const through = (lastMinute + 1) * 60
-    // the server's own day row after the close (see the header): ahead of every minute-built rule
+    // the server's own day row (from the open; forming until 20:00) (see the header): ahead of every minute-built rule
     if (tf === 'D' && dailyServerRow && dailyOk && dailyRows.has(sym)) {
       const r = dailyRows.get(sym)
       const t = Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 1000
       const cols = { t: Float64Array.of(t), o: Float64Array.of(r.o), h: Float64Array.of(r.h), l: Float64Array.of(r.l),
         c: Float64Array.of(r.c), v: Float64Array.of(r.v) }
-      return { res: through < bucketEndOf(t, 'D') ? { cols, through, forming: 'D' } : { cols, through }, why: 'ok' }
+      const res = through < bucketEndOf(t, 'D') ? { cols, through, forming: 'D' } : { cols, through }
+      if (r.pc != null) res.prevClose = r.pc          // the engine's split check (engine.js: the prev-close seam)
+      return { res, why: 'ok' }
     }
     if (gapRth || (tf === 'D' && gapAny)) return { res: null, why: 'gap' }
     const s = series.get(keyOf(sym, tf))

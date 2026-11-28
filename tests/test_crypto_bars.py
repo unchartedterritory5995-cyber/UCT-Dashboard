@@ -1191,6 +1191,7 @@ def test_the_bars_router_changes_only_what_a_pair_reaches():
 # ── 12. the edge and the switch ledger ──────────────────────────────────────────────────
 
 WORKER = os.path.join(REPO, "edge", "bars-edge-router", "worker.js")
+WORKER_TAIL = os.path.join(REPO, "edge", "bars-edge-router", "tail.js")
 
 
 def _tier_app(monkeypatch):
@@ -1206,7 +1207,15 @@ def _tier_app(monkeypatch):
 
 
 def _route(app, path):
-    return next(r.endpoint for r in app.routes if getattr(r, "path", None) == path)
+    """The route's endpoint as a plain call. `/api/bars-history` is an async route that reads the request's
+    Accept-Encoding (2026-11-28: its own limiter, one build per URL), so it is run to completion with an empty one."""
+    import asyncio
+    import inspect
+    import types
+    fn = next(r.endpoint for r in app.routes if getattr(r, "path", None) == path)
+    if not inspect.iscoroutinefunction(fn):
+        return fn
+    return lambda *a, **k: asyncio.run(fn(*a, request=types.SimpleNamespace(headers={}), **k))
 
 
 TIER_BARS = dict(tf="D", bars=5, since="", to="", warm=0, session="")
@@ -1248,12 +1257,15 @@ def test_the_edge_router_asks_web_when_the_tier_answers_the_hand_off():
     own source, so a change to that rule fails here instead of blanking the pair's chart."""
     import api.bars_api_main as bam
     src = open(WORKER, encoding="utf-8").read()
+    # the shed rule moved to the Worker's shared tail module (edge #2956); worker.js imports it from there
+    tail = open(WORKER_TAIL, encoding="utf-8").read()
     assert "if (r.status >= 500 && !(await isDeliberateTierShed(r))) throw" in src
     assert 'tierP.catch(() => { why = "web-fallback"; openWeb(); });' in src
-    shed = src[src.index("export async function isDeliberateTierShed"):]
+    assert 'isDeliberateTierShed } from "./tail.js";' in src
+    shed = tail[tail.index("export async function isDeliberateTierShed"):]
     assert "if (!r || r.status !== 503) return false;" in shed[:shed.index("\n}\n")]
     assert bam.PAIR_HANDOFF_STATUS >= 500 and bam.PAIR_HANDOFF_STATUS != 503
-    assert "CRYPTO" not in src                           # the Worker itself knows no pair
+    assert "CRYPTO" not in src and "CRYPTO" not in tail  # the Worker itself knows no pair
 
 
 def test_the_web_pod_never_proxies_a_pair_to_the_tier_whatever_the_switch_says(monkeypatch):

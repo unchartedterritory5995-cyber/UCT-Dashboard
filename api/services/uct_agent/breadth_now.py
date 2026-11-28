@@ -16,8 +16,8 @@ Rules (from the contract; this module only APPLIES them):
     and the member is told a live reading isn't available — `stale_reason` is for logs only;
   · values are formatted by MI's `fmt_value` with the measure's own unit — never recomputed.
 
-⛔ ISOLATION: the same as every breadth answer — this runs only inside the browser-only, admin-only
-/api/agent/breadth route; its result goes to the member's transcript as a LOCAL row (turn.LOCAL_ONLY_ACTIONS),
+⛔ ISOLATION: the same as every breadth answer — this runs only inside the browser-only /api/agent/breadth route
+(admin-only unless UCT_AGENT_MEMBERS_ENABLED=1); its result goes to the member's transcript as a LOCAL row (turn.LOCAL_ONLY_ACTIONS),
 never into a model request, plan, replayed history or chat naming. Nothing here is logged but statuses.
 
 ⛔ DEFAULT OFF (owner 2026-10-12): only an explicit, approved enablement turns this on —

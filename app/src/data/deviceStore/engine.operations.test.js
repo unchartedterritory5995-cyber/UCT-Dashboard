@@ -109,7 +109,7 @@ describe('M5 storage headroom', () => {
     expect(edge).not.toHaveBeenCalled()
     expect(packFiles(disk)).toEqual([])
     expect(eng.read('AAPL', 'D')).toBeNull()
-    expect(eng.ingestBlocked()).toMatchObject({ status: 'no-room', until: T0 + NO_ROOM_RETRY })
+    expect(eng.ingestBlocked('D')).toMatchObject({ status: 'no-room', until: T0 + NO_ROOM_RETRY })
   })
 
   it('CONTROL: exactly the pack plus the margin downloads; an estimate the browser cannot give never blocks', async () => {
@@ -117,7 +117,7 @@ describe('M5 storage headroom', () => {
     for (const estimate of [roomFor(pack.length + MARGIN), async () => null, async () => { throw new Error('no') }, async () => ({ usage: 1 })]) {
       const eng = createDeviceEngine({ now: () => T0, io: memoryIO(), fetchFn: fakeEdge({ u: pack }), estimate })
       expect(await eng.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
-      expect(eng.ingestBlocked()).toBeNull()
+      expect(eng.ingestBlocked('D')).toBeNull()
     }
   })
 
@@ -134,28 +134,29 @@ describe('M5 storage headroom', () => {
     t = T0 + NO_ROOM_RETRY - 1
     const next = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: edge, estimate })
     await next.open()
-    expect(next.ingestBlocked()).toMatchObject({ status: 'no-room', why: 'headroom', until: T0 + NO_ROOM_RETRY })
+    expect(next.ingestBlocked('D')).toMatchObject({ status: 'no-room', why: 'headroom', until: T0 + NO_ROOM_RETRY })
     expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ tf: 'D', status: 'no-room' })
     expect(await next.ingestAll({ v: 1, kind: 'ffseed', build: 'b1', tfs: { D: { url: 'u', bytes: pack.length, sha256: sha(pack) } } })).toEqual([expect.objectContaining({ status: 'no-room' })])
     expect(estimate).not.toHaveBeenCalled()
     expect(edge).not.toHaveBeenCalled()
     // expired: one more try, which now finds room
     t = T0 + NO_ROOM_RETRY
-    expect(next.ingestBlocked()).toBeNull()
+    expect(next.ingestBlocked('D')).toBeNull()
     expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
     expect(estimate).toHaveBeenCalledTimes(1)
   })
 
-  it('ingestAll stops at the first timeframe without room: no other pack is downloaded', async () => {
-    const d = packOf(UNIVERSE, { build: 'b9' })
+  it('ingestAll stops at the first INTRADAY timeframe without room: no other pack is downloaded', async () => {
+    // (a no-room for D goes on to the intraday packs: "a no-room for D blocks only D" below)
     const m5 = packOf({ AAPL: synthBars(300, { step: 300, t0: Date.UTC(2026, 10, 18, 20, 55) / 1000 - 299 * 300 }) }, { tf: '5', build: 'b9' })
-    const edge = fakeEdge({ 'https://x.test/seed/D.pack': d, 'https://x.test/seed/5.pack': m5 })
+    const m60 = packOf({ AAPL: synthBars(300, { step: 1800, t0: Date.UTC(2026, 10, 18, 20, 30) / 1000 - 299 * 1800 }) }, { tf: '60', build: 'b9' })
+    const edge = fakeEdge({ 'https://x.test/seed/5.pack': m5, 'https://x.test/seed/60.pack': m60 })
     const eng = createDeviceEngine({ now: () => T0, io: memoryIO(), fetchFn: edge, estimate: roomFor(MB) })
     const out = await eng.ingestAll({ v: 1, build: 'b9', tfs: {
-      D: { url: 'D.pack', bytes: d.length, sha256: sha(d) },
       '5': { url: '5.pack', bytes: m5.length, sha256: sha(m5) },
+      '60': { url: '60.pack', bytes: m60.length, sha256: sha(m60) },
     } }, { base: 'https://x.test/seed/manifest.json' })
-    expect(out.map((r) => [r.tf, r.status])).toEqual([['D', 'no-room']])
+    expect(out.map((r) => [r.tf, r.status])).toEqual([['5', 'no-room']])
     expect(edge).not.toHaveBeenCalled()
   })
 
@@ -177,7 +178,7 @@ describe('M5 storage headroom', () => {
       // the next page load asks nothing
       const next = createDeviceEngine({ now: () => T0 + HOUR, io: memoryIO(disk), fetchFn: edge })
       await next.open()
-      expect(next.ingestBlocked()).toMatchObject({ status: 'no-room', why: 'write' })
+      expect(next.ingestBlocked('D')).toMatchObject({ status: 'no-room', why: 'write' })
       const calls = edge.mock.calls.length
       expect(await next.ingest(entryOf('D', 'u2', two, 'b2'))).toMatchObject({ status: 'no-room' })
       expect(edge.mock.calls.length).toBe(calls)
@@ -189,7 +190,7 @@ describe('M5 storage headroom', () => {
     const eng = createDeviceEngine({ now: () => T0, io: refusingIO(disk, 'D.1.pack', { after: 1, how: 'other' }), fetchFn: fakeEdge({ u: pack }) })
     await expect(eng.ingest(entryOf('D', 'u', pack))).rejects.toThrow(/the disk said no/)
     expect(packFiles(disk)).toEqual([])
-    expect(eng.ingestBlocked()).toBeNull()
+    expect(eng.ingestBlocked('D')).toBeNull()
   })
 })
 
@@ -316,6 +317,31 @@ describe('M7 (review of #2563, test gaps): a body of the wrong size is a bad pac
     })
 })
 
+describe('a no-room for D blocks only D (review of zero-network PR 3.1)', () => {
+  it('the intraday packs keep downloading while the big D pack waits for room; an intraday no-room still stops all', async () => {
+    const big = packOf({ AAPL: dailyRows(3000, 1), MSFT: dailyRows(3000, 2), NVDA: dailyRows(3000, 3) })
+    const small = packOf(UNIVERSE, { tf: '5' })
+    expect(big.length).toBeGreaterThan(small.length * 2)
+    const disk = new Map()
+    const edge = fakeEdge({ uD: big, u5: small })
+    const eng = createDeviceEngine({ now: () => T0, io: memoryIO(disk), fetchFn: edge, estimate: roomFor(small.length + MARGIN + 1) })
+    const manifest = { v: 1, kind: 'ffseed', build: 'b1', tfs: { D: { url: 'uD', bytes: big.length, sha256: sha(big) }, 5: { url: 'u5', bytes: small.length, sha256: sha(small) } } }
+    const r = await eng.ingestAll(manifest)
+    expect(r).toEqual([expect.objectContaining({ tf: 'D', status: 'no-room', why: 'headroom' }), expect.objectContaining({ tf: '5', status: 'ingested' })])
+    expect(eng.ingestBlocked()).toBeNull()                              // not EVERYTHING: the manifest is still asked
+    expect(eng.ingestBlocked('5')).toBeNull()
+    expect(eng.ingestBlocked('D')).toMatchObject({ status: 'no-room', tf: 'D' })
+    expect(await eng.ingest(entryOf('D', 'uD', big))).toMatchObject({ tf: 'D', status: 'no-room' })
+    expect(edge.mock.calls.map(([u]) => u)).toEqual(['u5'])               // D was never downloaded
+    // an intraday no-room is still every timeframe's
+    const eng2 = createDeviceEngine({ now: () => T0, io: memoryIO(), fetchFn: fakeEdge({ u5: small }), estimate: roomFor(MB) })
+    expect(await eng2.ingest(entryOf('5', 'u5', small))).toMatchObject({ status: 'no-room' })
+    expect(eng2.ingestBlocked()).toMatchObject({ status: 'no-room', tf: '5' })
+    expect(eng2.ingestBlocked('D')).toMatchObject({ status: 'no-room' })
+  })
+})
+
+
 describe('LOW-4 (review of #2563): the records never lock a browser out past their schedule', () => {
   const FAR = T0 + 365 * DAYMS                                           // a system clock a year ahead when written
 
@@ -328,9 +354,9 @@ describe('LOW-4 (review of #2563): the records never lock a browser out past the
     let t = T0                                                            // the clock put right, the next page load
     const next = createDeviceEngine({ now: () => t, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }), estimate: roomFor(4000 * MB) })
     await next.open()
-    expect(next.ingestBlocked()).toMatchObject({ status: 'no-room', until: T0 + NO_ROOM_RETRY })
+    expect(next.ingestBlocked('D')).toMatchObject({ status: 'no-room', until: T0 + NO_ROOM_RETRY })
     t = T0 + NO_ROOM_RETRY
-    expect(next.ingestBlocked()).toBeNull()
+    expect(next.ingestBlocked('D')).toBeNull()
     expect(await next.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
   })
 

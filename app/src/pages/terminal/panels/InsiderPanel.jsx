@@ -30,6 +30,7 @@ import {
 import {
   PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureText, useMarketRead } from './marketRead'
@@ -86,7 +87,9 @@ function InsiderBuysView({ side: sideProp, window: windowProp }) {
   const base = answer.rows
   const computing = held && !!read.body && answer.state === 'computing'
   useEffect(() => { setPolling(computing) }, [computing])
-  const [sort, setSort] = useState({ key: 'amount', dir: 'desc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'amount', dir: 'desc' })
   const rows = useMemo(() => sortRows(base, sort, { valueOf, isNumeric, tiebreak: byOrder }), [base, sort])
   const asOf = newestFiling(base)
   usePanelFreshness(base.length ? panelAsOf(INS_SOURCE, asOf) : null)

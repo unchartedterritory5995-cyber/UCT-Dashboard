@@ -1,0 +1,108 @@
+# promotion-gate: no — a data refresh on a schedule. It deploys nothing and never holds a deploy.
+#
+# The history lake's daily refresh OFF the owner's PC (2026-11-28, owner decision): fold each new vendor day
+# into the lake in R2 and publish it, exactly as tools/history_lake/daily.py does on the PC, from a GitHub
+# runner. Design, state and the equivalence proof: tools/history_lake/cloud_daily.py.
+#
+# ⛔⛔ THIS REPO IS PUBLIC, SO THIS LOG IS PUBLIC. cloud_daily.py prints counts, dates and sizes only. Never add
+# a step that prints an environment variable, a URL with a credential, a file of vendor data or a price.
+#
+# WHEN: four times a day. The vendor posts a session's 1-minute file the next morning (an early copy can be
+# rewritten before ~11:00 ET, which the plan refolds), so the 12:40 UTC run is the one that usually folds it;
+# the others retry and run the lag check. A run with nothing new is a ~1 minute lag check.
+# LOUD: the lake more than one trading session behind (or a run that fails) posts to Discord
+# (LIVE_CHECK_DISCORD_WEBHOOK, the same channel as live check) and the run goes red, which mails the owner.
+#
+# Secrets live in the `history-lake` ENVIRONMENT, which only master may use (deployment branch policy), never at
+# repo level: DATA_SYNC_ENDPOINT_URL, DATA_SYNC_ACCESS_KEY, DATA_SYNC_SECRET_KEY (R2), MASSIVE_ACCESS_KEY,
+# MASSIVE_SECRET_KEY (vendor flat files), MASSIVE_API_KEY (split reference). No PR trigger: a fork never runs it.
+# Supply chain: actions pinned to commit SHAs, Python packages installed --require-hashes from
+# tools/history_lake/requirements-cloud.txt (the PC's versions: brotli decides the pieces' bytes).
+# Two writers: the PC's daily.py and this job take the same R2 lease (tools/history_lake/lake_state.py).
+#
+# ⚠️ The PC's "UCT History Lake Daily" task stays on as the fallback until this has published two days
+# correctly; both are deterministic, so either folding a day first leaves the same bucket.
+name: history lake daily
+
+on:
+  schedule:
+    - cron: '40 6,12,18,23 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "run, check (the lag check only) or dry (plan, change nothing)"
+        type: choice
+        options: [run, check, dry]
+        required: false
+        default: run
+
+# QUEUE, never cancel: two refreshes must never build at once, and a cancelled one could stop mid-upload.
+concurrency:
+  group: history-lake-daily
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    environment: history-lake
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0
+        with:
+          ref: master
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            tools/history_lake/
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065   # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install the lake's dependencies (pinned, hash-checked)
+        run: python -m pip install --quiet --require-hashes --no-deps -r tools/history_lake/requirements-cloud.txt
+
+      - name: Refresh the lake
+        id: lake
+        env:
+          DATA_SYNC_ENDPOINT_URL: ${{ secrets.DATA_SYNC_ENDPOINT_URL }}
+          DATA_SYNC_ACCESS_KEY: ${{ secrets.DATA_SYNC_ACCESS_KEY }}
+          DATA_SYNC_SECRET_KEY: ${{ secrets.DATA_SYNC_SECRET_KEY }}
+          DATA_SYNC_REGION: auto
+          MASSIVE_ACCESS_KEY: ${{ secrets.MASSIVE_ACCESS_KEY }}
+          MASSIVE_SECRET_KEY: ${{ secrets.MASSIVE_SECRET_KEY }}
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+          MODE: ${{ github.event.inputs.mode || 'run' }}
+        run: |
+          set -uo pipefail
+          ARGS=(--work "$RUNNER_TEMP/lake" --bucket uct-bars-snapshots --prefix hist/ --jobs 4)
+          case "$MODE" in
+            run)   ;;
+            check) ARGS+=(--check-only) ;;
+            dry)   ARGS+=(--dry-run) ;;
+            *)     echo "unknown mode"; exit 2 ;;
+          esac
+          python tools/history_lake/cloud_daily.py "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/lake.log"
+          code=${PIPESTATUS[0]}
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "line=$(grep '^\[lake-cloud\]' "$RUNNER_TEMP/lake.log" | tail -1 | tr -d '\"\\' | cut -c1-300)" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Tell Discord (behind or failed)
+        if: failure()
+        env:
+          HOOK: ${{ secrets.LIVE_CHECK_DISCORD_WEBHOOK }}
+          CODE: ${{ steps.lake.outputs.code }}
+          LINE: ${{ steps.lake.outputs.line }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          [ -n "$HOOK" ] || { echo "no webhook configured"; exit 0; }
+          if [ "$CODE" = "3" ]; then what="HISTORY LAKE BEHIND"; else what="HISTORY LAKE REFRESH FAILED (exit ${CODE:-?})"; fi
+          python - "$what" "$LINE" "$RUN" <<'PY' > "$RUNNER_TEMP/msg.json"
+          import json, sys
+          print(json.dumps({"content": f"**{sys.argv[1]}**: {sys.argv[2] or 'see the run'}\n{sys.argv[3]}"}))
+          PY
+          curl -sS -o /dev/null -w "discord %{http_code}\n" -H "Content-Type: application/json" -d @"$RUNNER_TEMP/msg.json" "$HOOK"

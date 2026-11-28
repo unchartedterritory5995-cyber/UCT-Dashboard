@@ -536,7 +536,9 @@ def _load_repair(path: str) -> dict:
 def _save_repair(path: str, data: dict) -> None:
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        tmp = path + ".tmp"
+        # ⛔ (review of #2962, M2) unique per process AND thread: a shared ".tmp" let two writers interleave into
+        # one temp file and `os.replace` a torn sidecar (the deep store's `_save_deep` already did this).
+        tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(data, fh, separators=(",", ":"))
         os.replace(tmp, path)
@@ -1544,7 +1546,12 @@ def _refresh(sym: str, tf: str) -> list:
     """Cold/background fetch → write mem + disk. Returns the fresh series ([] on fail).
     The entry records whether the series is the ETF proxy (`proxy`), so a reader can
     tell the index's own bars from a scaled ETF's. A refresh that gets nothing (or raises)
-    is recorded and logged by name (`_note_refresh_failed`); the stored copy stays."""
+    is recorded and logged by name (`_note_refresh_failed`); the stored copy stays.
+
+    ⛔ (review of #2962, M2) LEADER-ONLY with several bars-api processes: one vendor caller and one writer of
+    the shared disk copy; a follower's request that needs it is answered by the leader."""
+    from api.services import bars_api_roles as _roles
+    _roles.leader_only("index vendor refresh")
     from api.services.cache import cache
     info: dict = {}
     asked = time.time()
@@ -1571,6 +1578,12 @@ def _refresh(sym: str, tf: str) -> list:
 
 
 def _kick_bg_refresh(sym: str, tf: str) -> None:
+    from api.services import bars_api_roles as _roles
+    if _roles.is_follower():
+        # (review of #2962, M2) the leader refreshes (it alone asks Yahoo/FMP and writes the disk copy); this
+        # process re-reads that copy (`_follower_fresh_or_none`). Off the request, deduped, never awaited.
+        _roles.send_index_refresh(sym, tf)
+        return
     key = f"{sym}_{tf}"
     with _bg_lock:
         if key in _bg_inflight or len(_bg_inflight) >= 8:
@@ -1714,6 +1727,8 @@ def _refresh_in_request(sym: str, tf: str, held_saved_at=None) -> list:
     stored nothing newer than `held_saved_at` within `REFRESH_WAIT_S`: the caller serves its stale copy). Shares
     `_bg_inflight` with the background refresh, so one fetch runs at a time; a request that finds one running waits
     for it (`_await_refresh`) rather than answering the copy it is replacing."""
+    from api.services import bars_api_roles as _roles
+    _roles.leader_only("index in-request refresh")      # a follower's request is answered by the leader
     key = f"{sym}_{tf}"
     with _bg_lock:
         busy = key in _bg_inflight
@@ -1758,6 +1773,20 @@ def _kick_pending_repair(sym: str, tf: str) -> None:
         _kick_bg_refresh(sym, tf)
 
 
+def _follower_fresh_or_none(mem: Optional[dict], tf: str, ttl: float, now: float) -> Optional[dict]:
+    """In a bars-api FOLLOWER (review of #2962, M2) this process's memory copy is only ever a read of the leader's
+    disk copy, so one that is no longer fresh is dropped and the disk is read again (the leader's refresh / warm
+    loop has usually replaced it). Anywhere else: `mem` unchanged."""
+    if not mem or not mem.get("series"):
+        return mem
+    from api.services import bars_api_roles as _roles
+    if not _roles.is_follower():
+        return mem
+    fresh = (now - float(mem.get("saved_at") or 0) <= ttl
+             and not _copy_behind_since_saved(mem["series"], tf, mem.get("saved_at"), now))
+    return mem if fresh else None
+
+
 def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     """Return (series, tier). Never blocks on yfinance when ANY cached data exists —
     stale data is served immediately and a background refresh is kicked — EXCEPT two intraday copies, refreshed in
@@ -1794,7 +1823,7 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         info["saved_at"] = entry.get("saved_at")
         info["repair"] = entry.get("repair")
 
-    mem = cache.get(mkey)
+    mem = _follower_fresh_or_none(cache.get(mkey), tf, ttl, now)
     if mem and mem.get("series"):
         info["saved_at"] = mem.get("saved_at")
         info["repair"] = mem.get("repair")
@@ -1940,7 +1969,7 @@ def _peek_entry(sym: str, tf: str, now: float) -> Optional[dict]:
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
     mkey = f"idxbars_{sym}_{tf}"
-    entry = cache.get(mkey)
+    entry = _follower_fresh_or_none(cache.get(mkey), tf, ttl, now)
     if not (entry and entry.get("series")):
         entry = _load_disk(sym, tf)
         if not (entry and entry.get("series")):

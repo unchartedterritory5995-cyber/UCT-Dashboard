@@ -31,6 +31,7 @@
  * pins this; `'omit'` here reads as a cacheability optimisation and is a
  * total outage.
  */
+import { FIRST_CHART_PAINT_EVENT, whenFirstChartPainted } from './firstChartPaint'
 import { idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
 import { decodeShardPayload } from './barsPackShard'
 // The worker client loads on the first pack job, so it stays off the page's first-open bytes.
@@ -162,7 +163,8 @@ export async function _ingestHotPack(cfg) {
 // or after PACK_START_MAX_WAIT_MS, whichever is first, then still wait for idle. Pages without a
 // chart start at the time limit.
 export const PACK_START_MAX_WAIT_MS = 15000
-export const FIRST_CHART_PAINT_EVENT = 'uct:first-chart-paint'
+// (the event's name lives in lib/firstChartPaint.js, one authority for it and for the modules that wait on it there)
+export { FIRST_CHART_PAINT_EVENT }
 let _firstChartPainted = false
 
 /** Called by StockChart when a page's first chart has been created (its bars are in). Once. */
@@ -178,17 +180,8 @@ export function markFirstChartPaint() {
 /** Runs `fn` after the first chart paint, or after `maxWaitMs`, whichever comes first. Once. */
 export function afterFirstChartPaint(fn, { maxWaitMs = PACK_START_MAX_WAIT_MS } = {}) {
   if (_firstChartPainted) { fn(); return }
-  let done = false
-  let timer = null
-  const go = () => {
-    if (done) return
-    done = true
-    if (timer) clearTimeout(timer)
-    try { window.removeEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window */ }
-    fn()
-  }
-  timer = setTimeout(go, maxWaitMs)
-  try { window.addEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window: the timer runs it */ }
+  // ONE wait (the leaf's: the event, else the timer), not two implementations of it
+  whenFirstChartPainted(fn, { maxWaitMs, checkMark: false })
 }
 
 /** Test seam: forget that a chart painted. */

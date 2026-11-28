@@ -1308,3 +1308,27 @@ shared, so this sits in the main chunk, and the Notebook's first open grew: CI r
 the 2,268,161 B line (+671 B). Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just raise
 the budget and get it done", then "always"): max 2,268,161 -> 2,272,257 B (+4,096 B, headroom for the stacked
 typed-universe / prefetch PR), listed in `owner_raises`.
+
+## 2026-11-28: +8,192 B as ONE raise for the chart-speed queue, owner standing approval
+
+Master read 2,272,185 B at 2eb9294ed5 against the 2,272,257 B line, 72 B of headroom. Every pending PR that touches a
+shared chart hook then breached alone, each by a few hundred bytes. CI read 2,272,459 B for #2951 (bars never spliced
+across a hole), 2,272,451 B for #2967 (a REST answer older than the live tick), 2,272,842 B for perf/ma-columns-direct,
+2,272,285 B for perf/quote-push-cookie-once and 2,273,036 B for feat/agent-open-to-members, and #2959 adds +31 B. Their
+deltas over master sum to about 2,200 B. Raising for each one in turn would cost one budget PR per merge. This is one
+raise sized for the whole queue: max 2,272,257 -> 2,280,449 B (+8,192 B). That covers the PRs above plus about 6 KB for
+the chart-speed PRs still in flight. Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just
+raise the budget and get it done", then "always"), and listed in `owner_raises`.
+
+The bytes job checks out the pull request's merge commit, so it reads this budget from master once this lands. A PR
+whose last bytes run was red goes green on its next push or re-run against the new base. A re-run of the OLD run keeps
+the old merge SHA, so push or re-trigger the run instead.
+
+## 2026-11-28: +2,048 B for the chart key-task cuts (#2971, #2972), owner standing approval
+
+Section 3.3 change 5 cuts main-thread work from the symbol switch's key task. Two of the cuts sit in modules of the main
+chunk: the SMA/EMA column writers (`components/chart/movingAverages.js` `smaColumn` / `emaColumn`, #2971: CI read
+2,272,842 B at 7781d16819 against the 2,272,257 B line, +585 B) and the page-load latch of the quote-push cookie
+(`lib/quotePushGate.js`, #2972: CI read 2,272,285 B at 3e04e53519, +28 B). Raised by the owner's standing approval of
+budget raises, given 2026-11-27 ("just raise the budget and get it done", then "always"): max 2,280,449 -> 2,282,497 B (on top of the queue raise merged before it)
+(+2,048 B, both cuts with headroom), listed in `owner_raises`. The same raise is committed on both pull requests.

@@ -1,4 +1,4 @@
-"""UCT News -> UCT Agent: a conversation about ONE stored headline (DARK, admin-only).
+"""UCT News -> UCT Agent: a conversation about ONE stored headline (DARK; admin-only unless UCT_AGENT_MEMBERS_ENABLED=1).
 
 The browser sends only `context: {news: {id}}` on the ordinary /api/agent/turn route. Everything the
 model reads about the headline is read HERE, on the server, from UCT News' own store by that id --

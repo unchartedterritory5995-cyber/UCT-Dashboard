@@ -393,7 +393,8 @@ describe('served vs dark', () => {
       expect(cap, name).toBeTruthy()
       expect(cap.query, name).toBe(true)
       expect(cap.localOnly, name).toBe(true)
-      expect(groupOfAction(name), name).toBe('data')                 // routed with the stock data group (by domain)
+      // routed words-only in `marketAnswers` since the production arming (2026-11-24, routing.js), else with `data` by domain
+      expect(groupOfAction(name), name).toBe(GROUPS.find(g => g.id === 'marketAnswers').actions.includes(name) ? 'marketAnswers' : 'data')
       expect(cap.summary.length, name).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxSummary)
       expect(cap.hints.length, name).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxHints)
       expect(handshake.isolated_kinds, kind).toContain(kind)          // every kind of this wave is model-isolated

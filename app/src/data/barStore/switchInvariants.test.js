@@ -102,9 +102,168 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
     expect(network.answered(K)).toBe(false)
   })
 
+  // (review of #2947, M1) the server's `to=` path answers a window it is still fetching with `filling: true`
+  it('a `filling` answer answers the life but is marked filling; a later complete answer clears it', async () => {
+    let filling = true
+    const { network, run } = net(vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) })))
+    network.start(K)
+    await run()
+    expect(network.answered(K)).toBe(true)
+    expect(network.filling(K)).toBe(true)
+    filling = false
+    await network.fetchOnce(K)                              // the retry: the window complete
+    expect(network.filling(K)).toBe(false)
+  })
+
+  // ⭐ (review of #2947, N1) a WINDOW answered `filling` was never asked again (a window is read once; Retry-After 3 is a
+  // header only): `filling` never cleared and the chart at the date stayed short. Now the chart's own ask is repeated.
+  describe('N1 — a window answered `filling` is asked again until it is complete', () => {
+    const KW = keyOf({ sym: 'SIMB', tf: '5', window: { to: Date.UTC(2025, 2, 14, 12) / 1000 } })
+    const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((res) => setTimeout(res, 0)) }
+    function netT(request) {
+      const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
+      const timers = []
+      const network = createNetwork({
+        registry, request, setTimer: (fn, ms) => { const h = { fn, ms }; timers.push(h); return h },
+        clearTimer: (h) => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1) },
+        isHidden: () => false, onVisible: () => () => {},
+      })
+      const fire = async (ms) => { const i = timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = timers.splice(i, 1); t.fn(); await flush(); return true }
+      return { registry, network, timers, fire }
+    }
+    it("the chart's own ask (no loop, no manual fetchOnce) is repeated ~3 s later; the complete answer clears it and wakes the watchers", async () => {
+      const { WINDOW_FILL_RETRY_S } = await import('./network')
+      let filling = true
+      const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))
+      const { registry, network, timers, fire } = netT(request)
+      registry.acquire(KW)   // the prepare pins the entry it asks for (prefetch.prepareForDisplay)
+      const woke = []
+      network.subscribeAnswered(KW, () => woke.push(network.filling(KW)))
+      await network.fetchOnce(KW, { priority: 'visible' })
+      expect(network.filling(KW)).toBe(true)
+      expect(request).toHaveBeenCalledTimes(1)
+      expect(WINDOW_FILL_RETRY_S).toBe(3)
+      expect(timers.map((t) => t.ms)).toContain(3000)
+      filling = false
+      expect(await fire(3000)).toBe(true)
+      expect(request).toHaveBeenCalledTimes(2)
+      expect(request.mock.calls[1][0]).toMatch(/[?&]to=2025-03-14(?:&|$)/)
+      expect(network.filling(KW)).toBe(false)
+      expect(woke.at(-1), 'the watcher woke with filling cleared').toBe(false)
+      expect(timers.filter((t) => t.ms === 3000).length, 'complete: nothing more').toBe(0)
+    })
+    it('a chart on the key (its loop) gets the same one repeat, not two', async () => {
+      let filling = true
+      const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))
+      const { network, timers, fire } = netT(request)
+      network.start(KW)
+      await fire(0)
+      expect(network.filling(KW)).toBe(true)
+      expect(timers.filter((t) => t.ms === 3000).length).toBe(1)
+      filling = false
+      await fire(3000)
+      expect(request).toHaveBeenCalledTimes(2)
+      expect(network.filling(KW)).toBe(false)
+      expect(timers.filter((t) => Number.isFinite(t.ms) && t.ms > 0).length, 'a window is not polled').toBe(0)
+    })
+    it('(LOW) a key no chart shows any more is not asked again: stop() clears its repeat; an unpinned one-shot is left', async () => {
+      const request = vi.fn(async () => ({ ...ok(), filling: true }))
+      const { registry, network, timers, fire } = netT(request)
+      const stop = network.start(KW)
+      await fire(0)
+      expect(timers.filter((t) => t.ms === 3000).length).toBe(1)
+      stop?.call ? stop() : network.stop(KW)
+      expect(timers.filter((t) => t.ms === 3000).length, 'the repeat went with the last chart').toBe(0)
+      // a one-shot ask of an entry nothing pins: the repeat fires and asks nothing
+      registry.peek(KW) || registry.acquire(KW)
+      const n = request.mock.calls.length
+      await network.fetchOnce(KW, { priority: 'visible' })
+      while (registry.refs(KW) > 0) registry.release(KW)
+      await fire(3000)
+      expect(request.mock.calls.length, 'no ask for a key nothing holds').toBe(n + 1)
+    })
+    it('bounded: a window that never completes is asked WINDOW_FILL_ROUNDS more times, then left; a warm alone is not repeated', async () => {
+      const { WINDOW_FILL_ROUNDS } = await import('./network')
+      const request = vi.fn(async () => ({ ...ok(), filling: true }))
+      const { registry, network, timers, fire } = netT(request)
+      registry.acquire(KW)
+      await network.fetchOnce(KW, { priority: 'visible' })
+      let rounds = 0
+      while (await fire(3000)) rounds++
+      expect(rounds).toBe(WINDOW_FILL_ROUNDS)
+      expect(request).toHaveBeenCalledTimes(1 + WINDOW_FILL_ROUNDS)
+      const w = netT(vi.fn(async () => ({ ...ok(), filling: true })))
+      w.registry.acquire(KW)
+      await w.network.fetchOnce(KW, { priority: 'background', warm: true })
+      expect(w.timers.filter((t) => t.ms === 3000).length, 'a shed-able warm with no chart: not repeated').toBe(0)
+    })
+  })
+
+  // ⛔⛔ (2026-11-28, the cloud sweep: LNG 15m answered 429 three times and the chart showed the lake copy without its tail,
+  // a 2-day-stale newest bar, then the fresh tail 100 ms later) A RATE-LIMITED TAIL IS NOT AN ANSWER
+  describe('a 429 / 503 tail holds the display and is asked again after Retry-After', () => {
+    function netT(request) {
+      const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
+      const timers = []
+      const network = createNetwork({
+        registry, request, setTimer: (fn, ms) => { const h = { fn, ms }; timers.push(h); return h },
+        clearTimer: (h) => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1) },
+        isHidden: () => false, onVisible: () => () => {},
+      })
+      const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((res) => setTimeout(res, 0)) }
+      const fire = async (ms) => { const i = timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = timers.splice(i, 1); t.fn(); await flush(); return true }
+      return { registry, network, timers, fire }
+    }
+    const limited = (status = 429) => Object.assign(new Error('rate'), { status, retryAfterMs: 2000 })
+    it('a held one-shot ask: not answered (no REST_ERROR) on the 429; asked again after its Retry-After; answered by the answer', async () => {
+      let n = 0
+      const request = vi.fn(async () => { if (n++ === 0) throw limited(); return ok() })
+      const { registry, network, timers, fire } = netT(request)
+      registry.acquire(K)
+      await network.fetchOnce(K, { priority: 'visible' })
+      expect(network.answered(K), 'the display keeps holding').toBe(false)
+      expect(registry.peek(K)?.error ?? null).toBe(null)
+      expect(timers.map((t) => t.ms)).toContain(2000)
+      expect(await fire(2000)).toBe(true)
+      expect(request).toHaveBeenCalledTimes(2)
+      expect(registry.peek(K).restSeen, 'the answer landed').toBe(true)
+    })
+    it('a chart on the key: its loop asks again no sooner than Retry-After; a 503 likewise', async () => {
+      for (const status of [429, 503]) {
+        let n = 0
+        const request = vi.fn(async () => { if (n++ === 0) throw limited(status); return ok() })
+        const { network, timers, fire } = netT(request)
+        network.start(K)
+        await fire(0)
+        expect(network.answered(K), `${status}`).toBe(false)
+        expect(timers.some((t) => t.ms >= 2000), `${status}: Retry-After honoured`).toBe(true)
+      }
+    })
+    it('a 503 `warming` is the error at once (the chart shows it and gives up on its own clock)', async () => {
+      const request = vi.fn(async () => { throw Object.assign(new Error('warming'), { status: 503, warming: true, retryAfterMs: 3000 }) })
+      const { registry, network, timers } = netT(request)
+      registry.acquire(K)
+      await network.fetchOnce(K, { priority: 'visible' })
+      expect(registry.peek(K)?.error?.warming ?? registry.peek(K)?.error, 'the warming error reaches the entry').toBeTruthy()
+      expect(timers.some((t) => t.ms === 3000), 'no hold repeat').toBe(false)
+    })
+    it('bounded: past RATE_LIMIT_HOLD_ROUNDS in a row it is the error it always was (the hold ends)', async () => {
+      const { RATE_LIMIT_HOLD_ROUNDS } = await import('./network')
+      const request = vi.fn(async () => { throw limited() })
+      const { registry, network, fire } = netT(request)
+      registry.acquire(K)
+      await network.fetchOnce(K, { priority: 'visible' })
+      let rounds = 0
+      while (rounds < 10 && await fire(2000)) rounds++
+      expect(rounds, 'asked again RATE_LIMIT_HOLD_ROUNDS times, then left').toBe(RATE_LIMIT_HOLD_ROUNDS)
+      expect(request).toHaveBeenCalledTimes(RATE_LIMIT_HOLD_ROUNDS + 1)
+      expect(registry.peek(K)?.error, 'then the error it always was').toBeTruthy()
+    })
+  })
+
   it('an error answers the life too (the hold must end on it); an aborted request does not', async () => {
     let fail = true
-    const { network, run } = net(vi.fn(async () => { if (fail) throw Object.assign(new Error('x'), { status: 503 }); return ok() }))
+    const { network, run } = net(vi.fn(async () => { if (fail) throw Object.assign(new Error('x'), { status: 500 }); return ok() }))
     network.start(K)
     await run()
     expect(network.answered(K)).toBe(true)

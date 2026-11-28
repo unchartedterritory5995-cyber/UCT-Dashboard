@@ -1,16 +1,18 @@
-// H1 (review of #2537): W AND M NEVER COME FROM THE DEVICE. The device derived them from its D window (~350
+// H1 (review of #2537): A SHALLOW W / M NEVER COMES FROM THE DEVICE. The device derived them from its D window (~350
 // sessions, and on a weekday no bar for today): the week in progress was dropped on every weekday, the month in
 // progress on almost every day, the copy was shallow, and it still read CONTEXT + fresh, so the switch painted it
-// at once and skipped the deep-history hold (hooks/useSymbolHandoff dailyHoldNeeded). Through the real store
-// (registry + reducer + persist + network) and the real prefetch facade, with a device that WOULD answer W and M
-// with a fresh copy:
-//   WM1 no device read is ever issued for a W or M key, through any door (the switch's questions, the key press,
-//       the prepare, persist's own hydrate / refresh)
-//   WM2 the device rule never says it paints a W or M key
-//   WM3 a W or M switch asks exactly what it asks with the store OFF and gets exactly the same answers, and the
-//       store ends in exactly the same state: the same route
-//   WM4 the key press does nothing at all for W or M (no entry made, no hydrate): the store-off key press
+// at once and skipped the deep-history hold (hooks/useSymbolHandoff dailyHoldNeeded). Since zero-network PR 3.3 the
+// device answers W / M ONLY from a whole D copy whose period in progress is known (deviceStore/resample.deriveServed,
+// the copy saying so with `wholeFrom`). Through the real store (registry + reducer + persist + network) and the real
+// prefetch facade, with a device that answers W and M with a fresh copy that does NOT say it is whole:
+//   WM1 such a copy is never applied through any door (the switch's questions, the key press, the prepare, persist's
+//       own hydrate / refresh), whatever the device was asked
+//   WM2 the device rule never says it paints such a W or M key
+//   WM3 a W or M switch asks the server exactly what it asks with the store OFF and gets exactly the same answers, and
+//       the store ends in exactly the same state: the same route
+//   WM4 the key press never makes a device entry for W or M from such a copy
 //   WM5 D is still served (the gate is the timeframe, not the device)
+//   WM6 a WHOLE copy (it says `wholeFrom`) of a W / M is the device's and paints (the lift, PR 3.3)
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
@@ -18,6 +20,7 @@ import { keyOf } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { memClear } from '../../utils/barsMemCache'
+import { DEVICE_WM_FROM_FULL_D } from '../deviceStore/tfs'
 
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 
@@ -33,9 +36,10 @@ const MONTHS = Array.from({ length: 14 }, (_, i) => row(Date.UTC(2025, 8 + i, 1)
 const DAYS = Array.from({ length: 60 }, (_, i) => row(dayUnix('2026-11-17') - (59 - i) * DAY, i))
 
 /** A device that answers every timeframe it is asked for, each copy complete through `through` (fresh). */
-function fakeDevice(through) {
+function fakeDevice(through, { whole = false } = {}) {
   const byTf = { W: WEEKS, M: MONTHS, D: DAYS }
-  const hit = (s, t) => (s === 'NEWB' && byTf[t] ? { rows: byTf[t], through, savedAt: through * 1000 } : null)
+  const hit = (s, t) => (s === 'NEWB' && byTf[t]
+    ? { rows: byTf[t], through, savedAt: through * 1000, ...(whole ? { wholeFrom: byTf[t][0].t } : {}) } : null)
   return { peek: vi.fn((s, t) => hit(s, t)), read: vi.fn(async (s, t) => hit(s, t)) }
 }
 const askedFor = (dev, tfs) => [...dev.peek.mock.calls, ...dev.read.mock.calls].filter((c) => tfs.includes(c[1]))
@@ -78,7 +82,7 @@ async function switchTo(pf, store, tf) {
 
 describe('H1 W and M never come from the device', () => {
   for (const [label, now, tf] of [['mid-week, W', MID, 'W'], ['mid-week, M', MID, 'M'], ['a Saturday, W', SAT, 'W'], ['a Saturday, M', SAT, 'M']]) {
-    it(`WM1 + WM2 ${label}: no device read through any door, and the device rule never paints`, async () => {
+    it(`WM1 + WM2 ${label}: a copy that is not whole is never applied through any door, and never paints`, async () => {
       vi.setSystemTime(now)
       const dev = fakeDevice(Math.floor(now / 1000) - 30)
       const { store, pf } = boot(dev)
@@ -89,7 +93,8 @@ describe('H1 W and M never come from the device', () => {
       await store.persist.refreshDevice(key, { urgent: true })
       pf.peekBars('NEWB', tf)
       await vi.advanceTimersByTimeAsync(20)
-      expect(askedFor(dev, ['W', 'M'])).toEqual([])
+      // with W / M off (tfs.DEVICE_WM_FROM_FULL_D, the parity evidence) the device is not even asked
+      if (!DEVICE_WM_FROM_FULL_D) expect(askedFor(dev, ['W', 'M'])).toEqual([])
       expect(pf.deviceVerdict('NEWB', tf).paints).toBe(false)
       expect(pf.devicePaints('NEWB', tf)).toBe(false)
       expect(store.peek(key)?.source ?? null).not.toBe('device')
@@ -113,13 +118,13 @@ describe('H1 W and M never come from the device', () => {
     })
   }
 
-  it('WM4 the key press does nothing for W or M (no entry, no hydrate), and still primes D', async () => {
+  it('WM4 the key press makes no device entry for W or M from a copy that is not whole, and still primes D', async () => {
     vi.setSystemTime(MID)
     const dev = fakeDevice(Math.floor(MID / 1000) - 30)
     const { store, pf } = boot(dev)
     for (const tf of ['W', 'M']) {
       expect(await pf.deviceWarm('NEWB', tf)).toBe(false)
-      expect(store.peek(keyOf({ sym: 'NEWB', tf }))).toBeNull()
+      expect(store.peek(keyOf({ sym: 'NEWB', tf }))?.source ?? null).not.toBe('device')
     }
     await pf.deviceWarm('NEWB', 'D')
     expect(store.peek(keyOf({ sym: 'NEWB', tf: 'D' }))).not.toBeNull()
@@ -135,5 +140,21 @@ describe('H1 W and M never come from the device', () => {
     expect(askedFor(dev, ['D']).length).toBeGreaterThan(0)
     expect(store.peek(keyOf({ sym: 'NEWB', tf: 'D' })).source).toBe('device')
     store.dispose()
+  })
+
+  it.skipIf(!DEVICE_WM_FROM_FULL_D)('WM6 a WHOLE W / M copy (wholeFrom) is the device copy: applied, and the device rule paints it (a Saturday)', async () => {
+    vi.setSystemTime(SAT)
+    for (const tf of ['W', 'M']) {
+      const dev = fakeDevice(dayUnix('2026-11-21'), { whole: true })
+      const { store, pf } = boot(dev)
+      const key = keyOf({ sym: 'NEWB', tf })
+      await pf.deviceWarm('NEWB', tf)
+      await vi.advanceTimersByTimeAsync(20)
+      expect(store.peek(key)?.source).toBe('device')
+      expect(store.persist.deviceWhole(key)).toBe(true)
+      expect(!!pf.deepPending('NEWB', tf)).toBe(false)
+      expect(pf.devicePaints('NEWB', tf)).toBe(true)
+      store.dispose()
+    }
   })
 })

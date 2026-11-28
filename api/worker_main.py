@@ -1043,8 +1043,8 @@ def _build_app() -> FastAPI:
     # holding or fetching the 20 GB (the 2026-08-31 OOM class). READ-ONLY: serve_bars_history
     # never fetches/writes. Gated OFF + lazy-imported (boot path UNCHANGED until cutover).
     if os.environ.get("BARS_HISTORY_ORIGIN_ENABLED", "0") == "1":
-        from fastapi import Depends as _Dep, Query as _Q
-        from api.routers.bars import serve_bars_history as _serve_hist
+        from fastapi import Depends as _Dep, Query as _Q, Request as _Req
+        from api.routers import bars as _bars_router
         # 🔴 THE DEEP-HISTORY ORIGIN IS A CHART-DATA DOOR. This route holds the
         # 20 GB deep store the production history path is actually fed from — the web
         # pod does not hold deep history, it proxies here.
@@ -1058,16 +1058,23 @@ def _build_app() -> FastAPI:
         # depth — written not to depend on that staying true.
         from api.bars_auth import require_bars_service
 
+        # ⛔⛔ ASYNC, ON THE ROUTE'S OWN LIMITER, ONE BUILD PER URL (2026-11-28 cloud sweep): this was a sync `def`
+        # behind a sync gate, two hops through anyio's default 40-token pool on a pod running ~40 threads, and cold
+        # deep W/M history took 5-22 s of member time for a 30-100 ms read. `serve_bars_history_origin` (routers/bars.py)
+        # owns the why; the gate (`require_bars_service`, async) runs on the event loop, a constant-time compare.
+        # Looked up on the module at CALL time, so a substituted `serve_bars_history` is the one served.
         @app.get("/api/bars-history/{ticker}")
-        def _worker_bars_history(
+        async def _worker_bars_history(
             ticker: str,
+            request: _Req,
             _svc: dict = _Dep(require_bars_service),
             tf: str = "D",
             bars: int = _Q(default=60000, ge=1, le=60000),
             v: str = "",
             d: str = "",
         ):
-            return _serve_hist(ticker, tf, bars, v, d)
+            return await _bars_router.serve_bars_history_origin(
+                ticker, tf, bars, v, d, request.headers.get("accept-encoding", ""))
 
         logging.getLogger("uvicorn.error").info(
             "[worker] edge deep-history ORIGIN enabled — serving /api/bars-history "
@@ -1090,6 +1097,17 @@ def main():
     except Exception:  # noqa: BLE001
         logging.getLogger(__name__).warning('llm_usage install failed (non-fatal)', exc_info=True)
     log.info("worker boot starting")
+    # ⚡ The GIL switch interval, as on web and bars-api (`gil_tuning`, 0.5 ms; `PY_SWITCH_INTERVAL_MS=5` restores the
+    # interpreter's). Since BARS_HISTORY_ORIGIN_ENABLED this pod ANSWERS member deep-history reads beside ~40 busy
+    # threads, and every row-by-row sqlite read paid up to 5 ms per GIL hand-off behind them (2026-11-28 sweep: cold
+    # W/M history 5-22 s for a 30-100 ms read). First, before the threads below exist.
+    try:
+        from api.services import gil_tuning
+        _g = gil_tuning.apply()
+        log.info("[worker] thread switch interval %.2f ms (was %.2f ms; %s)", _g["ms"], _g["was_ms"],
+                 "applied" if _g["applied"] else "REFUSED, left as it was")
+    except Exception as e:  # noqa: BLE001
+        log.warning(f"thread switch interval tuning failed (non-fatal): {e}")
     # An unreadable bars.db makes init_db raise, so repair comes first.
     try:
         from api.services import bars_restore as _br

@@ -2,8 +2,8 @@
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
   "all": 281,
-  "withProductionKinds": 208,
-  "darkGated": 73
+  "withProductionKinds": 267,
+  "darkGated": 14
  },
  "totals": {
   "capabilities": 281,
@@ -5381,7 +5381,7 @@
   },
   "history.afterEvent": {
    "domain": "history",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -9594,7 +9594,7 @@
   },
   "stock.analystActions": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -9702,7 +9702,7 @@
   },
   "stock.callSearch": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -9972,7 +9972,7 @@
   },
   "stock.confluenceBoard": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -10147,7 +10147,7 @@
   },
   "stock.darkPoolLevels": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -10753,7 +10753,7 @@
   },
   "stock.expectedMove": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -11563,7 +11563,7 @@
   },
   "stock.longRunLeaders": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -12434,7 +12434,7 @@
   },
   "stock.sessionHighsLows": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -12758,7 +12758,7 @@
   },
   "stock.themeRotation": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -13174,7 +13174,7 @@
   },
   "stock.yearlyHighsLows": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,

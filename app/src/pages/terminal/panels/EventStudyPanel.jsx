@@ -15,8 +15,11 @@
 // the request: a new study says it is being worked out and this panel asks again every few seconds
 // (SWR's refresh, which pauses while the app is hidden). The pure half is eventStudyModel.js.
 //
-// The member's last study is kept in this browser (localStorage, in try/catch, as SIZE keeps its
-// account): it opens on it next time.
+// The study is the panel's VIEW (customization pass 1, components/terminal/usePanelView): saved with the
+// board, a saved board and a share link, one study per panel. A panel with no study yet starts on the
+// study this browser kept before (localStorage, `EVST_STORE_KEY`, read in try/catch), which it then
+// keeps as its own, so nobody loses a study to the move. Outside the shell (no board to save to) the
+// browser copy is still where the last study is kept.
 //
 // ⛔ A MISSING NUMBER IS NEVER 0: a window with no completed outcome says "too little history", a study
 // with no episode says so, a return not known yet is "open".
@@ -25,8 +28,9 @@
 // WIDTH. The form is a grid that folds to one column in a narrow panel and on a phone; the window
 // table is four columns of two-line cells; the episode list is the date with its value, then one
 // short column per window (four at most). Nothing folds away; cells wrap between words.
-import { Fragment, useId, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { Fragment, useContext, useEffect, useId, useMemo, useState } from 'react'
+import { PanelSkeleton, PanelState, PanelSymbol, PanelViewContext, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import Checkbox from '../../../components/ui/Checkbox'
 import FieldError from '../../../components/ui/FieldError'
 import Input from '../../../components/ui/Input'
@@ -35,7 +39,7 @@ import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from
 import {
   ENTRY_WORDS, EPISODE_WORDS, EVST_CODE, EVST_MENU_WHAT, EVST_SERIES_URL, EVST_WHAT, OPS, OP_WORDS, WINDOWS,
   baselineRow, checkSpec, countText, coverageText, episodeCell, episodesHeading, leadParts, noEpisodesText,
-  loadStoredSpec, normSpec, normWindows, pollFor, readMenu, readStudy, readySpec, saveStoredSpec, seriesMeasure, startSpec, studyUrl, switchKind,
+  loadStoredSpec, normSpec, normWindows, pollFor, readMenu, readStudy, readySpec, saveStoredSpec, seriesMeasure, specFromView, specToView, startSpec, studyUrl, switchKind,
   thresholdHint, valueText, windowRow, windowShort,
 } from './eventStudyModel'
 import { dayText } from './ratesModel'
@@ -386,18 +390,27 @@ function StudyAnswer({ url, code }) {
 function EventStudyBody({ sym, code }) {
   const menuRead = useMarketRead(EVST_SERIES_URL)
   const menu = useMemo(() => readMenu(menuRead.body), [menuRead.body])
-  const [stored] = useState(() => loadStoredSpec())
+  const onBoard = !!useContext(PanelViewContext)?.setView
+  const [view, setView] = usePanelView({})
+  // The panel's own study first; else (once, at mount) the one this browser kept before the move.
+  const [stored] = useState(() => specFromView(view.filters) || loadStoredSpec())
   const [applied, setApplied] = useState(() => startSpec(stored, sym))
   const [draft, setDraft] = useState(applied)
   const [errors, setErrors] = useState({})
   const [open, setOpen] = useState(() => !stored)
   const url = studyUrl(applied)
+  // A study adopted from the browser copy becomes this panel's own, so the board carries it.
+  useEffect(() => {
+    if (onBoard && stored && !specFromView(view.filters)) setView((cur) => ({ ...cur, filters: specToView(stored) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const apply = (spec) => {
     setApplied(spec)
     setDraft(spec)
     setErrors({})
-    saveStoredSpec(spec)
+    if (onBoard) setView((cur) => ({ ...cur, filters: specToView(spec) }))
+    else saveStoredSpec(spec)
   }
   const run = () => {
     const ready = readySpec(draft, menu)

@@ -39,6 +39,7 @@ import Highs52Panel, {
 import * as model from './highs52Model'
 import { ARG_KINDS, HILO_SIDE_WORDS } from '../args'
 import { colourLiteralsIn } from '../__tests__/themeScope'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const AS_OF = '2026-11-16T10:31:02-05:00'
@@ -103,12 +104,13 @@ function serve(routes) {
 }
 const asked = () => jsonFetcher.mock.calls.map(([url]) => url)
 
-function renderPanel(props = {}, { run = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><Highs52Panel {...props} /></ViewHost> : <Highs52Panel {...props} />
   const tree = (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open: vi.fn(), run, rerun: vi.fn(), publish: vi.fn(), publishRows }}>
-          <Highs52Panel {...props} />
+          {body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -544,5 +546,35 @@ describe('H52 list alert', () => {
     const stub = screen.getByTestId('list-alert-stub')
     expect(stub.getAttribute('data-kind')).toBe('highs52')
     expect(stub.closest('[role="toolbar"]')).toBeNull()
+  })
+})
+
+describe('H52 sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('one sort orders both lists; side by side the company and share count are not offered; kept on remount', async () => {
+    serve(LIVE_ROUTES)
+    const saved = savedView()
+    const { publishRows } = renderPanel({}, { saved })
+    await screen.findByTestId('terminal-h52-highs')
+    fireEvent.click(screen.getByTestId('terminal-h52-highs-sort-rvol'))
+    expect(symsOf('highs')).toEqual(['AAA', 'BBB', 'CCC'])
+    expect(symsOf('lows')).toEqual(['EEE', 'DDD'])
+    fireEvent.click(screen.getByTestId('terminal-h52-lows-sort-rvol'))
+    expect(symsOf('highs')).toEqual(['BBB', 'AAA', 'CCC'])   // no reading sinks
+    expect(symsOf('lows')).toEqual(['DDD', 'EEE'])
+    expect(publishRows).toHaveBeenLastCalledWith(['$BBB', '$AAA', '$CCC', '$DDD', '$EEE'])
+    expect(screen.getByTestId('terminal-h52-method').textContent).toContain('sorted here by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-h52-columns'))
+    expect(screen.queryByTestId('terminal-h52-columns-col-name')).toBeNull()
+    fireEvent.click(screen.getByTestId('terminal-h52-columns-col-price'))
+    fireEvent.click(screen.getByTestId('terminal-h52-columns'))
+    fireEvent.click(screen.getByTestId('terminal-h52-side-lows'))
+    fireEvent.click(screen.getByTestId('terminal-h52-columns'))
+    expect(screen.getByTestId('terminal-h52-columns-col-name')).toBeTruthy()   // one list: the company is offered
+    cleanup()
+    serve(LIVE_ROUTES)
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-h52-highs')
+    expect(symsOf('highs')).toEqual(['BBB', 'AAA', 'CCC'])
+    expect(within(screen.getByTestId('terminal-h52-highs')).queryByRole('columnheader', { name: /Last/ })).toBeNull()
   })
 })

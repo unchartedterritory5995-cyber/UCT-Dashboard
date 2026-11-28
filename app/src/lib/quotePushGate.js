@@ -10,6 +10,23 @@
 // The flag lives here so quotePush and the stores read ONE rule: `localStorage['uct.quotePush'] = '1'` or the
 // cookie `uct_quote_push=1`; the kill switch `localStorage['uct.quotePush.disabled'] = '1'` beats both.
 
+// ⚡ (2026-11-28, section 3.3 change 5) THE COOKIE IS READ ONCE PER PAGE LOAD. `whenQuotePush` runs on every change of
+// a store's ticker set, so on every symbol switch, and with the flag off it read `document.cookie` each time: a
+// synchronous getter that cost 0.5-2.4 ms of the switch's key task (production CPU profiles mapped to source, a local
+// build of master 886bbe212d). The cookie is a tester's switch nothing in the app sets, so its answer is latched for the
+// page (a tester sets it and reloads, as for every other cookie switch: lib/chartSpeed.js). The two localStorage keys
+// are still read on every call (cheap), so the client key and the kill switch act at once as before.
+let _cookieOn = null
+function _cookieFlag() {
+  if (_cookieOn !== null) return _cookieOn
+  try {
+    _cookieOn = typeof document !== 'undefined' && /(?:^|;\s*)uct_quote_push=1(?:;|$)/.test(document.cookie || '')
+  } catch {
+    _cookieOn = false
+  }
+  return _cookieOn
+}
+
 export function quotePushFlagOn() {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -17,11 +34,12 @@ export function quotePushFlagOn() {
       if (localStorage.getItem('uct.quotePush') === '1') return true
     }
   } catch { /* storage refused: fall through to the cookie */ }
-  try {
-    return typeof document !== 'undefined' && /(?:^|;\s*)uct_quote_push=1(?:;|$)/.test(document.cookie || '')
-  } catch {
-    return false
-  }
+  return _cookieFlag()
+}
+
+/** Test seam: forget the latched cookie answer (the next flag read reads the jar). */
+export function __resetQuotePushFlagForTest() {
+  _cookieOn = null
 }
 
 let _mod = null

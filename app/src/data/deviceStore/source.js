@@ -7,8 +7,10 @@
 //                       `urgent`: the member's own ask goes ahead of every background read (client.js, TWO LANES)
 // `rows` are the cache's row shape ({t,o,h,l,c,v}, t unix seconds), what the reducer's local-copy
 // action ingests. Only the keys the seed holds: 1/5/15/30/60 (the RTH session grid: '60e' is not in
-// the seed) and D. ⛔ Never W or M (tfs.SERVED_TFS, review of #2537 H1): asked for one, every door here answers
-// null ('tf' for the diagnostics) without loading or asking the client.
+// the seed) and D, plus W and M DERIVED HERE from the D copy (zero-network PR 3.3, tfs.DEVICE_WM_FROM_FULL_D): the client
+// is asked for D, and resample.deriveServed answers W / M only from a WHOLE D copy whose period in progress is known
+// (anything else: null, and `why` names the rule). The worker is never asked for a W / M read (review of #2549 P2-L2).
+// With DEVICE_WM_FROM_FULL_D off, W / M are not served at all (every door answers null, 'tf', as for H1 of #2537).
 // `formingT`: the time of the copy's last row when that row is the bucket IN PROGRESS (the copy's `forming`,
 // live.js / engine.js), else null. The store files that row as the developing bar whatever the clock says (M1).
 //
@@ -17,7 +19,8 @@
 // read waits for it.
 
 import { deviceStoreEnabled, deviceStoreOffReason, deviceStoreKeyState } from './switch'
-import { SERVED_TFS } from './tfs'
+import { SERVED_TFS, DERIVED_TFS } from './tfs'
+import { deriveServed } from './resample'
 import { deviceFilesMayExist, deviceFilesStaleConfirmed, removeDeviceFiles, whenIdle } from './residue'
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 
@@ -80,28 +83,54 @@ const _hit = (cols) => {
   return {
     // `lastT`: the time of the copy's newest row, read without building rows (persist.flushJoins: a copy whose newest row
     // is no newer than an answer's newest has nothing that answer could keep, whatever its stamp says; review of #2620)
+    // `wholeFrom` (zero-network PR 3.2): the copy is the symbol's WHOLE served series (the full-depth daily pack,
+    // engine.js `whole`), and this is its first bar's time: nothing older exists, so the bar store asks no deep history
+    // join for an entry that still starts there (persist.deviceWhole, network.deepPending). null: not known whole.
+    wholeFrom: cols.whole === true ? cols.t[0] : null,
     n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT, lastT: cols.t[n - 1],
     get rows() { return rows || (rows = columnsToRows(cols)) },
   }
 }
 
-/** A source over any client-shaped object ({peekBars, getBars}); `load` resolves it. */
-export function createDeviceSource({ load = _load, current = () => _client } = {}) {
+/** A source over any client-shaped object ({peekBars, getBars}); `load` resolves it. `now`: W / M's clock (the period in
+ *  progress, resample.periodKnown). */
+export function createDeviceSource({ load = _load, current = () => _client, now = () => Date.now(), tfs = _TFS } = {}) {
+  // ⭐ ONE DERIVATION PER D COPY AND MINUTE: the store peeks a held key on every warm and press, and a full-depth D copy
+  // is up to ~12,600 rows (a resample of it ~1-3 ms). The client's copies are frozen objects, so the D copy itself is
+  // the key; the answer is kept for the minute it was made in (the period rules move at most at a minute's edge).
+  const derived = new WeakMap()      // D cols → { [tf]: { minute, cols } }
+  /** W / M ('W', 'M') from the D columns the client answered, or the D columns themselves for any other tf. */
+  const _served = (cols, tf) => {
+    if (!DERIVED_TFS[tf]) return cols
+    if (!cols) return null
+    const at = now()
+    const minute = Math.floor(at / 60_000)
+    let slot = null
+    try { slot = derived.get(cols) } catch { slot = null }
+    const hit = slot?.[tf]
+    if (hit && hit.minute === minute) return hit.cols
+    const out = deriveServed(cols, tf, at).cols
+    try { if (!slot) derived.set(cols, (slot = {})); slot[tf] = { minute, cols: out } } catch { /* not cacheable */ }
+    return out
+  }
+  /** The tf the client is asked for (W / M: their D). */
+  const _ask = (tf) => DERIVED_TFS[tf] ?? tf
   return {
     peek(sym, tf) {
-      if (!sym || !_TFS.has(String(tf))) return null
+      if (!sym || !tfs.has(String(tf))) return null
       const c = current()
       if (!c) { load(); return null }
-      try { return _hit(c.peekBars(sym, String(tf))) } catch { return null }
+      try { return _hit(_served(c.peekBars(sym, _ask(String(tf))), String(tf))) } catch { return null }
     },
     // `newerThan`: a copy no newer than this `through` is not the answer (client.getBars; review of #2558, P4-L2)
     read(sym, tf, { urgent = false, newerThan = null } = {}) {
-      if (!sym || !_TFS.has(String(tf))) return Promise.resolve(null)
+      if (!sym || !tfs.has(String(tf))) return Promise.resolve(null)
       const newer = Number.isFinite(newerThan)
       const opts = urgent === true ? (newer ? { urgent: true, newerThan } : { urgent: true }) : (newer ? { newerThan } : null)
+      const T = String(tf)
       return Promise.resolve(current() || load())
-        .then((c) => (c ? (opts ? c.getBars(sym, String(tf), opts) : c.getBars(sym, String(tf))) : null))
-        .then(_hit, () => null)
+        .then((c) => (c ? (opts ? c.getBars(sym, _ask(T), opts) : c.getBars(sym, _ask(T))) : null))
+        .then((cols) => _hit(_served(cols, T)), () => null)
     },
     /** Diagnostics: the client's worker requests in flight (client.inFlight), 0 before it loaded. */
     inFlight() {
@@ -111,9 +140,17 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
     /** Diagnostics: the worker's rule for (sym, tf) (client.why); 'no-client' when the store never loaded; 'tf' for a
      *  timeframe the device does not serve (W / M: asked nothing, loads nothing). */
     why(sym, tf) {
-      if (!_TFS.has(String(tf))) return Promise.resolve('tf')
+      if (!tfs.has(String(tf))) return Promise.resolve('tf')
+      const T = String(tf)
       return Promise.resolve(current() || load())
-        .then((c) => (c?.why ? c.why(sym, String(tf)) : 'no-client'))
+        .then(async (c) => {
+          if (!c?.why) return 'no-client'
+          const w = await c.why(sym, _ask(T))
+          // W / M: the D copy's rule, then the derivation's (wm-shallow / wm-period) when the D copy is there
+          if (!DERIVED_TFS[T] || w !== 'ok' && !String(w || '').startsWith('seed-only')) return w
+          const d = await c.getBars(sym, _ask(T))
+          return d ? deriveServed(d, T, now()).why : w
+        })
         .then((w) => w ?? 'no-engine', () => 'error')
     },
   }

@@ -13,9 +13,8 @@
 // The lists are never cut by the server (every theme past the threshold is sent), so nothing here
 // says "showing N of M".
 import { useMemo, useState } from 'react'
-import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
@@ -41,21 +40,27 @@ const count = (n) => formatNumber(n, { decimals: 0 })
 const tone = (v) => (v > 0 ? styles.up : v < 0 ? styles.down : undefined)
 const pct = (v) => formatPercent(v, { decimals: 1, signed: true, absent: NA })
 
-function RotationTable({ side, rows }) {
+/** Customization pass 1: both lists' columns (components/terminal/PanelTable), one sort for the two.
+ *  Which themes rotate in or out is the server's threshold and stays it; a header click sorts the
+ *  themes inside each list (the server lists the biggest move first). */
+export const TROT_COLUMNS = Object.freeze([
+  { key: 'name', label: 'Theme', type: 'text', sort: (r) => r.name, required: true, thClass: styles.wrapCell,
+    title: 'Click a theme to see which of its stocks drive it' },
+  { key: 'delta', label: 'Rank change', sort: (r) => r.delta, title: '1 week strength rank less 1 month strength rank, in percentile points' },
+  { key: 'rank', label: 'Rank, 1M to 1W', sort: (r) => r.rank1w, phoneHide: true,
+    title: 'Strength rank among all themes, 0 weakest to 100 strongest: over 1 month, then over 1 week (sorts by the 1 week rank)' },
+  { key: 'ret1w', label: '1W return', sort: (r) => r.ret1w, title: "The theme's return over the last week" },
+  { key: 'ret1m', label: '1M return', sort: (r) => r.ret1m, phoneHide: true, title: "The theme's return over the last month" },
+])
+
+function RotationTable({ side, rows, table }) {
   const rotatingIn = side === 'in'
+  const shows = table.shows
   return (
     <div className={styles.tableBox}>
       <table className={styles.table} data-testid={`terminal-trot-${side}`}>
         <caption className={styles.caption}>{rotatingIn ? 'Rotating in' : 'Rotating out'} ({count(rows.length)})</caption>
-        <thead>
-          <tr>
-            <th scope="col" className={styles.wrapCell} title="Click a theme to see which of its stocks drive it">Theme</th>
-            <th scope="col" title="1 week strength rank less 1 month strength rank, in percentile points">Rank change</th>
-            <th scope="col" className={styles.phoneHide} title="Strength rank among all themes, 0 weakest to 100 strongest: over 1 month, then over 1 week">Rank, 1M to 1W</th>
-            <th scope="col" title="The theme's return over the last week">1W return</th>
-            <th scope="col" className={styles.phoneHide} title="The theme's return over the last month">1M return</th>
-          </tr>
-        </thead>
+        <PanelTableHead table={table} testId={`terminal-trot-${side}`} />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-trot-row-${r.themeKey}`} data-side={side}>
@@ -70,10 +75,10 @@ function RotationTable({ side, rows }) {
                     label={`Open the stocks of ${r.name}, ranked`}>stocks</PanelCommand>
                 </span>
               </td>
-              <td className={tone(r.delta)}>{deltaText(r) ?? NA}</td>
-              <td className={styles.phoneHide}>{rankMoveText(r) ?? NA}</td>
-              <td className={tone(r.ret1w)}>{pct(r.ret1w)}</td>
-              <td className={`${styles.phoneHide} ${tone(r.ret1m) || ''}`}>{pct(r.ret1m)}</td>
+              {shows('delta') && <td className={tone(r.delta)}>{deltaText(r) ?? NA}</td>}
+              {shows('rank') && <td className={styles.phoneHide}>{rankMoveText(r) ?? NA}</td>}
+              {shows('ret1w') && <td className={tone(r.ret1w)}>{pct(r.ret1w)}</td>}
+              {shows('ret1m') && <td className={`${styles.phoneHide} ${tone(r.ret1m) || ''}`}>{pct(r.ret1m)}</td>}
             </tr>
           ))}
         </tbody>
@@ -95,6 +100,9 @@ export default function ThemeRotationPanel({ side: sideProp = null }) {
   const warming = (!!read.body && view.state === 'warming') || (!read.body && isWarmingError(read.error))
   const warmPoll = useWarmingPoll(warming, read.retry)
   usePanelFreshness(view.state === 'ok' ? panelAsOf(SOURCE, view.generatedAt) : null)
+  const table = usePanelTable({ columns: TROT_COLUMNS })
+  const rotIn = useMemo(() => table.apply(view.rotatingIn || []), [view.rotatingIn, table.apply])
+  const rotOut = useMemo(() => table.apply(view.rotatingOut || []), [view.rotatingOut, table.apply])
 
   // A chip writes itself into the command (`TROT OUT`) where the registry takes the word, so a
   // reload keeps it; otherwise it is plain component state (commandWriteBack.js).
@@ -108,6 +116,7 @@ export default function ThemeRotationPanel({ side: sideProp = null }) {
             data-testid={`terminal-trot-side-${key}`}>{s.chip}</button>
         ))}
       </div>
+      <PanelColumns table={table} testId="terminal-trot-columns" />
     </div>
   )
 
@@ -149,9 +158,9 @@ export default function ThemeRotationPanel({ side: sideProp = null }) {
           <div className={styles.head}>
             <span className={styles.lede} data-testid="terminal-trot-summary">{rotationSummary(view)}</span>
           </div>
-          {showIn && view.rotatingIn.length > 0 ? <RotationTable side="in" rows={view.rotatingIn} /> : null}
+          {showIn && view.rotatingIn.length > 0 ? <RotationTable side="in" rows={rotIn} table={table} /> : null}
           {showIn && view.rotatingIn.length === 0 ? <p className={styles.muted} data-testid="terminal-trot-no-in">No theme is rotating in right now.</p> : null}
-          {showOut && view.rotatingOut.length > 0 ? <RotationTable side="out" rows={view.rotatingOut} /> : null}
+          {showOut && view.rotatingOut.length > 0 ? <RotationTable side="out" rows={rotOut} table={table} /> : null}
           {showOut && view.rotatingOut.length === 0 ? <p className={styles.muted} data-testid="terminal-trot-no-out">No theme is rotating out right now.</p> : null}
         </>
       )}
@@ -159,7 +168,7 @@ export default function ThemeRotationPanel({ side: sideProp = null }) {
         Every UCT theme is ranked by its return among all themes, from 0 (weakest) to 100 (strongest), once over the last
         week and once over the last month. Rank change is the 1 week rank less the 1 month rank. A theme is rotating in
         when it has climbed {ROTATION_THRESHOLD} points or more (stronger lately than over the month) and rotating out when
-        it has dropped {ROTATION_THRESHOLD} or more. Biggest move first. A theme can rotate in while its return is still
+        it has dropped {ROTATION_THRESHOLD} or more. {table.sort ? 'Each list is sorted here by the column header you picked (the server lists the biggest move first).' : 'Biggest move first.'} A theme can rotate in while its return is still
         negative: the rank compares it with the other themes. A sign (+/-) marks every change, so color is never the only
         signal. Click a theme to see which of its stocks drive it; "stocks" opens every stock of the theme, ranked.
         {view.generatedAt ? ` Ranks worked out at ${formatTimeEt(view.generatedAt, { zoneSuffix: 'ET', absent: '' })}; the server refreshes them every 15 minutes.` : ''}

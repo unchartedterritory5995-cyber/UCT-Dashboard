@@ -62,6 +62,7 @@ export default function ChartIdentityRow({
   themeVars = undefined,
   onSymbolChange = null,
   onTypedIntent = null,
+  onTypedCandidates = null,
   economic = false,
   showChange = true,
   dayGain = null,
@@ -151,6 +152,7 @@ export default function ChartIdentityRow({
             sym={sym}
             onSymbolChange={onSymbolChange}
             onTypedIntent={onTypedIntent}
+            onTypedCandidates={onTypedCandidates}
             hideIcon
             fullLabel
             splitLabel={!!dragHandleClass}

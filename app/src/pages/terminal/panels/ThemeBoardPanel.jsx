@@ -15,9 +15,8 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import {
-  PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRerun,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRerun } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { DEFAULT_WINDOW, IMOV_WINDOWS, POLL_MS, THEMES_URL, imovCommand, normSym, ownerSyms, themeKey, themesOf } from './imovModel'
 import { canRetry, failureText, isWarmingBody } from './marketRead'
@@ -59,21 +58,26 @@ export function themeBoard(themes, key) {
   }
 }
 
-function BoardTable({ title, rows, period, testId }) {
+/** Customization pass 1: both lists' columns (components/terminal/PanelTable), one sort for the two.
+ *  Which themes lead and which lag is the board's meaning and stays the period's return; a header
+ *  click sorts the themes inside each list. */
+export const THMS_COLUMNS = Object.freeze([
+  { key: 'name', label: 'Theme', type: 'text', sort: (r) => r.name, required: true, thClass: styles.wrapCell },
+  { key: 'etf', label: 'ETF', type: 'text', sort: (r) => r.etf || null, phoneHide: true, title: "The theme's reference ETF" },
+  { key: 'members', label: 'Names', sort: (r) => r.members, phoneHide: true },
+  { key: 'ret', label: 'Return', sort: (r) => r.ret },
+])
+
+function BoardTable({ title, rows, period, testId, table }) {
   if (!rows.length) return null
+  const shows = table.shows
   const imovWin = IMOV_WINDOWS[period] ? period : DEFAULT_WINDOW
   return (
     <div className={styles.tableBox}>
       <table className={styles.table} data-testid={testId}>
         <caption className={styles.caption}>{title}</caption>
-        <thead>
-          <tr>
-            <th scope="col" className={styles.wrapCell}>Theme</th>
-            <th scope="col" title="The theme's reference ETF" className={styles.phoneHide}>ETF</th>
-            <th scope="col" className={styles.phoneHide}>Names</th>
-            <th scope="col">{period}</th>
-          </tr>
-        </thead>
+        <PanelTableHead testId={testId}
+          table={{ ...table, visible: table.visible.map((c) => (c.key === 'ret' ? { ...c, label: period } : c)) }} />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-thms-row-${r.key}`}>
@@ -87,9 +91,9 @@ function BoardTable({ title, rows, period, testId }) {
                     label={`Open the stocks of ${r.name}, ranked`}>stocks</PanelCommand>
                 </span>
               </td>
-              <td className={styles.phoneHide}>{r.etf || ''}</td>
-              <td className={styles.phoneHide}>{r.members}</td>
-              <td className={r.ret > 0 ? styles.up : r.ret < 0 ? styles.down : undefined}>{formatPercent(r.ret, { decimals: 2, signed: true })}</td>
+              {shows('etf') && <td className={styles.phoneHide}>{r.etf || ''}</td>}
+              {shows('members') && <td className={styles.phoneHide}>{r.members}</td>}
+              {shows('ret') && <td className={r.ret > 0 ? styles.up : r.ret < 0 ? styles.down : undefined}>{formatPercent(r.ret, { decimals: 2, signed: true })}</td>}
             </tr>
           ))}
         </tbody>
@@ -105,7 +109,9 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
   const [period, setPeriod] = useState(THEME_PERIODS[winProp] ? winProp : '1D')
   const perf = useMobileSWR(THEMES_URL, jsonFetcher, SWR_OPTS)
   const themes = useMemo(() => themesOf(perf.data), [perf.data])
-  const board = useMemo(() => themeBoard(themes, THEME_PERIODS[period]), [themes, period])
+  const table = usePanelTable({ columns: THMS_COLUMNS })
+  const ranked = useMemo(() => themeBoard(themes, THEME_PERIODS[period]), [themes, period])
+  const board = useMemo(() => ({ ...ranked, leaders: table.apply(ranked.leaders), laggards: table.apply(ranked.laggards) }), [ranked, table.apply])
   // A cold theme cache answers 200 {"themes":[],"status":"computing"}: re-poll briefly (the panel's
   // own poll is market-hours only, so off hours nothing else would ask again).
   const computing = !themes.length && isWarmingBody(perf.data)
@@ -155,14 +161,15 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
               data-testid={`terminal-thms-period-${p}`}>{p}</button>
           ))}
         </div>
+        <PanelColumns table={table} testId="terminal-thms-columns" />
       </div>
       {perf.error && <p className={styles.note} role="status">{failureText(perf.error, 'Theme performance')} Showing the last read.</p>}
       {!board.leaders.length && !board.laggards.length ? (
         <PanelState kind="empty" compact testId="terminal-thms-empty" title={`No theme has a ${period} return yet.`}>Try another period.</PanelState>
       ) : (
         <div className={`${styles.split} ${styles.splitRoomy}`}>
-          <BoardTable title={`Leading (${board.leaders.length})`} rows={board.leaders} period={period} testId="terminal-thms-leaders" />
-          <BoardTable title={`Lagging (${board.laggards.length})`} rows={board.laggards} period={period} testId="terminal-thms-laggards" />
+          <BoardTable title={`Leading (${board.leaders.length})`} rows={board.leaders} period={period} testId="terminal-thms-leaders" table={table} />
+          <BoardTable title={`Lagging (${board.laggards.length})`} rows={board.laggards} period={period} testId="terminal-thms-laggards" table={table} />
         </div>
       )}
       {board.unpriced.length > 0 && (
@@ -173,7 +180,7 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
       )}
       <p className={styles.muted} data-testid="terminal-thms-method">
         Each theme is UCT&apos;s own equal-weight basket of its curated names, the same figure the Theme Tracker shows. 1D is
-        the live move; longer periods are the live price against each name&apos;s close at the start of the period. Click a
+        the live move; longer periods are the live price against each name&apos;s close at the start of the period.{table.sort ? ' Which themes lead and lag is by that return; each list is sorted here by the column header you picked.' : ''} Click a
         theme to open IMOV beside the board and see which names drive it; "stocks" opens every stock of the theme, ranked.
         {asOf ? ` Prices as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

@@ -25,9 +25,8 @@
 // The read goes through marketRead.js (the terminal's one bare-SWR reader), and SWR skips ticks
 // while the app is hidden.
 import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCompactTerminal, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -106,7 +105,26 @@ function FailedRead({ read, code }) {
   )
 }
 
-function ShortRow({ r, i, rank }) {
+/** Customization pass 1: the table's columns (components/terminal/PanelTable). The rank the member
+ *  picked (the chips, written into the command) is the default order; a header click sorts the
+ *  stocks the server ranked, and the sentence above the table says so. On a phone the column being
+ *  ranked stays and the other one steps aside (`columnsFor`). */
+export const SHORT_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'dtc', label: 'Days to cover', sort: (r) => r.dtc, title: 'Short interest divided by the average daily volume, as the data vendor works it out' },
+  { key: 'short', label: 'Short interest', sort: (r) => r.short, title: 'Shares sold short and not yet bought back on the settlement date' },
+  { key: 'change', label: 'Change', sort: (r) => r.changePct, title: 'The change from the previous report, in percent and in shares' },
+  { key: 'float', label: '% of float', sort: (r) => r.pctFloat, title: "Short interest as a percent of today's float from the nightly screener export" },
+  { key: 'adv', label: 'Avg daily volume', sort: (r) => r.adv, phoneHide: true, title: 'The average daily volume the days to cover are worked out from' },
+])
+const SHORT_SORTED_BY = { sym: 'symbol', dtc: 'days to cover', short: 'short interest', change: 'percent change', float: 'percent of float', adv: 'average daily volume' }
+function columnsFor(table, rank) {
+  const byFloat = rank === 'float'
+  const cls = { dtc: byFloat ? styles.phoneHide : styles.phoneWrap, short: styles.phoneWrap, float: byFloat ? styles.phoneWrap : styles.phoneHide }
+  return { ...table, visible: table.visible.map((c) => (cls[c.key] ? { ...c, thClass: cls[c.key] } : c)) }
+}
+
+function ShortRow({ r, i, rank, shows }) {
   const way = changeWay(r)
   // On a phone the column being ranked always stays: percent of float gives way unless it is the rank.
   const byFloat = rank === 'float'
@@ -116,9 +134,9 @@ function ShortRow({ r, i, rank }) {
         <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
         <PanelSymbol sym={r.sym} className={styles.sym} />
       </td>
-      <td className={byFloat ? styles.phoneHide : undefined}>{days(r.dtc)}</td>
-      <td>{shares(r.short)}</td>
-      <td>
+      {shows('dtc') && <td className={byFloat ? styles.phoneHide : undefined}>{days(r.dtc)}</td>}
+      {shows('short') && <td>{shares(r.short)}</td>}
+      {shows('change') && <td>
         {way == null ? <span className={styles.muted}>No earlier report</span> : (
           <>
             {way === 'flat' ? 'Unchanged' : r.changePct != null ? signedPct(r.changePct) : 'No percent'}
@@ -126,9 +144,9 @@ function ShortRow({ r, i, rank }) {
             <span className={styles.muted}>{signedShares(r.changeShares)}</span>
           </>
         )}
-      </td>
-      <td className={byFloat ? undefined : styles.phoneHide}>{r.pctFloat != null ? pct(r.pctFloat) : <span className={styles.muted}>No float</span>}</td>
-      <td className={styles.phoneHide}>{shares(r.adv)}</td>
+      </td>}
+      {shows('float') && <td className={byFloat ? undefined : styles.phoneHide}>{r.pctFloat != null ? pct(r.pctFloat) : <span className={styles.muted}>No float</span>}</td>}
+      {shows('adv') && <td className={styles.phoneHide}>{shares(r.adv)}</td>}
     </tr>
   )
 }
@@ -146,7 +164,9 @@ function ShortList({ rank, pick, code, inPanel }) {
   if (wantPace !== pace) setPace(wantPace)
 
   const ok = !read.loading && !!read.body && view.state === 'ok'
-  const shown = useMemo(() => (ok ? view.rows.slice(0, limit) : []), [ok, view.rows, limit])
+  const table = usePanelTable({ columns: SHORT_COLUMNS })
+  const sorted = useMemo(() => table.apply(view.rows || []), [view.rows, table.apply])
+  const shown = useMemo(() => (ok ? sorted.slice(0, limit) : []), [ok, sorted, limit])
   usePanelFreshness(ok ? panelAsOf(SOURCE, view.settlementDate) : null)
   usePanelSymbolRows(shown.map((r) => r.sym), `short interest, ${SHORT_RANKS[rank].words}`, { total: ok ? view.ranked : null })
 
@@ -158,6 +178,7 @@ function ShortList({ rank, pick, code, inPanel }) {
             data-testid={`terminal-shorts-rank-${key}`}>{r.chip}</button>
         ))}
       </div>
+      <PanelColumns table={table} testId="terminal-shorts-columns" />
     </div>
   )
   const frame = (state, body) => (
@@ -190,7 +211,6 @@ function ShortList({ rank, pick, code, inPanel }) {
     ))
   }
 
-  const byFloat = rank === 'float'
   const canShowMore = shown.length < view.rows.length
   return frame('ok', (
     <>
@@ -214,22 +234,16 @@ function ShortList({ rank, pick, code, inPanel }) {
       </div>
       {view.rows.length ? (
         <>
-          <p className={styles.lede} data-testid="terminal-shorts-ranked">{rankSentence(view, shown.length)}</p>
+          <p className={styles.lede} data-testid="terminal-shorts-ranked">
+            {rankSentence(view, shown.length)}
+            {table.sort ? ` Sorted here by ${SHORT_SORTED_BY[table.sort.key]}, ${table.sort.dir === 'asc' ? 'lowest' : 'highest'} first.` : ''}
+          </p>
           <div className={styles.tableBox} data-fold="510">
             <table className={styles.table} data-testid="terminal-shorts-table"
               aria-label={`Short interest for the ${dayText(view.settlementDate)} settlement date, ${SHORT_RANKS[rank].words}, ${shown.length} of ${view.ranked}`}>
-              <thead>
-                <tr>
-                  <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-                  <th scope="col" className={byFloat ? styles.phoneHide : styles.phoneWrap} title="Short interest divided by the average daily volume, as the data vendor works it out">Days to cover</th>
-                  <th scope="col" className={styles.phoneWrap} title="Shares sold short and not yet bought back on the settlement date">Short interest</th>
-                  <th scope="col" title="The change from the previous report, in percent and in shares">Change</th>
-                  <th scope="col" className={byFloat ? styles.phoneWrap : styles.phoneHide} title="Short interest as a percent of today's float from the nightly screener export">% of float</th>
-                  <th scope="col" className={styles.phoneHide} title="The average daily volume the days to cover are worked out from">Avg daily volume</th>
-                </tr>
-              </thead>
+              <PanelTableHead table={columnsFor(table, rank)} testId="terminal-shorts" />
               <tbody>
-                {shown.map((r, i) => <ShortRow key={r.sym} r={r} i={i} rank={rank} />)}
+                {shown.map((r, i) => <ShortRow key={r.sym} r={r} i={i} rank={rank} shows={table.shows} />)}
               </tbody>
             </table>
           </div>

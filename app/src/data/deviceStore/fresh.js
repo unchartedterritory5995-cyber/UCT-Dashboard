@@ -9,7 +9,8 @@
 //     complete bucket passes mid-session and paints them; the forming bucket is not in it, and the server's
 //     answer only adds it (store.deviceLive L1/L2). D passes THIS check too, but never paints mid-session: its
 //     copy lacks today's developing bar, so the store's status rule refuses it (L6), and the server's answer
-//     carries that bar. (W and M are never served by the device at all: tfs.SERVED_TFS, review of #2537 H1.)
+//     carries that bar. (W and M come from the device only from a WHOLE D copy whose period in progress is known:
+//     resample.deriveServed, zero-network PR 3.3; their `through` is the D copy's.)
 //   * outside it: complete through the end of the last closed session (intraday: its regular close, 13:00
 //     on an NYSE early-close day; D/W/M: the end of that day, when its daily bar is whole).
 // Small on purpose: barStore/prefetch.js imports it.

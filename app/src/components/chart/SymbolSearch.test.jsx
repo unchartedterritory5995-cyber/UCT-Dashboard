@@ -285,3 +285,67 @@ test('CONTROL universe: text it does not know still waits for the typing pause',
   await wait(SETTLED)
   expect(onTypedIntent.mock.calls).toEqual([['ZZQ']])
 })
+
+// ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TEXT'S LIKELIEST COMPLETIONS, ON EVERY KEYSTROKE AND ON A PASTE
+// (onTypedCandidates): at once (no pause), at most TYPED_CANDIDATES_K, prefix matches of the universe ranked exact >
+// this member's history > popularity > A-Z, the chart's own symbol never among them, told again only when the list
+// changes. Text with completions but no ticker of its own no longer takes the typed slot after the pause.
+const POP_UNIVERSE = { v: 't', symbols: ['CRBG', 'CRBN', 'CRM', 'CRWD', 'CRS', 'AAPL'], pop: [40, 300, 2, 3, 90, 1] }
+const openWithCandidates = async ({ onTypedIntent = vi.fn(), onTypedCandidates = vi.fn(), sym = 'AAPL' } = {}) => {
+  global.fetch = vi.fn(async (url) => ({ ok: true, json: async () => (String(url).includes('/api/ticker-universe') ? POP_UNIVERSE : { symbols: [] }) }))
+  render(<SymbolSearch sym={sym} onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} onTypedCandidates={onTypedCandidates} />)
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`${sym} — click to search`, 'i') }))
+  await wait(10)
+  return { input: screen.getByRole('textbox', { name: 'Search symbol or company' }), onTypedIntent, onTypedCandidates }
+}
+
+test('candidates: every keystroke tells the ranked completions at once, by popularity, at most three', async () => {
+  const { TYPED_CANDIDATES_K } = await import('./SymbolSearch')
+  expect(TYPED_CANDIDATES_K).toBe(3)
+  const { input, onTypedCandidates } = await openWithCandidates()
+  fireEvent.change(input, { target: { value: 'c' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls).toEqual([[['CRM', 'CRWD', 'CRBG']]])
+  fireEvent.change(input, { target: { value: 'crb' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRBG', 'CRBN']])
+  fireEvent.change(input, { target: { value: 'crbg' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRBG']])
+  expect(onTypedCandidates).toHaveBeenCalledTimes(3)
+})
+
+test('candidates: a paste is one change, its exact ticker leads; the chart\'s own symbol is never a candidate', async () => {
+  const { input, onTypedCandidates } = await openWithCandidates({ sym: 'CRM' })
+  fireEvent.change(input, { target: { value: 'CRBN' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls).toEqual([[['CRBN']]])
+  fireEvent.change(input, { target: { value: 'CR' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRWD', 'CRBG', 'CRS']])
+})
+
+test('candidates: this member\'s history leads popularity', async () => {
+  const th = await import('../../lib/typedHistory')
+  th.__resetTypedHistoryForTests()
+  th.noteOpened('CRS')
+  try {
+    const { input, onTypedCandidates } = await openWithCandidates()
+    fireEvent.change(input, { target: { value: 'cr' } }); await wait(1)
+    expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRS', 'CRM', 'CRWD']])
+  } finally { th.__resetTypedHistoryForTests() }
+})
+
+test('candidates: a prefix that is no ticker does not take the typed slot after the pause (the pool owns it)', async () => {
+  const { input, onTypedIntent, onTypedCandidates } = await openWithCandidates()
+  fireEvent.change(input, { target: { value: 'crb' } })
+  await wait(SETTLED)
+  expect(onTypedCandidates).toHaveBeenCalled()
+  expect(onTypedIntent).not.toHaveBeenCalled()
+})
+
+test('CONTROL candidates: with no candidate host the pause still tells the text (the old rule)', async () => {
+  const onTypedIntent = vi.fn()
+  global.fetch = vi.fn(async (url) => ({ ok: true, json: async () => (String(url).includes('/api/ticker-universe') ? POP_UNIVERSE : { symbols: [] }) }))
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  await wait(10)
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search symbol or company' }), { target: { value: 'crb' } })
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['CRB']])
+})

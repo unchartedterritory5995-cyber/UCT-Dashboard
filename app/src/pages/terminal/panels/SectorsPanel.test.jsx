@@ -22,6 +22,7 @@ import SectorsPanel, {
   DEFAULT_SECTOR_PERIOD, SECTORS_URL, SECTOR_FUND_COUNT, SECTOR_PERIODS, normPeriod, sectorRows, sectorsCommandArgs, sectorsUrl,
 } from './SectorsPanel'
 import { stampedKey } from './marketRead'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -45,8 +46,9 @@ const byUrl = (map) => async (url) => {
   throw Object.assign(new Error(`unserved ${url}`), { status: 500 })
 }
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <SectorsPanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <SectorsPanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -349,4 +351,30 @@ describe('SCTR accessibility', () => {
     await screen.findByTestId('terminal-sectors-error')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('SCTR sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('weakest first by one click on the return, a name sort, the fund always shown; kept on remount', async () => {
+    jsonFetcher.mockResolvedValue(MONTH)
+    const saved = savedView()
+    const { publishRows } = renderPanel({ period: '1M' }, { saved })
+    await screen.findByTestId('terminal-sectors-table')
+    expect(symsInTable()).toEqual(['XLE', 'XLF', 'XLK'])
+    fireEvent.click(screen.getByTestId('terminal-sectors-sort-pct'))
+    fireEvent.click(screen.getByTestId('terminal-sectors-sort-pct'))
+    expect(symsInTable()).toEqual(['XLK', 'XLF', 'XLE'])
+    expect(publishRows).toHaveBeenLastCalledWith(['$XLK', '$XLF', '$XLE'])
+    expect(screen.getByTestId('terminal-sectors-method').textContent).toContain('sorted by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-sectors-columns'))
+    expect(screen.getByTestId('terminal-sectors-columns-col-sym').disabled).toBe(true)
+    fireEvent.click(screen.getByTestId('terminal-sectors-columns-col-name'))
+    expect(screen.getByTestId('terminal-sectors-row-XLK').textContent).not.toContain('Technology')
+    cleanup()
+    jsonFetcher.mockResolvedValue(MONTH)
+    renderPanel({ period: '1M' }, { saved })
+    await screen.findByTestId('terminal-sectors-table')
+    expect(symsInTable()).toEqual(['XLK', 'XLF', 'XLE'])
+    expect(screen.queryByRole('columnheader', { name: /Sector/ })).toBeNull()
+    expect(screen.getByTestId('terminal-sectors-row-XLK').textContent).toMatch(/^1XLK/)
+  })
 })

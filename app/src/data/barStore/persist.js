@@ -329,6 +329,10 @@ export function createPersist({
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
+  /** ⭐ (zero-network PR 3.2) key → the first bar's time of a device copy that is the symbol's WHOLE served series
+   *  (deviceStore/source.js `wholeFrom`: the full-depth daily pack). `deviceWhole` reads it against the entry as it is NOW,
+   *  so an entry rebuilt since (another basis, an eviction) that no longer starts there is due its history again. Bounded. */
+  const wholeFirst = new Map()
   /**
    * ⭐ A NEWER RE-READ THAT FOUND NOTHING IS NOT ASKED AGAIN AT ONCE (review of #2565, P6-L1). key → {through, at}: the held
    * copy's stamp a `newer` read was asked against, and when it answered "nothing newer". The device applies a minute's frame
@@ -374,6 +378,10 @@ export function createPersist({
   function _deviceHit(key, p, gen, got, ownDev = null, atIdle = false) {
     // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
     if (!got || !(got.n ?? got.rows?.length)) return false
+    // ⛔ A DEVICE W / M COPY IS ONLY EVER A WHOLE ONE (zero-network PR 3.3; the source derives them only from a whole D
+    // copy whose period in progress is known, deviceStore/resample.deriveServed). Held here too, by the copy's own
+    // `wholeFrom`: a W / M copy that does not say it is whole is never applied (the H1 behaviour of #2537).
+    if ((p.cacheTf === 'W' || p.cacheTf === 'M') && !Number.isFinite(got.wholeFrom)) return false
     // ⛔ NOTHING JOINS ONCE THE PAGE HAS SEEN A KILL (review of #2615, item 2). The kill marks only the entries holding
     // device rows at that moment (onDeviceStoreKill above); a copy read before it whose join waited for idle would join
     // after it, unmarked, and its rows would read as vouched.
@@ -406,6 +414,10 @@ export function createPersist({
     if (after === before || after?.source !== 'device') {
       if (was.dev) _noteDev(key, was.through); else devThrough.delete(key)
       if (was.saved) _noteSaved(key, was.savedAt); else savedAt.delete(key)
+    } else if (Number.isFinite(got.wholeFrom)) {
+      wholeFirst.delete(key)
+      wholeFirst.set(key, got.wholeFrom)
+      if (wholeFirst.size > 1000) wholeFirst.delete(wholeFirst.keys().next().value)
     }
     return after !== before
   }
@@ -608,6 +620,18 @@ export function createPersist({
      *  Only with a device source: with the store off it is not there at all, so the network's call reads one missing
      *  property and stops (index.js `beforeAnswer`). */
     ...(DEV ? { flushJoins } : {}),
+    /**
+     * ⭐ (zero-network PR 3.2) Does `key`'s entry start at the first bar of its symbol's WHOLE served series, as a device
+     * copy said it (wholeFirst)? Then nothing older exists and the deep history join is not due (network `wholeHistory`).
+     * Read against the entry NOW: rebuilt on another basis, or trimmed, it no longer starts there and the join is due.
+     * False whenever it cannot say (no device source, no whole copy seen for the key, an empty entry).
+     */
+    deviceWhole(key) {
+      const f = wholeFirst.get(key)
+      if (!Number.isFinite(f)) return false
+      const bars = registry.peek(key)?.bars
+      return !!bars?.length && bars[0].t <= f
+    },
     /** Write every pending key now (page hide / the app hidden / tests): the watched keys' and the warm answers' (writeSoon). */
     async flush() {
       const keys = [...watched.keys()]

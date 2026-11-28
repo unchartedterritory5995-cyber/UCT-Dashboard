@@ -31,6 +31,7 @@ import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import {
   ABSENT, formatCompactTerminal, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -52,6 +53,22 @@ export {
   TONIGHT_TOKEN, earningsChoice, earningsSeasonCommandArgs, earningsSeasonRead, earningsSeasonUrl, parseEarningsDay,
   parseEarningsSession, requestDate, shownGroups, stepDay, tallyRows, tomorrowChip, tomorrowOf,
 } from './earningsSeasonModel'
+
+/** Customization pass 1: the reporter table's columns (components/terminal/PanelTable). The list's
+ *  own order (biggest company first, by market cap) is the default; a header click sorts each group
+ *  by that column, and the group's cut then says what it is sorted by. */
+export const ERNS_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, thClass: `${styles.wrapCell} ${phone.symCol}`,
+    title: 'Click a symbol to load it into the linked panels. Biggest company first, by market cap.' },
+  { key: 'priced', label: 'Priced move', sort: (r) => r.priced?.pct ?? null,
+    title: "What the at-the-money straddle priced before the report, as a percent of the stock price and in dollars, as stored by UCT's weekday capture" },
+  { key: 'past', label: 'Past moves, %', sort: (r) => r.past?.avgAbs ?? null,
+    title: "The stock's close-to-close move on its last reports, in percent, newest first, and the average size of every one on file" },
+  { key: 'result', label: 'Result and move', sort: (r) => r.move, thClass: phone.resultCell,
+    title: "Earnings and revenue against what was expected once the company has reported, and the stock's move on the result" },
+])
+/** What a sorted group says it is sorted by (the column's own words, lower case). */
+const SORTED_BY = { sym: 'symbol', priced: 'priced move', past: 'average past move', result: "the stock's move on the result" }
 
 /** Rows drawn per group at first; "Show all" draws the rest. */
 export const GROUP_ROWS = 15
@@ -150,7 +167,7 @@ function FailedRead({ read, code }) {
   )
 }
 
-function ReporterRow({ r, n, today }) {
+function ReporterRow({ r, n, today, shows }) {
   const [verdictWord, figures] = resultWords(r)
   const [words, detail] = moveWords(r)
   const cap = r.capB == null ? null : formatCompactTerminal(r.capB * 1e9, { money: true, absent: null })
@@ -169,7 +186,7 @@ function ReporterRow({ r, n, today }) {
         ) : null}
       </td>
       {/* once the result is in, the priced move steps back and the result and the move carry the row */}
-      <td className={r.reported ? styles.muted : undefined} data-testid="terminal-erns-priced">
+      {shows('priced') && <td className={r.reported ? styles.muted : undefined} data-testid="terminal-erns-priced">
         {r.priced ? (
           <>
             {plusMinus(r.priced.pct)}
@@ -177,8 +194,8 @@ function ReporterRow({ r, n, today }) {
             <span className={styles.muted}>{r.priced.dollars == null ? 'dollars not stored' : money(r.priced.dollars)}</span>
           </>
         ) : <span title="No priced move is stored for this report">{ABSENT}</span>}
-      </td>
-      <td title={pastSentence(r, today)} data-testid="terminal-erns-past">
+      </td>}
+      {shows('past') && <td title={pastSentence(r, today)} data-testid="terminal-erns-past">
         {r.past ? (
           <>
             <span className={styles.phoneHide}>
@@ -190,8 +207,8 @@ function ReporterRow({ r, n, today }) {
             <span className={styles.muted}>avg {plusMinus(r.past.avgAbs)}<span className={styles.phoneHide}> of {count(r.past.n)}</span></span>
           </>
         ) : <span className={styles.muted}>{r.pastState === 'not_held' ? 'not on file' : 'too few'}</span>}
-      </td>
-      <td className={phone.resultCell} data-testid="terminal-erns-result">
+      </td>}
+      {shows('result') && <td className={phone.resultCell} data-testid="terminal-erns-result">
         <span className={verdictTone} data-testid="terminal-erns-verdict">{verdictWord}</span>
         <span className={`${styles.muted} ${styles.phoneHide}`}>, {figures}</span>
         {r.reported ? (
@@ -201,33 +218,28 @@ function ReporterRow({ r, n, today }) {
             {words ? <span className={`${styles.muted} ${detail ? styles.phoneHide : ''}`}>{r.move !== null ? ' ' : ''}{words}</span> : null}
           </>
         ) : null}
-      </td>
+      </td>}
     </tr>
   )
 }
 
-function Group({ group, start, limit, onShowAll, label, today }) {
+function Group({ group, start, limit, onShowAll, label, today, table }) {
   const { session, rows } = group
   const shown = rows.slice(0, limit)
   const reported = rows.filter((r) => r.reported).length
+  const by = table.sort ? SORTED_BY[table.sort.key] : null
+  const order = by ? `sorted by ${by}, ${table.sort.dir === 'asc' ? 'lowest' : 'highest'} first` : 'biggest first'
   return (
     <div data-testid={`terminal-erns-group-${session}`}>
       <div className={styles.tableBox} data-fold="550">
         <table className={styles.table} data-testid={`terminal-erns-table-${session}`}
-          aria-label={`${SESSION_HEADINGS[session]}, ${label}: ${count(shown.length)} of ${count(rows.length)} companies, biggest first`}>
+          aria-label={`${SESSION_HEADINGS[session]}, ${label}: ${count(shown.length)} of ${count(rows.length)} companies, ${order}`}>
           <caption className={styles.caption}>
             {SESSION_HEADINGS[session]} ({count(rows.length)}){reported ? `, ${count(reported)} reported` : ''}
           </caption>
-          <thead>
-            <tr>
-              <th scope="col" className={`${styles.wrapCell} ${phone.symCol}`} title="Click a symbol to load it into the linked panels. Biggest company first, by market cap.">Symbol</th>
-              <th scope="col" title="What the at-the-money straddle priced before the report, as a percent of the stock price and in dollars, as stored by UCT's weekday capture">Priced move</th>
-              <th scope="col" title="The stock's close-to-close move on its last reports, in percent, newest first, and the average size of every one on file">Past moves, %</th>
-              <th scope="col" className={phone.resultCell} title="Earnings and revenue against what was expected once the company has reported, and the stock's move on the result">Result and move</th>
-            </tr>
-          </thead>
+          <PanelTableHead table={table} testId={`terminal-erns-${session}`} />
           <tbody>
-            {shown.map((r, i) => <ReporterRow key={r.sym} r={r} n={start + i + 1} today={today} />)}
+            {shown.map((r, i) => <ReporterRow key={r.sym} r={r} n={start + i + 1} today={today} shows={table.shows} />)}
           </tbody>
         </table>
       </div>
@@ -237,7 +249,9 @@ function Group({ group, start, limit, onShowAll, label, today }) {
             Show all {count(rows.length)}
           </button>
           <span className={styles.muted} data-testid={`terminal-erns-cut-${session}`}>
-            Showing the {count(shown.length)} biggest of {count(rows.length)}, by market cap.
+            {by
+              ? `Showing the first ${count(shown.length)} of ${count(rows.length)}, ${order}.`
+              : `Showing the ${count(shown.length)} biggest of ${count(rows.length)}, by market cap.`}
           </span>
         </div>
       ) : null}
@@ -259,7 +273,9 @@ function SeasonDay({ choice, pick, today, asked, code, inPanel }) {
   if (wantPace !== pace) setPace(wantPace)
 
   const ok = !read.loading && !!read.body && view.state === 'ok'
-  const groups = useMemo(() => shownGroups(view, choice.session), [view, choice.session])
+  const table = usePanelTable({ columns: ERNS_COLUMNS })
+  const groups = useMemo(() => shownGroups(view, choice.session).map((g) => ({ ...g, rows: table.apply(g.rows) })),
+    [view, choice.session, table.apply])
   const visible = useMemo(() => groups.map((g) => ({ ...g, limit: open[g.session] ? g.rows.length : GROUP_ROWS })), [groups, open])
   const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups])
   const drawnSyms = useMemo(() => visible.flatMap((g) => g.rows.slice(0, g.limit).map((r) => r.sym)), [visible])
@@ -291,6 +307,7 @@ function SeasonDay({ choice, pick, today, asked, code, inPanel }) {
             data-testid={`terminal-erns-session-${key}`}>{s.chip}</button>
         ))}
       </div>
+      <PanelColumns table={table} testId="terminal-erns-columns" />
       {shownDate ? <strong data-testid="terminal-erns-date">{label}</strong> : null}
       {shownDate && shownDate === today ? <span className={styles.lede}>Today</span> : null}
     </div>
@@ -387,7 +404,7 @@ function SeasonDay({ choice, pick, today, asked, code, inPanel }) {
         const from = start
         start += Math.min(g.limit, g.rows.length)
         return (
-          <Group key={g.session} group={g} start={from} limit={g.limit} label={label} today={today}
+          <Group key={g.session} group={g} start={from} limit={g.limit} label={label} today={today} table={table}
             onShowAll={() => setOpen((o) => ({ ...o, [g.session]: true }))} />
         )
       }) : (

@@ -1,6 +1,6 @@
 {
-  "_about": "ONE door-stamp upgrade, client and server: memberDocumentMigration.upgradeFromDoorStamps (app/src/components/chart/engine/__tests__/doorStamps.test.js) and user_definitions.refresh_from_door_stamps (tests/test_door_stamps.py). Each case loads `base` (a document the member door wrote at DOOR_VERSION 1), applies `ops`, and runs the upgrade with today's rules, or with rules = 'future': {1: today's rule, 2: a HYPOTHETICAL next door that paints a v5/v6 band with no stated transparency at 0.5} -- both suites define that same hypothetical, to exercise the 'older door' half of the seam before any older door exists. `expect` maps plot key -> the fillOpacity it must get; every other byte must be as given, and an empty `expect` means the SAME object. `validates` documents must pass defSchema.validateDefinition AND the server's validate_v2 + presentation_errors, stamped or not. A second run is always the identity.",
-  "doorVersion": 1,
+  "_about": "ONE door-stamp upgrade, client and server: memberDocumentMigration.upgradeFromDoorStamps (app/src/components/chart/engine/__tests__/doorStamps.test.js) and user_definitions.refresh_from_door_stamps (tests/test_door_stamps.py). Each case loads `base` (a document the member door wrote at DOOR_VERSION 2), applies `ops`, and runs the upgrade with today's rules, or with rules = 'future': {2: today's rule, 3: a HYPOTHETICAL next door that paints a v5/v6 band with no stated transparency at 0.5} -- both suites define that same hypothetical, to exercise the 'older door' half of the seam before any older door exists. `expect` maps plot key -> the fillOpacity it must get; every other byte must be as given, and an empty `expect` means the SAME object. `validates` documents must pass defSchema.validateDefinition AND the server's validate_v2 + presentation_errors, stamped or not. A second run is always the identity.",
+  "doorVersion": 2,
   "future": {
     "modernNoneOpacity": 0.5
   },
@@ -325,6 +325,59 @@
       "ops": [],
       "rules": "future",
       "expect": {}
+    },
+    {
+      "name": "DOOR 2: a door-1 band at color.new 90 moves from door 1's float to the decimal (TradingView's byte 26)",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setMeta",
+          "key": "doorVersion",
+          "value": 1
+        },
+        {
+          "op": "setPlotField",
+          "plot": "out3",
+          "field": "fillTransparency",
+          "value": {
+            "value": 90,
+            "via": "color"
+          }
+        },
+        {
+          "op": "setPlotField",
+          "plot": "out3",
+          "field": "fillOpacity",
+          "value": 0.09999999999999998
+        }
+      ],
+      "expect": {
+        "out3": 0.1
+      },
+      "validates": true
+    },
+    {
+      "name": "DOOR 2: that same float on a door-2 document is somebody's choice, never moved",
+      "base": "tests/fixtures/door_stamps/v6-fills.json",
+      "ops": [
+        {
+          "op": "setPlotField",
+          "plot": "out3",
+          "field": "fillTransparency",
+          "value": {
+            "value": 90,
+            "via": "color"
+          }
+        },
+        {
+          "op": "setPlotField",
+          "plot": "out3",
+          "field": "fillOpacity",
+          "value": 0.09999999999999998
+        }
+      ],
+      "expect": {},
+      "validates": true
     }
   ]
 }
