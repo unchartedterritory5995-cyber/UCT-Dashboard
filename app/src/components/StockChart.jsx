@@ -4098,7 +4098,7 @@ function StockChartBody({
   keepBarsAfterExit = false, // exactDateRange only: DON'T slice bars past exitDate — keep real price history rendering into the right-pad space instead of cutting off (Setup Library "Result" view: exitDate stays framed in place, the ensuing candles fill the screen)
   candleFrameFade = false,  // Setup Library: when exitDate moves (Setup⇄Result), crossfade the candles PAST the highlighted setup day in/out instead of popping them
   instantFrameFlip = false, // exactDateRange only: a frame change (Setup⇄Result) SNAPS to the new frame instead of gliding — an instant cut, like loading a fresh chart
-  fitPriceToCandles = false, // price scale fits the CANDLES only — MA overlays don't expand it (they clip off-screen, TC2000-style), so price sits at the same spot regardless of where the 200MA is
+  fitPriceToCandles: fitPriceToCandlesProp, // a surface's own choice (Model Book, renders); absent -> the member's "Scale price chart only" setting. Price scale fits the CANDLES only — MA overlays don't expand it (they clip off-screen, TC2000-style), so price sits at the same spot regardless of where the 200MA is
   forceLogScale = false,    // default the price scale to logarithmic
   forceScaleMode = null,    // 'arith' | 'log' | 'pct' — pin a default scale regardless of user settings (A/L/% still toggles locally)
   frozen = false,           // static exhibit: no pan/zoom/scale-drag — wheel scrolls the PAGE (Setup Library examples)
@@ -4532,6 +4532,12 @@ function StockChartBody({
     // away removes them with no cleanup. Same discipline as the clamp above.
     return withPrimaryProduct(typed, _primaryProduct)
   }, [csMerged, sym, miReady, _econId, econPrimary.symbol, econPrimary.meta])
+  // ⭐⭐ "SCALE PRICE CHART ONLY" (owner, 2026-11-28: Fred RS should scale like his TradingView chart). TradingView's
+  // chart-wide setting of that name fits the price axis to the CANDLES only; an overlay (Fred's RS line, an average)
+  // runs off the pane instead of squashing the bars. MEASURED on the owner's own chart: scalesProperties.scaleSeriesOnly
+  // = true. ON unless the member turned it off (`scalePriceChartOnly: false`, kept in the blob only while OFF). A surface
+  // that passes `fitPriceToCandles` (Model Book, ChartRender) keeps its own answer.
+  const fitPriceToCandles = fitPriceToCandlesProp ?? (cs?.scalePriceChartOnly !== false)
 
   // ── Chart Settings → Canvas → Margins / Scale & time (chartViewOptions.js; absent = today's look) ──
   // Price decimals: a member's 0–4 is a plain lightweight-charts priceFormat; Auto (absent) is no format at all,
