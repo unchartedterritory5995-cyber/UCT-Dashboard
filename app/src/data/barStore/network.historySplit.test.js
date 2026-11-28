@@ -29,12 +29,13 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null } = {}) {
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null } = {}) {
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
     if (tailGate && url.startsWith('/api/bars/')) await tailGate   // the tail answers when the test says
     if (url.startsWith('/api/bars-history/')) {
+      if (historyGate) await historyGate   // a slow edge: answers when the test says
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
       if (history === 'hang') return new Promise(() => {})   // a cold edge (MISS) still building it
       if (history === 'unsealed') return { ticker: 'SIM', tf: 'D', bars: [], sealed: false }
@@ -132,6 +133,23 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(50)
     expect(histCalls(w)).toHaveLength(1)
     expect(settled).not.toHaveBeenCalled()
+  })
+
+  // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
+  it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
+    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
+    let release
+    const w = world({ historyGate: new Promise((r) => { release = r }) })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
+    expect(w.net.deepPending(w.key)).toBe(true)
+    release()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(w.net.inflight(w.key)).toBe(0)
   })
 
   it('CONTROL: a history that lands in time asks no second tail', async () => {

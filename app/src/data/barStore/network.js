@@ -296,6 +296,7 @@ export function createNetwork({
         key, refs: 0, sessions: new Map(), priority: 'background', depth: 0,
         cover: 0,                 // D/W/M: the rows a view of this key will draw (barsCountFor `cover`)
         inflight: null,           // { ac, kind, promise }
+        side: null,               // the edge fallback's cover tail, beside `inflight` (see _armEdgeFallback)
         queue: [],                // pending scroll-back jobs
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
         pollSt: createTailPollState(),
@@ -311,6 +312,7 @@ export function createNetwork({
   const offEvict = registry.onEvict?.((key) => {
     const r = keys.get(key)
     if (r?.inflight) { try { r.inflight.ac?.abort() } catch { /* gone */ } r.inflight = null }
+    if (r?.side) { try { r.side.ac?.abort() } catch { /* gone */ } r.side = null }
   }) ?? null
 
   // ── one request ───────────────────────────────────────────────────────────
@@ -322,7 +324,7 @@ export function createNetwork({
   const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
 
   // `full`: never a `since=` delta (the switch's one re-ask of an own answer still behind: prefetch._askOwn)
-  function _tailJob(r, priority, { warm = false, front = false, full = false } = {}) {
+  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false } = {}) {
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -388,7 +390,7 @@ export function createNetwork({
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
       return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
-    }, { front })
+    }, { front, side })
   }
 
   /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
@@ -446,6 +448,10 @@ export function createNetwork({
       r.edgeTimer = null
       if (keys.get(r.key) !== r || !api.deepPending(r.key)) return   // gone, or the history joined in time
       r.edgeFallback = true
+      // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits
+      // on IS that request: a cover tail queued behind it ran only once the edge answered, which is the wait this exists
+      // to end. With the slot busy, the cover is asked BESIDE it (`r.side`, the only second request a key ever sends).
+      if (r.inflight?.kind === 'scroll' && !r.side) { _tailJob(r, r.priority, { side: true }); return }
       _queueTail(r, r.priority)
       _drain(r)
     }, EDGE_FALLBACK_MS)
@@ -632,7 +638,7 @@ export function createNetwork({
     }
   }
 
-  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null } = {}) {
+  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null, side = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
@@ -670,9 +676,12 @@ export function createNetwork({
       return out
     })()
     rec.promise = promise
-    r.inflight = rec
+    // `side`: the edge fallback's cover tail, sent beside the request holding the slot (see _armEdgeFallback)
+    if (side) r.side = rec
+    else r.inflight = rec
     promise.finally(() => {
       if (r.inflight?.promise === promise) r.inflight = null
+      if (r.side?.promise === promise) r.side = null
       _drain(r)
     })
     return promise
@@ -769,7 +778,7 @@ export function createNetwork({
     for (const r of keys.values()) if (r.paused && r.refs > 0) { r.paused = false; _schedule(r, 0) }
   })
 
-  const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
+  const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.side && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
 
   const api = {
     /** (review of #2938, T1) the slow history answers of this page (diagnostics; the rig reads it). */
@@ -802,6 +811,7 @@ export function createNetwork({
       if (--r.refs > 0) return
       if (r.timer != null) { clearTimer(r.timer); r.timer = null }
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
+      if (r.side) { r.side.ac?.abort(); r.side = null }
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
       const spent = _exhausted(r)
       keys.delete(key)
