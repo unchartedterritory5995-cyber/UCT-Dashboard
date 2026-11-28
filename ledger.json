@@ -8630,6 +8630,26 @@
     "SVRA",
     "FBRT"
    ]
+  },
+  {
+   "id": "cloud/46155006436-1/COV-reopen-dd",
+   "at": "2026-11-28T14:39:10+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FATE",
+    "PKBK",
+    "MSEX"
+   ]
+  },
+  {
+   "id": "cloud/46155006436-1/COV-reopen-m5h1",
+   "at": "2026-11-28T14:39:10+00:00",
+   "source": "cloud",
+   "tickers": [
+    "OWLS",
+    "BLZR",
+    "CWCO"
+   ]
   }
  ]
 }
