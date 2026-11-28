@@ -1,6 +1,6 @@
 // UCT Agent: the MEMBER DOOR in the browser (UCT_AGENT_MEMBERS_ENABLED; decided 2026-11-24 by the integrator under the
-// owner's delegation of 2026-11-24). The server's answer arrives in the auth payload (`uct_agent_members_enabled`,
-// AuthContext `uctAgentMembersEnabled`); /api/agent/config `members` (or a refused read) can only close it. Door closed:
+// owner's delegation of 2026-11-24). The server's answer arrives in the auth payload (`uct_agent_members_enabled`, read
+// from AuthContext `featureStatus`, agentFlag.authDoor); the config's `members` never opens it. Door closed:
 // exactly as before (an admin with the per-browser switch, nobody else, and NO request from a member's browser). Door
 // open: a PAID member sees the Agent by default; the switch '0' hides it; an admin's default turns on too.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -15,6 +15,8 @@ import { useAgentPageHost } from './agentApp'
 
 vi.mock('./AgentPanel', () => ({ default: () => null }))
 
+const FS_ON = { measured: true, features: [{ id: 'uct_agent_members_enabled', label: 'UCT Agent', where: 'Charts', state: 'released' }] }
+const FS_OFF = { measured: true, features: [] }
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } })
 beforeEach(() => {
   try { localStorage.clear() } catch { /* */ }
@@ -35,7 +37,7 @@ function mount({ user = MEMBER, isPaid = true, members = false, flag = null } = 
   if (flag != null) localStorage.setItem(AGENT_FLAG_KEY, flag)
   return render(
     <MemoryRouter>
-      <AuthContext.Provider value={{ user, isPaid, uctAgentMembersEnabled: members }}>
+      <AuthContext.Provider value={{ user, isPaid, featureStatus: members ? FS_ON : FS_OFF }}>
         <AgentProvider><Page /></AgentProvider>
       </AuthContext.Provider>
     </MemoryRouter>,
@@ -98,24 +100,30 @@ describe('the provider: door OPEN (uct_agent_members_enabled true)', () => {
     expect(launch()).toBeTruthy()
   })
 
-  it('the config closes the door in an open tab: a refused (403) read hides it (the emergency off)', async () => {
-    mount({ members: true })
+  it('the emergency off: the next auth payload without the listing closes the door in an open tab', () => {
+    const tree = (members) => (
+      <MemoryRouter>
+        <AuthContext.Provider value={{ user: MEMBER, isPaid: true, featureStatus: members ? FS_ON : FS_OFF }}>
+          <AgentProvider><Page /></AgentProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>
+    )
+    const { rerender } = render(tree(true))
     expect(launch()).toBeTruthy()
-    globalThis.fetch = vi.fn(async () => json({ detail: 'Admin access required' }, 403))
-    await act(async () => { await loadAgentConfig() })
+    rerender(tree(false))
     expect(launch()).toBeNull()
     expect(agentDoorOpen()).toBe(false)
   })
 
-  it('the config closes it for an admin too when it says members: false; it never opens a door the payload did not', async () => {
-    mount({ user: ADMIN, members: true })
-    expect(launch()).toBeTruthy()
-    globalThis.fetch = vi.fn(async () => json({ stream: false, members: false }))
-    await act(async () => { await loadAgentConfig() })
+  it("a listing the server could not vouch for ('unknown') does not open it; the config's `members` never does", async () => {
+    render(
+      <MemoryRouter>
+        <AuthContext.Provider value={{ user: MEMBER, isPaid: true, featureStatus: { measured: true, features: [{ ...FS_ON.features[0], state: 'unknown' }] } }}>
+          <AgentProvider><Page /></AgentProvider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    )
     expect(launch()).toBeNull()
-    cleanup()
-    _resetAgentConfig()
-    mount({ members: false })
     globalThis.fetch = vi.fn(async () => json({ stream: false, members: true }))
     await act(async () => { await loadAgentConfig() })
     expect(launch()).toBeNull()

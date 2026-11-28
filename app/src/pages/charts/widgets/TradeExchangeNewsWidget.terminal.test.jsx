@@ -109,7 +109,7 @@ function mount(opts = {}, items = BASE, onOptsChange = vi.fn(), { role, agent, m
   // `role`: the signed-in member's role, for what only an admin sees (UCT Agent's mark).
   // Unset = no AuthProvider, which the widget treats as a member. `members`: the auth payload's member door
   // (uct_agent_members_enabled, UCT_AGENT_MEMBERS_ENABLED=1); `paid`: the account's isPaid.
-  const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: paid, uctAgentMembersEnabled: members === true }}>{widget}</AuthContext.Provider> : widget)
+  const utils = render(role ? <AuthContext.Provider value={{ user: { id: 'u1', role }, isPaid: paid, featureStatus: { measured: true, features: members === true ? [{ id: 'uct_agent_members_enabled', label: 'UCT Agent', where: 'Charts', state: 'released' }] : [] } }}>{widget}</AuthContext.Provider> : widget)
   act(() => feed.set({ status: 'live', items, lastSeq: items.length, replayUntil: items.length, lastHeadlineAt: NOW }))
   return { ...utils, onOptsChange }
 }

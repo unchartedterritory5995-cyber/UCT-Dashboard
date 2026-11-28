@@ -107,8 +107,6 @@ export function AuthProvider({ children }) {
   // one of the two keys above while the released S/R layer exists for this account's scope
   // (autoStructuresGate.levelsSrAvailable; a chart's own toggle reads the payload's `levels_sr`).
   const [levelsSrEnabled, setLevelsSrEnabled] = useState(false)
-  // UCT Agent member door (UCT_AGENT_MEMBERS_ENABLED): true only for a paid account while it is 1 (agent/agentFlag.js)
-  const [uctAgentMembersEnabled, setUctAgentMembersEnabled] = useState(false)
   // TERM-077 — watchlist "copy or link, chosen at import". Enablement gate,
   // default FALSE; the server sends the key only when it is on.
   const [watchlistCopyOrLinkEnabled, setWatchlistCopyOrLinkEnabled] = useState(false)
@@ -226,7 +224,6 @@ export function AuthProvider({ children }) {
     ['auto_structures_members_enabled', (d) => d.auto_structures_members_enabled === true, setAutoStructuresMembersEnabled],
     ['chart_iq_enabled', (d) => d.chart_iq_enabled === true, setChartIqEnabled],
     ['levels_sr_enabled', (d) => d.levels_sr_enabled === true, setLevelsSrEnabled],
-    ['uct_agent_members_enabled', (d) => d.uct_agent_members_enabled === true, setUctAgentMembersEnabled],
     // Not a boolean: the server's derived list. `readFeatureStatus` returns null for
     // anything it cannot vouch for, so a missing field reads as "not measured".
     ['feature_status', readFeatureStatus, setFeatureStatus],
@@ -499,7 +496,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, screenerScanBoardEnabled, terminalBoardTabsEnabled, screenerLayoutGalleryEnabled, screenerScanBoardTabletEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, uctAgentMembersEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, screenerScanBoardEnabled, terminalBoardTabsEnabled, screenerLayoutGalleryEnabled, screenerScanBoardTabletEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
