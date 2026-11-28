@@ -493,7 +493,9 @@ export default {
     // ⭐ THE SHARED TAIL (tail.js, 2026-11-28): an ENTITLED chart read is answered from a copy at most a few
     // seconds old when one exists, else fills it from the tier. Unentitled reads never reach it and take the
     // path below unchanged; any failure of the copy is also the path below.
-    if (entitled && request.method === "GET") {
+    // ONE entitlement guard for the copy, inside readTail (a second copy here made both unprovable: a mutant
+    // that removed either one survived, 2026-11-28). It returns null for anything but entitled === true.
+    if (request.method === "GET") {
       try {
         const shared = await readTail(url, { env, ctx, entitled, breakerOpen: TIER_BREAKER.isOpen() });
         if (shared) return shared;
