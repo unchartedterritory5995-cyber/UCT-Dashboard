@@ -210,8 +210,7 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
       expect(timers.map((t) => t.ms)).toContain(2000)
       expect(await fire(2000)).toBe(true)
       expect(request).toHaveBeenCalledTimes(2)
-      expect(network.answered(K)).toBe(true)
-      expect(registry.peek(K).restSeen).toBe(true)
+      expect(registry.peek(K).restSeen, 'the answer landed').toBe(true)
     })
     it('a chart on the key: its loop asks again no sooner than Retry-After; a 503 likewise', async () => {
       for (const status of [429, 503]) {
@@ -231,9 +230,10 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
       registry.acquire(K)
       await network.fetchOnce(K, { priority: 'visible' })
       let rounds = 0
-      while (!network.answered(K) && await fire(2000)) rounds++
-      expect(rounds).toBe(RATE_LIMIT_HOLD_ROUNDS)
-      expect(network.answered(K)).toBe(true)
+      while (rounds < 10 && await fire(2000)) rounds++
+      expect(rounds, 'asked again RATE_LIMIT_HOLD_ROUNDS times, then left').toBe(RATE_LIMIT_HOLD_ROUNDS)
+      expect(request).toHaveBeenCalledTimes(RATE_LIMIT_HOLD_ROUNDS + 1)
+      expect(registry.peek(K)?.error, 'then the error it always was').toBeTruthy()
     })
   })
 

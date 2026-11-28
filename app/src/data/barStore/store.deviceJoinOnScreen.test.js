@@ -84,7 +84,7 @@ afterEach(() => {
 function boot({ device, reply = answer }) {
   let release = () => {}
   let fail = () => {}
-  const request = vi.fn(() => new Promise((r, j) => { release = () => r(reply()); fail = () => j(Object.assign(new Error('boom'), { status: 503 })) }))
+  const request = vi.fn(() => new Promise((r, j) => { release = () => r(reply()); fail = () => j(Object.assign(new Error('boom'), { status: 500 }))   // (a hard error: a 429/503 is asked again first) }))
   const idleQ = []
   const store = createBarStore({
     request, device, history: null,

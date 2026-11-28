@@ -305,6 +305,7 @@ export function createNetwork({
   // (the rate-limited tail's repeat for a one-shot ask: `_send`) one timer per key, after Retry-After (bounded), while a
   // one-shot ask or a pin still holds the key
   const limitTimers = new Map()
+  const limitRounds = new Map()   // key -> rate-limited tail answers in a row
   function _armLimitRetry(key, retryAfterMs) {
     if (limitTimers.has(key)) return
     const ms = Math.min(ERROR_RETRY_MAX_MS, Math.max(ERROR_RETRY_MS, Number.isFinite(retryAfterMs) ? retryAfterMs : 0))
@@ -740,8 +741,10 @@ export function createNetwork({
         // for a held one-shot ask), up to RATE_LIMIT_HOLD_ROUNDS times in a row, and meanwhile the key is NOT answered: a
         // display holding for it keeps waiting, inside its hang guard, instead of committing a copy without its tail as
         // current. Past the rounds it is the error it always was.
-        if (kind === 'tail' && (e?.status === 429 || e?.status === 503) && (r.limitedRounds || 0) < RATE_LIMIT_HOLD_ROUNDS) {
-          r.limitedRounds = (r.limitedRounds || 0) + 1
+        // (the count is the KEY's, not the record's: a one-shot ask's record is collected when it settles)
+        if (kind === 'tail' && (e?.status === 429 || e?.status === 503) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
+          limitRounds.set(r.key, (limitRounds.get(r.key) || 0) + 1)
+          if (limitRounds.size > 500) limitRounds.delete(limitRounds.keys().next().value)
           if (!(r.refs > 0)) _armLimitRetry(r.key, e?.retryAfterMs)
           return { error: true, limited: true, retryAfterMs: e?.retryAfterMs ?? null }
         }
@@ -766,7 +769,7 @@ export function createNetwork({
       // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
       // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
       if (kind === 'tail') {
-        r.limitedRounds = 0
+        limitRounds.delete(r.key)
         const was = r.filling || fillRounds.has(r.key)   // (the record may be a new one: a one-shot's is collected)
         r.filling = json?.filling === true
         _noteAnswered(r)
