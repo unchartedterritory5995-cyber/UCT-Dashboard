@@ -254,6 +254,40 @@ def test_every_cap_and_single_flight_claim_is_leader_only(name):
     _claims()[name]()                                        # the leader / one process: unchanged
 
 
+_PROVIDER_ENTRIES = [
+    ("_fetch_intraday_massive", ("ZZZZ", "5", 10)), ("_fetch_intraday_range", ("ZZZZ", "5", "2026-01-02", "2026-01-03")),
+    ("_fetch_intraday_fmp", ("ZZZZ", "5", 10)), ("_fetch_intraday_yfinance", ("ZZZZ", "5", 10)),
+    ("_fetch_intraday", ("ZZZZ", "5", 10)), ("_fetch_daily_yf", ("ZZZZ",)), ("_fetch_yf_only", ("^ZZZ", "D", 10)),
+    ("_fetch_daily", ("ZZZZ", 10)), ("_fetch_weekly", ("ZZZZ", 10)), ("_fetch_monthly", ("ZZZZ", 10)),
+    ("fetch_with_validation", ("ZZZZ", "5", 10)), ("_fetch_reference_end", ("ZZZZ",)), ("_fetch_market_reference_end", ()),
+]
+
+
+@pytest.mark.parametrize("name,args", _PROVIDER_ENTRIES, ids=[n for n, _ in _PROVIDER_ENTRIES])
+def test_every_provider_entry_refuses_in_a_follower_before_touching_anything(monkeypatch, name, args):
+    """Each provider entry is leader-only ITSELF (not only through a guarded callee): in a follower it raises before
+    it reaches a client, a pool or another fetch."""
+    import api.services.bars_fetch as bf
+    import api.services.massive as ms
+    import api.services.yfinance_pool as yp
+
+    def _touched(*a, **k):
+        raise AssertionError("a follower reached the provider layer through %s" % name)
+    for mod, attr in ((bf, "_get_client"), (ms, "get_agg_bars"), (yp, "fetch_history"), (yp, "run_in_pool"),
+                      (bf, "fetch_with_validation"), (bf, "_fetch_intraday_massive"), (bf, "_fetch_daily")):
+        if not (mod is bf and attr == name) and hasattr(mod, attr):
+            monkeypatch.setattr(mod, attr, _touched)
+    import urllib.request as ur
+    monkeypatch.setattr(ur, "urlopen", _touched)
+    fn = getattr(bf, name)
+    roles._role = "follower"
+    try:
+        with pytest.raises(roles.LeaderOnly):
+            fn(*args)
+    finally:
+        roles._role = "solo"
+
+
 def test_a_bounded_job_in_a_follower_hands_off_and_leaves_no_claim():
     from api.services import bars_fetch as bf
     roles._role = "follower"
