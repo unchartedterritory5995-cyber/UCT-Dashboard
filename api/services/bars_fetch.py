@@ -4582,17 +4582,28 @@ _TO_FILL_ROUND_MAX_DAYS = 400
 _INTRADAY_FLOOR_YMD = "2003-09-01"
 
 
+#: (review of #3011, F2) the empty stretch before a window that proves a LISTING'S START. Two empty rounds as small as
+#: 10/20 days are a vendor gap or a halt, not the start of a series: they end the fill but prove nothing.
+_TO_LISTING_EMPTY_DAYS = 400
+
+
 def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
-                    from_ymd: str, to_ymd: str) -> None:
+                    from_ymd: str, to_ymd: str) -> tuple:
     """Fetch [from_ymd, to_ymd], persist it, PROVE the span; while the contiguous run ending
     at the cutoff is still short of `bars`, fetch the stretch before (window doubling) until
     the count is reached, the provider's floor, `_TO_FILL_MAX_ROUNDS`, or two EMPTY windows
     in a row (the provider has no more there: a listing's start; one empty window alone
     does not stop it, a halt can outlast one). Raises on a provider or store fault, so the
     caller leaves the window un-marked and the next ask retries. `fetch` is resolved by the
-    caller once, so every round asks the same provider."""
+    caller once, so every round asks the same provider.
+    Returns `(reason, count)`: `count` = the rows of the run ending at the cutoff; `reason` = "count" (the ask is
+    held), "floor" (the provider's floor reached), "listing" (two empty rounds spanning >= `_TO_LISTING_EMPTY_DAYS`,
+    or no DAILY bar before the run's oldest row: the series starts there), "gap" (two empty rounds and the daily says
+    the series traded before, or the provider faulted: proves nothing), "rounds" (rounds used up)."""
     lo_ymd, hi_ymd = str(from_ymd), str(to_ymd)
     empty_rounds = 0
+    empty_days = 0
+    run = []
     for _round in range(max(1, _TO_FILL_MAX_ROUNDS)):
         _t0 = _time.time()                 # this fetch's provider check instant
         got = [b for b in fetch(ticker_up, tf, lo_ymd, hi_ymd, raise_errors=True)
@@ -4607,12 +4618,35 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
                     "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
                     ticker_up, tf, hi_ymd, type(_we).__name__, _we)
                 raise
+        _span_days = (datetime.strptime(hi_ymd, "%Y-%m-%d") - datetime.strptime(lo_ymd, "%Y-%m-%d")).days
         empty_rounds = 0 if got else empty_rounds + 1
+        empty_days = 0 if got else empty_days + _span_days
         note_provider_span(ticker_up, tf, _et_day_bounds(lo_ymd)[0],
                            min(int(to_key), _et_day_bounds(hi_ymd)[1]))
         run = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
-        if len(run) >= int(bars) or empty_rounds >= 2 or lo_ymd <= _INTRADAY_FLOOR_YMD:
-            return
+        if len(run) >= int(bars):
+            return "count", len(run)
+        if lo_ymd <= _INTRADAY_FLOOR_YMD:
+            return "floor", len(run)
+        if empty_rounds >= 2:
+            if empty_days >= _TO_LISTING_EMPTY_DAYS:
+                return "listing", len(run)
+            # ⛔⛔ (review of #3011, F2 round 2) the rounds grow only x2 from density, so a RECENT listing's empty
+            # rounds span ~60 days, never 400: without a second fact it was never proven, and its window answered
+            # `filling` (or, scrolled back past the start, the warming 503) forever. The DAILY series is that fact:
+            # no daily bar in the stored daily or the provider's daily before the run's oldest row (before the
+            # cutoff, when the run is empty) = the series starts there.
+            try:
+                if run:
+                    _through = (datetime.fromtimestamp(int(run[0][0]), _ZI("America/New_York")).date()
+                                - timedelta(days=1)).isoformat()
+                else:
+                    _through = datetime.fromtimestamp(int(to_key), _ZI("America/New_York")).date().isoformat()
+            except Exception:              # noqa: BLE001
+                _through = None
+            if _through and _daily_traded_through(ticker_up, _through) is False:
+                return "listing", len(run)
+            return "gap", len(run)
         # ⛔ EACH ROUND IS SIZED, NEVER BLINDLY DOUBLED (review #2951 L2). Doubling alone took a
         # thin 1m name from a 400-day first window to 3,200 days by the last round. The next
         # window is what the rows still missing need at the run's OBSERVED density
@@ -4625,6 +4659,43 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
         hi_ymd = lo_ymd
         lo_ymd = max(_INTRADAY_FLOOR_YMD, (datetime.strptime(hi_ymd, "%Y-%m-%d")
                                            - timedelta(days=days)).strftime("%Y-%m-%d"))
+    return "rounds", len(run)
+
+
+def _daily_traded_through(ticker_up: str, through_iso: str):
+    """Did the series trade on or before `through_iso` (YYYY-MM-DD)? True when the stored daily or the provider's
+    daily holds a bar there (the provider over the `_TO_LISTING_EMPTY_DAYS` before it); False when neither does and
+    the provider ANSWERED (no fault: `provider_fault_scope`); None when the provider faulted (unknown, proves nothing)."""
+    try:
+        through_key = int(through_iso.replace("-", ""))
+        if _sqlite.get_bars_before(ticker_up, "D", 1, through_key):
+            return True
+    except Exception:                      # noqa: BLE001 — the store unreadable: ask the provider
+        pass
+    try:
+        from api.services import massive, provider_fault_scope
+        d = datetime.strptime(through_iso, "%Y-%m-%d")
+        frm = (d - timedelta(days=_TO_LISTING_EMPTY_DAYS)).strftime("%Y-%m-%d")
+        with provider_fault_scope.scope() as sc:
+            raw = massive.get_agg_bars(ticker_up, frm, through_iso)
+        if raw:
+            return True
+        return False if sc.clean else None
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+#: (review of #3011, LOAD) after a window fetch that did not prove the window, re-asks inside this many seconds answer
+#: from the store (filling / warming) without a new provider fetch.
+_TO_WINDOW_FAIL_TTL = 20
+
+
+def _to_window_proven(marker, bars) -> bool:
+    """The `towin_*` marker proves the store holds all there is for an ask of `bars`: the fill ended FINAL (the
+    provider's floor, a listing's start) or it held at least `bars` rows. A marker set for a smaller ask in the same
+    depth tier does not prove a larger one; a marker of the old shape (`1`) proves nothing."""
+    return isinstance(marker, dict) and (bool(marker.get("final"))
+                                         or int(marker.get("n") or 0) >= min(int(bars), _REPLAY_INTRADAY_COLD_BARS))
 
 
 def _replay_warming_response(resp_ticker: str, tf: str) -> JSONResponse:
@@ -4683,6 +4754,17 @@ def _bounded_job(key: str, fn, deadline: float, sem=None, slot_wait: float = 0.0
     return ev.wait(timeout=_bounded_wait(deadline))
 
 
+def _to_window_filling_response(resp_ticker: str, tf: str, bars_out: list) -> JSONResponse:
+    """A `to=` window answer holding FEWER bars than asked that nothing has proven final: the stored part, flagged
+    `filling` (the client re-asks it: `useBarSnapshotBars`) and `short` (not final), with Retry-After, and `no-store`:
+    a cached copy would answer the 3 s re-ask from the browser's HTTP cache (review of #3011, F3)."""
+    _mark_serve("to-filling")
+    r = JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": bars_out, "filling": True, "short": True},
+                     headers={"Cache-Control": "no-store"})
+    r.headers["Retry-After"] = "3"
+    return r
+
+
 def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
@@ -4714,6 +4796,8 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
         rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
     except Exception:
         rows = []
+    _date_done = False      # D/W/M: the deep fetch ANSWERED with rows and they were stored (all there is)
+    _date_proof = {"ok": False}
     if not rows and date_tf:
         # SQLite has nothing at/before the cutoff (e.g. a 2008 replay on a name whose deep
         # history never reached this pod — the sort read it from grouped-daily, not bars.db).
@@ -4730,16 +4814,23 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                     else _fetch_weekly(ticker_up, bars, deep=True) if tf == "W"
                     else _fetch_monthly(ticker_up, bars, deep=True))
             if deep:
-                try:
-                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
-                except Exception:
-                    pass
+                # ⛔ (review of #3011, F1) the proof is set only when the provider answered with rows AND they were
+                # stored. `_bounded_job` swallows a raise and `_done` only says the job ENDED, so "done" read a
+                # provider error as a proven-empty window and answered a TERMINAL 200 no_data.
+                _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
+                _date_proof["ok"] = True
+        _deep_fail_key = f"towinfail_{ticker_up}_{tf}_deep"
         try:
+            if cache.get(_deep_fail_key) is not None:      # (review of #3011, LOAD) just failed: no new fetch
+                return _replay_warming_response(resp_ticker, tf)
             _done = _bounded_job(f"replayto-deep::{ticker_up}::{tf}", _replay_deep_job,
                                  _DEEP_DEADLINE_SECONDS, sem=_replay_cold_sem,
                                  slot_wait=0.0 if warm else 1.0)
+            _date_done = bool(_done) and _date_proof["ok"]
+            if _done and not _date_proof["ok"]:
+                cache.set(_deep_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
-            if not rows and not _done:
+            if not rows and not _date_done:
                 return _replay_warming_response(resp_ticker, tf)
         except Exception:
             rows = rows or []
@@ -4763,15 +4854,26 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
-                and cache.get(_win_key) is None):
+        # ⛔ (2026-11-28) SHORT = FEWER THAN ASKED, not fewer than 0.9 x: 1,086 of 1,152 was served as complete
+        # with max-age=3600 (a short chart at a past date, pinned for an hour at the edge too).
+        if (not _intraday_window_missing and rows and len(rows) < int(bars)
+                and not _to_window_proven(cache.get(_win_key), bars)):
             _intraday_window_short = True
             try:
                 _fetch_to_str = datetime.fromtimestamp(
                     int(rows[0][0]), _ZI("America/New_York")).strftime("%Y-%m-%d")
             except Exception:
                 _intraday_window_short = False
-    if _intraday_window_missing or _intraday_window_short:
+    _win_fail_key = "towinfail_" + _win_key[len("towin_"):]
+    if (_intraday_window_missing or _intraday_window_short) and (
+            cache.get(_win_fail_key) is not None or _to_window_proven(cache.get(_win_key), bars)):
+        # ⛔ (review of #3011, LOAD) a fetch for this window just failed to prove it (or it is proven): re-polls answer
+        # from the store, never a new fetch per re-poll
+        _intraday_window_short = False
+        _intraday_window_missing_fetch = False
+    else:
+        _intraday_window_missing_fetch = _intraday_window_missing
+    if _intraday_window_missing_fetch or _intraday_window_short:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
@@ -4819,15 +4921,19 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                             # Fetch the window, persist it, PROVE its span, and keep
                             # reaching back while the contiguous run ending at the cutoff
                             # is still short (`_fill_to_window`).
-                            _fill_to_window(_fetch_intraday_range, ticker_up, tf, eff_bars,
-                                            to_key, from_ymd, _fetch_to_str)
-                            # The provider has answered AND the answer is stored: what is
-                            # stored now is all there is. A failed fetch or a failed write
-                            # RAISES out of the fill, leaving the window un-marked, so the
-                            # next ask retries it.
-                            cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
+                            _why, _n = _fill_to_window(_fetch_intraday_range, ticker_up, tf, eff_bars,
+                                                       to_key, from_ymd, _fetch_to_str)
+                            # The provider has answered AND the answer is stored. It PROVES the window
+                            # only when the run holds the ask or the fill ended final (the floor, a
+                            # listing's start; review of #3011, F2): a short vendor gap or rounds used
+                            # up prove nothing. A failed fetch or a failed write RAISES out of the fill.
+                            if _why in ("floor", "listing") or _n >= int(eff_bars):
+                                cache.set(_win_key, {"n": int(_n), "final": _why in ("floor", "listing")},
+                                          ttl=_TO_WINDOW_TTL)
+                            else:
+                                cache.set(_win_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
                         except Exception:     # noqa: BLE001 — background
-                            pass
+                            cache.set(_win_fail_key, 1, ttl=_TO_WINDOW_FAIL_TTL)
                         finally:
                             _replay_cold_sem.release()
                             with _inflight_lock:
@@ -4868,17 +4974,29 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
                 # window is real and in order: serve it now, flagged `filling`, and tell
                 # the client when the rest should be there.
-                _mark_serve("to-filling")
-                r = JSONResponse(
-                    content={"ticker": resp_ticker, "tf": tf,
-                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
-                    headers={"Cache-Control": "public, max-age=5"})
-                r.headers["Retry-After"] = "3"
-                return r
+                return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
         except Exception:
             rows = rows or []
+    # ⛔⛔ (2026-11-28) A WINDOW ANSWER IS COMPLETE ONLY WHEN IT HOLDS WHAT WAS ASKED OR THE STORE IS PROVEN TO HOLD ALL
+    # THERE IS (`_win_key`: set only after a cold fetch answered AND its rows were stored; D/W/M: the deep job ran).
+    # Members saw short charts at past dates (738-1,086 of 1,152 on cold windows): a cold fetch that got no slot
+    # (`_replay_cold_sem`) or whose thread failed re-read with `_replay_running` False and served the short rows as
+    # static history for an hour, and a window with NO stored rows fell to `_get_bars_inner`, the RECENT bars, which
+    # the client's cutoff turns into an EMPTY window.
+    _proven = _date_done if date_tf else _to_window_proven(cache.get(_win_key), bars)
     if not rows:
-        return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
+        if _proven:
+            # the fetch answered and nothing exists before the cutoff: an honest, settled empty answer
+            _mark_serve("to-no-data")
+            return JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": [],
+                                         "no_data": True, "reason": "no_provider_data"},
+                                headers={"Cache-Control": "public, max-age=300"})
+        return _replay_warming_response(resp_ticker, tf)       # never the recent bars: re-poll the window
+    if not date_tf and not _proven and (_intraday_window_missing or len(rows) < int(bars)):
+        if _intraday_window_missing:
+            # only another era is stored and nothing has proven the window empty: warming, never the wrong era
+            return _replay_warming_response(resp_ticker, tf)
+        return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
     _mark_serve("sqlite")
     payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     # A window that is STILL not covered (the fetch finished without reaching it) is

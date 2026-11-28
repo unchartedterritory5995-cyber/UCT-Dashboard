@@ -349,7 +349,7 @@ def test_a_fill_reaches_back_across_a_halt_and_proves_it(store, monkeypatch):
     body = _body(bars_fetch._get_bars_to_response("HLT", "15", 1000, to))
     assert len(calls) >= 2
     assert len(body["bars"]) == 1000 and _max_gap(body["bars"]) > GAP   # served THROUGH the halt
-    assert cache.get(f"towin_HLT_15_{to}_{bars_fetch._depth_tier(1000)}") == 1
+    assert bars_fetch._to_window_proven(cache.get(f"towin_HLT_15_{to}_{bars_fetch._depth_tier(1000)}"), 1000)
     cache.delete_prefix("towin_HLT_")
 
 
