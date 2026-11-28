@@ -37,6 +37,7 @@ import { noteMemberDate } from '../../../components/chart/viewDate'
 import { createDateBoxNav } from './dateBoxNav'
 import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
+import { thirdLayerOn } from '../../../components/chart/doubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
 import { LayerFrontFocusContext, LayerPaintContext } from '../../../components/chart/layerPaint'
@@ -901,8 +902,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const boardVisAny = useContext(BoardVisibilityContext)   // any board handle (the <Activity> one too): it must be a layer
   const [dbEligible] = useState(() => isMainTab && doubleBufferEligible({ scope: groupScope, color: activeColor, parentVis: boardVisAny }))
   // (lane C, plan 2.4) a THIRD layer (two hidden panes) on a desktop of 8 GB or more; decided once (doubleBuffer.thirdLayerOn)
-  // (split of #2997) the THIRD layer is not switched on in this PR: it is the next PR's, measured on its own
-  const [dbLayers] = useState(() => 2)
+  const [dbLayers] = useState(() => (dbEligible && thirdLayerOn() ? 3 : 2))
   const layerInstRef = useRef([null, null, null])
   const layerElRef = useRef([null, null, null])
   const db = useDoubleBuffer({

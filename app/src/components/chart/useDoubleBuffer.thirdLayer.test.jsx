@@ -116,6 +116,43 @@ describe('useDoubleBuffer: three layers', () => {
   })
 })
 
+describe('the third layer steps aside for a heavy front', () => {
+  it('L7 zoomed out past THIRD_LAYER_MAX_SPAN: one hidden pane; back under it: two again', async () => {
+    const { THIRD_LAYER_MAX_SPAN } = await import('./useDoubleBuffer')
+    nf.publishScanNeighbors('AAA', ['BBB'], ['ZZZ'])
+    const h = mount()
+    reportAll(h)
+    await idle()
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB', 'ZZZ'])
+    const wide = THIRD_LAYER_MAX_SPAN + 200
+    panes[0].m = { ...meta(), frame: { fromRight: wide - 8, toRight: -8, locked: false } }
+    act(() => { h.result.current.viewChanged(0) })
+    await idle()
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB', null])   // the third pane dropped, the row ahead kept
+    panes[0].m = meta()
+    act(() => { h.result.current.viewChanged(0) })
+    await idle()
+    expect(h.result.current.syms).toEqual(['AAA', 'BBB', 'ZZZ'])
+  })
+
+  it('L8 a custom timeframe (4h): one hidden pane', async () => {
+    nf.publishScanNeighbors('AAA', ['BBB'], ['ZZZ'])
+    const h = renderHook((p) => useDoubleBuffer(p), { initialProps: { ...base(), tf: '240', tfBar: ['60', '240', 'D'] } })
+    act(() => { h.result.current.reporters[0]({ sym: 'AAA', tf: '240', ext: false, bars: bars.get(keyOf('AAA', 'D')), cutoff: null }) })
+    await idle()
+    expect(h.result.current.syms.filter(Boolean)).toHaveLength(2)   // the front and ONE hidden pane
+  })
+
+  it('L9 frontTooHeavyForThird', async () => {
+    const { frontTooHeavyForThird, THIRD_LAYER_MAX_SPAN } = await import('./useDoubleBuffer')
+    expect(frontTooHeavyForThird(meta(), 'D')).toBe(false)
+    expect(frontTooHeavyForThird({ frame: { fromRight: THIRD_LAYER_MAX_SPAN + 10, toRight: 0 } }, 'D')).toBe(true)
+    expect(frontTooHeavyForThird(meta(), '240')).toBe(true)
+    expect(frontTooHeavyForThird(meta(), '60')).toBe(false)
+    expect(frontTooHeavyForThird(null, 'D')).toBe(false)
+  })
+})
+
 describe('thirdLayerOn', () => {
   afterEach(() => { vi.unstubAllGlobals(); try { localStorage.removeItem(db.THIRD_LAYER_KEY) } catch { /* none */ } })
   it('8 GB or more: on; less, or a browser that does not say: off; the localStorage switch turns it off', () => {

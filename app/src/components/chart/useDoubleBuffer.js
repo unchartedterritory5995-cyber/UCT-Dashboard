@@ -115,6 +115,17 @@ const MIRROR_DEBOUNCE_MS = 120
 /** (lane C) How long after a retarget the hidden layer's feed re-renders in its own task, not idle time
  *  (boardVisibility.forwardWhileCurrent `promptUntil`), unless its chart reports first. */
 export const RETARGET_PROMPT_MS = 1500
+/** (plan 2.4, the #2997 cloud A/B: zoomed-out 4h+2h typed p100 276 -> 1143 ms with three layers) the THIRD layer steps
+ *  aside while the front shows more than this many bars across, or a custom timeframe (4h / 2h / 45m: a resample of
+ *  thousands of base rows per pane): a second hidden pane there competed with the front's own paint. Two layers then. */
+export const THIRD_LAYER_MAX_SPAN = 1000
+/** Is the front heavy enough that the third layer steps aside? (its view's span, its timeframe) */
+export function frontTooHeavyForThird(frontMeta, frontTf) {
+  if (frontTf != null && customSpecOf(String(frontTf), false)) return true
+  const fr = frontMeta && frontMeta.frame
+  const span = fr && Number.isFinite(fr.fromRight) && Number.isFinite(fr.toRight) ? fr.fromRight - fr.toRight : null
+  return span != null && span > THIRD_LAYER_MAX_SPAN
+}
 const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /**
@@ -385,7 +396,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, layers
     if (i !== bufRef.current.front) { scheduleMirror(); if (N > 2) retargetKickRef.current?.() }
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
-  const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) scheduleMirror() })
+  const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) { scheduleMirror(); if (N > 2) retargetKickRef.current?.() } })
   // (review of #2932) the pane shown NOW takes the focus: ChartPane's refocus after a typed Enter calls this when its own
   // pane is the inert old front (the Enter FLIPPED), so the keys go on reaching the chart (chart/layerPaint.js)
   const panesRef = useRef(panes)
@@ -419,7 +430,27 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, layers
       const habit = ftf != null && !cutoffRef.current ? habitualTfs(String(ftf), { k: 2, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null }) : []
       // (plan 2.4) the first N-1 targets; a TYPED retarget (urgent) moves ONE pane, and with three layers never the pane
       // holding the previous candidate: kept until the new one reports (its report kicks the full retarget)
-      const full = shadowTargetsFor(f, ftf, habit, N - 1)
+      // (plan 2.4) a heavy front (zoomed out, a custom timeframe): ONE hidden pane, the third one dropped
+      let heavy = false
+      if (N > 2) { try { heavy = frontTooHeavyForThird((panes ? panes() : [])[b.front]?.getDateMeta?.(), ftf) } catch { heavy = false } }
+      const n = heavy ? 1 : N - 1
+      const full = shadowTargetsFor(f, ftf, habit, n)
+      if (heavy) {
+        // keep the pane holding the one target (or the first holding anything); every other hidden pane goes
+        const hid = hiddenOf(b)
+        const holdsT = (i) => full[0] && b.syms[i] === full[0].sym && String(b.tfs[i]) === String(full[0].tf)
+        const keep = hid.find(holdsT) ?? hid.find((i) => b.syms[i] != null)
+        const drop = hid.filter((i) => b.syms[i] != null && i !== keep)
+        if (drop.length) {
+          for (const i of drop) reportsRef.current[i] = null
+          startTransition(() => setBuf((x) => {
+            if (x.front !== b.front) return x
+            const syms = x.syms.slice()
+            for (const i of drop) syms[i] = null
+            return { syms, tfs: x.tfs, front: x.front }
+          }))
+        }
+      }
       const targets = urgent ? full.slice(0, 1) : full
       if (!targets.length) return
       const avoid = urgent && N > 2 ? lastTypedRef.current : null
