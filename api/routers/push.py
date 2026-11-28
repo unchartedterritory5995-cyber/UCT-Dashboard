@@ -159,6 +159,14 @@ def push_wire_data(
     except Exception:
         logger.exception("[push] wire archive write failed (push unaffected)")
 
+    # Gap audit P1: the wire's FULL analyst-action list, dated, for UPDG's history (the default
+    # answer still cuts it to 12/12/15). Never blocks the push; record_wire never raises.
+    try:
+        from api.services import analyst_history
+        analyst_history.record_wire(payload)
+    except Exception:
+        logger.exception("[push] analyst history write failed (push unaffected)")
+
     # Record UCT20 composition snapshot (for portfolio NAV tracking)
     try:
         from api.services.uct20_nav import record_composition
@@ -212,6 +220,12 @@ def push_wire_archive(
     if not isinstance(payload.get("rundown_html"), str) or not payload["rundown_html"]:
         raise HTTPException(status_code=422, detail="payload.rundown_html is required")
     stored = wire_archive.record(payload, overwrite=False)
+    # Gap audit P1: a backfilled snapshot's analyst actions too, never over a date a push recorded.
+    try:
+        from api.services import analyst_history
+        analyst_history.record_wire(payload, overwrite=False)
+    except Exception:
+        logger.exception("[push/archive] analyst history write failed (backfill unaffected)")
     return {"ok": True, "date": day, "stored": stored}
 
 
