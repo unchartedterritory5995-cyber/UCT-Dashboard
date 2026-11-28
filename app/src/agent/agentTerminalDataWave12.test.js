@@ -432,10 +432,11 @@ const TERMINAL_KEYWORDS = {
   RTG: {}, ANR: {}, MNA: {}, IDXC: {},
   EEH: { estimates: ['estimate revisions'] },
   SEG: { segments: ['revenue by segment', 'segment revenue', 'product revenue', 'revenue by product', 'revenue by region', 'geographic revenue', 'revenue mix'] },
-  FTD: { ftd: ['fails to deliver'] },
+  FTD: { ftd: ['fails to deliver', 'failures to deliver'] },          // #2983 added 'failures to deliver', which these words always named
 }
 const NOT_NAMED = { RTG: ['rating', 'score'], ANR: ['analysts', 'upgrades', 'downgrades', 'price target'], SEG: ['segments', 'business segments'],
-  MNA: ['mergers', 'acquisitions', 'm&a', 'takeover', 'acquired'], IDXC: ['index changes', 'added to the s&p', 'index history'], EEH: ['revisions'] }
+  MNA: ['mergers', 'acquisitions', 'm&a', 'takeover', 'acquired'], IDXC: ['index changes', 'added to the s&p', 'index history'], EEH: ['revisions'],
+  FTD: ['ftd', 'biggest fails', 'settlement fails'] }                 // bare FTD's market list (#2983) stays with the panel
 
 describe('routing words', () => {
   const realFetch = globalThis.fetch
