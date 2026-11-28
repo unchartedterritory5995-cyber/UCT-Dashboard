@@ -15387,17 +15387,17 @@ function StockChartBody({
   // no-data answer) the hold ends with still no bars, so nothing above changes and nothing re-ran updateChart: the OLD
   // timeframe stayed on screen under the skeleton past the bound (StockChart.tfSwitchFromDaily C7). The release runs it
   // once, so the empty arm shows the chart's honest loading / no-data state instead.
-  // ⛔ Through a ref, never the effect's own closure: an effect keyed on the hold alone outlives a symbol switch, and its
-  // closure (this render's `updateChart` and `filteredBars`) kept the outgoing symbol's bars alive
-  // (StockChart.closureChains STRICT). The ref holds only the newest render's.
-  const _holdWasRef = useRef(false)
-  const _holdReleaseRef = useRef(null)
-  _holdReleaseRef.current = () => { if (!filteredBars?.length) updateChart() }
+  // ⛔ (StockChart.closureChains STRICT) the release's first form captured `filteredBars` in a closure that outlived
+  // the symbol switch, and kept the outgoing symbol's bars alive. A release caused by the key change itself is the layout
+  // pass's (`_appliedSymTfRef` already ran updateChart for the new key): skipped here, so the empty frame counts once.
+  // (the bars are read through `__heavy.committed`, never captured: the closure-chain rule at the top of this component)
+  const _holdWasRef = useRef({ on: false, key: null })
   useEffect(() => {
     const was = _holdWasRef.current
-    _holdWasRef.current = !!_tfSwitchHold
-    if (was && !_tfSwitchHold) _holdReleaseRef.current?.()
-  }, [_tfSwitchHold])
+    const k = `${sym}_${resolvedTf}`
+    _holdWasRef.current = { on: !!_tfSwitchHold, key: k }
+    if (was.on && !_tfSwitchHold && was.key === k && !__heavy.committed.filteredBars?.length) updateChart()
+  }, [_tfSwitchHold, sym, resolvedTf, updateChart])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⭐ THE STORE'S DEVELOPING-BAR PAINT (P3-S2) — under BARSTORE the ONLY candle / volume update()
   // (the legacy writers are not mounted: chart/legacyLiveWriters.js; railed by
