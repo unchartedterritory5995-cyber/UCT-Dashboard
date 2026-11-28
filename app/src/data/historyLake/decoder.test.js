@@ -22,6 +22,7 @@
  *   Q3 a job whose load is given up while it waits in the page's queue is never posted nor decoded; it rejects with the
  *      abort; the source's loadBars rejects AbortError
  *   Q4 a worker that dies with jobs waiting in the page's queue decodes the live ones inline and drops the aborted ones
+ *   Q5 a queued job whose load becomes paint-awaited (network.js lakeAwaited, later) is posted ahead of the rest
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fixture from './__fixtures__/source.json'
@@ -253,6 +254,28 @@ describe('lake pieces decode off the main thread', () => {
     await tick(); await tick()
     expect(f.made[0].posted - before).toBe(0)           // none of them was posted
     expect(dec.stats()).toMatchObject({ dropped: 8, queued: 0 })
+  })
+
+  it('Q5 a queued job whose load becomes paint-awaited goes to the worker ahead of the rest', async () => {
+    const f = fakeWorkerFactory({ delay: 10 })
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    const order = []
+    let awaited = false
+    const P = (i) => pieces[i % pieces.length]
+    const bg = Array.from({ length: 8 }, (_, i) => dec.decode(P(i).headerJson, P(i).body).then(() => order.push(`bg${i}`)))
+    const late = dec.decode(P(0).headerJson, P(0).body, { isUrgent: () => awaited }).then(() => order.push('late'))
+    awaited = true                                         // network.js: the handoff now waits on this load
+    await Promise.all([...bg, late])
+    // the two posted before the flip finish first; the awaited job is the next one posted
+    expect(order.indexOf('late')).toBeLessThanOrEqual(WORKER_IN_FLIGHT)
+    // through the source: the yield's own urgentNow reaches the decoder
+    const spy = vi.spyOn(dec, 'decode')
+    const src = createHistorySource({ fetch: edge(), decoder: dec })
+    const wait = () => Promise.resolve()
+    wait.urgentNow = () => false
+    await src.loadBars('MU-LT', '5', { yieldTask: wait })
+    expect(spy.mock.calls.every((c) => c[2].isUrgent === wait.urgentNow)).toBe(true)
   })
 
   it('Q4 a worker that dies with jobs queued decodes the live ones inline and drops the aborted ones', async () => {

@@ -253,7 +253,8 @@ export function createHistorySource(o = {}) {
     }
     // (`urgent`: no yield means a paint waits on this load, so its decode never queues behind other pieces; `signal`: a
     // load given up while its decode waits in the decoder's queue is dropped there, never decoded)
-    let d = decoder.decode(headerJson, bytes, { urgent: !w, signal })
+    // (`isUrgent`: the yield's own answer to "does a paint wait on this load now", when it has one: network.js)
+    let d = decoder.decode(headerJson, bytes, { urgent: !w, signal, isUrgent: typeof wait?.urgentNow === 'function' ? wait.urgentNow : null })
     if (d && typeof d.then === 'function') {
       d = await d
       // (a load given up while the worker decoded is not handed on, as above)

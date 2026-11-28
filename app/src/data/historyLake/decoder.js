@@ -89,8 +89,13 @@ export function createLakeDecoder({
       worker.postMessage({ id, headerJson: job.headerJson, body: copy }, [copy.buffer])
     } catch { pending.delete(id); stats.worker -= 1; settleInline(job) }
   }
+  // (a job whose load became paint-awaited while it waited, `isUrgent()` now true, is posted ahead of the rest)
+  function nextJob() {
+    const i = queue.findIndex((j) => { try { return !!j.isUrgent?.() } catch { return false } })
+    return i > 0 ? queue.splice(i, 1)[0] : queue.shift()
+  }
   function pump() {
-    while (!dead && worker && pending.size < WORKER_IN_FLIGHT && queue.length) post(queue.shift())
+    while (!dead && worker && pending.size < WORKER_IN_FLIGHT && queue.length) post(nextJob())
   }
   function start() {
     if (dead || worker || disabled()) return
@@ -116,8 +121,9 @@ export function createLakeDecoder({
     /** The float columns of one piece: an object (decoded inline) or a Promise of one (decoded in the worker). Throws or
      *  rejects PieceError exactly as `decodeColumns` does.
      *  `urgent`: a paint waits on it (inline at once unless the worker is idle); `signal`: a job given up while it waits
-     *  in the page's queue is dropped (rejects with the abort, never decoded). */
-    decode(headerJson, body, { urgent = false, signal = null } = {}) {
+     *  in the page's queue is dropped (rejects with the abort, never decoded); `isUrgent()`: true once a paint waits on a
+     *  job already queued (network.js marks the load awaited later), which then goes to the worker ahead of the rest. */
+    decode(headerJson, body, { urgent = false, signal = null, isUrgent = null } = {}) {
       if (!ready || dead || !worker || disabled()) {
         start()
         stats.inline += 1
@@ -129,7 +135,7 @@ export function createLakeDecoder({
       }
       if (signal?.aborted) return Promise.reject(abortError(signal))
       return new Promise((resolve, reject) => {
-        const job = { headerJson, body, resolve, reject, signal, onAbort: null }
+        const job = { headerJson, body, resolve, reject, signal, onAbort: null, isUrgent }
         if (signal) {
           job.onAbort = () => {
             const i = queue.indexOf(job)
