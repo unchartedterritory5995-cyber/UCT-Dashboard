@@ -180,4 +180,23 @@ describe('a partial deep D/W/M answer', () => {
     expect(w.hist.length).toBe(2)                                      // the deep history asked again
     expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(2900)
   })
+
+  it('P11 partial, the page hidden (the retry paused), the key unheld, then shown and opened: the history is asked again', async () => {
+    let hidden = false
+    const w = world([partial, sealed], { hidden: () => hidden })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    hidden = true
+    await vi.advanceTimersByTimeAsync(PARTIAL_RETRY_MS[0] + 100)      // the retry comes due while hidden: paused
+    w.registry.release(w.key)                                          // nothing holds the key any more
+    hidden = false
+    w.visible()
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.hist.length).toBe(1)                                      // not held: not asked on visible
+    w.registry.acquire(w.key)
+    w.net.start(w.key, { depth: fullBarsFor('D') })                   // a chart opens it later
+    await vi.advanceTimersByTimeAsync(500)
+    expect(w.hist.length).toBe(2)                                      // its deep history is asked again
+    expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(2900)
+  })
 })

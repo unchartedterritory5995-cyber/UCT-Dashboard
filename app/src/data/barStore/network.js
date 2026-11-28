@@ -1186,7 +1186,7 @@ export function createNetwork({
   const offVisible = onVisible(() => {
     for (const r of keys.values()) if (r.paused && r.refs > 0) { r.paused = false; _schedule(r, 0) }
     // (review of #3050) a partial retry that came due while hidden asks now
-    for (const r of keys.values()) if (r.partialPaused) { r.partialPaused = false; if (_heldNow(r)) { r.queue.push({ run: () => _historyJob(r), resolve: () => {} }); _drain(r) } }
+    for (const r of keys.values()) if (r.partialPaused) { r.partialPaused = false; if (_heldNow(r)) { r.queue.push({ run: () => _historyJob(r), resolve: () => {} }); _drain(r) } else _forgetPartial(r) }
   })
 
   const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.side && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
