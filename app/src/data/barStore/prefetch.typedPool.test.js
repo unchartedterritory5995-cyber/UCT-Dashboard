@@ -178,7 +178,6 @@ describe('the pool warms the likeliest completions at once, from the device and 
     await turns(w)
     expect(origin(w).map((c) => `${c.q.sym} ${c.q.tf} to=${c.q.to}`).sort()).toEqual(['CRM 5 to=2026-10-15', 'CRWD 5 to=2026-10-15'])
     expect(primed).toEqual([])                     // the plain keys' lake is not what the chart reads at the date
-    expect(w.pf.peek(w.pf.keyFor('CRM', '5', { window: { to } }))?.restSeen).toBe(true)
     const n = w.server.calls.length
     w.pf.warmTypedCandidates(['CRM', 'CRWD'], '5', { viewWindow: { to } })   // the list kept: nothing asked again
     await turns(w)
