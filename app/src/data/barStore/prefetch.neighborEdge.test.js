@@ -141,21 +141,26 @@ describe('request count of a member scanning a daily list (printed x500)', () =>
 })
 
 // (review of #2984) A LIST OPENING (prewarmVisibleList: watchlist, theme tracker, screener) reads its rows from the DEVICE
-// only: no `&warm=1` /api/bars for up to 500 rows, and no deep history per row either
+// (the rows on screen also ask their page in the edge-shared URL): no `&warm=1` /api/bars for up to 500 rows, no deep
+// history per row
 describe('a list opening reads its rows from the device only (prewarmVisibleList)', () => {
   const LIST = Array.from({ length: 40 }, (_, i) => `L${String.fromCharCode(65 + (i % 26))}${i}`)
-  it('D list: nothing on the wire at all', async () => {
+  // the rows on screen (memTop) ask their page in the chart's own URL (edge-shared); every other row, nothing
+  const shared = (w) => origin(w).map((c) => `${c.q.sym}${c.q.warm ? ' warm=1' : ''}`).sort()
+  it('D list: only the 24 rows on screen ask, in the shareable URL; no deep history per row', async () => {
     const w = await boot()
     w.pf.prewarmVisibleList(LIST, { chartTf: 'D' })
     await turns(w, 6)
     await w.server.drain()
-    expect(w.server.calls).toEqual([])
+    expect(shared(w)).toEqual(LIST.slice(0, 24).sort())
+    expect(w.server.calls.filter((c) => c.q.history)).toEqual([])
   })
-  it('intraday list: no /api/bars (the lake tier warm, edgeWarmList, is unchanged)', async () => {
+  it('intraday list: the rows on screen ask their page and their D page, never `&warm=1`', async () => {
     const w = await boot()
     w.pf.prewarmVisibleList(LIST, { chartTf: '5' })
     await turns(w, 6)
     await w.server.drain()
-    expect(origin(w)).toEqual([])
+    expect(origin(w).filter((c) => c.q.tf === '5').map((c) => c.q.sym).sort()).toEqual(LIST.slice(0, 24).sort())
+    expect(origin(w).some((c) => c.q.warm)).toBe(false)
   })
 })
