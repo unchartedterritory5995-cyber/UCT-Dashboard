@@ -552,9 +552,12 @@ export async function _chartLaneFetch(url, signal) {
   }
   const err = new Error(`HTTP ${r.status}`)
   err.status = r.status
-  if (r.status === 503) {
+  // (2026-11-28, the cloud sweep: /api/bars/LNG?tf=15 answered 429 three times) a 429 says when to ask again too
+  if (r.status === 503 || r.status === 429) {
     const ra = parseInt(r.headers?.get?.('Retry-After') || '', 10)
     if (Number.isFinite(ra) && ra > 0) err.retryAfterMs = ra * 1000
+  }
+  if (r.status === 503) {
     try {
       const b = await r.clone().json()
       if (b && (b.warming === true || b.error === 'warming')) err.warming = true

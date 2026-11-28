@@ -747,10 +747,40 @@ export function createPrefetch(o = {}) {
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
-    return !_ownGrace(key, s, n)
+    return !_ownGrace(key, s, n, showExtended)
+  }
+  /**
+   * ⭐⭐ (2026-11-28, B9: the cold-coverage run after the 11-27 half day, CRAI on a 1m + 15m board: the switch held the
+   * previous chart to the 4 s hang guard) THE ROLL A PROOF MUST REACH IS THE VIEW'S NEWEST CLOSED BUCKET, NOT THE CLOCK'S.
+   * In the session the two are one instant (the current bucket opened when the newest closed one ended). After the close
+   * the clock keeps rolling every bucket while the session's frontier stays at its close (13:00 on a half day): an
+   * illiquid name's tail (CRAI 1m 12:56, three buckets short of the close) came back `verified` by the server's proof
+   * (the live stream's watermark, 20:00 ET), and the grace asked that proof to reach 20:49, the minute the member pressed
+   * Enter. It never could, so the copy read behind all evening, the switch never painted it and nothing more was asked.
+   * The earlier of the two: the clock's roll inside the session, the newest session close at or before now outside it
+   * (today's once it has closed, else the previous session's; the half day's 13:00, the extended view's 20:00).
+   * ⛔ Read on the ET calendar (barTime etDateOf / etMinuteOfDay), never a local Date: on a page east of New York the
+   * evening is already the next day locally (utils/marketSession expectedLatestCompletedBar reads the local weekday).
+   */
+  function _proofRollMs(key, tf, showExtended) {
+    const clock = _rollMs(tf)
+    const p = parseKey(key)
+    const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
+    const sec = Math.floor(now() / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    const day = !(dow === 0 || dow === 6 || isHolidayISO(iso))
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    const closeMin = ext ? 1200 : rthCloseMinuteOf(sec)
+    if (day && m >= open && m < closeMin) return clock          // in the session: the clock's roll IS the frontier's
+    const close = day && m >= closeMin
+      ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
+      : (_prevSessionCloseUnix(sec, ext) ?? NaN) * 1000
+    return Number.isFinite(close) && close < clock ? close : clock
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
-  function _ownGrace(key, s, n) {
+  function _ownGrace(key, s, n, showExtended) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -772,7 +802,7 @@ export function createPrefetch(o = {}) {
     // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
-      const roll = _rollMs(tf0)
+      const roll = _proofRollMs(key, tf0, showExtended)
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
@@ -1428,7 +1458,7 @@ export function createPrefetch(o = {}) {
       // its history due for certain, so it leaves before the read; a saved copy that turns out deep
       // (its history joined on an earlier visit) is not due, and takes the old path.
       const t0 = now()
-      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
+      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })
       const hyd = _hydrate(key, URGENT)
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
@@ -1436,7 +1466,7 @@ export function createPrefetch(o = {}) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null, cover })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
-      S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
+      S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
       const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {}, cover })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
@@ -2239,12 +2269,16 @@ export function createPrefetch(o = {}) {
     return n
   }
 
-  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0) {
+  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0, viewWindow = null, showExtended = undefined) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
-    const key = keyFor(T, tf)
+    // ⭐ (review of #2947, speed follow-up) A CHART AT A DATE WARMS THE WINDOW IT WILL READ: the typed ticker's window
+    // ending at the member's date (chart/viewWindow), never the plain key's newest rows (another set of bars)
+    // (review of #3004, LOW) on the PANE's session: its ETH can differ from the global (`showExtended`, the chart's own)
+    const key = keyFor(T, tf, viewWindow ? { window: viewWindow, showExtended } : {})
     const p = key ? parseKey(key) : null
-    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    if (!p || !isIntradayTf(p.tf) || (p.window && !viewWindow)) return null
+    if (p.window) return _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended)
     if (typed && typed.key !== key) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
@@ -2334,9 +2368,39 @@ export function createPrefetch(o = {}) {
     return !gone() && inLake === true
   }
 
-  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0 } = {}) {
+  /** The typed ticker's WINDOW at the member's date (an intraday chart the date box sent to a past date): its lake pieces
+   *  primed now, its read asked (the window's lake-first read, network `_windowRead`), the linked intraday timeframes'
+   *  windows warmed beside it. Superseded by a newer text like the plain warm. */
+  function _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended) {
+    if (typed && typed.key !== key) {
+      if (!typed.kept) typed.ctl.abort()
+      typed = null
+    }
+    if (typed && typed.key === key) return null
+    const held = S().peek(key)
+    if (held?.restSeen && DISPLAYABLE.includes(held.status)) return null
+    const ctl = new AbortController()
+    const mine = { key, ctl, kept: false }
+    typed = mine
+    try { S().primeLake?.(key) } catch { /* a warm only */ }
+    for (const t2 of alsoTfs || []) {
+      if (String(t2) === String(tf) || !isIntradayTf(fetchTf(String(t2)))) continue
+      try { prefetchViewWindow([T], t2, viewWindow, { showExtended }) } catch { /* a warm only */ }
+    }
+    return (async () => {
+      // the same vouching as the plain warm (`_typedIsTicker`): a partial word nothing knows asks nothing
+      const isTicker = await _typedIsTicker(T, () => typed !== mine)
+      if (typed !== mine) return 'superseded'
+      if (!isTicker) return 'unknown'
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: S().peek(key) || {} })
+      if (ctl.signal.aborted && !mine.kept) return false
+      return s?.restSeen && !s.error && s.depth ? 'network' : false
+    })().catch(() => false).finally(() => { if (typed === mine) typed = null })
+  }
+
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0, viewWindow = null, showExtended = undefined } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover, viewWindow, showExtended)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null

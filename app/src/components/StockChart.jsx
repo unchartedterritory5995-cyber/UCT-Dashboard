@@ -11978,14 +11978,20 @@ function StockChartBody({
   // (owner, 2026-11-27) keyed on the date AND the date box's span: a new span at the same date is a new frame too
   const _anchorKey = anchorDate ? `${anchorDate}|${_anchorBox ? anchorWidth : ''}` : null
   const prevAnchorRef = useRef(_anchorKey)
+  const prevAnchorSeriesRef = useRef(`${sym}|${resolvedTf}`)
   useEffect(() => {
     const prev = prevAnchorRef.current
-    if (prev === _anchorKey) return
+    const series = `${sym}|${resolvedTf}`
+    const switched = prevAnchorSeriesRef.current !== series
+    // (review of #3004, F1) the series advances only where the transition is CONSUMED: a cold switch's first run (no bars
+    // yet) returns below and must still see `switched` on the run that brings them
+    if (prev === _anchorKey) { prevAnchorSeriesRef.current = series; return }
     const chart = chartRef.current
     // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
     // that brings them (filteredBars is a dep) instead of dropping the transition.
     if (!chart || !__heavy.filteredBars || __heavy.filteredBars.length === 0) return
     prevAnchorRef.current = _anchorKey
+    prevAnchorSeriesRef.current = series
     if (anchorDate) {
       // A new anchor is a FRESH user intent (they clicked a different moment), so it
       // re-takes a view the user had panned away from — the same re-arm a symbol or
@@ -12002,6 +12008,10 @@ function StockChartBody({
       return
     }
     if (!prev) return   // never anchored → nothing to restore
+    // ⛔ (2026-11-28, the correctness builder: a 6-bar time shift one frame after a switch) THE DATE WENT WITH A SWITCH:
+    // the switch's own framing (updateChart's zoomKey branch: the carried zoom, newest at its margin) already framed
+    // the new series in the frame it painted; a default re-frame here moved it again a frame later (margin and width)
+    if (switched) return
     // "Back to today": re-frame to the canonical present-day default (the same helper
     // first load and right-click "Reset view" use) and re-arm the pinned-right net.
     userViewMovedRef.current = false
