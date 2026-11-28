@@ -24,6 +24,7 @@ import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 /** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
@@ -1451,7 +1452,7 @@ function zoomLimitsOf(chart) {
     const w = ts?.width?.(), o = ts?.options?.() || {}
     if (!(Number.isFinite(w) && w > 0)) return null
     const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
-    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : MIN_BAR_SPACING
     return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
   } catch { return null }
 }
@@ -12524,6 +12525,9 @@ function StockChartBody({
         // bug. Exact-range charts are frozen historical windows: never
         // auto-shift them.
         shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
+        // ⭐ (2026-11-28, cold-arch 3.3 item 7) zoomed all the way out, a daily chart holds 2014 to today: the library's
+        // 0.5 px floor held 787 bars on a 394 px plot (chart/zoomOutLimit.js)
+        minBarSpacing: MIN_BAR_SPACING,
       },
     }
 
