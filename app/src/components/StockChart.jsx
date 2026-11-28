@@ -21194,7 +21194,7 @@ function StockChartBody({
       {showSkeleton && <ChartSkeleton label={_study ? 'Loading chart…' : `Loading ${sym}…`} />}
       {showFatalError && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
-          <span>{_study ? 'Failed to load the chart' : `Failed to load chart for ${sym}`}</span>
+          <span>{error?.historyShort ? `Couldn't load the full price history for ${sym}.` : _study ? 'Failed to load the chart' : `Failed to load chart for ${sym}`}</span>
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
       )}

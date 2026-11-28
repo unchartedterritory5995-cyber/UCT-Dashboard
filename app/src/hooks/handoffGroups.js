@@ -217,8 +217,18 @@ export function subscribeDecisions(fn) { _subs.add(fn); return () => { _subs.del
  *  - `show` is called with { sym, tf }: the symbol and the timeframe the member had when it became ready.
  */
 export const GROUP_SYNC_MS = 150   // (kept: the name the tests and the decision docs cite; no longer a split point)
-/** The round's ONLY bound: past every member's own (HANDOFF_HANG_MS 4000 + COLUMNS_WAIT_MS 300 is the longest). */
-export const GROUP_HANG_MS = 4500
+// ⛔ (review of #3034) THE SWITCH'S TIME BOUNDS LIVE HERE, in one place, so the round's is DERIVED from the members' own
+// (useSymbolHandoff imports them; this file keeps its zero imports).
+/** ⚠️ A HANG GUARD, NOT A LATENCY BUDGET (useSymbolHandoff): fires only when a prepare never settles. */
+export const HANDOFF_HANG_MS = 4000
+/** (#3034) past the guard, how long a cover asked (or still out) at the guard's last look may still hold the previous chart. */
+export const HANG_COVER_GRACE_MS = 1500
+/** The longest a switch waits for its panes' server columns before it commits anyway. */
+export const COLUMNS_WAIT_MS = 300
+export const GROUP_HANG_MARGIN_MS = 200
+/** The round's ONLY bound: past the slowest member's own (the hang guard, the cover grace, the panes' columns) plus a
+ *  margin, so a member in its cover grace never lets its siblings show alone. */
+export const GROUP_HANG_MS = HANDOFF_HANG_MS + HANG_COVER_GRACE_MS + COLUMNS_WAIT_MS + GROUP_HANG_MARGIN_MS
 const _rounds = new Map()   // group -> { sym, members: Map<id, {ready, show, tf, holds}>, timer, expired }
 /** Does a member hold (its `holds()`, asked now)? A member with none never holds; one that throws does not either. */
 const _holding = (holds) => {

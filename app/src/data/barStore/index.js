@@ -235,6 +235,8 @@ export function createBarStore(o = {}) {
     deepPending: (key) => !!network.deepPending?.(key),
     /** The hang guard's last look: a cut D/W/M tail whose cover never went out asks it now (network.coverNow). */
     coverNow: (key) => !!network.coverNow?.(key),
+    /** A cut D/W/M tail still short of its cover (network.cutShort): never painted as the chart. */
+    cutShort: (key) => !!network.cutShort?.(key),
     /** D/W/M: fetch `key`'s deep history now, ahead of its join (network.deepPrime). */
     deepPrime: (key, opts) => network.deepPrime?.(key, opts) ?? Promise.resolve(false),
     /** D/W/M: resolves when `key`'s deep history join settles, or false after `ms` (network.deepJoined). */

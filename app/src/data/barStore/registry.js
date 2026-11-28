@@ -102,8 +102,9 @@ export function createRegistry({
 } = {}) {
   /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
-  /** onAcquire's listeners (a key gaining its first pin). */
+  /** onAcquire's listeners (a display pin taken on a key). */
   const acquireFns = new Set()
+  const _notifyDisplay = (key) => { for (const fn of [...acquireFns]) { try { fn(key) } catch { /* a listener never breaks a pin */ } } }
   let clock = 0
   let totalBars = 0
   /** The keys this registry evicted (a re-created entry's life gets a page-unique generation), oldest first. */
@@ -240,13 +241,14 @@ export function createRegistry({
     peek(key) { return entries.get(key)?.state ?? null },
     has(key) { return entries.has(key) },
     /** Pin an entry (refcount +1). */
-    acquire(key) {
+    acquire(key, { display = false } = {}) {
       const e = _entry(key); e.refs++; e.used = ++clock; e.dwell = false
-      // (2026-11-28, #3034) a key that was held by nothing is held now: the network's cover fallback listens (onAcquire)
-      if (e.refs === 1) for (const fn of [...acquireFns]) { try { fn(key) } catch { /* a listener never breaks a pin */ } }
+      // (2026-11-28, #3034) a DISPLAY pin (a prepare for the chart the member asked for; never a kept-ahead or a hydrate
+      // pin, review of #3034: up to 60 kept rows a page) is what the network's cover fallback listens for (onAcquire)
+      if (display) _notifyDisplay(key)
       return e.state
     },
-    /** Called with `key` whenever a pin makes a key held that was held by nothing (refs 0 -> 1). Returns the unsubscribe. */
+    /** Called with `key` whenever a DISPLAY pin is taken (acquire's `display`, holdUntilShown). Returns the unsubscribe. */
     onAcquire(fn) { acquireFns.add(fn); return () => { acquireFns.delete(fn) } },
     release(key) {
       const e = entries.get(key)
@@ -320,6 +322,7 @@ export function createRegistry({
       if (!e || e.subs.size) return () => {}
       e.refs++
       e.used = ++clock
+      _notifyDisplay(key)   // (#3034) the handoff's hold is a display pin
       const h = { key, sym: parseKey(key)?.sym ?? key, timer: null, done: false }
       h.end = () => {
         if (h.done) return

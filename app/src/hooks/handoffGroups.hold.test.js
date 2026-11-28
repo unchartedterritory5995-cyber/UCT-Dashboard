@@ -10,7 +10,7 @@
 //   H5 no holds() at all (every member with the device store off): exactly as before
 //   H6 a round that held keeps its bound: a holding member that never comes back (a defect) does not hold the rest for ever
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { groupJoin, groupReady, GROUP_HANG_MS, __resetHandoffGroupsForTests } from './handoffGroups'
+import { groupJoin, groupReady, GROUP_HANG_MS, HANDOFF_HANG_MS, HANG_COVER_GRACE_MS, COLUMNS_WAIT_MS, __resetHandoffGroupsForTests } from './handoffGroups'
 
 beforeEach(() => { vi.useFakeTimers(); __resetHandoffGroupsForTests() })
 afterEach(() => { vi.useRealTimers() })
@@ -72,5 +72,24 @@ describe('the round asks every member whether it still can show, right before it
     expect(shown).toEqual([])
     vi.advanceTimersByTime(GROUP_HANG_MS + 1)
     expect(shown).toEqual([2])
+  })
+})
+
+// ⛔⛔ (review of #3034, HIGH) THE ROUND'S BOUND IS DERIVED FROM THE MEMBERS' OWN. A linked 30m + D: the D member's switch
+// can now be ready only at HANDOFF_HANG_MS + HANG_COVER_GRACE_MS + COLUMNS_WAIT_MS (a cut D tail in its cover grace, then
+// its panes' columns). With the old fixed 4,500 ms the round let the 30m chart show alone at 4.5 s: a split frame.
+describe('a linked 30m + D whose D member is in its cover grace', () => {
+  it('one frame: the 30m member never shows before the D member is ready at its slowest', () => {
+    groupJoin('g', 'B', 1); groupJoin('g', 'B', 2)
+    const shown = []
+    groupReady('g', 'B', 1, () => shown.push('30m'), '30', () => false)   // the 30m: ready at once
+    const slowest = HANDOFF_HANG_MS + HANG_COVER_GRACE_MS + COLUMNS_WAIT_MS
+    vi.advanceTimersByTime(slowest - 1)
+    expect(shown, 'the 30m shown alone').toEqual([])
+    groupReady('g', 'B', 2, () => shown.push('D'), 'D', () => false)     // the D: its grace ended, its columns waited
+    expect(shown.sort()).toEqual(['30m', 'D'])
+  })
+  it('GROUP_HANG_MS is past the slowest member', () => {
+    expect(GROUP_HANG_MS).toBeGreaterThan(HANDOFF_HANG_MS + HANG_COVER_GRACE_MS + COLUMNS_WAIT_MS)
   })
 })

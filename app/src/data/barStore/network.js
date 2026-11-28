@@ -464,6 +464,7 @@ export function createNetwork({
       // (persist.flushJoins)
       try { beforeAnswer?.(r.key, json) } catch { /* a device copy is optional */ }
       const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
+      if (coverPage) r.coverAnswered = true   // (#3034) the view's whole page from the origin landed: no longer a cut short
       // only when more was wanted than the capped tail asked for (today's bar is the developing one,
       // never a row, so `depth` alone would read a full first-paint answer as one bar short).
       // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
@@ -764,7 +765,7 @@ export function createNetwork({
 
   /**
    * ⭐ (2026-11-28, review of #3034) EVENT-DRIVEN: a key whose tail was cut (`edgeCutAt`) and whose cover never went out
-   * gains a hold (a registry pin, a chart's start): its look is armed now, never earlier than EDGE_HOLD_LOOK_MS (a row a
+   * gains a hold (a DISPLAY pin: a prepare's or the handoff's, never a kept-ahead one; a chart's start): its look is armed now, never earlier than EDGE_HOLD_LOOK_MS (a row a
    * held arrow passes is released by then and asks nothing) nor earlier than EDGE_FALLBACK_MS after the cut.
    */
   function _onHold(key) {
@@ -1345,11 +1346,21 @@ export function createNetwork({
      * asked: the cover is asked NOW and this answers true (the guard then waits for it, bounded); otherwise false.
      */
     coverNow(key) {
+      if (!api.cutShort(key)) return false
       const r = keys.get(key)
-      if (!r || r.edgeCutAt == null || r.edgeFallback || !api.deepPending(key)) return false
-      if ((registry.peek?.(key)?.bars?.length ?? 0) > EDGE_TAIL_BARS) return false
-      _fireEdgeFallback(r)
-      return true
+      if (!r.edgeFallback) _fireEdgeFallback(r)
+      return true                                   // asked now, or still out (in flight beside the edge, or queued)
+    },
+    /**
+     * ⛔⛔ (review of #3034, the owner's decision) A CUT SHORT IS NEVER A COMPLETE CHART: a D/W/M key whose tail was cut to
+     * EDGE_TAIL_BARS, still holding no more rows than that, its deep history still due and its cover page not answered.
+     * The chart refuses to paint it (useBarSnapshotBars: its loading state, then the honest "full history" note) and the
+     * hang guard waits on it (coverNow).
+     */
+    cutShort(key) {
+      const r = keys.get(key)
+      if (!r || r.edgeCutAt == null || r.coverAnswered || !api.deepPending(key)) return false
+      return (registry.peek?.(key)?.bars?.length ?? 0) <= EDGE_TAIL_BARS
     },
     deepPending(key) {
       const p = parseKey(key)

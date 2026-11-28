@@ -49,8 +49,8 @@ import { flipReadyFor } from '../components/chart/flipReady'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
-/** The longest a switch waits for its panes' server columns before it commits anyway. */
-export const COLUMNS_WAIT_MS = 300
+import { HANDOFF_HANG_MS, HANG_COVER_GRACE_MS, COLUMNS_WAIT_MS } from './handoffGroups'
+export { HANG_COVER_GRACE_MS, COLUMNS_WAIT_MS }
 
 // ⭐ P3-S1: the handoff prepares through the SAME source the chart reads (chart/barStoreSwitch.js,
 // read once at module load). Under BARSTORE: the store's facade (data/barStore/prefetch) — its
@@ -507,8 +507,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         }
         const unwatch = watchEntry(requestedSym, fetchTf(tf), sess, wake)
         const poll = unwatch ? null : setInterval(wake, POLL_MS)
-        const guard = setTimeout(() => {
+        let guard = setTimeout(function onGuard(late) {
           if (!holdStop || genRef.current !== gen) return
+          // (review of #3034, LOW) the same last look as the other guards: a cut D/W/M tail's cover, then the grace once
+          if (late !== true && coverIfCut(requestedSym, fetchTf(tf), sess)) { guard = setTimeout(() => onGuard(true), HANG_COVER_GRACE_MS); return }
           stopHold()
           forced = true
           lastOutcomeRef.current = 'hang'
@@ -584,8 +586,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const landWhole = (outcome) => { if (outcome === 'error' || outcome === 'nodata' || whole()) land(outcome) }
         P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal, cover: need }).then(landWhole, () => land('error'))
         const bound = setTimeout(() => landWhole('hold-timeout'), DAILY_HOLD_MAX_MS)
-        // ⛔ (2026-11-28, #3034) NEVER A 30-ROW CUT AS THE CHART: at the guard, a cut tail whose cover never went out asks
-        // it now and the hold waits for it (the watcher lands it), bounded by HANG_COVER_GRACE_MS
+        // ⛔ (2026-11-28, #3034) NEVER A 30-ROW CUT AS THE CHART: at the guard, a cut tail still short of its cover asks it
+        // (or finds it still out) and the hold waits for it (the watcher lands it), bounded by HANG_COVER_GRACE_MS; past
+        // that the NEW symbol is committed and its chart shows its loading state (useBarSnapshotBars refuses a cut short)
         let hang = setTimeout(function onHang() {
           hang = coverIfCut(requestedSym, tf, {}) ? setTimeout(() => land('hang'), HANG_COVER_GRACE_MS) : null
           if (!hang) land('hang')
@@ -732,6 +735,3 @@ export const DAILY_HOLD_MAX_MS = 400
 // and on failure, so this only fires when a request never settles at all.
 // Deliberately generous: firing it early would race a slow-but-healthy prepare
 // and reintroduce the blind commit it exists to prevent.
-const HANDOFF_HANG_MS = 4000
-// (#3034) past the guard, how long a cover asked at the guard's last look (coverIfCut) may still hold the previous chart
-export const HANG_COVER_GRACE_MS = 1500

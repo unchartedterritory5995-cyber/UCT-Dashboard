@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
 const st = { rows: 30, deep: true, cut: true }
-const coverIfCut = vi.fn(() => { if (!st.cut) return false; st.cut = false; return true })
+// (network.coverNow: true while the key is a cut short, its cover asked now or still out)
+const coverIfCut = vi.fn(() => st.cut)
 vi.mock('../data/barStore/prefetch', () => ({
   peekDisplayable: () => true,
   lakePending: () => false,
@@ -50,12 +51,14 @@ describe('the hang guard and a cut D/W/M tail', () => {
     await advance(20)                                                  // past HANDOFF_HANG_MS (4000)
     expect(coverIfCut).toHaveBeenCalledWith('BBB', 'D', {})
     expect(result.current, 'never the 30-row cut as the chart').toBe('AAA')
-    st.rows = 2000                                                     // the cover page lands
+    st.rows = 2000; st.cut = false                                     // the cover page lands
     await advance(30)
     expect(result.current).toBe('BBB')
   })
 
-  it('bounded: a cover that never lands commits HANG_COVER_GRACE_MS after the guard (the chart shows its own state)', async () => {
+  // (the commit past the grace is the NEW symbol in its chart's loading state: useBarSnapshotBars refuses a cut short,
+  // useBarSnapshotBars.cutShort.test; the old chart is let go, the 30 rows are never painted)
+  it('bounded: a cover still out at the grace commits the new symbol HANG_COVER_GRACE_MS after the guard, once', async () => {
     const { result } = flip('W')
     await advance(4010)
     expect(result.current).toBe('AAA')
@@ -64,6 +67,14 @@ describe('the hang guard and a cut D/W/M tail', () => {
     await advance(60)
     expect(result.current).toBe('BBB')
     expect(coverIfCut).toHaveBeenCalledTimes(1)
+  })
+
+  it('(review of #3034, HIGH) the cover already sent at the pin and still IN FLIGHT at the guard: the grace applies', async () => {
+    const { result } = flip('D')                                       // coverIfCut answers true: still a cut short
+    await advance(4010)
+    expect(result.current, 'no grace-less commit of the 30 rows').toBe('AAA')
+    await advance(HANG_COVER_GRACE_MS)
+    expect(result.current).toBe('BBB')
   })
 
   it('CONTROL: nothing was cut (or the cover already went out): the guard commits at 4 s as before', async () => {

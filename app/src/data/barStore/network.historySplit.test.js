@@ -243,7 +243,7 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)               // fires while nothing holds the key: nothing
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
     // Enter: the prepare pins the key, wants the join and asks the tail (prefetch prepareDailyForDisplay)
-    w.registry.acquire(w.key)
+    w.registry.acquire(w.key, { display: true })
     w.net.deepPrime(w.key, { want: true })
     w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
@@ -261,7 +261,7 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
       w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
       await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * pause + EDGE_FALLBACK_MS)   // nothing holds the key
       expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
-      w.registry.acquire(w.key)                                        // Enter: the prepare's / the handoff's pin
+      w.registry.acquire(w.key, { display: true })                     // Enter: the prepare's / the handoff's pin
       await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS - 20)
       expect(tailBars(w), 'not before the look (a row an arrow passes is released by then)').toEqual([EDGE_TAIL_BARS])
       await vi.advanceTimersByTimeAsync(40)
@@ -287,18 +287,65 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
   })
   // ⛔ (review of #3034) BOUNDED: a held arrow through a list of cut D rows (each pinned by its prepare and released as the
   // next row is pressed) asks a cover only for the row it stops on and the neighbours that row keeps, never one per row passed
-  it('a held arrow through cut D rows: covers only for the rows still held when it stops', async () => {
+  it('a held arrow through cut D rows: a cover only for the row it stops on (kept neighbours ask none)', async () => {
     const { EDGE_FALLBACK_MS } = await import('./network')
     const w = world({ history: 'hang', pin: false })
     const ks = Array.from({ length: 10 }, (_, i) => keyOf({ sym: `R${i}`, tf: 'D' }))
     for (const k of ks) w.net.fetchOnce(k, { depth: w.depth, cover: 1400, warm: true })   // the list's ahead warms
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
     expect(coverTails(w)).toEqual([])
-    for (const k of ks.slice(0, 7)) { w.registry.acquire(k); await vi.advanceTimersByTimeAsync(40); w.registry.release(k) }   // the arrow passes
-    for (const k of ks.slice(7)) w.registry.acquire(k)               // it stops on R7; R8, R9 are its kept neighbours
+    for (const k of ks.slice(0, 7)) { w.registry.acquire(k, { display: true }); await vi.advanceTimersByTimeAsync(40); w.registry.release(k) }   // the arrow passes (each row's prepare pin)
+    w.registry.acquire(ks[7], { display: true })                    // it stops on R7 (its prepare's pin)
+    for (const k of ks.slice(8)) w.registry.acquire(k)               // R8, R9: its kept neighbours (createNeighborHold: plain pins)
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 3)
-    expect(coverTails(w).map((u) => /\/api\/bars\/(\w+)/.exec(u)[1]).sort()).toEqual(['R7', 'R8', 'R9'])
+    expect(coverTails(w).map((u) => /\/api\/bars\/(\w+)/.exec(u)[1]).sort()).toEqual(['R7'])
   })
+  // ⛔ (review of #3034, MED: the owner's decision) KEPT PINS NEVER ASK THE COVER: createNeighborHold keeps up to 60 rows a
+  // page pinned; only a chart's start and a prepare's / the handoff's pin (a display pin) do
+  it('kept-ahead and hydrate pins (plain acquire) on cut D keys ask no cover; a display pin on one does', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    const ks = Array.from({ length: 6 }, (_, i) => keyOf({ sym: `K${i}`, tf: 'D' }))
+    for (const k of ks) w.net.fetchOnce(k, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    for (const k of ks) w.registry.acquire(k)                       // the kept-ahead set
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 3)
+    expect(coverTails(w), 'kept pins').toEqual([])
+    w.registry.acquire(ks[2], { display: true })                    // the member's Enter on K2
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 20)
+    expect(coverTails(w).map((u) => /\/api\/bars\/(\w+)/.exec(u)[1])).toEqual(['K2'])
+  })
+  it('the handoff hold (holdUntilShown) is a display pin too', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    w.registry.holdUntilShown(w.key)
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 20)
+    expect(coverTails(w)).toHaveLength(1)
+  })
+  // ⛔⛔ (review of #3034, HIGH) A COVER STILL OUT IS STILL A CUT SHORT: coverNow and cutShort answer true while it is in
+  // flight (the guard waits on it), false once it landed
+  it('cutShort / coverNow while the cover is in flight, and once it landed', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
+    let open
+    const gate = new Promise((r) => { open = r })
+    const w = world({ history: 'hang', pin: false, tailGate: gate, tailGateFrom: 1 })   // every tail after the first waits
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    expect(w.net.cutShort(w.key)).toBe(true)
+    w.registry.acquire(w.key, { display: true })
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 20)
+    expect(coverTails(w)).toHaveLength(1)                           // the cover is out
+    expect(w.net.cutShort(w.key), 'in flight: still a cut short').toBe(true)
+    expect(w.net.coverNow(w.key), 'in flight: the guard waits on it').toBe(true)
+    expect(coverTails(w), 'never a second cover').toHaveLength(1)
+    open()
+    await vi.advanceTimersByTimeAsync(10)
+    expect(w.net.cutShort(w.key), 'the cover landed').toBe(false)
+    expect(w.net.coverNow(w.key)).toBe(false)
+  })
+
   // ⛔ (review of #3034; the owner: a short chart must be impossible) THE HANG GUARD'S LAST LOOK
   it('coverNow: a cut D key still at EDGE_TAIL_BARS whose cover never went out asks it at once, and only once', async () => {
     const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
