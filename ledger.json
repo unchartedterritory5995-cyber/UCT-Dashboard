@@ -5002,6 +5002,36 @@
     "DLR",
     "ZM"
    ]
+  },
+  {
+   "id": "cloud/46115045082-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:06:19+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SAIA",
+    "SBCF",
+    "AZN",
+    "LTC",
+    "OMDA",
+    "STWD",
+    "ALRM",
+    "KYMR",
+    "MO",
+    "COST",
+    "VMC",
+    "OSPN",
+    "ENB"
+   ]
+  },
+  {
+   "id": "cloud/46115045082-1/COV-def-tabs",
+   "at": "2026-11-28T06:06:19+00:00",
+   "source": "cloud",
+   "tickers": [
+    "WSO",
+    "NDSN",
+    "XPO"
+   ]
   }
  ]
 }
