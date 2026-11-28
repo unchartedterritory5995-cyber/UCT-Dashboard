@@ -139,3 +139,23 @@ describe('request count of a member scanning a daily list (printed x500)', () =>
     expect(new Set(e.map((c) => c.q.sym)).size).toBe(e.length)       // one history per row
   })
 })
+
+// (review of #2984) A LIST OPENING (prewarmVisibleList: watchlist, theme tracker, screener) reads its rows from the DEVICE
+// only: no `&warm=1` /api/bars for up to 500 rows, and no deep history per row either
+describe('a list opening reads its rows from the device only (prewarmVisibleList)', () => {
+  const LIST = Array.from({ length: 40 }, (_, i) => `L${String.fromCharCode(65 + (i % 26))}${i}`)
+  it('D list: nothing on the wire at all', async () => {
+    const w = await boot()
+    w.pf.prewarmVisibleList(LIST, { chartTf: 'D' })
+    await turns(w, 6)
+    await w.server.drain()
+    expect(w.server.calls).toEqual([])
+  })
+  it('intraday list: no /api/bars (the lake tier warm, edgeWarmList, is unchanged)', async () => {
+    const w = await boot()
+    w.pf.prewarmVisibleList(LIST, { chartTf: '5' })
+    await turns(w, 6)
+    await w.server.drain()
+    expect(origin(w)).toEqual([])
+  })
+})
