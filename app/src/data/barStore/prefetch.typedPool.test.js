@@ -184,6 +184,38 @@ describe('the pool warms the likeliest completions at once, from the device and 
     expect(w.server.calls.length).toBe(n)
   })
 
+  // (review of #2979, F1) a dropped candidate's WINDOW ask is the pool's one origin ask: the next list must abort it as the
+  // D rail above aborts a dropped history, or every candidate the member typed past still reaches the origin
+  it("intraday at a date: the next keystroke's list aborts the window asks of the candidates it dropped", async () => {
+    const w = await boot()
+    w.store.primeLake = () => {}
+    const to = Date.UTC(2026, 9, 15, 12) / 1000
+    w.pf.warmTypedCandidates(['CRM', 'CRWD'], '5', { viewWindow: { to } })
+    await turns(w)
+    expect(of(w, 'CRM', 'CRWD').length).toBe(2)                       // both on the wire
+    w.pf.warmTypedCandidates(['CRBG'], '5', { viewWindow: { to } })
+    await turns(w)
+    expect(of(w, 'CRM', 'CRWD').every((c) => c.aborted)).toBe(true)  // ⛔ never answered to a list that dropped them
+    expect(of(w, 'CRBG').map((c) => `${c.q.sym} ${c.q.tf} to=${c.q.to}`)).toEqual(['CRBG 5 to=2026-10-15'])
+    expect(of(w, 'CRBG')[0].aborted).toBeFalsy()
+    await w.server.drain()
+  })
+
+  // (review of #2979, F2) the plain intraday key is the PANE's session: 60m regular hours and 60m extended are two keys
+  // (`_60` / `_60e`), and the pool warms the one the pane reads, not the view-global fallback's
+  it("intraday at the present: the candidate's key is the pane's own session (60m regular vs extended)", async () => {
+    for (const showExtended of [true, false]) {
+      const w = await boot()
+      const primed = []
+      w.store.primeLake = (k) => { primed.push(k) }
+      w.pf.warmTypedCandidates(['CRM'], '60', { showExtended })
+      await turns(w)
+      expect(primed).toEqual([w.pf.keyFor('CRM', '60', { showExtended })])
+    }
+    const w = await boot()
+    expect(w.pf.keyFor('CRM', '60', { showExtended: true })).not.toBe(w.pf.keyFor('CRM', '60', { showExtended: false }))
+  })
+
   it('CONTROL: D/W/M at a date read the plain key, so a window given there changes nothing (the edge history, no tail)', async () => {
     const w = await boot()
     w.pf.warmTypedCandidates(['CRBG'], 'D', { viewWindow: { to: Date.UTC(2026, 9, 15, 12) / 1000 } })

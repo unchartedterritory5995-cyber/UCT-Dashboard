@@ -109,6 +109,20 @@ test('at a date, the pool is given the window the chart reads there (intraday); 
   noteMemberDate(member, null)
 })
 
+// (review of #2979, F3) the pool warms the key of the session the PANE shows (60m regular vs extended are two keys):
+// the pane passes its own EXT setting, never leaves the store to guess from the view-global fallback
+const EXT_ON = { extendedHoursShading: true }
+const EXT_OFF = { extendedHoursShading: false }
+test('the pool is given the session the pane shows: extended on an extended pane, regular hours on a regular one', () => {
+  const view = render(<ChartPane sym="NVDA" tf="60" stored={EXT_ON} onStore={() => {}} onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN', 'AMD'])
+  expect(poolWarm).toHaveBeenLastCalledWith(['AMZN', 'AMD'], '60', expect.objectContaining({ showExtended: true }))
+  view.unmount()
+  render(<ChartPane sym="NVDA" tf="60" stored={EXT_OFF} onStore={() => {}} onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN', 'AMD'])
+  expect(poolWarm).toHaveBeenLastCalledWith(['AMZN', 'AMD'], '60', expect.objectContaining({ showExtended: false }))
+})
+
 test('CONTROL: other text told through onTypedIntent still takes the typed slot', () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   chartSearch().onTypedCandidates(['AMZN'])
