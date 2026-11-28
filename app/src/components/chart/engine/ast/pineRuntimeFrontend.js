@@ -77,7 +77,7 @@ import {
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
-  IrError,
+  IrError, COLUMN_TREES,
 } from '../runtime/ir.js'
 import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
@@ -18018,6 +18018,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
+  ir[COLUMN_TREES] = columnTrees   // ⭐⭐ E104: the static start-free proof reads them (`runtime/startFreeProof.js`)
 
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to

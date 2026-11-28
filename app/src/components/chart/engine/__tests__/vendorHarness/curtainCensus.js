@@ -29,7 +29,8 @@ import { vi } from 'vitest'
 
 import * as registry from '../../nativeRegistry'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
-import { computeRuntimeColumns, resetRuntimeSessions, withMemberDoorClock, setOffListingCurtainEnabled } from '../../runtime/runtimeColumns'
+import { computeRuntimeColumns, resetRuntimeSessions, withMemberDoorClock, setOffListingCurtainEnabled,
+  setStaticStartFreeEnabled } from '../../runtime/runtimeColumns'
 import { runtimeWarmupOf, runtimeObjectsOf, runtimeObjectsWithheldOf } from '../../runtime/runtimeObjects'
 import { sameDrawings } from '../../runtime/warmupDrawings'
 
@@ -53,11 +54,13 @@ const bump = (o, k) => { o[k] = (o[k] || 0) + 1 }
  *  `curtainOn`: false measures PRODUCTION (the curtain switched off, `setOffListingCurtainEnabled`), true measures the
  *  curtain's own release (the record its re-enable must bring to wrong == 0). Each host document's run half (its
  *  `compute.runtimeObjects`, drawings only) is measured beside the runtime-lane documents. */
-export function runCurtainCensus(series, { curtainOn = false } = {}) {
+export function runCurtainCensus(series, { curtainOn = false, staticOn = false } = {}) {
   setOffListingCurtainEnabled(curtainOn)
-  try { return censusOf(series, curtainOn) } finally { setOffListingCurtainEnabled(false) }
+  // ⭐⭐ E104 — the static start-free proof's release (`runtimeColumns.js::computeStaticStartFree`), measured here
+  setStaticStartFreeEnabled(staticOn)
+  try { return censusOf(series, curtainOn, staticOn) } finally { setOffListingCurtainEnabled(false); setStaticStartFreeEnabled(false) }
 }
-function censusOf(series, curtainOn) {
+function censusOf(series, curtainOn, staticOn = false) {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   const cap = JSON.parse(fs.readFileSync(path.join(HARNESS, series.file), 'utf8'))
@@ -67,7 +70,7 @@ function censusOf(series, curtainOn) {
   const symbol = { ticker: series.ticker, exchange: series.exchange }
   const base = { tf: series.tf, newestBarIsForming: false, symbol }
   const t = {
-    series: series.file, mode: curtainOn ? 'curtain-on' : 'production', rows: N, fromListing: series.fromListing, tails: series.tails,
+    series: series.file, mode: curtainOn ? 'curtain-on' : staticOn ? 'static-start-free' : 'production', rows: N, fromListing: series.fromListing, tails: series.tails,
     corpus: files.length, runtimeDocs: 0, listingDocs: 0, routedDocs: 0, strategyDocs: 0,
     truthRefused: {}, curtainRefused: {}, curtainRuns: 0, released: 0,
     plotsReleased: 0, barsCompared: 0, exact: 0, tol: 0, wrong: 0, numberDiffers: 0, naServed: 0, valueServed: 0,
@@ -203,4 +206,14 @@ export function expectNoWrongRelease(t, expect) {
   // ⛔⛔ (e102) the rule: no value the curtain releases differs from a run from an earlier start
   expect(t.wrongCases).toEqual([])
   expect(t.drawingCases).toEqual([])
+}
+
+/** ⭐⭐ E104 — the census's verdict on the static start-free release for one series: non-vacuous (the corpus reached and
+ *  its off-listing runs answered), then nothing released differs from the truth, and no drawing is released. */
+export function expectStaticStartFreeExact(t, expect) {
+  expect(t.mode).toBe('static-start-free')
+  expect(t.listingDocs).toBeGreaterThan(20)
+  expect(Object.values(t.curtainRefused).reduce((a, b) => a + b, 0) + t.released).toBeGreaterThan(20)
+  expect(t.wrongCases).toEqual([])
+  expect(t.drawingsReleased).toBe(0)
 }
