@@ -1,7 +1,11 @@
-import { Activity, lazy, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Activity, lazy, startTransition, Suspense, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '../../components/chart/boardVisibility'
 import { boardLayerProps } from '../../components/chart/boardLayer'
 import { boardKeepAliveMode, keptBoardLimit, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
+import { boardPremountEnabled, createPremountScheduler, premountOrder } from './boardPremount'
+import { readDockPref, DOCK_PREF } from './layoutDockPins'
+import { msSincePressure } from '../../data/barStore/serverPressure'
+import { getBarStore } from '../../data/barStore'
 import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
@@ -734,6 +738,10 @@ function pickWidgetColor(widgets, groupSyms, extraGroupsOn = false) {
 // it were not). One module object, so the kept board's widget hosts see the same handlers at every render.
 const NO_GRID_OP = () => {}
 const NO_KEPT_BOARDS = []
+// the ids of the board in front that the staggered mount must admit (popped and floating widgets live elsewhere)
+function visibleWidgetIdsForPremount(layout, popped, floating) {
+  return (layout?.widgets || []).filter((w) => !popped.includes(w.id) && !floating.includes(w.id)).map((w) => w.id)
+}
 // ⭐ (2026-11-28, Lane G) THE LAYER MODE'S FLIP: a board's grid ELEMENT is made once per slot and kept while nothing it
 // reads changed (`slotGridSig`), in front and hidden alike, so a hide and a show give React the very same element and
 // it re-renders nothing under the slot: the click's commit changes the slots' classes and attributes, and the catch-ups
@@ -3497,6 +3505,72 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       for (const k of keptBoardsRef.current) k.vis.dispose()
     }
   }, [keepAliveOn, dropKeptBoards])
+
+  // ⭐ BOARD PRE-MOUNT (2026-11-28, boardPremount.js): once the board in front is quiet, the member's other dock boards are
+  // mounted HIDDEN as kept boards, nearest tab first, one per step, into the FREE kept slots only (a visited board is never
+  // evicted for one), so a first show is a kept show (a flip) instead of a mount. Never during a press, never while the
+  // board in front still has bars requests out, never while the server sheds (a 429 / 503 in the last minute backs off).
+  const premountOn = useMemo(() => layerMode && boardPremountEnabled(), [layerMode])
+  const premountSrcRef = useRef(null)
+  premountSrcRef.current = { prefs, myLayouts, globalLayouts, frontIds: visibleWidgetIdsForPremount(layout, poppedWidgetIds, floatingWidgetIds), mounted: mainBoardMountedIds }
+  const premountRef = useRef(null)
+  useEffect(() => {
+    if (!premountOn || gridMode || boardHidden) return undefined
+    const keyOf = (tpl) => String(tpl.id)
+    const step = () => {
+      const src = premountSrcRef.current
+      if (!src) return false
+      const kept = keptBoardsRef.current
+      if (kept.length >= keepLimitRef.current) return false
+      const cur = currentBoardRef.current
+      const activeKey = cur.key ?? dockActiveIdRef.current
+      const keptKeys = new Set(kept.map((k) => String(k.key)))
+      const byId = new Map()
+      for (const t of [...(src.globalLayouts || []), ...(src.myLayouts || [])]) if (t && t.id != null && t.layout?.widgets) byId.set(String(t.id), t)
+      const pins = readDockPref(src.prefs?.[DOCK_PREF])?.pins || []
+      const order = premountOrder(pins, activeKey, (id) => keptKeys.has(id) || id === UCT_DEFAULT_ID || !byId.has(id))
+      for (const id of order) {
+        const tpl = byId.get(id)
+        // the arrangement a dock open would show (applyTemplate's parse): what switchLayout's sameBoard compares
+        const { chartSettings: _cs, watchlistSettings: _ws, themeTrackerSettings: _tt, fundamentalsSettings: _fs, breadthSettings: _bs, watchlistColumns: _wc, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
+        if (!boardLayout?.widgets?.length) continue
+        if (!boardMayBecome(boardWidgetCount(boardLayout), boardWidgetCount(layoutRef.current))) continue
+        const vis = createBoardVisibility({ layer: true, current: true, kept: true })
+        vis.set('hidden')
+        const rec = { slot: ++boardSlotSeqRef.current, key: keyOf(tpl), vis, layout: boardLayout, hiddenAt: Date.now(), premounted: true }
+        const list = [...keptBoardsRef.current, rec]   // the LRU's oldest end: any visited board outranks it
+        keptBoardsRef.current = list
+        startTransition(() => { setKeptBoards(list) })
+        return true
+      }
+      return false
+    }
+    const net = (() => { try { return getBarStore().network } catch { return null } })()
+    const sch = createPremountScheduler({
+      step,
+      // the board in front first: every widget of it admitted by the staggered mount
+      ready: () => { const src = premountSrcRef.current; return !!src && src.frontIds.every((id) => src.mounted.has(id)) },
+      inflight: () => { try { return net?.inflight?.() || 0 } catch { return 0 } },
+      pressureAge: () => msSincePressure(),
+      pageHidden: () => (typeof document !== 'undefined' && document.hidden),
+    })
+    premountRef.current = sch
+    const onInput = () => sch.noteInput()
+    const opts = { capture: true, passive: true }
+    window.addEventListener('keydown', onInput, opts)
+    window.addEventListener('pointerdown', onInput, opts)
+    window.addEventListener('wheel', onInput, opts)
+    return () => {
+      sch.stop()
+      premountRef.current = null
+      window.removeEventListener('keydown', onInput, opts)
+      window.removeEventListener('pointerdown', onInput, opts)
+      window.removeEventListener('wheel', onInput, opts)
+    }
+  }, [premountOn, gridMode, boardHidden])
+  // a switch, a closed tab or a new pin may leave room or a new nearest board: look again after the next quiet spell
+  // (the active tab moves with `keptBoards`: every member switch rewrites the kept list)
+  useEffect(() => { premountRef.current?.poke() }, [keptBoards, prefs?.[DOCK_PREF], myLayouts])
 
   // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
   // demands an explicit owner — see the widget's own listener) and the press

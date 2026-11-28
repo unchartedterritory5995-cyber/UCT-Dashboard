@@ -34,6 +34,12 @@
  *        hidden one's last element), and the workspace attributes move to the board in front on the DOM
  *   LK18 (red first) the kept element's handlers are the slot's gate: a hidden board's grid writes nothing; the same
  *        board shown again writes through the workspace's CURRENT handlers
+ * Board pre-mount (2026-11-28, boardPremount.js; real timers: the quiet spell is PREMOUNT_QUIET_MS):
+ *   PM1 (red first) after a quiet spell the nearest dock boards are mounted hidden, one per spell, up to K; the first show
+ *        of one is the same instance and renders neither grid
+ *   PM3 (red first) a member's switch past K drops a PRE-MOUNTED board before the board the member just left
+ *   PM4 (red first) a pre-mounted board's handle is kept-current (its feeds catch up while hidden: boardVisibility KC1, B5)
+ *   PM5 the switch off ('0') and the server under pressure (a 503 just now) pre-mount nothing
  *   LK19 (board tabs, 2026-11-28) NO LEAK across many switches: K = 2, three rounds over four boards; after every
  *        switch exactly the front board and the K most recently shown boards are mounted (widget instances, board slots
  *        in the DOM), and every board dropped ran its teardowns
@@ -169,8 +175,10 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); delete globalThis.fetch })
 
-function mount(mode = '2') {
+function mount(mode = '2', { premount = false } = {}) {
   localStorage.setItem('uct.boardKeepAlive', mode)
+  // (board pre-mount) off unless a test asks: the LK rails count mounts a background pre-mount would add to
+  if (!premount) localStorage.setItem('uct.boardPremount', '0')
   prefStore.set({
     charts_workspace_layout: JSON.stringify(MAIN.layout),
     charts_active_template: JSON.stringify({ id: MAIN.id, name: MAIN.name, scope: MAIN.scope }),
@@ -555,3 +563,66 @@ test('LK19 (board tabs) many switches over four boards with K = 2: only the fron
   }
   expect(hosts.created['chart-1'], 'NON-VACUITY: a dropped board was mounted again later').toBeGreaterThan(1)
 })
+
+const QUIET = async (ms) => { await act(async () => { await new Promise((r) => setTimeout(r, ms)) }) }
+
+test('PM1 (red first) the nearest dock boards are pre-mounted hidden, one per quiet spell, up to K; the first show is a flip', async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount('2', { premount: true })
+  await settle()
+  expect(dockButton('Two Charts'), 'NON-VACUITY: the dock shows the boards').toBeTruthy()
+  await QUIET(1900)
+  expect(hosts.created['chart-1'], 'the nearest board (TWO) was not pre-mounted after a quiet spell').toBe(1)
+  expect(hosts.created['chart-5a'] || 0, 'two boards in one quiet spell').toBe(0)
+  await QUIET(1900)
+  expect(hosts.created['chart-5a'], 'the next nearest (INTRA) was not pre-mounted').toBe(1)
+  await QUIET(1900)
+  expect(hosts.created['chart-4a'] || 0, 'a pre-mount past K').toBe(0)
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length, 'a pre-mounted board carries data-widget-id').toBe(0)
+  hosts.grids.length = 0
+  await go('Two Charts')
+  expect(hosts.created['chart-1'], 'the first show of a pre-mounted board mounted it again').toBe(1)
+  expect(hosts.grids.filter((g) => g === 'chart-1,chart-2').length, 'the first show rendered its grid').toBe(0)
+  expect(slotOf(host('chart-1'))?.hasAttribute('inert')).toBe(false)
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length).toBe(1)
+}, 20000)
+
+test("PM3 (red first) a member's switch past K drops a pre-mounted board before the board just left", async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount('2', { premount: true })
+  await settle()
+  await QUIET(1900)
+  await QUIET(1900)
+  expect(hosts.created['chart-5a'], 'NON-VACUITY: TWO and INTRA pre-mounted').toBe(1)
+  await go('Fourth Board')
+  expect(hosts.cleanups['watchlist-1'] || 0, 'the board the member just left was dropped for a pre-mount').toBe(0)
+  expect((hosts.cleanups['chart-1'] || 0) + (hosts.cleanups['chart-5a'] || 0), 'nothing was dropped past K').toBe(1)
+}, 20000)
+
+test('PM4 (red first) a pre-mounted board is kept-current', async () => {
+  const { keptCurrentNow } = await import('../../components/chart/boardVisibility')
+  mount('2', { premount: true })
+  await settle()
+  await QUIET(1900)
+  const vis = hosts.vis['chart-1']
+  expect(vis, 'NON-VACUITY: TWO pre-mounted').toBeTruthy()
+  expect(keptCurrentNow(vis), 'a pre-mounted board is not kept-current (its feeds would wait for the show)').toBe(true)
+}, 20000)
+
+test('PM5 the off switch and a server under pressure pre-mount nothing', async () => {
+  const { notePressure, __resetPressureForTests } = await import('../../data/barStore/serverPressure')
+  mount('2', { premount: false })
+  await settle()
+  await QUIET(1900)
+  expect(hosts.created['chart-1'] || 0, "'0' pre-mounted a board").toBe(0)
+  cleanup()
+  Object.assign(hosts, { created: {}, effects: {}, cleanups: {} })
+  localStorage.removeItem('uct.boardPremount')
+  notePressure(503)
+  try {
+    mount('2', { premount: true })
+    await settle()
+    await QUIET(1900)
+    expect(hosts.created['chart-1'] || 0, 'a pre-mount while the server sheds').toBe(0)
+  } finally { __resetPressureForTests() }
+}, 20000)
