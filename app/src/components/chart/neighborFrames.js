@@ -152,6 +152,12 @@ export function scanNeighborsFor(sym) {
   return [t.sym, ...order.filter((s) => s !== t.sym)]
 }
 
+/** (lane C) The typed next symbol named for the charts on `sym` now (publishTypedNext), or null. */
+export function typedNextFor(sym) {
+  const t = _typedNext.get(String(sym || '').toUpperCase())
+  return t && Date.now() - t.at <= TYPED_NEXT_MS ? t.sym : null
+}
+
 /** Called with the centre whenever a list (or a typed next symbol) publishes. Returns the unsubscribe. */
 export function subscribeScanNeighbors(cb) {
   _scanSubs.add(cb)
