@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork, barsHistoryUrl } from './network'
 import { keyOf } from './types'
-import { dateCoverFor, fullBarsFor } from '../../utils/barsBackfill'
+import { dateCoverFor, dateCoverMaxFor, fullBarsFor } from '../../utils/barsBackfill'
 // the D tail's default first page (a warm's: no cover asked; review of #2934, B1)
 const FIRST_PAINT_BARS = dateCoverFor('D')
 import { lastSealedDate, etPeriodStartISO, calendarSealedDate, historySealedDate } from '../../utils/barsHistorySplit'
@@ -111,7 +111,7 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(50)
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
-    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, dateCoverMaxFor('D')])   // the whole page a view can draw
     expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(1399)   // the view's rows, without the edge
   })
 
@@ -139,6 +139,31 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(settled).not.toHaveBeenCalled()
   })
 
+  // ⭐⭐ (2026-11-28, the cloud sweep: zoomed-out W/M waited 5-22 s on the history while the origin answered 2,000 rows in
+  // 467 ms) ANY DISPLAY WAITING ON A DEEP JOIN gets the cover fallback, not only a tail cut to EDGE_TAIL_BARS
+  it('a display waiting on a deep join with an UNCUT tail: past EDGE_FALLBACK_MS the origin is asked the whole page', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang' })
+    w.net.fetchOnce(w.key, { depth: w.depth })            // no view cover: the tail is the first page, uncut
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([FIRST_PAINT_BARS])
+    w.net.deepPrime(w.key, { want: true })               // the display holds for the join
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w)).toEqual([FIRST_PAINT_BARS, dateCoverMaxFor('D')])
+    expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(dateCoverMaxFor('D') - 1)
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 5)
+    expect(tailBars(w).length, 'once').toBe(2)
+  })
+  it('CONTROL: a deep prime nobody waits on (no display) arms no cover fallback', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang' })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    w.net.deepPrime(w.key, { want: false })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w)).toEqual([FIRST_PAINT_BARS])
+  })
+
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
   it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
     const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
@@ -146,7 +171,7 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     const w = world({ historyGate: new Promise((r) => { release = r }) })
     w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
-    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, dateCoverMaxFor('D')])   // the whole page a view can draw
     expect(w.net.deepPending(w.key)).toBe(true)
     release()
     await vi.advanceTimersByTimeAsync(50)
