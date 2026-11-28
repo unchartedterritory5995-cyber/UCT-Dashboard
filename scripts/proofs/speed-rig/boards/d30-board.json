@@ -1,0 +1,283 @@
+{
+ "cols": 24,
+ "widgets": [
+  {
+   "id": "c1",
+   "type": "chart",
+   "color": "A",
+   "x": 0,
+   "y": 0,
+   "w": 8,
+   "h": 20,
+   "opts": {
+    "tf": "D",
+    "settings": {
+     "chartType": "hollow",
+     "candleColorMode": "netchange",
+     "candles": {
+      "thinBars": true
+     },
+     "header": {
+      "titleMode": "both",
+      "showChange": true,
+      "timeframes": [
+       "5",
+       "15",
+       "30",
+       "D",
+       "W",
+       "1",
+       "M",
+       "60"
+      ],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "legendLayout": "vertical"
+     },
+     "volume": {
+      "visible": true,
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22
+     },
+     "watermark": {
+      "visible": true,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      }
+     },
+     "markers": {
+      "earnings": true,
+      "ipo": true
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true
+      },
+      "low": {
+       "enabled": true
+      },
+      "close": {
+       "enabled": true
+      }
+     },
+     "showPriceLabels": true,
+     "sessionView": "regular",
+     "extendedHoursShading": false,
+     "background": "#000000",
+     "bgMode": "solid",
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma"
+       },
+       "hidden": false
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "c2",
+   "type": "chart",
+   "color": "A",
+   "x": 8,
+   "y": 0,
+   "w": 8,
+   "h": 20,
+   "opts": {
+    "tf": "30",
+    "settings": {
+     "chartType": "hollow",
+     "candleColorMode": "netchange",
+     "candles": {
+      "thinBars": true
+     },
+     "header": {
+      "titleMode": "both",
+      "showChange": true,
+      "timeframes": [
+       "5",
+       "15",
+       "30",
+       "D",
+       "W",
+       "1",
+       "M",
+       "60"
+      ],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "legendLayout": "vertical"
+     },
+     "volume": {
+      "visible": true,
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22
+     },
+     "watermark": {
+      "visible": true,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      }
+     },
+     "markers": {
+      "earnings": true,
+      "ipo": true
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true
+      },
+      "low": {
+       "enabled": true
+      },
+      "close": {
+       "enabled": true
+      }
+     },
+     "showPriceLabels": true,
+     "sessionView": "regular",
+     "extendedHoursShading": false,
+     "bgMode": "gradient",
+     "bgGradient": {
+      "top": "#0c3a30",
+      "bottom": "#0a1838"
+     },
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "inst:rsLine:1",
+       "defId": "rsLine",
+       "defVersion": 5,
+       "hidden": false,
+       "inputs": {
+        "benchmark": "SPY",
+        "sectorBenchmark": "XLK",
+        "showAverage": true,
+        "showNewHigh": true,
+        "showNewHighBeforePrice": true,
+        "showRating": true,
+        "scaleToRating": false,
+        "maLength": 21,
+        "maType": "EMA",
+        "showAverage2": false,
+        "lookback": 252,
+        "showRanksTable": true,
+        "ratingBands": true,
+        "view": "ratio",
+        "shadeVsAverage": false,
+        "shortHistoryDots": true,
+        "headlineRating": "ibd"
+       }
+      }
+     ],
+     "indicators": {
+      "rsLine": {
+       "enabled": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "wl",
+   "type": "watchlist",
+   "color": "A",
+   "x": 16,
+   "y": 0,
+   "w": 8,
+   "h": 20,
+   "opts": {
+    "watchKey": "community:23f4a6b8-a42",
+    "watchName": "S&P SmallCap 600",
+    "watchTab": "prebuilt",
+    "libraryRail": true
+   }
+  }
+ ]
+}
