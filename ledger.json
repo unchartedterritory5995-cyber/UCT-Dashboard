@@ -9059,6 +9059,36 @@
     "PAYP",
     "PLUG"
    ]
+  },
+  {
+   "id": "cloud/46173895098-1/COV-def-dd-arrows",
+   "at": "2026-11-28T18:05:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ANL",
+    "LUXE",
+    "LGIH",
+    "HBCP",
+    "CPAC",
+    "SRTA",
+    "FMNB",
+    "HCSG",
+    "EYPT",
+    "ELLO",
+    "TSSI",
+    "FOSL",
+    "PCB"
+   ]
+  },
+  {
+   "id": "cloud/46173895098-1/COV-def-tabs",
+   "at": "2026-11-28T18:05:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CERS",
+    "HQ",
+    "CABA"
+   ]
   }
  ]
 }
