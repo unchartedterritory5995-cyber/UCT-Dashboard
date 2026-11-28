@@ -1506,6 +1506,13 @@ export function createPrefetch(o = {}) {
 
   /** D/W/M: is the deep sealed history still due for the chart `sym` / `tf` would show? The handoff
    *  then prepares instead of painting a held shallow set at once (see prepareDailyForDisplay). */
+  /** (2026-11-28) Is the key's whole history here, proved (store historyComplete: a sealed deep join, or a lake load that
+   *  took every older piece)? Keyed as heldRows keys it (a custom timeframe: its native base key). */
+  function historyComplete(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().historyComplete?.(key)
+  }
+
   function deepPending(sym, tf, { showExtended, viewWindow = null } = {}) {
     const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     return !!key && !!S().deepPending?.(key)
@@ -2590,7 +2597,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, historyComplete, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
@@ -2616,6 +2623,7 @@ export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDi
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
+export function historyComplete(sym, tf, opts = {}) { return _f().historyComplete(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }

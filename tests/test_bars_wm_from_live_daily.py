@@ -64,6 +64,11 @@ def store(monkeypatch, tmp_path):
     for _p in ("bars_AAA_", "dhole_", "towin_", "towinfail_"):   # no marker leaks into, or out of, a test
         bars_fetch.cache.delete_prefix(_p)
     yield
+    # this test's background hole repair finishes under ITS stubs and store, never a later test's
+    _deadline = time.monotonic() + 5
+    while time.monotonic() < _deadline and any(k.startswith("dhole::") for k in list(bars_fetch._inflight)):
+        time.sleep(0.02)
+    bars_fetch.cache.delete_prefix("dhole_")
     bars_fetch.end_request_budget()
     bars_sqlite._drop_local_conn()
     bls._reset_for_tests()
@@ -660,3 +665,244 @@ def test_a_poll_that_succeeded_after_the_close_lets_the_stored_path_derive(store
     monkeypatch.setitem(bls._state, "daily_last_ok_wall", at.replace(hour=16, minute=1).timestamp())
     assert bars_fetch._wm_live_daily("AAA") is True
     assert _overlay(tf) is not None
+
+
+# ── follow-up to #3001: the interior daily hole is repaired; "more volume = newer" needs the same close and basis ────
+from api.services import massive as _massive
+
+
+def _agg_raw(b):
+    """A provider daily aggregate (`t` = the session's 00:00 ET in unix ms) for one stored-daily dict."""
+    d = date.fromisoformat(b["t"])
+    return {"t": int(_real_dt(d.year, d.month, d.day, tzinfo=_ET).timestamp() * 1000),
+            "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"], "v": b["v"]}
+
+
+def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    hole = date(2026, 11, 10)
+    full, stored = _seed_old_tail("M", WED, monkeypatch, hole=hole)
+    provider = dict(bars_fetch._resample_monthly_iso(full)[-1])
+    provider["c"] = provider["h"]
+    deltas, aggs = [], []
+    monkeypatch.setattr(bars_fetch, "_delta_monthly", lambda t, last: deltas.append(last) or [provider])
+    missing = [b for b in full if b["t"] == hole.isoformat()]
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [_agg_raw(b) for b in missing])
+    bars_fetch._get_bars_inner("AAA", "M", len(stored))
+    assert len(deltas) == 1 and bars_fetch.get_serve_layer() == "fetch", "the first answer did not take the provider path"
+    def _hole_filled():
+        r = bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)
+        return bool(r) and int(r[-1][0]) == 20261110
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and not _hole_filled():
+        time.sleep(0.05)
+    assert _hole_filled(), "the interior hole was never repaired"
+    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+    # after the repair the reads answer from the store (the background revalidation may still call the provider's
+    # delta; what must not happen again is the SYNCHRONOUS provider path before the first answer)
+    for _ in range(2):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        assert bars_fetch.get_serve_layer() not in ("fetch", "delta-deadline"), bars_fetch.get_serve_layer()
+    assert len(aggs) == 1, "the repair ran more than once"
+
+
+def test_a_vendor_correction_with_less_volume_is_kept(store, monkeypatch):
+    # the stored week is the provider's CORRECTED bar: the same OHLC, less volume than the uncorrected daily sums to
+    days = _sessions_through(date(2026, 11, 20))
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    weeks = [dict(w) for w in bars_fetch._resample_weekly_iso(daily)]
+    weeks[-1]["v"] = int(weeks[-1]["v"]) - 500
+    bars_sqlite.put_bars("AAA", "W", weeks, date_tf=True)
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert out[-1]["v"] == weeks[-1]["v"], "a corrected bar was replaced by the uncorrected daily (more volume)"
+
+
+def _seed_split(tf, last, drop, factor=10):
+    """An UNADJUSTED stored daily through `last`, and a W/M table on the ADJUSTED basis of a 1:`factor` reverse split
+    (prices x factor, volume / factor), built from the daily without its last `drop` sessions."""
+    days = _sessions_through(last)
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 10000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    adj = [{**p, "o": p["o"] * factor, "h": p["h"] * factor, "l": p["l"] * factor, "c": p["c"] * factor,
+            "v": int(p["v"]) // factor} for p in rs(daily[:-drop] if drop else daily)]
+    bars_sqlite.put_bars("AAA", tf, adj, date_tf=True)
+    return daily, adj
+
+
+def _no_scale_jump(out):
+    return all(0.5 <= float(b["o"]) / float(a["c"]) <= 2.0 for a, b in zip(out, out[1:]))
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_reverse_split_never_replaces_the_adjusted_tail_with_the_unadjusted_daily(store, monkeypatch, tf):
+    daily, adj = _seed_split(tf, date(2026, 11, 18), drop=2)        # the tail lacks Mon/Tue's later sessions
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", tf, 400), tf, "AAA")
+    assert out[-1]["o"] == adj[-1]["o"] and _no_scale_jump(out), "the unadjusted daily replaced the adjusted tail"
+
+
+def test_a_reverse_split_never_appends_an_unadjusted_next_week(store, monkeypatch):
+    daily, adj = _seed_split("W", date(2026, 11, 16), drop=1)       # the table ends last week; the daily runs into Monday
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert len(out) == len(adj) and _no_scale_jump(out), "an unadjusted week was appended to the adjusted table"
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_the_overlay_never_derives_over_a_table_on_another_basis(store, monkeypatch, clock, tf):
+    # the LIVE path (a covered daily): on the stored path the ahead guard already refuses a split table (the adjusted
+    # side has a higher high, or more volume), so only the basis check stands between a live daily and a scale jump
+    clock(2026, 11, 18, 11, 0)
+    _seed_split(tf, date(2026, 11, 18), drop=2)
+    monkeypatch.setattr(bls, "covered", lambda t, k: k == "D")
+    assert _overlay(tf) is None, "W/M were derived from a daily on another price basis"
+
+
+def test_control_an_ordinary_further_along_daily_still_wins(store, monkeypatch):
+    # the same basis, a later session in the daily (another close, more volume): the reconcile still rebuilds it
+    days = _sessions_through(date(2026, 11, 18))
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    weeks = bars_fetch._resample_weekly_iso(daily[:-1])
+    bars_sqlite.put_bars("AAA", "W", weeks, date_tf=True)
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert out[-1]["c"] == daily[-1]["c"]
+
+
+def _holed_month_with_provider(monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    full, stored = _seed_old_tail("M", WED, monkeypatch, hole=date(2026, 11, 10))
+    provider = dict(bars_fetch._resample_monthly_iso(full)[-1])
+    provider["c"] = provider["h"]
+    monkeypatch.setattr(bars_fetch, "_delta_monthly", lambda t, last: [provider])
+    return stored
+
+
+def _wait_jobs(prefix="dhole::"):
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and any(k.startswith(prefix) for k in list(bars_fetch._inflight)):
+        time.sleep(0.05)
+
+
+def test_a_hole_the_provider_cleanly_has_no_bar_for_is_asked_once(store, monkeypatch, clock):
+    # a genuine halt: the provider ANSWERS, with nothing for the session; the hole stays, and is not re-asked per read
+    stored = _holed_month_with_provider(monkeypatch, clock)
+    aggs = []
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [])
+    for _ in range(3):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        _wait_jobs()
+    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+
+
+def test_a_hole_repair_the_provider_faulted_on_is_asked_again(store, monkeypatch, clock):
+    stored = _holed_month_with_provider(monkeypatch, clock)
+    aggs = []
+
+    def faulted(t, f, to):
+        aggs.append((f, to))
+        from api.services import provider_fault_scope
+        provider_fault_scope.note(RuntimeError("daily agg 503"))
+        return []
+    monkeypatch.setattr(_massive, "get_agg_bars", faulted)
+    for _ in range(2):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        _wait_jobs()
+    assert len(aggs) == 2, "a faulted repair was marked done and never retried"
+
+
+# ── review of #3023: a tail written from a PARTIAL period is replaced; a listing's first month; the warm share ───────
+def _seed_partial_week_tail(monkeypatch, sym="AAA"):
+    """A stored daily whose last week (Mon 11-16 .. Fri 11-20) moves +12%, and a stored W tail that is FRIDAY'S BAR
+    ALONE (the "held one early-week session" class: TSLA W 2026-09-18 = o 369.00, v 51.9M, exactly Friday's daily):
+    the same close as the full week, a later session's open, less volume."""
+    days = _sessions_through(date(2026, 11, 13), 60)
+    daily = [{"t": d.isoformat(), "o": 100.0, "h": 101.0, "l": 99.0, "c": 100.0, "v": 1000} for d in days]
+    week = [("2026-11-16", 100.0), ("2026-11-17", 103.0), ("2026-11-18", 106.0), ("2026-11-19", 109.0),
+            ("2026-11-20", 112.0)]
+    daily += [{"t": t, "o": o, "h": o + 2.0, "l": o - 1.0, "c": o + 1.0, "v": 1000} for t, o in week]
+    bars_sqlite.put_bars(sym, "D", daily, date_tf=True)
+    weeks = [dict(w) for w in bars_fetch._resample_weekly_iso(daily)]
+    fri = daily[-1]
+    weeks[-1] = {"t": "2026-11-20", "o": fri["o"], "h": fri["h"], "l": fri["l"], "c": fri["c"], "v": fri["v"]}
+    bars_sqlite.put_bars(sym, "W", weeks, date_tf=True)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: [])
+    return daily, weeks
+
+
+def test_a_stored_week_written_from_a_partial_period_is_replaced_by_the_full_daily_week(store, monkeypatch):
+    daily, weeks = _seed_partial_week_tail(monkeypatch)
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert out[-1]["o"] == 100.0 and out[-1]["h"] == 114.0 and out[-1]["v"] == 5000, out[-1]
+
+
+def test_the_overlay_replaces_a_partial_period_tail_too(store, monkeypatch, clock):
+    clock(2026, 11, 21, 12, 0)                     # Saturday: the stored path derives
+    daily, weeks = _seed_partial_week_tail(monkeypatch)
+    ov = _overlay("W")
+    assert ov is not None, "the overlay refused a corrupt partial-period tail"
+    assert float(ov[0][-1][1]) == 100.0
+
+
+def _seed_listing_month(monkeypatch, old_months=False, sym="AAA"):
+    """A series LISTED Tue 2026-11-10: the stored daily starts there and runs through Wed 11-18; the stored M table's
+    current row is from 11-13. `old_months`: the M table also holds older months (a shallow daily beside a deeper
+    table: NOT a listing)."""
+    days = [d for d in _sessions_through(WED, 40) if d >= date(2026, 11, 10)]
+    daily = [{"t": d.isoformat(), "o": 50 + i, "h": 51 + i, "l": 49 + i, "c": 50.5 + i, "v": 2000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars(sym, "D", daily, date_tf=True)
+    months = [dict(m) for m in bars_fetch._resample_monthly_iso([b for b in daily if b["t"] <= "2026-11-13"])]
+    if old_months:
+        months = [{"t": "2026-09-01", "o": 40.0, "h": 45.0, "l": 39.0, "c": 44.0, "v": 9000},
+                  {"t": "2026-10-01", "o": 44.0, "h": 50.0, "l": 43.0, "c": 49.0, "v": 9000}] + months
+    bars_sqlite.put_bars(sym, "M", months, date_tf=True)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    return daily, months
+
+
+def test_a_listings_first_month_is_derived_from_its_daily_without_the_provider(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    daily, months = _seed_listing_month(monkeypatch)
+    calls = []
+    for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: calls.append(1) or [])
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda *a, **k: calls.append("agg") or [])
+    body = json.loads(bars_fetch._get_bars_inner("AAA", "M", len(months)).body)
+    assert bars_fetch.get_serve_layer() not in ("fetch", "delta-deadline"), "a listing's first month took the provider path"
+    assert body["bars"][-1]["c"] == daily[-1]["c"] and body["bars"][-1]["v"] == sum(b["v"] for b in daily)
+    _wait_jobs()
+    assert "agg" not in calls, "the pre-listing sessions were read as a hole and 'repaired'"
+
+
+def test_control_a_shallow_daily_beside_a_deeper_table_is_not_a_listing(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    daily, months = _seed_listing_month(monkeypatch, old_months=True)
+    rows = bars_sqlite.get_bars("AAA", "M", 400)
+    out = bars_fetch._fmt_sqlite_bars(rows, "M", "AAA")
+    assert out[-1]["c"] == months[-1]["c"], "a month was rebuilt from a daily missing its first sessions"
+
+
+def test_the_hole_repair_runs_while_the_interactive_delta_pool_is_full(store, monkeypatch, clock):
+    stored = _holed_month_with_provider(monkeypatch, clock)
+    aggs = []
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [])
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_SLOT_WAIT_S", 0.05)
+    held = 0
+    while bars_fetch._date_delta_sem.acquire(blocking=False):
+        held += 1
+    try:
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        _wait_jobs()
+    finally:
+        for _ in range(held):
+            bars_fetch._date_delta_sem.release()
+    assert aggs == [("2026-11-10", "2026-11-10")], "the repair took (and lacked) a slot of the interactive pool"
