@@ -138,10 +138,17 @@ describe('B9 follow-up: every out-of-session clock, and the copy marked short', 
   })
 
   it('hardening: an answer that landed within TAIL_LAG_WINDOW_MS of the close never counts, even when read after it', async () => {
-    const { TAIL_LAG_WINDOW_MS } = await import('./prefetch')
+    const { TAIL_LAG_WINDOW_MS, BEHIND_RECHECK_MS } = await import('./prefetch')
+    expect(TAIL_LAG_WINDOW_MS).toBe(8000)
+    expect(BEHIND_RECHECK_MS).toBeGreaterThan(4200)
     const w = await switched({ nowSec: et('2026-11-27', 13, 0, 4), verifiedThrough: et('2026-11-27', 13, 0) })   // landed 13:00:04
-    await vi.advanceTimersByTimeAsync(TAIL_LAG_WINDOW_MS - 3000)                                               // read at ~13:00:09
+    await vi.advanceTimersByTimeAsync(3600)                   // read at 13:00:08.2: past the window, inside the own grace
     expect(w.pf.peekDisplayable('ILQ', '1')).toBe(false)
+  })
+
+  it('...control: an answer that landed after the window (13:00:09), read at once, does count', async () => {
+    const w = await switched({ nowSec: et('2026-11-27', 13, 0, 9), verifiedThrough: et('2026-11-27', 13, 0) })
+    expect(w.pf.peekDisplayable('ILQ', '1')).toBe(true)
   })
 
   it("an unproven copy is marked short of the SESSION's last bucket (12:59), never the clock's previous minute", async () => {
