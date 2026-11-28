@@ -69,14 +69,16 @@ export function paintNetBar(bar, prevClose, prevBar, readNC) {
  * `paintNetFrom(rows, from, readNC)` equals the whole pass's painted array `.slice(from)` (netChangePaint.window.test.js
  * C1/C2). `prevBar` is the previous row itself here (the paint reads only its high and low).
  */
-export function paintNetFrom(rows, from, readNC) {
+export function paintNetFrom(rows, from, readNC, to = rows.length) {
   let prev = null, prevBar = null
   for (let j = from - 1; j >= 0; j--) {
     const b = rows[j]
     if (b && b.close != null) { prev = b.close; prevBar = b; break }
   }
-  const out = new Array(rows.length - from)
-  for (let i = from; i < rows.length; i++) {
+  // `to` (exclusive): a render window cut on the right too (windowedChart.js, a dated view); the rows to the end otherwise
+  const end = Math.max(from, Math.min(rows.length, to))
+  const out = new Array(end - from)
+  for (let i = from; i < end; i++) {
     const b = rows[i]
     if (b && b.close != null) {
       out[i - from] = paintNetBar(b, prev, prevBar, readNC)
@@ -143,7 +145,7 @@ export function installNetChangePaint(series, readNC, refs) {
     if (_setPainted) {
       const NC = readNC()               // this setData's colours, for every cut of these rows
       const ncNow = () => NC
-      return _setPainted(data, (rows, from) => paintNetFrom(rows, from, ncNow))
+      return _setPainted(data, (rows, from, to) => paintNetFrom(rows, from, ncNow, to))
     }
     return _realSet(paintNetFrom(data, 0, readNC))
   }
