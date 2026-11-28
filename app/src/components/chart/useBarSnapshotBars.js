@@ -41,6 +41,7 @@ import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBa
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
+import { HANDOFF_HANG_MS } from '../../hooks/useSymbolHandoff'
 
 /** How long a member rests on a symbol (after the background warm starts) before its other intraday
  *  timeframes' lake depth loads: a scan past a row never pays for it. */
@@ -118,13 +119,17 @@ function lastDailyBarInsane(arr) {
   return Math.abs(o - c) / c > 0.5
 }
 
+/** (2026-11-28) How long a timeframe press keeps the frame on screen while the new key holds no rows at all: the symbol
+ *  hand-off's own budget (useSymbolHandoff HANDOFF_HANG_MS), one number for both. */
+export const TF_SWITCH_EMPTY_HOLD_MS = HANDOFF_HANG_MS
+
 export function useBarSnapshotBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, breadthSeries, replayCutoff, viewWindow = null,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
   // (`_intradayDeepArmed` / `_setIntradayDeepArmed` are the legacy source's; this one arms by deadline, below)
   _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount,
   axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
-  _onScreenSrcRef, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
+  _onScreenSrcRef, _shownTfRef = null, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
   _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled,
   // P3-S1 review fix 1 — the developing bar's OWN channel (StockChart's refs; the legacy hook
   // ignores them): `_storeDevRef` holds the newest developing bar (legacy shape), and
@@ -277,6 +282,7 @@ export function useBarSnapshotBars({
   // timeframe stays on screen for at most LAKE_JOIN_WAIT_MS from the switch; then whatever is held
   // paints. A key the lake does not carry, or one already deep, never waits.
   const _lakeSwitchRef = useRef({ key: null, t0: 0 })
+  const _emptySwitchRef = useRef({ key: null, t0: 0, done: false })   // (below) the daily-to-intraday empty hold
   if (!_isTfSwitch) {
     // a later switch to the same key is a new switch with its own bound (review of #1795)
     if (_lakeSwitchRef.current.key !== null) _lakeSwitchRef.current = { key: null, t0: 0, done: false }
@@ -304,7 +310,33 @@ export function useBarSnapshotBars({
     Promise.resolve().then(() => store.lakeSeed?.(key, { awaited: true })).catch(() => {}).then(wake)
     return () => { alive = false; clearTimeout(id) }
   }, [_lakeHold, key, store])
-  const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
+  // ⭐⭐ (2026-11-28, production: a D -> 1m press showed an EMPTY chart for ~100 ms, the cloud rig 2 of 8 presses) A
+  // TIMEFRAME PRESS NEVER PAINTS AN EMPTY CHART. `_isTfSwitch` reads the intraday series last on screen
+  // (`_onScreenSrcRef`, which a DAILY chart never writes), so a press from D / W / M onto an intraday key with no rows yet
+  // handed the chart nothing and updateChart's empty arm cleared every series. While the new key has no rows the frame on
+  // screen (the same symbol at another timeframe, `_shownTfRef`) stays, for TF_SWITCH_EMPTY_HOLD_MS at most (the symbol
+  // hand-off's HANDOFF_HANG_MS); after it the chart's own loading state shows, as before.
+  const _shown = _shownTfRef?.current || null
+  const _fromOtherTf = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !!key
+    && !!_shown && _shown.sym === sym && String(_shown.tf) !== String(resolvedTf)
+  if (!_fromOtherTf) {
+    if (_emptySwitchRef.current.key !== null) _emptySwitchRef.current = { key: null, t0: 0, done: false }
+  } else if (_emptySwitchRef.current.key !== key) {
+    // eslint-disable-next-line react-hooks/purity
+    _emptySwitchRef.current = { key, t0: Date.now(), done: false }
+  }
+  // eslint-disable-next-line react-hooks/purity
+  const _emptyAge = Date.now() - _emptySwitchRef.current.t0
+  const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
+    && !(Array.isArray(chosen) && chosen.length > 0) && _emptyAge >= 0 && _emptyAge < TF_SWITCH_EMPTY_HOLD_MS
+  useEffect(() => {
+    if (!_emptyHold) return undefined
+    const sw = _emptySwitchRef.current
+    const left = Math.max(0, TF_SWITCH_EMPTY_HOLD_MS - (Date.now() - sw.t0))
+    const id = setTimeout(() => { sw.done = true; _setLakeTick((n) => n + 1) }, left + 1)
+    return () => clearTimeout(id)
+  }, [_emptyHold, key])
+  const _tfSwitchHold = (_isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)) || _emptyHold
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
   // (what this chart has SHOWN of a device copy, per key and view: see `_deviceRefused`). ⛔ Written after the commit, never

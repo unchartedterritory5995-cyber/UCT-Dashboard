@@ -723,4 +723,4 @@ export const DAILY_HOLD_MAX_MS = 400
 // and on failure, so this only fires when a request never settles at all.
 // Deliberately generous: firing it early would race a slow-but-healthy prepare
 // and reintroduce the blind commit it exists to prevent.
-const HANDOFF_HANG_MS = 4000
+export const HANDOFF_HANG_MS = 4000

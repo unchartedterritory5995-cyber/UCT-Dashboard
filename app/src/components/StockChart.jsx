@@ -6283,6 +6283,7 @@ function StockChartBody({
   const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
   const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
   const _onScreenSrcRef = useRef(null)   // { sym, tf, ext, bars } — the intraday series last on screen
+  const _shownTfRef = useRef(null)       // { sym, tf } — what the chart last painted, ANY timeframe (the empty-switch hold)
   const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   const lastServerCloseSymRef = useRef(null)  // the symbol lastServerCloseRef belongs to
@@ -9564,7 +9565,7 @@ function StockChartBody({
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
     _overlayActive, barCount, _depthKey, _fpDwellReady, _setFpDwellReady, _intradayDeepArmed,
     _setIntradayDeepArmed, axisWidthRatchetRef, _sinceBaseRef, _loadSeqRef, barsMutateRef,
-    _timingIdRef, activeTfRef, _onScreenSrcRef, _switchSrcRef, lastBarRef, lastBarSymRef,
+    _timingIdRef, activeTfRef, _onScreenSrcRef, _shownTfRef, _switchSrcRef, lastBarRef, lastBarSymRef,
     tfSwitchHoldRef, provisionalStaleRef,
     _IDB_TAIL_WAIT_MS, _barsHistorySplitEnabled, _correctFirstPaintEnabled, _developingBarISO,
     _effLivePrice, _etPeriodStartISO, _firstPaintEdgeEnabled, _historyLoader,
@@ -10136,6 +10137,8 @@ function StockChartBody({
     onHeaderCustomStats(res)
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `data` is read only for its newest-bar tri-state
   }, [headerCustomStats, onHeaderCustomStats, filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, userDefsGeneration])
+  // What the chart shows (any timeframe, with bars): a press from D / W / M onto an empty intraday key holds it
+  if (Array.isArray(filteredBars) && filteredBars.length) _shownTfRef.current = { sym, tf: resolvedTf }
   // What THIS timeframe shows, for the next timeframe switch to complete its right edge from.
   if (isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !replayMode && Array.isArray(filteredBars) && filteredBars.length
       && typeof filteredBars[filteredBars.length - 1]?.t === 'number') {
