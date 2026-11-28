@@ -8680,6 +8680,78 @@
     "LXRX",
     "CMTG"
    ]
+  },
+  {
+   "id": "cloud/46156049353-1/COV-date-D-arrows",
+   "at": "2026-11-28T14:46:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NNDM",
+    "ARCI",
+    "HGTY",
+    "XPOF",
+    "TXO",
+    "VMET",
+    "CSAN",
+    "KE",
+    "OPAL",
+    "DFH",
+    "MAMA",
+    "APOG",
+    "DRD"
+   ]
+  },
+  {
+   "id": "cloud/46156049353-1/COV-date-D-typed",
+   "at": "2026-11-28T14:46:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "KYIV",
+    "ELVR",
+    "GOGO",
+    "AUR",
+    "NPCE",
+    "ISBA",
+    "SIM",
+    "DSP",
+    "ACT"
+   ]
+  },
+  {
+   "id": "cloud/46156049353-1/COV-date-15-arrows",
+   "at": "2026-11-28T14:46:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "YDES",
+    "LU",
+    "CEPU",
+    "CIVB",
+    "LOCO",
+    "LEGH",
+    "AMRN",
+    "MRTN",
+    "GAU",
+    "VALU",
+    "GBTG",
+    "ESEA",
+    "AACI"
+   ]
+  },
+  {
+   "id": "cloud/46156049353-1/COV-date-15-typed",
+   "at": "2026-11-28T14:46:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PCAP",
+    "RLGT",
+    "LAES",
+    "OVID",
+    "DEC",
+    "CD",
+    "MTLS",
+    "STRO",
+    "SOPH"
+   ]
   }
  ]
 }
