@@ -60,6 +60,8 @@ export const WINDOW_FILL_ROUNDS = 10
 /** (PR 1.1) How long the chart's own read of a window gives the history lake before it asks the origin beside it (a
  *  warm lake answers in tens of ms; a cold one, from R2, in 380-650 ms against the origin's 140-210: measured 2026-11-28). */
 export const WINDOW_LAKE_HEAD_START_MS = 80
+/** (review of #2986, F-A) Once the origin has answered a window short (or failed), how much longer the lake is waited for. */
+export const WINDOW_LAKE_MAX_WAIT_MS = 800
 const HEAD_START = Symbol('head start')
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
@@ -520,9 +522,17 @@ export function createNetwork({
     if (warm && !(r.refs > 0)) {
       const v = await orAbort(lake)
       if (signal?.aborted) throw abortErr()
-      if (v) { won('lake'); return v }
-      refused()
-      return ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+      if (lakeWhole(v)) { won('lake'); return v }
+      if (!v) refused()
+      // ⛔ (review of #2986, F-B) a SHORT lake window from a warm is not landed outright (it would be displayable, and
+      // the switch would paint it short): the origin is asked on the warm's lane and the LONGER lands (a tie: the lake's)
+      const o = await ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) }).then((x) => ({ o: x }), (e) => ({ e }))
+      if (signal?.aborted) throw abortErr()
+      const on = o.o && Array.isArray(o.o.bars) ? o.o.bars.length : -1
+      if (v && v.bars.length >= on) { won('lake'); return v }
+      won('origin')
+      if (o.e) throw o.e
+      return o.o
     }
     let timer = null
     const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
@@ -544,7 +554,14 @@ export function createNetwork({
         let done = false
         const fin = (x) => { if (!done) { done = true; resolve(x) } }
         lake.then((x) => { if (lakeWhole(x)) fin({ lake: x }) }, () => {})
-        origin.then((res) => { if (res.o && originWhole(res.o)) fin(res) })
+        origin.then((res) => {
+          if (res.o && originWhole(res.o)) { fin(res); return }
+          // ⛔ (review of #2986, F-A) A CEILING ON THE WAIT FOR THE LAKE. The origin answered short (or failed): the lake is
+          // waited for at most WINDOW_LAKE_MAX_WAIT_MS more (its piece reads and the shared index read take no timeout of
+          // their own: a stalled R2 never settles), then the origin's answer lands (a `filling` one keeps its repeat)
+          const t = setTimer(() => fin(res), WINDOW_LAKE_MAX_WAIT_MS)
+          lake.then(() => clearTimer(t), () => clearTimer(t))
+        })
         Promise.allSettled([lake, origin]).then(([lx, ox]) => {
           const x = lx.status === 'fulfilled' ? lx.value : null
           const res = ox.value

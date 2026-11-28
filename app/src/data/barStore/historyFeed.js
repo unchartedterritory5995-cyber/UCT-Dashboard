@@ -68,7 +68,7 @@ export function windowEndOf(toUnix) {
 /**
  * @param {{ source?: ReturnType<typeof createHistorySource> }} o
  */
-export function createHistoryFeed({ source = createHistorySource() } = {}) {
+export function createHistoryFeed({ source = createHistorySource(), now = () => Date.now() } = {}) {
   // ⭐ PRIMED AT OPEN (2026-11-17). The first lake window of a chart is asked when its first server
   // answer lands (network `_noteAnswered`: it needs the oldest bar's time), so on a symbol this page
   // had not opened the deep history arrived a whole edge round trip after the first paint (index, then
@@ -163,9 +163,17 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     const bars = await windowRows(ls, index, want, signal, yieldTask)
     if (!bars.length) return null
     const asOf = typeof index.splits_as_of === 'string' ? Date.parse(`${index.splits_as_of}T00:00:00Z`) / 1000 : NaN
-    const splitsStale = Number.isFinite(asOf) && through - asOf > LAKE_SPLITS_STALE_DAYS * 86400
+    // (review of #2986, F-C) measured against the wall clock too: a lake whose publishing stopped stalls its newest bar
+    // AND its stamp together, and through - asOf alone would never see it
+    const splitsStale = Number.isFinite(asOf) && Math.max(through, now() / 1000) - asOf > LAKE_SPLITS_STALE_DAYS * 86400
     const out = { bars, through, splitsStale }
-    if (newestP) out.newest = (await newestP) || null
+    // (F-A) the newest-session read is bounded like the window's wait: no answer in time, no check (the other checks stand)
+    if (newestP) {
+      let t = null
+      const cap = new Promise((resolve) => { t = setTimeout(() => resolve(null), NEWEST_SESSION_MAX_MS) })
+      out.newest = (await Promise.race([newestP, cap])) || null
+      clearTimeout(t)
+    }
     return out
   }
   /** The bars of the series' newest day in the lake (the last piece's tail), or null. */
@@ -291,3 +299,5 @@ export const PRIME_MAX_KEYS = 500
 /** (review of #2986) A lake index whose `splits_as_of` lags its newest bar by more than this many days has a stale split
  *  table: its windows are the origin's. */
 export const LAKE_SPLITS_STALE_DAYS = 7
+/** (review of #2986, F-A) The newest-session read beside a window waits at most this long. */
+export const NEWEST_SESSION_MAX_MS = 800

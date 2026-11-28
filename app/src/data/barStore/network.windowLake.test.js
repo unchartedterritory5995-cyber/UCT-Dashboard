@@ -681,9 +681,81 @@ describe('W12 — a split newer than the lake\'s publish (review of #2986, resid
     const src2 = fakeSource(M, { through: LAKE_THROUGH })
     const inner2 = src2.loadIndex
     src2.loadIndex = vi.fn(async (sym) => ({ ...(await inner2(sym)), splits_as_of: '2006-03-29' }))
-    const h2 = net({ request: originOf(M).request, history: createHistoryFeed({ source: src2 }) })
+    const h2 = net({ request: originOf(M).request, history: createHistoryFeed({ source: src2, now: () => Date.parse('2006-03-31T20:00:00Z') }) })
     h2.network.start(K)
     await h2.run()
     expect(h2.network.windowSource(K), 'a fresh table: the lake').toBe('lake')
+  })
+})
+
+describe('W13 — review of #2986 round 3: a ceiling on the lake wait (F-A), a warm short lake (F-B), a stalled publish (F-C)', () => {
+  const fire = async (h, ms) => { const i = h.timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = h.timers.splice(i, 1); t.fn(); await h.flush(); return true }
+  function stalledLake(market, opts) {
+    const source = fakeSource(market, opts)
+    source.loadIndex = vi.fn(() => new Promise(() => {}))   // R2 / the index read never settles
+    return source
+  }
+  function gatedOrigin(market) {
+    const pend = []
+    const request = vi.fn((url, opts) => new Promise((resolve, reject) => {
+      opts?.signal?.addEventListener?.('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e) })
+      const q = parseUrl(url)
+      pend.push({ url, q, go: (shape = (b) => b, extra = {}) => resolve({ ticker: q.sym, tf: q.tf, bars: shape(originTo(market[q.sym][q.tf], q.to, q.bars)), ...extra }) })
+    }))
+    return { request, pend }
+  }
+  for (const [name, extra, repeat] of [['a short unflagged origin', {}, false], ['a short FILLING origin (it keeps its repeat)', { filling: true }, true]]) {
+    it(`(F-A) a lake that never answers: ${name} lands WINDOW_LAKE_MAX_WAIT_MS after it answered`, async () => {
+      const { WINDOW_LAKE_HEAD_START_MS, WINDOW_LAKE_MAX_WAIT_MS, WINDOW_FILL_RETRY_S } = await import('./network')
+      const o = gatedOrigin(M)
+      const h = net({ request: o.request, history: createHistoryFeed({ source: stalledLake(M, { through: LAKE_THROUGH }) }) })
+      const K = winKey('ABC', '5', '2006-02-15')
+      h.network.start(K)
+      await h.run()
+      await fire(h, WINDOW_LAKE_HEAD_START_MS)
+      o.pend[0].go((b) => b.slice(-738), extra)
+      await h.flush()
+      expect(h.registry.peek(K)?.restSeen ?? false, 'waits for the lake a while').toBe(false)
+      expect(await fire(h, WINDOW_LAKE_MAX_WAIT_MS)).toBe(true)
+      expect(h.registry.peek(K).bars.length, 'the origin\'s rows land').toBe(738)
+      expect(h.network.windowSource(K)).toBe('origin')
+      expect(h.timers.some((t) => t.ms === WINDOW_FILL_RETRY_S * 1000), 'a filling answer keeps its repeat').toBe(repeat)
+    })
+  }
+  it('(F-B) a warm whose lake window is SHORT asks the origin on the warm lane and lands the longer', async () => {
+    const late = { ABC: { 5: M.ABC[5].filter((b) => b.t >= etMidnightEpoch('2006-02-10')) } }
+    const o = originOf(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: fakeSource(late, { through: LAKE_THROUGH }) }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    await h.network.fetchOnce(K, { priority: 'background', warm: true })
+    expect(o.urls.length, 'the origin asked').toBe(1)
+    expect(o.urls[0]).toMatch(/[?&]warm=1(?:&|$)/)
+    const asked = parseUrl(o.urls[0]).bars
+    expect(h.registry.peek(K).bars.length, 'the whole origin, not the short lake').toBe(asked)
+    expect(h.network.windowSource(K)).toBe('origin')
+  })
+  it('(F-B) CONTROL: a warm whose lake window is whole asks nothing', async () => {
+    const o = originOf(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: fakeSource(M, { through: LAKE_THROUGH }) }) })
+    await h.network.fetchOnce(winKey('ABC', '5', '2006-02-15'), { priority: 'background', warm: true })
+    expect(o.urls).toEqual([])
+  })
+  it('(F-C) publishing stopped: the newest bar and the stamp agree, but the wall clock is weeks past both: the origin', async () => {
+    const mk = (nowIso) => {
+      const src = fakeSource(M, { through: LAKE_THROUGH })
+      const inner = src.loadIndex
+      src.loadIndex = vi.fn(async (sym) => ({ ...(await inner(sym)), splits_as_of: '2006-03-30' }))
+      const h = net({ request: originOf(M).request, history: createHistoryFeed({ source: src, now: () => Date.parse(nowIso) }) })
+      return h
+    }
+    const K = winKey('ABC', '5', '2006-02-15')
+    const stopped = mk('2006-05-01T15:00:00Z')
+    stopped.network.start(K)
+    await stopped.run()
+    expect(stopped.network.windowSource(K)).toBe('origin')
+    const fresh = mk('2006-03-31T20:00:00Z')
+    fresh.network.start(K)
+    await fresh.run()
+    expect(fresh.network.windowSource(K), 'published yesterday: the lake').toBe('lake')
   })
 })
