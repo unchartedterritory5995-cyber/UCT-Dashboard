@@ -228,6 +228,23 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(w.registry.getSnapshot(w.key).depth).toBeGreaterThan(1400)
   })
 
+  // (review of #2989, LOW) THE FULL READ ABORTED (kick's invalidate) AND RE-ASKED: the re-ask carries no mark of its own,
+  // yet it IS the full read, and its answer ends the due depth
+  it('F1 the full read aborted by kick(abort) and re-asked: the re-ask answering settles the depth', async () => {
+    const held = {}
+    const w = world({ history: 'throw', tailHook: (i) => (i === 1 ? new Promise((r) => { held[i] = r }) : null) })
+    const stop = w.net.start(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(held[1]).toBeTypeOf('function')             // the full read is out, and held
+    expect(w.net.deepPending(w.key)).toBe(true)
+    w.net.kick(w.key, { abort: true })                  // invalidated mid-read: aborted, and the poll re-asks
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(tailBars(w).length).toBeGreaterThanOrEqual(3)
+    expect(w.registry.getSnapshot(w.key).depth).toBeGreaterThan(1400)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    stop()
+  })
+
   it('F1 ...and a full read that fails settles it too (the chart shows its own state; no hold forever)', async () => {
     let fail
     const w = world({ history: 'throw', tailGate: new Promise((_, rej) => { fail = rej }), tailGateFrom: 1 })

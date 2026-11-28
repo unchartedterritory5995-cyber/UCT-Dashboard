@@ -325,7 +325,11 @@ export function createNetwork({
 
   // `full`: never a `since=` delta (the switch's one re-ask of an own answer still behind: prefetch._askOwn)
   // `fullRead`: the full read a failed edge history queued (F1: its settle, and no other tail's, ends `fullDue`)
-  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false, fullRead = false } = {}) {
+  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false, fullRead: asked = false } = {}) {
+    // ⛔ (review of #2989, LOW) ANY non-side tail of a split-off key IS its full read (the split off, it asks the whole
+    // depth): an abort of the queued one (kick's invalidate, an idle eviction) re-asks through _schedule/_tail without the
+    // mark, and only a marked read ended `fullDue`, so the depth stayed "due" for good. Captured when the job runs.
+    const fullRead = asked || (!side && !!r.splitOff)
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
