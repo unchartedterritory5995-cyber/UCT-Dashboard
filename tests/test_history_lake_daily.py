@@ -167,3 +167,97 @@ def test_nothing_new_is_current_or_behind(tmp_path):
     assert D.run(root, "packs-7", "bkt", "hist/", runner=_runner([]), today=dt.date(2026, 11, 19),
                  read_index=lambda *a: {}, log=lambda *_: None) == D.EXIT_BEHIND
     assert json.loads((root / "daily-status.json").read_text())["step"] == "nothing-new"
+
+
+# ── coordination with the cloud runner (lake_state; review G1/G2, 2026-11-28) ──────────────────────
+
+import lake_state as LS  # noqa: E402
+
+
+class FakeState:
+    """lake_state.LakeState's surface over dicts: the lease, the shared ledger and the references."""
+
+    def __init__(self, *, busy=False, remote_days=None, splits=b'{"rows": [1]}'):
+        self.busy, self.log = busy, []
+        self.docs = {"ledger.json": {"v": 1, "days": {d: {"size": 1} for d in (remote_days or [])}}}
+        self.refs = {"splits.json": splits}
+
+    def take(self, holder, ttl):
+        self.log.append("take")
+        if self.busy:
+            raise LS.LeaseBusy("held by cloud:x")
+
+    def release(self):
+        self.log.append("release")
+        return True
+
+    def assert_held(self):
+        self.log.append("assert_held")
+
+    def get_json(self, name):
+        return self.docs.get(name)
+
+    def put_json(self, name, doc):
+        self.log.append(f"put_json:{name}")
+        self.docs[name] = doc
+
+    def put_ref(self, name, data, by):
+        self.log.append(f"put_ref:{name}")
+        self.refs[name] = data
+
+    def get_ref(self, name):
+        return self.refs[name]
+
+
+MON_EVENING = int(dt.datetime(2026, 11, 17, 0, 59, tzinfo=dt.timezone.utc).timestamp())
+
+
+def _go(root, state, calls):
+    return D.run(root, "packs-7", "bkt", "hist/", runner=_runner(calls), today=dt.date(2026, 11, 17), state=state,
+                 holder="pc:test", read_index=lambda b, p, s: {"series": {"1": {"2026-11": {"last": MON_EVENING}}}},
+                 log=lambda *_: None)
+
+
+def test_while_the_cloud_holds_the_lake_the_pc_neither_builds_nor_publishes(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    calls, st = [], FakeState(busy=True)
+    assert _go(root, st, calls) == D.EXIT_OK
+    assert not any(x.endswith(("build.py", "publish.py")) for c in calls for x in c)
+    assert json.loads((root / "daily-status.json").read_text())["step"] == "lease"
+    assert "release" not in st.log
+
+
+def test_the_pc_never_publishes_over_days_the_bucket_holds_and_it_lacks(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13", "2026-11-14", "2026-11-16"])
+    assert _go(root, st, calls) == D.EXIT_OK
+    assert not any(x.endswith("publish.py") for c in calls for x in c), "published over the cloud's newer lake"
+    assert "put_json:ledger.json" not in st.log and st.log[-1] == "release"
+
+
+def test_under_the_lease_the_pc_shares_its_references_and_records_the_ledger_after_the_verify(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    (root / "ref").mkdir()
+    (root / "ref" / "splits.json").write_bytes(b'{"rows": ["pc"]}')
+    (root / "ref" / "ticker_events.jsonl").write_bytes(b"{}
+")
+    calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13"])
+    assert _go(root, st, calls) == D.EXIT_OK
+    assert st.log[0] == "take" and st.log[-1] == "release"
+    assert {"put_ref:splits.json", "put_ref:ticker_events.jsonl", "assert_held", "put_json:ledger.json"} <= set(st.log)
+    assert st.log.index("assert_held") < st.log.index("put_json:ledger.json")
+    assert (root / "ref" / "splits.json").read_bytes() == st.refs["splits.json"], "publishes the R2 copy"
+    assert st.docs["ledger.json"] == json.loads((root / "packs-7" / "ledger.json").read_text())
+
+
+def test_a_reference_refused_by_its_hash_stops_the_pc_before_any_publish(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    calls, st = [], FakeState()
+
+    def bad(name):
+        raise LS.RefMismatch("splits.json: bytes in R2 are not the manifest's")
+
+    st.get_ref = bad
+    assert _go(root, st, calls) == D.EXIT_FAILED
+    assert not any(x.endswith(("build.py", "publish.py")) for c in calls for x in c)
+    assert st.log[-1] == "release"

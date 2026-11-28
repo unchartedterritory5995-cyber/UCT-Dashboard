@@ -28,11 +28,15 @@ LAG ALERT. Every run ends with the lag check: the lake (SPY's live index, the au
 more than one trading session behind the vendor's newest day file is exit 3 and a red run; the workflow
 posts it to Discord. Weekends and holidays never count as sessions (the vendor publishes no file).
 
-State in R2 (under the lake's prefix, never served: the edge reads only `packs/` and `v1/index/`):
-  state/ledger.json          the build ledger of the current-period tree
-  state/ticker_events.jsonl  identity input (seeded from the PC's ref/; refreshed by hand, as there)
-  state/splits.json          the last split reference fetched
+State in R2 (under the lake's prefix, never served: the edge reads only `packs/` and `v1/index/`), kept by
+lake_state.py, which BOTH writers (this and the PC's daily.py) use:
+  state/lease.json           the one lease: a writer builds and publishes only while it holds it
+  state/ledger.json          the build ledger of the newest verified publish (either writer)
+  state/ref.json             the reference manifest (sha256 of each file below); a mismatch refuses the publish
+  state/ticker_events.jsonl  identity input (the PC's ref/, uploaded by the PC every run)
+  state/splits.json          the split reference, last fetched by either writer
   state/runner.json          what this runner last published, when, and from which days
+A ledger day newer than SPY's LIVE last day is folded again: the ledger is a claim, the live index the fact.
 
 Credentials (environment, never printed): DATA_SYNC_ENDPOINT_URL / DATA_SYNC_ACCESS_KEY /
 DATA_SYNC_SECRET_KEY (R2), MASSIVE_ACCESS_KEY / MASSIVE_SECRET_KEY (vendor flat files), MASSIVE_API_KEY
@@ -62,6 +66,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import daily  # noqa: E402  (script-mode imports, as build.py / publish.py do)
 import identity  # noqa: E402
+import lake_state  # noqa: E402
 import pack  # noqa: E402
 import piece  # noqa: E402
 import publish  # noqa: E402
@@ -264,14 +269,21 @@ def check_lag(r2, bucket: str, prefix: str, vendor_days: Iterable[str], today: _
 
 
 def _build(raw: Path, tree: Path, days: List[str], jobs: int) -> int:
-    return subprocess.run([sys.executable, str(HERE / "build.py"), "--raw", str(raw), "--out", str(tree),
-                           "--days", ",".join(days), "--packs", "--jobs", str(jobs)]).returncode
+    """build.py --packs; its output goes to a file beside the tree, never the (public) log."""
+    with open(Path(tree).parent / "build.log", "wb") as out:
+        return subprocess.run([sys.executable, str(HERE / "build.py"), "--raw", str(raw), "--out", str(tree),
+                               "--days", ",".join(days), "--packs", "--jobs", str(jobs)],
+                              stdout=out, stderr=subprocess.STDOUT).returncode
+
+
+#: How long a writer may hold the lake (build + publish + state). A crashed writer's lease expires.
+LEASE_TTL_S = 4 * 3600
 
 
 def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_only: bool = False,
         jobs: int = 4, today: Optional[_dt.date] = None, r2=None, vend=None,
         builder: Callable[[Path, Path, List[str], int], int] = _build,
-        splits_fn: Optional[Callable[[], list]] = None) -> int:
+        splits_fn: Optional[Callable[[], list]] = None, holder: Optional[str] = None) -> int:
     """One refresh. `r2` / `vend` (S3 clients), `builder` and `splits_fn` are parameters so the rails
     can drive a whole run against stand-ins; production passes none of them."""
     work = Path(work)
@@ -279,25 +291,33 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     r2 = r2 or r2_client()
     vend = vend or vendor_client()
     splits_fn = splits_fn or (lambda: fetch_splits(os.environ["MASSIVE_API_KEY"]))
+    state = lake_state.LakeState(r2, bucket, prefix)
+    holder = holder or lake_state.holder_name("cloud")
     years = years_for(today)
     listing = []
     for y in years:
         listing += list_keys(vend, VENDOR_BUCKET, f"{VENDOR_PREFIX}{y}/")
     sizes = vendor_sizes(listing)
-    vendor_last = max(sizes) if sizes else None
-    log(f"vendor: {len(sizes)} day files in {years}, newest {vendor_last}")
+    log(f"vendor: {len(sizes)} day files in {years}, newest {max(sizes) if sizes else None}")
     if check_only:
         code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
         log(f"[lake-cloud] {msg}")
         return code
 
-    ledger = get_json(r2, bucket, f"{prefix}{STATE}ledger.json")
+    ledger = state.get_json(lake_state.LEDGER)
     if not ledger or not isinstance(ledger.get("days"), dict):
-        log(f"[lake-cloud] no build ledger at {prefix}{STATE}ledger.json: seed it from the PC first")
+        log(f"[lake-cloud] no build ledger at {prefix}{lake_state.STATE}{lake_state.LEDGER}: seed it first")
         return EXIT_FAILED
+    # ⛔ THE LEDGER IS A CLAIM, THE LIVE INDEX IS THE FACT: a ledger day newer than SPY's live last day is not
+    # in the bucket (a publish that never landed, or another writer's publish over it), so it is folded again.
+    live_last = lake_last_day(get_json(r2, bucket, f"{prefix}v1/index/s-{daily.REFERENCE_SYMBOL}.json"))
+    unproven = sorted(d for d in ledger["days"] if live_last is None or d > live_last)
+    if unproven:
+        log(f"[lake-cloud] ledger days not in the live index, folded again: {unproven}")
+        ledger["days"] = {d: v for d, v in ledger["days"].items() if d not in unproven}
     plan = daily.days_to_fold(sizes, ledger["days"])
-    days = sorted(set(plan["new"]) | set(plan["holes"]) | set(plan["changed"]))
-    log(f"plan: new={plan['new']} holes={plan['holes']} changed={plan['changed']}")
+    days = sorted(set(plan["new"]) | set(plan["holes"]) | set(plan["changed"]) | (set(unproven) & set(sizes)))
+    log(f"plan: new={plan['new']} holes={plan['holes']} changed={plan['changed']} unproven={unproven}")
     if not days:
         code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
         log(f"[lake-cloud] nothing to fold; {msg}")
@@ -306,6 +326,27 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
         log(f"[lake-cloud] dry run: would fold {days} and rebuild {daily.touched_packs(days)}")
         return EXIT_OK
 
+    try:
+        state.take(holder, LEASE_TTL_S)
+    except lake_state.LeaseBusy as e:
+        code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
+        log(f"[lake-cloud] another writer holds the lake ({e}); not folding this run. {msg}")
+        return code
+    try:
+        return _fold_and_publish(work, bucket, prefix, r2, vend, state, holder, ledger, sizes, days, today,
+                                 jobs=jobs, builder=builder, splits_fn=splits_fn)
+    except lake_state.LeaseBusy as e:
+        log(f"[lake-cloud] REFUSED to publish: {e}")
+        return EXIT_FAILED
+    finally:
+        try:
+            state.release()
+        except Exception as e:  # noqa: BLE001 - it expires on its own
+            log(f"[lake-cloud] lease not released ({type(e).__name__}); it expires in {LEASE_TTL_S // 3600} h")
+
+
+def _fold_and_publish(work, bucket, prefix, r2, vend, state, holder, ledger, sizes, days, today, *,
+                      jobs, builder, splits_fn) -> int:
     tree = work / "tree"
     raw = work / "raw"
     (tree / "packs").mkdir(parents=True, exist_ok=True)
@@ -339,21 +380,27 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     built_at = time.time()
     rc = builder(raw, tree, days, jobs)
     if rc != 0:
-        log(f"[lake-cloud] build failed ({rc}); nothing published")
+        log(f"[lake-cloud] build failed (exit {rc}); nothing published")
         return EXIT_FAILED
     new_ledger = json.loads((tree / "ledger.json").read_text(encoding="utf-8"))
     through = max(max(new_ledger["days"]), days[-1])
 
-    # 5. splits
-    splits_key = f"{prefix}{STATE}splits.json"
+    # 5. the references: ONE source in R2 (lake_state), read back hash-checked by every publish
     try:
-        rows = splits_fn()
-        if not rows:
+        fresh = splits_fn()
+        if not fresh:
             raise publish.BuildError("the vendor returned no splits")
-        r2.put_object(Bucket=bucket, Key=splits_key, Body=json.dumps({"rows": rows}).encode(), ContentType="application/json")
-    except Exception as e:  # noqa: BLE001 - the last copy is used, as daily.py does
+        state.put_ref("splits.json", json.dumps({"rows": fresh}).encode(), holder)
+    except Exception as e:  # noqa: BLE001 - the last copy in R2 is used, as daily.py does
         log(f"[lake-cloud] split reference not refreshed ({type(e).__name__}); publishing with the last one")
-        rows = (get_json(r2, bucket, splits_key) or {}).get("rows") or []
+    events = work / "ref" / identity.EVENTS_FILE
+    try:
+        rows = json.loads(state.get_ref("splits.json")).get("rows") or []
+        events.parent.mkdir(parents=True, exist_ok=True)
+        events.write_bytes(state.get_ref(identity.EVENTS_FILE))
+    except lake_state.RefMismatch as e:
+        log(f"[lake-cloud] REFUSED: {e}; nothing published")
+        return EXIT_FAILED
     if not rows:
         log("[lake-cloud] no split reference at all; nothing published")
         return EXIT_FAILED
@@ -367,13 +414,6 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     indexes = merge_indexes(per_pack)
     log(f"{len(per_pack)} packs ({len(local)} rebuilt), {len(indexes):,} symbols")
     publish.stamp_indexes(indexes, rows, through)
-    events = work / "ref" / identity.EVENTS_FILE
-    events.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        r2.download_file(bucket, f"{prefix}{STATE}{identity.EVENTS_FILE}", str(events))
-    except Exception as e:  # noqa: BLE001
-        log(f"[lake-cloud] no ticker events in state ({type(e).__name__}); nothing published")
-        return EXIT_FAILED
     st = identity.apply(indexes, identity.plan(identity.load_records(events), have=indexes.keys()))
     log(f"identity: {st['cut']} cut, {st['stitched']} stitched")
 
@@ -383,6 +423,7 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     def put_bytes(key, data, ctype):
         r2.put_object(Bucket=bucket, Key=key, Body=data, ContentType=ctype)
 
+    state.assert_held()               # never publish on a lease that expired or changed hands
     # ⛔ ONLY the packs this run rebuilt are in `local`: a pack read by its trailer is never sent.
     force = {f"{prefix}{pack.pack_relpath(s, p)}" for (s, p) in local}
     publish.upload(local, indexes, put_file, put_bytes, prefix=prefix, jobs=16, force=force, log=log)
@@ -392,11 +433,9 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     if not daily.reaches_day(daily.newest_1m_bar(doc or {}), through):
         log(f"[lake-cloud] {daily.REFERENCE_SYMBOL}'s live index does not reach {through}")
         return EXIT_FAILED
-    r2.put_object(Bucket=bucket, Key=f"{prefix}{STATE}ledger.json", Body=json.dumps(new_ledger).encode(),
-                  ContentType="application/json")
-    r2.put_object(Bucket=bucket, Key=f"{prefix}{STATE}runner.json", ContentType="application/json",
-                  Body=json.dumps({"published_through": through, "at": time.time(), "runner": "github-actions",
-                                   "days": days, "built_at": built_at}).encode())
+    state.put_json(lake_state.LEDGER, new_ledger)
+    state.put_json("runner.json", {"published_through": through, "at": time.time(), "runner": holder,
+                                   "days": days, "built_at": built_at})
     log(f"[lake-cloud] published through {through} ({len(days)} days, {len(local)} packs)")
     code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
     log(f"[lake-cloud] {msg}")
@@ -456,9 +495,19 @@ def main(argv: Optional[List[str]] = None) -> int:
         if a.compare is not None:
             return compare_live(a.work, a.bucket, a.prefix, sample=a.compare)
         return run(a.work, a.bucket, a.prefix, dry_run=a.dry_run, check_only=a.check_only, jobs=a.jobs)
-    except publish.BuildError as e:
-        log(f"[lake-cloud] FAILED: {e}")
+    except Exception as e:  # noqa: BLE001
+        # ⛔ THE LOG IS PUBLIC. An exception's text can carry a vendor row (a symbol and its prices); only its
+        # type and where it was raised are printed, never its message or a traceback.
+        log(f"[lake-cloud] FAILED: {failure_line(e)}")
         return EXIT_FAILED
+
+
+def failure_line(e: BaseException) -> str:
+    """`<ExceptionType> at <file>:<line>` of the innermost frame: no message, no values."""
+    import traceback
+    tb = traceback.extract_tb(e.__traceback__)
+    where = f" at {Path(tb[-1].filename).name}:{tb[-1].lineno}" if tb else ""
+    return f"{type(e).__name__}{where}"
 
 
 if __name__ == "__main__":
