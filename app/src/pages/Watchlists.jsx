@@ -2209,6 +2209,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // reflow on every selection change (the big cost when scanning up / wrapping).
     if (!isActiveWidget()) return
     const row = pageRef.current.querySelector(`[data-watch-sym="${CSS.escape(selectedSym)}"]`)
+    // ⚡ (2026-11-28, section 3.3 change 5) A ROW OF A VIRTUALIZED LIST IS ScanRows' TO SCROLL. ScanRows keeps the
+    // selection in view from the virtualizer's own measurements (`rowPlacement`: no scroll for a row in view, the least
+    // scroll at an edge, centred when far), in its effect, which runs before this one. `scrollIntoView` here was then a
+    // second answer to the same question, and asking it forces a synchronous layout of the whole board in the switch's
+    // key task (6.3 ms of an arrow press, CPU profiles of a local build of master mapped to source), for a row ScanRows
+    // has already put in view, where it scrolls nothing. A row ScanRows places is marked `data-index` (its window).
+    const win = row ? row.closest('[data-index]') : null
+    if (win && pageRef.current.contains(win)) return
     if (row && typeof row.scrollIntoView === 'function') {
       row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
