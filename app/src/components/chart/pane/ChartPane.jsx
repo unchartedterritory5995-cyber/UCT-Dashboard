@@ -71,10 +71,13 @@ import { chordById, matchesChord } from '../../../pages/command/chords.js'
 import { isEconomicId } from '../engine/econMark'
 import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
-import { warmTypedSymbol as storeWarmTypedSymbol, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
+import { warmTypedSymbol as storeWarmTypedSymbol, warmTypedCandidates as storeWarmTypedCandidates, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
 import { PaintMemberContext, viewNeed } from '../paintLog'
 import { BARSTORE } from '../barStoreSwitch'
 import { publishTypedNext } from '../neighborFrames'
+import { noteOpened, SHOWN_WEIGHT } from '../../../lib/typedHistory'
+/** (2026-11-28, plan 1.4) A text told again this soon on the same chart is the same intent (handleTypedIntent). */
+const TYPED_INTENT_SAME_MS = 10_000
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -1161,6 +1164,7 @@ function ChartPane({
   // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a pointer event, and
   // the event alone would file it under `click`). Set, switch, cleared: one task.
   const handleSearchedSymbol = useCallback((s) => {
+    try { noteOpened(s) } catch { /* the member's history is a ranking aid only */ }
     hintSwitchTrigger(TRIGGER_TYPED)
     try { handleSymbolChange(s) } finally { hintSwitchTrigger(-1) }
   }, [handleSymbolChange])
@@ -1185,7 +1189,7 @@ function ChartPane({
   // Enter no longer reads. Nothing is named for a chart that has moved to another symbol meanwhile.
   const symRef = useRef(chartSym)
   symRef.current = chartSym
-  const typedNextRef = useRef(null)
+  const typedNextRef = useRef(null)   // { s, center, at }: the newest typed intent
   // ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...OR AT ONCE, when the warm's rows already COVER the
   // view (paintLog viewNeed, the switch's own rule). The double buffer's shadow takes the typed next symbol from here
   // (useDoubleBuffer retargets on publishTypedNext) and Enter flips to it in the key's task; waiting for the lake join
@@ -1195,6 +1199,11 @@ function ChartPane({
   const paintMemberRef = useRef(paintMember)
   paintMemberRef.current = paintMember
   const handleTypedIntent = useCallback((s) => {
+    // (2026-11-28, plan 1.4) the same text told twice (the candidate pool's top one, then the search's own exact or unique
+    // match) is ONE intent: the second call would replace the first's pending hidden-pane decision with a slower one
+    const cur = typedNextRef.current
+    const typedU = String(s || '').toUpperCase()
+    if (cur && cur.s === typedU && cur.center === symRef.current && Date.now() - cur.at < TYPED_INTENT_SAME_MS) return
     // (review of #2934, B1) the typed key and its linked keys ask the rows this chart's view will draw (D/W/M: a cover page)
     let cover = 0
     try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
@@ -1204,7 +1213,7 @@ function ChartPane({
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
     if (!BARSTORE) return
     const center = symRef.current
-    const mine = {}
+    const mine = { s: typedU, center, at: Date.now() }
     typedNextRef.current = mine
     const live = () => typedNextRef.current === mine && symRef.current === center   // no newer text; same chart symbol
     Promise.resolve(warm).then((r) => {
@@ -1221,6 +1230,26 @@ function ChartPane({
       return storeLakeJoined(s, effectiveTf).then(() => { if (live()) publishTypedNext(center, s) })
     }).catch(() => {})
   }, [effectiveTf])
+  // ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TYPED CANDIDATE POOL. The search reports, on every keystroke and on a
+  // paste, the text's likeliest completions (SymbolSearch onTypedCandidates, lib/tickerUniverse rankedCompletions). All
+  // of them are warmed (data/barStore/prefetch warmTypedCandidates: each its own abort; a list that drops one aborts it),
+  // and the TOP one is the typed text (handleTypedIntent): its linked charts, its deep join and the hidden pane
+  // (publishTypedNext), so Enter on the ticker the member stops on flips to a frame already drawn. The pool goes FIRST:
+  // its entry for the top candidate keeps that fetch alive when the typed slot moves on to the next text.
+  const lastTopRef = useRef(null)
+  // what this member's charts show counts toward their typed ranking too (lib/typedHistory, a quarter of a typed open)
+  useEffect(() => { if (chartSym) { try { noteOpened(chartSym, { weight: SHOWN_WEIGHT }) } catch { /* */ } } }, [chartSym])
+  const handleTypedCandidates = useCallback((list) => {
+    const syms = Array.isArray(list) ? list.filter(Boolean) : []
+    let cover = 0
+    try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
+    try { storeWarmTypedCandidates(syms, effectiveTf, { cover }) } catch { /* a warm never breaks search */ }
+    const top = syms[0] ? String(syms[0]).toUpperCase() : null
+    if (!top || top === lastTopRef.current) return
+    lastTopRef.current = top
+    handleTypedIntent(top)
+  }, [effectiveTf, handleTypedIntent])
+  useEffect(() => { lastTopRef.current = null }, [chartSym])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React
@@ -1478,6 +1507,7 @@ function ChartPane({
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSearchedSymbol : null}
           onTypedIntent={onSymbolChange ? handleTypedIntent : null}
+          onTypedCandidates={onSymbolChange && BARSTORE ? handleTypedCandidates : null}
           economic={allowEconomic}
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}

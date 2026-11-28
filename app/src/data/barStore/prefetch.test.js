@@ -411,5 +411,8 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     // Enter also fetched the deep history beside it, once (the history job took that answer)
     // (2026-11-28) ...the typed warm's, joined by Enter (the stray TYPX, asked as before with no universe held, primes its own)
     expect(w.server.calls.filter((c) => c.q.history && c.q.sym === 'TYP')).toHaveLength(1)
+    // (2026-11-28, review of #2959: not weakened) and NOTHING else: the only other history is the stray text's own, at most once
+    expect(w.server.calls.filter((c) => c.q.history && c.q.sym !== 'TYP').map((c) => c.q.sym)).toEqual(
+      w.server.calls.some((c) => c.q.history && c.q.sym === 'TYPX') ? ['TYPX'] : [])
   })
 })
