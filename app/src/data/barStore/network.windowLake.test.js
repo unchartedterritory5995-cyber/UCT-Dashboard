@@ -457,3 +457,89 @@ describe('W8 — a slow (cold) lake races the origin after a head start; a warm 
     expect(o.urls).toEqual([])
   })
 })
+
+describe('W9 — a warm window\'s origin fallback is a shed-able warm (review of #2986, F1)', () => {
+  const PAST = { through: etMidnightEpoch('2006-03-20') - 1 }   // the lake ends Fri 03-17: 03-24 is the origin's
+  it('its `filling` answer arms no repeat: a date warm never turns into ten origin asks', async () => {
+    const o = originOf(M)
+    const request = vi.fn(async (url) => ({ ...(await o.request(url)), filling: true }))
+    const h = net({ request, history: createHistoryFeed({ source: fakeSource(M, PAST) }) })
+    const K = winKey('ABC', '5', '2006-03-24')
+    h.registry.acquire(K)
+    await h.network.fetchOnce(K, { priority: 'background', warm: true })
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][0]).toMatch(/[?&]warm=1(?:&|$)/)
+    expect(h.timers.filter((t) => t.ms === 3000).length, 'no fill repeat for a warm').toBe(0)
+  })
+  it('a chart that starts while the warm\'s origin request is out gets its OWN non-warm request; the warm shed sets no error', async () => {
+    let fail
+    const pend = []
+    const request = vi.fn((url) => new Promise((resolve, reject) => {
+      pend.push({ url, resolve, reject })
+      fail = () => reject(Object.assign(new Error('shed'), { status: 503 }))
+    }))
+    const h = net({ request, history: createHistoryFeed({ source: fakeSource(M, PAST) }) })
+    const K = winKey('ABC', '5', '2006-03-24')
+    h.registry.acquire(K)
+    const warm = h.network.fetchOnce(K, { priority: 'background', warm: true })
+    await h.flush()
+    expect(pend.length).toBe(1)
+    expect(pend[0].url).toMatch(/[?&]warm=1(?:&|$)/)
+    h.network.start(K)
+    await h.run()
+    fail()                       // the server sheds the warm
+    await warm
+    await h.flush()
+    expect(h.registry.peek(K)?.error ?? null, 'a shed warm is not the chart\'s error').toBe(null)
+    expect(pend.length, 'the chart\'s own request').toBe(2)
+    expect(pend[1].url).not.toMatch(/[?&]warm=1(?:&|$)/)
+  })
+  it('a non-warm ask that joins while the lake is still read makes the fallback non-warm', async () => {
+    const o = originOf(M)
+    const source = fakeSource(M, PAST)
+    let open
+    const gate = new Promise((r) => { open = r })
+    const inner = source.loadIndex
+    source.loadIndex = vi.fn(async (sym) => { await gate; return inner(sym) })
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-03-24')
+    h.registry.acquire(K)
+    const warm = h.network.fetchOnce(K, { priority: 'background', warm: true })
+    const own = h.network.fetchOnce(K, { priority: 'visible' })
+    open()
+    await Promise.all([warm, own])
+    expect(o.urls.length).toBe(1)
+    expect(o.urls[0]).not.toMatch(/[?&]warm=1(?:&|$)/)
+  })
+})
+
+describe('W10 — a split the lake has not caught up with shows on the DAILY bars the page holds (review of #2986)', () => {
+  // the daily bars of M.ABC 5m (the origin's, on the present basis): each day's RTH range
+  const dailyOf = (rows, scale = 1) => {
+    const by = new Map()
+    for (const b of rows) {
+      const et = new Date((b.t - 5 * 3600) * 1000)
+      const m = et.getUTCHours() * 60 + et.getUTCMinutes()
+      if (m < 570 || m >= 960) continue
+      const d = et.toISOString().slice(0, 10)
+      const x = by.get(d)
+      if (!x) by.set(d, { t: Date.parse(`${d}T00:00:00Z`) / 1000, o: b.o * scale, h: b.h * scale, l: b.l * scale, c: b.c * scale, v: b.v })
+      else { x.h = Math.max(x.h, b.h * scale); x.l = Math.min(x.l, b.l * scale); x.c = b.c * scale }
+    }
+    return [...by.values()]
+  }
+  for (const [name, scale, viaOrigin] of [['the same basis: the lake answers', 1, 0], ['a 2-for-1 the lake has not applied: the origin answers', 0.5, 1]]) {
+    it(name, async () => {
+      const o = originOf(M)
+      const h = net({ request: o.request, history: createHistoryFeed({ source: fakeSource(M, { through: LAKE_THROUGH }) }) })
+      const D = keyOf({ sym: 'ABC', tf: 'D' })
+      h.registry.dispatch(D, { type: 'rest-full', key: D, gen: h.registry.getSnapshot(D).gen, payload: { ticker: 'ABC', tf: 'D', bars: dailyOf(M.ABC[5], scale) } })
+      expect(h.registry.peek(D).bars.length, 'non-vacuity: the daily bars are held').toBeGreaterThan(40)
+      const K = winKey('ABC', '5', '2006-02-15')
+      h.network.start(K)
+      await h.run()
+      expect(o.urls.length).toBe(viaOrigin)
+      expect(h.network.windowSource(K)).toBe(viaOrigin ? 'origin' : 'lake')
+    })
+  }
+})

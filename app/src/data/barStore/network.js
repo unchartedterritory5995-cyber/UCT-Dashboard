@@ -382,7 +382,7 @@ export function createNetwork({
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
     // legacy warmers send it; never on a subscriber's own poll.
     const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
-    const viaLake = _windowFromLake(r, p) ? { fetch: (signal) => _windowRead(r, url, bars, priority, signal, { warm, front }), viaLake: true } : null
+    const viaLake = _windowFromLake(r, p) ? { fetch: (signal, rec) => _windowRead(r, url, bars, priority, signal, { warm, front, rec }), viaLake: true } : null
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -445,7 +445,7 @@ export function createNetwork({
   function _windowFromLake(r, p) {
     return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !r.windowLakeOff
   }
-  async function _windowRead(r, url, bars, priority, signal, { warm, front }) {
+  async function _windowRead(r, url, bars, priority, signal, { warm, front, rec = null }) {
     const p = parseKey(r.key)
     const abortErr = () => new DOMException('The load was aborted', 'AbortError')
     // the lake's answer: the payload, or null when the origin must answer (a refusal, a failure, a seam that disagrees)
@@ -454,8 +454,15 @@ export function createNetwork({
         ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null),
       (e) => { if (signal?.aborted) throw e; return null },   // the caller's abort; any other failure falls back
     )
-    // a chart that subscribed while the lake was read never rides a shed-able warm (`_tail`'s rule)
-    const plainUrl = () => (warm && r.refs > 0 ? url.replace(/&warm=1(?=&|$)/, '') : url)
+    // a chart that subscribed, or a non-warm ask that joined, while the lake was read never rides a shed-able warm (`_tail`)
+    const plainUrl = () => (warm && (r.refs > 0 || rec?.wantPlain) ? url.replace(/&warm=1(?=&|$)/, '') : url)
+    // ⭐ (review of #2986, F1) THE ORIGIN FALLBACK IS A LANE REQUEST: its record says so (url, and `warm` when it really
+    // leaves with `&warm=1`), so a joiner promotes or follows it up (`_tail`), a shed warm is never the chart's error
+    // (`quiet`), and a warm's `filling` answer arms no repeat (`_armFillRetry`)
+    const ask = (u, o) => {
+      if (rec) { rec.url = u; rec.warm = /[?&]warm=1(?:&|$)/.test(u); rec.sent = true }
+      return request(u, o)
+    }
     const refused = () => { r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
     const won = (src) => { _noteWindowSource(r.key, src) }
     // ⭐ (measured 2026-11-28, 12 cold tickers at random dates, production) A COLD LAKE IS SLOWER THAN THE ORIGIN: the
@@ -468,7 +475,7 @@ export function createNetwork({
       if (signal?.aborted) throw abortErr()
       if (v) { won('lake'); return v }
       refused()
-      return request(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+      return ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
     }
     let timer = null
     const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
@@ -477,13 +484,13 @@ export function createNetwork({
     if (first && first !== HEAD_START) { won('lake'); return first }
     if (first === null) {
       refused()
-      return request(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+      return ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
     }
     // the lake is slow: the origin beside it
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     const onAbort = () => { try { ac?.abort() } catch { /* aborted */ } }
     signal?.addEventListener?.('abort', onAbort, { once: true })
-    const origin = request(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
+    const origin = ask(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
       .then((o) => ({ o }), (e) => ({ e }))
     try {
       const v = await Promise.race([
@@ -501,13 +508,20 @@ export function createNetwork({
   }
   /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
    *  last shared one, the 2% rule)? True when none are shared. */
+  // ⛔ (review of #2986) ...AND THE DAILY SERIES THE PAGE HOLDS. A window in 2006 shares no bar with the present
+  // intraday series, so a split the lake's table has not caught up with (published a session behind) cannot show on an
+  // intraday seam. The symbol's held DAILY bars (the origin's, on the present basis; a D chart at a date reads the plain
+  // key) span the window's days: each shared day's last regular-session close must sit inside that day's daily range
+  // (2% slack). A split moves every lake price by its ratio, far outside it: the origin answers.
   function _windowSeamOk(key, rows) {
     const at = key.indexOf('@to=')
     for (const k of [key, at > 0 ? key.slice(0, at) : null]) {
       const held = k ? registry.peek(k)?.bars : null
       if (held?.length && !_seamAgrees(held, rows)) return false
     }
-    return true
+    const p = parseKey(key)
+    const daily = p ? registry.peek(`${p.sym}_D`)?.bars : null
+    return !daily?.length || _dailyAgrees(daily, rows)
   }
 
   /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
@@ -760,9 +774,9 @@ export function createNetwork({
     r.lastStart = now()
     requests++
     // Read at failure time: the lane may have rewritten a queued warm into a non-warm request.
-    // (a window read from the lake first is no lane request: a joiner never promotes or follows it up, `_tail`; its origin
-    // fallback drops `&warm=1` itself once a chart holds the key, `_windowRead`)
-    const rec = { ac, kind, promise: null, url, priority, warm: !viaLake && /[?&]warm=1(?:&|$)/.test(url), followUp: null, viaLake }
+    // (review of #2986, F1) a window read from the lake first is no lane request until its origin fallback leaves
+    // (`_windowRead` then marks this record: its url, and `warm` when it leaves with `&warm=1`)
+    const rec = { ac, kind, promise: null, url, priority, warm: !viaLake && /[?&]warm=1(?:&|$)/.test(url), followUp: null, viaLake, sent: !viaLake, wantPlain: false }
     // ⛔ A SHED WARM IS NOT THE CHART'S ERROR. A best-effort `&warm=1` that failed while a chart
     // subscribes to the key says nothing about the chart's data: no REST_ERROR (the chart's own
     // non-warm request, queued behind it, owns the answer).
@@ -771,7 +785,7 @@ export function createNetwork({
       let json
       try {
         json = fetchFn
-          ? await fetchFn(ac?.signal ?? null)
+          ? await fetchFn(ac?.signal ?? null, rec)
           : await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
@@ -835,6 +849,8 @@ export function createNetwork({
     const inf = r.inflight
     if (inf?.kind === 'tail') {
       const best = _best(inf.priority, priority)
+      // (review of #2986, F1) a window still reading the lake: a non-warm joiner makes its origin fallback non-warm
+      if (inf.viaLake && !inf.sent && !opts.warm) inf.wantPlain = true
       // ⛔ A NON-WARM CALLER NEVER RIDES A `&warm=1` REQUEST (#1118 finding 4): the server may
       // shed a warm, and the chart would get 'warming' for its own data.
       if (inf.warm && !opts.warm) {
@@ -1250,6 +1266,35 @@ export function _seamAgrees(held, rows) {
     if (j < rows.length && rows[j].t === h.t && _closeMismatch(h, rows[j])) return false
   }
   return true
+}
+
+/** Do intraday `rows` agree with held `daily` bars (unix t, a UTC-midnight date)? Each ET day both hold: its last bar
+ *  starting before 16:00 ET closes inside the day's [low, high] with 2% slack. True when they share no day. Reads at
+ *  most the first and the last shared day (a split moves them all). */
+export function _dailyAgrees(daily, rows) {
+  if (!daily?.length || !rows?.length) return true
+  const byDay = new Map()
+  for (const b of daily) byDay.set(new Date(b.t * 1000).toISOString().slice(0, 10), b)
+  const closes = new Map()   // ET day -> its last regular-session close
+  for (const r of rows) {
+    const d = etDateOf(r.t)
+    if (!d || !byDay.has(d)) continue
+    const m = _etMinute(r.t)
+    if (m >= 570 && m < 960) closes.set(d, r.c)
+  }
+  const days = [...closes.keys()].sort()
+  for (const d of days.length > 1 ? [days[0], days[days.length - 1]] : days) {
+    const b = byDay.get(d), c = closes.get(d)
+    if (!(c >= b.l * 0.98 && c <= b.h * 1.02)) return false
+  }
+  return true
+}
+let _etMinFmt = null
+function _etMinute(unixSec) {
+  if (!_etMinFmt) _etMinFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+  const parts = _etMinFmt.formatToParts(new Date(unixSec * 1000))
+  const h = Number(parts.find((x) => x.type === 'hour')?.value), mi = Number(parts.find((x) => x.type === 'minute')?.value)
+  return h * 60 + mi
 }
 
 const _RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
