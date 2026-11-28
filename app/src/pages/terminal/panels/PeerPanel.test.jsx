@@ -69,7 +69,22 @@ describe('PeerPanel', () => {
     expect(screen.getByTestId('terminal-peer-group').textContent).toBe('AI / GPU Chips')
     expect(screen.getByTestId('terminal-peer-source').textContent).toBe('UCT theme')
     expect(screen.getByTestId('terminal-peer-also').textContent).toContain('Semiconductors')
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/groups/peers?sym=NVDA&n=12', undefined)
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/groups/peers?sym=NVDA&n=12&prefer=licensed', undefined)
+  })
+
+  it('licensed peers (held Massive related companies) say where they come from', async () => {
+    serve({
+      [peersUrl('NVDA')]: { seed: 'NVDA', group_id: null, group_name: 'Related companies', source: 'licensed',
+        source_name: 'Massive related companies', as_of: '2026-11-27T02:15:00Z', peers: ['AMD', 'AVGO', 'INTC'] },
+      [PERF_URL]: {},
+    })
+    renderPanel()
+    const table = await screen.findByTestId('terminal-peer-table')
+    expect(within(table).getAllByRole('row').slice(1).map((r) => r.getAttribute('data-testid'))).toEqual(
+      ['terminal-peer-row-NVDA', 'terminal-peer-row-AMD', 'terminal-peer-row-AVGO', 'terminal-peer-row-INTC'])
+    expect(screen.getByTestId('terminal-peer-group').textContent).toBe('Related companies')
+    expect(screen.getByTestId('terminal-peer-source').textContent).toBe('Licensed data from Massive')
+    expect(screen.queryByTestId('terminal-peer-also')).toBeNull()
   })
 
   it('a failed peer read is an error with Retry, never "no peers"', async () => {

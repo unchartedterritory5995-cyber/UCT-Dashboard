@@ -53,8 +53,13 @@ def group_top(group_id: str, n: int = Query(9, ge=1, le=16), by: str = Query("to
 
 @router.get("/api/groups/peers")
 def group_peers(sym: str = Query(..., max_length=12), n: int = Query(8, ge=1, le=16),
+                prefer: str = Query("", max_length=16),
                 _user: dict = Depends(require_paid)):
+    # prefer=licensed (the Terminal's PEER): the held Massive related-companies list
+    # first, today's peer engine as the fallback. Anything else: today's engine only.
     try:
+        if prefer == "licensed":
+            return svc.resolve_peers(sym, n, prefer_licensed=True)
         return svc.resolve_peers(sym, n)
     except Exception as e:
         return JSONResponse(status_code=503, content={"error": f"groups unavailable: {e}"})

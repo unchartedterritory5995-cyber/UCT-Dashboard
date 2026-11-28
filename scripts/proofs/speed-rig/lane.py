@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"
 TOKENISH = re.compile(r"((?:token|access_token|auth|apikey|api_key|signature|secret|password|uct_session|uct_chart_edge|uct_chart_speed)=)[^&\"'\s;,]+", re.I)
-TEXT = (".json", ".log", ".txt", ".md", ".jsonl")
+TEXT = (".json", ".log", ".txt", ".md", ".jsonl", ".cpuprofile")   # a CPU profile is JSON: its URLs are scrubbed like any record
 PASS_TIMEOUT_S = 900
 
 

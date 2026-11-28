@@ -398,6 +398,13 @@ def _fetch_pt_target(ticker: str):
     return val
 
 
+#: Gap audit P1 / R3 (UPDG's history): the upgrade and downgrade rows the grade-actions leg already read,
+#: per ticker, inside its 30-day window, held until ``run_pass`` hands them to ``api/services/analyst_history``
+#: after the ticker's own row has committed. Only ``run_pass`` ever drains it (a direct ``fetch_one`` call in a
+#: test writes nothing anywhere); it is cleared at the start of every run. No vendor call is added.
+_grade_rows: dict = {}
+
+
 def _fetch_grade_actions_30d(ticker: str):
     """``/stable/grades?limit=40`` → (upgrades, downgrades) among rows whose
     ``action`` is upgrade/downgrade and whose ``date`` is within 30 days of
@@ -409,6 +416,7 @@ def _fetch_grade_actions_30d(ticker: str):
         return None, None
     cutoff = _now_et().date() - datetime.timedelta(days=30)
     upgrades = downgrades = 0
+    kept = []
     for row in data:
         if not isinstance(row, dict):
             continue
@@ -422,10 +430,12 @@ def _fetch_grade_actions_30d(ticker: str):
             continue
         if d < cutoff:
             continue
+        kept.append(row)
         if action == "upgrade":
             upgrades += 1
         else:
             downgrades += 1
+    _grade_rows[(ticker or "").upper().strip()] = (kept, cutoff.isoformat())
     return upgrades, downgrades
 
 
@@ -670,6 +680,7 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
     deadline = _deadline_et(started)
 
     init_db()
+    _grade_rows.clear()
 
     act = actives()
     universe = _cap_universe()
@@ -704,6 +715,7 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
         except Exception as exc:  # noqa: BLE001
             log.warning("[analyst_pass] fetch_one raised for %s: %s", ticker, exc)
             row = None
+        grades = _grade_rows.pop(str(ticker).upper().strip(), None)
         if row is None:
             errors += 1
         else:
@@ -720,6 +732,14 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
                 timeline_errors += 1
                 log.warning("[analyst_pass] timeline append failed for %s: %s",
                             ticker, exc)
+            # Gap audit P1 / R3: the dated rows behind UPDG's history, AFTER the screener's own row and the
+            # timeline; `record_fmp_grades` never raises, and this try is the second wall.
+            if grades:
+                try:
+                    from api.services import analyst_history
+                    analyst_history.record_fmp_grades(ticker, grades[0], since=grades[1])
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("[analyst_pass] analyst history write failed for %s: %s", ticker, exc)
         if gap > 0 and i < len(ordered) - 1:
             time.sleep(gap)
 

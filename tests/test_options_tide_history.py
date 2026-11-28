@@ -81,11 +81,18 @@ class Tape:
         return dict(v)
 
 
+def _no_day_read(path, day, add):
+    raise AssertionError(f"the catch-up read {path} for {day}; these tests leave no session missing")
+
+
 @pytest.fixture
 def tape(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     t = Tape()
     monkeypatch.setattr(mt, "build", t.build)
+    # the catch-up's one-day read (test_options_tide_history_catchup.py covers it); a test here
+    # that leaves a session missing inside the window would reach it, and must not
+    monkeypatch.setattr(th, "_read_day", _no_day_read)
     return t
 
 
@@ -522,5 +529,7 @@ def test_the_route_reads_the_store_only(client, monkeypatch, tape):
 
     for name in ("build", "get", "_read", "extras"):
         monkeypatch.setattr(mt, name, never)
+    for name in ("_read_day", "catch_up", "capture"):
+        monkeypatch.setattr(th, name, never)
     r = client.get(URL)
     assert r.status_code == 200 and r.json()["sessions"][0]["session"] == WED

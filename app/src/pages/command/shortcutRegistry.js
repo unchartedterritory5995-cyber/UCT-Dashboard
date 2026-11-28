@@ -539,6 +539,15 @@ export const SHORTCUTS = Object.freeze([
     observe: true,
     target: 'window', capture: true, inEditable: true, repeat: true,
     why: 'Ticker popup: note which layers are open before any closes.',
+  }),  // ── the board keep-alive (components/chart/boardVisibility.js, review of #3052) ──
+  // An OBSERVER: every key on the page restarts the kept boards' quiet clock, so no hidden board's catch-up runs
+  // within KEPT_QUIET_MS of a press. Window capture, before any handler can stop the key.
+  decl({
+    id: 'board.keptQuietClock',
+    chord: { any: true },
+    observe: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Board keep-alive: a press holds the hidden board catch-up off for half a second.',
   }),
 ])
 

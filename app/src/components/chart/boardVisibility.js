@@ -48,6 +48,7 @@
 //
 // No provider (today, and with the flag off): the context is null and every chart behaves exactly as before.
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 
 export const BoardVisibilityContext = createContext(null)
 
@@ -238,8 +239,9 @@ function ensureInputClock() {
   if (_inputClock || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return
   _inputClock = true
   const note = () => { _lastInput = Date.now() }
+  // keys through the shortcut registry (a declared every-key observer: TERM-063 counts raw key listeners)
+  try { registerShortcuts({ 'board.keptQuietClock': note }) } catch { /* registered already: one clock per page */ }
   const o = { capture: true, passive: true }
-  window.addEventListener('keydown', note, o)
   window.addEventListener('pointerdown', note, o)
   window.addEventListener('wheel', note, o)
 }

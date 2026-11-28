@@ -302,6 +302,33 @@ describe('TIDEH the answer', () => {
     expect(five.textContent).toBe('Not summed: no tide was stored for Mon Nov 16, inside these 5 sessions.')
   })
 
+  it('a session recovered later says so under its day and in a plain note; one missing for good is named apart', async () => {
+    serve({ [URL]: answer([WED, { ...TUE, source: 'catchup' }, MON, FRI], {
+      missing_sessions: ['2026-11-12'], recovered_sessions: ['2026-11-17'],
+      missing_for_good: [{ session: '2026-11-12', reason: 'The tape holds no stocks prints for 2026-11-12.' }],
+    }) })
+    renderPanel()
+    await screen.findByTestId('terminal-tideh-table')
+    expect(screen.getAllByTestId('terminal-tideh-prints').map((el) => el.textContent)).toEqual(
+      ['2,040 prints', '1,200 prints, recovered later', '1,200 prints', '1,200 prints'])
+    expect(screen.getAllByTestId('terminal-tideh-recovered-row')).toHaveLength(1)
+    const note = screen.getByTestId('terminal-tideh-recovered')
+    expect(note.textContent).toBe('Tue Nov 17 was missed after its close and recovered later from the tape, which still held all of that day.')
+    expect(note.className).not.toContain('note')                         // a plain muted line, not an alert
+    expect(screen.getByTestId('terminal-tideh-for-good').textContent).toBe(
+      'Thu Nov 12 is missing for good: the tape was read again later and did not hold all of that day.')
+    expect(screen.getByTestId('terminal-tideh-missing').textContent).toContain('No tide was stored for Thu Nov 12.')
+    expect(document.body.textContent).not.toContain('The tape holds no stocks prints')   // the server's reason stays on the server
+    expect(document.querySelector('[role="alert"]')).toBeNull()
+    cleanup()
+    serve({ [URL]: answer(FIVE) })
+    renderPanel()
+    await screen.findByTestId('terminal-tideh-table')
+    expect(screen.queryByTestId('terminal-tideh-recovered')).toBeNull()
+    expect(screen.queryByTestId('terminal-tideh-for-good')).toBeNull()
+    expect(document.body.textContent).not.toContain('recovered later')
+  })
+
   it('a day that left unreadable prints out says how many under the day, and the note says what that means', async () => {
     const LEFT_OUT = 'Prints marked left out had no usable time, premium or call/put on the tape, so they are not in that day\u2019s figures.'
     serve({ [URL]: answer([{ ...WED, prints_unreadable: 3 }, { ...TUE, prints_unreadable: 0 }, MON]) })
@@ -490,6 +517,12 @@ describe('TIDEH accessibility', () => {
     serve({ [URL]: answer([WED, TUE, FRI], { missing_sessions: ['2026-11-16'] }) })
     renderPanel()
     await screen.findByTestId('terminal-tideh-missing')
+    await expectNoAxeViolations(document.body.firstElementChild)
+    cleanup()
+    serve({ [URL]: answer([WED, { ...TUE, source: 'catchup' }, FRI], { missing_sessions: ['2026-11-16'], recovered_sessions: ['2026-11-17'],
+      missing_for_good: [{ session: '2026-11-16', reason: 'r' }] }) })
+    renderPanel()
+    await screen.findByTestId('terminal-tideh-recovered')
     await expectNoAxeViolations(document.body.firstElementChild)
     cleanup()
     serve({ [URL]: many(28) })
