@@ -2231,7 +2231,8 @@ async def get_bars_history(
     # (2026-11-25) ...on this route's OWN limiter, never the default pool every sync route shares (see
     # BARS_HISTORY_THREADS), and gzipped there too, off the event loop.
     def _serve_and_pack(accept_encoding: str, inm: str):
-        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm, partial=fell_back),
+        extra = {"partial": True} if fell_back else {}
+        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm, **extra),
                                 accept_encoding)
     return await _history_thread(_serve_and_pack, request.headers.get("accept-encoding", ""),
                                  request.headers.get("if-none-match", ""))
