@@ -1316,12 +1316,17 @@ export function createPrefetch(o = {}) {
       const offEntry = reg.subscribe(key, wake, { wake: 'all' })
       let offAnswered = null
       try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      // (2026-11-28) ...and on its depth SETTLING (network.subscribeSettled): a history join or a lake load that added
+      // nothing moves no entry, and is exactly how a waiter learns nothing more is coming (deepPending / lakePending false)
+      let offSettled = null
+      try { offSettled = st.network?.subscribeSettled?.(key, wake) || null } catch { offSettled = null }
       let set = watchers.get(key)
       if (!set) { set = new Set(); watchers.set(key, set) }
       set.add(wake)
       return () => {
         try { offEntry() } finally {
           if (offAnswered) offAnswered()
+          if (offSettled) offSettled()
           set.delete(wake)
           if (!set.size && watchers.get(key) === set) watchers.delete(key)
         }
