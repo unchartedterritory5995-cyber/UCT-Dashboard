@@ -203,8 +203,21 @@ def enabled1() -> bool:
         "1", "true", "yes", "on")
 
 
+#: A FOLLOWER process of a multi-process bars-api (`bars_api_roles`) answers every coverage question from the
+#: LEADER's published view (the leader is the only process the web pod's pushes are applied in). None = this
+#: process owns the live store itself (the single process, or the leader).
+_view = None
+
+
+def install_view(view) -> None:
+    global _view
+    _view = view
+
+
 def m1_alive() -> bool:
     """The forwarder is carrying minutes (`m1`): its last push with them is recent."""
+    if _view is not None:
+        return _view.m1_alive()
     t = _s1["m1_last_push_mono"]
     return t is not None and (_now_mono() - t) <= STREAM_ALIVE_S
 
@@ -214,6 +227,8 @@ def _now_mono() -> float:
 
 
 def stream_alive() -> bool:
+    if _view is not None:
+        return _view.stream_alive()
     t = _state["last_push_mono"]
     return t is not None and (_now_mono() - t) <= STREAM_ALIVE_S
 
@@ -281,25 +296,30 @@ def proven_through_s(ticker: str, tf: str = "5") -> Optional[int]:
     if not enabled():
         return None
     sym = (ticker or "").upper()
+    v = _view.view() if _view is not None else None
     if tf == "1":
-        if not enabled1() or sym not in _covered1 or not stream_alive() or not m1_alive():
+        cov1 = v.get("covered1", ()) if v is not None else _covered1
+        if not enabled1() or sym not in cov1 or not stream_alive() or not m1_alive():
             return None
-        wm = _s1["m1_watermark_ms"]
+        wm = v.get("m1_watermark_ms") if v is not None else _s1["m1_watermark_ms"]
     else:
-        if sym not in _covered5 or not stream_alive():
+        cov5 = v.get("covered5", ()) if v is not None else _covered5
+        if sym not in cov5 or not stream_alive():
             return None
-        wm = _state["watermark_ms"]
+        wm = v.get("watermark_ms") if v is not None else _state["watermark_ms"]
     if not wm:
         return None
     market = int(wm) // 1000 + 60
     key = "1" if tf == "1" else "5"
-    own = _own_last[key].get(sym)
+    own = (v.get("own_last", {}).get(key, {}) if v is not None else _own_last[key]).get(sym)
     quiet = int(_now_wall() - LIVE_LATE_S)
     mine = quiet if own is None else max(own + (MINUTE_S if key == "1" else BUCKET_S), quiet)
     return min(market, mine)
 
 
 def daily_alive() -> bool:
+    if _view is not None:
+        return _view.daily_alive()
     t = _state["daily_last_ok_mono"]
     return t is not None and (_now_mono() - t) <= DAILY_ALIVE_S
 
@@ -309,6 +329,8 @@ def covered(ticker: str, tf: str) -> bool:
     if not enabled():
         return False
     sym = (ticker or "").upper()
+    if _view is not None:
+        return _covered_from_view(sym, tf)
     if tf == "5":
         if sym in _covered5:
             return stream_alive()
@@ -329,6 +351,81 @@ def covered(ticker: str, tf: str) -> bool:
         _want1(sym)
         return False
     return False
+
+
+def _covered_from_view(sym: str, tf: str) -> bool:
+    """`covered` in a FOLLOWER: the leader's view answers, and an uncovered ticker is handed to the leader's
+    repair queue (the same urgent queue a read in the leader feeds), off this thread and deduped."""
+    v = _view.view()
+    if tf == "5":
+        if sym in v.get("covered5", ()):
+            return stream_alive()
+        _view.want(sym, "5")
+        return False
+    if tf == "D":
+        return daily_alive() and sym in v.get("daily_seen", ()) and _daily_contiguous(sym)
+    if tf == "1":
+        if not enabled1():
+            return False
+        if sym in v.get("covered1", ()):
+            return stream_alive() and m1_alive()
+        if stream_alive() and m1_alive():
+            try:
+                from api.services import bars_fetch
+                if not bars_fetch._request_is_interactive():
+                    return False
+            except Exception:  # noqa: BLE001
+                return False
+            _view.want(sym, "1")
+        return False
+    return False
+
+
+def want_from_follower(sym: str, tf: str) -> None:
+    """A FOLLOWER's read found `sym` uncovered for `tf` (the leader's side of `_covered_from_view`). The
+    follower already applied the interactive-read rule for 1m."""
+    sym = (sym or "").upper()
+    if not sym or not enabled():
+        return
+    if tf == "5":
+        if sym in _covered5 or sym in _urgent_set:
+            return
+        with _lock:
+            if sym not in _urgent_set:
+                _urgent_set.add(sym)
+                _urgent.append(sym)
+        _backfill_wakeup.set()
+    elif tf == "1" and enabled1() and stream_alive() and m1_alive():
+        with _lock:
+            if _state["epoch_ms"] is None or _retry1_after.get(sym, 0.0) > _now_mono():
+                return
+            if sym in _covered1 or sym in _queued1 or sym in _repairing1:
+                return
+            _queued1.add(sym)
+            _urgent1.append(sym)
+        _m1_wakeup.set()
+
+
+def export_view() -> dict:
+    """What a FOLLOWER needs to answer coverage exactly as this process would (`bars_api_roles.publish_view`).
+    Monotonic times become wall-clock times (another process's monotonic clock is not this one's to compare)."""
+    now_m, now_w = _now_mono(), _now_wall()
+
+    def wall(t):
+        return None if t is None else now_w - (now_m - t)
+    with _lock:
+        return {
+            "v": 1, "at": now_w, "pid": os.getpid(),
+            "covered5": frozenset(_covered5), "history5_complete": frozenset(_history5_complete),
+            "daily_seen": frozenset(_daily_seen), "covered1": frozenset(_covered1),
+            "history1_complete": frozenset(_history1_complete),
+            "own_last": {"1": dict(_own_last["1"]), "5": dict(_own_last["5"])},
+            "watermark_ms": _state["watermark_ms"], "m1_watermark_ms": _s1["m1_watermark_ms"],
+            "epoch_ms": _state["epoch_ms"],
+            "last_push_wall": wall(_state["last_push_mono"]), "m1_last_push_wall": wall(_s1["m1_last_push_mono"]),
+            "daily_last_ok_wall": wall(_state["daily_last_ok_mono"]),
+            "stream_alive_s": STREAM_ALIVE_S, "daily_alive_s": DAILY_ALIVE_S,
+        }
 
 
 def _want1(sym: str) -> None:
@@ -392,6 +489,11 @@ def _daily_contiguous(sym: str) -> bool:
 
 
 def history_complete(ticker: str, tf: str) -> bool:
+    if _view is not None:
+        v = _view.view()
+        if tf == "1":
+            return enabled1() and (ticker or "").upper() in v.get("history1_complete", ())
+        return tf == "5" and (ticker or "").upper() in v.get("history5_complete", ())
     if tf == "1":
         return enabled1() and (ticker or "").upper() in _history1_complete
     return tf == "5" and (ticker or "").upper() in _history5_complete
@@ -1724,8 +1826,9 @@ def status() -> dict:
 
 
 def _reset_for_tests() -> None:
-    global _restored
+    global _restored, _view
     _restored = None
+    _view = None
     _ckpt.update({"last_mono": None, "saves": 0, "save_errors": 0, "loaded": None, "adopted": 0})
     with _lock:
         for k in _state:

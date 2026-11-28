@@ -244,6 +244,22 @@ def _tune_interpreter() -> None:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     _tune_interpreter()          # first: before any of the threads below exists
+    # ⭐ SEVERAL PROCESSES (BARS_API_WORKERS > 1, capacity-500): one LEADER runs everything below, exactly as the
+    # single process did; every other process is a FOLLOWER that only serves reads (api/services/bars_api_roles.py
+    # says why each piece must stay single). Unset / 1 = "solo": the same work, in the same order, as before.
+    from api.services import bars_api_roles
+    if bars_api_roles.elect() == "follower":
+        bars_api_roles.start_follower_services(_start_background_work)
+        _log.info("[bars-api] serving tier UP (follower) - /api/bars + /api/bars-history")
+        yield
+        return
+    _start_background_work()
+    bars_api_roles.start_leader_services()      # a no-op in the single process
+    yield
+
+
+def _start_background_work() -> None:
+    """Everything the single process starts after the interpreter tuning (the leader's work)."""
     # ⭐ Install the DB in a BACKGROUND THREAD (uvicorn has already bound the port,
     # so Railway's readiness check is satisfied — running the install BEFORE uvicorn
     # made the port bind too late and Railway restart-looped the container at ~40s).
@@ -316,7 +332,6 @@ async def _lifespan(app: FastAPI):
         _log.warning("[bars-api] bars-corrections sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no universe warmers, no uploader, no WS; index warm on)")
-    yield
 
 
 # -- currency pairs (Bitcoin, 2026-11-19): this tier hands them to the web pod ----------
@@ -397,8 +412,10 @@ def _build_app() -> FastAPI:
     from api.bars_auth import require_bars_service
 
     def _health():
+        from api.services import bars_api_roles
         return {"alive": True, "service": "bars-api",
-                "threads": threading.active_count(), "rss_mb": _rss_mb()}
+                "threads": threading.active_count(), "rss_mb": _rss_mb(),
+                "role": bars_api_roles.role(), "pid": os.getpid(), "workers": bars_api_roles.workers()}
 
     @app.get("/api/health")
     def health():
@@ -442,14 +459,42 @@ def _build_app() -> FastAPI:
     # Universe live bars feed from the web pod. GATED: the edge only routes
     # /api/bars*, so no member browser reaches /internal/*, and only the web pod
     # (PUSH_SECRET) may write bars into this tier.
+    # ⭐ In a FOLLOWER process the push and the status are the LEADER's (the only process the live store runs
+    # in): the body is handed over verbatim on the leader's loopback port and its answer returned, so the web
+    # pod's flusher sees exactly what it saw from one process (a 503 = re-queue, `bars_live_ingest.requeue`).
+    from fastapi import Request
+    from fastapi.responses import Response
+
     @app.post("/internal/live-bars")
-    def live_bars_ingest(payload: dict, _svc: dict = Depends(require_bars_service)):
-        from api.services import bars_live_store
-        return bars_live_store.ingest(payload)
+    async def live_bars_ingest(request: Request, _svc: dict = Depends(require_bars_service)):
+        from api.services import bars_api_roles, bars_live_store
+        body = await request.body()
+        if bars_api_roles.role() == "follower":
+            import anyio
+            code, out = await anyio.to_thread.run_sync(
+                bars_api_roles.forward_to_leader, "POST", "/internal/live-bars", body,
+                request.headers.get("authorization", ""))
+            return Response(content=out, status_code=code, media_type="application/json")
+        import json as _json
+        import anyio
+        try:
+            payload = _json.loads(body or b"{}")
+        except ValueError:
+            return Response(content=b'{"detail":"body is not JSON"}', status_code=400, media_type="application/json")
+        if not isinstance(payload, dict):
+            return Response(content=b'{"detail":"body must be an object"}', status_code=422,
+                            media_type="application/json")
+        out = await anyio.to_thread.run_sync(bars_live_store.ingest, payload)
+        bars_api_roles.publish_view()            # a no-op unless this process leads several
+        return out
 
     @app.get("/internal/live-status")
-    def live_bars_status(_svc: dict = Depends(require_bars_service)):
-        from api.services import bars_live_store
+    def live_bars_status(request: Request, _svc: dict = Depends(require_bars_service)):
+        from api.services import bars_api_roles, bars_live_store
+        if bars_api_roles.role() == "follower":
+            code, out = bars_api_roles.forward_to_leader("GET", "/internal/live-status", b"",
+                                                         request.headers.get("authorization", ""))
+            return Response(content=out, status_code=code, media_type="application/json")
         return bars_live_store.status()
 
     # ⛔ NO GATE HERE ON PURPOSE — the edge routes member browsers to this route.
@@ -514,8 +559,28 @@ def main() -> None:
     # The DB install runs in a background thread from the lifespan (AFTER uvicorn
     # binds the port), so the container passes Railway's readiness check immediately.
     port = int(os.environ.get("PORT", "8080"))
+    from api.services import bars_api_roles
+    n = bars_api_roles.workers()
+    if n > 1:
+        # One listening socket, N processes (uvicorn's supervisor spawns them and replaces one that dies);
+        # each builds the app itself through the factory and elects its role in the lifespan.
+        _log.info("[bars-api] starting %d worker processes on one socket (BARS_API_WORKERS)", n)
+        uvicorn.run("api.bars_api_main:_build_worker_app", factory=True, workers=n, host="0.0.0.0",
+                    port=port, log_level="info", timeout_graceful_shutdown=5)
+        return
     uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
+
+
+def _build_worker_app() -> FastAPI:
+    """The app of ONE worker process of several (uvicorn factory). A spawned worker never ran `main()`, so it
+    sets up the same logging first (root INFO, httpx quiet, credential redaction on the new handlers)."""
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO)
+        _install_log_redaction()
+        for _noisy in ("httpx", "httpcore"):
+            logging.getLogger(_noisy).setLevel(logging.WARNING)
+    return _build_app()
 
 
 if __name__ == "__main__":

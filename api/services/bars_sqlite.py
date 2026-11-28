@@ -112,6 +112,41 @@ def bump_db_epoch() -> None:
         _db_epoch += 1
 
 
+#: ⭐ SEVERAL bars-api PROCESSES on one volume (`bars_api_roles`, BARS_API_WORKERS > 1): only the LEADER replaces
+#: the store file (install, clustered adoption, legacy replace-pull) and bumps `_db_epoch`, which is per process.
+#: A follower's connections would keep reading the replaced (unlinked) inode forever, so in that mode every
+#: thread also re-checks the file's identity (device, inode) at most every FILE_IDENTITY_CHECK_S and re-opens
+#: when it changed. One `os.stat` a second per thread; off (no stat at all) in the single process.
+FILE_IDENTITY_CHECK_S = 1.0
+
+
+def _multiprocess_tier() -> bool:
+    try:
+        return int(str(os.environ.get("BARS_API_WORKERS", "1")).strip() or 1) > 1
+    except ValueError:
+        return False
+
+
+def _file_identity():
+    try:
+        st = os.stat(_DB_PATH)
+        return (st.st_dev, st.st_ino)
+    except OSError:
+        return None
+
+
+def _identity_moved() -> bool:
+    """True when this thread's open connection is to a store file that is no longer at `_DB_PATH`."""
+    if getattr(_local, "conn", None) is None or not _multiprocess_tier():
+        return False
+    now = time.monotonic()
+    if now - getattr(_local, "ident_checked", 0.0) < FILE_IDENTITY_CHECK_S:
+        return False
+    _local.ident_checked = now
+    cur = _file_identity()
+    return cur is not None and getattr(_local, "ident", None) is not None and cur != _local.ident
+
+
 def _conn() -> sqlite3.Connection:
     # Snapshot the global ONCE per call so a concurrent bump (single-writer:
     # only the puller calls bump_db_epoch) can't make us stamp an already-
@@ -119,7 +154,7 @@ def _conn() -> sqlite3.Connection:
     # NEXT call sees the gap and reconnects. Better than holding a connection
     # we believe is current when it's not.
     cur_epoch = _db_epoch
-    if getattr(_local, "epoch", -1) != cur_epoch:
+    if getattr(_local, "epoch", -1) != cur_epoch or _identity_moved():
         # bars.db has been replaced since this thread last touched it.
         # Close the stale connection so a fresh one opens below.
         old = getattr(_local, "conn", None)
@@ -177,6 +212,8 @@ def _conn() -> sqlite3.Connection:
         c.execute("PRAGMA mmap_size=268435456")
         c.execute("PRAGMA temp_store=MEMORY")
         _local.conn = c
+        _local.ident = _file_identity() if _multiprocess_tier() else None
+        _local.ident_checked = time.monotonic()
     return _local.conn
 
 
