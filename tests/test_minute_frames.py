@@ -432,6 +432,30 @@ def test_the_daily_section_round_trips_exactly_and_is_absent_unless_given():
         assert "daily" not in plain and not plain["flags"] & mf.FLAG_DAILY
 
 
+def test_daily_rows_with_the_prev_close_round_trip_and_set_their_flag():
+    """Review of PR 3.4 (MEDIUM): the DAILY rows carry the snapshot's prevDay close, so a device can refuse a row whose
+    basis moved overnight (a split its seed does not know). 5-value rows set no flag and decode as before."""
+    m = 29_000_000
+    daily = {"AAPL": (150.01, 151.25, 149.5, 150.37, 51_234_567.0, 149.12), "X": (1.0, 2.0, 0.5, 1.5, 9.0, None)}
+    fr = mf.decode_frame(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
+                                         blocks=[(m, mf.KIND_ONTIME, {})], daily=daily))
+    assert fr["flags"] & mf.FLAG_DAILY_PREV
+    assert fr["daily"]["AAPL"] == daily["AAPL"]
+    assert fr["daily"]["X"][:5] == daily["X"][:5] and fr["daily"]["X"][5] is None
+    plain = mf.decode_frame(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
+                                            blocks=[(m, mf.KIND_ONTIME, {})], daily={"A": (1.0, 2.0, 0.5, 1.5, 9.0)}))
+    assert not plain["flags"] & mf.FLAG_DAILY_PREV and plain["daily"]["A"] == (1.0, 2.0, 0.5, 1.5, 9.0)
+
+
+def test_the_snapshot_rows_carry_the_prev_day_close():
+    snap = {"tickers": [
+        {"ticker": "AAPL", "day": {"o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100}, "prevDay": {"c": 1.4}},
+        {"ticker": "NOPD", "day": {"o": 3, "h": 4, "l": 2.5, "c": 3.5, "v": 7}},
+    ]}
+    assert mfp.snapshot_daily_rows(snap, 20261130) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100, 1.4),
+                                                       "NOPD": (3.0, 4.0, 2.5, 3.5, 7, None)}
+
+
 def test_a_reader_that_ignores_the_daily_flag_refuses_the_frame_never_misreads_it():
     m = 29_000_000
     raw = bytearray(mf.encode_frame(day=20261120, seq=720, prev_seq=719, epoch=1, minute=m,
@@ -507,7 +531,7 @@ def test_the_daily_rows_are_bars_apis_own_parse_of_the_snapshot():
     snap = {"tickers": [{"ticker": "BRK.B", "day": {"o": 570, "h": 571.25, "l": 568.5, "c": 570, "v": 6608999.7}},
                         {"ticker": "PRE", "day": {"o": 0, "h": 0, "l": 0, "c": 0, "v": 0}},
                         {"ticker": "BCpC", "day": {"o": 20.5, "h": 21, "l": 20, "c": 20.55, "v": 10}}]}
-    assert mfp.snapshot_daily_rows(snap, 20261120) == {"BRK-B": (570.0, 571.25, 568.5, 570.0, 6608999)}
+    assert mfp.snapshot_daily_rows(snap, 20261120) == {"BRK-B": (570.0, 571.25, 568.5, 570.0, 6608999, None)}
     import inspect
     assert "daily_rows_from_snapshot" in inspect.getsource(mfp.snapshot_daily_rows)
 
@@ -566,8 +590,8 @@ def test_the_poll_reads_today_only_from_the_open_and_only_once_the_session_opene
     monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: opened["v"])
     at = lambda h, m: fx._unix("2026-11-20", h, m)                          # noqa: E731
     assert mfp.poll_daily_once(at(9, 29)) is None and calls == []           # before the open: no read
-    assert mfp.poll_daily_once(at(9, 30)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100)})
-    assert mfp.poll_daily_once(at(16, 0)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100)})
+    assert mfp.poll_daily_once(at(9, 30)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100, None)})
+    assert mfp.poll_daily_once(at(16, 0)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100, None)})
     calls.pop()
     assert mfp.poll_daily_once(at(20, 0)) is None and len(calls) == 1       # 20:00 is outside the session
     opened["v"] = False                                                     # a holiday: the snapshot is the prior session

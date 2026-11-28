@@ -21,9 +21,11 @@ export const FLAG_INCOMPLETE = 0x02
 export const FLAG_DAILY = 0x04
 /** The publisher's daily feed went quiet (C1, review of PR 3.4): the DAILY rows a device holds may be frozen. */
 export const FLAG_DAILY_STALE = 0x08
+/** Every DAILY record carries the snapshot's prevDay close in its 6th (`av`) slot (review of PR 3.4). */
+export const FLAG_DAILY_PREV = 0x10
 /** Every flag bit this decoder understands. A frame with any other bit is REFUSED (permanently, see
  *  FrameError.frame): a future bit may change what the bytes mean, and a misread frame is worse than a gap. */
-export const KNOWN_FLAGS = FLAG_AV | FLAG_INCOMPLETE | FLAG_DAILY | FLAG_DAILY_STALE
+export const KNOWN_FLAGS = FLAG_AV | FLAG_INCOMPLETE | FLAG_DAILY | FLAG_DAILY_STALE | FLAG_DAILY_PREV
 export const NO_SEQ = 0xFFFFFFFF
 export const KIND_ONTIME = 0
 export const KIND_LATE = 1
@@ -204,10 +206,11 @@ function _decodeBody(b, start, end, head) {
   let daily = null
   if (flags & FLAG_DAILY) {
     const n = varint()
-    const d = columns(Math.max(1, Math.min(n, nSym)), false)
+    const d = columns(Math.max(1, Math.min(n, nSym)), (flags & FLAG_DAILY_PREV) !== 0)
     records(d, n)
     daily = { n: d.n, sym: d.sym.subarray(0, d.n), o: d.o.subarray(0, d.n), h: d.h.subarray(0, d.n),
-      l: d.l.subarray(0, d.n), c: d.c.subarray(0, d.n), v: d.v.subarray(0, d.n) }
+      l: d.l.subarray(0, d.n), c: d.c.subarray(0, d.n), v: d.v.subarray(0, d.n),
+      pc: d.av ? d.av.subarray(0, d.n) : null }
   }
   if (pos !== stop) throw new FrameError('trailing bytes')
   const row = rows.n
@@ -269,7 +272,10 @@ export function dailyRows(f) {
   const d = f?.daily
   if (!d) return []
   const out = new Array(d.n)
-  for (let r = 0; r < d.n; r++) out[r] = { sym: f.symbols[d.sym[r]], o: d.o[r], h: d.h[r], l: d.l[r], c: d.c[r], v: d.v[r] }
+  for (let r = 0; r < d.n; r++) {
+    out[r] = { sym: f.symbols[d.sym[r]], o: d.o[r], h: d.h[r], l: d.l[r], c: d.c[r], v: d.v[r] }
+    if (d.pc) out[r].pc = Number.isNaN(d.pc[r]) ? null : d.pc[r]
+  }
   return out
 }
 

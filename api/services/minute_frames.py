@@ -21,6 +21,10 @@ FRAME ("UMF1")
                     bit3 FLAG_DAILY_STALE = the publisher's daily feed has not reported for longer
                     than two polls: the rows a device holds may be frozen, so it must stop trusting
                     them until the next full set (zero-network PR 3.4 review, C1)
+                    bit4 FLAG_DAILY_PREV = every DAILY record carries a 6th value in the `av` slot: the
+                    snapshot's prevDay close (the prior session's close on TODAY's basis; NaN when the
+                    snapshot has none). A device refuses the row when it is more than 2% off its seed's
+                    last close: a split the seed's split list missed (review of PR 3.4, MEDIUM)
     6   u16  reserved (0)
     8   u32  day       ET trading date as YYYYMMDD
     12  u32  seq       this frame's minute, as its index from 04:00 ET of `day` (0..959)
@@ -94,6 +98,7 @@ FLAG_AV = 0x01
 FLAG_INCOMPLETE = 0x02
 FLAG_DAILY = 0x04
 FLAG_DAILY_STALE = 0x08
+FLAG_DAILY_PREV = 0x10
 NO_SEQ = 0xFFFFFFFF
 
 KIND_ONTIME = 0
@@ -276,8 +281,10 @@ def encode_frame(*, day: int, seq: int, prev_seq: int, epoch: int, minute: int,
     section (None or empty: none). Returns the RAW (uncompressed) bytes."""
     symbols = sorted({s for _, _, rows in blocks for s in rows} | set(daily or ()))
     index = {s: i for i, s in enumerate(symbols)}
+    # FLAG_DAILY_PREV: every daily row carries its prevDay close (a 6th value); a section of 5-value rows has none
+    daily_prev = bool(daily) and all(len(tuple(r)) > 5 for r in daily.values())
     flags = ((FLAG_AV if with_av else 0) | (0 if complete else FLAG_INCOMPLETE) | (FLAG_DAILY if daily else 0)
-             | (FLAG_DAILY_STALE if daily_stale else 0))
+             | (FLAG_DAILY_STALE if daily_stale else 0) | (FLAG_DAILY_PREV if daily_prev else 0))
     out = bytearray(_HDR.pack(MAGIC, VERSION, flags, 0,
                               day, seq, prev_seq & 0xFFFFFFFF, epoch & 0xFFFFFFFF, minute))
     _symbol_table(out, symbols)
@@ -301,7 +308,7 @@ def encode_frame(*, day: int, seq: int, prev_seq: int, epoch: int, minute: int,
             i = index[s]
             _put_varint(out, i - prev - 1)
             prev = i
-            _record(out, tuple(daily[s])[:5], False)
+            _record(out, tuple(daily[s])[:6] if daily_prev else tuple(daily[s])[:5], daily_prev)
     out += struct.pack("<I", zlib.crc32(out) & 0xFFFFFFFF)
     return bytes(out)
 
@@ -428,7 +435,7 @@ def decode_frame(data: bytes) -> dict:
         out["daily_stale"] = True
     if flags & FLAG_DAILY:
         n, pos = _get_varint(buf, pos)
-        out["daily"], pos = _read_records(buf, pos, n, symbols, False)
+        out["daily"], pos = _read_records(buf, pos, n, symbols, bool(flags & FLAG_DAILY_PREV))
     if pos != end:
         raise FrameError("trailing bytes")
     return out

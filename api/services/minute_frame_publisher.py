@@ -558,7 +558,19 @@ def snapshot_daily_rows(snapshot: dict, day: int) -> dict:
     """{sym: (o, h, l, c, v)} for `day` from a whole-market snapshot: bars-api's own parser
     (`bars_live_store.daily_rows_from_snapshot`), so these are the rows /api/bars?tf=D serves."""
     from api.services.bars_live_store import daily_rows_from_snapshot
-    return {r[0]: tuple(r[2:7]) for r in daily_rows_from_snapshot(snapshot.get("tickers") or [], int(day))}
+    tickers = snapshot.get("tickers") or []
+    # + the snapshot's prevDay close (FLAG_DAILY_PREV): the prior session's close on TODAY's basis, so a device can see
+    # a split its seed does not know (the seed's last close is on the old basis) and refuse the row (review of PR 3.4)
+    pc = {}
+    for t in tickers:
+        try:
+            v = float(((t.get("prevDay") or {}).get("c")) or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        sym = _vendor_app_symbol(t.get("ticker"))
+        if sym and v > 0:
+            pc[sym] = v
+    return {r[0]: tuple(r[2:7]) + (pc.get(r[0]),) for r in daily_rows_from_snapshot(tickers, int(day))}
 
 
 def poll_daily_once(now_s: Optional[float] = None) -> Optional[tuple]:

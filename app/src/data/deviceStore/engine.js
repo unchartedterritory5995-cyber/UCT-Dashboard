@@ -70,6 +70,7 @@ import { closeMinuteOf } from './fresh'
 import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
+import { _closeMismatch } from '../../utils/barsMerge'
 
 export { STORED_TFS, DERIVED_TFS, SERVED_TFS } from './tfs'
 
@@ -395,6 +396,14 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     // bar and continues this symbol's window across exactly one night.
     const add = overlay.read(S, String(tf), asof)
     if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
+    // ⛔ A SPLIT THE SEED DOES NOT KNOW (review of PR 3.4, MEDIUM). The server's day row comes with the snapshot's
+    // prevDay close, the prior session's close on TODAY's basis. Off the seed's last close by the client's own seam
+    // rule (utils/barsMerge._closeMismatch, > 2%: the one rule, asked, not restated)
+    // (the same session, on the seed's basis), the basis moved overnight (a split the vendor listed late): the
+    // post-split row is never joined to pre-split history; the copy stays the seed, and the server answers.
+    if (add.prevClose != null && seed.c.length && _closeMismatch({ c: add.prevClose }, { c: seed.c[seed.c.length - 1] })) {
+      return { out: seed, why: 'seed-only:prev-close' }
+    }
     const out = add.cols ? _append(seed, add.cols) : seed
     out.through = Math.max(seed.through, add.through)
     if (whole) out.whole = true

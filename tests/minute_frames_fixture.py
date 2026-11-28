@@ -84,6 +84,13 @@ def codec_cases() -> list:
             day=20261118, seq=721, prev_seq=720, epoch=7, minute=m, with_av=True,
             blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"] + (51_240_000.0,)})],
             daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_240_000.0)})),
+        # FLAG_DAILY_PREV (review of PR 3.4): every daily row carries the snapshot's prevDay close (NaN when absent)
+        ("daily_prev", dict(
+            day=20261118, seq=723, prev_seq=722, epoch=7, minute=m,
+            blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"]})],
+            daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_234_567.0, 149.12),
+                   "NVDA": (40.5, 41.0, 40.0, 40.75, 9_000_000.0, 181.6),
+                   "NOPREV": (2.0, 2.5, 1.5, 2.25, 10.0, None)})),
         ("daily_only", dict(
             day=20261118, seq=722, prev_seq=721, epoch=7, minute=m,
             blocks=[(m, mf.KIND_ONTIME, {})],

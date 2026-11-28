@@ -8,7 +8,7 @@ import zlib from 'node:zlib'
 import { Buffer } from 'node:buffer'
 import {
   decodeFrame, todayFrames, todayInfo, inflateIfGzip, frameRows, dailyRows, hhmmOfSeq, crc32, FrameError, NO_SEQ,
-  KIND_LATE, KIND_REPLACE, FLAG_DAILY, KNOWN_FLAGS,
+  KIND_LATE, KIND_REPLACE, FLAG_DAILY, FLAG_DAILY_PREV, KNOWN_FLAGS,
 } from './codec'
 
 const fixture = (name) => new Uint8Array(fs.readFileSync(new URL(`../../../../tests/fixtures/minute_frames/${name}`, import.meta.url)))
@@ -46,12 +46,21 @@ describe('minute frame codec: the Python encoder\'s bytes, decoded in the browse
       const wantD = Object.entries(c.daily).sort(([a], [z]) => (a < z ? -1 : 1))
       expect(got.map((r) => r.sym)).toEqual(wantD.map(([sym]) => sym))
       got.forEach((r, i) => [r.o, r.h, r.l, r.c, r.v].forEach((x, k) => expect(bits(x)).toBe(bits(wantD[i][1][k]))))
+      // FLAG_DAILY_PREV (review of PR 3.4): the 6th value is the snapshot's prevDay close (null when absent)
+      const withPrev = wantD.every(([, r]) => r.length > 5)
+      expect((f.flags & FLAG_DAILY_PREV) !== 0).toBe(withPrev)
+      got.forEach((r, i) => {
+        if (!withPrev) { expect(r.pc).toBeUndefined(); return }
+        const w = wantD[i][1][5]
+        if (w == null) expect(r.pc).toBeNull()
+        else expect(bits(r.pc)).toBe(bits(w))
+      })
     })
   }
 
   it('the DAILY cases cover symbols that are in no block, raw prices, 8 decimals, and frames with av', () => {
     const daily = CASES.filter((c) => c.daily)
-    expect(daily.map((c) => c.name)).toEqual(['daily', 'daily_with_av', 'daily_only'])
+    expect(daily.map((c) => c.name)).toEqual(['daily', 'daily_with_av', 'daily_prev', 'daily_only'])
     const f = decodeFrame(fixture('codec_daily.bin'))
     const inBlocks = new Set(frameRows(f).map((r) => r.sym))
     expect(dailyRows(f).map((r) => r.sym).filter((s) => !inBlocks.has(s))).toEqual(['BRK-B', 'ONLYDAY', 'PENNY', 'RAWP'])
@@ -74,14 +83,14 @@ describe('minute frame codec: the Python encoder\'s bytes, decoded in the browse
   it('a flag bit this decoder does not know is refused for good (never misread), with the header to account for it', () => {
     const raw = fixture('codec_plain.bin')
     const f = raw.slice()
-    f[5] |= 0x10
-    expect(KNOWN_FLAGS & 0x10).toBe(0)
+    f[5] |= 0x80
+    expect(KNOWN_FLAGS & 0x80).toBe(0)
     putU32(f, f.length - 4, crc32(f, 0, f.length - 4))
     let err = null
     try { decodeFrame(f) } catch (e) { err = e }
     expect(err).toBeInstanceOf(FrameError)
-    expect(err.message).toMatch(/unknown flags 0x10/)
-    expect(err.frame).toMatchObject({ day: 20261118, seq: 330, prevSeq: 329, flags: 0x10 })
+    expect(err.message).toMatch(/unknown flags 0x80/)
+    expect(err.frame).toMatchObject({ day: 20261118, seq: 330, prevSeq: 329, flags: 0x80 })
     // a section a decoder does not expect is trailing bytes; a flag without its section is cut short: both permanent
     const daily = fixture('codec_daily.bin')
     const noFlag = daily.slice(); noFlag[5] &= ~FLAG_DAILY; putU32(noFlag, noFlag.length - 4, crc32(noFlag, 0, noFlag.length - 4))
@@ -128,7 +137,7 @@ describe('minute frame codec: the Python encoder\'s bytes, decoded in the browse
     while (pos < out.length - 12) {
       const len = u32(out, pos)
       if (k === victim) {
-        out[pos + 4 + 5] |= 0x10
+        out[pos + 4 + 5] |= 0x80
         putU32(out, pos + 4 + len - 4, crc32(out, pos + 4, pos + 4 + len - 4))
       }
       pos += 4 + len; k++

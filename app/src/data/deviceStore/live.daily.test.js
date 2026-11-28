@@ -229,6 +229,40 @@ describe('today\'s D bar from the server\'s own row', () => {
     expect(replay({ upto: next.seq - 1, stale: [at] }).state().dailyOk).toBe(false)
   })
 
+  // ⛔ Review of PR 3.4 (MEDIUM): a split the vendor listed late. The seed holds pre-split history; the server's row is
+  // post-split. Its prevDay close (the prior session on TODAY's basis) is then far from the seed's last close, and the
+  // engine refuses the join (the client's own 2% seam, barsMerge._closeMismatch): the copy stays the seed.
+  it('a server row whose prevDay close is off the seed\'s last close (a split the seed missed) is never joined', async () => {
+    const days = []
+    for (let d = new Date(Date.UTC(2026, 10, 18)); days.length < 30; d.setUTCDate(d.getUTCDate() - 1)) {
+      const wd = d.getUTCDay()
+      if (wd !== 0 && wd !== 6 && d.toISOString().slice(0, 10) !== '2026-11-11') days.unshift(d.getTime() / 1000)
+    }
+    const seed = days.map((t, i) => ({ t, o: 90 + i, h: 91 + i, l: 89 + i, c: 100 + i, v: 5e6 }))
+    const last = seed.at(-1).c
+    const pack = seedPackOf({ DENSE: seed }, { tf: 'D', asof: PREV, build: 'b1' })
+    const at11 = Date.UTC(2026, 10, 19, 16, 0)                       // 11:00 ET
+    const eng = createDeviceEngine({ io: memoryIO(), fetchFn: async () => new Response(pack), now: () => at11 })
+    await eng.ingest({ tf: 'D', url: 'D', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: 'b1' })
+    await eng.setSplits({ splits: { session: D.day, symbols: {} } })
+    const feed = (pc) => {
+      const o = createLiveOverlay({ nameOf: (s) => eng.seedName(s) })
+      eng.attachLive(o)
+      o.sink.reset({ day: D.day })
+      o.sink.daily({ day: D.day, full: true, rows: [{ sym: 'DENSE', o: 60, h: 61, l: 59, c: 60.5, v: 1e6, pc }] })
+      o.sink.frameDone({ day: D.day, seq: 420, minute: at11 / 60000, dailyOk: true })
+    }
+    feed(last)                                                      // the same basis: joined, today's forming bar
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
+    feed(last * 1.015)                                              // inside the seam (a corrected print): joined
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
+    feed(last / 2)                                                  // a 2:1 split the seed does not know: refused
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length)
+    expect(eng.why('DENSE', 'D')).toBe('seed-only:prev-close')
+    feed(null)                                                      // no prevDay close in the snapshot: joined as before
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
+  })
+
   it('a re-sync (clear) forgets the rows and the trust until the frames say so again', () => {
     const o = replay({ upto: FIRST_FULL + 5 })
     o.clear()

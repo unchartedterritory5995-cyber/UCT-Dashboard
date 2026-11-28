@@ -173,7 +173,7 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
       if (info.full) dailyRows.clear()
       for (const r of info.rows || []) {
         const name = nameOf(r.sym)
-        if (name) dailyRows.set(name, { o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })
+        if (name) dailyRows.set(name, { o: r.o, h: r.h, l: r.l, c: r.c, v: r.v, pc: r.pc ?? null })
       }
     },
     frameDone(info) {
@@ -200,7 +200,9 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
       const t = Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 1000
       const cols = { t: Float64Array.of(t), o: Float64Array.of(r.o), h: Float64Array.of(r.h), l: Float64Array.of(r.l),
         c: Float64Array.of(r.c), v: Float64Array.of(r.v) }
-      return { res: through < bucketEndOf(t, 'D') ? { cols, through, forming: 'D' } : { cols, through }, why: 'ok' }
+      const res = through < bucketEndOf(t, 'D') ? { cols, through, forming: 'D' } : { cols, through }
+      if (r.pc != null) res.prevClose = r.pc          // the engine's split check (engine.js: the prev-close seam)
+      return { res, why: 'ok' }
     }
     if (gapRth || (tf === 'D' && gapAny)) return { res: null, why: 'gap' }
     const s = series.get(keyOf(sym, tf))
