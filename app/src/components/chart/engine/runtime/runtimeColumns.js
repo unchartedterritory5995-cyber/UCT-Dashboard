@@ -46,7 +46,7 @@ import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
 import { bindSymbolOf, bindConstsFor } from '../ast/bind.js'
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
-import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN } from './limits.js'
+import { Budget, RuntimeLimitError, DEFAULT_LIMITS, LIMIT_PLAIN, runBarCapCut, RUN_BAR_CAP_CODE, runBarCapSentence } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 // ⭐ W5-T2 — through the leaf seam, never `objectColumns.js` (which reaches the registry)
 import { registerObjectRuntimeValues } from '../objectRuntimeSeam.js'
@@ -738,12 +738,19 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   }
 }
 
+let _barCapOff = false
+/** Tests (the mutant's control): a run over more than `HISTORY` bars is refused at bar 0, as before 2026-11-28. */
+export function __barCapOffForTests(off) { _barCapOff = !!off }
+
 /** The run over `rows`, its start moved past a depth gap (`knownFrom`) where one is named. */
 function computeRuntimeColumnsKnown(def, rows, ctx, opts = {}) {
   const strategy = !!(def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
-  let cut = 0
+  // ⭐⭐ (owner, 2026-11-28) a chart longer than the `HISTORY` ceiling is run on its newest bars (`limits.js::runBarCapCut`):
+  // the start moves as a depth cut does (off the listing, widened back, the bars before it named). A strategy is never moved.
+  const ceiling = opts && opts.limits && Number.isInteger(opts.limits.HISTORY) ? opts.limits.HISTORY : DEFAULT_LIMITS.HISTORY
+  let cut = strategy || _barCapOff ? 0 : runBarCapCut(Array.isArray(rows) ? rows.length : 0, ceiling)
   // ⭐⭐ T4 E2 — the words for the bars the depth cut withholds, when the depth has its own (an event family's record)
-  let why = null
+  let why = cut ? { code: RUN_BAR_CAP_CODE, reason: runBarCapSentence(ceiling) } : null
   for (let pass = 0; ; pass += 1) {
     // ⭐⭐ (Fred RS filled chart, item 1) — WHERE THE CHART BECOMES KNOWN, ASKED BEFORE THE RUN BUILDS OVER IT
     // (`knownFromBeforeBuild`): the move this pass would make on a depth refusal is made without the build over
