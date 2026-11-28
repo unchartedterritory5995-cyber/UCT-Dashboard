@@ -250,10 +250,10 @@ process when clean, 1.2-1.3 GB saturated. 12 processes at that rate would be ~2,
 Railway vCPU matches a runner vCPU (unmeasured), against the 1,503 req/s 500-member edge-first peak.
 
 What it says:
-- **The topology works and scales close to linearly** on this runner: ~210-300 req/s per process at the knee (1 process
-  clean at 207, collapsing at ~300; 2 processes clean at 421 with p99 557 ms; 4 processes clean at 487, saturated by 849
-  with p99 2.3 s). Past the knee a case COLLAPSES (queues, 8 s timeouts, OK req/s falls): there is no graceful plateau,
-  which is why the alarms page at the planned peak x 1.3, far below the knee of the size chosen.
+- **The topology scales linearly: ~210 req/s per process** (the split run above: 1 process clean at 207 req/s p99 95 ms,
+  2 at 422 p99 94 ms, 4 at **849 req/s p99 124 ms**; the first, unsplit run lost cores to its own load generator and
+  read low at 4 processes). Past the knee a case COLLAPSES (queues, 8 s timeouts, OK req/s falls): there is no graceful
+  plateau, which is why the alarms page at the planned peak x 1.3, far below the knee of the size chosen.
 - **The leader carried nothing extra (0.0% handed off)** in this steady state: every series stored and current, no
   holes, no cold tickers, and best-effort kicks go to the leader as kicks, not requests. The hand-off share under COLD
   load (first views, holes, a swap) is NOT measured here.

@@ -31,7 +31,16 @@ def _run(args, timeout):
     return r
 
 
+def _ensure_aiohttp() -> None:
+    """The load generator's one dependency, installed for THIS run only (not every CI job's install)."""
+    try:
+        import aiohttp  # noqa: F401
+    except ImportError:
+        subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "aiohttp==3.13.3"], check=True, timeout=300)
+
+
 def run(tmp_path) -> dict:
+    _ensure_aiohttp()
     os.makedirs(OUT, exist_ok=True)
     cpus, mem = os.cpu_count() or 2, _mem_gb()
     store_dir = os.environ.get("RUNNER_TEMP") or str(tmp_path)

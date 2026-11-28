@@ -747,11 +747,17 @@ def main() -> None:
         # One listening socket, N processes (uvicorn's supervisor spawns them and replaces one that dies);
         # each builds the app itself through the factory and elects its role in the lifespan.
         _log.info("[bars-api] starting %d worker processes on one socket (BARS_API_WORKERS)", n)
-        uvicorn.run("api.bars_api_main:_build_worker_app", factory=True, workers=n, host="0.0.0.0",
+        uvicorn.run("api.bars_api_main:_build_worker_app", factory=True, workers=n, host=_listen_host(),
                     port=port, log_level="info", timeout_graceful_shutdown=5)
         return
-    uvicorn.run(_build_app(), host="0.0.0.0", port=port, log_level="info",
+    uvicorn.run(_build_app(), host=_listen_host(), port=port, log_level="info",
                 timeout_graceful_shutdown=5)
+
+
+def _listen_host() -> str:
+    """The listen address: all interfaces in production (Railway routes to it). The capacity replay sets
+    BARS_API_LISTEN_HOST=127.0.0.1 so a sandboxed run on the dev box is never reachable from the LAN."""
+    return (os.environ.get("BARS_API_LISTEN_HOST") or "0.0.0.0").strip() or "0.0.0.0"
 
 
 def _build_worker_app() -> FastAPI:
