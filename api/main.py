@@ -10556,6 +10556,16 @@ async def lifespan(app: FastAPI):
                            trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=30, timezone=_ET),
                            id="ssetf_nightly_rebuild", max_instances=1, replace_existing=True)
 
+        # PEER's licensed peers (gap audit D7): Massive related companies for the
+        # universe, a rolling refresh weekdays 21:15 ET. Registers NOTHING unless
+        # PEER_RELATED_NIGHTLY_ENABLED=1 (dark: it adds vendor calls). The module
+        # docstring has the call budget (api/services/related_peers.py).
+        try:
+            from api.services import related_peers as _related_peers
+            _related_peers.register(_scheduler)
+        except Exception as e:
+            print(f"[startup] related peers nightly registration failed (non-fatal): {e}")
+
         # -- Daily OI snapshot for retroactive flow confirmation ----------
         # Captures open interest (from Massive) for every contract with flow in
         # the past 30 days. Runs at 5:30 AM ET -- well before market open.

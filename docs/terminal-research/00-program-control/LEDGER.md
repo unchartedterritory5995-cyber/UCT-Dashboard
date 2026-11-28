@@ -5311,3 +5311,23 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   estimate job and never takes a snapshot. The other changed modules are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## PEER from licensed related companies, held nightly (gap audit D7) · `feat/terminal-peer-nightly` · 2026-11-28
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/groups.py`, `api/services/related_peers.py` (new) |
+
+- **What changed.** A rolling nightly build of Massive's related-companies list for every stock in
+  `api/data/cap_universe.json` (`api/services/related_peers.py`, held in `<DATA_DIR>/related_peers/peers_v1.json`),
+  registered on the WEB scheduler in `api/main.py` (weekdays 21:15 ET) only when `PEER_RELATED_NIGHTLY_ENABLED=1`
+  (dark). `groups.resolve_peers` gained `prefer_licensed` (default False): the held list first, today's peer engine
+  unchanged as the fallback. Only `GET /api/groups/peers?prefer=licensed` sets it, and only the Terminal's `PEER` sends it.
+- **Flow-worker.** Reaches `groups.py` only through `flow_gap_autofill -> flow_admin_auth -> auth_service -> auth_db ->
+  journal_two.db -> journal_two.notes -> ticker_meta -> groups` (ticker_meta's primary-theme read, unchanged), and
+  `related_peers.py` only through the function-level import inside `groups._licensed_peers_payload`, which runs only
+  when `prefer_licensed` is True. Flow-worker mounts no groups router and runs no web scheduler: it never builds or
+  reads the held set. `api/main.py` and `api/routers/groups.py` are not in its closure
+  (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
