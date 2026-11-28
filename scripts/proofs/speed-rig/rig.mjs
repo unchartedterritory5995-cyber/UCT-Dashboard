@@ -59,6 +59,10 @@ const USER_DEF = arg('user-def', '')
 const DROP_USER = arg('drop-user', '') === '1'
 let deleteCreatedDefs = null
 const TAB_B = arg('tab-b', '')
+// (2026-11-28, review of #3052) --kept-tab=1 with an arrows pattern and --tab-b: the two tab layouts are made as for
+// --pattern=tabs, and before the first row click the rig opens tab B and comes back to tab A, so board B is KEPT (hidden,
+// its feeds ticking) behind the board the arrows are pressed on: the arrow p100 with a kept board present
+const KEPT_TAB = arg('kept-tab', '0') === '1'
 // --tab-b-ids=own (owner3, 2026-11-26): tab B keeps its OWN widget ids (from its board file) instead of being renamed
 // flip-chart / flip-wl like tab A. Renamed, both tabs share one React key per widget, so react-grid-layout keeps the
 // item and its `transition: all 200ms` animates the size change (W1: 463 -> 1400 px over ~230 ms) on every switch: real
@@ -884,8 +888,8 @@ try {
     out.board = { file: BOARD, charts: charts.length, watchKey: wl && wl.opts && wl.opts.watchKey, dropUser: DROP_USER, renames }
   }
   const groups = { A: 'SPY', B: null, C: null, D: null }
-  if (UPDOWN === 'tabs') {
-    if (!TAB_B) throw new Error('--pattern=tabs needs --tab-b=<board.json>')
+  if (UPDOWN === 'tabs' || KEPT_TAB) {
+    if (!TAB_B) throw new Error('--pattern=tabs and --kept-tab need --tab-b=<board.json>')
     const srcB = JSON.parse(readFileSync(TAB_B, 'utf8'))
     const wsB = Array.isArray(srcB) ? srcB : (srcB.widgets || [])
     let nChart = 0
@@ -1204,6 +1208,17 @@ try {
   if (TF2) await waitFor(`!!(window.__uctChartDebug && window.__uctChartDebug['flip-chart-2'] && window.__uctChartDebug['flip-chart-2'].newestBar())`, 240000)
   await run(`(()=>{window.__flip.chart='flip-chart';window.__flip.chart2=${TF2 ? "'flip-chart-2'" : 'null'};return true})()`)
   out.tf2 = TF2 || null
+  if (KEPT_TAB) {
+    // tab B, then back to tab A: board B stays kept behind A for the whole pass (the keep-alive, #3052)
+    const clickTab = (name) => run(`(()=>{const b=document.querySelector('button[data-layout-pin][title=${JSON.stringify(name)}]');if(!b)return false;b.click();return true})()`)
+    if (!(await clickTab(TAB_B_NAME))) throw new Error(`no dock tab ${TAB_B_NAME}`)
+    await sleep(4000)
+    if (!(await clickTab(TAB_A_NAME))) throw new Error(`no dock tab ${TAB_A_NAME}`)
+    await sleep(4000)
+    out.keptTab = await run(`(()=>({slots:document.querySelectorAll('[data-board-slot]').length,front:[...document.querySelectorAll('[data-board-current] [data-widget-id]')].map(e=>e.getAttribute('data-widget-id'))}))()`)
+    console.log(`kept tab: ${JSON.stringify(out.keptTab)}`)
+    if (TF2) await waitFor(`!!(window.__uctChartDebug && window.__uctChartDebug['flip-chart-2'] && window.__uctChartDebug['flip-chart-2'].newestBar())`, 240000)
+  }
   // select the first row the way a member would (a click on the row), then arrow down
   // owner3 (2026-11-26): a board with NO watchlist (his one-chart TC2000 board) has no row to select; the typed pattern
   // focuses the chart itself, so the row click is skipped there (owner2 threw on the null row)
