@@ -5311,3 +5311,14 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   estimate job and never takes a snapshot. The other changed modules are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## UCT Agent open to paying members behind a switch (UCT_AGENT_MEMBERS_ENABLED) and production's armed data kinds recorded · `feat/agent-open-to-members` · 2026-11-27
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/routers/auth.py`, `api/routers/uct_agent.py`, `api/services/uct_agent/breadth_now.py`, `api/services/uct_agent/knowledge/kinds.py`, `api/services/uct_agent/news.py` |
+
+- **What changed.** The Agent's routes let a paid member in while `UCT_AGENT_MEMBERS_ENABLED=1` (admin-only otherwise, the budget page always), `/api/auth/me` and `/api/agent/config` tell the browser, and the four browser doors follow (`agentFlag.useAgentAccess`). The production kind pins move to the armed list (generated from `kinds.py`). The three `api/services/uct_agent/*` files change docstrings only.
+- **Flow-worker.** Reaches `routers.auth` only through its function-level flag readout and `routers.uct_agent` only through it (`members_enabled`, a pure env read); flow-worker mounts only its debug-dump and build-vouch routers and never serves `/api/auth/me` or an Agent route. The docstring-only files change no code (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those five offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
