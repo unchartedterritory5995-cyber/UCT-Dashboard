@@ -226,7 +226,8 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
                     wrong.append({'kind': 'old-header-over-new-candles', 'frame': k0 + j2, 'dt': round(f['t'] - key)})
         if wrong:
             flags.add('WRONG_CHART')
-        if stale(fin.get('nb', [None])[0] if fin.get('nb') else None, tfs.get(cid), exp):
+        ctf = p.get('tf') if (p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf')) else tfs.get(cid)   # a timeframe press (--pattern=tf): its own tf
+        if stale(fin.get('nb', [None])[0] if fin.get('nb') else None, ctf, exp):
             flags.add('STALE')
         vis = [c for c in changes if c[0] != 'history-changed']
         full = (vis[-1][1] + shown[cid]) if vis else shown[cid]
