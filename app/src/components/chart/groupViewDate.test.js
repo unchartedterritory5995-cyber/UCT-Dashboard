@@ -19,4 +19,10 @@ describe('groupViewDate', () => {
     publishGroupDate('A', 'c2', null)
     expect(groupDateFor('A')).toBe('2006-03-14')
   })
+  it('a chart that publishes AGAIN is the latest (its new date wins over a chart that published after its first)', () => {
+    publishGroupDate('A', 'c1', '2006-03-14')
+    publishGroupDate('A', 'c2', '2012-01-03')
+    publishGroupDate('A', 'c1', '2008-06-02')
+    expect(groupDateFor('A')).toBe('2008-06-02')
+  })
 })
