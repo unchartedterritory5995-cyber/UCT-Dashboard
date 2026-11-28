@@ -2239,12 +2239,15 @@ export function createPrefetch(o = {}) {
     return n
   }
 
-  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0) {
+  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0, viewWindow = null) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
-    const key = keyFor(T, tf)
+    // ⭐ (review of #2947, speed follow-up) A CHART AT A DATE WARMS THE WINDOW IT WILL READ: the typed ticker's window
+    // ending at the member's date (chart/viewWindow), never the plain key's newest rows (another set of bars)
+    const key = keyFor(T, tf, viewWindow ? { window: viewWindow } : {})
     const p = key ? parseKey(key) : null
-    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    if (!p || !isIntradayTf(p.tf) || (p.window && !viewWindow)) return null
+    if (p.window) return _warmTypedWindow(T, tf, key, alsoTfs, viewWindow)
     if (typed && typed.key !== key) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
@@ -2334,9 +2337,39 @@ export function createPrefetch(o = {}) {
     return !gone() && inLake === true
   }
 
-  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0 } = {}) {
+  /** The typed ticker's WINDOW at the member's date (an intraday chart the date box sent to a past date): its lake pieces
+   *  primed now, its read asked (the window's lake-first read, network `_windowRead`), the linked intraday timeframes'
+   *  windows warmed beside it. Superseded by a newer text like the plain warm. */
+  function _warmTypedWindow(T, tf, key, alsoTfs, viewWindow) {
+    if (typed && typed.key !== key) {
+      if (!typed.kept) typed.ctl.abort()
+      typed = null
+    }
+    if (typed && typed.key === key) return null
+    const held = S().peek(key)
+    if (held?.restSeen && DISPLAYABLE.includes(held.status)) return null
+    const ctl = new AbortController()
+    const mine = { key, ctl, kept: false }
+    typed = mine
+    try { S().primeLake?.(key) } catch { /* a warm only */ }
+    for (const t2 of alsoTfs || []) {
+      if (String(t2) === String(tf) || !isIntradayTf(fetchTf(String(t2)))) continue
+      try { prefetchViewWindow([T], t2, viewWindow) } catch { /* a warm only */ }
+    }
+    return (async () => {
+      // the same vouching as the plain warm (`_typedIsTicker`): a partial word nothing knows asks nothing
+      const isTicker = await _typedIsTicker(T, () => typed !== mine)
+      if (typed !== mine) return 'superseded'
+      if (!isTicker) return 'unknown'
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: S().peek(key) || {} })
+      if (ctl.signal.aborted && !mine.kept) return false
+      return s?.restSeen && !s.error && s.depth ? 'network' : false
+    })().catch(() => false).finally(() => { if (typed === mine) typed = null })
+  }
+
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0, viewWindow = null } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover, viewWindow)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null

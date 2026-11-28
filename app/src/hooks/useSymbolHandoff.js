@@ -372,14 +372,15 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     setDisplayedSym(requestedSym)
   }
   // the member's view, for canShowNow: written each commit, read by the key handler (never during a render)
-  const viewRef = useRef({ tf, showExtended })
+  const viewRef = useRef({ tf, showExtended, member })
   // this chart's device read in the key press, LATEST-ONLY (handoffGroups.latestOnly): a held arrow never queues
   // a read per row it passes
   const primeRef = useRef(null)
-  if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended)))
+  // (review of #2947, speed follow-up) the key the chart reads: at a date, its window (sessOf with the member)
+  if (!primeRef.current) primeRef.current = latestOnly((sym) => primeDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended, viewRef.current.member, viewRef.current.tf)))
   // the decision's answer for this chart, by symbol (diagnostics: the record's `gate`)
   const gateRef = useRef(null)
-  useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
+  useLayoutEffect(() => { viewRef.current = { tf, showExtended, member } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
     return whileBoardShown(layerBoard, () => registerMember(scope, group, memberIdRef.current, {
