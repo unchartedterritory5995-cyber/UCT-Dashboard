@@ -58,6 +58,7 @@ os.environ["DATA_DIR"] = {data!r}
 os.environ["BARS_API_WORKERS"] = "2"
 from api.services import bars_api_roles as r
 from api.services import bars_sqlite as bs
+bs.FILE_IDENTITY_CHECK_S = 3600.0          # only the read scope may follow a replace (not the 1 s background check)
 role = r.elect()
 out = {{"role": role, "writes_landed": 0, "refused": 0, "readonly": 0, "gens": [], "errors": [], "handed_off": 0}}
 print("READY", flush=True)
