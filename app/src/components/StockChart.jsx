@@ -15391,12 +15391,12 @@ function StockChartBody({
   // the symbol switch, and kept the outgoing symbol's bars alive. A release caused by the key change itself is the layout
   // pass's (`_appliedSymTfRef` already ran updateChart for the new key): skipped here, so the empty frame counts once.
   // (the bars are read through `__heavy.committed`, never captured: the closure-chain rule at the top of this component)
-  const _holdWasRef = useRef({ on: false, key: null })
+  // (sym and tf compared as two fields: no new cache-key string, chart/rails/oneKey.census)
+  const _holdWasRef = useRef({ on: false, sym: null, tf: null })
   useEffect(() => {
     const was = _holdWasRef.current
-    const k = `${sym}_${resolvedTf}`
-    _holdWasRef.current = { on: !!_tfSwitchHold, key: k }
-    if (was.on && !_tfSwitchHold && was.key === k && !__heavy.committed.filteredBars?.length) updateChart()
+    _holdWasRef.current = { on: !!_tfSwitchHold, sym, tf: resolvedTf }
+    if (was.on && !_tfSwitchHold && was.sym === sym && was.tf === resolvedTf && !__heavy.committed.filteredBars?.length) updateChart()
   }, [_tfSwitchHold, sym, resolvedTf, updateChart])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⭐ THE STORE'S DEVELOPING-BAR PAINT (P3-S2) — under BARSTORE the ONLY candle / volume update()
