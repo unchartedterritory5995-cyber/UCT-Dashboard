@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "e103 task B: Fred RS's start-free drawings off the listing (runtimeColumns.js::computeStartFree, runtime/startLatched.js). Each gate must be able to fail: the daily rating labels are never released, the non-daily constant labels are released exactly, a moved setting is refused, a daily chart short of 502 bars is refused, an edited script is refused.",
+ "mutants": [
+  {
+   "id": "E103-B1",
+   "mutant": "the daily rating labels are released with the dots (the start-latched filter keeps everything)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    for (const o of p.live) (isStartFreeOnChart(o, tf) ? live : latched).push(o)",
+   "to": "    for (const o of p.live) (o ? live : latched).push(o)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "on a DAILY chart off the listing both labels are withheld by name"
+  },
+  {
+   "id": "E103-B2",
+   "mutant": "a moved setting is admitted (the run computes something other than the script as written)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (given && (typeof given !== 'object' || Object.keys(given).length)) return false",
+   "to": "  if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "a moved setting"
+  },
+  {
+   "id": "E103-B3",
+   "mutant": "the 502-bar floor is dropped on a daily chart",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  if (!Array.isArray(rows) || rows.length < (nonDaily ? 1 : START_FREE_MIN_BARS)) return false",
+   "to": "  if (!Array.isArray(rows)) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "bars is refused"
+  },
+  {
+   "id": "E103-B4",
+   "mutant": "the identity check is removed (any script that draws is released this way)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "  return sourceSha256Of(compute.source) === FRED_RS_SOURCE_SHA256",
+   "to": "  return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "an edited script"
+  },
+  {
+   "id": "E103-B5",
+   "mutant": "the constant labels are withheld on a non-daily chart (every timeframe read as daily)",
+   "file": "app/src/components/chart/engine/runtime/startLatched.js",
+   "from": "  return typeof tf === 'string' && /^(\\d+S?|\\d*W|\\d*M)$/.test(tf)",
+   "to": "  return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "SERVED on a 5m chart"
+  },
+  {
+   "id": "E103-B6",
+   "mutant": "a daily chart's labels are released (every timeframe read as non-daily)",
+   "file": "app/src/components/chart/engine/runtime/startLatched.js",
+   "from": "  return typeof tf === 'string' && /^(\\d+S?|\\d*W|\\d*M)$/.test(tf)",
+   "to": "  return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "on a DAILY chart off the listing both labels are withheld by name"
+  },
+  {
+   "id": "E103-B7",
+   "mutant": "a label is released off a daily chart whatever its text or properties",
+   "file": "app/src/components/chart/engine/runtime/startLatched.js",
+   "from": "  return p.size === CONSTANT_LABELS[p.text] && p.style === 'label_center'",
+   "to": "  return true || p.style === 'label_center'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/fredStartFree.test.js",
+   "expectRed": "a constant label"
+  }
+ ]
+}

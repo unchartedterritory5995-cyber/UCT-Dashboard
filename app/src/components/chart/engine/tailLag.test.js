@@ -54,7 +54,7 @@ import { clearSecondaryBars } from './secondaryBars'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from './runtimeErrorNotice'
 import { objectRenderDropsFor, resetObjectRenderDrops } from './objectRenderNotice'
 import { RUN_HALF_WHY_KEY } from './ast/objectLoss'
-import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
+import { setOffListingCurtainEnabled as __e102Curtain, __startFreeReleaseOffForTests } from './runtime/runtimeColumns.js'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
 // ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
 // test its machinery, so they turn it on for this file
@@ -111,6 +111,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   __newestTailWaitOffForTests(false)
+  __startFreeReleaseOffForTests(false)
   __tailCutOffForTests(false)
   setRuntimeRunner(null); resetRuntimeAsync(); setRunHalfObjectEvidence([]); setRuntimeKillList([])
   resetRuntimeSessions(); resetRuntimeLedgers(); clearSecondaryBars(); resetRuntimeErrorNotices(); resetObjectRenderDrops()
@@ -591,6 +592,9 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
 
   it('⚰️ (C) REPRODUCED: the chart grows ONE bar before SPX has it -> the worker\'s reply was WITHHELD `runtime:history-start`', async () => {
     __newestTailWaitOffForTests(true)
+    // (e103) the reproduction is the CURTAIN's answer: Fred RS's start-free release (`computeStartFree`), which now
+    // answers this chart first, is switched off so the curtain's run is what is reproduced
+    __startFreeReleaseOffForTests(true)
     const f = await fredOnAChart()
     try {
       f.settle(rsChartThrough(13, 45), rsSecondary(spx5Through(13, 45)))

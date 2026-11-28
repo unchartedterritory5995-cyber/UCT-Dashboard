@@ -26,7 +26,11 @@ import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION, co
 import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom, isNewByBar } from '../ast/pineRuntimeClock.js'
 import { interpret, isIntradayTf } from '../ast/interpret.js'
-import { TABLE, BAR_READERS } from '../ast/parse.js'
+import { TABLE, BAR_READERS, sha256Hex } from '../ast/parse.js'
+import { RUNTIME_START_LATCHED_GUARD, START_LATCHED_REASON, FRED_RS_SOURCE_SHA256, START_FREE_MIN_BARS,
+  START_FREE_FROM_BAR, isStartFreeOnChart, isNonDailyTf, START_FREE_DOT_SHORT_REASON, startFreeSettingsAdmit,
+  historicalDotsOn, START_FREE_OLDEST_DOTS_REASON } from './startLatched.js'
+import { POOL_LIMITS } from '../objectPool.js'
 import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
@@ -1158,6 +1162,91 @@ function computeOffListing(def, rows, ctx, opts) {
   return a
 }
 
+// ─── ⭐⭐ (e103, coordinator ruling 2026-11-27) — FRED RS'S START-FREE DRAWINGS, OFF THE LISTING ─────────────────────
+//
+// The off-listing curtain releases nothing (`_offListingCurtainOn`): two starts agreeing is not a proof. One script is
+// answered by READING it instead (`startLatched.js`): Fred RS, by its exact source, at its defaults, on a chart of at
+// least `START_FREE_MIN_BARS` bars. Its RS line is `close / SP:SPX` times a constant (no state at all), and its default
+// new-high dot reads `ta.highest` of that line over at most 252 bars, so on bar `START_FREE_FROM_BAR` and after both are
+// what a run from ANY earlier first bar computes. Its rating label is not (`var float[] different_values` latches the
+// first 7 distinct seed values the run meets), so it is withheld BY NAME (`runtime:start-latched-state`).
+//   · the run is the document's own program over every bar (the curtain's `plain`: built exactly as the document is);
+//   · every column is `NaN` before `START_FREE_FROM_BAR`, recorded as the warm-up (`withheldBars`), so the run half's
+//     column rail (`nativeRegistry.js::withRunHalf`) compares only the bars served;
+//   · its drawings keep only the start-free dots and, off a daily chart, the constant rating labels
+//     (`isStartFreeOnChart`); the rest ride out NAMED on the payload
+//     (`startLatched`: the code, the sentence, how many, and the calls they were made at), which the binder says in the
+//     drawing note. ⛔ Never `payload.withheld`: a family named there that the host also draws refuses the whole run half
+//     (`run-half:family-withheld`).
+// ⭐⭐ (owner, 2026-11-27) A MOVED SETTING the reading survives (`startLatched.js::START_FREE_SETTINGS`, checked by value)
+// is answered the same way: UCT's Fred RS opens at the owner's TradingView settings, a Historical new-high type among them.
+// A Historical type draws one circle per event, and TradingView's label collector (`objectPool.js::GC_BATCH`: past
+// cap + 5 it cuts back to cap, oldest first) keeps the newest `cap` labels in ANY phase plus up to five older ones, and
+// that phase is set by how many labels the script made since the listing, which a chart that starts later never sees.
+// So off the listing only labels among the run's newest `cap` are kept (never one TradingView may have collected), and a
+// Historical run names the oldest dots (`START_FREE_OLDEST_DOTS_REASON`) whether or not this run held more.
+// ⛔ Anything else (another source, a setting outside the list, a shorter chart, a window that slides) keeps the refusal
+// it had.
+let _startFreeOff = false
+/** Tests (the mutants' control): Fred RS off the listing is refused whole, as before e103. */
+export function __startFreeReleaseOffForTests(off) { _startFreeOff = !!off }
+let _shaMemo = { source: null, sha: null }
+function sourceSha256Of(source) {
+  if (_shaMemo.source !== source) _shaMemo = { source, sha: sha256Hex(source) }
+  return _shaMemo.sha
+}
+/** Is this off-listing run Fred RS's, at its defaults, on a chart long enough for its start-free values? */
+export function startFreeEligible(def, rows, ctx, opts = {}) {
+  if (_startFreeOff) return false
+  const compute = (def && def.compute) || {}
+  if (compute.objects !== true || typeof compute.source !== 'string') return false
+  // a daily chart needs the dot's look-back (its only start-free drawing); off a daily chart the constant labels are
+  // start-free on any bar, and a chart short of the dot's look-back withholds the dot by name (`computeStartFree`)
+  const nonDaily = isNonDailyTf(ctx && ctx.tf)
+  if (!Array.isArray(rows) || rows.length < (nonDaily ? 1 : START_FREE_MIN_BARS)) return false
+  if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return false
+  if (!startFreeSettingsAdmit(ctx && ctx.runtimeInputs)) return false
+  return sourceSha256Of(compute.source) === FRED_RS_SOURCE_SHA256
+}
+function computeStartFree(def, rows, ctx, opts) {
+  const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined } }
+  const a = computeRuntimeColumnsOnce(plain, rows, ctx, { ...opts, sessionRole: 'startFree' })
+  const from = Math.min(START_FREE_FROM_BAR, rows.length)
+  for (const k of Object.keys(a)) {
+    const col = a[k]
+    for (let i = 0; i < from && i < col.length; i += 1) col[i] = NaN
+  }
+  Object.defineProperty(a, RUNTIME_WARMUP_KEY, {
+    value: { withheldBars: from, startFree: RUNTIME_START_LATCHED_GUARD }, enumerable: false, configurable: true })
+  const p = a[RUNTIME_OBJECTS_KEY]
+  if (p && typeof p === 'object' && p.status === 'ok' && Array.isArray(p.live)) {
+    const live = []
+    const latched = []
+    const tf = ctx && ctx.tf
+    // the labels every phase of TradingView's collector keeps: the newest `cap` (`p.live` is in creation order); Fred RS
+    // sets no `max_labels_count`, so `cap` is Pine's default
+    const cap = POOL_LIMITS.label.fallback
+    const labels = p.live.filter((o) => o && o.family === 'label')
+    const kept = new Set(labels.slice(Math.max(0, labels.length - cap)).map((o) => o.id))
+    for (const o of p.live) {
+      const survives = !(o && o.family === 'label') || kept.has(o.id)
+      ;(survives && isStartFreeOnChart(o, tf) ? live : latched).push(o)
+    }
+    const historical = historicalDotsOn(ctx && ctx.runtimeInputs)
+    const sites = [...new Set(latched.map((o) => o && o.site).filter((s) => typeof s === 'string'))]
+    // a chart short of the dot's look-back: whether TradingView's longer run draws the dot is not known here, so it is
+    // said whether or not this run made one
+    const short = rows.length < START_FREE_MIN_BARS
+    const reasons = [...(latched.some((o) => !(o && o.family === 'label' && o.props && /circle$/.test(String(o.props.style))))
+      ? [START_LATCHED_REASON] : []), ...(short ? [START_FREE_DOT_SHORT_REASON] : []),
+    ...(historical && !short ? [START_FREE_OLDEST_DOTS_REASON] : [])]
+    withRuntimeObjects(a, { ...p, live,
+      ...(latched.length || short || historical ? { startLatched: { guard: RUNTIME_START_LATCHED_GUARD, reason: reasons.join('; ')
+        || START_FREE_DOT_SHORT_REASON, count: latched.length, sites } } : {}) })
+  }
+  return a
+}
+
 // ─── ⭐⭐⭐ UIE PHASE 5 (M2) — INCREMENTAL RUNS: RESUME FROM THE LAST CONFIRMED BAR ───────
 //
 // A chart repaints a runtime pane on every tick and every new bar, and each used to
@@ -1982,6 +2071,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
     // the bars whose values do not depend on where the chart starts are drawn; the
     // ones before them are withheld; a script that never forgets its start is refused.
+    // ⭐⭐ (e103) Fred RS's start-free drawings, read from the script itself, FIRST: the curtain (a rail's, when on)
+    // would release its start-latched rating label from two starts (`computeStartFree`)
+    if (startFreeEligible(def, rows, ctx, opts)) return computeStartFree(def, rows, ctx, opts)
     // ⛔⛔ (e102) OFF until proved exact: refused by name below (`_offListingCurtainOn`)
     if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
