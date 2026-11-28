@@ -39,6 +39,13 @@
 //     provider): a chart slot inside a board is hidden whenever ITS layer or the BOARD is not shown, and is told of
 //     both. The layer CSS primitive is `boardLayerProps` (boardLayer.js), one definition for board and slot.
 //
+// ⭐ A KEPT BOARD IS CURRENT TOO (2026-11-28, Lane G): the workspace makes its LAYER board handles `current` and `kept`, so the
+// bar store's base feed of what sits directly under a kept board stays forwarded (above), and a feed that opts in with
+// `forwardWhileShown(vis, notify, catchUp, { idle: true })` (the chart's developing bar) is caught up in an idle task
+// at most once per KEPT_IDLE_CATCHUP_MS while the board is kept (`keptCurrentNow`): a show then has (almost) nothing
+// left to catch up, and what arrived since the last idle pass is still caught up in the show's own task (never a stale
+// frame). A chart SLOT hidden in its own right (the double buffer's shadow) is not kept-current: as before.
+//
 // No provider (today, and with the flag off): the context is null and every chart behaves exactly as before.
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 
@@ -53,7 +60,7 @@ function afterPaint(fn) {
  *  layer mode's handle (above); without it the handle is the <Activity> mode's, and nothing reads it as paused.
  *  `current`: a hidden layer whose bar BASE feed stays forwarded (forwardWhileCurrent). `parent`: the layer handle of the
  *  board a chart slot sits in: the slot's `state` is the parent's whenever the parent is not shown. */
-export function createBoardVisibility({ layer = false, current = false, parent = null } = {}) {
+export function createBoardVisibility({ layer = false, current = false, parent = null, kept = false } = {}) {
   const disposers = new Set()
   const listeners = new Set()   // feeds, gates, loops, nested handles: told in the change's own task
   const readers = new Set()     // useBoardHidden (React): told in the change's task, or after the paint of a QUIET one
@@ -79,10 +86,14 @@ export function createBoardVisibility({ layer = false, current = false, parent =
   const effective = () => (nested && parent.state !== 'visible' ? parent.state : own)
   return {
     get state() { return effective() },
+    /** This handle's own state, its parent's left out. */
+    get ownState() { return own },
     /** The <Activity> mode (and its rails) writes the state directly: no one is told. */
     set state(v) { own = v },
     layer: !!layer || nested,
     current: !!current,
+    /** (Lane G) a workspace BOARD handle (kept boards are kept current: keptCurrentNow) */
+    kept: !!kept && !nested,
     parent: nested ? parent : null,
     /** Change the state AND tell every reader (`useBoardHidden`, a parked frame loop). `{ quiet: true }`: the readers
      *  (`useBoardHidden`) are told after the next paint; everything else in this task. */
@@ -205,6 +216,17 @@ export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
   return { cb, stop: () => { unVis(); if (cancel) { cancel(); cancel = null } } }
 }
 
+/** The longest a kept-current board's opted-in feed waits for its idle catch-up (about once a second). */
+export const KEPT_IDLE_CATCHUP_MS = 1000
+
+/** Is this layer hidden ONLY because it is (on) a kept CURRENT board: a current board handle that is hidden, or a
+ *  nested slot shown in its own right whose board is one? */
+export function keptCurrentNow(vis) {
+  if (!vis || !vis.layer) return false
+  if (vis.parent) return vis.ownState === 'visible' && keptCurrentNow(vis.parent)
+  return !!vis.kept && !!vis.current && vis.state === 'hidden'
+}
+
 /** A chart slot's own layer handle inside the board this component sits on (nested: hidden whenever the board is),
  *  made once; `{ current }` as createBoardVisibility. Provide it with BoardVisibilityContext.Provider. */
 export function useNestedBoardVisibility({ current = false } = {}) {
@@ -218,19 +240,43 @@ export function useNestedBoardVisibility({ current = false } = {}) {
  *  (or disposed) the feed stays subscribed and the call is only NOTED, and the show runs `catchUp` (default: `notify`
  *  with no argument) once, synchronously in its own task, when anything was noted. No layer handle: `notify` itself.
  *  Returns { cb, stop }: subscribe the feed with `cb`, and call `stop` with the feed's own unsubscribe. */
-export function forwardWhileShown(vis, notify, catchUp = () => notify()) {
+export function forwardWhileShown(vis, notify, catchUp = () => notify(), { idle = false } = {}) {
   if (!vis) return { cb: notify, stop: () => {} }
   let missed = false
+  let cancel = null
+  let lastIdle = 0
+  // (Lane G) `idle`: on a kept current board the catch-up runs in an idle task, at most once per KEPT_IDLE_CATCHUP_MS
+  const idleCatchUp = () => {
+    if (cancel) return
+    const wait = Math.max(0, lastIdle + KEPT_IDLE_CATCHUP_MS - Date.now())
+    let t = null
+    let cancelIdle = null
+    const run = () => {
+      cancel = null
+      lastIdle = Date.now()
+      if (!missed || !keptCurrentNow(vis)) return
+      missed = false
+      catchUp()
+    }
+    t = setTimeout(() => { t = null; cancelIdle = idleTask(run) }, wait)
+    cancel = () => { if (t != null) clearTimeout(t); if (cancelIdle) cancelIdle(); cancel = null }
+  }
   const cb = (...args) => {
-    if (boardHiddenNow(vis)) { missed = true; return }
+    if (boardHiddenNow(vis)) {
+      missed = true
+      if (idle && keptCurrentNow(vis)) idleCatchUp()
+      return
+    }
     notify(...args)
   }
-  const stop = vis.subscribe(() => {
-    if (!missed || vis.state !== 'visible') return
+  const unVis = vis.subscribe(() => {
+    if (vis.state !== 'visible') return
+    if (cancel) cancel()
+    if (!missed) return
     missed = false
     catchUp()
   })
-  return { cb, stop }
+  return { cb, stop: () => { unVis(); if (cancel) cancel() } }
 }
 
 const NO_SUBSCRIBE = () => () => {}

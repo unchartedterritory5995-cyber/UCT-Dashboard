@@ -6,7 +6,8 @@
 // disconnected: no stream, poll, timer or frame loop runs for a hidden board), and a switch back to it SHOWS it instead
 // of mounting it. Its charts keep their instances through the hide (StockChart, boardVisibility.js).
 //
-// One board is kept. A switch to a third board disposes it; so does grid mode or the desk hiding the workspace. The kept
+// ⭐ (2026-11-28, Lane G) the LAYER mode keeps up to K boards, least recently shown dropped first (`keptBoardLimit`); the
+// <Activity> mode keeps one. A switch to a board past the K-th disposes the oldest kept one; so does grid mode or the desk hiding the workspace. The kept
 // board is reused only when the board asked for is the very same layout (`sameBoard`): one saved in another tab or
 // window meanwhile is mounted fresh. A hidden board is never written: its grid has no-op handlers, and the attributes
 // other code finds a widget by (`data-widget-id`, `data-widget-type`) are only on the board in front.
@@ -17,6 +18,8 @@
 // mounted and laid out under the board in front (absolute, inset 0, visibility hidden, inert), every effect of it alive
 // and its work paused through its visibility handle (components/chart/boardVisibility.js). A switch back flips its
 // visibility: no effect re-runs, no canvas is re-allocated. Disposing it is a plain unmount.
+import { isDesktopApp } from '../../lib/desktopBridge'
+
 export const BOARD_KEEPALIVE_KEY = 'uct.boardKeepAlive'
 /** A kept board is disposed once the page has been hidden this long (memory: nobody is coming back soon). */
 export const KEPT_BOARD_HIDDEN_DISPOSE_MS = 10 * 60_000
@@ -41,6 +44,24 @@ export function deviceCanKeepBoard(nav = globalThis.navigator, matchMedia = glob
   if (gb != null) return gb >= KEEPALIVE_MIN_DEVICE_GB
   if (typeof matchMedia !== 'function') return false
   try { return !matchMedia(KEEPALIVE_TOUCH_TIER_QUERY).matches } catch { return false }
+}
+
+/** ⭐ (2026-11-28, Lane G, plan PR 2.3) HOW MANY BOARDS THE LAYER MODE KEEPS behind the one in front, by device memory
+ *  (navigator.deviceMemory, GB; Chromium reports at most 8): under 8 GB one, 8-15 GB two, 16 GB or more four; the
+ *  desktop app (a desktop machine, its own process) four. No memory report (Safari, Firefox): one, as before. The owner
+ *  spends client memory before quality (a kept board measured +KEPT_BOARD_HEAP_MB of JS heap, its canvases on top).
+ *  `uct.boardKeepAlive.k` = 1..8 in storage overrides (a member's, or a measurement's, choice). */
+export const BOARD_KEEP_K_KEY = 'uct.boardKeepAlive.k'
+export const KEPT_BOARDS_MAX = 8
+export function keptBoardLimit(nav = globalThis.navigator, desktopApp = isDesktopApp()) {
+  try {
+    const k = Number(globalThis.localStorage?.getItem(BOARD_KEEP_K_KEY))
+    if (Number.isInteger(k) && k >= 1) return Math.min(k, KEPT_BOARDS_MAX)
+  } catch { /* storage off */ }
+  if (desktopApp) return 4
+  const gb = typeof nav?.deviceMemory === 'number' ? nav.deviceMemory : null
+  if (gb == null || gb < 8) return 1
+  return gb >= 16 ? 4 : 2
 }
 
 /** 'off' | 'activity' ('1') | 'layer' ('2'): storage first, then the build's default, then the device's default. */

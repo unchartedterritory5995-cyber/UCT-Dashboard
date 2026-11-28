@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { mergeLiveQuote } from '../lib/liveQuoteMerge'
 import useLivePrices from './useLivePrices'
-import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
+import { boardHiddenNow, forwardWhileShown, keptCurrentNow, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import * as realtimeCandle from '../lib/realtimeCandle'
 import * as priceStreamManager from '../lib/priceStreamManager'
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
@@ -48,7 +48,8 @@ function usePooledRealtimePrices(tickers = []) {
   const subscribeStore = useCallback(
     (onStoreChange) => {
       if (!sorted) return () => {}   // idle consumer: never registers, never notified
-      const f = forwardWhileShown(layer, onStoreChange)
+      // (Lane G) a KEPT current board re-reads the stream in an idle task about once a second
+      const f = forwardWhileShown(layer, onStoreChange, undefined, { idle: true })
       const off = priceStreamManager.subscribe(sorted.split(','), f.cb)
       return () => { f.stop(); off() }
     },
@@ -58,11 +59,11 @@ function usePooledRealtimePrices(tickers = []) {
   // can never re-render them (the manager's snapshot is one shared object).
   const liveSnap = sorted ? priceStreamManager.getSnapshot : getEmptySnapshot
   const getSnap = useCallback(
-    () => (layer && heldSnapRef.current && boardHiddenNow(layer) ? heldSnapRef.current : liveSnap()),
+    () => (layer && heldSnapRef.current && boardHiddenNow(layer) && !keptCurrentNow(layer) ? heldSnapRef.current : liveSnap()),
     [layer, liveSnap],
   )
   const snap = useSyncExternalStore(subscribeStore, getSnap, getSnap)
-  if (!layer || !boardHiddenNow(layer)) heldSnapRef.current = snap
+  if (!layer || !boardHiddenNow(layer) || keptCurrentNow(layer)) heldSnapRef.current = snap
 
   // Per-field merge: REST fields are preserved, stream fields overlay.
   // CRITICAL: only merge for tickers in the CURRENT subscription set — the

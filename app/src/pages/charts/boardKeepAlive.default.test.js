@@ -40,3 +40,25 @@ describe('the board keep-alive default', () => {
     expect(boardKeepAliveMode()).toBe('layer')
   })
 })
+
+// ⭐ (2026-11-28, Lane G) how many boards the layer mode keeps
+//   KD3 under 8 GB (or no report) one; 8-15 GB two; 16 GB or more four; the desktop app four; storage `uct.boardKeepAlive.k`
+//       (1..8) over everything
+describe('the kept-board limit', () => {
+  it('KD3 K by device memory, the desktop app, and the storage override', async () => {
+    const { keptBoardLimit, BOARD_KEEP_K_KEY, KEPT_BOARDS_MAX } = await import('./boardKeepAlive')
+    expect(keptBoardLimit({}, false), 'no memory report').toBe(1)
+    expect(keptBoardLimit({ deviceMemory: 4 }, false)).toBe(1)
+    expect(keptBoardLimit({ deviceMemory: 7.9 }, false)).toBe(1)
+    expect(keptBoardLimit({ deviceMemory: 8 }, false), 'an 8 GB device (Chromium reports at most 8)').toBe(2)
+    expect(keptBoardLimit({ deviceMemory: 15 }, false)).toBe(2)
+    expect(keptBoardLimit({ deviceMemory: 16 }, false)).toBe(4)
+    expect(keptBoardLimit({ deviceMemory: 2 }, true), 'the desktop app').toBe(4)
+    localStorage.setItem(BOARD_KEEP_K_KEY, '3')
+    expect(keptBoardLimit({ deviceMemory: 2 }, false), 'the storage choice').toBe(3)
+    localStorage.setItem(BOARD_KEEP_K_KEY, '99')
+    expect(keptBoardLimit({}, false)).toBe(KEPT_BOARDS_MAX)
+    localStorage.setItem(BOARD_KEEP_K_KEY, 'x')
+    expect(keptBoardLimit({ deviceMemory: 8 }, false), 'a bad value is no choice').toBe(2)
+  })
+})

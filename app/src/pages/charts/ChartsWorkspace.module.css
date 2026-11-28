@@ -3073,4 +3073,9 @@
 /* ⭐ Board keep-alive (2026-11-27, boardKeepAlive.js): a board's slot adds no box of its own, so the grid inside lays
    out against the workspace body exactly as without it. A kept board's slot is hidden by <Activity> (display: none). */
 .boardSlot { display: contents; }
+/* ⭐ (2026-11-28, Lane G) the LAYER mode's board in front sits in the very box its kept layer had (boardLayer.module.css
+   `.boardSlotLayer`: absolute, inset 0, the body's padding), so a flip between them changes visibility, never the box:
+   no slot is re-laid-out by a show or a hide. `display: contents` (above) here made every flip rebuild the boxes of both
+   boards. */
+.boardSlotPinned { position: absolute; inset: 0; padding: inherit; box-sizing: border-box; }
 /* The layer keep-alive's kept board: components/chart/boardLayer.module.css `.boardSlotLayer` (one definition). */
