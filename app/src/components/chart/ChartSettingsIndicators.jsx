@@ -216,6 +216,12 @@ import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
 import YourIndicatorActions from './YourIndicatorActions'
 
+/** A number input's width: 70px floor, wider for a longer value (its characters plus the spinner and padding). */
+export function numFieldWidth(val) {
+  const n = String(val ?? '').length
+  return n > 4 ? { width: `max(70px, calc(${n}ch + 34px))` } : undefined
+}
+
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
  * engine instance?
@@ -2573,6 +2579,9 @@ export default function ChartSettingsIndicators({
             <input
               type="number" className={styles.indNum} {...inert} aria-labelledby={labelId}
               min={f.min} max={f.max} step={f.step} value={val ?? ''}
+              // ⭐ wide enough for its whole value (owner, 2026-11-28: Fred RS's "For 99 stocks" 195.93 showed as "195.9"):
+              // 70px stays the floor, a longer number widens the box by its characters (digits are tabular)
+              style={numFieldWidth(val)}
               onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
             />
           )}

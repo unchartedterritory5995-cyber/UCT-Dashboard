@@ -152,6 +152,39 @@ export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
 // INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
 export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
+// INS SELLS / INS 30D (2026-11-27): copies of panels/insiderMarketModel.js INS_SIDE_ARG_WORDS and
+// INS_WINDOW_ARG_WORDS (args.insiderMarket.test.js pins each to its owner)
+export const INS_SIDE_WORDS = Object.freeze({
+  BUYS: 'buys', BUY: 'buys', BUYING: 'buys', PURCHASES: 'buys',
+  SELLS: 'sells', SELL: 'sells', SALES: 'sells', SELLING: 'sells',
+  BOTH: 'both', ALL: 'both',
+})
+export const INS_WINDOW_WORDS = Object.freeze({
+  '7D': 7, '1W': 7, WEEK: 7,
+  '30D': 30, '1M': 30, MONTH: 30,
+  '90D': 90, '3M': 90, QUARTER: 90,
+})
+// bare OIC's view (2026-11-27): a copy of panels/oiMarketModel.js OI_VIEW_ARG_WORDS (args.oiMarket.test.js pins it)
+export const OI_VIEW_WORDS = Object.freeze({
+  STOCKS: 'stocks', STOCK: 'stocks', NAMES: 'stocks', TICKERS: 'stocks',
+  CONTRACTS: 'contracts', CONTRACT: 'contracts', STRIKES: 'contracts',
+})
+// FTD's rank (2026-11-27): a copy of panels/ftdMarketModel.js FTD_RANK_ARG_WORDS (args.ftdMarket.test.js pins it)
+export const FTD_RANK_WORDS = Object.freeze({
+  SHARES: 'shares', SHARE: 'shares', QTY: 'shares', QUANTITY: 'shares',
+  VALUE: 'value', DOLLARS: 'value', DOLLAR: 'value', USD: 'value',
+})
+// FEED's form (2026-11-27): a copy of panels/filingsFeedModel.js FEED_FORM_ARG_WORDS (args.filingsFeed.test.js pins it)
+export const FEED_FORM_WORDS = Object.freeze({
+  '8-K': '8-K', '8K': '8-K',
+  '10-Q': '10-Q', '10Q': '10-Q',
+  '10-K': '10-K', '10K': '10-K',
+  4: '4', FORM4: '4', F4: '4',
+  '13D': 'SCHEDULE 13D', SC13D: 'SCHEDULE 13D',
+  '13G': 'SCHEDULE 13G', SC13G: 'SCHEDULE 13G',
+  'S-1': 'S-1', S1: 'S-1',
+  DILUTION: 'DILUTION', OFFERING: 'DILUTION', OFFERINGS: 'DILUTION', SHELF: 'DILUTION', SHELFS: 'DILUTION', SHELVES: 'DILUTION',
+})
 // MKTH (2026-11-21): a copy of the panel model's index words (functions.marketHistory.test.js pins it to its owner)
 export const MKTH_INDEX_ARG_WORDS = Object.freeze({
   SPX: 'SPX', SP500: 'SPX', SPY: 'SPX',
@@ -700,6 +733,57 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
     },
     describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
+  },
+  // ── INS SELLS / INS BOTH / INS 30D (2026-11-27) ──
+  /** INS's side (panels/insiderMarketModel.js INS_SIDE_ARG_WORDS; pinned by args.insiderMarket.test.js). */
+  insSide: {
+    takes: 'BUYS, SELLS or BOTH',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_SIDE_WORDS, key) ? INS_SIDE_WORDS[key] : null
+    },
+    describe: (v) => ({ buys: 'insider purchases', sells: 'insider sales', both: 'insider purchases and sales' })[v] || v,
+  },
+  /** INS's window in days (panels/insiderMarketModel.js INS_WINDOW_ARG_WORDS; pinned by args.insiderMarket.test.js). */
+  insWindow: {
+    takes: 'a window (7D, 30D or 90D)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_WINDOW_WORDS, key) ? INS_WINDOW_WORDS[key] : null
+    },
+    describe: (v) => `the last ${v} days`,
+  },
+  // ── bare OIC's view (2026-11-27) ──
+  /** Bare OIC's list (panels/oiMarketModel.js OI_VIEW_ARG_WORDS; pinned by args.oiMarket.test.js). */
+  oicView: {
+    takes: 'STOCKS or CONTRACTS',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(OI_VIEW_WORDS, key) ? OI_VIEW_WORDS[key] : null
+    },
+    describe: (v) => ({ stocks: 'by stock', contracts: 'by contract' })[v] || v,
+  },
+  // ── FTD's rank (2026-11-27) ──
+  /** Bare FTD's order (panels/ftdMarketModel.js FTD_RANK_ARG_WORDS; pinned by args.ftdMarket.test.js). */
+  ftdRank: {
+    takes: 'SHARES or VALUE',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(FTD_RANK_WORDS, key) ? FTD_RANK_WORDS[key] : null
+    },
+    describe: (v) => ({ shares: 'largest by shares failed', value: 'largest by dollar value' })[v] || v,
+  },
+  // ── FEED's form (2026-11-27) ──
+  /** FEED's form (panels/filingsFeedModel.js FEED_FORM_ARG_WORDS; pinned by args.filingsFeed.test.js):
+   *  `FEED 8-K`, `FEED DILUTION` (S-1, S-3, 424B and S-8 together), `NVDA FEED 10-K`. */
+  feedForm: {
+    takes: 'a form (8-K, 10-Q, 10-K, FORM4, 13D, 13G, S-1 or DILUTION)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(FEED_FORM_WORDS, key) ? FEED_FORM_WORDS[key] : null
+    },
+    describe: (v) => (v === 'DILUTION' ? 'share-offering filings (S-1, S-3, 424B, S-8)'
+      : `${v === '4' ? 'Form 4' : String(v).replace('SCHEDULE ', 'Schedule ')} filings`),
   },
   // ── DVD MARKET, MNA MARKET, IDXC MARKET (2026-11-21) ──
   /** The whole market, whatever stock the panel follows (panels/marketViewModel.js MARKET_VIEW_ARG_WORDS; pinned

@@ -2,6 +2,7 @@
 
 GET /api/insider/feed         — notable insider buys across the market (last 7 days)
 GET /api/insider/feed?scope=market - open-market purchases market-wide (Form 4, last 7 days)
+GET /api/insider/feed?scope=market&side=sells|both|buys&days=7|30|90 - the held market build (INS SELLS, INS 30D)
 GET /api/insider/clusters     — insider cluster buys from the SEC's own Form 4 filings (INS CLUSTER)
 GET /api/insider/{ticker}     — insider transactions for a single stock
 GET /api/insider/{ticker}/has-buy — quick boolean check for recent insider buy
@@ -24,8 +25,11 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.insider import (
+    MARKET_SIDES,
+    MARKET_WINDOWS,
     get_insider_activity,
     get_market_insider_buys,
+    get_market_insider_trades,
     get_recent_insider_buys,
     has_recent_insider_buy,
 )
@@ -49,7 +53,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 @router.get("/feed")
-def insider_feed(scope: Optional[str] = None, _user: dict = Depends(require_paid)):
+def insider_feed(scope: Optional[str] = None, side: Optional[str] = None, days: Optional[int] = None,
+                 _user: dict = Depends(require_paid)):
     """Notable insider buys (last 7 days).
 
     No `scope`: the UCT 20 + large-cap watchlist feed, unchanged (UCT20.jsx
@@ -59,7 +64,17 @@ def insider_feed(scope: Optional[str] = None, _user: dict = Depends(require_paid
     if scope is None:
         return get_recent_insider_buys()
     if scope == "market":
-        return get_market_insider_buys()
+        # `side` / `days` (2026-11-27, `INS SELLS`, `INS BOTH 30D`): the HELD market build, an object
+        # with a status (ok | computing | failed). Neither given: the default list above, unchanged.
+        if side is None and days is None:
+            return get_market_insider_buys()
+        s = (side or "buys").strip().lower()
+        d = 7 if days is None else days
+        if s not in MARKET_SIDES or d not in MARKET_WINDOWS:
+            raise HTTPException(status_code=400, detail="side must be buys, sells or both; days 7, 30 or 90")
+        return get_market_insider_trades(s, d)
+    if side is not None or days is not None:
+        raise HTTPException(status_code=400, detail="side and days need scope=market")
     raise HTTPException(status_code=400, detail="scope must be 'market' or absent")
 
 

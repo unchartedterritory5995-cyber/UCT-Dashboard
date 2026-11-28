@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from api.bars_auth import require_bars_access
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from api.services import bars_liveness, realtime_candle, realtime_stream
+from api.services import bars_liveness, realtime_candle, realtime_candle_feed, realtime_stream, stream_prev_close
 from api.services.realtime_stream import (
     get_realtime_prices, subscribe_tickers, unsubscribe_tickers, get_stream_status
 )
@@ -26,7 +26,13 @@ _logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
+#: Tickers per /api/stream/prices connection (the browser pool, priceStreamManager.js, opens one connection
+#: per 50 and mirrors this number). ⚰️ It was labelled "Finnhub free tier cap". Since 2026-11-28 the live
+#: candle is fed from Massive (realtime_candle_feed), so this bounds what one connection may hold upstream on
+#: the Massive stocks socket (AM + A + T per symbol, refcounted, the same interest it already registered) and
+#: on the Finnhub socket while that runs. Kept at 50: Massive documents no per-plan symbol cap, so nothing
+#: shows a larger number is safe (docs/terminal-research/07-technical-architecture/domain-streaming-caching.md).
+MAX_SSE_TICKERS = 50
 
 #: The per-connection cap on `sym:tf` BARS pairs. Named 2026-09-15 (D3 CP2): it was
 #: an inline `pairs[:50]` several hundred lines below, and `barsStreamManager.js`
@@ -475,6 +481,12 @@ async def stream_prices(
         _bb.add_interest(ticker_list)
     except Exception:
         _bb = None
+    # The same Massive feed builds the live candle behind the `tick` / `bar_close` / `bar_correction` events
+    # (realtime_candle_feed: Massive owns a symbol while it is live, Finnhub only while Massive is silent).
+    try:
+        realtime_candle_feed.install(_bb)
+    except Exception:  # noqa: BLE001 - the candle door never blocks the price stream
+        pass
 
     async def event_generator():
         last_prices = {}  # {sym: price} — only compare price field to avoid unnecessary pushes
@@ -487,6 +499,10 @@ async def stream_prices(
 
         # Candle event tracking: {sym: (t, c, v)} — last seen state per ticker
         last_candle_state: dict = {}
+
+        # The day % fields for an entry Finnhub did not give them (its socket off, or not printed yet):
+        # symbols lacking a licensed previous close are queued at most once a minute (stream_prev_close).
+        last_prev_close_ask = 0.0
 
         # This connection's OWN bounded correction queue, for its tickers
         # (drained once per loop). Subscribed inside the `try` so the `finally`
@@ -514,6 +530,17 @@ async def stream_prices(
                 if _bb is not None:
                     for sym in ticker_list:
                         _overlay_live(current, sym, _bb.get_last_price(sym))
+
+                # Same fields with or without Finnhub: an entry without Finnhub's change_pct / change gets
+                # them from the licensed previous close (never invented when that is unknown). Only those
+                # symbols are ever read or refreshed, so while Finnhub covers a symbol nothing is fetched.
+                if current:
+                    needs = [s for s, e in current.items() if isinstance(e, dict) and "change_pct" not in e]
+                    for s in needs:
+                        stream_prev_close.fill_day_change(current[s], stream_prev_close.get(s))
+                    if needs and time.time() - last_prev_close_ask >= 60:
+                        last_prev_close_ask = time.time()
+                        stream_prev_close.want(needs)
 
                 # Only send if any ticker's price OR live volume actually changed
                 # (volume is included so the Volume column still ticks on a trade

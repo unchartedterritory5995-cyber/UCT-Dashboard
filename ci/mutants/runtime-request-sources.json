@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "fix/intraday-htf-door (2026-11-28), found by re-asking write-capability w02 live on production: on the runtime lane a source input read inside ANY request is the bar series it names, of the requested bars, and Pine's price means (hl2 / hlc3 / ohlc4 / hlcc4) read inside a request are their arithmetic of the requested bar's fields. Each mutant breaks one rule and must turn its rail red.",
+ "mutants": [
+  {
+   "id": "D3",
+   "mutant": "source-input: a source input read inside a request falls through to the stateful-builtin refusal again (runtime:input-state)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (dv && dv.type === 'name' && MEMBER_SOURCES.has(dv.name)) return lowerExpr({ ...dv, tok: node.tok }, scope)",
+   "to": "          if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtimeRequestSources.test.js",
+   "expectRed": "at the author default (close)"
+  },
+  {
+   "id": "D4",
+   "mutant": "price-means: hl2 / hlc3 / ohlc4 / hlcc4 inside a request are a name nothing binds again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (mean && scope.lookup(node.name) === null && !env.has(node.name)) return lowerExpr(mean(node.tok), scope)",
+   "to": "          if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtimeRequestSources.test.js",
+   "expectRed": "price means inside a request"
+  },
+  {
+   "id": "D5",
+   "mutant": "hl2-arithmetic: hl2 inside a request divides by 3 (a wrong mean must not pass as the written arithmetic)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  hl2: (t) => meanBin('/', meanBin('+', meanName('high', t), meanName('low', t), t), meanNum(2, t), t),",
+   "to": "  hl2: (t) => meanBin('/', meanBin('+', meanName('high', t), meanName('low', t), t), meanNum(3, t), t),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtimeRequestSources.test.js",
+   "expectRed": "hl2 at W"
+  },
+  {
+   "id": "D7",
+   "mutant": "own-name: a mean replaces a name the script binds itself (`hl2 = close * 10` read as the price mean)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (mean && scope.lookup(node.name) === null && !env.has(node.name)) return lowerExpr(mean(node.tok), scope)",
+   "to": "          if (mean) return lowerExpr(mean(node.tok), scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtimeRequestSources.test.js",
+   "expectRed": "a name the script binds itself wins"
+  }
+ ]
+}
