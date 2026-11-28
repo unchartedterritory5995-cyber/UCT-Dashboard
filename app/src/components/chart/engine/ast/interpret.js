@@ -62,7 +62,7 @@ import {
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
 // ⭐⭐ Q-CLOSURE — the NYSE's full closures and the dataset's horizon (`sessionKeying`'s S2), read off the one calendar
-import { HOLIDAY_ROWS, horizon as calendarHorizon } from '../../../../lib/marketClock/sessionCalendar.js'
+import { HOLIDAY_ROWS, EARLY_CLOSE_ROWS, horizon as calendarHorizon } from '../../../../lib/marketClock/sessionCalendar.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST, ANCHOR_RESET_CALLS } from './barIndexShift.js'
 
@@ -773,13 +773,137 @@ export function isoDayPlus(iso, days) {
   return `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
 }
 
-/** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
+/** The higher-timeframe bucket key for an ISO day, or (an intraday code) for an intraday stamp. Mirrors `_tf_bucket`.
+ *  ⭐⭐ E101 INTRADAY-HTF — an intraday stamp (`periodStamps`) IS its bucket's key: the grid was decided once, for the
+ *  whole series, where the stamp was made (`intradayBucketStart`), so nothing here can re-decide it. */
 export function tfBucket(iso, code) {
+  if (INTRADAY_HTF_SET.has(code)) return iso
   if (code === 'W') return isoWeekKey(iso)
   // ⭐ C47 — the calendar quarter: months 1–3, 4–6, 7–9, 10–12 (see
   // `TF_LIVE_RESAMPLABLE` for the two captures that witness it).
   if (code === '3M') return `${iso.slice(0, 4)}-Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`
   return iso.slice(0, 7)                             // YYYY-MM
+}
+
+// ─── ⭐⭐ E101 INTRADAY-HTF (coordinator GO 2026-11-27, NUMBER PENDING) — A HIGHER INTRADAY TIMEFRAME, RESAMPLED ────────
+// `request.security(syminfo.tickerid, "60", ta.ema(close, 50))` on a 15 minute chart: the child runs on the chart's own
+// bars resampled into 60 minute bars, as a weekly read runs on daily bars resampled into weeks. ONE RULE for both lanes
+// (the host evaluator's `tf_merge` / `tf_live` arms and the runtime lane's request, `requestAlignment`), and every keying
+// call site asks `periodStamps`, the one place a bar is placed in its bucket.
+//
+// THE GRID IS THE CHART'S OWN, never a second design: `chart/barTime.js::bucketStartUnix` (server twin
+// `bar_rollup.tv_bucket_bounds`), measured against TradingView on AMEX:SPY 60 minutes with extended hours off and on
+// (captures `vw-time-session-spy-60-{rth,ext}-2026-09-28`):
+//   * a chart of REGULAR-HOURS bars (`chartDayRegime` kind `regular`) is on the SESSION grid: buckets anchored at the
+//     09:30 open, 09:30, 10:30 ... 15:30, the last one short (15:30-16:00; 12:30-13:00 on a 13:00 half day);
+//   * a chart with pre-market and after-hours bars (kind `extended`) is on the CLOCK grid: New York clock multiples
+//     (04:00, 05:00 ... 19:00 at 60; the 09:00 bar spans the open);
+//   * any other chart (around the clock, off-session, an unreadable clock) is not placed: every bar of the read is
+//     withheld by name (`INTRADAY_HTF_SESSION_CODE`). This engine reads every clock in New York.
+// `barTime.js` reads the zone through `Intl`; this module holds no `Date` (its rail), so the rule is restated here in
+// integer arithmetic and HELD EQUAL to `bucketStartUnix` for 30 and 60, both grids, every 15 minutes over 2024-2027 (DST
+// changes and half days included) by `intradayHtfGrid.test.js`: a drift in either is red.
+// ⛔ 120 and 240 extend the same rule (the session grid anchored at the open, its last bucket short; the clock grid on
+// clock multiples) and are NOT measured. They, and 30 / 60 as REQUEST reads above a lower chart, are served only once
+// the TradingView probe (queue row Q-IHTF-1, `tools/visual_conformance/probes/vw-ihtf-grid.pine`) agrees, by the door's
+// admission (`intradayHtfGate.js`). A target must be a whole multiple of the chart's minutes (15 -> 60; 45 -> 60 refused).
+/** The intraday codes a higher-timeframe read may name above an intraday chart. */
+export const INTRADAY_HTF_CODES = Object.freeze(['30', '60', '120', '240'])
+const INTRADAY_HTF_SET = new Set(INTRADAY_HTF_CODES)
+/** The bars of an intraday read whose chart is on neither measured grid (`intradayHtfMask`). */
+export const INTRADAY_HTF_SESSION_CODE = 'request:htf-intraday-session'
+/** The fewest chart bars an intraday bucket above the chart holds (a whole multiple above it): the lookback sum's span. */
+export const INTRADAY_HTF_MIN_SPAN = 2
+/** The grid each chart kind is on (`chartDayRegime`'s kinds; barTime.js's names). */
+export const INTRADAY_HTF_GRID_BY_KIND = Object.freeze({ regular: 'session', extended: 'clock' })
+const RTH_OPEN_MINUTE = 570
+const RTH_CLOSE_MINUTE = 960
+const EARLY_CLOSE_MINUTE = new Map(EARLY_CLOSE_ROWS.map((e) => {
+  const [h, m] = String(e.close).split(':').map(Number)
+  return [e.date, h * 60 + m]
+}))
+
+/** Is `code` an intraday higher-timeframe code? */
+export function isIntradayHtfCode(code) { return INTRADAY_HTF_SET.has(String(code)) }
+
+/** ⭐ THE ONE DECISION: may a higher-timeframe read of `code` sit above a chart of `base` minutes? `null` when it may,
+ *  else the clause that says why not: a whole multiple above the chart's own minutes, both intraday. The evaluator, the
+ *  door and the run's supply all ask it. */
+export function intradayHtfRefusal(code, base) {
+  const c = String(code)
+  if (!INTRADAY_HTF_SET.has(c)) return `'${c}' is not one of ${INTRADAY_HTF_CODES.join(', ')} minutes`
+  if (base === undefined || base === null || !isBelowADay(base)) {
+    return `'${c}' minutes is read from an intraday chart's own bars only, and these bars are `
+      + `${base === undefined || base === null ? 'of no stated timeframe' : `'${String(base)}'`}`
+  }
+  const b = Number(base)
+  const m = Number(c)
+  if (!(m > b)) return `'${c}' minutes is not above this '${String(base)}' minute chart`
+  if (m % b !== 0) return `'${c}' minutes is not a whole number of this chart's '${String(base)}' minute bars`
+  return null
+}
+
+/** Unix second at which the `minutes`-wide bucket holding unix second `t` starts, on `grid` ('session' | 'clock'):
+ *  the integer restatement of `barTime.js::bucketStartUnix` (the block above). */
+export function intradayBucketStart(t, minutes, grid) {
+  const sec = Math.floor(t)
+  const local = sec + newYorkOffsetSeconds(sec)
+  const day = Math.floor(local / 86400)
+  const m = Math.floor((local - day * 86400) / 60)
+  const floorTo = (x) => Math.floor(x / minutes) * minutes
+  let anchor
+  if (grid === 'clock') anchor = floorTo(m)
+  else {
+    const [y, mo, d] = civilFromDays(day)
+    const iso = `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    const close = EARLY_CLOSE_MINUTE.get(iso) ?? RTH_CLOSE_MINUTE
+    if (m >= RTH_OPEN_MINUTE && m < close) anchor = RTH_OPEN_MINUTE + floorTo(m - RTH_OPEN_MINUTE)
+    else if (m >= close) anchor = close + floorTo(m - close)
+    else anchor = floorTo(m)                             // pre-market: clock multiples (the one before the open ends at it)
+  }
+  return sec - (((sec % 60) + 60) % 60) - (m - anchor) * 60
+}
+
+/** The grid this series' bars are on (`INTRADAY_HTF_GRID_BY_KIND` of `chartDayRegime`), or null when on neither. */
+function intradayGridOf(bars) {
+  const pack = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const t = epochSecondsOf(bars[i] && bars[i].t)
+    if (t === null) return null
+    const local = t + newYorkOffsetSeconds(t)
+    const day = Math.floor(local / 86400)
+    const dow = ((((day + 4) % 7) + 7) % 7) + 1                  // Sun = 1 ... Sat = 7 (`chartDayRegime`'s pack)
+    const sec = local - day * 86400
+    pack[i] = dow * 10000 + Math.floor(sec / 3600) * 100 + Math.floor((sec % 3600) / 60)
+  }
+  return INTRADAY_HTF_GRID_BY_KIND[chartDayRegime('1', pack).kind] || null
+}
+
+/** ⭐⭐ THE ONE KEYING INPUT: each bar's stamp for a read of `code`. A weekly / monthly / quarterly code: its day
+ *  (`barDays`). An intraday code: `YYYY-MM-DD@<bucket start>` (its New York session day and the unix second its bucket
+ *  starts at, on the series' own grid), or null for a bar it cannot place (every bar, on neither grid).
+ *  `tfBucket(stamp, code)` is its bucket. Python twin: `ast_interpret._period_stamps`. */
+export function periodStamps(bars, code) {
+  const list = Array.isArray(bars) ? bars : []
+  if (!INTRADAY_HTF_SET.has(String(code))) return barDays(list)
+  const days = barDays(list)
+  const grid = intradayGridOf(list)
+  const minutes = Number(code)
+  return list.map((b, i) => {
+    const t = epochSecondsOf(b && b.t)
+    return grid === null || t === null || !days[i] ? null : `${days[i]}@${intradayBucketStart(t, minutes, grid)}`
+  })
+}
+/** ⭐ Does the chart's first bar START its intraday bucket (its `t` is the bucket's start), so that bucket is built
+ *  from all of itself? Then no first-period mask is owed for it. */
+function intradayFirstOpens(bars, stamps) {
+  const t = bars.length ? epochSecondsOf(bars[0] && bars[0].t) : null
+  return t !== null && !!stamps[0] && stampStart(stamps[0]) === t
+}
+/** The unix second an intraday stamp's bucket starts at (the resampled bar's `t`), or null for a day. */
+function stampStart(stamp) {
+  const k = typeof stamp === 'string' ? stamp.indexOf('@') : -1
+  return k < 0 ? null : Number(stamp.slice(k + 1))
 }
 
 /** Resample ISO-dated bars into higher-timeframe bars, in order.
@@ -800,15 +924,18 @@ function resampleTo(bars, isos, code) {
     if (!iso) continue
     const key = tfBucket(iso, code)
     const b = bars[i]
+    // ⭐⭐ E101 INTRADAY-HTF — an intraday bucket's bar is stamped at its START (TradingView's `time` of that bar), in
+    // unix seconds as every intraday bar is; a week or month keeps its last session's day
+    const start = stampStart(iso)
     if (!at.has(key)) {
       at.set(key, out.length)
-      out.push({ t: iso, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
+      out.push({ t: start === null ? iso : start, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })
     } else {
       const w = out[at.get(key)]
       w.h = Math.max(w.h, b.h)
       w.l = Math.min(w.l, b.l)
       w.c = b.c
-      w.t = iso
+      if (start === null) w.t = iso
       w.v += (b.v || 0)
     }
   }
@@ -5384,6 +5511,14 @@ export function maxLookback(ast) {
         seen.set(node, seen.get(node.args[0]) + 1)
         continue
       }
+      // ⭐⭐ E101 INTRADAY-HTF — a merge of an intraday code counts its child in buckets of at least two chart bars
+      // (`INTRADAY_HTF_MIN_SPAN`: the fewest a whole multiple above the chart can hold). The tree sum has no base, so
+      // this is the claim the 2026-08-30 ruling keeps for an intraday base (`TF_BASE_BARS`): low, never a wrong number.
+      // Formula `tf` keeps its own codes.
+      if (node.type === TF_MERGE && isIntradayHtfCode(code)) {
+        seen.set(node, (seen.get(node.args[0]) + 1) * INTRADAY_HTF_MIN_SPAN)
+        continue
+      }
       assertResamplable(code, refuse)
       const span = TF_BASE_BARS[code]
       seen.set(node, (seen.get(node.args[0]) + 1) * span)
@@ -5393,6 +5528,10 @@ export function maxLookback(ast) {
       // ⭐ THE FORMING PERIOD, SO NO `+1`: a base bar reads the bucket it is IN,
       // not the one before it. Mirrors `ast_interpret.max_lookback`'s arm.
       const code = String(node.value)
+      if (isIntradayHtfCode(code)) {
+        seen.set(node, Math.max(1, seen.get(node.args[0]) * INTRADAY_HTF_MIN_SPAN))
+        continue
+      }
       assertLiveResamplable(code, refuse)
       seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_LIVE_BASE_BARS[code]))
       continue
@@ -6838,13 +6977,16 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
     + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
   // ⭐⭐ ENGINE 55 (review L2) — the first period of a `tf_merge` read, off the listing.
-  'request:htf-first-period-partial': () => 'This indicator reads a weekly or monthly value with '
-    + '`request.security` (look-ahead off). This chart\'s history does not begin at the symbol\'s listing, and '
-    + 'its first bar is not certainly the first session of its week or month, so the first period\'s value '
+  // ⭐⭐ E101 INTRADAY-HTF — worded for every period a merge reads: a week, a month, or a longer intraday bar (60
+  // minutes on a 15 minute chart). The table is keyed by code and handed the chart's timeframe, not the read's, so the
+  // sentence names the period kinds rather than one of them.
+  'request:htf-first-period-partial': () => 'This indicator reads a higher-timeframe value (a week, a month, or a '
+    + 'longer intraday bar) with `request.security` (look-ahead off). This chart\'s history does not begin at the '
+    + 'symbol\'s listing, and its first bar is not certainly the first bar of its period, so the first period\'s value '
     + 'would be built from only part of that period. The bars that would show it, or a value built from it, are '
     + 'withheld rather than drawn from part of a period; every other bar is drawn, and so is a value read from the '
     + 'period\'s close alone, which is the whole period\'s. What would settle it: a chart whose history '
-    + 'begins at a period\'s first session, or at the listing.',
+    + 'begins at a period\'s first bar, or at the listing.',
   // ⭐⭐ Q-CLOSURE (2026-11-21) — a week or month whose answer is the exchange's own calendar (`htfVenueCalendarMask`).
   // ⛔ Literal key: `HTF_VENUE_CALENDAR_CODE` is declared above, the sentence is this one spelling.
   'request:htf-venue-calendar': () => 'This indicator reads a weekly or monthly value with `request.security` on a '
@@ -6859,18 +7001,27 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — the first period of a `tf_live` read, off the listing (see
   // `tfLiveMask`); the run's request names the same code with the same sentence (`tfLiveFirstPeriodMask`).
   'request:htf-lookahead-first-period-partial': () => TF_LIVE_FIRST_SENTENCE,
+  // ⭐⭐ E101 INTRADAY-HTF (`intradayHtfMask`)
+  'request:htf-intraday-session': (tf) => 'This indicator reads a higher intraday timeframe with `request.security`. '
+    + 'Its bars are built from this chart\'s own on the grid TradingView uses: from the 09:30 open on a chart of '
+    + 'regular-hours bars, on New York clock hours on a chart with pre-market and after-hours bars (measured on '
+    + `AMEX:SPY, \`vw-time-session-spy-60-{rth,ext}-2026-09-28\`). This ${tfSpelled(tf)} chart's bars are neither shape `
+    + '(a symbol that trades around the clock, or bars outside those sessions), so what it draws from that read is '
+    + 'withheld rather than placed on a grid nobody measured. What would settle it: a TradingView capture of this '
+    + 'read on a chart of this kind (queue row Q-IHTF-1 holds one 24-hour symbol), or a chart of regular-hours or '
+    + 'extended-hours bars.',
   // ⭐⭐ PERIOD −1 (2026-11-19) — a read of the bar, week or month before the chart's first (`historyBeforeChartMask`).
   // ⛔ Literal key: `HISTORY_BEFORE_CHART_CODE` is declared further down.
   'history:before-chart': () => HISTORY_BEFORE_CHART_SENTENCE,
   // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
-  'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
-    + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
-    + 'week or month, and the still-forming period\'s value on a bar that is still forming (measured bar for '
+  'request:htf-newest-unconfirmed': () => 'This indicator reads a higher-timeframe value (a week, a month, or a '
+    + 'longer intraday bar) with `request.security` (look-ahead off). TradingView shows that value on the bar that '
+    + 'completes the period, and the still-forming period\'s value on a bar that is still forming (measured bar for '
     + 'bar on RDDT and SPY daily charts, captures `support-and-resistance-multi-time-frame-{rddt,spy}-1d-'
     + '2026-10-02`). This chart\'s newest bar is not known to be still forming, and whether it completes its '
-    + 'week or month depends on the date of the next session, which is not known yet, so this indicator\'s '
-    + 'value on that one bar is withheld rather than guessed; every earlier bar is drawn. What would settle '
-    + 'it: the next session, or a capture taken after the close of a session that does not end its week.',
+    + 'period depends on the next bar, which has not arrived yet, so this indicator\'s value on that one bar is '
+    + 'withheld rather than guessed; every earlier bar is drawn. What would settle it: the next bar, or a capture '
+    + 'taken after the close of a bar that does not end its period.',
   // ⭐⭐ C45 — `bar_index` (see `barIndexMask`).
   'bar-index:window': () => '`bar_index` counts bars from the first bar of the symbol\'s history on '
     + 'TradingView. This chart\'s loaded bars start later, so its count is lower by a number of bars it '
@@ -8121,6 +8272,8 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
     // ⭐⭐ ENGINE 57 — `ta.rci` / `ta.stoch` bars no capture pins
     builtinWitnessMask(tree, bars, inputs, budget, scalars, opts),
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
+    // ⭐⭐ E101 INTRADAY-HTF — an intraday read of a series on neither measured grid
+    intradayHtfMask(tree, bars, opts),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ Q-CLOSURE — a weekly / monthly read whose answer is the exchange's own calendar (evening-open sessions)
@@ -8412,18 +8565,51 @@ export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, s
   return any ? mask : null
 }
 
+/** ⭐⭐ E101 INTRADAY-HTF — THE BARS OF AN INTRADAY HIGHER-TIMEFRAME READ WHOSE SERIES IS ON NEITHER MEASURED GRID
+ *  (`periodStamps` places no bar: around the clock, off-session, an unreadable clock), as a 0/1 column (1 = withheld):
+ *  every bar, named `INTRADAY_HTF_SESSION_CODE`, never a blank column read as Pine's `na`. A read under `sym` asks the
+ *  other series' own bars. Null when every such read is placed. Python twin: `ast_interpret.intraday_htf_mask`. */
+export function intradayHtfMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!n) return null
+  const supplied = (opts && opts.symbols) || {}
+  let unplaced = false
+  const stack = [[tree, null]]
+  const seen = new Set()
+  while (stack.length && !unplaced) {
+    const [node, sym] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if ((node.type === TF_MERGE || node.type === 'tf_live') && isIntradayHtfCode(node.value)) {
+      const series = sym === null ? bars : supplied[sym]
+      if (Array.isArray(series) && series.length && periodStamps(series, String(node.value)).some((d) => !d)) unplaced = true
+    }
+    const symHere = node.type === 'sym' ? String(node.value).trim().toUpperCase() : sym
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, symHere])
+  }
+  if (!unplaced) return null
+  nameChartClock(opts, [INTRADAY_HTF_SESSION_CODE], opts && opts.tf)
+  const mask = new Float64Array(n).fill(1)
+  sinkPerBar(opts, INTRADAY_HTF_SESSION_CODE, mask)
+  return mask
+}
+
 /** ⭐ REVIEW L2 — the bars whose merged reading is the FIRST period's value, on a chart that
  *  does not begin at the listing and whose first bar does not certainly open that period
  *  (per merge code), as a 0/1 column; null when there are none. */
 function firstPeriodPartialMask(bars, found, opts) {
   if (opts && opts.historyFromListing === true) return null
   const n = bars.length
-  const days = barDays(bars)
-  const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => d && isoWeekday(d) <= 5)
+  const dayStamps = barDays(bars)
+  const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && dayStamps.every((d) => d && isoWeekday(d) <= 5)
   let out = null
   for (const code of new Set(found.map((f) => f.code))) {
     if (typeof code !== 'string') continue
-    if (daily) {
+    // ⭐⭐ E101 INTRADAY-HTF — an intraday code's stamps (`periodStamps`), and its first bucket is whole when the
+    // chart's first bar starts it (`intradayFirstOpens`)
+    const days = isIntradayHtfCode(code) ? periodStamps(bars, code) : dayStamps
+    if (isIntradayHtfCode(code) && intradayFirstOpens(bars, days)) continue
+    if (daily && !isIntradayHtfCode(code)) {
       const first = days[0]
       const dow = isoWeekday(first)
       const [y, m, d] = first.split('-').map(Number)
@@ -8492,7 +8678,7 @@ function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
     if (opts && opts.requestFieldUnaware === true) return first
     if (!childReadsPartialPeriod(child)) return null            // item 3: a merge of close alone is drawn
     const code = String(node.value)
-    const isos = barDays(bars)
+    const isos = periodStamps(bars, code)
     const { htf, at } = resampleTo(bars, isos, code)
     const u = partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts)
     if (FIELD_UNAWARE === u) return first                       // a child holding another request: review L2
@@ -8544,11 +8730,12 @@ export const TF_LIVE_FIRST_CODE = 'request:htf-lookahead-first-period-partial'
 /** The sentence for `TF_LIVE_FIRST_CODE`, one spelling: the run's request names it, and since HTF-LIVE-FIRST-PERIOD
  *  the host column's `CHART_CLOCK_WITHHELD` row is this sentence (mirrored in `ast_interpret.py`), so it says what is
  *  withheld, as every row does (`vendorHarness.c36TimeFollowups`, `c49CapturedClock`). */
-export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
-  + '(look-ahead on). The history of this chart does not begin at the listing of its symbol, and its first bar is '
-  + 'not certainly the first session of its week or month, so the bar of the first period would be built from only '
+export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a higher-timeframe value (a week, a month, or a longer '
+  + 'intraday bar) with `request.security` (look-ahead on). The history of this chart does not begin at the listing '
+  + 'of its symbol, and its first bar is not certainly the first bar of its period, so the bar of the first period '
+  + 'would be built from only '
   + 'part of that period. What this indicator draws from it is withheld rather than drawn from part of a period. '
-  + 'What would settle it: a chart whose history begins at the first session of a period, or at the listing.'
+  + 'What would settle it: a chart whose history begins at the first bar of a period, or at the listing.'
 function tfLiveFirstPeriodMask(bars, code, opts) {
   const out = tfLiveFirstPeriodBars(bars, code, opts)
   if (out) {
@@ -8563,8 +8750,10 @@ function tfLiveFirstPeriodMask(bars, code, opts) {
 function tfLiveFirstPeriodBars(bars, code, opts) {
   const n = bars.length
   if (!n || typeof code !== 'string' || (opts && opts.historyFromListing === true)) return null
-  const days = barDays(bars)
+  const days = periodStamps(bars, code)
   if (days.some((d) => !d)) return new Float64Array(n).fill(1)
+  // ⭐⭐ E101 INTRADAY-HTF — the chart's first bar starts its bucket: that bucket is whole
+  if (isIntradayHtfCode(code)) { if (intradayFirstOpens(bars, days)) return null } else {
   const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => isoWeekday(d) <= 5)
   if (daily) {
     const first = days[0]
@@ -8573,6 +8762,7 @@ function tfLiveFirstPeriodBars(bars, code, opts) {
     const [py, pm, pd] = civilFromDays(daysFromCivil(y, m, d) - (dow === 1 ? 3 : 1))
     const prev = `${String(py).padStart(4, '0')}-${String(pm).padStart(2, '0')}-${String(pd).padStart(2, '0')}`
     if (tfBucket(prev, code) !== tfBucket(first, code)) return null      // the first bar opens its period
+  }
   }
   const out = new Float64Array(n)
   const firstBucket = tfBucket(days[0], code)
@@ -8710,7 +8900,7 @@ function tfLiveFirstPeriodReadMask(tree, bars, opts, inputs, budget, scalars) {
     if (!childReadsPartialPeriod(child)) return null
     const first = tfLiveFirstPeriodBars(bars, code, opts)
     if (!first) return null
-    const isos = barDays(bars)
+    const isos = periodStamps(bars, code)
     if (isos.some((d) => !d)) return first                                // every bar: no first period to place
     const { htf, at } = resampleTo(bars, isos, code)
     const u = partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts)
@@ -8866,8 +9056,9 @@ function venueCalendarBars(node, bars, k) {
  *  is finished). Withheld by name (`TF_LIVE_FORMING_CODE`) where `newestBarIsForming` is not `false`;
  *  Q-REQ1 is the capture that settles it. The host's `tf_live` column is unchanged. */
 export const TF_LIVE_FORMING_CODE = 'request:htf-lookahead-forming-unmeasured'
-export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
-  + '(look-ahead on). On the bar still forming, that reads the week or month still forming, and what TradingView '
+export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a higher-timeframe value (a week, a month, or a longer '
+  + 'intraday bar) with `request.security` (look-ahead on). On the bar still forming, that reads the period still '
+  + 'forming, and what TradingView '
   + 'shows there has not been captured; that bar is withheld rather than guessed. Every finished bar is drawn.'
 function tfLiveFormingMask(bars, opts) {
   const n = bars.length
@@ -9579,7 +9770,7 @@ function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo
     return m
   }
   const code = String(node.value)
-  const isos = barDays(bars)
+  const isos = periodStamps(bars, code)
   const { htf, at } = resampleTo(bars, isos, code)
   const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off,
     scoped(`tf\u0001${code}`)) : null
@@ -10027,7 +10218,7 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
   let runBars = src
   let srcRead = null
   if (code !== null) {
-    const isos = barDays(src)
+    const isos = periodStamps(src, code)
     const { htf, at } = resampleTo(src, isos, code)
     runBars = htf
     srcRead = live === true ? tfLiveReads(isos, code, at) : tfMergeReads(isos, code, at)
@@ -10062,6 +10253,8 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
   const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined, requestFieldUnaware: true }
   const masks = [
     code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
+    // ⭐⭐ E101 INTRADAY-HTF — the host's own withholding of a series on neither measured grid
+    code !== null ? intradayHtfMask(tree, chartBars, o) : null,
     liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
     liveRead ? tfLiveFormingMask(chartBars, o) : null,
     // ⭐⭐ Q-CLOSURE — the host's own withholding of a week or month the exchange's calendar decides
@@ -10532,7 +10725,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       case TF_MERGE: {
         const code = String(n.value)
         // ⭐ C47 — a forming read may also name the quarter, from daily bars.
-        if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
+        // ⭐⭐ E101 INTRADAY-HTF — a Pine read (`tf_merge` / `tf_live`) of an intraday code, above an intraday chart that
+        // the caller STATED, a whole multiple of its minutes (`intradayHtfRefusal`, the one decision). Formula `tf`
+        // keeps its own codes, and an unstated chart is refused: its bars' minutes are not assumed.
+        const intradayRead = n.type !== 'tf' && isIntradayHtfCode(code)
+        if (intradayRead) {
+          const why = intradayHtfRefusal(code, (opts && opts.tf) ?? null)
+          if (why) refuse('interpret:timeframe', `${why}.`)
+        } else if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
         else assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
         // is. `opts.tf` is what the caller knows and the bars do not; absent, this
@@ -10549,7 +10749,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
               + `resampled out of '${String(base)}'.`)
           }
         }
-        const isos = barDays(bars)
+        const isos = periodStamps(bars, code)
         const { htf, at } = resampleTo(bars, isos, code)
         // \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the whole
         // value of the node: `tf(sma(close, 20), 'W')` is the 20-WEEK average, not the

@@ -1323,3 +1323,12 @@ raise the budget and get it done", then "always"), and listed in `owner_raises`.
 The bytes job checks out the pull request's merge commit, so it reads this budget from master once this lands. A PR
 whose last bytes run was red goes green on its next push or re-run against the new base. A re-run of the OLD run keeps
 the old merge SHA, so push or re-trigger the run instead.
+
+## 2026-11-28: +2,048 B for the chart key-task cuts (#2971, #2972), owner standing approval
+
+Section 3.3 change 5 cuts main-thread work from the symbol switch's key task. Two of the cuts sit in modules of the main
+chunk: the SMA/EMA column writers (`components/chart/movingAverages.js` `smaColumn` / `emaColumn`, #2971: CI read
+2,272,842 B at 7781d16819 against the 2,272,257 B line, +585 B) and the page-load latch of the quote-push cookie
+(`lib/quotePushGate.js`, #2972: CI read 2,272,285 B at 3e04e53519, +28 B). Raised by the owner's standing approval of
+budget raises, given 2026-11-27 ("just raise the budget and get it done", then "always"): max 2,280,449 -> 2,282,497 B (on top of the queue raise merged before it)
+(+2,048 B, both cuts with headroom), listed in `owner_raises`. The same raise is committed on both pull requests.

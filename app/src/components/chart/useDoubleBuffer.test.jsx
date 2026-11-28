@@ -21,6 +21,11 @@
 //   H16 (owner, 2026-11-27) zoomed out 2014-2026 (a view lock): the hidden chart is given the front's lock at the frame
 //      the lock gives it, and then a press flips
 //   H17 (N4) the mirror writes the pane's shared lock key only with the lock the front STILL holds at the write
+//   H18 (owner, 2026-11-27) at the date the member went to: a hidden chart drawn under that anchor flips; one drawn
+//      under another anchor refuses
+//   H19 / H20 (owner, 2026-11-27) an intraday chart at a past date (the date box's anchor, a replay cutoff): the cover
+//      check counts the window the hidden chart drew, never the plain key's newest rows
+//   H21 ...and its "nothing more is coming" exemption (#2934 L3) reads that window: answered short, it is the whole chart
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
@@ -31,10 +36,11 @@ vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) 
 // the rows the store holds for the shadow's row, counted in the view's session (0: uncountable, the check stands aside)
 const held = vi.hoisted(() => ({ rows: 0, deep: true }))
 // ...and whether more is still coming for it (D: the deep history due; review of #2934, L3)
-vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => held.rows, deepPending: () => held.deep, lakePending: () => held.deep }))
+// (`rows` may be a function: the count per key asked, `(sym, tf, opts)`)
+vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: (...a) => (typeof held.rows === 'function' ? held.rows(...a) : held.rows), deepPending: () => held.deep, lakePending: () => held.deep }))
 
 const { useDoubleBuffer, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
-const { chartKeyFor } = await import('./useBarSnapshotBars')
+const { chartKeyFor, viewWindowOfDate } = await import('./useBarSnapshotBars')
 const { createBoardVisibility } = await import('./boardVisibility')
 const db = await import('./doubleBuffer')
 const nf = await import('./neighborFrames')
@@ -60,7 +66,7 @@ function mount(over = {}) {
   return renderHook((p) => useDoubleBuffer(p), { initialProps: { ...base(), ...over } })
 }
 // a layer's chart commits a pass of `sym` (StockChart's report through LayerPaintContext)
-const report = (result, i, sym, cutoff = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff }) })
+const report = (result, i, sym, cutoff = null, anchor = null) => act(() => { result.current.reporters[i]({ sym, tf: 'D', ext: false, bars: bars[sym], cutoff, anchor }) })
 
 beforeEach(() => {
   held.rows = 0
@@ -412,6 +418,81 @@ describe('useDoubleBuffer', () => {
     await idle()
     expect(n).toBeGreaterThanOrEqual(2)
     expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('H18 (owner, 2026-11-27) at the date the member went to: the hidden chart of that anchor flips; one of another refuses', async () => {
+    const a = '2006-01-03|120'
+    const h = mount({ anchor: a })
+    report(h.result, 0, 'AAA', null, a)
+    await idle()
+    report(h.result, 1, 'BBB', null, a)
+    press(h, 'BBB', { anchor: a })
+    expect(h.result.current.front).toBe(1)
+    await idle()
+    report(h.result, 0, 'CCC', null, '2006-01-04|120')
+    press(h, 'CCC', { anchor: a })
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().why.anchor).toBe(1)
+  })
+
+  // (owner, 2026-11-27: charts at any date) an INTRADAY chart at a past date reads the window ending there (chartKeyFor):
+  // the cover check counts THAT key's rows. The plain key's newest rows are another set: short, they refused a ready
+  // shadow (no instant flip at the date); covering, they let a shadow short at the date through
+  const intradayAt = (date, { cutoff = null, anchor = null } = {}) => {
+    const w = viewWindowOfDate(date, '15')
+    const wkey = (sym) => chartKeyFor({ sym, resolvedTf: '15', showExtended: false, replayCutoff: cutoff, hasOverride: false, viewWindow: w })
+    const byKey = new Map(SYMS.map((s) => [wkey(s), s]))
+    __setDoubleBufferBarsSourceForTests((k) => (byKey.has(k) ? bars[byKey.get(k)] : null))
+    const rep = (h, i, sym) => act(() => { h.result.current.reporters[i]({ sym, tf: '15', ext: false, bars: bars[sym], cutoff, anchor }) })
+    // the window at the date holds `atDate` rows, the plain key `plain`; `answered`: the rows of the window's server
+    // answer of this life (0: not answered yet, more is coming)
+    const rows = (atDate, plain, { answered = 0 } = {}) => {
+      held.rows = (sym, tf, o) => (o?.viewWindow?.to === w.to ? (o.answered ? answered : atDate) : o?.viewWindow ? 0 : plain)
+    }
+    return { rep, rows }
+  }
+  it('H19 (owner, 2026-11-27) at the date the member went to, on 15m: the cover check counts the window the hidden chart drew', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    const a = '2025-03-14|120'
+    const { rep, rows } = intradayAt('2025-03-14', { anchor: a })
+    rows(COVER_ROWS, 40)                                    // the window covers; the plain key holds a short newest page
+    const h = mount({ anchor: a })
+    rep(h, 0, 'AAA')
+    await idle()
+    rep(h, 1, 'BBB')
+    press(h, 'BBB', { anchor: a })
+    expect(h.result.current.front, JSON.stringify(db.doubleBufferStats().why)).toBe(1)   // flips
+    await idle()
+    expect(h.result.current.syms).toEqual(['CCC', 'BBB'])
+    rows(40, COVER_ROWS)                                    // the window short at the date; the plain key covering
+    rep(h, 0, 'CCC')
+    press(h, 'CCC', { anchor: a })
+    expect(h.result.current.front).toBe(1)                  // refused: the normal switch
+    expect(db.doubleBufferStats().why['shadow-short']).toBe(1)
+  })
+  it('H21 at the date, a window the server answered short is the whole chart (a listing young at the date): it flips', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    const a = '2025-03-14|120'
+    const { rep, rows } = intradayAt('2025-03-14', { anchor: a })
+    rows(40, COVER_ROWS, { answered: 40 })                  // the plain key's lake depth is still due (held.deep): another key
+    const h = mount({ anchor: a })
+    rep(h, 0, 'AAA')
+    await idle()
+    rep(h, 1, 'BBB')
+    press(h, 'BBB', { anchor: a })
+    expect(h.result.current.front, JSON.stringify(db.doubleBufferStats().why)).toBe(1)
+  })
+  it('H20 (owner, 2026-11-27) change-date mode on 15m (a replay cutoff): the cover check counts the replay window', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    const c = '2025-03-14'
+    const { rep, rows } = intradayAt(c, { cutoff: c })
+    rows(COVER_ROWS, 40)
+    const h = mount({ cutoff: c })
+    rep(h, 0, 'AAA')
+    await idle()
+    rep(h, 1, 'BBB')
+    press(h, 'BBB', { cutoff: c })
+    expect(h.result.current.front, JSON.stringify(db.doubleBufferStats().why)).toBe(1)
   })
 
   it('H16 (owner, 2026-11-27) zoomed out 2014-2026: the hidden chart is given the front lock at its frame; then a press flips', async () => {

@@ -63,7 +63,7 @@ import NAMED_CONSTANT_TYPES from './namedConstantTypes.json'
 import { splitCommaStatements } from './objectFnInline.js'
 import { literalTostringText, LITERAL_TOSTRING_SENTENCE, LITERAL_TOSTRING_UNCAPTURED, tostringPatternOf } from '../pineTextFormat.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, TableRefusal, hullWindows, pineNaConditionIsFalse, listingSeedIsUnpinned,
-  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE,
+  STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RCI_LEFT_EDGE, BOOL_NA_UNWITNESSED, TIE_UNWITNESSED, TF_RESAMPLABLE, isIntradayHtfCode,
   VWAP_BEFORE_FIRST_ANCHOR } from './interpret.js'
 import { bindConstsFor, foldBound, foldScalar, NotFoldable } from './bind.js'
 import { LOWER_TF_REFUSAL } from '../lowerTf.js'
@@ -145,6 +145,7 @@ const ARRAY_READS_ELEMENT = new Set(['array.get', 'array.pop', 'array.shift',
 import { COLOUR_FNS, producesColour, hexToPacked, objectHexToPacked, colourTypedNamesOf, COLOUR_COMPARABLE } from '../runtime/colours.js'
 import { THEME_NAMES, packedThemeColour } from '../objectTheme.js'
 import { dailyExpressionAdmitted, DAILY_EXPRESSION_NOT_ADMITTED } from '../dailyExpressionGate.js'
+import { intradayHtfAdmitted } from '../intradayHtfGate.js'
 
 /** ⭐ THE REFUSAL VOCABULARY IS ITS OWN, AND DELIBERATELY GRANULAR (§19).
  *  Collapsing these into `pine:state` would hide the next dependency, which is
@@ -3005,6 +3006,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       // ⭐⭐ U-DAILY (e96, part B) — and a daily EXPRESSION there, only where its capability is admitted
       // (`dailyExpressionGate.js`, `request-daily-expression`: not admitted until its captures grade MATCH)
       aboveDailyExpressions: dailyExpressionAdmitted(),
+      // ⭐⭐ E101 INTRADAY-HTF — and a higher intraday timeframe of this chart's own symbol, only where its capability is
+      // admitted (`intradayHtfGate.js`, `request-intraday-htf`: not admitted until Q-IHTF-1 grades MATCH)
+      intradayHtfReads: intradayHtfAdmitted(),
       ...objectDoorOpts,
       // ⭐⭐ (request unit, TF-FOLD, engine 89) — a request's timeframe is read with the runtime lane's reach
       // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms, and (PR 2) a script function's settled
@@ -7868,6 +7872,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       try {
         // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
         targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true,
+          intradayHtfReads: intradayHtfAdmitted(),
           aboveDailyExpressions: dailyExpressionAdmitted() })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
@@ -7966,7 +7971,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     // `vw-request-htf-alignment-spy-1d-2026-10-02`. Whether the chart is one that read is above is the
     // supply's, per chart, by name. A spelling the host could not read keeps this refusal.
     const lookaheadOff = !!hostTarget && (hostTarget.live === false
-      || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
+      || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code))
+      // ⭐⭐ E101 INTRADAY-HTF — and a higher intraday timeframe the host read (only where admitted: `intradayHtfReads`)
+      || (hostTarget.live === true && isIntradayHtfCode(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
         // ⭐⭐ U-DAILY (e96, part B) — a daily read above an intraday chart that looks ahead says ITS reason where it has
