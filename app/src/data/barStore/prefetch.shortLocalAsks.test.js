@@ -88,33 +88,33 @@ describe('B9: a local copy short of the view is asked for at once', () => {
     const s = w.store.peek(w.key)
     expect(s.restSeen).toBeFalsy()
     expect(s.bars.length).toBeGreaterThan(100)                // (the store keeps the seed's newest sessions: 208 rows here)
-    expect(s.bars.length).toBeLessThan(1000)                  // short of the zoomed-out view below
+    expect(s.bars.length).toBeLessThan(500)                  // short of the zoomed-out view below
     expect(w.pf.devicePaints('ILQ', '15')).toBe(true)
   })
 
   it('a prepare whose view needs more rows than the device copy holds asks the 15m tail at once, and reports on its answer', async () => {
     const w = boot()
     await w.pf.deviceWarm('ILQ', '15')
-    const state = settled(w.pf.prepareForDisplay('ILQ', '15', { need: 1000 }))
+    const state = settled(w.pf.prepareForDisplay('ILQ', '15', { need: 500 }))
     await vi.advanceTimersByTimeAsync(30)
     expect(w.tails().length).toBe(1)                          // asked during the switch, not after the hang guard
     await vi.advanceTimersByTimeAsync(1000)                   // the lake settled (it added nothing)
-    expect(w.store.peek(w.key).bars.length).toBeLessThan(1000) // still short: the lake joined nothing
+    expect(w.store.peek(w.key).bars.length).toBeLessThan(500) // still short: the lake joined nothing
     expect(state()).toBe('PENDING')                           // never 'current' on rows short of the view
     w.release()
     await vi.advanceTimersByTimeAsync(10)
     expect(state()).toBe('current')
     const s = w.store.peek(w.key)
     expect(s.restSeen).toBe(true)
-    expect(s.bars.length).toBeGreaterThanOrEqual(1000)
+    expect(s.bars.length).toBeGreaterThanOrEqual(500)
   })
 
   it('a lake that joins and covers the view: the prepare reports on the joined copy, never waiting for the answer', async () => {
     const w = boot({ lake: sessions(45) })                    // shares the device copy's bars: joined on one basis
     await w.pf.deviceWarm('ILQ', '15')
-    const state = settled(w.pf.prepareForDisplay('ILQ', '15', { need: 1000 }))
+    const state = settled(w.pf.prepareForDisplay('ILQ', '15', { need: 500 }))
     await vi.advanceTimersByTimeAsync(1000)
-    expect(w.store.peek(w.key).bars.length).toBeGreaterThanOrEqual(1000)
+    expect(w.store.peek(w.key).bars.length).toBeGreaterThanOrEqual(500)
     expect(state()).toBe('current')                           // the answer (still held back) is not waited for
     expect(w.store.peek(w.key).restSeen).toBeFalsy()
   })
@@ -122,7 +122,7 @@ describe('B9: a local copy short of the view is asked for at once', () => {
   it('control: a device copy that covers the view still paints with no request', async () => {
     const w = boot()
     await w.pf.deviceWarm('ILQ', '15')
-    await expect(w.pf.prepareForDisplay('ILQ', '15', { need: 250 })).resolves.toBe('current')
+    await expect(w.pf.prepareForDisplay('ILQ', '15', { need: 200 })).resolves.toBe('current')
     expect(w.tails().length).toBe(0)
   })
 
