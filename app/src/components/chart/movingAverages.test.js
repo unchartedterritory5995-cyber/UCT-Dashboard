@@ -109,7 +109,7 @@ describe('the nine types', () => {
     expect(first('lsma')).toBe(20)
     expect(first('dema')).toBe(40)                 // 2n − 2
     expect(first('tema')).toBe(60)                 // 3n − 3
-    expect(first('hma')).toBe(20 + 5 - 1)          // n − 1, then round(√21) = 5
+    expect(first('hma')).toBe(20 + 4 - 1)          // n − 1, then floor(√21) = 4 (TradingView, measured 2026-11-27)
   })
 
   it('a constant series is its own average, for every type', () => {

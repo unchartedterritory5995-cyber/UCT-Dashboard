@@ -1856,24 +1856,15 @@ def _rma_col(series: Sequence[float], n: int) -> List[float]:
 
 
 def _hma_col(series: Sequence[float], n: int) -> List[float]:
-    """Alan Hull's average -- ``wma`` three times, mirroring ``interpret.js::hma``.
+    """Alan Hull's average -- ``wma`` three times, mirroring ``interpret.js::hma``
+    (``hullWindows``): ``wma(2 * wma(src, floor(n / 2)) - wma(src, n), floor(sqrt(n)))``.
 
-    ⛔ ``round(sqrt(n))`` IS WRITTEN OUT AS ``floor(x + 0.5)`` RATHER THAN
-    ``round`` -- Python's ``round`` is banker's rounding, JavaScript's
-    ``Math.round`` rounds half away from zero, and the two disagree exactly on a
-    half.
-
-    ⭐ AND IT IS AN EQUIVALENT MUTANT, RECORDED AS ONE RATHER THAN IMPLIED TO BE
-    A GUARD. The manifest types this argument ``int``, and ``sqrt(m)`` is never a
-    half-integer for a positive integer ``m``: ``(k + 1/2)**2 = k**2 + k + 1/4``
-    is never whole. So no ``n`` a member may write can reach the disagreement, and
-    swapping this back to ``round`` would not redden any test. It stays because it
-    states JavaScript's rule at the seam instead of resting on a proof that stops
-    holding the day the argument stops being an integer -- and saying which of
-    those two it is costs one paragraph.
+    ⭐ 2026-11-27 (engine e100, NUMBER PENDING) -- THE ROOT WINDOW IS FLOORED, NOT ROUNDED. Measured, not read: FRED's Q-HMA capture (2026-11-27, AMEX:SPY 1D, 8,505 rows) -- at n = 21 the floor window (4) is exact on 8,482 of 8,482 bars and the round window (5) is off on every one (up to 1.49%); the square lengths 9 and 16 agree both ways. TradingView's own `ta.hma` is wma(2 * wma(src, floor(n / 2)) - wma(src, n), floor(sqrt(n))).
+    (The old ``floor(x + 0.5)`` spelled JavaScript's ``Math.round``; both lanes now floor, and ``math.floor`` and
+    ``Math.floor`` agree on every positive real.)
     """
     half = max(1, int(n) // 2)
-    root = max(1, int(math.floor(math.sqrt(float(n)) + 0.5)))
+    root = max(1, int(math.floor(math.sqrt(float(n)))))
     near = _rolling(series, half, _window_weighted_mean)
     full = _rolling(series, n, _window_weighted_mean)
     raw = [2.0 * a - b for a, b in zip(near, full)]

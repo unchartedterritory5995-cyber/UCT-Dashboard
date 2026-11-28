@@ -254,6 +254,12 @@
  *  alpha, not the floating 1 - t/100 (pine.js resolveFillHandles, door 2 in memberDocumentMigration and
  *  user_definitions). Among whole t only 90 paints a different byte (26, was 25); per-bar colours are unchanged.
  *  Re-keys translation caches; saved door-1 bands move only where their stored value is still door 1's own. */
+/** NUMBER PENDING = (engine e100 train; fix/hma-floor-sqrt) THE HULL AVERAGE'S ROOT WINDOW IS floor(sqrt(n)), NOT
+ *  round(sqrt(n)), in every Hull path: the formula lane and the runtime lane's ta.hma (interpret.js hullWindows), the
+ *  Python twin (ast_interpret.py _hma_col), the native moving-average overlay (movingAverages.js hma) and the closed
+ *  table (_functions_hull). Measured by FRED's Q-HMA capture (AMEX:SPY 1D): n = 21 floor exact on 8,482/8,482 bars,
+ *  round on none; 9 and 16 agree both ways. Changes engine output for every hma of a non-square length, so the number
+ *  re-keys translation caches and saved indicators recompute with TradingView's values. */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.
