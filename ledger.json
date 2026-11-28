@@ -8277,6 +8277,36 @@
     "REPX",
     "AVBH"
    ]
+  },
+  {
+   "id": "cloud/46137831684-1/COV-def-dd-arrows",
+   "at": "2026-11-28T11:00:58+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AVAL",
+    "EBS",
+    "EGBN",
+    "OPY",
+    "MVST",
+    "SDHI",
+    "CASS",
+    "ISTR",
+    "DVLT",
+    "OPTX",
+    "AMAL",
+    "ARRY",
+    "BCML"
+   ]
+  },
+  {
+   "id": "cloud/46137831684-1/COV-def-tabs",
+   "at": "2026-11-28T11:00:58+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BMBL",
+    "TWFG",
+    "BSRR"
+   ]
   }
  ]
 }
