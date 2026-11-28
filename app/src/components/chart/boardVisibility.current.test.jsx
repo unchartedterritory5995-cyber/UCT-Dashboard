@@ -163,6 +163,16 @@ describe('the double-buffered row handle API', () => {
     expect(hidden['aria-hidden']).toBe(true)
     expect(boardLayerProps(false, 'front')).toEqual({ className: 'front', inert: false, 'aria-hidden': undefined })
   })
+
+  it('L2 (red first) keepLayout: the hidden layer keeps the shown class (a flip never changes display); without a shown class, the bare layer', () => {
+    const hidden = boardLayerProps(true, 'front', { keepLayout: true })
+    expect(hidden.className.split(' ')).toContain('front')
+    expect(hidden.className).toMatch(/boardSlotLayer/)
+    expect(hidden.inert).toBe(true)
+    expect(boardLayerProps(true, 'front').className).not.toMatch(/front/)
+    expect(boardLayerProps(true, undefined, { keepLayout: true }).className).toBe(boardLayerProps(true).className)
+    expect(boardLayerProps(false, 'front', { keepLayout: true })).toEqual(boardLayerProps(false, 'front'))
+  })
 })
 
 describe('the double-buffered row handle API, disposal (review of #2918)', () => {
