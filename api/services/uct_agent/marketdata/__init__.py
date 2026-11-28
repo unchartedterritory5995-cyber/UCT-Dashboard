@@ -7,7 +7,8 @@ pipeline. Every answer is a DataEnvelope (envelope.py) carrying its source, the 
 (`as_of`) and a freshness class.
 
 Dark: nothing is served unless UCT_AGENT_DATA=1 (scan kinds also need UCT_AGENT_SCAN=1), and the only
-route (/api/agent/data) is admin-dark like every /api/agent/* route.
+route (/api/agent/data) is behind the Agent's door like every /api/agent/* route (admin-only unless
+UCT_AGENT_MEMBERS_ENABLED=1).
 
 Ownership (docs/agent/program/OWNERSHIP.md): this package — agent-md; scan kinds live in
 api/services/uct_agent/scan/ — agent-sc.

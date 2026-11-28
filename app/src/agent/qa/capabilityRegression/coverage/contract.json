@@ -1252,7 +1252,7 @@
   },
   "history.afterEvent": {
    "domain": "history",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2283,7 +2283,7 @@
   },
   "stock.analystActions": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2309,7 +2309,7 @@
   },
   "stock.callSearch": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2374,7 +2374,7 @@
   },
   "stock.confluenceBoard": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2413,7 +2413,7 @@
   },
   "stock.darkPoolLevels": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2556,7 +2556,7 @@
   },
   "stock.expectedMove": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2751,7 +2751,7 @@
   },
   "stock.longRunLeaders": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2959,7 +2959,7 @@
   },
   "stock.sessionHighsLows": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -3037,7 +3037,7 @@
   },
   "stock.themeRotation": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -3141,7 +3141,7 @@
   },
   "stock.yearlyHighsLows": {
    "domain": "stock",
-   "group": "data",
+   "group": "marketAnswers",
    "target": "market",
    "risk": "local",
    "reversible": true,

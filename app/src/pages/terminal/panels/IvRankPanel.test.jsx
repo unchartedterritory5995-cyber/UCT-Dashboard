@@ -16,6 +16,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import IvRankPanel from './IvRankPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import OptionsScreener from '../../screener/options/OptionsScreener'
 import { IV_RANK_URL } from './ivRankModel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
@@ -250,5 +251,29 @@ describe('OSCR RICH / CHEAP follows the theme and is reachable', () => {
     renderEl(<IvRankPanel />)
     await screen.findByTestId('terminal-ivrank-error')
     await expectNoAxeViolations(document.body.firstElementChild)
+  })
+})
+
+describe('OSCR RICH / CHEAP sorts and picks columns, kept with the board (customization pass 1)', () => {
+  const order = () => tableRows().map((tr) => tr.getAttribute('data-testid').replace('terminal-ivrank-row-', ''))
+  it('sorts the symbols listed; sort and hidden columns survive a remount', async () => {
+    serve({ [IV_RANK_URL]: answer(OK) })
+    const saved = savedView()
+    renderEl(<ViewHost saved={saved}><IvRankPanel /></ViewHost>)
+    await screen.findByTestId('terminal-ivrank-table')
+    expect(order()).toEqual(['QRSX', 'TUVX', 'MNOX'])
+    fireEvent.click(screen.getByTestId('terminal-ivrank-sort-oi'))
+    expect(order()).toEqual(['QRSX', 'MNOX', 'TUVX'])   // no open interest on file sinks
+    fireEvent.click(screen.getByTestId('terminal-ivrank-sort-sym'))
+    expect(order()).toEqual(['MNOX', 'QRSX', 'TUVX'])
+    fireEvent.click(screen.getByTestId('terminal-ivrank-columns'))
+    fireEvent.click(screen.getByTestId('terminal-ivrank-columns-col-sessions'))
+    cleanup()
+    vi.stubGlobal('fetch', vi.fn())
+    serve({ [IV_RANK_URL]: answer(OK) })
+    renderEl(<ViewHost saved={saved}><IvRankPanel /></ViewHost>)
+    await screen.findByTestId('terminal-ivrank-table')
+    expect(order()).toEqual(['MNOX', 'QRSX', 'TUVX'])
+    expect(screen.queryByRole('columnheader', { name: /Sessions/ })).toBeNull()
   })
 })

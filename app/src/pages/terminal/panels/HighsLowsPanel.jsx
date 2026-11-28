@@ -23,9 +23,8 @@
 // not. It goes through marketRead.js (the terminal's one bare-SWR reader), and SWR skips ticks while
 // the app is hidden.
 import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
@@ -155,21 +154,28 @@ export function highsLowsBoard(body) {
 const count = (n) => formatNumber(n, { decimals: 0 })
 const tone = (v) => (v > 0 ? styles.up : v < 0 ? styles.down : undefined)
 
-function StockTable({ side, rows, total, offset }) {
+/** Customization pass 1: the stock lists' columns (components/terminal/PanelTable), one sort for
+ *  both lists. The scanner's order (busiest first) is the default. A group overview (sectors,
+ *  industries, themes) keeps its own order: it ranks the groups and has no sort. */
+export const HILO_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'price', label: 'Price', sort: (r) => r.price },
+  { key: 'pct', label: 'Change', sort: (r) => r.pct, title: 'Against the prior close' },
+  { key: 'count', label: 'Times', sort: (r) => r.count },
+  { key: 'at', label: 'Last', type: 'text', firstDir: 'desc', sort: (r) => r.at, phoneHide: true },
+])
+const hiloTitle = (c, high) => (c.key === 'count' ? `How many times it has made a new ${high ? 'high' : 'low'} this session`
+  : c.key === 'at' ? `When it last made a new ${high ? 'high' : 'low'}, Eastern time` : c.title)
+
+function StockTable({ side, rows, total, offset, table }) {
   const high = side === 'highs'
+  const shows = table.shows
+  const head = { ...table, visible: table.visible.map((c) => ({ ...c, title: hiloTitle(c, high) })) }
   return (
     <div className={styles.tableBox}>
       <table className={styles.table} data-testid={`terminal-hilo-${side}`}>
         <caption className={styles.caption}>{high ? 'New highs' : 'New lows'} ({count(total)})</caption>
-        <thead>
-          <tr>
-            <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-            <th scope="col">Price</th>
-            <th scope="col" title="Against the prior close">Change</th>
-            <th scope="col" title={`How many times it has made a new ${high ? 'high' : 'low'} this session`}>Times</th>
-            <th scope="col" className={styles.phoneHide} title={`When it last made a new ${high ? 'high' : 'low'}, Eastern time`}>Last</th>
-          </tr>
-        </thead>
+        <PanelTableHead table={head} testId={`terminal-hilo-${side}`} />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-hilo-${side}-row-${r.sym}`}>
@@ -177,10 +183,10 @@ function StockTable({ side, rows, total, offset }) {
                 <span className={styles.rowNum} aria-hidden="true">{offset + i + 1}</span>
                 <PanelSymbol sym={r.sym} className={styles.sym} />
               </td>
-              <td>{formatCurrency(r.price, { absent: ABSENT })}</td>
-              <td className={tone(r.pct)}>{formatPercent(r.pct, { decimals: 2, signed: true, absent: ABSENT })}</td>
-              <td>{count(r.count)}</td>
-              <td className={styles.phoneHide}>{formatTimeEt(r.at, { absent: ABSENT })}</td>
+              {shows('price') && <td>{formatCurrency(r.price, { absent: ABSENT })}</td>}
+              {shows('pct') && <td className={tone(r.pct)}>{formatPercent(r.pct, { decimals: 2, signed: true, absent: ABSENT })}</td>}
+              {shows('count') && <td>{count(r.count)}</td>}
+              {shows('at') && <td className={styles.phoneHide}>{formatTimeEt(r.at, { absent: ABSENT })}</td>}
             </tr>
           ))}
         </tbody>
@@ -237,6 +243,9 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
   // Only an answer for THIS view is drawn (the previous view's is kept while this one loads).
   const body = isAnswerFor(read.body, { group, value }) ? read.body : null
   const board = useMemo(() => highsLowsBoard(body), [body])
+  const table = usePanelTable({ columns: HILO_COLUMNS })
+  const highs = useMemo(() => (board.grouped ? board.highs : table.apply(board.highs)), [board, table.apply])
+  const lows = useMemo(() => (board.grouped ? board.lows : table.apply(board.lows)), [board, table.apply])
 
   const words = HILO_GROUPS[group]
   const session = HILO_SESSIONS[board.window] || HILO_SESSIONS.closed
@@ -247,7 +256,7 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
   usePanelFreshness(live ? panelAsOf(SOURCE, board.asOf) : null)
   // Numbered rows are the stock rows on screen, highs first; a group overview has none.
   const shownSyms = live && !board.grouped
-    ? [...(showHighs ? board.highs : []), ...(showLows ? board.lows : [])].map((r) => r.sym)
+    ? [...(showHighs ? highs : []), ...(showLows ? lows : [])].map((r) => r.sym)
     : []
   usePanelSymbolRows(shownSyms, 'new highs and lows', {
     total: (showHighs ? board.highsTotal : 0) + (showLows ? board.lowsTotal : 0),
@@ -325,6 +334,7 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
         {value ? (
           <button type="button" className={styles.chip} onClick={() => setValue(null)} data-testid="terminal-hilo-back">{words.all}</button>
         ) : null}
+        {board.grouped ? null : <PanelColumns table={table} testId="terminal-hilo-columns" />}
       </div>
       {state || (
         <>
@@ -347,10 +357,10 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
           <div className={`${styles.split} ${styles.splitRoomy}`}>
             {showHighs && board.highs.length > 0 && (board.grouped
               ? <GroupTable side="highs" rows={board.highs} total={board.highsTotal} words={words} onDrill={setValue} />
-              : <StockTable side="highs" rows={board.highs} total={board.highsTotal} offset={0} />)}
+              : <StockTable side="highs" rows={highs} total={board.highsTotal} offset={0} table={table} />)}
             {showLows && board.lows.length > 0 && (board.grouped
               ? <GroupTable side="lows" rows={board.lows} total={board.lowsTotal} words={words} onDrill={setValue} />
-              : <StockTable side="lows" rows={board.lows} total={board.lowsTotal} offset={showHighs ? board.highs.length : 0} />)}
+              : <StockTable side="lows" rows={lows} total={board.lowsTotal} offset={showHighs ? board.highs.length : 0} table={table} />)}
           </div>
           {showHighs && !board.highs.length ? <p className={styles.muted} data-testid="terminal-hilo-no-highs">No new highs yet this session.</p> : null}
           {showLows && !board.lows.length ? <p className={styles.muted} data-testid="terminal-hilo-no-lows">No new lows yet this session.</p> : null}
@@ -362,7 +372,7 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
             session and after hours each keep their own count.{' '}
             {board.grouped
               ? `Each ${words.one} is ranked by how many of its stocks have done so. Click a ${words.one} to see its stocks.`
-              : 'Busiest first: Times is that count, and Change is against the prior close. A sign (+/−) marks every change, so color is never the only signal. Click a symbol to load it into the linked panels; type a row number to do the same.'}
+              : `${table.sort ? 'Sorted by the column header you picked (the scanner lists the busiest first)' : 'Busiest first'}: Times is that count, and Change is against the prior close. A sign (+/−) marks every change, so color is never the only signal. Click a symbol to load it into the linked panels; type a row number to do the same.`}
             {board.asOf ? ` Scanner read at ${formatTimeEt(board.asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
           </p>
         </>

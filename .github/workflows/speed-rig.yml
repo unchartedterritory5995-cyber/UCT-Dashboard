@@ -14,6 +14,23 @@
 # RUN IT (repository secrets BENCH_EMAIL / BENCH_PASSWORD, the synthetic bench member; --ref <branch> runs a branch's rig):
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard                      # every pass, 8 at a time
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f passes='COV-def-' -f max_parallel=12
+# A BRANCH'S FRONT END against production's data (2026-11-28): build_ref = a branch of THIS repository (or a commit on
+# master) is built as side B, and base_ref as side A (empty = PRODUCTION'S OWN web commit, built the same way: two
+# builds served by one interception, never a build against the CDN). Every pass then runs ABBA (ab_reps times) on the
+# same tickers. Each side is served in the pass's browser only, ON THE PRODUCTION ORIGIN (rig.mjs --dist: the document
+# and /assets/* from memory, hashed assets `immutable` as the CDN sends them; /api/*, the edge paths and everything
+# else the real site), so the bench member's HttpOnly cookies stay first-party. The summary prints A, B, B minus A.
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f build_ref=my-branch -f passes='^COV-def-'
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f base_ref=master -f build_ref=my-branch -f ab_reps=2
+#   A/A calibration (the delta must be ~0 before any B-vs-A claim): -f base_ref=<sha> -f build_ref=<the same sha>
+# ⛔ THE CANDIDATE'S CODE NEVER RUNS AS THE RUNNER USER (#3010 audit). npm ci (install scripts) and vite build (vite.config)
+# run inside a pinned node container (build_candidate.py: the runner's uid, every capability dropped, ONLY the
+# checkout's app/ and an empty output directory mounted: no docker socket, no runner or _actions directory, no token).
+# The HOST then checks the output (regular single-link files only), packs it itself and prints the tar's sha256 as a
+# job output; the pass job checks that sha256 BEFORE it opens the archive, and unpacks it member by member (regular
+# relative files only), never with actions/cache's `tar -P`. The tar travels as a 1-day artifact (a public-flag build
+# of public code). A fork can neither dispatch this workflow (workflow_dispatch needs write access) nor name its
+# commit (a ref must be a branch of this repository or a commit on master).
 # ⛔ NO `environment:` KEY. tools/agent_ci_required.py refuses an `environment` key in any workflow but the two verdict
 # posters (AUDIT on #2501: a new workflow able to name an environment could reach the verdict App), and a tree that
 # holds one fails EVERY merge-queue entry. So the credentials are repository secrets, as RAILWAY_TOKEN is.
@@ -28,6 +45,12 @@
 #
 # LOAD. A sweep is 37 signed-in page sessions over ~12 min, max_parallel (default 8, at most 12) at once: a few
 # members' worth. It never sends anything a member does not.
+# ⛔ ONE ACCOUNT, ONE MEMBER'S RATE LIMIT (2026-11-28). Production enforces api/rate_limit_policy.py per MEMBER
+# (`member:<user id>`): the bars family allows 1200 requests a minute, one pass's browser peaks at ~120-425, so 8
+# browsers on the one bench account were answered 429 and the grade read the instrument as product failures (sweep
+# 46113707532). plan.py now puts at most 2 browsers on one account at a time (lanes = accounts x 2, each lane's passes
+# in sequence); `accounts` = how many bench accounts exist (BENCH_EMAIL, BENCH_EMAIL_2, ...): 4 run 8 lanes at once.
+# grade.py prints each pass's HTTP 429 / 503 answers, and lists a pass that met a 429 under Problems.
 #
 # ⛔ PUBLIC REPO, PUBLIC LOGS: the credentials reach ONE step's environment; the rig never prints or writes them, a
 # cookie or a token; lane.py scrubs every artifact file after EVERY pass and in a finally, and deletes (and fails on)
@@ -56,9 +79,25 @@ on:
         options: [browser, account]
         default: browser
       accounts:
-        description: "account isolation: bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...)"
+        description: "bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...): browser isolation runs 2 browsers per account at once (the per-member rate limit), account isolation 1"
         required: false
         default: '1'
+      build_ref:
+        description: "B side: a branch of this repo (or a master commit) whose front end is built and measured on production's data; empty = production only"
+        required: false
+        default: ''
+      base_ref:
+        description: "A side (needs build_ref): a branch or master commit built as A; empty = production's own front end"
+        required: false
+        default: ''
+      ab_reps:
+        description: "A/B: ABBA repetitions per pass (each repetition is 4 runs: A B B A, then B A A B)"
+        required: false
+        default: '1'
+      build_env:
+        description: "B side only: VITE_* flags laid over production's (KEY=VAL,KEY=VAL; values 0, 1, empty or a short word; no TOKEN/KEY/SECRET/PASSWORD names)"
+        required: false
+        default: ''
   pull_request:
     paths:
       - 'scripts/proofs/speed-rig/**'
@@ -75,13 +114,54 @@ permissions:
 
 env:
   CHROME_VERSION: '158.0.8127.36'   # Chrome for Testing; the owner PC runs 158.0.8127.37 (stable), the nearest CfT build
+  # ⛔ the sha256 of that version's chrome-linux64.zip, checked on EVERY run before it is unzipped (a cache entry is never
+  # trusted: it runs next to BENCH_*). Measured 2026-11-28 on a download whose MD5 matched Google's own x-goog-hash
+  # (xmTYpjL3Of9XM+V8v3+UHw==, 208,062,943 bytes). A new CHROME_VERSION needs its own pin, measured the same way.
+  CHROME_ZIP_SHA256: 'dba9cc838e1ce269c33ea68170881127bd15d078fc3ca5891c90802819a4d7c7'
   NODE_VERSION: '24'
 
 jobs:
+  # A candidate front end, built BEFORE the plan takes tickers (a build that fails spends none). No secret reaches this
+  # job: it runs the candidate's own install scripts and build, so it holds nothing but a read-only token.
+  # Both sides, BEFORE the plan takes tickers (a build that fails spends none). No secret reaches this job, and the
+  # candidate's code runs only inside the container (see the header).
+  build:
+    name: build the candidate front ends
+    if: github.event_name == 'workflow_dispatch' && inputs.build_ref != ''
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    outputs:
+      sha_A: ${{ steps.build.outputs.sha_A }}
+      sha_B: ${{ steps.build.outputs.sha_B }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - name: Build A and B inside the pinned node container
+        id: build
+        # the refs and build_env are read by the script from the event payload, never through an env: block
+        run: python3 scripts/proofs/speed-rig/build_candidate.py build --out "$RUNNER_TEMP/speed-rig-dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: speed-rig-dist
+          path: ${{ runner.temp }}/speed-rig-dist/dist-*.tar
+          if-no-files-found: error
+          retention-days: 1
+
   plan:
     name: plan the sweep
-    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger. After the build (skipped without a
+    # build_ref, and on a pull request); never after a build that failed.
+    if: >-
+      !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -104,6 +184,8 @@ jobs:
           python scripts/proofs/speed-rig/plan.py --self-check
           python scripts/proofs/speed-rig/grade.py --self-check
           python scripts/proofs/speed-rig/lane.py --self-check
+          python scripts/proofs/speed-rig/vite_env.py --self-check
+          python scripts/proofs/speed-rig/build_candidate.py --self-check
       - name: Plan (and record the tickers in the shared ledger)
         id: plan
         env:
@@ -113,6 +195,8 @@ jobs:
           MAX_PARALLEL: ${{ inputs.max_parallel || '8' }}
           ISOLATION: ${{ inputs.isolation || 'browser' }}
           ACCOUNTS: ${{ inputs.accounts || '1' }}
+          BUILD_REF: ${{ inputs.build_ref || '' }}
+          BASE_REF: ${{ inputs.base_ref || '' }}
           GIT_AUTHOR_NAME: speed-rig
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: speed-rig
@@ -120,6 +204,8 @@ jobs:
         run: |
           set -euo pipefail
           extra=()
+          if [ -n "$BASE_REF" ] && [ -z "$BUILD_REF" ]; then echo "::error::base_ref needs build_ref (A is the base, B the build)"; exit 1; fi
+          if [ -n "$BUILD_REF" ] && [ "$ISOLATION" != "browser" ]; then echo "::error::build_ref runs with isolation=browser only (an A/B on one account's real board writes it twice per pass)"; exit 1; fi
           if [ "$EVENT" = "pull_request" ]; then
             # the two passes that prove one account carries passes in parallel: arrows, and the tabs pass (it writes
             # layouts, the dock and the board); signed in when the secrets exist, else dry (and nothing recorded)
@@ -136,8 +222,8 @@ jobs:
 
   pass:
     name: pass ${{ matrix.title }}
-    needs: plan
-    if: github.event_name == 'workflow_dispatch'
+    needs: [plan, build]
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && needs.plan.result == 'success' }}
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 120   # one pass ~3 min; an account lane runs its passes one after another
     strategy:
@@ -164,29 +250,60 @@ jobs:
           . /etc/os-release; echo "image: $PRETTY_NAME; $(nproc) cores; $(free -g | awk '/Mem:/{print $2}') GB"
           # the measurement is pinned to its image (tests/test_ci_browser_runner_images.py's reason): fail, never drift
           [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
-      - uses: actions/cache@v4
-        with:
-          path: ~/cft
-          key: cft-${{ env.CHROME_VERSION }}-linux64
-      - name: Chrome for Testing (pinned)
+      - name: Chrome for Testing (pinned, sha256-verified before it is unzipped)
         run: |
           set -euo pipefail
-          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
-            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
-            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          # NO cache (#3010 audit: actions/cache extracts with tar -P before any check could run): the zip is downloaded
+          # into this job's temp and its sha256 checked against the pin before anything is unzipped
+          zip="$RUNNER_TEMP/chrome-linux64.zip"
+          curl -fsSL --retry 3 -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
+          if ! echo "${CHROME_ZIP_SHA256}  $zip" | sha256sum -c --quiet -; then
+            rm -f "$zip"
+            echo "::error::Chrome for Testing ${CHROME_VERSION}: the zip's sha256 is not the pinned one (a changed or tampered download): refusing to run it"
+            exit 1
           fi
+          rm -rf "$RUNNER_TEMP/cft" && mkdir -p "$RUNNER_TEMP/cft" && unzip -q "$zip" -d "$RUNNER_TEMP/cft"
           # Chrome's own sandbox (user namespaces), as on a member's machine: Ubuntu 24.04 restricts them by default
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
-          "$HOME/cft/chrome-linux64/chrome" --version
-          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$RUNNER_TEMP/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      # the two builds: the archive's sha256 (the build job's HOST output) is checked BEFORE it is opened, and it is
+      # unpacked member by member (regular relative files only), never by actions/cache's tar
+      - uses: actions/download-artifact@v4
+        if: inputs.build_ref != ''
+        with:
+          name: speed-rig-dist
+          path: ${{ runner.temp }}/speed-rig-dl
+      - name: Verify and unpack the builds
+        if: inputs.build_ref != ''
+        env:
+          SHA_A: ${{ needs.build.outputs.sha_A }}
+          SHA_B: ${{ needs.build.outputs.sha_B }}
+        run: |
+          set -euo pipefail
+          python3 scripts/proofs/speed-rig/build_candidate.py unpack --tar "$RUNNER_TEMP/speed-rig-dl/dist-A.tar" --sha "$SHA_A" --out "$RUNNER_TEMP/speed-rig-dist-A"
+          python3 scripts/proofs/speed-rig/build_candidate.py unpack --tar "$RUNNER_TEMP/speed-rig-dl/dist-B.tar" --sha "$SHA_B" --out "$RUNNER_TEMP/speed-rig-dist-B"
+          rm -rf "$RUNNER_TEMP/speed-rig-dl"
       - name: Run lane ${{ matrix.lane }}
         env:
           BENCH_EMAIL: ${{ matrix.slot == 1 && secrets.BENCH_EMAIL || secrets[format('BENCH_EMAIL_{0}', matrix.slot)] }}
           BENCH_PASSWORD: ${{ matrix.slot == 1 && secrets.BENCH_PASSWORD || secrets[format('BENCH_PASSWORD_{0}', matrix.slot)] }}
           SPEED_RIG_RUNNER: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+          BUILD_REF: ${{ inputs.build_ref }}
+          AB_REPS: ${{ inputs.ab_reps || '1' }}
         run: |
           set -uo pipefail
-          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out"
+          sides=()
+          if [ -n "$BUILD_REF" ]; then
+            # A/B: both sides are builds (A = base_ref or production's own commit); each side's build record beside its runs
+            label() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["label"])' "$1/build-meta.json"; }
+            dA="$RUNNER_TEMP/speed-rig-dist-A"; dB="$RUNNER_TEMP/speed-rig-dist-B"
+            mkdir -p "$RUNNER_TEMP/out/A" "$RUNNER_TEMP/out/B"
+            cp "$dA/build-meta.json" "$RUNNER_TEMP/out/A/" && cp "$dB/build-meta.json" "$RUNNER_TEMP/out/B/"
+            [[ "$AB_REPS" =~ ^[1-4]$ ]] || { echo "::error::ab_reps: 1 to 4"; exit 1; }
+            sides=(--side "A=$dA" --label "A=$(label "$dA")" --side "B=$dB" --label "B=$(label "$dB")" --reps "$AB_REPS")
+          fi
+          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out" "${sides[@]}"
           rc=$?
           echo "lane exit $rc"
           exit $rc
@@ -202,7 +319,8 @@ jobs:
   check:
     name: check ${{ matrix.title }}
     needs: plan
-    if: github.event_name == 'pull_request'
+    # (status function: plan ran after a SKIPPED build, and a job whose ancestor was skipped is skipped by default)
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.result == 'success' }}
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     strategy:
@@ -227,20 +345,23 @@ jobs:
           set -euo pipefail
           . /etc/os-release; echo "image: $PRETTY_NAME; $(nproc) cores; $(free -g | awk '/Mem:/{print $2}') GB"
           [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
-      - uses: actions/cache@v4
-        with:
-          path: ~/cft
-          key: cft-${{ env.CHROME_VERSION }}-linux64
-      - name: Chrome for Testing (pinned)
+      - name: Chrome for Testing (pinned, sha256-verified before it is unzipped)
         run: |
           set -euo pipefail
-          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
-            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
-            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          # NO cache (#3010 audit: actions/cache extracts with tar -P before any check could run): the zip is downloaded
+          # into this job's temp and its sha256 checked against the pin before anything is unzipped
+          zip="$RUNNER_TEMP/chrome-linux64.zip"
+          curl -fsSL --retry 3 -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
+          if ! echo "${CHROME_ZIP_SHA256}  $zip" | sha256sum -c --quiet -; then
+            rm -f "$zip"
+            echo "::error::Chrome for Testing ${CHROME_VERSION}: the zip's sha256 is not the pinned one (a changed or tampered download): refusing to run it"
+            exit 1
           fi
+          rm -rf "$RUNNER_TEMP/cft" && mkdir -p "$RUNNER_TEMP/cft" && unzip -q "$zip" -d "$RUNNER_TEMP/cft"
+          # Chrome's own sandbox (user namespaces), as on a member's machine: Ubuntu 24.04 restricts them by default
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
-          "$HOME/cft/chrome-linux64/chrome" --version
-          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$RUNNER_TEMP/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
       - name: Check lane ${{ matrix.lane }}
         env:
           BENCH_EMAIL: ${{ secrets.BENCH_EMAIL }}

@@ -57,6 +57,13 @@ export const RECENTLY_DELETED_WORDS = [
   /\bbring\b(?=[^.;!?]*\bback\b)(?=[^.;!?]*\b(?:watch ?lists?|layouts?|saved screens?|screens?|scans?)\b)/,
   /\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:deleted|removed)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b|\b(?:restore|recover|retrieve|bring back|get back)\b[^.;!?]*\b(?:watch ?lists?|lists?|layouts?|screens?|scans?)\b[^.;!?]*\b(?:deleted|removed)\b/
 ]
+// The event-study words ("how has NVDA done after 5%+ gaps", "after 20-day breakouts"): `data` has always selected on them;
+// since 2026-11-24 `marketAnswers` carries the same objects, because history.afterEvent itself moved there (see that group).
+const EVENT_STUDY_WORDS = Object.freeze([
+  /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
+  // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
+  /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
+])
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume', domains: ['chart', 'volume'],
@@ -411,9 +418,7 @@ export const GROUPS = [
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
     words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
-      /\b(how (has|did|does) \S+ (behaved?|do|done|perform(ed)?|react(ed)?|trade[d]?) after|what (happens|happened) (to|with) \S+ after|after .*\b(gaps?|gapped|cross(es|ed)?)\b)\b/,
-      // PKG2: an event study said another way ("in the weeks after gapping up 8%", "after 20-day breakouts", "after new 50-day highs")
-      /\b(?:after|following) .*\b(?:gapping|gaps? (?:up|down)|breakouts?|break(?:s|ing)? out|new \d{1,3}[- ]?(?:day|week|session) (?:closing )?highs?)\b/,
+      ...EVENT_STUDY_WORDS,
       // PKG2: an index level / commodity / crypto price (the asset-class quote kinds, MD-1 §4.7.3) — "gold price", "price of bitcoin"
       /\b(?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana)(?:'s)? (?:price|quote)\b|\b(?:price|quote|level) (?:of|for|on) (?:gold|silver|copper|crude|oil|brent|wti|natgas|natural gas|bitcoin|btc|ethereum|ether|solana|the (?:s&p|dow|nasdaq|russell|vix))\b/,
       DATA_HISTORY, DATA_LEVEL,
@@ -709,6 +714,22 @@ export const GROUPS = [
     domains: [], actions: ['stock.insiderBuying', 'stock.marketHistory', 'stock.economyBoard', 'stock.liquidityBoard', 'stock.oilReport',
       'stock.daysLikeToday'], fillLast: true, wordsOnly: true,
     words: [] },
+  // PRODUCTION ARMING (2026-11-24; the kinds armed by the integrator under the owner's delegation, docs/feature_flags.json
+  // knobs.UCT_AGENT_ISOLATED_KINDS): the event study (history.afterEvent) and terminal data waves 1-2's eight local answers rode
+  // in `data` by their history / stock domain. With their kinds served, `data` grew from the 8 actions production routed
+  // with to 15 (stock.sectorPerformance stays in `data`: its kind, sectors.performance, is not served in production), and requests sitting exactly at the 55-action budget lost a group: v1's nothing-recognised fill dropped
+  // `data` ("whats nvda at", "NVDA price", "quote NVDA" lost stock.quote), and "add the short float to the info row" (v1)
+  // and the watchlist-note and period-sort phrasings (v2) lost a needed group to the cut. So they move here, the pattern of
+  // waves 3-13: listed by `actions` and WORDS-ONLY (never a filler; it rides along when its own words name the message, so a full request cuts another group first: "list the themes that are rotating in"), so `data` keeps exactly the size production
+  // routed with and every request that does not name these answers routes as before. Their words: the event-study words
+  // (the same objects `data` keeps) and each wave capability's own words, which capabilities/terminalDataLocal.js and
+  // terminalDataWave2.js arm on this group AND on `data` (unchanged there) only while the capability is registered. This is
+  // the 56th of the 56 groups the server keeps (turn.MAX_GROUPS): none is left.
+  { id: 'marketAnswers', title: 'Analyst actions, session and 52-week highs/lows, long-run leaders, dark pools, theme rotation, confluence, expected move, call search, event study',
+    domains: [], actions: ['history.afterEvent', 'stock.analystActions', 'stock.sessionHighsLows', 'stock.longRunLeaders',
+      'stock.darkPoolLevels', 'stock.yearlyHighsLows', 'stock.themeRotation', 'stock.confluenceBoard', 'stock.expectedMove', 'stock.callSearch'],
+    wordsOnly: true, ridesAlong: true,
+    words: [...EVENT_STUDY_WORDS] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
 const REPLAY_ON_WORDS = /^(?:please )?(?:play|pause|resume|unpause|stop)\b|\b(?:play|pause|resume) (?:it|playback|playing)\b|\b(?:next|previous|prev|last) bar\b|\bstep (?:it )?(?:forward|back(?:ward)?)\b|\b(?:forward|back) (?:\d+|one|a|ten) bars?\b|\b(?:speed (?:it )?up|slow (?:it )?down|faster|slower)\b|\b(?:1|5|20) ?x\b|\b(?:to )?the (?:start|end|beginning)\b/

@@ -15,9 +15,8 @@
 // or an item's own `at`), and otherwise says the list is undated and when it is replaced.
 // ⛔ A failed read is an error with Retry, never "no analyst actions".
 import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCurrency, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -166,7 +165,9 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
   // A new `UPDG DOWN` remounts the panel (the shell keys the body on code + args), so the typed
   // kind only ever seeds the state.
   const [kind, setKind] = useState(() => normKind(kindProp))
-  const [sort, setSort] = useState(LIST_ORDER)
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort(LIST_ORDER)
   const rows = useMemo(() => sortRows(rowsOfKind(base.rows, kind), sort, { valueOf, isNumeric, tiebreak: byOrder }), [base.rows, kind, sort])
   const report = panelAsOf(SOURCE, base.builtOn)
   const builtText = report.age?.asOfDate || null

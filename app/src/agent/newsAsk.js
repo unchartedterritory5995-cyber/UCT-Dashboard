@@ -12,7 +12,8 @@
 //
 // ⛔ Only the headline's ID leaves the browser (`context: {news: {id}}`); the server reads the headline
 // itself (api/services/uct_agent/news.py), answers only, and meters it like any Agent turn. Every
-// /api/agent/* route is paid + admin on the server, whatever the browser shows.
+// /api/agent/* route is paid + admin (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1) on the server, whatever the
+// browser shows.
 //
 // A thread lives HERE, outside any component, keyed by headline: closing and reopening a headline (or the
 // widget remounting) shows the same thread. Its conversation id is kept per headline per ET day in this
@@ -20,7 +21,8 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { agentConversation, agentTurn, loadAgentConfig, serverNewsState } from './agentClient'
-import { AGENT_CONVERSATION_KEY, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, resolveAgentFlag, writeLocal } from './agentFlag'
+import { AGENT_CONVERSATION_KEY, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, agentAccess, agentDoorOpen, agentSwitchStored, readLocal,
+  resolveAgentFlag, writeLocal } from './agentFlag'
 
 export { AgentIdentity } from './AgentIdentity'
 
@@ -55,9 +57,11 @@ function askConfig() {
 }
 const turnId = () => `nt${++seq}`
 
-/** The admin + switch gate News renders behind. Branding only — the server decides every request. */
-export function canUseAgent(user) {
-  return user?.role === 'admin' && resolveAgentFlag()
+/** The gate News renders behind (agentFlag.agentAccess): an admin with the switch, or, while the member door is
+ *  open (UCT_AGENT_MEMBERS_ENABLED=1), a paid member whose switch is not off. Branding only — the server decides
+ *  every request. */
+export function canUseAgent(user, isPaid = false) {
+  return agentAccess({ user, isPaid: isPaid === true, door: agentDoorOpen(), stored: agentSwitchStored() })
 }
 
 // A reload: the chat this browser had for this headline today, read back from the server's transcript.
@@ -122,7 +126,8 @@ export function useAgentAsk({ newsId } = {}) {
 /**
  * Open the main UCT Agent panel on this conversation. On /charts the panel opens (or switches) now;
  * anywhere else the browser goes to /charts with the panel open on it. Nothing happens without the
- * Agent switch; the server still refuses anyone but an admin, and another member's id opens nothing.
+ * Agent switch (on by default while the member door is open); the server still refuses anyone it does not let
+ * in (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1), and another member's id opens nothing.
  */
 export function openAgent({ conversationId } = {}) {
   if (typeof conversationId !== 'string' || !conversationId || !resolveAgentFlag()) return

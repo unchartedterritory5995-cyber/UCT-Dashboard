@@ -326,3 +326,9 @@ export function collectSymbols(sym, props = {}, max = 12) {
 export function withArgsKey(props = {}) {
   return Array.from({ length: 20 }, (_, i) => props[`with${i}`] || '').join(',')
 }
+
+/** Customization pass 1: the command tokens a window chip writes back (`6M AMD MSFT`): the window,
+ *  then the other names the command already carried, in their order. */
+export function windowTokens(props = {}, win) {
+  return [win, ...Array.from({ length: 20 }, (_, i) => props[`with${i}`]).filter((s) => typeof s === 'string' && s)]
+}

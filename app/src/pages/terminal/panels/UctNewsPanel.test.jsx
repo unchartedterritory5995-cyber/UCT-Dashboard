@@ -30,6 +30,7 @@ import { TICKER_INSTEAD, marketWideNote } from '../grammar'
 import { resolvePanel } from '../TerminalShell'
 import { PANEL_IMPORTERS } from '../panels'
 import UctNewsPanel, { UCT_NEWS_CODE, UCT_NEWS_SOURCE, scrollParentOf } from './UctNewsPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -116,8 +117,9 @@ beforeEach(() => {
 })
 afterEach(() => { cleanup(); pool._resetForTests() })
 
-function renderPanel(props = {}, { run = vi.fn(), setFreshness = vi.fn(), code = null, scroll = true } = {}) {
-  const body = <UctNewsPanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), setFreshness = vi.fn(), code = null, scroll = true, saved = null } = {}) {
+  const panel = <UctNewsPanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   const framed = code ? <TerminalPanelContext.Provider value={{ code, density: 'comfortable', inset: true }}>{body}</TerminalPanelContext.Provider> : body
   const view = render(
     <PanelFreshnessContext.Provider value={setFreshness}>
@@ -395,6 +397,27 @@ describe('UNEWS filters', () => {
     fireEvent.click(screen.getByTestId('terminal-unews-type-all'))
     await waitFor(() => expect(seqs()).toEqual([10, 9, 8, 7]))
     expect(lastDay().categories).toEqual([])
+  })
+
+  it('the typed word and the type chips are kept with the board and survive a remount (customization pass 1)', async () => {
+    const saved = savedView()
+    const first = renderPanel({}, { saved })
+    await loaded()
+    fireEvent.change(screen.getByLabelText('Filter'), { target: { value: 'guidance' } })
+    fireEvent.click(screen.getByTestId('terminal-unews-type-Earnings'))
+    await waitFor(() => expect(saved.view).toEqual({ filters: { q: 'guidance', types: 'Earnings' } }))
+    first.unmount()
+    pool._resetForTests()
+    renderPanel({}, { saved })
+    await loaded()
+    expect(screen.getByLabelText('Filter').value).toBe('guidance')
+    expect(screen.getByTestId('terminal-unews-type-Earnings').getAttribute('aria-pressed')).toBe('true')
+    expect(lastDay()).toMatchObject({ query: 'guidance', categories: ['Earnings'] })
+    // a stored type this build does not know is dropped, never sent
+    cleanup(); pool._resetForTests()
+    renderPanel({}, { saved: savedView({ filters: { types: 'Earnings,Gossip' } }) })
+    await loaded()
+    expect(lastDay().categories).toEqual(['Earnings'])
   })
 
   it('a typed word is sent to the server, narrows the list and is marked in the headline', async () => {

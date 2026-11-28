@@ -23,7 +23,7 @@ import { memo, useCallback, useContext, useEffect, useRef, useState } from 'reac
 import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import { AuthContext } from '../../../context/AuthContext'
-import { useAgentFlag } from '../../../agent/agentFlag'
+import { useAgentAccess } from '../../../agent/agentFlag'
 import compassMark from '../../../components/intro/assets/compass-mark.webp'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
@@ -286,19 +286,17 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
 
 // ── AI Explanation: expands INSIDE the headline's row ──
 
-/** Whose voice the explanation is in. UCT Agent is ADMIN-ONLY (its routes are
- *  require_admin_dark), so its mark and name show only where the Agent itself would:
- *  the SAME two keys as the /charts panel (ChartsWorkspace `agentAllowed`) -- this
- *  browser's Agent switch AND the admin role. Everyone else (a member, an admin with
- *  the switch off, no AuthProvider in isolated tests) reads the same explanation under
- *  a neutral heading: the failure direction never shows the Agent to someone who can't
- *  use it.
+/** Whose voice the explanation is in. UCT Agent's routes are require_admin_dark (admin-only
+ *  unless UCT_AGENT_MEMBERS_ENABLED=1), so its mark and name show only where the Agent itself
+ *  would: the SAME gate as the /charts panel (agentFlag.useAgentAccess) -- an admin with this
+ *  browser's Agent switch, or, while the member door is open, a paid member whose switch is
+ *  not off. Everyone else (a member while the door is closed, an admin with the switch off,
+ *  no AuthProvider in isolated tests) reads the same explanation under a neutral heading:
+ *  the failure direction never shows the Agent to someone who can't use it.
  *  ⛔ Branding only -- nothing here talks to the Agent (increments 2/3 will, through
  *  app/src/agent's public exports, never AgentPanel internals). */
 function useAgentVoice() {
-  const admin = useContext(AuthContext)?.user?.role === 'admin'
-  const agentOn = useAgentFlag()
-  return admin && agentOn
+  return useAgentAccess(useContext(AuthContext))
 }
 
 function ExplainTitle({ agentVoice }) {
