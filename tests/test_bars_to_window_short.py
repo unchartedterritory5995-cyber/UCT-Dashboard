@@ -112,10 +112,10 @@ def test_a_window_at_96_percent_of_the_ask_is_fetched_and_served_flagged_while_i
 
 def test_a_short_window_proven_by_a_finished_fetch_is_final(store, monkeypatch):
     # control: the provider answered and has nothing older across the listing threshold (a listing's start; review of
-    # #3011, F2: the two empty rounds here span ~3 months, so the threshold is set below that) -> the window is final
+    # #3011, F2: the rounds sized for the 38 missing rows span only days, so the threshold is set below them)
     days = _sessions(END, 37)
     _put("LIST", days)
-    monkeypatch.setattr(bars_fetch, "_TO_LISTING_EMPTY_DAYS", 30)
+    monkeypatch.setattr(bars_fetch, "_TO_LISTING_EMPTY_DAYS", 1)
     calls = []
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda t, tf, f, to, raise_errors=False: calls.append(f) or [])
     r = bars_fetch._get_bars_to_response("LIST", "15", ASK, TO)
