@@ -8069,6 +8069,38 @@
     "KRT",
     "MATV"
    ]
+  },
+  {
+   "id": "cloud/46130779300-1/COV-def-dd-typed",
+   "at": "2026-11-28T09:37:30+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LAND",
+    "NGS",
+    "LCTX",
+    "MGPI",
+    "TTI",
+    "EH",
+    "RUM",
+    "CRD-A",
+    "LPBB"
+   ]
+  },
+  {
+   "id": "cloud/46130779300-1/COV-zo-h4h2-typed",
+   "at": "2026-11-28T09:37:30+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LOT",
+    "AENT",
+    "UPB",
+    "FPH",
+    "PAHC",
+    "CGBD",
+    "CTS",
+    "CSHR",
+    "INDV"
+   ]
   }
  ]
 }
