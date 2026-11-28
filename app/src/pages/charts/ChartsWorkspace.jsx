@@ -798,7 +798,8 @@ function plainData(v) {
 }
 // (review of #2901, D8) only these fields are compared by value: each is arrays / objects of primitives. Every other
 // field must be the same object, so a future field holding functions or a Map can never compare equal while it differs.
-const SLOT_VALUE_DATA_FIELDS = new Set(['groupTfs', 'groupTfSets', 'widgetCanvasById', 'widgetCanvasByType'])
+// (Lane G) `matchChart` too: { on, chartId }, remade whenever the board in front changes, the same content for a slot's own board
+const SLOT_VALUE_DATA_FIELDS = new Set(['groupTfs', 'groupTfSets', 'widgetCanvasById', 'widgetCanvasByType', 'matchChart'])
 function sameSlotValue(a, b) {
   for (const k of Object.keys(b)) {
     if (k === 'groupSyms') continue   // read through the slot's view, the same object in both
