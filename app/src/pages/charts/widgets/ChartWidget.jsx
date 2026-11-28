@@ -459,7 +459,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               const base = fetchTf(c)
               if (!LIVE_INTRADAY.has(String(base)) || String(base) === String(fetchTf(tf))) continue
               const key = chartKeyFor({ sym, resolvedTf: String(base), showExtended: ext, replayCutoff: null, hasOverride: false })
-              if (key) liveOffs.push(store.watchLive(key, { session: ext ? 'eth' : 'rth', front: true }))
+              if (!key) continue
+              liveOffs.push(store.watchLive(key, { session: ext ? 'eth' : 'rth', front: true }))
+              // ⭐ (P2, the tf-press tail: 23 of 45 slow presses waited on the FIRST visit's lake join + decode, 87-125 ms,
+              // with the pieces already cached) THE LAKE'S DEPTH IS JOINED BEFORE THE PRESS: the watch pins the key, and
+              // its lake load runs now, one piece per task (not awaited: it yields to frames), so the press finds the
+              // key at its whole depth (lakePending false) and the switch's lake hold has nothing to wait on.
+              try { store.lakeSeed?.(key) } catch { /* a warm never breaks the chart */ }
             }
           } catch { /* a live watch never breaks the chart */ }
         }

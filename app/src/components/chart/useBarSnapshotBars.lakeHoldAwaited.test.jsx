@@ -136,4 +136,29 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     expect(loadOf(w)).toBeTruthy()
     expect(waitsNow(w)).toBe('yields')
   })
+
+  // (P2, the tf-press tail: the first visit of a timeframe waited on its lake join + decode) a key the dwell pinned and
+  // lake-joined before the press (ChartWidget: store.watchLive + store.lakeSeed) is switched to with NOTHING to wait on
+  it('H3 (P2) the 60m key pinned and lake-joined before the press: no lake hold at the press, its whole depth at once', async () => {
+    const w = world({ lakeDelayMs: 300, restDelayMs: 80 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    // the dwell: pin + the tail (the warm) + the lake join, then time passes
+    const off = w.store.watchLive(k60)
+    w.store.ensure?.(k60, { priority: 'visible', session: 'rth' })
+    w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    expect(w.store.lakePending(k60), 'the dwell joined the lake').toBe(false)
+    const deep = w.store.peek(k60)?.bars.length || 0
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    h.rerender(p)
+    expect(h.result.current._tfSwitchHold, 'the press waited on something').toBe(false)
+    // (the store's sealed rows, plus the developing bar the chart's copy carries)
+    expect(h.result.current.bars?.length, 'the whole depth in the first frame').toBeGreaterThanOrEqual(deep)
+    expect(deep).toBeGreaterThan(answer(60, Date.now()).bars.length)
+    off()
+  })
 })

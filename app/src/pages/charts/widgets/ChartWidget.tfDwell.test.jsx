@@ -11,13 +11,14 @@ import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 import { WidgetDoorContext } from '../widgetDoors'
 
-const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false, watches: [] }))
+const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false, watches: [], seeds: [] }))
 vi.mock('../../../components/chart/barStoreSwitch', async (orig) => ({ ...(await orig()), BARSTORE: true }))
 vi.mock('../../../data/barStore/index', async (orig) => {
   const m = await orig()
   const watchLive = (key, o) => { const w = { key, o, released: false }; captured.watches.push(w); return () => { w.released = true } }
+  const lakeSeed = (key, o) => { captured.seeds.push({ key, o }); return Promise.resolve(false) }
   // the real store, its watchLive observed (the replay path reads the store too)
-  return { ...m, getBarStore: () => new Proxy(m.getBarStore(), { get: (t, k) => (k === 'watchLive' ? watchLive : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) }) }
+  return { ...m, getBarStore: () => new Proxy(m.getBarStore(), { get: (t, k) => (k === 'watchLive' ? watchLive : k === 'lakeSeed' ? lakeSeed : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) }) }
 })
 vi.mock('../../../components/StockChart', () => ({
   default: (props) => { captured.props = props; return <span data-testid="chart-sym">{props.sym}</span> },
@@ -73,7 +74,7 @@ const optsFor = (tf) => ({ tf, settings: { header: { timeframes: BAR } } })
 beforeEach(() => {
   vi.useFakeTimers()
   __resetTfHabitForTests()
-  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null; captured.watches.length = 0
+  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null; captured.watches.length = 0; captured.seeds.length = 0
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
@@ -150,6 +151,14 @@ test('(P3) after the dwell the habitual INTRADAY keys are watched live as the fr
   expect(captured.watches[0].o).toMatchObject({ front: true })
   act(() => { ctl.setOpts(optsFor('W')) })                       // the member pressed on: released
   expect(captured.watches[0].released).toBe(true)
+})
+
+test('(P2) the watched habitual key is lake-joined during the dwell (not awaited: it yields to frames)', () => {
+  render(<Wrap initialOpts={optsFor('D')} />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS + 5) })
+  expect(captured.seeds.map((x) => x.key)).toEqual(captured.watches.map((w) => w.key))
+  expect(captured.seeds).toHaveLength(1)
+  expect(captured.seeds[0].o?.awaited).toBeFalsy()
 })
 
 test('(P3) CONTROL: no live watch at a date the member went to, nor in replay', () => {
