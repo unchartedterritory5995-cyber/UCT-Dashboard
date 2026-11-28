@@ -1851,7 +1851,7 @@ import { makeLiveSane } from './chart/liveTickBaseline'
 import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
-import { parseTf } from './chart/timeframes'
+import { parseTf, tfLabel } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -21222,7 +21222,11 @@ function StockChartBody({
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No chart data available for {sym}.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-            {data?.reason === 'timeframe_not_carried' ? (
+            {data?.reason === 'empty_window' ? (
+              // (#3033) a timeframe press answered with no rows at this date (a window before the listing, a quiet
+              // session): the symbol IS carried, so the provider sentence below would be untrue
+              <span data-testid="chart-empty-window">No {tfLabel(resolvedTf)} bars for {sym} at this date. Pick a later date or another timeframe.</span>
+            ) : data?.reason === 'timeframe_not_carried' ? (
               // A currency pair (BTCUSD): the server answers this for a timeframe it does not
               // serve. The symbol IS carried, so the sentence below would be untrue.
               <span data-testid="chart-tf-not-carried">

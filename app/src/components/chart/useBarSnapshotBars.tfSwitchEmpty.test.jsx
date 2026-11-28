@@ -11,6 +11,9 @@
 //   B7 a TERMINAL empty answer (no_data: the key is UNAVAILABLE) releases the hold at once, well inside the bound
 //   B8 (red at 9e0c8514ca) an EARLY empty answer that fills later never releases it: a 503 `warming`, then rows
 //   B9 (red at 9e0c8514ca) the same for an answer `filling: true` with no rows
+//   B10 (cloud A/B 46156420212, WRONG_CHART) the bound is the HOLD CHAIN's: a second press while the same frame is held
+//       keeps the first press's start, released TF_SWITCH_EMPTY_HOLD_MS after the FIRST press
+//   B11 an ANSWERED EMPTY 200 (no rows, no error, not filling) releases at once, with the 'empty_window' note
 // (the harness below is the lake-hold test's: the real hook over a real store, fake server)
 // ---- original harness header follows ----
 // A TIMEFRAME SWITCH'S LAKE HOLD WAITS ON A LOAD THAT NEVER YIELDS (review of #2786, smoothness 2b).
@@ -80,7 +83,7 @@ const NO_IO = {
   memPutMonotonic: () => {}, idbPutMonotonic: async () => {}, idbPutHistory: async () => {},
 }
 
-function world({ lakeDelayMs = 200, lake = true, restDelayMs = 80, emptyTf = null, earlyTf = null, early = null } = {}) {
+function world({ lakeDelayMs = 200, lake = true, restDelayMs = 80, emptyTf = null, earlyTf = null, early = null, empty200Tf = null } = {}) {
   let earlyLeft = early ? 1 : 0
   const request = vi.fn((url) => new Promise((resolve, reject) => {
     const tf = Number(/[?&]tf=(\w+)/.exec(url)?.[1])
@@ -93,6 +96,10 @@ function world({ lakeDelayMs = 200, lake = true, restDelayMs = 80, emptyTf = nul
       } else {
         setTimeout(() => resolve({ ...answer(tf, Date.now()), bars: [], developing: null, filling: true }), restDelayMs)
       }
+      return
+    }
+    if (tf === empty200Tf) {
+      setTimeout(() => resolve({ ...answer(tf, Date.now()), bars: [], developing: null }), restDelayMs)
       return
     }
     const body = tf === emptyTf
@@ -250,6 +257,49 @@ describe('a timeframe press never paints an empty chart', () => {
       expect(h.result.current.bars?.length, 'the rows landed').toBeGreaterThan(0)
     })
   }
+
+  it('B10 the bound is the hold chain: a second press on the same held frame keeps the first start', async () => {
+    const { TF_SWITCH_EMPTY_HOLD_MS } = await import('./useBarSnapshotBars')
+    world({ lake: false, restDelayMs: 600_000 })
+    const p = params({ showExtended: true })
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    const q = { ...p, resolvedTf: '1', _barsTf: '1' }
+    q._onScreenSrcRef.current = null
+    q._shownTfRef.current = { sym: SYM, tf: 'D' }
+    h.rerender(q)
+    await act(async () => { await vi.advanceTimersByTimeAsync(TF_SWITCH_EMPTY_HOLD_MS - 1500) })
+    h.rerender(q)
+    expect(h.result.current._tfSwitchHold, 'held after the first press').toBe(true)
+    const q2 = { ...q, resolvedTf: '5', _barsTf: '5' }       // the second press, the D frame still held (nothing painted)
+    h.rerender(q2)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    h.rerender(q2)
+    expect(h.result.current._tfSwitchHold, 'still inside the first press bound').toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+    h.rerender(q2)
+    expect(h.result.current._tfSwitchHold, 'released at the FIRST press bound, not the second').toBe(false)
+  })
+
+  it('B11 an answered EMPTY 200 releases at once, with the empty-window note', async () => {
+    const { TF_SWITCH_EMPTY_HOLD_MS } = await import('./useBarSnapshotBars')
+    world({ lake: false, restDelayMs: 60, empty200Tf: 1 })
+    const p = params({ showExtended: true })
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+    const q = { ...p, resolvedTf: '1', _barsTf: '1' }
+    q._onScreenSrcRef.current = null
+    q._shownTfRef.current = { sym: SYM, tf: 'D' }
+    h.rerender(q)
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    h.rerender(q)
+    expect(h.result.current._tfSwitchHold, 'held while the answer is in flight').toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    h.rerender(q)
+    expect(TF_SWITCH_EMPTY_HOLD_MS).toBeGreaterThan(1000)
+    expect(h.result.current._tfSwitchHold, 'released by the answered empty 200').toBe(false)
+    expect(h.result.current.data).toMatchObject({ no_data: true, reason: 'empty_window' })
+  })
 
   it('B5 CONTROL: a symbol change (another symbol on screen) is not a timeframe switch: no hold here', async () => {
     world({ lake: false, restDelayMs: 300 })

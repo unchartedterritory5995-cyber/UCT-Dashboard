@@ -13,6 +13,8 @@
 //      never a blank canvas without it and never the old timeframe's candles past the bound
 //   C3 (re-review of #3033) the 1m key first answers 503 `warming`, then rows: still no empty set and no blank frame
 //      and the held frame is not dropped for the cold-load skeleton (red under the early-answer release, measured)
+//   C12 (cloud A/B 46156420212) D painted, 1m answers an EMPTY 200 (a date before the listing): at once the honest
+//      no-data note under the NEW tf, never the old daily candles, never a blank canvas without the note
 // Runs with the bar store on (the hold lives in its hook, and production builds run it). All prices are synthetic.
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, cleanup, act, screen } from '@testing-library/react'
@@ -184,7 +186,7 @@ const rowsOf = (tf) => (tf === '1' ? minutes() : tf === '60' ? hours() : tf === 
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
 // the server: every key answers at once except `slow` (default the 1m key), which answers after `minuteLatency`
 // (Infinity = never). D / W / M / the 60m base each answer rows of their own shape.
-function serve({ minuteLatency, warmingFirst = false, slow = '1' }) {
+function serve({ minuteLatency, warmingFirst = false, slow = '1', empty200 = false }) {
   let warm = warmingFirst ? 1 : 0
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
@@ -194,6 +196,7 @@ function serve({ minuteLatency, warmingFirst = false, slow = '1' }) {
     const m = u.match(/\/api\/bars\/([^?]+)\?tf=([^&]+)/)
     if (!m) return Promise.resolve(ok({}))
     if (m[2] !== slow) return Promise.resolve(ok({ ticker: 'SYN', tf: m[2], bars: rowsOf(m[2]) }))
+    if (empty200 && m[2] === '1') return new Promise((res) => setTimeout(() => res(ok({ ticker: 'SYN', tf: '1', bars: [] })), 60))
     if (warm > 0) {
       warm--
       const r = { ok: false, status: 503, headers: { get: () => '1' }, json: async () => ({ ticker: 'SYN', tf: '1', bars: [], error: 'warming' }) }
@@ -220,8 +223,8 @@ beforeEach(async () => {
   try { localStorage.setItem('barspack.version', '2026-11-10') } catch { /* */ }
 })
 
-async function dailyThenPress1m({ minuteLatency, warmingFirst = false }) {
-  serve({ minuteLatency, warmingFirst })
+async function dailyThenPress1m({ minuteLatency, warmingFirst = false, empty200 = false }) {
+  serve({ minuteLatency, warmingFirst, empty200 })
   const view = render(<StockChart sym="SYN" tf="D" backgroundWarm={false} forceExtendedHours={false} />)
   await wait(500)
   expect(BARSTORE_ON).toBe(true)
@@ -323,4 +326,18 @@ describe('a timeframe press from a daily chart never empties the chart (real Sto
       expect(blanks.every((t) => t >= T.empties[0]), 'a blank frame before the release').toBe(true)
     }, 15_000)
   }
+
+  it('C12 the 1m key answers an EMPTY 200: at once the empty-window note, never the old daily candles', async () => {
+    const { stop, t0 } = await dailyThenPress1m({ minuteLatency: 50, empty200: true })
+    let noteAt = null
+    for (let i = 0; i < 100 && noteAt == null; i++) {
+      await wait(10)
+      if (document.querySelector('[data-testid="chart-empty-window"]')) noteAt = Date.now() - t0
+    }
+    stop()
+    expect(noteAt, 'the empty-window note').not.toBeNull()
+    expect(noteAt, 'at once, not at the bound').toBeLessThan(800)
+    expect(realCandles().length, 'the old daily candles under the new timeframe').toBe(0)
+    expect(document.querySelector('[data-testid="chart-empty-window"]').textContent).toMatch(/at this date/)
+  })
 })
