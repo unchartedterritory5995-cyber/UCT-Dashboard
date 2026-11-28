@@ -50,6 +50,7 @@ import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, 
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
 import { nextTask } from '../historyLake/source'
 import { lakeCopyAddsNothing } from './reducer'
+import { notePressure } from './serverPressure'
 import { _closeMismatch } from '../../utils/barsMerge'
 
 /** (review of #2947, N1) A window answered `filling` is asked again after this many seconds (the server's Retry-After),
@@ -993,6 +994,7 @@ export function createNetwork({
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
+        notePressure(e?.status)   // (board pre-mount) a 429 / 503 tells speculative work to back off (serverPressure.js)
         if (quiet()) { if (fullRead) r.fullDue = false; return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null } }
         // ⛔⛔ (2026-11-28, the cloud sweep: COV-def-m1-typed LNG, /api/bars/LNG?tf=15 answered 429 three times, and the chart
         // showed the lake copy WITHOUT its tail, a 2-day-stale newest bar, then the fresh tail 100 ms later) A RATE-LIMITED
