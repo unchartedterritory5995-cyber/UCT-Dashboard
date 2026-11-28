@@ -492,9 +492,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     let cancelPaintWait = null
     const keeps = []
     const release = () => { for (const off of keeps.splice(0)) { try { off() } catch { /* gone */ } } }
-    const timer = setTimeout(() => {
-      cancelPaintWait = whenFirstChartPainted(() => {
-        if (!alive || !isAppVisible()) return
+    const keepNow = () => {
+      if (!alive || !isAppVisible() || keeps.length) return
+      {
         try {
           const store = getBarStore()
           const first = habitualTfs(tf, { k: 2, available: tfBarKey.split(',') })
@@ -503,15 +503,26 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             if (!KEEP_INTRADAY.has(String(base)) || String(base) === String(fetchTf(tf))) continue
             const key = chartKeyFor({ sym, resolvedTf: String(base), showExtended: !!paneExt, replayCutoff: null, hasOverride: false })
             if (!key) continue
-            keeps.push(store.keepKey(key))
+            const off = store.keepKey(key)
+            keeps.push(off)
+            // (review of #3063) a refused keep pins nothing: its join would be read into a key the LRU may drop
+            if (off.refused) continue
             try { store.lakeSeed?.(key) } catch { /* a warm never breaks the chart */ }
           }
         } catch { /* a keep never breaks the chart */ }
-      })
+      }
+    }
+    let dwelled = false
+    const timer = setTimeout(() => {
+      cancelPaintWait = whenFirstChartPainted(() => { dwelled = true; keepNow() })
     }, TF_DWELL_MS)
-    // a hidden page keeps nothing (the next dwell, visible, keeps them again)
-    const offHidden = onDeskHiddenChange((hidden) => { if (hidden) release() })
-    const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'hidden') release() }
+    // a hidden page keeps nothing; (review of #3063) shown again after the dwell, it keeps them again
+    const offHidden = onDeskHiddenChange((hidden) => { if (hidden) release(); else if (dwelled) keepNow() })
+    const onVis = () => {
+      if (typeof document === 'undefined') return
+      if (document.visibilityState === 'hidden') release()
+      else if (dwelled) keepNow()
+    }
     try { document.addEventListener('visibilitychange', onVis) } catch { /* no document */ }
     return () => {
       alive = false; clearTimeout(timer); cancelPaintWait?.(); release()

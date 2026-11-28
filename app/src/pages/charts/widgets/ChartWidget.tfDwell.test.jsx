@@ -15,7 +15,7 @@ const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], paint
 vi.mock('../../../components/chart/barStoreSwitch', async (orig) => ({ ...(await orig()), BARSTORE: true }))
 vi.mock('../../../data/barStore/index', async (orig) => {
   const m = await orig()
-  const keepKey = (key) => { const w = { key, released: false }; captured.keeps.push(w); return () => { w.released = true } }
+  const keepKey = (key) => { const w = { key, released: false }; captured.keeps.push(w); const off = () => { w.released = true }; if (captured.refuse) off.refused = true; return off }
   const lakeSeed = (key, o) => { captured.seeds.push({ key, o }); return Promise.resolve(false) }
   // the real store, its keepKey / lakeSeed observed (the replay path reads the store too)
   return { ...m, getBarStore: () => new Proxy(m.getBarStore(), { get: (t, k) => (k === 'keepKey' ? keepKey : k === 'lakeSeed' ? lakeSeed : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) }) }
@@ -162,6 +162,20 @@ test('(P2) a hidden page keeps nothing: the keeps are released when the page hid
   act(() => { setDeskHidden(true) })
   expect(captured.keeps[0].released).toBe(true)
   act(() => { setDeskHidden(false) })
+  // (review of #3063) shown again: kept again, and joined again
+  expect(captured.keeps).toHaveLength(2)
+  expect(captured.keeps[1].released).toBe(false)
+  expect(captured.seeds).toHaveLength(2)
+})
+
+test('(P2) a refused keep is not lake-seeded (its join would land in a key the LRU may drop)', () => {
+  captured.refuse = true
+  try {
+    render(<Wrap initialOpts={optsFor('D')} />)
+    act(() => { vi.advanceTimersByTime(TF_DWELL_MS + 5) })
+    expect(captured.keeps).toHaveLength(1)
+    expect(captured.seeds).toHaveLength(0)
+  } finally { captured.refuse = false }
 })
 
 test('(P2) CONTROL: nothing kept in replay', () => {

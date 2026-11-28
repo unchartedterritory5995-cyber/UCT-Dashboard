@@ -138,27 +138,33 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
   })
 
   // (P2, the tf-press tail: the first visit of a timeframe waited on its lake join + decode) a key the dwell KEPT and
-  // lake-joined before the press (ChartWidget: store.keepKey + store.lakeSeed) is switched to with nothing to wait on
-  it('H3 (P2) the 60m key kept and lake-joined before the press: no hold at the press, its whole depth at once', async () => {
+  // lake-joined before the press (ChartWidget: store.keepKey + store.lakeSeed; production asks NO tail then) holds for its
+  // own answer at the press, and the answer paints the WHOLE depth at once (the lake already joined: no shallow first paint)
+  it('H3 (P2) a never-answered kept key, lake-joined: the press holds for its own answer, then the whole depth at once', async () => {
     const w = world({ lakeDelayMs: 300, restDelayMs: 80 })
     let p = params()
     const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
     await act(async () => { await vi.advanceTimersByTimeAsync(500) })
-    const off = w.store.keepKey(k60)                                  // the dwell: the keep, the warm's tail, the join
-    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})   // the dwell warm: one ask
+    const off = w.store.keepKey(k60)                                  // the dwell: the keep and the join, nothing asked
     w.store.lakeSeed(k60)
-    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(w.store.lakePending(k60), 'the dwell joined the lake').toBe(false)
     const deep = w.store.peek(k60)?.bars.length || 0
+    expect(deep, 'the lake depth is held').toBeGreaterThan(answer(60, Date.now()).bars.length)
     h.rerender(p)
     p = { ...p, resolvedTf: '60', _barsTf: '60' }
     p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
     p._shownTfRef = { current: { sym: SYM, tf: '5' } }   // (StockChart writes what it painted)
     h.rerender(p)
-    expect(h.result.current._tfSwitchHold, 'the press waited on something').toBe(false)
-    // (the store's sealed rows, plus the developing bar the chart's copy carries)
-    expect(h.result.current.bars?.length, 'the whole depth in the first frame').toBeGreaterThanOrEqual(deep)
-    expect(deep).toBeGreaterThan(answer(60, Date.now()).bars.length)
+    const firstPainted = []
+    for (let i = 0; i < 20; i++) {
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      h.rerender(p)
+      const b = h.result.current.bars
+      if (!h.result.current._tfSwitchHold && b?.length) firstPainted.push(b.length)
+    }
+    expect(firstPainted.length, 'painted once its own answer landed').toBeGreaterThan(0)
+    expect(firstPainted[0], 'the first paint holds the whole lake depth (no shallow first frame)').toBeGreaterThanOrEqual(deep)
     off()
   })
 
@@ -170,7 +176,7 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
     await act(async () => { await vi.advanceTimersByTimeAsync(500) })
     const off = w.store.keepKey(k60)
-    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})   // the dwell warm: one ask
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})   // answered once, earlier
     w.store.lakeSeed(k60)
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     const tailBefore = w.store.peek(k60)?.bars.at(-1)?.t
@@ -186,6 +192,58 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     for (let i = 0; i < 30; i++) { await act(async () => { await vi.advanceTimersByTimeAsync(20) }); h.rerender(p) }
     expect(h.result.current._tfSwitchHold).toBe(false)
     expect(h.result.current.bars.at(-1).t, 'the answer brought the tail current').toBeGreaterThan(tailBefore)
+    off()
+  })
+
+  // ⛔ (review of #3063) A STALE FORMING BAR OF THE CURRENT BUCKET: a kept 60m copy answered at 11:50, pressed at 12:25
+  // (the same 11:30-12:30 bucket, 35 minutes later): its forming bar is the bucket as it was then, so the press holds
+  it('H5 (P2) a kept copy answered 35 min ago, the same bucket: the press holds for its own answer (no stale forming bar)', async () => {
+    const w = world({ lakeDelayMs: 50, restDelayMs: 120 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    w.store.lakeSeed(k60)                                             // (joined: no lake hold can stand in for this rule)
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    expect(w.store.lakePending(k60)).toBe(false)
+    const devBefore = w.store.peek(k60)?.developing
+    expect(devBefore, 'the kept copy holds a forming bar').toBeTruthy()
+    await act(async () => { await vi.advanceTimersByTimeAsync(35 * 60 * 1000) })      // 12:25: the same 60m bucket
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }
+    h.rerender(p)
+    expect(h.result.current._tfSwitchHold, 'the 35-minute-old forming bar painted at the press').toBe(true)
+    for (let i = 0; i < 30; i++) { await act(async () => { await vi.advanceTimersByTimeAsync(20) }); h.rerender(p) }
+    expect(h.result.current._tfSwitchHold).toBe(false)
+    expect(h.result.current.bars?.length).toBeGreaterThan(0)
+    off()
+  })
+
+  // ⛔ (review of #3063) PAST THE BOUND WITH NO ANSWER: the honest loading state, never the gapped copy
+  it('H6 (P2) a kept copy behind the clock whose key never answers: past the bound, no bars (loading), never the gapped copy', async () => {
+    const { TF_SWITCH_EMPTY_HOLD_MS } = await import('./useBarSnapshotBars')
+    const w = world({ lakeDelayMs: 50, restDelayMs: 80 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 3600 * 1000) })
+    w.request.mockImplementation(() => new Promise(() => {}))                       // the press's ask never answers
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }
+    h.rerender(p)
+    await act(async () => { await vi.advanceTimersByTimeAsync(TF_SWITCH_EMPTY_HOLD_MS + 100) })
+    h.rerender(p)
+    expect(h.result.current._tfSwitchHold, 'released at the bound').toBe(false)
+    expect(h.result.current.bars ?? null, 'the gapped copy painted past the bound').toBe(null)
     off()
   })
 })
