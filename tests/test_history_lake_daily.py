@@ -239,8 +239,7 @@ def test_under_the_lease_the_pc_shares_its_references_and_records_the_ledger_aft
     root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
     (root / "ref").mkdir()
     (root / "ref" / "splits.json").write_bytes(b'{"rows": ["pc"]}')
-    (root / "ref" / "ticker_events.jsonl").write_bytes(b"{}
-")
+    (root / "ref" / "ticker_events.jsonl").write_bytes(b"{}\n")
     calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13"])
     assert _go(root, st, calls) == D.EXIT_OK
     assert st.log[0] == "take" and st.log[-1] == "release"
