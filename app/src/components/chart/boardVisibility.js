@@ -198,11 +198,7 @@ export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
     // layer's chart reports: until then, the feed re-renders in its OWN task (setTimeout 0: never inside a key or input
     // task), so the chart has drawn the row by the next key; a member typing leaves no idle period for 500 ms. Every later
     // update stays idle-deferred, as before.
-    if (Number.isFinite(vis.promptUntil) && (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) < vis.promptUntil) {
-      const t = setTimeout(() => { cancel = null; if (vis.state !== 'disposed') notify() }, 0)
-      cancel = () => clearTimeout(t)
-      return
-    }
+    // (DIAG bisect: the prompt window removed)
     cancel = idleTask(() => { cancel = null; if (vis.state !== 'disposed') notify() })
   }
   const unVis = vis.subscribe(() => {
