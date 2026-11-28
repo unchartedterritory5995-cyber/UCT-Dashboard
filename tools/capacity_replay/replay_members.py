@@ -233,8 +233,12 @@ async def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--dry", action="store_true", help="record the request stream only; contact nothing")
     a = ap.parse_args()
+    bench = os.environ.get("RAILWAY_ENVIRONMENT_NAME", "") == "capacity-bench"
     for t in a.targets.split(","):
-        assert t.startswith("http://127.0.0.1:"), "replay targets must be loopback, got %r" % t
+        host = t.split("://", 1)[-1].split("/", 1)[0].rsplit(":", 1)[0]
+        ok = t.startswith("http://127.0.0.1:") or (bench and t.startswith("http://") and host.endswith(".railway.internal"))
+        # loopback anywhere; a *.railway.internal service ONLY inside the capacity-bench environment (its private network)
+        assert ok, "replay targets must be loopback (or *.railway.internal inside capacity-bench), got %r" % t
     targets = a.targets.split(",")
     uni = Universe(os.path.join(HERE, "universe.json"))
     st = Stats()

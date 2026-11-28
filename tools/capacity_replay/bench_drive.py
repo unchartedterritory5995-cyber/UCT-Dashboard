@@ -106,6 +106,13 @@ def main():
     for m in [int(x) for x in a.members.split(",") if x]:
         r = run_case(m, a.shards, a.duration, a.ramp, a.mode)
         results["cases"].append(r)
+        if not r.get("n"):
+            # ⛔ a case with no request rows is a broken run (every shard died), never a quiet success
+            print("BENCH FAILED: case members=%d recorded no requests (see the shards' stderr above)" % m, flush=True)
+            if a.out:
+                with open(a.out, "w") as f:
+                    json.dump(results, f, indent=1)
+            sys.exit(2)
         print(json.dumps({k: r.get(k) for k in ("members", "offered_rps", "ok_rps", "p50", "p95", "p99", "timeouts",
                                                 "sheds_503", "errors", "handed_to_leader_pct")}), flush=True)
     if a.out:

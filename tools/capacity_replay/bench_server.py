@@ -21,11 +21,36 @@ DATA = os.path.join(BENCH, "data")
 CTL = os.path.join(BENCH, "workers")
 
 
+def _sampler():
+    """Every 2 s: container memory (cgroup v2 memory.current, anon / file split) and tasks (pids.current, the limit
+    Railway enforces) to /tmp/bench/samples.txt, for the per-level and night-job peaks."""
+    import threading
+
+    def _read(p):
+        try:
+            with open(p) as f:
+                return f.read().strip()
+        except OSError:
+            return ""
+
+    def _loop():
+        while True:
+            st = dict(ln.split() for ln in _read("/sys/fs/cgroup/memory.stat").splitlines() if " " in ln)
+            line = "%d mem=%s anon=%s file=%s pids=%s workers=%s" % (
+                time.time(), _read("/sys/fs/cgroup/memory.current"), st.get("anon", ""), st.get("file", ""),
+                _read("/sys/fs/cgroup/pids.current"), _read(CTL))
+            with open(os.path.join(BENCH, "samples.txt"), "a") as f:
+                f.write(line + chr(10))
+            time.sleep(2)
+    threading.Thread(target=_loop, daemon=True, name="bench-sampler").start()
+
+
 def main():
     env_name = os.environ.get("RAILWAY_ENVIRONMENT_NAME", "")
     if env_name != "capacity-bench":
         sys.exit("bench_server refuses to run outside the capacity-bench environment (got %r)" % env_name)
     os.makedirs(DATA, exist_ok=True)
+    _sampler()
     if not os.path.exists(os.path.join(STORE_DIR, "bars.db")):
         # >= 2,000 tickers: bars_api_main's boot treats a store with fewer as "sparse" and removes it
         subprocess.run([sys.executable, os.path.join(HERE, "synth_store.py"), STORE_DIR, "--daily", "2200",
@@ -35,7 +60,8 @@ def main():
         with open(CTL, "w") as f:
             f.write("1")
     strip = ("MASSIVE", "POLYGON", "R2_", "AWS_", "S3_", "FMP", "FINNHUB", "OPENAI", "ANTHROPIC", "PUSH_SECRET",
-             "DATABASE_URL", "DATA_SYNC")
+             "DATABASE_URL", "DATA_SYNC", "DISCORD", "STRIPE", "SUPABASE", "JWT", "SESSION", "SCHWAB", "SECRET",
+             "TOKEN", "API_KEY", "PASSWORD", "RESEND", "TWITTER", "PERPLEXITY", "LOGODEV", "CLOUDFLARE")
     proc, cur = None, None
     while True:
         want = (open(CTL).read().strip() or "1")
