@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "E101 INTRADAY-HTF door (fix/intraday-htf-door, 2026-11-28): the member door's runtime probe accepts an admitted higher intraday read on its chart-less daily base (deferredIntradayHtf, one predicate for requestTargetOf, lowerTfDeclineOf and lowerTfServedCodeOf), a compile-only column over zero bars is not refused for its missing chart, a source input inside a request reads the bar series it names, and Pine's price means read inside a request. Found by re-asking write-capability w02 / w19 live on production. Each mutant breaks one rule and must turn its rail red.",
+ "mutants": [
+  {
+   "id": "D1",
+   "mutant": "door-base: the door's daily-base probe takes an admitted intraday read as a lower-timeframe one again (w02 refused with the host's sentence)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return this.intradayHtfReads === true && isIntradayHtfCode(code) && !isBelowADay(this.basePeriod)",
+   "to": "    return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "the script the assistant wrote for w02"
+  },
+  {
+   "id": "D2",
+   "mutant": "compile-only: a column over zero bars with no chart is refused for its missing chart (w19's request(...)[1] table refused at the door)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "          if (why && !(length === 0 && stated === null)) refuse('interpret:timeframe', `${why}.`)",
+   "to": "          if (why) refuse('interpret:timeframe', `${why}.`)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "trend table"
+  },
+  {
+   "id": "D3",
+   "mutant": "source-input: a source input read inside a request falls through to the stateful-builtin refusal again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (dv && dv.type === 'name' && MEMBER_SOURCES.has(dv.name)) return lowerExpr({ ...dv, tok: node.tok }, scope)",
+   "to": "          if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "author default (close)"
+  },
+  {
+   "id": "D4",
+   "mutant": "price-means: hl2 / hlc3 / ohlc4 / hlcc4 inside a request are a name nothing binds again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (mean && scope.lookup(node.name) === null && !env.has(node.name)) return lowerExpr(mean(node.tok), scope)",
+   "to": "          if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "price means inside a request"
+  },
+  {
+   "id": "D5",
+   "mutant": "hl2-arithmetic: hl2 inside a request divides by 3 (a wrong mean must not pass as the written arithmetic)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  hl2: (t) => meanBin('/', meanBin('+', meanName('high', t), meanName('low', t), t), meanNum(2, t), t),",
+   "to": "  hl2: (t) => meanBin('/', meanBin('+', meanName('high', t), meanName('low', t), t), meanNum(3, t), t),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "hl2 at 60 minutes"
+  },
+  {
+   "id": "D6",
+   "mutant": "served-lower: a deferred intraday read is claimed as a served lower-timeframe read (the run refuses lower-tf:runtime-lane)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    // ⭐⭐ E101 INTRADAY-HTF — a deferred higher intraday read is not a served lower one (`deferredIntradayHtf`)\n    if (other === null && this.deferredIntradayHtf(code)) return null\n",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfDoor.test.js",
+   "expectRed": "the script the assistant wrote for w02"
+  }
+ ]
+}
