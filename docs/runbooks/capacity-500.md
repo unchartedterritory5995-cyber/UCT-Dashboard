@@ -236,6 +236,19 @@ model, 10 s ramp + 30 s measured per case, the load generator ON THE SAME RUNNER
 | 4 | 280 | 849 | 849 | 1,203 | 2,186 | 2,348 | 0 | 11 | 0.0% | 1.0-1.1 GB |
 | 4 | 400 | 1,242 | 216 | 6,859 | 8,410 | 8,772 | 30,987 | 2 | 0.0% | 1.2-1.3 GB |
 
+**Re-run with the runner SPLIT (Actions run 46161013278):** bars-api pinned to CPUs 0-3, the load generator to 4-7
+(`sched_setaffinity`), so the servers never lose a core to the clients:
+
+| processes (on 4 dedicated vCPUs) | clean: OK req/s, p99 | saturated |
+|---|---|---|
+| 1 (solo) | 207 req/s, p99 95 ms (297 req/s: p99 1.1 s) | between ~210 and ~300 |
+| 2 (leader + 1) | 422 req/s, p99 94 ms | 607 req/s: p99 3.7 s |
+| 4 (leader + 3) | **849 req/s, p99 124 ms** | 1,247 req/s: p99 6.3 s |
+
+**~210 req/s per process, linear from 1 to 4 processes** on dedicated cores; hand-off share 0.0%; RSS 0.5-0.9 GB per
+process when clean, 1.2-1.3 GB saturated. 12 processes at that rate would be ~2,500 req/s on 12+ free vCPUs, if a
+Railway vCPU matches a runner vCPU (unmeasured), against the 1,503 req/s 500-member edge-first peak.
+
 What it says:
 - **The topology works and scales close to linearly** on this runner: ~210-300 req/s per process at the knee (1 process
   clean at 207, collapsing at ~300; 2 processes clean at 421 with p99 557 ms; 4 processes clean at 487, saturated by 849
