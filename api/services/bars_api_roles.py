@@ -53,7 +53,7 @@ _log = logging.getLogger("uvicorn.error")
 MAX_WORKERS = 64
 #: The leader's loopback-only port for what followers hand it (pushes, repair wants, status).
 LEADER_PORT = int(os.environ.get("BARS_API_LEADER_PORT", "18999") or 18999)
-PUBLISH_EVERY_S = float(os.environ.get("BARS_API_VIEW_PUBLISH_S", "0.5") or 0.5)
+PUBLISH_EVERY_S = float(os.environ.get("BARS_API_VIEW_EVERY_S", "0.5") or 0.5)
 VIEW_CHECK_S = float(os.environ.get("BARS_API_VIEW_CHECK_S", "0.05") or 0.05)
 PROMOTE_EVERY_S = float(os.environ.get("BARS_API_PROMOTE_S", "2") or 2)
 RELOAD_EVERY_S = float(os.environ.get("BARS_API_RELOAD_S", "5") or 5)
