@@ -680,7 +680,7 @@ def test_a_stale_feed_flags_the_frame_and_the_recovery_resends_every_row():
 
 def test_a_dead_or_silent_daily_child_is_replaced_at_most_once_a_minute():
     clk = _Clock()
-    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk)
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk, report_expected=lambda: True)
 
     class _Proc:
         def __init__(self, alive):
@@ -704,6 +704,67 @@ def test_a_dead_or_silent_daily_child_is_replaced_at_most_once_a_minute():
     silent = feed._proc
     feed(20261130)
     assert started == [1, 1] and silent.terminated
+
+
+class _AliveProc:
+    def __init__(self):
+        self.terminated = False
+
+    def is_alive(self):
+        return True
+
+    def terminate(self):
+        self.terminated = True
+
+
+def test_on_a_weekend_or_holiday_the_silent_child_is_never_restarted():
+    """F1 (review of PR 3.4): the publisher asks the feed every minute 04:00-20:00 on every calendar day; with no
+    session opened today the child correctly reports nothing, and that silence must cost no restart."""
+    clk = _Clock()
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk, report_expected=lambda: False)
+    started = []
+    feed._start_child = lambda: started.append(1)
+    feed._proc = _AliveProc()
+    for _ in range(16 * 60):                                        # a whole publishing day, one frame a minute
+        clk.t += 60
+        assert feed(20261128) is None
+    assert started == [] and feed.counts["restarts"] == 0 and not feed._proc.terminated
+
+
+def test_a_fresh_child_gets_its_polls_before_it_can_be_judged_silent():
+    clk = _Clock()
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk, report_expected=lambda: True)
+    procs = []
+
+    def _start():
+        procs.append(_AliveProc())
+        feed._proc = procs[-1]
+    feed._start_child = _start
+    feed._proc = _AliveProc()
+    clk.t += mfp.DAILY_RESTART_POLLS * 30 + 1                       # the first child was silent for four polls
+    feed(20261130)
+    assert len(procs) == 1                                          # replaced
+    for _ in range(4):                                              # 30-120 s after ITS start: not judged yet
+        clk.t += 30
+        feed(20261130)
+    assert len(procs) == 1 and not procs[0].terminated
+    clk.t += 30                                                     # past four polls since ITS start: now it is
+    feed(20261130)
+    assert len(procs) == 2 and procs[0].terminated
+
+
+def test_a_dead_child_is_replaced_even_when_no_report_is_expected():
+    clk = _Clock()
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk, report_expected=lambda: False)
+
+    class _Dead:
+        def is_alive(self):
+            return False
+    started = []
+    feed._start_child = lambda: started.append(1)
+    feed._proc = _Dead()
+    feed(20261128)
+    assert started == [1]
 
 
 def test_the_child_reports_every_successful_read_even_an_unchanged_one(monkeypatch):

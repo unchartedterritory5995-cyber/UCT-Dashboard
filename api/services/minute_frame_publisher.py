@@ -624,6 +624,12 @@ def _daily_child(q, poll_s: float) -> None:
         time.sleep(poll_s)
 
 
+def _session_opened_today() -> bool:
+    """Is a daily report expected now? bars-api's own rule, asked, not restated (the child's poll asks it too)."""
+    from api.services import massive
+    return bool(massive._regular_session_has_opened_today())
+
+
 #: what `DailyFeed(day)` answers when its rows may be frozen (C1): the publisher marks the frame FLAG_DAILY_STALE
 DAILY_STALE = object()
 #: rows are current while the child's newest good report is younger than two polls plus this (seconds)
@@ -641,9 +647,18 @@ class DailyFeed:
     report is younger than two polls plus DAILY_STALE_SLACK_S; after that the feed answers DAILY_STALE (the
     publisher flags the frame, devices stop trusting their rows), and a child that died or has been silent for
     DAILY_RESTART_POLLS polls is replaced (supervised from the encode thread, at most once a minute). A new
-    child's first report is every row, so trust comes back with a full set."""
+    child's first report is every row, so trust comes back with a full set.
 
-    def __init__(self, start_child: bool = True, poll_s: Optional[float] = None, clock=time.monotonic):
+    F1 (review of PR 3.4): supervision runs ONLY when a report is expected, i.e. today's regular session has
+    opened (`massive._regular_session_has_opened_today`, the very rule the child's poll asks). On a weekend or a
+    holiday the publisher still builds a frame every minute and asks the feed, the child correctly reports
+    nothing, and a supervisor that did not ask this killed and re-spawned it (a full api import) every minute,
+    ~630 times a day. Silence is measured from the newest of the last report, the start and the last restart, so a
+    fresh child always gets DAILY_RESTART_POLLS polls before it can be judged silent. Each child gets its own queue
+    and listener: terminate() on a child that holds a shared queue's write lock could wedge every later child."""
+
+    def __init__(self, start_child: bool = True, poll_s: Optional[float] = None, clock=time.monotonic,
+                 report_expected: Optional[Callable[[], bool]] = None):
         self._latest: Optional[tuple] = None
         self.counts = {"reports": 0, "errors": 0, "restarts": 0}
         self.poll_s = float(poll_s or _daily_poll_s())
@@ -652,26 +667,33 @@ class DailyFeed:
         self._started_at = clock()
         self._restarted_at = -1e18
         self._proc = None
+        self._report_expected = report_expected or _session_opened_today
         if start_child:
             import multiprocessing as mp
-            import threading
             self._ctx = mp.get_context("spawn")
-            self._q = self._ctx.Queue()
             self._start_child()
-            threading.Thread(target=self._listen, daemon=True, name="minute-frames-daily-listener").start()
 
     def _start_child(self) -> None:
-        self._proc = self._ctx.Process(target=_daily_child, args=(self._q, self.poll_s), daemon=True,
+        import threading
+        q = self._ctx.Queue()                       # its OWN queue (see the class docstring)
+        self._proc = self._ctx.Process(target=_daily_child, args=(q, self.poll_s), daemon=True,
                                        name="minute-frames-daily")
         self._proc.start()
+        threading.Thread(target=self._listen, args=(q,), daemon=True, name="minute-frames-daily-listener").start()
 
     def _supervise(self) -> None:
         """Replace a dead or silent child (never more than once a minute)."""
         if self._proc is None:
             return
-        now = self._clock()
-        silent_since = self._fresh_at if self._fresh_at is not None else self._started_at
+        try:
+            expected = bool(self._report_expected())
+        except Exception:  # noqa: BLE001 - cannot tell: never restart on a guess
+            expected = False
         dead = not self._proc.is_alive()
+        if not expected and not dead:
+            return                                   # a weekend / holiday / pre-open: silence is correct
+        now = self._clock()
+        silent_since = max(t for t in (self._fresh_at, self._started_at, self._restarted_at) if t is not None)
         if not (dead or now - silent_since > DAILY_RESTART_POLLS * self.poll_s) or now - self._restarted_at < 60:
             return
         try:
@@ -686,10 +708,10 @@ class DailyFeed:
         except Exception as e:  # noqa: BLE001 - a child that will not start leaves the feed stale, never wrong
             _log.warning("[minute-frames] daily child restart failed: %s", e)
 
-    def _listen(self) -> None:
+    def _listen(self, q) -> None:
         while True:
             try:
-                self.report(self._q.get())
+                self.report(q.get())
             except Exception:  # noqa: BLE001
                 time.sleep(1)
 
