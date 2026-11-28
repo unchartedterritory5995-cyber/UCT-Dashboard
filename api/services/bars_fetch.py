@@ -1350,33 +1350,62 @@ WM_WRITE_SLOTS = 2
 _WM_WRITE_SEM = _threading.BoundedSemaphore(WM_WRITE_SLOTS)
 
 
-def _wm_live_daily(ticker_up: str) -> bool:
+_D_UNREAD = object()   # `d_last` not read yet: the helper reads the stored daily tail itself
+
+
+def _wm_live_daily(ticker_up: str, d_last=_D_UNREAD) -> bool:
     """May W/M be derived from the STORED daily on read? When the live store covers the daily (in session: alive, seen,
     contiguous), OR when the stored daily itself runs into the present (`_wm_stored_daily_current`).
     ⛔⛔ (2026-11-28, the cold-coverage sweep; reproduced on production for 16 of 19 rarely viewed names) `covered(t, "D")`
     needs the live daily snapshot FLOWING, so after the close, on a weekend, and in session for a name outside the
     snapshot it read False, the derive never ran, and the FIRST W/M answer was the stored W/M table: a developing month
     whose close was two weeks old (ACIW 61.26 against its 52.24 daily, NHC 210.78 against 193.37) until the background
-    revalidation fixed the next ask. The answer the member sees first must never carry a W/M close older than the daily's."""
+    revalidation fixed the next ask. The answer the member sees first must never carry a W/M close older than the daily's.
+    `d_last`: the stored daily's newest bar when the caller already read it (one read per request)."""
+    return _wm_daily_source(ticker_up, d_last) is not None
+
+
+def _wm_daily_source(ticker_up: str, d_last=_D_UNREAD):
+    """The daily W/M may be derived from: "live" (the live store covers it), "stored" (`_wm_stored_daily_current`), or
+    None (no derive)."""
     try:
         from api.services import bars_live_store as _bls
         if _bls.covered(ticker_up, "D"):
-            return True
+            return "live"
     except Exception:                      # noqa: BLE001
         pass
-    return _wm_stored_daily_current(ticker_up)
+    return "stored" if _wm_stored_daily_current(ticker_up, d_last) else None
 
 
-def _wm_stored_daily_current(ticker_up: str) -> bool:
-    """The stored daily's newest bar is the previous NYSE session's or later (today's, once written): it runs into the
-    present, so W/M derived from it are as current as the daily the same store answers. A daily that ends before the
-    previous session is stale itself: no derive (its own revalidation runs, as before)."""
+def _wm_now_et() -> datetime:
+    return datetime.now(_ZI("America/New_York"))
+
+
+def _wm_required_daily_ymd(now_et=None) -> int:
+    """The newest daily bar a stored daily must hold to run into the present: TODAY's (ET) once today is an NYSE session
+    and its 09:30 open has passed (half days included: they open at 09:30 too), the previous session's otherwise
+    (pre-market, overnight, weekend, holiday). ⛔ (review of #3001, F1) ET, never `_last_weekday_yyyymmdd`: its utcnow
+    runs a day ahead after 19:00/20:00 ET."""
+    now = now_et if now_et is not None else _wm_now_et()
+    if _is_trading_day_ymd(now) and now.hour * 60 + now.minute >= _RTH_OPEN_MINUTES_SERVER:
+        return int(now.strftime("%Y%m%d"))
+    from api.services import bars_live_store as _bls
+    return int(_bls._prev_session_ymd(now))
+
+
+def _wm_stored_daily_current(ticker_up: str, d_last=_D_UNREAD) -> bool:
+    """The stored daily's newest bar reaches `_wm_required_daily_ymd`: it runs into the present, so W/M derived from it
+    are as current as the daily the same store answers. A daily that ends before that is stale itself: no derive (the
+    old stale-while-revalidate path runs, as before, and the daily's own revalidation feeds the next read).
+    ⛔⛔ (review of #3001, F1) On a session day from the open on, a daily ending YESTERDAY is NOT current: deriving from it
+    served W/M without today, turned revalidation off, and wrote that older close over a W/M row `_delta_weekly`/
+    `_delta_monthly` had already brought through today (they write W/M, never D)."""
     try:
-        from api.services import bars_live_store as _bls
-        d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if d_last is _D_UNREAD:
+            d_last = _sqlite.get_last_ts(ticker_up, "D")
         if not d_last:
             return False
-        return int(d_last) >= int(_bls._prev_session_ymd(datetime.now(_bls._ET)))
+        return int(d_last) >= _wm_required_daily_ymd()
     except Exception:                      # noqa: BLE001 — unknown: the store as it is, as before
         return False
 
@@ -1418,23 +1447,35 @@ def _wm_derived_tail(ticker_up: str, tf: str, wm_last: int):
     return [p for p in periods if _wm_differs(held.get(int(p["t"].replace("-", ""))), p)]
 
 
-def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
+def _wm_ahead_of_daily(held, p) -> bool:
+    """The stored W/M row of the derived period `p` holds trading the stored daily does not: more volume, a higher high
+    or a lower low than the daily derives (`_delta_weekly`/`_delta_monthly` brought it further: they write W/M, never D)."""
+    return held is not None and (int(held[5] or 0) > int(p["v"] or 0) or float(held[2]) > float(p["h"])
+                                 or float(held[3]) < float(p["l"]))
+
+
+def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D_UNREAD):
     """READ PATH (review of #2742): (rows, last_ts) with the periods the stored LIVE daily derives laid over the stored
     W/M rows, from the period holding the stored tail onward, when that reaches the daily tail's period; None otherwise.
     The answer carries them whatever happens to their write: the differing periods are written on a deduped background
     job that no read ever waits for (in session the developing daily moves every few seconds, so nearly every cache-miss
-    read has one to write, and a read that waited for it fell back to the days-old table when the write was late)."""
-    if not _wm_live_daily(ticker_up):
-        return None
+    read has one to write, and a read that waited for it fell back to the days-old table when the write was late).
+    ⛔⛔ (review of #3001, F1) NEVER OVER A NEWER ROW: a stored W/M tail in a later period than the daily's tail, or (on
+    the stored-daily path) one holding trading the daily lacks (`_wm_ahead_of_daily`), is neither served over nor
+    written over: None, and the old path serves and revalidates it. `d_last`: the stored daily tail, if already read."""
     try:
-        wm_last = int(stored_rows[-1][0])
-        d_last = _sqlite.get_last_ts(ticker_up, "D")
-        if not d_last:
+        if d_last is _D_UNREAD:
+            d_last = _sqlite.get_last_ts(ticker_up, "D")
+        source = _wm_daily_source(ticker_up, d_last)
+        if source is None or not d_last:
             return None
+        wm_last = int(stored_rows[-1][0])
         periods = _wm_derived_periods(ticker_up, tf, wm_last)
         if not periods or int(periods[-1]["t"].replace("-", "")) != _wm_key_of(tf, int(d_last)):
             return None
         by = {int(r[0]): tuple(r) for r in stored_rows}
+        if source == "stored" and _wm_ahead_of_daily(by.get(int(periods[-1]["t"].replace("-", ""))), periods[-1]):
+            return None
         todo = [p for p in periods if _wm_differs(by.get(int(p["t"].replace("-", ""))), p)]
         for p in periods:
             k = int(p["t"].replace("-", ""))
@@ -1453,10 +1494,12 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int):
 def _wm_live_fresh(ticker_up: str, tf: str, last_ts) -> bool:
     """`_needs_fresh`'s W/M rule on a live daily: the stored tail is the period of the daily's tail and holds exactly
     what the stored daily derives."""
-    if last_ts is None or not _wm_live_daily(ticker_up):
+    if last_ts is None:
         return False
     try:
         d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if not _wm_live_daily(ticker_up, d_last):
+            return False
         if not d_last or int(last_ts) != _wm_key_of(tf, int(d_last)):
             return False
         return _wm_derived_tail(ticker_up, tf, int(last_ts)) == []
@@ -5647,7 +5690,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # their write (background, deduped, never awaited); `wm_drv` on Server-Timing is the derive's cost.
     _wm_live = False
     if tf in ("W", "M") and stored_rows:
-        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars)
+        _ov = _wm_overlay(ticker_up, tf, stored_rows, bars, _sqlite.get_last_ts(ticker_up, "D"))
         if _ov is not None:
             stored_rows, last_ts, _wm_live = _ov[0], _ov[1], True
         _time_ck("wm_drv")
@@ -5668,7 +5711,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     # A 15m/30m/60m rebuilt from the live 5m changes every few seconds too: cache it as
     # briefly as a covered series (never pinned for the normal intraday TTL).
     _live_ttl = (_live or (_bls is not None and _live_derived_proof(ticker_up, tf) is not None)
-                 or (tf in ("W", "M") and _wm_live_daily(ticker_up)))
+                 # ⛔ (review of #3001, LOW) only a LIVE daily moves: W/M derived from a stored daily off-hours (a
+                 # weekend) keep the normal TTL, or 500 members re-derive unchanging data every 10 s
+                 or (tf in ("W", "M") and _bls is not None and _bls.covered(ticker_up, "D")))
     _time_ck("live_cov")
     _fresh_needed = False if _wm_live else (_needs_fresh(last_ts, tf, ticker_up) if stored_rows else True)
     if stored_rows and not _fresh_needed and (
