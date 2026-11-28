@@ -77,6 +77,20 @@ describe('prefetch.heldRows', () => {
     expect(pf.heldRows('AAA', '15', { showExtended: true, viewWindow: w, answered: true })).toBe(40)
   })
 
+  // (review of #2947, H2) the switch's own look (peekDisplayable) at a date names the window the chart reads there
+  it('peekDisplayable with viewWindow: the window at the date decides, not the plain key', async () => {
+    const { STATUS } = await import('./types')
+    const store = { ...stubStore(), persist: { hydrateMem: () => {}, refreshDevice: () => {} } }
+    const pf = createPrefetch({ store })
+    const w = { to: Date.UTC(2025, 2, 14, 12) / 1000 }
+    const plain = pf.keyFor('AAA', '15', { showExtended: true })
+    const windowed = pf.keyFor('AAA', '15', { showExtended: true, window: w })
+    store.held.set(plain, { status: STATUS.EMPTY, bars: [], developing: null, restSeen: true, depth: 0 })
+    store.held.set(windowed, { status: STATUS.CURRENT, bars: rows(900), developing: null, restSeen: true, depth: 900 })
+    expect(pf.peekDisplayable('AAA', '15', { showExtended: true, viewWindow: w })).toBe(true)
+    expect(pf.peekDisplayable('AAA', '15', { showExtended: true })).toBe(false)
+  })
+
   it('with answered: 0 for a saved copy alone, the count once the server answered in this life', () => {
     const store = stubStore()
     const pf = createPrefetch({ store })
