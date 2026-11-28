@@ -8450,6 +8450,26 @@
     "ADAM",
     "YSS"
    ]
+  },
+  {
+   "id": "cloud/46139375230-1/COV-reopen-dd",
+   "at": "2026-11-28T12:29:29+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NWE",
+    "NUS",
+    "EVC"
+   ]
+  },
+  {
+   "id": "cloud/46139375230-1/COV-reopen-m5h1",
+   "at": "2026-11-28T12:29:29+00:00",
+   "source": "cloud",
+   "tickers": [
+    "HMN",
+    "ALT",
+    "KCHV"
+   ]
   }
  ]
 }
