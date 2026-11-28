@@ -385,14 +385,14 @@ export function createNetwork({
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
       const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
-      // ⭐⭐ (2026-11-28, COV-zo-wm-typed MAT / SPGI / AMH held to the 4 s hang guard) A FULL ANSWER SHORTER THAN ITS ASK IS
-      // THE WHOLE LISTING. A monthly view zoomed out asks 1,187 rows; MAT's answer brought its 606 months at +135 ms, every
-      // row it has, but the depth stayed "due" until the edge history joined (1.7 s; SPGI's was never asked, so the hold ran
-      // to the hang guard). Fewer rows than asked (by more than the developing bar) means nothing older exists: the depth is
-      // settled now and no history is asked.
-      const ended = split && !delta && !json.filling && json.bars.length < bars - 1
-      if (ended) _settleDeep(r.key, true)
-      else if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
+      // ⭐⭐ (2026-11-28, COV-zo-wm-typed SPGI / AMH held to the 4 s hang guard) A DEPTH LEFT "DUE" IS A HISTORY ASKED. A
+      // monthly view zoomed out asks its cover (1,187 rows) and no deeper depth, so `wantNow` was the ask and no history was
+      // queued, while deepPending still read "due" (held <= DATE_COVER_MAX, never joined): the daily hold waited for a join
+      // nothing would bring. Where a view's cover was asked (`r.cover`: a shown, typed or linked key, never a warm, B1) and
+      // the depth is still due after the answer, the history is asked; its join (or its "nothing older") settles it.
+      // (A tail shorter than its ask is NOT proof the listing ended: the origin may hold less than the edge's history.)
+      const coverDue = r.cover > 0 && api.deepPending(r.key)
+      if (split && !r.histAsked && !joinedHere && ((wantNow > bars && wantNow > (after?.depth ?? 0)) || coverDue)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }

@@ -182,28 +182,25 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(w.net.deepPending(w.key)).toBe(false)
   })
 
-  // ⭐⭐ (2026-11-28, COV-zo-wm-typed MAT / SPGI / AMH: the hold ran to the 4 s hang guard) A FULL ANSWER SHORTER THAN ITS ASK
-  // IS THE WHOLE LISTING. A zoomed-out view asked more rows than the name has; the answer brought every one of them, and the
-  // depth stayed "due" for a history that adds nothing (or was never asked).
-  it('a full answer shorter than its ask is the whole listing: settled at once, notified, and no history asked', async () => {
-    const w = world({ history: 'hang', listing: 300 })
+  // ⭐⭐ (2026-11-28, COV-zo-wm-typed SPGI / AMH: the hold ran to the 4 s hang guard) A DEPTH LEFT "DUE" IS A HISTORY ASKED.
+  // A zoomed-out view asked its cover and no deeper depth: no history was queued, yet deepPending read "due" for good.
+  it('a cover-only ask whose depth is still due after the answer asks the history; its join settles it (notified)', async () => {
+    const w = world({ history: 'nothing-older', listing: 300 })
     const settled = vi.fn()
     w.net.subscribeSettled(w.key, settled)
     w.net.fetchOnce(w.key, { cover: 1400 })
     await vi.advanceTimersByTimeAsync(50)
     expect(tailBars(w)).toEqual([1400])
-    expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(299)
+    expect(histCalls(w)).toHaveLength(1)
     expect(w.net.deepPending(w.key)).toBe(false)
     expect(settled).toHaveBeenCalledTimes(1)
-    expect(histCalls(w)).toHaveLength(0)
   })
 
-  it('CONTROL: an answer as long as its ask says nothing about older rows: the depth stays due', async () => {
-    const w = world({ history: 'hang' })
-    w.net.fetchOnce(w.key, { cover: 1400 })
+  it('CONTROL: a warm (no cover) still asks no history for its default page (B1: warms never cost an edge request)', async () => {
+    const w = world({ history: 'hang', listing: 300 })
+    w.net.fetchOnce(w.key, {})
     await vi.advanceTimersByTimeAsync(50)
-    expect(tailBars(w)).toEqual([1400])
-    expect(w.net.deepPending(w.key)).toBe(true)
+    expect(histCalls(w)).toHaveLength(0)
   })
 
   it('CONTROL: a history that lands in time asks no second tail', async () => {
