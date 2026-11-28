@@ -90,6 +90,11 @@ on:
         description: "A side (needs build_ref): a branch or master commit built as A; empty = production's own front end"
         required: false
         default: ''
+      cpu_profile:
+        description: "switch indices to CPU-profile in every selected pass (e.g. 3,4,5 = a typed pass's three re-opens); empty = none. Each profile is a .cpuprofile in the pass's artifact"
+        required: false
+        default: ''
+        type: string
       ab_reps:
         description: "A/B: ABBA repetitions per pass (each repetition is 4 runs: A B B A, then B A A B)"
         required: false
@@ -197,6 +202,7 @@ jobs:
           ACCOUNTS: ${{ inputs.accounts || '1' }}
           BUILD_REF: ${{ inputs.build_ref || '' }}
           BASE_REF: ${{ inputs.base_ref || '' }}
+          CPU_PROFILE: ${{ inputs.cpu_profile || '' }}
           GIT_AUTHOR_NAME: speed-rig
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: speed-rig
@@ -212,6 +218,7 @@ jobs:
             PASSES='^COV-def-(dd-arrows|tabs)$'; ISOLATION=browser; MAX_PARALLEL=2
             [ "$HAVE_BENCH" = "true" ] || extra=(--dry)
           fi
+          [ -n "$CPU_PROFILE" ] && extra+=(--cpu-profile "$CPU_PROFILE")
           python scripts/proofs/speed-rig/plan.py --sweep-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --out "$RUNNER_TEMP/plan" \
             --select "$PASSES" --isolate "$ISOLATION" --accounts "$ACCOUNTS" --max-parallel "$MAX_PARALLEL" "${extra[@]}"
       - uses: actions/upload-artifact@v4

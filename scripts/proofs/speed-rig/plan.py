@@ -164,6 +164,11 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
         if p["kind"] == "tabs":
             extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
+        # --cpu-profile=i,j: a CPU profile of those switches (the rig's --cpuprofile: 1.5 s after a typed Enter or a tab
+        # click, 700 ms after an arrow), written beside the record as <name>.flip<i>.cpuprofile and uploaded with it
+        cp = getattr(args, "cpu_profile", "") or ""
+        if cp:
+            extra.append(f"--cpuprofile={cp}")
         if args.dry:
             extra = ["--dry=1"]
         plan["passes"][p["name"]] = {"args": [*COMMON, *p["args"], *extra], "kind": p["kind"], "board": p["board"], "zoom": p["zoom"],
@@ -174,7 +179,26 @@ def build(args, led: dict) -> tuple[dict, dict]:
     return plan, led
 
 
+# at most this many profiled switches per pass: each profile is 1-4 MB (100 us samples for 1.5 s)
+CPU_PROFILE_MAX = 6
+CPU_PROFILE_RE = re.compile(r"\d{1,2}(,\d{1,2}){0," + str(CPU_PROFILE_MAX - 1) + r"}")
+
+
 def self_check() -> None:
+    # --cpu-profile: indices only, bounded; reaches each selected pass's rig arguments, and nothing when unset
+    assert CPU_PROFILE_RE.fullmatch("3,4,5") and CPU_PROFILE_RE.fullmatch("0")
+    for bad in ("", "3;rm -rf /", "1,2,3,4,5,6,7", "a", "3,", "--x"):
+        assert not CPU_PROFILE_RE.fullmatch(bad), bad
+    led0 = L.empty()
+    led0["pool"]["tickers"] = [f"P{i:04d}" for i in range(1000)]
+
+    class C:
+        sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days, cpu_profile = "cp", "^COV-def-dd-typed$", 0, "browser", 1, 8, False, None, "3,4,5"
+    pc, _ = build(C, json.loads(json.dumps(led0)))
+    assert "--cpuprofile=3,4,5" in pc["passes"]["COV-def-dd-typed"]["args"], pc["passes"]
+    C.cpu_profile, C.sweep_id = "", "cp2"
+    pc2, _ = build(C, json.loads(json.dumps(led0)))
+    assert not any(x.startswith("--cpuprofile") for x in pc2["passes"]["COV-def-dd-typed"]["args"])
     allp = passes()
     names = [p["name"] for p in allp]
     assert len(names) == 41 and len(set(names)) == 41, len(names)
@@ -269,8 +293,11 @@ def main() -> int:
     ap.add_argument("--reuse-after-days", type=float, default=REUSE_AFTER_DAYS,
                     help="a ticker last used more than this many days ago is eligible again, after every never-used one (-1 = never)")
     ap.add_argument("--git-dir", default=None)
+    ap.add_argument("--cpu-profile", default="", help="switch indices to CPU-profile in every selected pass (e.g. 3,4,5); empty = none")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args()
+    if a.cpu_profile and not CPU_PROFILE_RE.fullmatch(a.cpu_profile):
+        ap.error(f"--cpu-profile takes switch indices like 3,4,5 (at most {CPU_PROFILE_MAX}), not {a.cpu_profile!r}")
     if a.self_check:
         L.self_check()
         self_check()
