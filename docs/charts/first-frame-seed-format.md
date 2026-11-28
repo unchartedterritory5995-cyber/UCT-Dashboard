@@ -22,12 +22,8 @@ byte a lake piece body, so `app/src/data/historyLake/piece.js` `decodeBody` deco
 | `60` | 1800        | 1000            | regular session only, the `'60'` key's stored 09:30-anchored grid  |
 | `D`  | 86400       | FULL (60000)    | the WHOLE served daily series (section 11); W and M are derived on the device from D |
 
-* **Depths (2026-11-28, owner decisions, zero-network switch PRs 1.6 and 3.1).** `1` `5` `15` `30` at 1000 (was
-  600 / 300 / 300 / 300): a device copy draws a view whole only from `COVER_ROWS` (600,
-  `app/src/data/barStore/coverRows.js`) rows on, so a 300-row copy never covered and every present-day intraday switch
-  on a never-viewed ticker waited for the network. `D` is the whole series (was 350): section 11.
-  `FFSEED_DEPTH_<tf>` on the worker overrides each (a variable change, no deploy beyond the worker's restart).
-
+* **D is the whole series (2026-11-28, owner decision, zero-network switch PR 3.1; was 350).** Section 11.
+  `FFSEED_DEPTH_D=350` on the worker restores the shallow first-paint window.
 * **Intraday depth 1000 (2026-11-28, owner decision, zero-network switch PR 1.6).** `1` `5` `15` `30` were 600 / 300 /
   300 / 300: a device copy draws a view whole only from `COVER_ROWS` (600, `app/src/data/barStore/coverRows.js`) rows
   on, so a 300-row copy never covered and every present-day intraday switch on a never-viewed ticker waited for the
