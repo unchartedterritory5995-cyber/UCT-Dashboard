@@ -346,6 +346,46 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(w.net.coverNow(w.key)).toBe(false)
   })
 
+  // ⛔⛔ (review 3 of #3034, a1/a2) A REAL 20-BAR LISTING IS NO CUT SHORT ONCE THE ORIGIN ANSWERED ITS PAGE: never a 15 s
+  // loading chart and a false "couldn't load the full history". The cover answering ends it (and tells the settle), and a
+  // cover that ERRORED is asked again by the retry (kick), which ends it the same way.
+  it('a 20-row listing, the edge history hung: the cover landing ends the cut short and wakes the settle', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false, listing: 20 })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    expect(w.net.cutShort(w.key), 'non-vacuity: cut, 20 rows, depth due').toBe(true)
+    const woke = vi.fn()
+    w.net.subscribeSettled(w.key, woke)
+    w.registry.acquire(w.key, { display: true })
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 20)
+    expect(coverTails(w)).toHaveLength(1)
+    expect(w.registry.peek(w.key).bars.length).toBe(20)
+    expect(w.net.cutShort(w.key), 'its 20 rows are the chart').toBe(false)
+    expect(woke, 'the chart is told to read cutShort again').toHaveBeenCalled()
+  })
+  it('...a cover that ERRORS: still a cut short; the retry asks the page again and its answer ends it', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS, EDGE_TAIL_BARS } = await import('./network')
+    let failCover = true
+    const w = world({ history: 'hang', pin: false, listing: 20, tailHook: async (ti, url) => {
+      if (failCover && Number(/[?&]bars=(\d+)/.exec(url)[1]) === dateCoverMaxFor('D')) { failCover = false; throw Object.assign(new Error('origin down'), { status: 502 }) }
+    } })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    w.registry.acquire(w.key, { display: true })                    // Enter
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 50)
+    expect(coverTails(w), 'non-vacuity: the cover went out and failed').toHaveLength(1)
+    expect(w.net.cutShort(w.key), 'a failed cover answered nothing').toBe(true)
+    const asked = tailBars(w).length
+    const stop = w.net.start(w.key, { depth: w.depth })              // the chart shows it (its Retry kicks this key)
+    w.net.kick(w.key, { abort: true })
+    await vi.advanceTimersByTimeAsync(3000)
+    const after = tailBars(w).slice(asked)
+    expect(after.some((b) => b > EDGE_TAIL_BARS), `the retry asked the page again (${JSON.stringify(after)})`).toBe(true)
+    expect(w.net.cutShort(w.key), 'its 20 rows are the chart').toBe(false)
+    stop()
+  })
+
   // ⛔ (review of #3034; the owner: a short chart must be impossible) THE HANG GUARD'S LAST LOOK
   it('coverNow: a cut D key still at EDGE_TAIL_BARS whose cover never went out asks it at once, and only once', async () => {
     const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')

@@ -464,7 +464,10 @@ export function createNetwork({
       // (persist.flushJoins)
       try { beforeAnswer?.(r.key, json) } catch { /* a device copy is optional */ }
       const after = registry.dispatch(r.key, { type, key: r.key, gen, payload: delta ? { ...json, since: from } : json })
-      if (coverPage) r.coverAnswered = true   // (#3034) the view's whole page from the origin landed: no longer a cut short
+      // (#3034) the view's page from the origin landed (the cover, or ANY tail asked deeper than the cut: a retry's): no
+      // longer a cut short, whatever it held (a 20-row listing IS its 20 rows; review 3 of #3034, a1). The settle is told
+      // (a2): an answer the reducer leaves identical moves no entry, and the chart must read cutShort again.
+      if ((coverPage || bars > EDGE_TAIL_BARS) && !r.coverAnswered) { r.coverAnswered = true; _noteSettled(r.key) }
       // only when more was wanted than the capped tail asked for (today's bar is the developing one,
       // never a row, so `depth` alone would read a full first-paint answer as one bar short).
       // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
@@ -1471,6 +1474,8 @@ export function createNetwork({
       const r = keys.get(key)
       if (!r || r.refs <= 0) return
       if (abort && r.inflight) { r.inflight.ac?.abort(); r.inflight = null }   // its answer is dropped
+      // (review 3 of #3034, a1) a retry of a cut short (its cover failed) asks the whole cover page again
+      if (api.cutShort(key)) r.coverPage = true
       // An explicit kick (stream reconnect, invalidate) still never sends two requests
       // inside the repair dedupe window — unless it aborted the one in flight.
       _schedule(r, abort ? 0 : Math.max(0, REPAIR_DEDUP_MS - (now() - r.lastStart)))
