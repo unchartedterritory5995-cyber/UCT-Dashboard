@@ -67,7 +67,7 @@ describe('the facade registers itself under BARSTORE only', () => {
     const { facade, d } = await facadeWith(true)
     expect(globalThis[d.STORE_WARMERS_KEY]).toBe(facade.STORE_WARMERS)
     // the forwarded warmers, plus the store-only neighbor hold
-    expect(Object.keys(facade.STORE_WARMERS).sort()).toEqual([...d.WARMER_NAMES, 'createNeighborHold'].sort())
+    expect(Object.keys(facade.STORE_WARMERS).sort()).toEqual([...d.WARMER_NAMES, 'createNeighborHold', 'abortUrgentFamily'].sort())   // the two store-only doors
     expect(d.warmers()).toBe(facade.STORE_WARMERS)
   })
 
