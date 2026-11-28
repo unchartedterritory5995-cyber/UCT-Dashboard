@@ -720,7 +720,7 @@ export const GROUPS = [
   // with to 15 (stock.sectorPerformance stays in `data`: its kind, sectors.performance, is not served in production), and requests sitting exactly at the 55-action budget lost a group: v1's nothing-recognised fill dropped
   // `data` ("whats nvda at", "NVDA price", "quote NVDA" lost stock.quote), and "add the short float to the info row" (v1)
   // and the watchlist-note and period-sort phrasings (v2) lost a needed group to the cut. So they move here, the pattern of
-  // waves 3-13: listed by `actions` and WORDS-ONLY (never a filler; not fillLast, so when its own words name it the budget cuts another group first), so `data` keeps exactly the size production
+  // waves 3-13: listed by `actions` and WORDS-ONLY (never a filler; it rides along when its own words name the message, so a full request cuts another group first: "list the themes that are rotating in"), so `data` keeps exactly the size production
   // routed with and every request that does not name these answers routes as before. Their words: the event-study words
   // (the same objects `data` keeps) and each wave capability's own words, which capabilities/terminalDataLocal.js and
   // terminalDataWave2.js arm on this group AND on `data` (unchanged there) only while the capability is registered. This is
@@ -728,7 +728,7 @@ export const GROUPS = [
   { id: 'marketAnswers', title: 'Analyst actions, session and 52-week highs/lows, long-run leaders, dark pools, theme rotation, confluence, expected move, call search, event study',
     domains: [], actions: ['history.afterEvent', 'stock.analystActions', 'stock.sessionHighsLows', 'stock.longRunLeaders',
       'stock.darkPoolLevels', 'stock.yearlyHighsLows', 'stock.themeRotation', 'stock.confluenceBoard', 'stock.expectedMove', 'stock.callSearch'],
-    wordsOnly: true,
+    wordsOnly: true, ridesAlong: true,
     words: [...EVENT_STUDY_WORDS] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)
