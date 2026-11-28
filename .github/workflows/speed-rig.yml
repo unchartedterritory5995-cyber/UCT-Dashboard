@@ -42,6 +42,12 @@
 #
 # LOAD. A sweep is 37 signed-in page sessions over ~12 min, max_parallel (default 8, at most 12) at once: a few
 # members' worth. It never sends anything a member does not.
+# ⛔ ONE ACCOUNT, ONE MEMBER'S RATE LIMIT (2026-11-28). Production enforces api/rate_limit_policy.py per MEMBER
+# (`member:<user id>`): the bars family allows 1200 requests a minute, one pass's browser peaks at ~120-425, so 8
+# browsers on the one bench account were answered 429 and the grade read the instrument as product failures (sweep
+# 46113707532). plan.py now puts at most 2 browsers on one account at a time (lanes = accounts x 2, each lane's passes
+# in sequence); `accounts` = how many bench accounts exist (BENCH_EMAIL, BENCH_EMAIL_2, ...): 4 run 8 lanes at once.
+# grade.py prints each pass's HTTP 429 / 503 answers, and lists a pass that met a 429 under Problems.
 #
 # ⛔ PUBLIC REPO, PUBLIC LOGS: the credentials reach ONE step's environment; the rig never prints or writes them, a
 # cookie or a token; lane.py scrubs every artifact file after EVERY pass and in a finally, and deletes (and fails on)
@@ -70,7 +76,7 @@ on:
         options: [browser, account]
         default: browser
       accounts:
-        description: "account isolation: bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...)"
+        description: "bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...): browser isolation runs 2 browsers per account at once (the per-member rate limit), account isolation 1"
         required: false
         default: '1'
       build_ref:

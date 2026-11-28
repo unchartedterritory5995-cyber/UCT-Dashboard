@@ -18,6 +18,10 @@ What changed from the PC copy, and why:
   * The summary: per pass, then per BOARD (zoom x board, arrows and typed together), p50 / p100 of the full frame,
     with every label the rig recorded (runner, CPU, Chrome, Cloudflare colo, production commit, isolation).
   * --compare <dir>: grade another sweep (the owner-PC run) with the SAME rules and print both side by side.
+  * THE INSTRUMENT'S OWN ERRORS (2026-11-28): per pass, the API answers 429 (production's rate limiter, keyed on the
+    bench MEMBER: api/rate_limit_policy.py) and 503 (the bars route's warming / fetch failure), from the rig's resource
+    record (allRes[].rs, the HTTP status). A pass with a 429 is listed under Problems: its failures may be the
+    instrument (too many browsers on one account), never read them as the product's.
   * A/B (2026-11-28, the workflow's base_ref / build_ref): a sweep whose files sit in <dir>/A and <dir>/B (lane.py
     --side) is graded per side with ONE expectation (derived from both sides' bars, so a side is never judged
     against a fresher day than the other), and printed as one side-by-side table (A, B, B minus A) above each
@@ -266,6 +270,19 @@ def pct(xs, q):
     return xs[min(len(xs) - 1, int(q * len(xs)))] if q < 1 else xs[-1]
 
 
+def http_counts(rec: dict) -> dict:
+    """{'429': n, '503': n, 'known': n}: the API answers of one pass by status (allRes[].rs; 'known' = entries with a
+    status, 0 on a record made before the rig kept it)."""
+    out = {'429': 0, '503': 0, 'known': 0}
+    for e in rec.get('allRes') or []:
+        rs = e.get('rs') if isinstance(e, dict) else None
+        if isinstance(rs, int) and rs > 0:
+            out['known'] += 1
+            if rs in (429, 503):
+                out[str(rs)] += 1
+    return out
+
+
 def board_of(name: str) -> str:
     """COV-<zoom>-<board>-<pattern> -> '<zoom> <board>' (arrows and typed together); the others by their own name."""
     m = re.match(r'COV-(def|zo)-([^-]+)-(arrows|typed)$', name)
@@ -316,9 +333,19 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None) -> d
             problems.append(f"{n}: no switches recorded{(' (' + str(rec.get('error') or '')[:160] + ')') if rec.get('error') else ''}")
         except (OSError, ValueError):
             problems.append(f'{n}: unreadable')
+    new_row = lambda: {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0, 'h429': 0, 'h503': 0, 'hKnown': 0}  # noqa: E731
+    for n, rec, _raw, _tfs in passes:
+        h = http_counts(rec)
+        for key in (n, 'BOARD ' + board_of(n)):
+            g = by.setdefault(key, new_row())
+            g['h429'] += h['429']
+            g['h503'] += h['503']
+            g['hKnown'] += h['known']
+        if h['429']:
+            problems.append(f"{n}: {h['429']} API answer(s) 429 from production's rate limiter (the bench account's budget: the INSTRUMENT, not the product)")
     for r in results:
         for key in (r['pass'], 'BOARD ' + board_of(r['pass'])):
-            g = by.setdefault(key, {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0})
+            g = by.setdefault(key, new_row())
             g['n'] += 1
             g['fail'] += 1 if r['flags'] else 0
             for fl in r['flags']:
@@ -348,7 +375,7 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None) -> d
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
     rows = {k: {'switches': g['n'], 'failed': g['fail'], 'flags': g['flags'], 'p50': pct(g['full'], 0.5), 'p100': pct(g['full'], 1),
-                'warm': g['warm'], 'focusFail': g['focusFail']} for k, g in by.items()}
+                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None} for k, g in by.items()}
     order = sorted((h.get('position', 0), h['pass'], h.get('side')) for h in hs if h.get('side'))
     return {'dir': d, 'run': run, 'order': order, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
             'expect': exp, 'labels': {k: sorted(v) for k, v in labels.items()}, 'rows': rows, 'problems': problems, 'results': results}
@@ -370,12 +397,13 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
         out[2:2] = [f"wall {r['wallSeconds']} s ({r['from']} to {r['to']}), {len(r['passSeconds'])} passes of {r['passSeconds'][0]}-{r['passSeconds'][-1]} s; "
                     f"exits {r['exits']}; session {', '.join(map(str, r['sessions']))}"
                     + (f"; A DEPLOY LANDED DURING {', '.join(r['deployDuring'])}" if r['deployDuring'] else ''), '']
-    head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
-    out += [head, '|' + '---|' * (len(ORDER) + 5 + (3 if cmp else 0))]
+    head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 | HTTP 429 | HTTP 503 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
+    out += [head, '|' + '---|' * (len(ORDER) + 7 + (3 if cmp else 0))]
     keys = sorted(g['rows'], key=lambda k: (not k.startswith('BOARD '), k))
     for k in keys:
         r = g['rows'][k]
-        line = f"| {k} | {r['switches']} | {r['failed']} | " + ' | '.join(str(r['flags'].get(o, 0)) for o in ORDER) + f" | {r['p50']} | {r['p100']} |"
+        line = (f"| {k} | {r['switches']} | {r['failed']} | " + ' | '.join(str(r['flags'].get(o, 0)) for o in ORDER)
+                + f" | {r['p50']} | {r['p100']} | {'?' if r.get('http429') is None else r['http429']} | {'?' if r.get('http503') is None else r['http503']} |")
         if cmp:
             c = cmp['rows'].get(k)
             line += f" {c['p50'] if c else '-'} | {c['p100'] if c else '-'} | {c['failed'] if c else '-'} |"
@@ -486,7 +514,9 @@ def self_check() -> None:
     t = ab_table(ga, gb)
     assert 'A = production | B = master@abc' in t and '| BOARD def dd | 12 | 1 | 20 | 90 | 12 | 0 | 17 | 95 | -3 | +5 |' in t, t
     assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'P A -> P B' in t, t
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart; A/B table)')
+    hc = http_counts({'allRes': [{'rs': 200}, {'rs': 429}, {'rs': 429}, {'rs': 503}, {'rs': 0}, {}]})
+    assert hc == {'429': 2, '503': 1, 'known': 4}, hc
+    print('grade self-check: ok (http 429/503 counted; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart; A/B table)')
 
 
 def main() -> int:
