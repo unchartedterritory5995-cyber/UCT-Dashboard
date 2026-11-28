@@ -8978,6 +8978,36 @@
     "RMNI",
     "GIC"
    ]
+  },
+  {
+   "id": "cloud/46168418511-1/COV-def-dd-arrows",
+   "at": "2026-11-28T17:03:48+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CHI",
+    "INTR",
+    "VALN",
+    "GIW",
+    "LVWR",
+    "BGSI",
+    "SMBK",
+    "SLI",
+    "BTQ",
+    "TRDA",
+    "TWI",
+    "CRAN",
+    "PSKY"
+   ]
+  },
+  {
+   "id": "cloud/46168418511-1/COV-def-tabs",
+   "at": "2026-11-28T17:03:48+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NR",
+    "REX",
+    "BATRA"
+   ]
   }
  ]
 }
