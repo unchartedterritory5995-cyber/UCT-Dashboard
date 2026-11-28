@@ -760,7 +760,9 @@ export function createPrefetch(o = {}) {
    * ⛔ Read on the ET calendar (barTime etDateOf / etMinuteOfDay), never a local Date: on a page east of New York the
    * evening is already the next day locally (utils/marketSession expectedLatestCompletedBar reads the local weekday).
    */
-  function _proofRollMs(key, tf, showExtended) {
+  function _proofRollMs(key, tf, showExtended) { return _proofRoll(key, tf, showExtended).ms }
+  /** The proof roll (ms) and whether the view's session is over (`out`: its roll then stands still at the close). */
+  function _proofRoll(key, tf, showExtended) {
     const clock = _rollMs(tf)
     const p = parseKey(key)
     const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
@@ -771,11 +773,11 @@ export function createPrefetch(o = {}) {
     const m = etMinuteOfDay(sec)
     const open = ext ? 240 : 570
     const closeMin = sessionCloseMinuteOfUnix(sec, { extended: ext })     // (marketSession: the one session close)
-    if (day && m >= open && m < closeMin) return clock          // in the session: the clock's roll IS the frontier's
+    if (day && m >= open && m < closeMin) return { ms: clock, out: false }   // in the session: the clock's roll IS the frontier's
     const close = day && m >= closeMin
       ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
       : (_prevSessionCloseUnix(sec, ext) ?? NaN) * 1000
-    return Number.isFinite(close) && close < clock ? close : clock
+    return { ms: Number.isFinite(close) && close < clock ? close : clock, out: true }
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
   function _ownGrace(key, s, n, showExtended) {
@@ -800,14 +802,14 @@ export function createPrefetch(o = {}) {
     // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
-      const roll = _proofRollMs(key, tf0, showExtended)
+      const { ms: roll, out } = _proofRoll(key, tf0, showExtended)
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
       // ⛔ (2026-11-28, hardening) OUTSIDE THE SESSION the roll stands still (the close), so "TAIL_LAG_WINDOW_MS since the
       // roll" is true all evening of any answer, even one the server built before it had stored the session's last
       // bucket. There the ANSWER itself must have landed that long after the close (`a.at`: when ensure noted it).
-      const settled = roll < _rollMs(tf0) ? a.at - roll >= TAIL_LAG_WINDOW_MS : now() - roll >= TAIL_LAG_WINDOW_MS
+      const settled = out ? a.at - roll >= TAIL_LAG_WINDOW_MS : now() - roll >= TAIL_LAG_WINDOW_MS
       if (settled && s.verifiedThrough * 1000 >= roll) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
