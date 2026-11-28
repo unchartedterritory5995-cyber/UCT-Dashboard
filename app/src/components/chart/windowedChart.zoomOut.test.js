@@ -62,20 +62,21 @@ describe('a continuous zoom-out', () => {
     b.ts.setVisibleLogicalRange({ from: N - SPAN, to: N + 8 })
     await frame()
     const first = b.sets[b.sets.length - 1]
+    expect(b.chart.window.windowStart(), `the window is on: ${JSON.stringify(b.sets)} held ${rawOf(b.candles).data().length}`).toBeGreaterThan(0)
+    expect(first).toBeLessThan(4000)
     b.sets.length = 0
     let span = SPAN
     while (span < 24000) {
       span = Math.min(24000, Math.round(span * 1.25))
       const want = { from: N - span, to: N + 8 }
       b.ts.setVisibleLogicalRange(want)
-      await Promise.resolve(); await Promise.resolve()          // the facade's range check (a microtask)
+      await frame()                                              // the library applies the range; the facade's check
       const got = b.ts.getVisibleLogicalRange()
       const ws = b.chart.window.windowStart()
       const at = `span ${span} want ${want.from}..${want.to} got ${got.from}..${got.to} ws ${ws} sets ${JSON.stringify(b.sets)}`
       expect(Math.abs(got.from - want.from), at).toBeLessThan(0.01)   // Z2: the view is where it was asked to be
       expect(Math.abs(got.to - want.to), at).toBeLessThan(0.01)
       expect(want.from - ws, at).toBeGreaterThanOrEqual(Math.ceil(span / 4) - 1)
-      await frame()
     }
     const finalRows = N - b.chart.window.windowStart()
     const bound = Math.ceil(Math.log2(finalRows / first)) + 2
