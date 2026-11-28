@@ -238,3 +238,22 @@ describe('request count of a member typing and pasting (printed x500)', () => {
     expect(edge.map((c) => c.q.sym)).toEqual(['NVDA', 'AMZN'])
   })
 })
+
+// (mutant M8, 2026-11-28) the warm reports the WHOLE chart: with its tail answered and its edge history still out, it has
+// not reported yet; it reports once the history has joined (bounded by DEEP_JOIN_WAIT_MS), so a caller that treats the
+// answer as the chart's rows (ChartPane's typed next) never sees the 30-row tail alone
+describe('the typed warm reports once the deep history joined', () => {
+  it('tail answered, history out: not reported; history in: reported, and the rows are whole', async () => {
+    const w = await boot()
+    const typed = w.pf.warmTypedSymbol('COLD', 'D', { cover: COVER })
+    let done = false
+    typed.then(() => { done = true })
+    await settle(w)
+    for (const c of w.server.open()) if (!c.q.history) c.respond()
+    await settle(w)
+    expect(done).toBe(false)
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+    expect(day(w.store.peek(w.k('COLD', 'D')).bars[0].t)).toBe(HISTORY_DAYS[0])
+  })
+})
