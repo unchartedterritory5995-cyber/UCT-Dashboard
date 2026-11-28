@@ -125,7 +125,7 @@
    "requirementTags": [],
    "recurrenceOrigin": "pine",
    "pineVersion": 5,
-   "doorVersion": 1,
+   "doorVersion": 2,
    "naConditionFalse": true
   },
   "placement": {

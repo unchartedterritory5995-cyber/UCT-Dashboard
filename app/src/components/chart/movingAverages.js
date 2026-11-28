@@ -267,7 +267,8 @@ export function tema(src, period) {
 export function hma(src, period) {
   const p = len(period)
   const half = Math.max(1, Math.floor(p / 2))
-  const root = Math.max(1, Math.round(Math.sqrt(p)))
+  // (2026-11-27, engine e100) FLOORED, as TradingView's `ta.hma` and the engine's `hullWindows` (FRED's Q-HMA capture)
+  const root = Math.max(1, Math.floor(Math.sqrt(p)))
   const near = wma(src, half)
   const full = wma(src, p)
   const raw = near.map((v, i) => (Number.isFinite(v) && Number.isFinite(full[i]) ? 2 * v - full[i] : NaN))
