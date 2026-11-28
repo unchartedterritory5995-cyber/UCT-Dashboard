@@ -11,11 +11,15 @@
 # Cloudflare colo. Every result is labelled with its runner, CPU, Chrome build and colo (the cf-ray suffix). The PC rig
 # stays the reference for what the owner FEELS; this rig is breadth, parallelism and regression detection.
 #
-# RUN IT (master only; the bench credentials live in the protected environment `speed-rig`):
+# RUN IT (repository secrets BENCH_EMAIL / BENCH_PASSWORD, the synthetic bench member; --ref <branch> runs a branch's rig):
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard                      # every pass, 8 at a time
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f passes='COV-def-' -f max_parallel=12
-# Pull requests that touch the rig run the DRY half: two jobs on the same runner, Chrome pinned, the site through
-# Cloudflare, signed OUT (no secret reaches a pull request), the planner against the real ledger without writing it.
+# ⛔ NO `environment:` KEY. tools/agent_ci_required.py refuses an `environment` key in any workflow but the two verdict
+# posters (AUDIT on #2501: a new workflow able to name an environment could reach the verdict App), and a tree that
+# holds one fails EVERY merge-queue entry. So the credentials are repository secrets, as RAILWAY_TOKEN is.
+# A pull request that touches the rig runs its CHECK half: the arrows pass and the board-tabs pass AT ONCE on the one
+# bench account (isolation=browser), signed in when the secrets exist, else DRY (signed out: Chrome pinned, the site
+# through Cloudflare, the planner against the real ledger without writing it).
 #
 # ISOLATION. One bench account, many browsers: two passes that write that account's Charts board overwrite each
 # other's board, refuse each other's writes (409) and restore over each other. isolation=browser (default) holds each
@@ -96,6 +100,7 @@ jobs:
         id: plan
         env:
           EVENT: ${{ github.event_name }}
+          HAVE_BENCH: ${{ secrets.BENCH_EMAIL != '' && secrets.BENCH_PASSWORD != '' }}
           PASSES: ${{ inputs.passes || '.*' }}
           MAX_PARALLEL: ${{ inputs.max_parallel || '8' }}
           ISOLATION: ${{ inputs.isolation || 'browser' }}
@@ -107,7 +112,12 @@ jobs:
         run: |
           set -euo pipefail
           extra=()
-          if [ "$EVENT" = "pull_request" ]; then extra=(--dry --limit 2); fi
+          if [ "$EVENT" = "pull_request" ]; then
+            # the two passes that prove one account carries passes in parallel: arrows, and the tabs pass (it writes
+            # layouts, the dock and the board); signed in when the secrets exist, else dry (and nothing recorded)
+            PASSES='^COV-def-(dd-arrows|tabs)$'; ISOLATION=browser; MAX_PARALLEL=2
+            [ "$HAVE_BENCH" = "true" ] || extra=(--dry)
+          fi
           python scripts/proofs/speed-rig/plan.py --sweep-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --out "$RUNNER_TEMP/plan" \
             --select "$PASSES" --isolate "$ISOLATION" --accounts "$ACCOUNTS" --max-parallel "$MAX_PARALLEL" "${extra[@]}"
       - uses: actions/upload-artifact@v4
@@ -121,7 +131,6 @@ jobs:
     needs: plan
     if: github.event_name == 'workflow_dispatch'
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
-    environment: speed-rig
     timeout-minutes: 120   # one pass ~3 min; an account lane runs its passes one after another
     strategy:
       fail-fast: false
@@ -181,13 +190,13 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # the pull request's half: the same runner, image, Chrome and lane runner, signed OUT (no secret, no account)
-  dry:
-    name: dry ${{ matrix.title }}
+  # the pull request's half: the same runner, image, Chrome and lane runner; signed in only when the plan says so
+  check:
+    name: check ${{ matrix.title }}
     needs: plan
     if: github.event_name == 'pull_request'
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -224,8 +233,10 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
           "$HOME/cft/chrome-linux64/chrome" --version
           echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
-      - name: Dry lane ${{ matrix.lane }} (signed out)
+      - name: Check lane ${{ matrix.lane }}
         env:
+          BENCH_EMAIL: ${{ secrets.BENCH_EMAIL }}
+          BENCH_PASSWORD: ${{ secrets.BENCH_PASSWORD }}
           SPEED_RIG_RUNNER: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
         run: |
           set -uo pipefail
@@ -238,7 +249,10 @@ jobs:
                   continue
               d = json.load(open(p))
               lb = d.get('labels') or {}
-              print(p.rsplit('/', 1)[-1], json.dumps({k: lb.get(k) for k in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'dpr')}), json.dumps(d.get('dry')))
+              iso = d.get('isolation') or {}
+              print(p.rsplit('/', 1)[-1], json.dumps({k: lb.get(k) for k in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'dpr')}),
+                    json.dumps(d.get('dry')), json.dumps({k: iso.get(k) for k in ('mode', 'rttMs', 'accountVersionStart', 'accountVersionEnd', 'accountUntouched', 'answered', 'errors')}),
+                    'switches', len(d.get('flips') or []), 'INCONCLUSIVE' if d.get('inconclusive') else 'ok')
           EOF
           exit $rc
       - uses: actions/upload-artifact@v4
@@ -251,7 +265,7 @@ jobs:
 
   summary:
     name: grade the sweep
-    needs: [plan, pass, dry]
+    needs: [plan, pass, check]
     if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
