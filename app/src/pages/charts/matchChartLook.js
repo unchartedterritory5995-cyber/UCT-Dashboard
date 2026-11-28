@@ -69,6 +69,14 @@ export function leadChartLook(layout, seed) {
 export const LOOK_KEYS = ['bgMode', 'bg', 'bgGradient', 'textColor', 'headerColor', 'valueColor', 'symColor',
   'upColor', 'downColor', 'posColor', 'negColor', 'gridColor', 'tintEnabled', 'tintUp', 'tintDown']
 
+/** Just the look keys (+ the app-theme stamp) of a settings blob, in a fixed order. */
+export function pickLook(blob) {
+  const b = blob && typeof blob === 'object' ? blob : {}
+  const out = {}
+  for (const k of [...LOOK_KEYS, '_appTheme']) if (k in b) out[k] = b[k]
+  return out
+}
+
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
 /** Did this settings change touch the widget's colours? (columns, fonts, sorting do not count) */

@@ -49,7 +49,7 @@ import { applyAppearanceToOtherCharts, countOtherCharts } from './chartAppearanc
 import { patchOptsWithTheme, themeAllChartWidgets, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
-import { matchChartOn, leadChartLook, leadChartWidget, applyLookToWidgets, globalPrefWrites } from './matchChartLook'
+import { matchChartOn, leadChartLook, leadChartWidget, applyLookToWidgets, globalPrefWrites, pickLook } from './matchChartLook'
 import MergedSeamOverlay from './MergedSeamOverlay'
 import { computeSeams } from './mergedSeams'
 import WidgetHost from './WidgetHost'
@@ -2069,7 +2069,17 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     [layout, prefs.chart_settings],
   )
   const matchChartSig = matchChartLookTheme ? JSON.stringify(matchChartLookTheme) : ''
-  const matchPrefWrittenRef = useRef({})   // { prefKey: { sig, json } } — what the sync last wrote
+  // Each global look pref is MERGED (setPrefMerged): only the look keys + the app-theme stamp
+  // change, onto the freshest stored blob, so the widget's other settings (columns, fonts,
+  // periods) can never be lost to a stale snapshot. One literal key per call site.
+  const writeMatchedPref = (key, blob) => {
+    const look = (cur) => ({ ...(cur && typeof cur === 'object' ? cur : {}), ...pickLook(blob) })
+    if (key === 'theme_tracker_settings') setPrefMerged('theme_tracker_settings', look)
+    else if (key === 'fundamentals_settings') setPrefMerged('fundamentals_settings', look)
+    else if (key === 'breadth_widget_settings') setPrefMerged('breadth_widget_settings', look)
+    else if (key === 'aisearch_settings') setPrefMerged('aisearch_settings', look)
+  }
+  const matchPrefWrittenRef = useRef({})   // { prefKey: { sig, look, before } } — what the sync last wrote (look keys only)
   useEffect(() => {
     if (!matchChartLookTheme || prefsLoading || !hydratedRef.current) return
     const theme = matchChartLookTheme
@@ -2090,7 +2100,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
       const last = matchPrefWrittenRef.current[key]
       // (`before` = the value our write replaced: still seeing it means the write has not landed yet)
-      if (writes[key] && last && last.sig === matchChartSig && last.json !== prefs?.[key] && last.before !== prefs?.[key]) ownTypes.push(type)
+      const nowLook = JSON.stringify(pickLook(parsePref(prefs?.[key], null)))
+      if (writes[key] && last && last.sig === matchChartSig && last.look !== nowLook && last.before !== nowLook) ownTypes.push(type)
     }
     if (ownTypes.length) {
       setLayout(prev => {
@@ -2106,9 +2117,12 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     for (const [type, key] of Object.entries(WIDGET_GLOBAL_PREF_KEYS)) {
       if (!writes[key] || ownTypes.includes(type)) continue
-      const json = JSON.stringify(writes[key])
-      matchPrefWrittenRef.current[key] = { sig: matchChartSig, json, before: prefs?.[key] }
-      setPref(key, json)
+      matchPrefWrittenRef.current[key] = {
+        sig: matchChartSig,
+        look: JSON.stringify(pickLook(writes[key])),
+        before: JSON.stringify(pickLook(parsePref(prefs?.[key], null))),
+      }
+      writeMatchedPref(key, writes[key])
     }
     // The look signature + the board's shape are the triggers; `layout` itself changes on every drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
