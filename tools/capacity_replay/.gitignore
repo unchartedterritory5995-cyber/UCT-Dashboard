@@ -1,0 +1,9 @@
+universe.json
+dry_*.json
+cost_model.json
+matrix_*.json
+logs/
+data_*/
+edge/r2/
+edge/*.js
+!edge/entry.js
