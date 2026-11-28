@@ -64,6 +64,11 @@ def store(monkeypatch, tmp_path):
     for _p in ("bars_AAA_", "dhole_", "towin_", "towinfail_"):   # no marker leaks into, or out of, a test
         bars_fetch.cache.delete_prefix(_p)
     yield
+    # this test's background hole repair finishes under ITS stubs and store, never a later test's
+    _deadline = time.monotonic() + 5
+    while time.monotonic() < _deadline and any(k.startswith("dhole::") for k in list(bars_fetch._inflight)):
+        time.sleep(0.02)
+    bars_fetch.cache.delete_prefix("dhole_")
     bars_fetch.end_request_budget()
     bars_sqlite._drop_local_conn()
     bls._reset_for_tests()
