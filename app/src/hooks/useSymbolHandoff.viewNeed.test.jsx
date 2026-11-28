@@ -101,6 +101,17 @@ describe('a first paint holds the rows the view will draw', () => {
     expect(flip('1', m).result.current).toBe('BBB')
   })
 
+  // B9 (2026-11-28, CRAI on a zoomed-out 15m board): the prepare is told the view's need, so a local copy short of it
+  // (the device's ~300 rows) asks the server instead of reporting 'current' on rows the handoff then refuses
+  it("the prepare is handed the view's need (the rows it must cover)", async () => {
+    const m = {}
+    noteMemberView(m, 425)
+    st.rows = 300
+    flip('15', m)
+    expect(prepareMock).toHaveBeenCalled()
+    expect(prepareMock.mock.calls[0][2]).toMatchObject({ need: 425 + VIEW_LOOKBACK_ROWS })
+  })
+
   it('short, and nothing more is coming (the lake settled, the server answered): a young listing paints what there is', async () => {
     st.rows = 120; st.lake = false; st.answered = true
     expect(flip('5').result.current).toBe('BBB')

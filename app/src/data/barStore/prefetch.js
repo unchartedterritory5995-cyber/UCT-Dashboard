@@ -1041,7 +1041,7 @@ export function createPrefetch(o = {}) {
     return isCacheCurrentForView(rows, lastT, normTf(tf), { session: extOf(showExtended) ? 'extended' : 'rth', nowMs: now() })
   }
 
-  async function prepareForDisplay(sym, tf, { signal = null, showExtended, viewWindow = null } = {}) {
+  async function prepareForDisplay(sym, tf, { signal = null, showExtended, viewWindow = null, need = 0 } = {}) {
     const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
@@ -1095,7 +1095,22 @@ export function createPrefetch(o = {}) {
         return _paintedOutcome(key)
       }
       if (heldPaints) { await _joined(lake); return 'current' }
-      if (localPaints) { await _joined(lake); return 'current' }   // legacy: no request
+      if (localPaints) {
+        // ⛔⛔ (2026-11-28, B9: the cold-coverage run, a 1m + 15m board zoomed out, CRAI typed: the 15m chart held the
+        // previous symbol to the 4 s hang guard) A LOCAL COPY SHORT OF THE VIEW IS ASKED FOR, AT ONCE. The device's copy
+        // (~300 newest rows) passes the paint rule, so this branch asked nothing and reported 'current' after the lake's
+        // join; where the lake added nothing (an illiquid name: no bar shared with the device rows) the rows stayed short
+        // of the view the handoff waits to cover (`need`, useSymbolHandoff viewNeed), and no request was ever made for
+        // the rows that would. Short, the switch's own ask leaves beside the lake's join, and the report waits for its
+        // answer when the join leaves the copy short. A copy that covers the view, or a caller naming no need: no request.
+        const short = () => need > 0 && _viewRows(S().peek(key), key, extOf(showExtended), need) < need
+        const ask = short()
+          ? ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
+          : null
+        await _joined(lake)
+        if (ask && short()) return _outcome(await ask, { aborted: !!signal?.aborted })
+        return 'current'   // legacy: no request
+      }
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a
       // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
