@@ -46,7 +46,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['INVALID', 'EARLIEST_BARS', 'PROFILED', 'WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+ORDER = ['INVALID', 'EARLIEST_BARS', 'NO_DATA', 'PROFILED', 'WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
 #: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the switch's symbol disagree on its developing close by more
 #: than this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
 #: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
@@ -565,6 +565,10 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
             c = cmp['rows'].get(k)
             line += f" {c['p50'] if c else '-'} | {c['p100'] if c else '-'} | {c['failed'] if c else '-'} |"
         out.append(line)
+    nd = [(k, r['flags'].get('NO_DATA')) for k, r in sorted(g['rows'].items()) if r['flags'].get('NO_DATA')]
+    if nd:
+        out += ['', "NO_DATA (a timeframe press at a date where nothing exists for it: the server's no-data answer, a deep source after the date, the note on screen, no candles; never a pass, never timed):"]
+        out += [f"- {k}: {n} switches" for k, n in nd]
     ea = [(k, r['earliest']) for k, r in sorted(g['rows'].items()) if r.get('earliest')]
     if ea:
         out += ['', "EARLIEST_BARS (a date before the symbol listed: its earliest bars, verified; kept OUT of the p50 / p100 above):"]
@@ -650,6 +654,71 @@ def ab_table(ga: dict, gb: dict) -> str:
     return '\n'.join(out)
 
 
+_TF_BASE = {'45': '15', '120': '60', '240': '60'}
+_TF_LABEL = {'1': '1m', '5': '5m', '15': '15m', '30': '30m', '45': '45m', '60': '1h', '120': '2h', '240': '4h'}
+
+
+def _no_data_note(txt: str, sym: str, tf: str) -> bool:
+    """The chart's own no-data note for THIS press: it names the symbol (and, in the 'No <tf> bars for <sym>' form, the
+    pressed timeframe's label). A note naming another symbol or timeframe is another press's."""
+    s, lab = re.escape(sym), re.escape(_TF_LABEL.get(tf, tf))
+    return bool(re.search(r'No chart data available for ' + s + r'\b', txt) or re.search(r'No ' + lab + r' bars for ' + s + r'\b', txt))
+
+
+def no_data_press(rec: dict, p: dict) -> bool:
+    """(lead's ruling, 2026-11-28) A timeframe press at a date where NOTHING EXISTS for that timeframe (a window before the
+    symbol listed): its own class, NO_DATA (never a pass, never timed), only when ALL four hold, each from the run's own
+    record, never inferred:
+      (1) the press's own request for the pressed key (its native base, at the date: `to=`) answered the server's
+          `bars(to-no-data)` (its Server-Timing, recorded per request);
+      (2) an INDEPENDENT deep source says nothing exists there: the rig's per-press deep earliest for that symbol and
+          timeframe (rig_dates.deepEarliest: the lake index, or a sealed non-partial /api/bars-history) is AFTER the date;
+      (3) the chart's no-data note was on screen after the key (the rig's DOM capture);
+      (4) no frame after that answer shows candles (nothing of the old timeframe left on screen).
+    Any one missing: the press keeps its BLANK / WRONG_CHART."""
+    g = rec.get('goToDate') or {}
+    if p.get('dir') != 'tf' or not g.get('asked'):
+        return False
+    fl = next((f for f in rec.get('flips') or [] if f.get('i') == p.get('i') and f.get('dir') == 'tf'), None)
+    if not fl:
+        return False
+    key = fl.get('key') if fl.get('key') is not None else p.get('key')
+    sym = str(fl.get('sym') or p.get('sym') or '').upper()
+    tf = str(fl.get('tf') or p.get('tf') or '')
+    if key is None or not sym or not tf:
+        return False
+    base = _TF_BASE.get(tf, tf)
+    # (1) the press's own answer: the server's no-data word for the pressed key at the date
+    tf_re = re.compile(r'[?&]tf=' + re.escape(base) + r'(&|$)')
+    ans = next((q for q in fl.get('res') or [] if f'/api/bars/{sym}?' in str(q.get('u'))
+                and tf_re.search(str(q.get('u'))) and 'to=' in str(q.get('u')) and (q.get('s') or 0) >= key - 5
+                and 'to-no-data' in str(q.get('st') or '')), None)
+    if ans is None:
+        return False
+    # (2) the independent deep source: its earliest for this symbol and timeframe is after the date AND after the day the
+    # press's own request asked to (`to=`: after an earliest-bars landing the presses ask around the view, not the date)
+    mt = re.search(r'[?&]to=(\d{4}-\d{2}-\d{2})', str(ans.get('u')))
+    to_day = mt.group(1) if mt else None
+    want = g.get('wantDay')
+    if not want:
+        m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', str(g.get('asked') or ''))
+        want = f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else None
+    deep = fl.get('deep') or {}
+    e = deep.get('earliest') or {}
+    first = _day_of(e.get('t')) if e.get('t') is not None else None
+    if not want or not to_day or str(deep.get('tf')) != tf or not first or not first > want or not first > to_day:
+        return False
+    # (3) the chart's no-data note on screen after the key
+    if not any(_no_data_note(str(d.get('txt') or ''), sym, tf) for d in fl.get('dom') or []
+               if (d.get('t') or 0) >= key and d.get('w', 'flip-chart') in ('flip-chart', None)):
+        return False
+    # (4) no candles after the answer
+    end = ans.get('e') or key
+    if any(((f.get('c') or {}).get('flip-chart') or {}).get('nb') for f in p.get('frames') or [] if (f.get('t') or 0) > end + 2):
+        return False
+    return True
+
+
 def mark_pass(r: dict, rec: dict, p: dict) -> dict:
     """A switch's marks from its PASS: INVALID (asked a date the view never reached; never timed), EARLIEST_BARS (the date
     was before the symbol listed: its earliest bars, verified by the rig; its own class, never a plain pass), PROFILED (a
@@ -661,6 +730,10 @@ def mark_pass(r: dict, rec: dict, p: dict) -> dict:
         # its own class: kept out of the p50 / p100 (another frame than the date's), its time reported apart
         r['flags'] = sorted(set(r['flags']) | {'EARLIEST_BARS'})
         r['earliestFull'], r['full'] = r.get('full'), None
+    if no_data_press(rec, p):
+        # its own class (like EARLIEST_BARS): never a pass, never timed; the BLANK / WRONG_CHART of an empty frame drop
+        r['flags'] = sorted((set(r['flags']) - {'BLANK', 'WRONG_CHART', 'OVER_30MS'}) | {'NO_DATA'})
+        r['full'] = None
     if p.get('i') in set(rec.get('profiled') or []):
         r['flags'] = sorted(set(r['flags']) | {'PROFILED'})
         r['full'] = None
@@ -714,6 +787,37 @@ def self_check() -> None:
     assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'earliest-bars'}}) == {'flags': ['EARLIEST_BARS'], 'full': None, 'earliestFull': 40}
     assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'covers'}}) == {'flags': [], 'full': 40}
     assert mk({'profiled': [3, 4, 5]}, 4) == {'flags': ['PROFILED'], 'full': None} and mk({'profiled': [3, 4, 5]}, 2) == {'flags': [], 'full': 40}
+    # NO_DATA: all four conditions, each from the run's record; any one missing keeps BLANK / WRONG_CHART
+    def nd_rec(st='bars(to-no-data)=1', deep_t='2021-02-01', deep_tf='1', note='No chart data available for CDRO.', u='/api/bars/CDRO?tf=1&bars=1200&session=rth&to=2016-06-14'):
+        return {'goToDate': {'asked': '6/14/2016', 'landed': True, 'wantDay': '2016-06-14'},
+                'flips': [{'i': 10, 'dir': 'tf', 'sym': 'CDRO', 'tf': '1', 'key': 1000,
+                           'res': [{'u': u, 's': 1018, 'e': 1117, 'st': st}],
+                           'dom': [{'t': 1016, 'txt': note}],
+                           'deep': {'tf': deep_tf, 'earliest': {'t': deep_t, 'source': 'lake'}}}]}
+    nd_p = lambda frames=None: {'i': 10, 'dir': 'tf', 'sym': 'CDRO', 'tf': '1', 'key': 1000, 'frames': frames if frames is not None else [{'t': 1200, 'c': {'flip-chart': {}}}]}  # noqa: E731
+    blank = lambda: {'flags': ['BLANK', 'OVER_30MS', 'WRONG_CHART'], 'full': None}  # noqa: E731
+    assert mark_pass(blank(), nd_rec(), nd_p()) == {'flags': ['NO_DATA'], 'full': None}
+    assert no_data_press(nd_rec(note='No 1m bars for CDRO at this date. Pick a later date or another timeframe.'), nd_p())
+    assert not no_data_press(nd_rec(st='bars(to)=1'), nd_p()), '(1) the press answered with rows: no NO_DATA'
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=5&bars=1200&session=rth&to=2016-06-14'), nd_p()), '(1) another key answered no-data'
+    assert not no_data_press(nd_rec(deep_t='2015-03-02'), nd_p()), '(2) the deep source holds bars before the date'
+    assert not no_data_press(nd_rec(deep_t=None), nd_p()), '(2) no independent deep source: no NO_DATA'
+    assert not no_data_press(nd_rec(deep_tf='60'), nd_p()), '(2) the deep source of another timeframe'
+    assert not no_data_press(nd_rec(note='Loading CDRO...'), nd_p()), '(3) no note on screen'
+    assert not no_data_press(nd_rec(), nd_p([{'t': 1200, 'c': {'flip-chart': {'nb': ['2026-11-01', 8.08]}}}])), '(4) candles after the answer'
+    assert not no_data_press({**nd_rec(), 'goToDate': {}}, nd_p()), 'not a date pass'
+    assert mark_pass(blank(), nd_rec(deep_t='2015-03-02'), nd_p()) == blank(), "any condition missing keeps the flags"
+    # (review of #3068) after an earliest-bars landing the press asks `to=` around the view: a deep earliest before THAT day
+    # means bars exist there, whatever the asked date (a wrong server to-no-data must not pass)
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth&to=2021-08-02'), nd_p()), '(2) the press asked to= after the deep earliest'
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth'), nd_p()), '(1/2) no to= day on the request'
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth&to=2016-01-04', deep_t='2016-03-01'), nd_p()), '(2) the deep earliest is before the ASKED date (bars exist there)'
+    early = nd_rec(); early['flips'][0]['dom'] = [{'t': 990, 'txt': 'No chart data available for CDRO.'}]
+    assert not no_data_press(early, nd_p()), '(3) a note from before the key (an earlier press)'
+    assert not no_data_press(nd_rec(note='No chart data available for CGC.'), nd_p()), '(3) a note naming another symbol'
+    assert not no_data_press(nd_rec(note='No 1h bars for CDRO at this date. Pick a later date'), nd_p()), '(3) a note naming another timeframe'
+    other = nd_rec(); other['flips'][0]['dom'] = [{'t': 1016, 'txt': 'No chart data available for CDRO.', 'w': 'list-1'}]
+    assert not no_data_press(other, nd_p()), "(3) another widget's note"
     assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2005, 'month': 8, 'day': 1}, 'to': {'year': 2006, 'month': 1, 'day': 3}}}})
     assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2026, 'month': 5, 'day': 29}, 'to': {'year': 2026, 'month': 12, 'day': 8}}}})
     def fr(t, sym, close, ni=999, lr=(899, 999), y0=100.0):
