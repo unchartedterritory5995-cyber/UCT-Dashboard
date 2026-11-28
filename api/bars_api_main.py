@@ -38,7 +38,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
 
 # ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
 # EVERY log record of this pod -- httpx logs each request URL at INFO and an
@@ -470,9 +470,12 @@ def _build_app() -> FastAPI:
         return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
+    # ⛔ ASYNC, ON THE ROUTE'S OWN LIMITER, ONE BUILD PER URL (2026-11-28): never behind `/api/bars` serves in anyio's
+    # default pool. `serve_bars_history_origin` (routers/bars.py) owns the why.
     @app.get("/api/bars-history/{ticker}")
-    def bars_history_route(
+    async def bars_history_route(
         ticker: str,
+        request: Request,
         tf: str = "D",
         bars: int = Query(default=60000, ge=1, le=60000),
         v: str = "",
@@ -480,7 +483,9 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return serve_bars_history(ticker, tf, bars, v, d)
+        from api.routers import bars as _bars_router
+        return await _bars_router.serve_bars_history_origin(
+            ticker, tf, bars, v, d, request.headers.get("accept-encoding", ""))
 
     return app
 
