@@ -1188,7 +1188,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           {/* (review of #2932) a pane's refocus after a typed Enter that flipped lands in the pane shown now (ChartPane) */}
           <LayerFrontFocusContext.Provider value={db.focusFront}>
           {[0, 1].map((i) => (db.syms[i] ? (
-            <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
+            <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer, { keepLayout: true })} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
                 <LayerSwrConfig vis={db.handles[i]}>
                   <LayerPaintContext.Provider value={db.reporters[i]}>

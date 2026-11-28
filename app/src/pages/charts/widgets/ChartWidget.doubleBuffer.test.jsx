@@ -219,6 +219,28 @@ test('W1 the slot: a front layer and, after idle time, a shadow on the row ahead
   expect(screen.getByTestId('chart-sym').textContent).toBe('AAA')
 })
 
+// (2026-11-28, the zoomed-out flip's ~50 ms frame) a flip changes a layer's visibility, never its layout: the hidden
+// layer carries every class of the shown one (so the same `display`) plus the hidden-layer class. A hidden layer that
+// dropped the shown layer's class was `display: block` against the front's `display: flex`, and every flip rebuilt
+// the layout tree of both panes.
+const classesOf = (el) => new Set(String(el.className).split(/\s+/).filter(Boolean))
+test('W1b the hidden layer keeps the layout class of the shown one, before and after a flip', async () => {
+  render(<Wrap />)
+  await settle()
+  const check = (when) => {
+    const front = classesOf(layer('front')), shadow = classesOf(layer('shadow'))
+    expect(front.size, when).toBeGreaterThan(0)
+    for (const c of front) expect(shadow.has(c), `${when}: the hidden layer dropped the shown layer's class ${c}`).toBe(true)
+    expect(shadow.size, `${when}: the hidden layer carries the hidden-layer class too`).toBe(front.size + 1)
+  }
+  check('before the flip')
+  act(() => { setGroup('BBB') })
+  await settle(200)
+  expect(dbm.doubleBufferStats().flips).toBe(1)
+  await settle()
+  check('after the flip')
+})
+
 test('W2 THE FLIP: the layer that held the row is shown, every surface agrees, no chart rendered for it', async () => {
   render(<Wrap />)
   await settle()
