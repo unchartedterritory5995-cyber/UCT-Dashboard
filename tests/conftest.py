@@ -383,6 +383,24 @@ def _own_daily_bars_cannot_answer(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _licensed_fallbacks_cannot_answer(monkeypatch):
+    """Licensed-first pass 1 (2026-11-28) put two licensed reads in front of
+    Yahoo: the company's own SEC EDGAR statements (`edgar_statements.snapshot`,
+    before the Yahoo statements in financial_statements / research financials /
+    annual actuals) and Massive's daily aggregates read directly
+    (`earnings_reaction.massive_daily_bars`, before the Yahoo history in the
+    earnings run-up / past moves and the ratings price leg). Both answer
+    "nothing here" for every test, so a test that stubs Yahoo keeps testing the
+    Yahoo path and no test reaches SEC or Massive through them. The rails of
+    the two reads override this (`tests/test_licensed_fallbacks_pass1.py`).
+    Both modules import only the standard library at import time."""
+    import api.services.earnings_reaction as _er
+    import api.services.edgar_statements as _es
+    monkeypatch.setattr(_es, "snapshot", lambda ticker, wait_s=0.0: {"state": "none", "reason": "test"})
+    monkeypatch.setattr(_er, "massive_daily_bars", lambda sym, since_iso, to_iso=None: [])
+
+
+@pytest.fixture(autouse=True)
 def _reset_snapshot_movers_serve_stale():
     """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
 

@@ -288,6 +288,30 @@ from concurrent.futures import ThreadPoolExecutor as _TPE
 _LEG_POOL = _TPE(max_workers=6, thread_name_prefix="rtg-leg")
 
 
+_MIN_HISTORY_BARS = 200   # about ten months of sessions: enough for the 12-month weighted RS read
+
+
+def _massive_history(sym):
+    """(closes, volumes, last-bar date) for about a year from Massive's daily
+    aggregates, or None when Massive gives fewer than `_MIN_HISTORY_BARS`
+    sessions or a bar without a positive close (then Yahoo is asked)."""
+    from datetime import date, timedelta
+    from api.services import earnings_reaction
+    since = (date.today() - timedelta(days=366)).isoformat()
+    bars = earnings_reaction.massive_daily_bars(sym, since)
+    if len(bars) < _MIN_HISTORY_BARS:
+        return None
+    closes, vols = [], []
+    for b in bars:
+        c = b.get("c")
+        if not isinstance(c, (int, float)) or isinstance(c, bool) or c <= 0:
+            return None
+        v = b.get("v")
+        closes.append(float(c))
+        vols.append(float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None)
+    return closes, vols, bars[-1]["t"]
+
+
 def get_ratings(sym):
     """S6 (terminal backend fixes, 2026-10-05): a cold symbol is composed ONCE however
     many members open it at the same moment. The cache answers first; on a miss the
@@ -316,7 +340,8 @@ def _build_ratings(sym):
         return cached
 
     # No vendor= here: none of this tab's three inputs route through FMP
-    # directly (get_fundamentals/get_ownership/fetch_history are yfinance +
+    # directly (get_fundamentals/get_ownership/the price history -- Massive
+    # aggregates first, yfinance fetch_history last -- are other services +
     # get_ownership's own internal D1 legs) — mirrors financials.py's
     # no-vendor form. Never blocks the fetches below on a miss.
     entity, _ = resolve_entity(sym)
@@ -333,7 +358,20 @@ def _build_ratings(sym):
         return f, True
 
     def _hist_leg():
-        return fetch_history(sym, period="1y")
+        # Licensed first (licensed-first pass 1): Massive's daily aggregates, the
+        # same split-adjusted bars the charts use; Yahoo only when Massive gives
+        # less than `_MIN_HISTORY_BARS` sessions.
+        lic = _massive_history(sym)
+        if lic is not None:
+            return lic
+        df = fetch_history(sym, period="1y")
+        if df is None or getattr(df, "empty", True):
+            return None
+        try:
+            as_of = str(df.index[-1])[:10]
+        except Exception:
+            as_of = None
+        return list(df["Close"]), list(df["Volume"]), as_of
 
     f_fund = _LEG_POOL.submit(_fund_leg)
     f_own = _LEG_POOL.submit(lambda: get_ownership(sym) or {})
@@ -359,15 +397,10 @@ def _build_ratings(sym):
     price_as_of = None
     hist_ok = True
     try:
-        df = f_hist.result()
-        if df is not None and not getattr(df, "empty", True):
-            closes = list(df["Close"])
-            vols = list(df["Volume"])
+        hist = f_hist.result()
+        if hist is not None:
+            closes, vols, price_as_of = hist
             last_close = closes[-1] if closes else None
-            try:
-                price_as_of = str(df.index[-1])[:10]
-            except Exception:
-                price_as_of = None
     except Exception as exc:
         hist_ok = False
         _logger.warning("ratings: history failed for %s: %s", sym, exc)

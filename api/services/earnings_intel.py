@@ -171,11 +171,14 @@ def _year_ago_fiscal(fy, fq):
 _ANCHOR_YEARS = 4
 _ANCHOR_QUARTERS = 5
 _SOURCE_FMP = "FMP"                    # financial_statements.SOURCE_LICENSED
+_SOURCE_EDGAR = "SEC EDGAR"            # financial_statements.SOURCE_EDGAR
 
 
 def _statement_source(statements: dict) -> str:
     """The tier-2 source token for the statements that answered."""
     src = ((statements or {}).get("meta") or {}).get("source")
+    if src == _SOURCE_EDGAR:
+        return "sec-edgar-statement"
     return "fmp-statement" if src == _SOURCE_FMP else "yfinance-statement"
 
 

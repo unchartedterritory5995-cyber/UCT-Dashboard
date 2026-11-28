@@ -501,7 +501,9 @@ class TestSourceOrderAndCost:
         env.yahoo.load("KO", case["annual"], case["quarterly"])       # FMP has no rows for KO
         out = fs.get_statements("KO")
         assert out["meta"]["source"] == "Yahoo Finance"
-        assert out["meta"]["sources_tried"] == ["FMP", "Yahoo Finance"]
+        # SEC EDGAR is asked between them (licensed-first pass 1); conftest makes it hold nothing
+        assert out["meta"]["sources_tried"] == ["FMP", "SEC EDGAR", "Yahoo Finance"]
+        assert out["meta"]["edgar_state"] == "none"
         assert out["meta"]["build_calls"] == 12
         assert len(env.feed.calls) == 6 and len(env.yahoo.reads) == 6
         assert len(out["income"]["quarterly"]) == YAHOO_QUARTERS
@@ -512,7 +514,7 @@ class TestSourceOrderAndCost:
         out = fs.get_statements("SPY")
         assert out["error"] == "no statements available" and out["security_type"] == "etf"
         assert "state" not in out
-        assert out["meta"]["sources_tried"] == ["FMP", "Yahoo Finance"] and out["meta"]["build_calls"] == 13
+        assert out["meta"]["sources_tried"] == ["FMP", "SEC EDGAR", "Yahoo Finance"] and out["meta"]["build_calls"] == 13
         assert env.cache.ttl["fin_stmts_v2::SPY"] == fs._NEG_TTL and env.store.puts == []
 
     def test_a_failed_fmp_read_is_unavailable_and_never_the_other_source(self, env):

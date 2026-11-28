@@ -132,27 +132,22 @@ def test_fmp_leg_applies_truncation_to_long_content(monkeypatch):
     assert "B" not in result["text"]
 
 
-# ── Finnhub fallback: used only when FMP yields nothing ─────────────────────
+# ── ⚰️ The Finnhub fallback was DELETED 2026-11-28 (licensed-first pass 1) ──
+# /stock/transcripts/list 403'd on every call on this plan. The test that drove
+# it with a fake 200 is replaced by this one: FMP empty is None, Finnhub unasked.
 
-def test_finnhub_fallback_used_when_fmp_empty(monkeypatch):
+def test_fmp_empty_is_none_and_finnhub_is_never_asked(monkeypatch):
     monkeypatch.setattr(ft, "_available", lambda symbol: [])
-
-    from api.services import finnhub_client as fhc
+    asked = []
 
     def fake_get(url, params=None, timeout=None):
-        assert "finnhub.io" in url
-        if "transcripts/list" in url:
-            return _FhResp({"transcripts": [{"id": "t1", "quarter": 2, "year": 2026, "title": "AAPL Q2 2026"}]})
-        if url.endswith("/stock/transcripts"):
-            return _FhResp({"transcript": [{"name": "Tim Cook",
-                                             "speech": [{"name": "Tim Cook", "speech": "Revenue grew."}]}]})
-        raise AssertionError(url)
+        asked.append(url)
+        return _FhResp({"transcripts": [{"id": "t1", "quarter": 2, "year": 2026}]})
 
     monkeypatch.setattr("requests.get", fake_get)
-    result = tr._fetch_latest_transcript("AAPL")
-    assert result is not None
-    assert result["quarter"] == 2 and result["year"] == 2026
-    assert "Tim Cook: Revenue grew." in result["text"]
+    assert tr._fetch_latest_transcript("AAPL") is None
+    assert asked == []
+    assert not hasattr(tr, "_fetch_latest_transcript_finnhub")
 
 
 def test_finnhub_not_called_when_fmp_succeeds(monkeypatch):

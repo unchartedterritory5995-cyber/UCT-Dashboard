@@ -51,6 +51,7 @@ describe('pure envelope → answer (freshness from the envelope, never its notes
     expect(f.source).toBe('statements from Yahoo Finance through the UCT data gateway')
     // the sentence follows the envelope: the source that answered, never one named by default
     expect(fundamentalsFacts({ ...FUND, source: 'fmp' }, 'NVDA').source).toBe('statements from FMP through the UCT data gateway')
+    expect(fundamentalsFacts({ ...FUND, source: 'sec-edgar' }, 'NVDA').source).toBe('statements from SEC EDGAR filings through the UCT data gateway')
     expect(fundamentalsFacts({ ...FUND, source: 'something-new' }, 'NVDA').source).toBe("statements from UCT's statements source through the UCT data gateway")
     expect(f.lines.join(' ')).not.toMatch(/never be echoed|\blive\b/)
     expect(f.items.map(i => i.label)).toContain('Net income')

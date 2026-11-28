@@ -1,6 +1,8 @@
 """Annual EPS/Sales history + forward analyst estimates for the fundamentals
-widget. Actuals source chain: FMP stable/income-statement → yfinance annual
-income_stmt → roll-up of get_year_earnings quarters. Forward estimates: yfinance
+widget. Actuals source chain: FMP stable/income-statement → the company's own
+10-K figures from SEC EDGAR (`edgar_statements`, public domain) → yfinance annual
+income_stmt (last; no licence exists for it) → roll-up of get_year_earnings
+quarters. Forward estimates: yfinance
 earnings_estimate/revenue_estimate (current FY + next FY). YoY % computed here;
 ▲/▼ revision markers from the snapshot store."""
 from __future__ import annotations
@@ -62,6 +64,52 @@ def _annual_actuals_from_fmp(ticker: str) -> dict[int, dict]:
                 continue
             out[y] = {"eps": _num(eps), "sales": _num(sales)}
     return out
+
+
+_EDGAR_WAIT_S = 3.0   # the longest one build waits on the EDGAR read it queued
+
+
+def _annual_actuals_from_edgar(ticker: str) -> dict[int, dict]:
+    """{year: {eps, sales}} from the company's own 10-K filings (SEC EDGAR XBRL,
+    `edgar_statements`), labelled by fiscal-year-end year like FMP's rows. Never
+    reads SEC on this thread: what the module holds, or {} while its read lands."""
+    try:
+        from api.services import edgar_statements
+        snap = edgar_statements.snapshot(ticker, wait_s=_EDGAR_WAIT_S)
+    except Exception as exc:  # noqa: BLE001 -- a fallback's failure is "nothing read"
+        _log.info("EDGAR annual statements failed for %s: %s", ticker, exc)
+        return {}
+    if snap.get("state") != "ok":
+        return {}
+    rows = ((snap.get("annual") or {}).get("income")) or []
+    # diluted EPS when the filings state it for any year, else basic: one column never mixes the two
+    eps_key = ("eps_diluted" if any((r.get("values") or {}).get("eps_diluted") is not None for r in rows)
+               else "eps_basic")
+    out: dict[int, dict] = {}
+    for r in rows:
+        try:
+            y = int(str(r.get("period_end") or "")[:4])
+        except ValueError:
+            continue
+        v = r.get("values") or {}
+        eps, sales = _num(v.get(eps_key)), _num(v.get("revenue"))
+        if eps is None and sales is None:
+            continue
+        out.setdefault(y, {"eps": eps, "sales": sales})
+    return out
+
+
+def _fill_actuals(actuals: dict[int, dict], extra: dict[int, dict]) -> None:
+    """Add the years `actuals` lacks and, PER FIELD, the cells it left None.
+    A present value is never overwritten."""
+    for y, v in extra.items():
+        if y not in actuals:
+            actuals[y] = dict(v)
+            continue
+        row = actuals[y]
+        for field in ("eps", "sales"):
+            if row.get(field) is None and v.get(field) is not None:
+                row[field] = v[field]
 
 
 def _annual_actuals_from_yf(ticker: str) -> dict[int, dict]:
@@ -278,17 +326,20 @@ def get_annual_financials(ticker: str, years_back: int = 8, now: float | None = 
     has_blank = any(actuals.get(y, {}).get("eps") is None or actuals.get(y, {}).get("sales") is None
                     for y in fmp_recent)
     if not fmp_covers or has_blank:
-        for y, v in _annual_actuals_from_yf(ticker).items():
-            if y not in actuals:
-                actuals[y] = dict(v)
-                source = source or "yfinance"
-            else:
-                # PER-FIELD fill: only populate a cell the primary left None; never
-                # overwrite a present FMP value.
-                row = actuals[y]
-                for field in ("eps", "sales"):
-                    if row.get(field) is None and v.get(field) is not None:
-                        row[field] = v[field]
+        # The company's own SEC EDGAR filings fill first (public domain); Yahoo
+        # Finance (no licence exists, register T-73) fills only what is still
+        # missing after them.
+        _fill_actuals(actuals, _annual_actuals_from_edgar(ticker))
+        if actuals and source is None:
+            source = "sec_edgar"
+        recent = _contiguous_recent(actuals, years_back)
+        still_short = not (len(recent) >= years_back and recent[-1] >= cur_y - 1)
+        still_blank = any(actuals.get(y, {}).get("eps") is None or actuals.get(y, {}).get("sales") is None
+                          for y in recent)
+        if still_short or still_blank:
+            _fill_actuals(actuals, _annual_actuals_from_yf(ticker))
+            if actuals and source is None:
+                source = "yfinance"
 
     actual_years = _contiguous_recent(actuals, years_back)
 
