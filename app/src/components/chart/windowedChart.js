@@ -39,6 +39,19 @@ export const RENDER_WINDOW_STEP = 250
 export const RENDER_WINDOW_MIN_SAVED = 1000
 /** The view's left edge must stay at least this many bars (and one screen) right of the window start. */
 export const RENDER_WINDOW_MARGIN_BARS = 150
+/**
+ * ⚡ (2026-11-28, Phase E1) A WIDE VIEW IS HANDED 1.25 SCREENS, NOT THREE. Above this many bars across, the window is
+ * `RENDER_WINDOW_WIDE_SCREENS` screens of the view (its margin a quarter screen, never under the margin above) and an
+ * extension asks one more screen, before paint (the range check below). Three screens of a zoomed-out view is 7-8k rows
+ * at the library's 0.5 px floor and 12-42k at 0.1 px: setData 29-132 ms on the switch, for bars no frame draws. A narrow
+ * view (most of them) keeps three screens, exactly as before.
+ */
+export const RENDER_WINDOW_WIDE_SPAN = 1000
+export const RENDER_WINDOW_WIDE_SCREENS = 1.25
+const wide = (s) => s > RENDER_WINDOW_WIDE_SPAN
+/** The margin (bars) kept left of a view `s` bars across, and the reach of one extension. */
+const marginFor = (s) => (wide(s) ? Math.max(Math.ceil(s / 4), RENDER_WINDOW_MARGIN_BARS) : Math.max(s, RENDER_WINDOW_MARGIN_BARS))
+const reachFor = (s) => (wide(s) ? Math.max(Math.ceil(s), RENDER_WINDOW_MIN_BARS) : Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
 
 export function renderWindowDisabled() {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(RENDER_WINDOW_OFF_KEY) === '1' } catch { return false }
@@ -49,7 +62,8 @@ export function renderWindowDisabled() {
 export function renderWindowRows(span, left) {
   const s = Number.isFinite(span) && span > 0 ? span : 0
   const l = Number.isFinite(left) && left > 0 ? left : 0
-  return Math.max(RENDER_WINDOW_MIN_BARS, Math.ceil(s * RENDER_WINDOW_SCREENS), Math.ceil(l + Math.max(s, RENDER_WINDOW_MARGIN_BARS)) + 1)
+  const screens = wide(s) ? RENDER_WINDOW_WIDE_SCREENS : RENDER_WINDOW_SCREENS
+  return Math.max(RENDER_WINDOW_MIN_BARS, Math.ceil(s * screens), Math.ceil(l + marginFor(s)) + 1)
 }
 
 /** The first full index of a window of `rows` over `n` bars: step-aligned, 0 when the saving is small. */
@@ -92,12 +106,17 @@ export function renderWindowStartFor(bars, rows) {
   return k < RENDER_WINDOW_MIN_SAVED ? 0 : k
 }
 
-/** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`). */
-export function extendedStart(ws, from, span) {
+/** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`).
+ *  `held`: the rows the library holds now (window start to end). ⚡ (review of #2955) A WIDE VIEW'S EXTENSION AT LEAST
+ *  DOUBLES THE WINDOW: a continuous zoom-out widens the view every wheel tick, so a one-screen reach re-set every series
+ *  (2-3 screens of rows each) every few ticks. Reaching `held` more rows makes the re-sets of a zoom-out geometric: their
+ *  rows add up to about twice the final window, in a handful of extensions. A narrow view keeps its reach exactly. */
+export function extendedStart(ws, from, span, held = 0) {
   if (!(ws > 0) || !Number.isFinite(from)) return ws
   const s = Number.isFinite(span) && span > 0 ? span : 0
-  if (from - Math.max(s, RENDER_WINDOW_MARGIN_BARS) >= ws) return ws
-  const want = Math.max(0, Math.floor(from) - Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
+  if (from - marginFor(s) >= ws) return ws
+  const h = wide(s) && Number.isFinite(held) && held > 0 ? Math.floor(held) : 0
+  const want = Math.max(0, Math.floor(from) - Math.max(reachFor(s), h))
   const next = Math.floor(want / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
   return next < ws ? next : ws
 }
@@ -303,7 +322,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   /** Make sure full index `from` (and a screen before it) is inside the window. */
   function ensureFrom(from, span = st.span) {
     if (!(st.ws > 0)) return
-    const next = extendedStart(st.ws, from, span)
+    const full = primary ? series.get(primary)?.full : null
+    const next = extendedStart(st.ws, from, span, full ? full.length - st.ws : 0)
     if (next < st.ws) extendTo(next)
   }
 

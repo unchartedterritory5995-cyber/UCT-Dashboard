@@ -47,7 +47,7 @@ def test_intraday_to_cold_miss_reaches_the_replay_fetch_and_serves(monkeypatch):
     monkeypatch.setattr(bars_fetch._sqlite, "get_bars_before", fake_get_bars_before)
     monkeypatch.setattr(
         bars_fetch, "_fetch_intraday_range",
-        lambda t, tf, f, to: calls.setdefault("fetched", (t, tf, f, to)) and [] or [{"t": 1}],
+        lambda t, tf, f, to, raise_errors=False: calls.setdefault("fetched", (t, tf, f, to)) and [] or [{"t": 1}],
     )
     monkeypatch.setattr(
         bars_fetch._sqlite, "put_bars",
@@ -62,7 +62,10 @@ def test_intraday_to_cold_miss_reaches_the_replay_fetch_and_serves(monkeypatch):
     assert calls["fetched"][3] == "2026-03-13", "the fetched window must END at the cutoff"
     assert calls.get("put"), "the cold fetch must persist into the forever-store"
     assert resp.status_code == 200
-    assert reads["n"] == 2, "must re-read at/before the cutoff after persisting"
+    # Re-read at/before the cutoff after persisting. More than once since 2026-11-27: the
+    # window fill (`_fill_to_window`) reads the run after each round to decide whether to
+    # reach further back (this one-row store never reaches the ask, so it uses its rounds).
+    assert reads["n"] >= 2, "must re-read at/before the cutoff after persisting"
 
 
 def test_intraday_to_covered_window_never_calls_provider(monkeypatch):

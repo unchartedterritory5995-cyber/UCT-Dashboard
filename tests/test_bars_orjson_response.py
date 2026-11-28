@@ -14,9 +14,13 @@ from api.routers import bars as bars_router
 
 
 def test_bars_serving_paths_use_orjson():
-    # Both the service layer and the router alias JSONResponse -> ORJSONResponse.
-    assert bars_fetch.JSONResponse is ORJSONResponse
+    # Both the service layer and the router alias JSONResponse -> ORJSONResponse. The service
+    # layer's is the lazy `PayloadResponse` (bars_payload), an ORJSONResponse that renders once.
+    assert issubclass(bars_fetch.JSONResponse, ORJSONResponse)
+    assert bars_fetch.JSONResponse.render is ORJSONResponse.render
     assert bars_router.JSONResponse is ORJSONResponse
+    from api.services import bars_payload
+    assert bars_router.PayloadResponse is bars_payload.PayloadResponse
 
 
 def test_orjson_renders_nan_as_null_not_invalid_token():

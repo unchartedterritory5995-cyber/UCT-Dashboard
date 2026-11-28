@@ -1752,3 +1752,41 @@ def test_MQ_the_calendar_dataset_cannot_refuse_an_entry(tmp_path, monkeypatch, d
         return real_read(self, *a, **k)
     monkeypatch.setattr(pathlib.Path, "read_text", read_text)
     assert _follow(r, now=_et(2026, 11, 18, 15, 45)) == ("success", "all 18 Agent jobs passed on the merge group's commit")
+
+
+
+# ── owner-approved 2026-11-28 (#2957): ONE other literal environment, for ONE job ────────────────────────────────────
+
+_LAKE = W + "history-lake-daily.yml"
+
+
+def _lake(env_line, job="refresh", step_extra=""):
+    return ("on:\n  schedule:\n    - cron: '0 0 * * *'\njobs:\n  " + job + ":\n    runs-on: ubuntu-latest\n"
+            + env_line + "    steps:\n      - run: 'true'\n" + step_extra)
+
+
+def test_the_lake_refresh_job_may_declare_exactly_the_literal_history_lake():
+    assert acr.workflow_problems({_LAKE: _lake("    environment: history-lake\n")}) == []
+
+
+@pytest.mark.parametrize("label, text", [
+    ("the verdict environment", _lake("    environment: agent-ci-verdict\n")),
+    ("an expression", _lake("    environment: ${{ vars.E }}\n")),
+    ("a format() expression", _lake("    environment: ${{ format('history-{0}', 'lake') }}\n")),
+    ("the object form", _lake("    environment:\n      name: history-lake\n")),
+    ("another value", _lake("    environment: production\n")),
+    ("another job in the same file", _lake("    environment: history-lake\n", job="other")),
+    ("a step-level key", _lake("", step_extra="        environment: history-lake\n")),
+])
+def test_anything_but_that_one_literal_in_that_one_job_is_still_a_finding(label, text):
+    assert acr.workflow_problems({_LAKE: text}), label
+
+
+def test_the_literal_history_lake_is_refused_in_any_other_file():
+    assert acr.workflow_problems({W + "new.yml": _lake("    environment: history-lake\n")}) == [
+        "new.yml: job refresh declares an environment"]
+
+
+def test_the_repository_lake_workflow_passes_the_scan_as_committed():
+    text = (ROOT / _LAKE).read_text(encoding="utf-8")
+    assert acr.workflow_problems({_LAKE: text}) == []

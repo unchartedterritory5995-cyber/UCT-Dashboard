@@ -151,18 +151,55 @@ member's chart.
 
 ## Deploying
 
-Dashboard: Workers & Pages → `bars-edge-router` → Edit code → paste `worker.js`
-→ Deploy. Or via Wrangler:
+**From this directory, with Wrangler. `wrangler.json` is the deployed configuration** (since 2026-11-28):
+the routes, the R2 bindings, the plain variables, observability, and the Workers Cache layout below. It was
+read back from the live Worker (version `5ba3e055`, last deployed from the dashboard editor) so a deploy
+from here changes none of them. `CHART_EDGE_SECRET` stays a dashboard secret (Wrangler keeps secrets);
+`keep_vars: true` keeps any variable set in the dashboard (the `LAKE_TIER` / `TAIL_CACHE` switches).
 
 ```
-npx create-cloudflare@latest bars-edge-router --existing-script bars-edge-router
+node --test                                   # first: every rail green
+npx wrangler@4.166.0 deploy --dry-run         # the bundle and bindings it would upload
+npx wrangler@4.166.0 deploy                   # uses the owner's wrangler login (OAuth); prints the version id
 ```
 
-The Worker also answers on `bars-edge-router.<account>.workers.dev`. That
-hostname is an **anonymous alternate entrance to the tier** today. Once
-enforcement begins it closes by construction: the `uct_chart_edge` cookie is
-scoped to `uctintelligence.com`, so a browser never sends it to `workers.dev`,
-which will classify `MISSING` and be denied.
+**Undo a deploy:** `npx wrangler@4.166.0 rollback <previous version id>` (list them with
+`npx wrangler@4.166.0 deployments list`), or Workers & Pages -> bars-edge-router -> Deployments -> the
+previous one -> Rollback. Turning ONE feature off needs no rollback: set the plain variable `LAKE_TIER=0` or
+`TAIL_CACHE=0` (Settings -> Variables), which the code reads on every request.
+
+⛔ **The Worker also answers on `bars-edge-router.<account>.workers.dev`** (`workers_dev: true` in
+`wrangler.json`, kept as it was). That hostname is an **anonymous alternate entrance**: `/api/hist`,
+`/api/seed` and the live-minute paths refuse it (401: the edge cookie is scoped to `uctintelligence.com`,
+so a browser never sends it there), but `/api/bars/*` is still SHADOW-only, so through workers.dev it
+forwards to the tier exactly as the zone route does. Turning `workers_dev` off is a separate, deliberate
+change (nothing in the app calls that hostname); enforcement closes it by construction.
+
+If you edit the Worker in the dashboard, copy it back here in the same change (the dashboard editor
+cannot see `entry.js`'s cached entrypoints, so a dashboard paste of `worker.js` alone REMOVES them).
+
+## Workers Cache: the lake piece and the shared tail (2026-11-28)
+
+`entry.js` is the module entry. It exports three entrypoints; `wrangler.json` `exports` puts a cache in
+front of two of them and NOT in front of the routed one:
+
+| Entrypoint | Cached | Reached by | What it answers |
+| --- | --- | --- | --- |
+| `default` (worker.js) | no | every route | everything, as before; checks entitlement on every request |
+| `LakePiece` (history.js `serveLakePiece`) | yes, a year, tiered | `ctx.exports` only, after the entitlement check | one lake piece out of R2, only when it validates |
+| `BarsTail` (tail.js `serveTail`) | yes, a few seconds | `ctx.exports` only, after the entitlement check | one `/api/bars/<sym>` answer from bars-api |
+
+Neither cached entrypoint has a route, a hostname or a workers.dev URL, so nothing anonymous can reach
+what they keep. `cross_version_cache: true`: a deploy does not empty the lake copy (a piece's key is its
+exact content, so it is never stale).
+
+* **Lake pieces** (`/api/hist/v1/<series>/...`): this data center's Cache API copy first (as before), then
+  `LakePiece` behind Workers Cache (tiered: a piece read once at ANY data center is an upper-tier hit at the
+  others), then R2. Answer header `X-Bars-Edge: history-edge | history-tier | history`.
+* **The shared tail** (`/api/bars/<sym>`, entitled GETs only): see tail.js's header for the rules and the
+  client contract. `X-Bars-Edge: tail-cache` (a copy, with `X-Tail-Age-Ms`), `tail-fill`, or `tier` (the
+  tier's own answer, not cacheable: no_data, an unverified tail, a Retry-After). Unentitled reads, `warm=1`,
+  breadth and any unknown parameter take the old path unchanged.
 
 ## ⛔ Before enforcement: renderers that run OFF the web pod
 

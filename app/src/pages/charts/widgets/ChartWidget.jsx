@@ -105,7 +105,7 @@ function useLayerCrosshair(crosshairBus, widgetIdRef, vis, layerSym) {
 }
 
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
+  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, matchChart, setMatchChart, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -422,6 +422,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // active chart's comparison overlays + the % price scale). Reads live settings
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
+  const matchChartRef = useRef(matchChart)
+  matchChartRef.current = matchChart
   chartCsRef.current = chartCs
 
   // Chart Settings → "Apply to all charts" (owner 11-16): this surface's address in the layout (the slot's group id +
@@ -434,8 +436,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     return {
       count: () => countOtherCharts(source),
       apply: () => applyAppearanceToOtherCharts(source, chartCsRef.current),
+      // "Widgets match this chart" (owner 11-27): on = the board's widgets follow THIS chart.
+      matchWidgets: typeof setMatchChart === 'function'
+        ? { isOn: () => !!matchChartRef.current?.on && String(matchChartRef.current?.chartId ?? '') === String(chartId), set: (on) => setMatchChart(on, on ? chartId : null) }
+        : null,
     }
-  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts])
+  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts, setMatchChart, matchChart])
 
   // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
   // settings, tab or colour group itself — it reads them from HERE, as this

@@ -157,19 +157,122 @@ const FOREVER = "private, max-age=31536000, immutable";
 export const PIECE_EDGE_TTL = 31536000;
 export const EDGE_KEY_PATH = "/api/hist/__edge/";
 
-/** The cache key for one piece: the object, its place and its CRC, on a path only this Worker serves. */
+/** The cache key for one piece: the object, its symbol, its length and its CRC (2026-11-28: its CONTENT, not
+ *  its place: a daily refresh moves unchanged pieces inside the rewritten pack, and an offset in the key made
+ *  every one of them a miss), on a path only this Worker serves. Without a symbol (an older caller), the place. */
 export function edgeCacheKey(origin, key, range) {
-  return `${origin}${EDGE_KEY_PATH}${encodeURI(key)}?o=${range.offset}&n=${range.length}&c=${range.crc}`;
+  const who = range.enc ? `s=${range.enc}` : `o=${range.offset}`;
+  return `${origin}${EDGE_KEY_PATH}${encodeURI(key)}?${who}&n=${range.length}&c=${range.crc}`;
 }
 
 function defaultCache() {
   try { return typeof caches !== "undefined" && caches.default ? caches.default : null; } catch (_e) { return null; }
 }
 
+// ── THE NETWORK'S COPY OF A PIECE: WORKERS CACHE, TIERED (2026-11-28) ─────────────────────────────
+// The data center's copy above is per data center: measured 2026-11-28 through the live edge, a piece
+// read first at a data center cost 166-578 ms (R2: the lake's old periods are cold in R2 itself), and
+// 16-21 ms once that data center held it. Cache Reserve and the zone's Tiered Cache never see a Worker's
+// R2 reads or the Cache API. WORKERS CACHE does: a cache in front of a named entrypoint of THIS Worker,
+// tiered by default (a lower tier per data center, an upper tier that every lower tier asks on a miss),
+// so a piece read once anywhere is an upper-tier hit at every other data center.
+//
+// What makes it safe, each one load-bearing:
+//  - THE CACHED ENTRYPOINT HAS NO ROUTE. `LakePiece` (entry.js) is reachable only through
+//    `ctx.exports.LakePiece`, called by handleHistory AFTER the entitlement check. No hostname, route or
+//    workers.dev URL reaches it, so nothing anonymous can read the cache behind it.
+//  - ITS KEY IS THE EXACT CONTENT, NOT ITS PLACE: object, symbol, length and CRC (`cf.cacheKey`, below).
+//    A daily refresh rewrites the current period's pack and moves almost every piece in it; a key with the
+//    offset would send every one of them cold to R2 after each refresh. Without it, only a piece whose bytes
+//    changed (a new CRC) is a new key. The offset rides in the request path, for a fill only.
+//  - LakePiece checks the bytes it fills with are THIS symbol's piece of that series and period with that
+//    CRC, so no request can file another symbol's bytes under a symbol's key.
+//  - ONLY A VALIDATED WHOLE PIECE IS CACHEABLE (200, `public`, a year). Everything else is `no-store`:
+//    Workers Cache would otherwise keep a 404 for 3 minutes by default.
+//  - THE GATEWAY STILL VALIDATES what comes back (symbol, series, period, CRC) exactly as from R2, and
+//    any failure of this path is a plain R2 read: it can make a piece faster, never wrong or missing.
+//  - `env.LAKE_TIER === "0"` turns it off (a plain variable, no code change).
+export const LAKE_ENTRY = "LakePiece";
+export const LAKE_PIECE_ORIGIN = "https://lake-piece.internal";
+// `v1`: the copy's FORMAT version, in the path and the key. Pieces are kept a year ACROSS Worker versions
+// (cross_version_cache), so a change to what LakePiece answers must change this, or old copies are served.
+export const LAKE_KEY_VERSION = "v1";
+const LAKE_PATH_RE = /^\/p\/v1\/((?:(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/)*packs\/(1|5|15|30|60|60e)\/([0-9Q-]+)\.pack)\/(s-(?:[A-Z0-9]|_[0-9A-F]{2}){1,64})\/(0|[1-9]\d{0,14})\/([1-9]\d{0,14})\/(0|[1-9]\d{0,14})$/;
+
+/** The cached entrypoint's path for one piece: the object, the symbol, its place and its CRC. */
+export function lakePiecePath(key, range) {
+  return `/p/${LAKE_KEY_VERSION}/${key}/${range.enc}/${range.offset}/${range.length}/${range.crc}`;
+}
+
+/** The piece's Workers Cache key: its CONTENT (object, symbol, length, CRC), never its offset. */
+export function lakeCacheKey(key, range) {
+  return `/p/${LAKE_KEY_VERSION}/${key}/${range.enc}/${range.length}/${range.crc}`;
+}
+
+/** What a cached-entrypoint path names, or null. Nothing else reaches the bucket from there. */
+export function parseLakePiecePath(pathname) {
+  const m = LAKE_PATH_RE.exec(String(pathname || ""));
+  if (!m) return null;
+  const [, key, series, period, enc, o, n, c] = m;
+  if (!(PERIOD_RE[series] || YEAR_RE).test(period)) return null;
+  const range = { offset: Number(o), length: Number(n), crc: Number(c), enc };
+  if (range.length < 10 || range.length > MAX_PIECE_BYTES) return null;
+  return { key, series, period, range };
+}
+
+function lakeRefusal(status, error) {
+  return new Response(JSON.stringify({ error }), {
+    status, headers: { "content-type": "application/json", "cache-control": "no-store" },
+  });
+}
+
+/** The `LakePiece` entrypoint (entry.js): one piece, read from R2 at its place, answered cacheable ONLY
+ *  when the bytes are a whole piece of that series and period carrying that CRC. Never routed. */
+export async function serveLakePiece(request, env) {
+  if (request.method !== "GET" && request.method !== "HEAD") return lakeRefusal(405, "method_not_allowed");
+  const what = parseLakePiecePath(new URL(request.url).pathname);
+  if (!what) return lakeRefusal(404, "not_found");
+  const bucket = env && env.HISTORY;
+  if (!bucket) return lakeRefusal(503, "history_not_configured");
+  let obj;
+  try {
+    obj = await bucket.get(what.key, { range: { offset: what.range.offset, length: what.range.length } });
+  } catch (_e) {
+    return lakeRefusal(503, "history_unavailable");
+  }
+  if (!obj) return lakeRefusal(404, "no_such_piece");
+  const bytes = new Uint8Array(await obj.arrayBuffer());
+  const piece = bytes.length === what.range.length ? splitPiece(bytes) : null;
+  const h = piece && piece.header;
+  if (!h || h.series !== what.series || h.period !== what.period || h.crc !== what.range.crc
+      || encodeSymbol(h.symbol) !== what.range.enc) {
+    return lakeRefusal(409, "piece_changed");
+  }
+  return new Response(request.method === "HEAD" ? null : bytes, {
+    status: 200,
+    headers: {
+      "content-type": "application/octet-stream",
+      "cache-control": `public, max-age=${PIECE_EDGE_TTL}, immutable`,
+      "x-lake-filled": String(Date.now()),
+    },
+  });
+}
+
+/** `(key, range) => Promise<Response>` through the cached entrypoint, or null when it is not there
+ *  (an older runtime, the tests' plain Worker) or turned off. */
+export function lakeTier(env, ctx) {
+  if (env && env.LAKE_TIER === "0") return null;
+  const entry = ctx && ctx.exports && ctx.exports[LAKE_ENTRY];
+  if (!entry || typeof entry.fetch !== "function") return null;
+  return (key, range) => entry.fetch(new Request(LAKE_PIECE_ORIGIN + lakePiecePath(key, range)),
+    { cf: { cacheKey: lakeCacheKey(key, range) } });
+}
+
 /** The bytes for (key, range): a piece through this data center's copy, an index (range null) from R2
  *  always. `keep()` stores a piece's bytes once the caller has validated them. Null: R2 has no object.
- *  A cache that fails (or is absent) is simply not used. */
-export async function readObject(bucket, key, range, { origin, ctx, cache = defaultCache() } = {}) {
+ *  A cache that fails (or is absent) is simply not used. `lake`: the tiered copy (lakeTier), asked on a
+ *  data-center miss; anything but a 200 from it is a plain R2 read. */
+export async function readObject(bucket, key, range, { origin, ctx, cache = defaultCache(), lake = null } = {}) {
   const ck = cache && range ? edgeCacheKey(origin, key, range) : null;
   if (ck) {
     try {
@@ -177,9 +280,25 @@ export async function readObject(bucket, key, range, { origin, ctx, cache = defa
       if (hit) return { bytes: new Uint8Array(await hit.arrayBuffer()), cached: true, keep() {} };
     } catch (_e) { /* a broken cache is a miss */ }
   }
-  const obj = await bucket.get(key, range ? { range: { offset: range.offset, length: range.length } } : undefined);
-  if (!obj) return null;
-  const bytes = new Uint8Array(await obj.arrayBuffer());
+  let bytes = null;
+  let tier = null;
+  if (lake && range) {
+    try {
+      const r = await lake(key, range);
+      if (r && r.status === 200) {
+        bytes = new Uint8Array(await r.arrayBuffer());
+        const filled = Number(r.headers.get("x-lake-filled"));
+        tier = { filled: Number.isFinite(filled) ? filled : null };
+      } else if (r && r.body) {
+        try { await r.body.cancel(); } catch (_e) { /* nothing to release */ }
+      }
+    } catch (_e) { bytes = null; tier = null; }   // the tier failing is a plain R2 read
+  }
+  if (!bytes) {
+    const obj = await bucket.get(key, range ? { range: { offset: range.offset, length: range.length } } : undefined);
+    if (!obj) return null;
+    bytes = new Uint8Array(await obj.arrayBuffer());
+  }
   const keep = () => {
     if (!ck) return;
     const put = Promise.resolve().then(() => cache.put(ck, new Response(bytes, {
@@ -187,7 +306,7 @@ export async function readObject(bucket, key, range, { origin, ctx, cache = defa
     }))).catch(() => {});
     if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
   };
-  return { bytes, cached: false, keep };
+  return { bytes, cached: false, tier, keep };
 }
 
 export async function handleHistory(request, env, entitled, ctx) {
@@ -199,7 +318,7 @@ export async function handleHistory(request, env, entitled, ctx) {
   if (what.kind === "piece") {
     const o = url.searchParams.get("o"), n = url.searchParams.get("n"), c = url.searchParams.get("c");
     if (!UINT_RE.test(o || "") || !UINT_RE.test(n || "") || !UINT_RE.test(c || "")) return plain(400, "piece_needs_c_o_n");
-    range = { offset: Number(o), length: Number(n), crc: Number(c) };
+    range = { offset: Number(o), length: Number(n), crc: Number(c), enc: what.enc };
     if (range.length < 10 || range.length > MAX_PIECE_BYTES) return plain(400, "piece_length_out_of_range");
   }
   let ok = false;
@@ -211,12 +330,12 @@ export async function handleHistory(request, env, entitled, ctx) {
 
   let got;
   try {
-    got = await readObject(bucket, key, range, { origin: url.origin, ctx });
+    got = await readObject(bucket, key, range, { origin: url.origin, ctx, lake: lakeTier(env, ctx) });
   } catch (_e) {
     return plain(503, "history_unavailable", { "retry-after": "2" });
   }
   if (!got) return plain(404, "no_such_piece", { "cache-control": SHORT });
-  const bytes = got.bytes;
+  let bytes = got.bytes;
   const head = request.method === "HEAD";
 
   if (what.kind === "index") {
@@ -228,14 +347,28 @@ export async function handleHistory(request, env, entitled, ctx) {
 
   // The bytes at (o, n) must be exactly this symbol's piece of this series and period, with this CRC.
   // Anything else means the client's index is older than the pack: 409, re-read the index.
-  const piece = bytes.length === range.length ? splitPiece(bytes) : null;
-  const h = piece && piece.header;
-  if (!h || h.series !== what.series || h.period !== what.period || encodeSymbol(h.symbol) !== what.enc
-      || h.crc !== range.crc) {
-    return plain(409, "piece_changed");
+  const thisPiece = (b) => {
+    const pc = b.length === range.length ? splitPiece(b) : null;
+    const h = pc && pc.header;
+    return h && h.series === what.series && h.period === what.period && encodeSymbol(h.symbol) === what.enc
+      && h.crc === range.crc ? pc : null;
+  };
+  let piece = thisPiece(bytes);
+  if (!piece && got.tier) {
+    // The NETWORK'S copy handed back bytes that are not this piece (a format change, a bad fill): it is never
+    // the authority. Read R2 itself; only R2 decides a 409.
+    let direct = null;
+    try { direct = await readObject(bucket, key, range, { origin: url.origin, ctx }); } catch (_e) { direct = null; }
+    const p2 = direct && !direct.cached ? thisPiece(direct.bytes) : null;
+    if (p2) { got = direct; bytes = direct.bytes; piece = p2; }
   }
+  if (!piece) return plain(409, "piece_changed");
   got.keep();
-  const base = { "cache-control": FOREVER, "x-bars-edge": got.cached ? "history-edge" : "history", vary: "Accept-Encoding" };
+  // history-edge: this data center's copy; history-tier: the network's copy (Workers Cache, a fill or a
+  // hit); history: R2 itself. `x-lake-filled` says when the network's copy was made (a measurement aid).
+  const via = got.cached ? "history-edge" : got.tier ? "history-tier" : "history";
+  const base = { "cache-control": FOREVER, "x-bars-edge": via, vary: "Accept-Encoding" };
+  if (got.tier && got.tier.filled != null) base["x-lake-filled"] = String(got.tier.filled);
   if (url.searchParams.get("raw") === "1" || !acceptsBrotli(request)) {
     return new Response(head ? null : bytes, { status: 200, headers: { ...base, "content-type": PIECE_TYPE } });
   }

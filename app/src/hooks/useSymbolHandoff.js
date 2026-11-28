@@ -36,7 +36,7 @@ import { BARSTORE } from '../components/chart/barStoreSwitch'
 import { COVER_ROWS } from '../data/barStore/coverRows'
 import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
-import { isNativeTf, fetchTf } from '../components/chart/timeframes'
+import { isNativeTf, fetchTf, resampleSpec, baseBarsFor } from '../components/chart/timeframes'
 import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
@@ -45,6 +45,7 @@ import { inRegularSession } from '../data/deviceStore/fresh'
 import { onChartPaint, viewNeed, VIEW_LOOKBACK_ROWS } from '../components/chart/paintLog'
 import { memberViewDate } from '../components/chart/viewDate'
 import { viewWindowOfMemberDate } from '../components/chart/viewWindow'
+import { flipReadyFor } from '../components/chart/flipReady'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -199,18 +200,40 @@ function paintsWholeNow(sym, tf, sess, need = COVER_ROWS) {
   return !storePrefetch.lakePending(sym, ftf, sess) && covers(sym, ftf, { ...sess, answered: true }, 1)
 }
 
+/**
+ * ⭐⭐ (2026-11-28, the cold-coverage run: 4h + 2h zoomed out, a typed cold ticker, a short first page and then the jump on
+ * 6 of 6 presses) A CUSTOM INTRADAY TIMEFRAME IS DECIDED ON THE NATIVE KEY IT IS DRAWN FROM. A 4h or 2h chart resamples
+ * the 60m key (timeframes.resampleSpec), and the switch passed every custom code straight through ('now'), so it painted
+ * whatever 60m rows were held (the first page: 287 4h bars under a ~790-bar view) and the lake's depth then rebuilt the
+ * chart. The switch now asks its native base the same questions a native chart's switch asks (held, displayable, the
+ * lake's depth due), with the view's need in BASE rows (timeframes.baseBarsFor: four 60m rows per 4h bar at most).
+ * A native code, or a custom code on a D/W/M base, is returned unchanged.
+ */
+export function routeView(tf, need) {
+  // (the BarStore only: there a custom chart reads its base key from the store, the key this coordinator counts; the
+  // legacy source's custom chart fetches its own base window, which this coordinator has no view of: straight through)
+  const spec = !BARSTORE || isNativeTf(String(tf)) ? null : resampleSpec(String(tf))
+  if (!spec || spec.kind !== 'intradaySession' || !INTRADAY.has(String(spec.base))) return { tf, need }
+  return { tf: String(spec.base), need: baseBarsFor(String(tf), need) }
+}
+
 /** How a switch to `sym` can be shown, decided synchronously (pure: reads the caches, starts nothing):
  *   'econ'       an economic series (`ECON:USCPI`): no bars lane, the chart loads it itself; shown at once
  *   'daily-hold' a D/W/M set to promote or join first (dailyHoldNeeded): the bounded daily prepare
  *   'now'        displayable and whole (or a code this coordinator does not govern): shown once its panes'
  *                server columns have landed (COLUMNS_WAIT_MS)
  *   'prepare'    the intraday prepare, then shown on what it reports */
-function sameTaskRoute(sym, tf, sess, need = COVER_ROWS) {
+function sameTaskRoute(sym, viewTf, sess, viewNeedRows = COVER_ROWS, member = null) {
   if (/^ECON:/i.test(String(sym))) return 'econ'
+  // ⭐⭐ (2026-11-28, COV-def-wm-arrows: the W+M board never moved on 5 of 12 presses) A ROW THE DOUBLE BUFFER'S SHADOW
+  // CAN FLIP TO IS SHOWN AT ONCE: the flip shows it whole (its own decision, asked early: chart/flipReady.js). The daily
+  // hold below held it instead, and a hold longer than the gap between presses was left for the next one.
+  if (member && flipReadyFor(member, sym)) return 'now'
+  const { tf, need } = routeView(viewTf, viewNeedRows)   // (a custom intraday code: its native base's rows)
   if (dailyHoldNeeded(sym, tf, need)) return 'daily-hold'
   if (paintsWholeNow(sym, tf, sess, need)) return 'now'
-  // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. A custom code (2m, 45m...) fetches its own base, which this
-  // coordinator has no view of, and passes straight through.
+  // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. A custom code on a D/W/M base (2D, 2W, 3M...) passes straight
+  // through; a custom intraday code (2m, 45m, 2h, 4h...) was mapped to its native base above (routeView).
   if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return 'now'
   return 'prepare'
 }
@@ -256,10 +279,10 @@ function deviceRuleBeforeAnswer(sym, tf, sess) {
  *  in this task; else 'no-symbol' | 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns'. The member's canShowNow
  *  is this answer being null (the same checks in the same order as before); a tester's device diagnostics record it
  *  per switch (`gate`), so a measurement can say which member and which gate sent a group down the round. */
-function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS) {
+function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS, member = null) {
   if (!sym || !tf) return 'no-symbol'
   if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return 'settle'
-  const route = sameTaskRoute(sym, tf, sess, need)
+  const route = sameTaskRoute(sym, tf, sess, need, member)
   if (route === 'econ') return null
   if (route !== 'now') return `route:${route}`
   return columnsReadyFor(sym, tf) ? null : 'columns'
@@ -364,7 +387,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => {
-        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended, member, viewRef.current.tf), settleRef.current, settleNow, viewNeed(member))
+        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended, member, viewRef.current.tf), settleRef.current, settleNow, viewNeed(member), member)
         gateRef.current = { sym, gate }
         return gate === null
       },
@@ -505,7 +528,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
       const need = viewNeed(member)   // the rows the view this member shows will draw (read at the switch)
-      const route = sameTaskRoute(requestedSym, tf, sess, need)
+      const route = sameTaskRoute(requestedSym, tf, sess, need, member)
+      const rv = routeView(tf, need)   // the key and rows the intraday prepare below waits on (a custom code: its base)
       if (scoped) noteSwitchRoute(group, requestedSym, route === 'prepare' ? ROUTE_PREPARE : route === 'daily-hold' ? ROUTE_DAILY_HOLD : ROUTE_NOW)
       if (route === 'econ') { commitNow(); return leaveHold }
 
@@ -559,6 +583,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
           seePre()
           if (devicePaints(requestedSym, tf) && (uncounted() || covers(requestedSym, tf, {}, need))) { land('device'); return true }
           if (covers(requestedSym, tf, { answered: true }, need)) { land('covered'); return true }
+          // ⭐⭐ (2026-11-28, the cold-coverage run: W + M, a typed ticker, the previous chart held ~4 s on 4 of 6 presses)
+          // NOTHING MORE IS COMING: the deep history's join settled (prefetch.watch wakes on it, network.subscribeSettled)
+          // and this life's answer is held, so what is held IS the whole set, however short of the view (a monthly chart
+          // of a 145-month listing; most monthly charts: the view asks 600 months). The prepare's report and the
+          // DAILY_HOLD_MAX_MS bound asked exactly this (`whole`), but only once, ~400 ms in; a join that settled after
+          // that (a cold edge: the monthly history is an origin build, 0.6-2 s) left only the hang guard.
+          if (BARSTORE && !storePrefetch.deepPending?.(requestedSym, tf) && covers(requestedSym, tf, { answered: true }, 1)) { land('whole'); return true }
           return false
         }
         if (DEVICE || BARSTORE) {
@@ -608,7 +639,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const failed = outcome === 'error' || outcome === 'nodata' || outcome === 'hang'
         // (zero rows counted: a source that cannot count them, so the report commits as before)
         const uncounted = !(storePrefetch.heldRows?.(requestedSym, fetchTf(tf), sess) ?? 0)
-        if (failed || uncounted || !BARSTORE || !INTRADAY.has(String(tf)) || paintsWholeNow(requestedSym, tf, sess, need)) commitHere()
+        if (failed || uncounted || !BARSTORE || !INTRADAY.has(String(rv.tf)) || paintsWholeNow(requestedSym, rv.tf, sess, rv.need)) commitHere()
       }).catch(() => { if (alive && genRef.current === gen) commitHere() })
 
       // A poll alongside it, because the ±6 neighbour warmer may repair this
@@ -623,14 +654,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const tick = () => {
         if (!alive || genRef.current !== gen) return
         seePre()
-        if (paintsWholeNow(requestedSym, tf, sess, need)) { commitHere(); return }
+        if (paintsWholeNow(requestedSym, rv.tf, sess, rv.need)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
       seePre()   // (the route was just decided on this entry: what the device rule said of it then)
       unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
         if (!unwatchI || !alive || genRef.current !== gen || committed) return
         seePre()
-        if (paintsWholeNow(requestedSym, tf, sess, need)) { stopWatchI(); commitHere() }
+        if (paintsWholeNow(requestedSym, rv.tf, sess, rv.need)) { stopWatchI(); commitHere() }
       })
       if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 
