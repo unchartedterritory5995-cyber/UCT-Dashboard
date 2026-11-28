@@ -230,6 +230,25 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(tailBars(h2), 'the remaining waiter still gets its fallback').toEqual([FIRST_PAINT_BARS, dateCoverMaxFor('D')])
   })
 
+  // ⛔ (2026-11-28, cloud COV-date-D-typed: 5 of 6 cold typed D switches committed 30 rows at the 4 s hang guard) THE TYPED
+  // WARM'S CUT TAIL arms the cover fallback while nothing holds the key yet (the member is still typing): it fires and
+  // returns. The Enter prepare that follows (its pin, its want) must still get the cover page.
+  it('a warm\'s fallback that fired with nothing holding the key: the prepare that follows still gets the cover page', async () => {
+    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })   // the typed warm: cut to EDGE_TAIL_BARS
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)               // fires while nothing holds the key: nothing
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    // Enter: the prepare pins the key, wants the join and asks the tail (prefetch prepareDailyForDisplay)
+    w.registry.acquire(w.key)
+    w.net.deepPrime(w.key, { want: true })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w), 'the cover page for the display that waits').toContain(dateCoverMaxFor('D'))
+  })
+
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
   it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
     const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
