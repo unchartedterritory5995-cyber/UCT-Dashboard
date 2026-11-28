@@ -222,14 +222,13 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     // zoomed lock: the normal switch frames the same lock on the same rows (from = lastIdx - anchorFrac x width, before
     // the first bar) and draws exactly what the hidden chart shows. Only when (1) its history is PROVED whole (the
     // store's historyComplete: a sealed deep join or a lake load that took every older piece; never a partial, failed or
-    // pending read), (2) shortness was the ONLY difference (the same views with the hidden chart's rows taken as enough
-    // say 'ok': same locks, at the lock's frame, nothing overriding it), and (3) no date or replay frames the press.
+    // pending read), (2) shortness was the ONLY difference (same locks, at the lock's frame, nothing overriding it), and (3) no date or replay frames the press.
+    // (2) needs no second check: viewParity answers its FIRST difference and 'view-short' is its LAST check on the
+    // unanchored path (blocked views, locks, the lock's frame or the zoom are all decided before it), so a 'view-short'
+    // there means every other part matched (doubleBuffer.test.js pins that order).
     if (!d.flip && d.why === 'view-short' && report && !tfPress && !anch && !cut && BARSTORE) {
       try {
-        const p = panesNowRef.current ? panesNowRef.current() : []
-        const fm = p[f]?.getDateMeta?.(), sm = p[s]?.getDateMeta?.()
-        const onlyShort = !!(fm && sm) && viewParity(fm, { ...sm, rows: Infinity }, { tf: fr?.tf }) === 'ok'
-        if (onlyShort && historyComplete(report.sym, report.tf, { showExtended: !!report.ext })) d = { flip: true, why: 'flip', short: true }
+        if (historyComplete(report.sym, report.tf, { showExtended: !!report.ext })) d = { flip: true, why: 'flip', short: true }
       } catch { /* the refusal stands */ }
     }
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
