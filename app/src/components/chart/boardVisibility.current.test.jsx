@@ -313,5 +313,27 @@ describe('kept boards stay out of a press (review of #3052)', () => {
     expect(runs.filter((r) => r[0] === 0).length, 'after a show and a hide, the board no longer catches up').toBe(3)
     for (const f of feeds) f.stop()
   })
+
+  it('KC3 (red first) a press that lands after the catch-up was timed still holds it off (asked again at the run)', async () => {
+    vi.useFakeTimers()
+    const M = await import('./boardVisibility')
+    M.__resetKeptCatchUpForTests()
+    const b = M.createBoardVisibility({ layer: true, current: true, kept: true })
+    let n = 0
+    const f = M.forwardWhileShown(b, () => { n++ }, undefined, { idle: true })
+    b.set('hidden')
+    f.cb()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(n, 'NON-VACUITY: a quiet page catches up').toBe(1)
+    await vi.advanceTimersByTimeAsync(400)
+    f.cb()   // timed for the second after the last run (~550 ms from now)
+    await vi.advanceTimersByTimeAsync(540)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
+    await vi.advanceTimersByTimeAsync(M.KEPT_QUIET_MS - 50)
+    expect(n, 'a catch-up timed before the press ran inside its quiet').toBe(1)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(n).toBe(2)
+    f.stop()
+  })
 })
 
