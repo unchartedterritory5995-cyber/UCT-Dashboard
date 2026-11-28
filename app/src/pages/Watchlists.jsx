@@ -218,6 +218,7 @@ import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold, abortUrgentFamily } from '../utils/barsWarm'
+import { createListUrgentWarm, dropUrgentFamilies, sendUrgentNext } from './listUrgentWarm'
 import { scanNeighbors, jumpTarget, jumpStride, strideTarget } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
@@ -251,6 +252,8 @@ import { chordById, matchesChord } from './command/chords.js'
 import fetcher from '../utils/jsonFetcher'
 import { readSuccessBody } from '../lib/responseBody'
 import { nextSort } from '../lib/presentation/dataGrid'
+// (review of #3024) the warmers this list's urgent rows go through, as THIS list (listUrgentWarm: an owner per list)
+const URGENT_WARM = { prefetchBars, abortUrgentFamily }
 
 // TERM-065: a column-header click asks the DataGrid seed which way the sort turns
 // (same column flips; a new column starts Symbol A→Z, numbers high→low). The frozen
@@ -1267,7 +1270,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const clickNudgeRef = useRef(null)
   const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs, group: hubGroup } = useChartsSym()
   const hubGroupRef = useRef(hubGroup)
-  const _variantsRef = useRef(new Map())   // the key families the last warm sent (id -> { tf, viewWindow })
+  const _urgentRef = useRef(null)   // (review of #3024) this list's urgent rows: its own owner (listUrgentWarm)
+  if (_urgentRef.current === null) _urgentRef.current = createListUrgentWarm()
   hubGroupRef.current = hubGroup
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
@@ -2369,9 +2373,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const holds = _holdsRef.current
       const ids = new Set(variants.map((v) => v.id))
       for (const [hid, h] of holds) if (!ids.has(hid)) { h.clear(); holds.delete(hid) }
-      // (review of #3020, follow-up) a key family the colour no longer reads: its in-flight urgent rows go too
-      for (const [vid, v] of _variantsRef.current) if (!ids.has(vid)) { try { abortUrgentFamily(v.tf, v.viewWindow) } catch { /* a warm */ } }
-      _variantsRef.current = new Map(variants.map((v) => [v.id, v]))
+      // (review of #3020, follow-up) a key family the colour no longer reads: its in-flight urgent rows go too, THIS list's
+      // only (review of #3024: another embedded list's rows on the same keys are its own)
+      dropUrgentFamilies(_urgentRef.current, variants, URGENT_WARM)
       for (const { id, tf, viewWindow } of variants) {
         if (!holds.has(id)) holds.set(id, createNeighborHold())
         // `deep`: once the member rests here, the next rows' older history loads too, so the flip
@@ -2403,7 +2407,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         trace.push({ at: Math.round(performance.now()), sym: selectedSym, rerun, stride, jump, urgent: urgentNext, tfs })
         if (trace.length > 200) trace.splice(0, trace.length - 200)
       }
-      for (const { tf, viewWindow } of variants) prefetchBars(urgentNext, tf, { urgent: true, ...(viewWindow ? { viewWindow } : {}) })
+      sendUrgentNext(_urgentRef.current, variants, urgentNext, URGENT_WARM)
     }
     if (hurried) { sendWarm(); return undefined }
     const cancel = afterPaint(sendWarm)
