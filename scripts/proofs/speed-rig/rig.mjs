@@ -148,6 +148,14 @@ export function dateCoverOf(mdy) {
   const day = `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`
   return { day, s: Date.UTC(+m[3], +m[1] - 1, +m[2]) / 1000 }
 }
+/** The view sits at the symbol's first bar (logical index <= 0) and that bar is after the asked day: it listed later. */
+export function viewBeforeListing(v, want) {
+  if (!v || !want || !v.lr || v.from == null || !(v.lr.from <= 0.5)) return false
+  const first = typeof v.from === 'string' ? v.from : typeof v.from === 'object' && v.from.year
+    ? `${v.from.year}-${String(v.from.month).padStart(2, '0')}-${String(v.from.day).padStart(2, '0')}` : null
+  if (first != null) return first > want.day
+  return v.from >= want.s + 86400
+}
 /** Does a visible time range ({from, to}: 'YYYY-MM-DD' strings on D/W/M, epoch seconds intraday) reach the asked day? */
 export function viewCovers(v, want) {
   if (!v || !want || v.from == null || v.to == null) return false
@@ -1247,12 +1255,21 @@ try {
     const t0 = Date.now()
     let v = null
     let landed = false
+    let landedAs = null
     while (Date.now() - t0 < 15000) {
       await sleep(250)
       v = await run(VIEW_JS)
-      if (v && viewCovers(v, want)) { landed = true; break }
+      if (v && viewCovers(v, want)) { landed = true; landedAs = 'covers'; break }
+      // a symbol that LISTED after the asked date has no bar there: the chart frames its earliest bars (its first bar at
+      // the view's left edge, logical 0), which is the date's frame for that symbol. Only once its history is whole: a
+      // first bar that later loads older rows moves, so the check waits for the view to hold still at index 0 for 2 s.
+      if (v && viewBeforeListing(v, want)) {
+        if (!landedAs) landedAs = { at: Date.now(), from: v.from }
+        else if (landedAs.from === v.from && Date.now() - landedAs.at >= 2000) { landed = true; landedAs = 'earliest-bars'; break }
+      } else if (landedAs && typeof landedAs === 'object') landedAs = null
     }
-    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedInMs: landed ? Date.now() - t0 : null, view: v, wantDay: want && want.day }
+    if (landedAs && typeof landedAs === 'object') landedAs = null
+    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedAs, landedInMs: landed ? Date.now() - t0 : null, view: v, wantDay: want && want.day }
     console.log(`go to date: ${JSON.stringify(out.goToDate)}`)
     save()
     if (!landed) throw new Error(`go to date ${GO_TO_DATE}: the view never reached it in 15 s (typed as ${JSON.stringify(typedAs)}, view ${JSON.stringify(v && { from: v.from, to: v.to })})`)
