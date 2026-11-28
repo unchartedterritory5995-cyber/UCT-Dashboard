@@ -6,7 +6,8 @@ import uctMark from '../intro/assets/compass-mark.webp'
 import styles from './SymbolSearch.module.css'
 import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from './symbolSearchModel'
 import useMarketIndicators from '../../hooks/marketIndicatorRegistry'
-import { ensureTickerUniverse, isKnownTicker, uniqueCompletion, hasLongerCompletion, noteTickerUniverseVersion } from '../../lib/tickerUniverse'
+import { ensureTickerUniverse, isKnownTicker, uniqueCompletion, hasLongerCompletion, noteTickerUniverseVersion, rankedCompletions } from '../../lib/tickerUniverse'
+import { historyScore } from '../../lib/typedHistory'
 // Re-exported: `POPULAR_RESULTS` has existing importers that reach for it here.
 export { POPULAR_RESULTS }
 
@@ -30,7 +31,15 @@ export const HIGHLIGHT_INTENT_MS = 0
 // ⛔ (review of #2938, T2) How long an EXACT ticker that can still grow (A -> AM -> AMZN, GOOG -> GOOGL) waits before it is
 // told: typed through at a typist's pace it is cancelled by the next key, so single letters no longer start a warm (and
 // up to three linked fetches) each. A ticker nothing longer starts with, and a unique completion, are told at once.
-export const EXACT_PREFIX_SETTLE_MS = 80
+// ⭐ (2026-11-28, cold-arch 3.3 item 2: "prefetch every keystroke that spells a known ticker") ZERO. At a typist's pace
+// (150-250 ms a key) the 80 ms settle fired A and AM anyway; it only held back the ticker the member stops on, by 80 ms.
+// What bounds the fetches is the warm, not this pause: the chart's typed warm keeps ONE text live (a newer text aborts the
+// older one's tail and its linked fetches, data/barStore/prefetch `typed` / `_linkedCtl`), and a cold daily key asks the
+// edge's sealed history and only the newest rows of the origin.
+export const EXACT_PREFIX_SETTLE_MS = 0
+// (2026-11-28, zero-network plan 1.4) How many completions of the typed text the host is told (onTypedCandidates): the
+// first takes the chart's typed slot and its hidden pane, the others are fetched to cover the view.
+export const TYPED_CANDIDATES_K = 3
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -63,7 +72,7 @@ function splitSymLabel(label, customColor = false) {
   return <><span data-sym-ticker="" {...c}>{m[1]}</span> <span data-sym-name="" {...c}>{m[2]}</span></>
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, splitLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, splitLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false, ariaLabel = null, onTypedIntent = null, onTypedCandidates = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -285,6 +294,10 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     const completion = exact ? null : uniqueCompletion(text)
     const target = completion && completion !== String(sym || '').toUpperCase() ? completion : text
     const now = exact || target !== text
+    // ⛔ (2026-11-28, plan 1.4) TEXT THAT IS NO TICKER BUT HAS COMPLETIONS BELONGS TO THE CANDIDATE POOL (below): telling it
+    // after the pause would take the chart's typed slot from the pool's top candidate (aborting it) for a prefix the chart
+    // then calls 'unknown', and clear the hidden pane it had prepared.
+    if (!now && onTypedCandidates && hasLongerCompletion(text) === true) return undefined
     // Once per text: a re-run for another reason (the breadth catalogue landing) is not new intent.
     if (lastIntentRef.current === target) return undefined
     const delay = !now ? TYPED_INTENT_SETTLE_MS : (exact && target === text && hasLongerCompletion(text) === true ? EXACT_PREFIX_SETTLE_MS : 0)
@@ -294,7 +307,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     }, delay)
     intentTimerRef.current = t
     return () => clearTimeout(t)
-  }, [query, open, chip, onTypedIntent, breadthAll, sym])
+  }, [query, open, chip, onTypedIntent, onTypedCandidates, breadthAll, sym])
   // ⭐ (2026-11-27) ...AND THE HIGHLIGHTED SUGGESTION: the row Enter would open (the top result as the member types, or the
   // one the arrow keys moved to), once it has stayed highlighted for HIGHLIGHT_INTENT_MS. A new highlight cancels the
   // pending one, and the chart's typed warm itself keeps one warm at a time (a newer symbol aborts the older one), so a
@@ -311,15 +324,40 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (lastIntentRef.current === highlightedTicker) return undefined
     // a row from an earlier answer (results land after the typing pause) is not the text's: it must complete what is typed
     if (!highlightedTicker.startsWith(query.trim().toUpperCase())) return undefined
+    // ⛔ (2026-11-28) ONLY THE ROW ENTER WOULD OPEN: one the arrow keys moved to (handleInputKey: a keyboard-selected row
+    // below the top beats the typed text). The top result as the member types is NOT what Enter opens (Enter opens the
+    // typed text), so warming it was an origin fetch per search answer for a chart Enter never shows, and it aborted the
+    // typed text's own warm (one typed slot). The typed text's warm (above) covers the ticker being typed.
+    if (!navByKbdRef.current || !(activeIdx > 0)) return undefined
     const t = setTimeout(() => {
       if (!openRef.current) return   // Enter (or a close) came first: nothing is reported after it
       lastIntentRef.current = highlightedTicker
       try { onTypedIntent(highlightedTicker) } catch { /* a warm never breaks search */ }
     }, HIGHLIGHT_INTENT_MS)
     return () => clearTimeout(t)
-  }, [highlightedTicker, open, chip, onTypedIntent, sym, query])
+  }, [highlightedTicker, open, chip, onTypedIntent, sym, query, activeIdx])
+  // ⭐⭐ (2026-11-28, zero-network plan 1.4) ...AND THE TEXT'S LIKELIEST COMPLETIONS, ON EVERY KEYSTROKE AND ON A PASTE.
+  // The effect above tells the host only text that IS a ticker or has ONE completion, so a ticker whose prefix others
+  // share (CRB on the way to CRBG) was first fetched on its LAST key, ~150 ms before a typist's Enter. Now every change
+  // of the text reports, at once (no pause), the first TYPED_CANDIDATES_K tickers of the universe that start with it,
+  // ranked exact > this member's history (lib/typedHistory) > popularity > A-Z (lib/tickerUniverse rankedCompletions).
+  // The host warms all of them and gives the first to the typed slot (ChartPane handleTypedCandidates). A paste is one
+  // change: its exact ticker leads. Nothing while the universe is not held (the effect above keeps the old rules), for
+  // the economic and breadth chips, or for text that is not ticker-shaped. Told again only when the list changes.
+  const lastCandidatesRef = useRef('')
+  useEffect(() => {
+    if (!open || !onTypedCandidates || chip === 'economic' || chip === 'breadth') return
+    const q = query.trim()
+    const clean = q ? canonicalTicker(q, breadthAll) : ''
+    if (!clean || !/^[A-Z0-9][A-Z0-9.^-]{0,11}$/i.test(clean)) return
+    const list = rankedCompletions(clean, TYPED_CANDIDATES_K, { score: historyScore, exclude: sym })
+    const sig = list.join(',')
+    if (!list.length || sig === lastCandidatesRef.current) return
+    lastCandidatesRef.current = sig
+    try { onTypedCandidates(list) } catch { /* a warm never breaks search */ }
+  }, [query, open, chip, onTypedCandidates, breadthAll, sym])
   // A new search session may warm the same text again.
-  useEffect(() => { if (!open) { lastIntentRef.current = null; knownRef.current = new Set() } }, [open])
+  useEffect(() => { if (!open) { lastIntentRef.current = null; knownRef.current = new Set(); lastCandidatesRef.current = '' } }, [open])
   // the universe the keystroke reads (lib/tickerUniverse): fetched the first time a search that warms opens, never before
   useEffect(() => { if (open && onTypedIntent) ensureTickerUniverse() }, [open, onTypedIntent])
 

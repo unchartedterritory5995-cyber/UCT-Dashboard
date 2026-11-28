@@ -128,7 +128,7 @@ import { runtimeErrorWords } from './runtimeErrorText'
 // ⛔ One authority, three callers — this line is an alias, never a second copy.
 export { bindConstsFor }
 import { timeframeFlags } from '../indicators'
-import { smaOfSeries, emaOfSeries, maSeries, MA_TYPES, numbersToPoints } from '../movingAverages'
+import { smaOfSeries, emaOfSeries, smaColumn, emaColumn, maSeries, MA_TYPES, numbersToPoints } from '../movingAverages'
 import { TECH_CATEGORY as CAT } from '../technicalCategories'
 import * as S from '../technicalStudies'
 import { checkBudget } from './ast/budget'
@@ -1994,9 +1994,11 @@ const NATIVE_COMPUTE = {
     // honest test, and it accepts a plain array too.
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
-    // ⛔ SMA AND EMA TAKE THEIR SHIPPED PATHS UNCHANGED — every saved average.
-    if (p.maType === 'ema') return { ma: emaOfSeries(src, p.period, n) }
-    if (!p.maType || p.maType === 'sma') return { ma: smaOfSeries(src, p.period, n) }
+    // ⛔ SMA AND EMA TAKE THEIR SHIPPED PATHS UNCHANGED — every saved average. ⚡ (2026-11-28) Written straight into
+    // the column (`smaColumn` / `emaColumn`: the shipped loops, the same IEEE-754 numbers, no point object per bar);
+    // `toColumn` takes a column of the input's length as it is.
+    if (p.maType === 'ema') return { ma: ownColumn(emaColumn(src, p.period, n)) }
+    if (!p.maType || p.maType === 'sma') return { ma: ownColumn(smaColumn(src, p.period, n)) }
     const values = Array.from({ length: n }, (_, i) => (i < src.length ? src[i] : NaN))
     // ⛔ VWMA WEIGHTS BY **THIS CHART'S** VOLUME, so it is only offered a source
     // that lives on this chart's bars: a bar field or another instance's output.
@@ -2131,7 +2133,15 @@ const NATIVE_COMPUTE = {
  * "no pane" signal. It becomes an all-NaN column here, and `hasAnyFinite` is
  * the signal instead.
  */
+// The columns a native wrote itself (movingAverage's SMA / EMA): NaN-padded, finite values only, made for this compute.
+// Only these pass through `toColumn` as they are; any other array (a source column a native handed back, say) is read
+// as points, exactly as before, so no column is ever another column's array.
+const _ownColumns = new WeakSet()
+function ownColumn(col) { _ownColumns.add(col); return col }
+/** The test seam for that rule (movingAverages.columns.test.js M5): `toColumn` itself, and `ownColumn`. */
+export function __toColumnForTests(points, length, own = false) { return toColumn(own ? ownColumn(points) : points, length) }
 function toColumn(points, length) {
+  if (_ownColumns.has(points) && points.length === length) { _ownColumns.delete(points); return points }
   const col = new Float64Array(length)
   col.fill(NaN)
   if (!points) return col
@@ -6259,6 +6269,38 @@ export function definitionUsesRuntimeLane(def) {
 export function anyInstalledRuntimeDefinition() {
   for (const d of _userById.values()) if (definitionUsesRuntimeLane(d)) return true
   return false
+}
+
+/** ⭐⭐ (Fred RS run half, 2026-11-26) — THE DOCUMENTS THIS MEMBER'S CHARTS WILL HAND THE RUNTIME WORKER, in the form the
+ *  worker runs them (a run half as `runHalfDefOf` makes it, a runtime document as installed), each with stand-in bars,
+ *  for the worker's WARM job (`runtimeAsync.warmRuntimeLane({warm})`): their first run in a fresh worker pays the
+ *  compiler's and the VM's start-up, and it is paid before the chart's first real job. At most `max`; stand-in daily
+ *  bars, nothing drawn or kept from them. */
+export function runtimeWarmDocuments(max = 2) {
+  const out = []
+  for (const d of _userById.values()) {
+    if (out.length >= max) break
+    const c = d && d.compute
+    if (!c) continue
+    let def = null
+    if (c.kind === 'runtime' && typeof c.source === 'string') def = d
+    else if (c.runtimeObjects && typeof c.runtimeObjects.source === 'string' && c.runtimeObjects.outputs) def = runHalfDefOf(d, c.runtimeObjects)
+    if (def) out.push({ def, rows: warmRows(), ctx: { tf: 'D', newestBarIsForming: false, historyFromListing: true } })
+  }
+  return out
+}
+let _warmRows = null
+/** 300 stand-in daily bars (a gentle wave), made once per page. */
+function warmRows() {
+  if (_warmRows) return _warmRows
+  const rows = []
+  const t0 = Date.UTC(2025, 0, 2) / 1000
+  for (let i = 0; i < 300; i += 1) {
+    const c = 100 + 10 * Math.sin(i / 13) + i * 0.05
+    rows.push({ t: t0 + i * 86400, o: c - 0.5, h: c + 1, l: c - 1, c, v: 1e6 })
+  }
+  _warmRows = rows
+  return rows
 }
 
 /**

@@ -351,13 +351,16 @@ RUN_STOP_WORDS: Dict[str, str] = {
                            "`label.delete(old)` (the same for `array.pop`, `array.remove`, and for lines and boxes). Written "
                            "as one call, `label.delete(array.shift(marks))`, the drawing is deleted and stays in the list: "
                            "the list never shrinks, and a `while` over its size never ends."),
-    "higher-timeframe-newest-bar": ("A weekly or monthly value read with `request.security` has NO value on the chart's "
-                                    "newest bar while that week or month is still forming, and nothing that reads it ON "
+    # ⭐⭐ E101 INTRADAY-HTF: worded for every higher timeframe a read may name, a week, a month, or a longer intraday
+    # bar above an intraday chart (`"60"` on a 15 minute chart), each of which shares this newest-bar rule
+    "higher-timeframe-newest-bar": ("A higher-timeframe value read with `request.security` (a week, a month, or a longer "
+                                    "intraday bar such as 60 minutes on a 15 minute chart) has NO value on the chart's "
+                                    "newest bar while that period is still forming, and nothing that reads it ON "
                                     "that bar has one either: `nz(x)` and `na(x) ? x[1] : x` do not rescue it. PLOT such "
                                     "a value as a line (it simply ends one bar early) and say so in `reply`. Do not build "
                                     "a last-bar table, label or level on the value itself."),
     # (its own probe: said only while ONE BAR BACK is blank on the newest bar too)
-    "higher-timeframe-one-bar-back": ("Reading that weekly or monthly value one bar back (`x[1]`) does not rescue it "
+    "higher-timeframe-one-bar-back": ("Reading that higher-timeframe value one bar back (`x[1]`) does not rescue it "
                                       "either: it is blank on the newest bar too. If a last-bar table, label or level "
                                       "on it is what was asked, say the newest bar cannot show it yet (disposition "
                                       "`unsupported`)."),

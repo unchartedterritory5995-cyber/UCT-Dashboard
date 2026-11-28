@@ -395,18 +395,24 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     const w = await boot()
     const typed = w.pf.warmTypedSymbol('TYP', 'D')
     await w.server.flush(80)
-    expect(symsOf(w.server.open())).toEqual(['TYP'])
+    // (2026-11-28, cold-arch 3.3 item 2) the tail and, beside it, the deep history from the edge
+    expect(symsOf(w.server.open())).toEqual(['TYP', 'TYP'])
+    expect(w.server.open().filter((c) => c.q.history)).toHaveLength(1)
     const enter = w.pf.prepareDailyForDisplay('TYP', 'D')   // Enter: the handoff joins it
     await w.server.flush(40)
     w.pf.warmTypedSymbol('TYPX', 'D')                      // a stray keystroke afterwards
     await w.server.flush(40)
-    expect(w.server.calls[0].aborted).toBeFalsy()
+    expect(w.server.calls.filter((c) => c.q.sym === 'TYP').some((c) => c.aborted)).toBe(false)   // tail AND history kept
     await w.server.drain()
     await expect(enter).resolves.toBe('current')
     await expect(typed).resolves.toBe('network')
     const tails = w.server.calls.filter((c) => !c.q.history)
     expect(countBy(tails)['TYP_D']).toBe(1)
     // Enter also fetched the deep history beside it, once (the history job took that answer)
-    expect(w.server.calls.filter((c) => c.q.history).map((c) => c.q.sym)).toEqual(['TYP'])
+    // (2026-11-28) ...the typed warm's, joined by Enter (the stray TYPX, asked as before with no universe held, primes its own)
+    expect(w.server.calls.filter((c) => c.q.history && c.q.sym === 'TYP')).toHaveLength(1)
+    // (2026-11-28, review of #2959: not weakened) and NOTHING else: the only other history is the stray text's own, at most once
+    expect(w.server.calls.filter((c) => c.q.history && c.q.sym !== 'TYP').map((c) => c.q.sym)).toEqual(
+      w.server.calls.some((c) => c.q.history && c.q.sym === 'TYPX') ? ['TYPX'] : [])
   })
 })

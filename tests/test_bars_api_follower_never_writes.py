@@ -455,3 +455,136 @@ def test_the_process_count_is_bounded_by_memory(monkeypatch, mem_gib, ask, want)
     monkeypatch.setattr(roles, "_container_memory_bytes", lambda: None if mem_gib is None else mem_gib << 30)
     monkeypatch.setenv("BARS_API_WORKERS", str(ask))
     assert roles.workers() == want
+
+
+# ── round 2: best-effort kicks never hand a request off; stale swap marker; one authority; history hand-off ────
+
+@pytest.fixture
+def deferred(monkeypatch):
+    sent = []
+    monkeypatch.setattr(roles, "_send_async", lambda item: sent.append(item))
+    roles._deferred.clear()
+    roles._role = "follower"
+    roles.set_current_request("/api/bars/AAPL?tf=5&bars=1199")
+    yield sent
+    roles.set_current_request(None)
+    roles._role = "solo"
+
+
+def test_the_deepfill_kick_on_every_intraday_first_paint_never_hands_off(monkeypatch, deferred):
+    """The kick runs BEFORE Layer 1 on every intraday first paint. Its pytest early return is bypassed here so the
+    follower branch itself runs: no LeaderOnly, a local throttle, ONE background replay at the leader."""
+    from api.services import bars_fetch as bf
+    from api.services.cache import cache
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(bf, "_DEEPFILL_ENABLED", True)
+    monkeypatch.setattr(bf, "_deepfill_once", lambda *a: pytest.fail("a follower ran a deep fill"))
+    cache.invalidate(f"deepfill_AAPL_5_{bf._depth_tier(1199)}")
+    bf._maybe_kick_deepfill("AAPL", "5", 1199)
+    bf._maybe_kick_deepfill("AAPL", "5", 1199)              # throttled by the local marker
+    assert deferred == [("BG", "/api/bars/AAPL?tf=5&bars=1199")]
+
+
+def test_every_best_effort_kick_defers_in_a_follower(monkeypatch, deferred):
+    from api.services import bars_fetch as bf
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(bf, "cold_negative", lambda *a: False)
+    calls = [
+        lambda: bf._enqueue_since_bg_heal("bars_AAPL_5_x", "AAPL", "5", 1, False),
+        lambda: bf._kick_cold_fetch("AAPL", "5", 1199, False),
+        lambda: bf._kick_tail_gapfill("AAPL", "5"),
+        lambda: bf.kick_snapshot_warm("AAPL", "5"),
+    ]
+    for i, c in enumerate(calls):
+        roles._deferred.clear()
+        c()                                                  # never LeaderOnly
+        assert deferred[-1] == ("BG", "/api/bars/AAPL?tf=5&bars=1199"), i
+    assert len(deferred) == len(calls)
+
+
+def test_a_follower_serves_an_answer_whose_path_kicked_a_refresh(monkeypatch, deferred):
+    """The route level: a serve that hits a best-effort kick answers HERE (no hand-off)."""
+    import api.bars_api_main as bam
+    from api.services import bars_fetch as bf
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
+    monkeypatch.setattr(bf, "_DEEPFILL_ENABLED", True)
+    monkeypatch.setattr(roles, "proxy_to_leader", lambda *a: pytest.fail("handed off for a best-effort kick"))
+    from api.services.cache import cache
+    cache.invalidate(f"deepfill_MSFT_15_{bf._depth_tier(600)}")
+
+    def serve():
+        bf._maybe_kick_deepfill("MSFT", "15", 600)
+        return {"here": True}
+    assert bam._served_here_or_by_leader("/api/bars/MSFT", {"tf": "15", "bars": 600}, serve) == {"here": True}
+    assert deferred and deferred[-1][1].startswith("/api/bars/MSFT?")
+
+
+def test_the_leader_replays_a_deferred_request_in_the_background(monkeypatch):
+    import socket
+    import urllib.request
+    import api.bars_api_main as bam
+    seen = threading.Event()
+    monkeypatch.setattr(bam, "serve_for_follower", lambda pq, spent, ae="": seen.set() or (200, [], b"{}"))
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    monkeypatch.setattr(roles, "LEADER_PORT", port)
+    monkeypatch.setenv("BARS_API_WORKERS", "2")
+    assert roles.elect() == "leader"
+    roles.start_leader_services()
+    try:
+        roles._replay_in_background("/api/bars/AAPL?tf=5")
+        assert seen.wait(5)
+    finally:
+        roles._server.shutdown()
+        roles._server = None
+
+
+def test_a_new_leader_removes_a_swap_announcement_its_dead_predecessor_left(monkeypatch, tmp_path):
+    monkeypatch.setenv("BARS_API_WORKERS", "2")
+    (tmp_path / ".bars-store-swap.pending").write_text("99999")
+    assert roles.elect() == "leader"
+    assert not (tmp_path / ".bars-store-swap.pending").exists()
+    roles._role = "follower"                                 # a follower read no longer hands off forever
+    try:
+        with roles.follower_read_scope():
+            pass
+    finally:
+        roles._role = "solo"
+
+
+def test_the_multi_process_settings_follow_the_memory_clamped_worker_count(monkeypatch):
+    from api.services import bars_sqlite
+    monkeypatch.setenv("BARS_API_WORKERS", "4")
+    monkeypatch.setattr(roles, "_container_memory_bytes", lambda: 2 << 30)      # 2 GB: one process
+    assert roles.workers() == 1 and bars_sqlite._multiprocess_tier() is False
+    monkeypatch.setattr(roles, "_container_memory_bytes", lambda: 32 << 30)
+    assert bars_sqlite._multiprocess_tier() is True
+
+
+def test_a_follower_history_read_goes_through_the_origin_entry_and_hands_off_with_its_encoding(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from fastapi.responses import JSONResponse
+    import api.routers.bars as rb
+    import api.bars_api_main as bam
+    seen = {}
+
+    async def origin(ticker, tf, bars, v, d, accept_encoding):
+        seen["ae"] = accept_encoding
+        return JSONResponse({"origin": ticker})
+    monkeypatch.setattr(rb, "serve_bars_history_origin", origin)
+    sent = []
+    monkeypatch.setattr(roles, "proxy_to_leader", lambda pq, spent, ae="": sent.append((pq, ae)) or
+                        (200, [("Content-Type", "application/json"), ("Content-Encoding", "gzip")], b"x"))
+    app = bam._build_app()
+    roles._role = "follower"
+    try:
+        c = TestClient(app)
+        r = c.get("/api/bars-history/SPY?tf=D&bars=500", headers={"Accept-Encoding": "gzip"})
+        assert r.json() == {"origin": "SPY"} and "gzip" in seen["ae"]
+        (tmp_path / ".bars-store-swap.pending").write_text("1")          # a swap announced: the leader answers
+        r = c.get("/api/bars-history/SPY?tf=D&bars=500", headers={"Accept-Encoding": "gzip"})
+        assert sent and sent[0][0].startswith("/api/bars-history/SPY?") and "gzip" in sent[0][1]
+    finally:
+        roles._role = "solo"

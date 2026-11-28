@@ -38,7 +38,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
 
 # ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
 # EVERY log record of this pod -- httpx logs each request URL at INFO and an
@@ -146,14 +146,21 @@ def _ensure_local_db_installed() -> None:
             _log.info("[bars-api] boot install skipped — local bars.db already populated")
             return
         if os.path.exists(p) and not populated:
-            for f in (p, p + "-wal", p + "-shm"):
-                try:
-                    os.remove(f)
-                except FileNotFoundError:
-                    pass
-                except Exception as e:  # noqa: BLE001
-                    _log.warning("[bars-api] could not remove %s: %s", f, e)
-            _log.info("[bars-api] removed sparse local bars.db → R2 full install")
+            # ⛔ (review of #2962, L1) followers may already be reading: remove the files under the swap barrier
+            # (no follower read in flight, none starts; refused -> keep the sparse store and install over it).
+            from api.services import bars_api_roles as _roles
+            try:
+                with _roles.store_swap_barrier(reason="sparse store removed"):
+                    for f in (p, p + "-wal", p + "-shm"):
+                        try:
+                            os.remove(f)
+                        except FileNotFoundError:
+                            pass
+                        except Exception as e:  # noqa: BLE001
+                            _log.warning("[bars-api] could not remove %s: %s", f, e)
+                _log.info("[bars-api] removed sparse local bars.db → R2 full install")
+            except _roles.SwapBarrierBusy as e:
+                _log.error("[bars-api] sparse bars.db NOT removed (%s); the install replaces it", e)
         latest = data_sync.get_latest_snapshot_ts()
         if not latest:
             _log.warning("[bars-api] no R2 snapshot available yet — will cold-fetch "
@@ -415,7 +422,8 @@ def _build_app() -> FastAPI:
         from api.services import bars_api_roles
         return {"alive": True, "service": "bars-api",
                 "threads": threading.active_count(), "rss_mb": _rss_mb(),
-                "role": bars_api_roles.role(), "pid": os.getpid(), "workers": bars_api_roles.workers()}
+                "role": bars_api_roles.role(), "pid": os.getpid(), "workers": bars_api_roles.workers(),
+                "swap_refused": bars_api_roles.SWAP_REFUSALS[0]}
 
     @app.get("/api/health")
     def health():
@@ -442,10 +450,13 @@ def _build_app() -> FastAPI:
             sample = list(cap_universe.symbols())
         except Exception:  # noqa: BLE001
             pass
+        from api.services import bars_api_roles
         try:
-            from api.services import massive
-            refs = massive.list_reference_tickers(active=True, market="stocks")
-            universe = [d.get("ticker") for d in (refs or []) if d.get("ticker")]
+            # A vendor call: the leader's (review of #2962, L4). A follower reports the store without the long tail.
+            if not bars_api_roles.is_follower():
+                from api.services import massive
+                refs = massive.list_reference_tickers(active=True, market="stocks")
+                universe = [d.get("ticker") for d in (refs or []) if d.get("ticker")]
         except Exception:  # noqa: BLE001
             pass
         try:
@@ -522,9 +533,12 @@ def _build_app() -> FastAPI:
             lambda: serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session))
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
+    # ⛔ ASYNC, ON THE ROUTE'S OWN LIMITER, ONE BUILD PER URL (2026-11-28): never behind `/api/bars` serves in anyio's
+    # default pool. `serve_bars_history_origin` (routers/bars.py) owns the why.
     @app.get("/api/bars-history/{ticker}")
-    def bars_history_route(
+    async def bars_history_route(
         ticker: str,
+        request: Request,
         tf: str = "D",
         bars: int = Query(default=60000, ge=1, le=60000),
         v: str = "",
@@ -532,9 +546,12 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return _served_here_or_by_leader("/api/bars-history/%s" % _q(ticker),
-                                         {"tf": tf, "bars": bars, "v": v, "d": d},
-                                         lambda: serve_bars_history(ticker, tf, bars, v, d))
+        from api.routers import bars as _bars_router
+        from api.services import bars_api_roles
+        accept_encoding = request.headers.get("accept-encoding", "")
+        if not bars_api_roles.is_follower():
+            return await _bars_router.serve_bars_history_origin(ticker, tf, bars, v, d, accept_encoding)
+        return await _history_here_or_by_leader(ticker, tf, bars, v, d, accept_encoding)
 
     return app
 
@@ -558,20 +575,48 @@ def _served_here_or_by_leader(path: str, params: dict, serve):
         return serve()
     from fastapi.responses import Response
     t0 = time.monotonic()
+    from urllib.parse import urlencode
+    path_qs = path + "?" + urlencode([(k, v) for k, v in params.items() if v not in ("", None)])
+    bars_api_roles.set_current_request(path_qs)        # what `defer_to_leader` replays at the leader
     try:
         with bars_api_roles.follower_read_scope():
             return serve()
     except bars_api_roles.LeaderOnly:
         pass                                   # the scope is released BEFORE the hand-off (no barrier is held)
-    from urllib.parse import urlencode
-    path_qs = path + "?" + urlencode([(k, v) for k, v in params.items() if v not in ("", None)])
+    finally:
+        bars_api_roles.set_current_request(None)
     code, headers, body = bars_api_roles.proxy_to_leader(path_qs, time.monotonic() - t0)
     hdrs = {k: v for k, v in headers if k.lower() not in _HOP_HEADERS}
     hdrs["X-Bars-Served-By"] = "leader"
     return Response(content=body, status_code=code, headers=hdrs)
 
 
-def serve_for_follower(path_qs: str, spent_s: float = 0.0):
+async def _history_here_or_by_leader(ticker, tf, bars, v, d, accept_encoding):
+    """`/api/bars-history` in a FOLLOWER: the origin entry (`serve_bars_history_origin`: its own limiter, single-flight,
+    memo, gzip by Accept-Encoding) under the store swap barrier; a swap announced or in progress (`LeaderOnly`)
+    hands the request, Accept-Encoding included, to the leader. The scope owns its OWN descriptor: several requests
+    share this event-loop thread, and one's unlock must not drop another's hold."""
+    import anyio
+    from fastapi.responses import Response
+    from api.routers import bars as _bars_router
+    from api.services import bars_api_roles
+    t0 = time.monotonic()
+    try:
+        with bars_api_roles.follower_read_scope(own_fd=True):
+            return await _bars_router.serve_bars_history_origin(ticker, tf, bars, v, d, accept_encoding)
+    except bars_api_roles.LeaderOnly:
+        pass
+    from urllib.parse import urlencode
+    path_qs = "/api/bars-history/%s?%s" % (_q(ticker), urlencode(
+        [(k, x) for k, x in (("tf", tf), ("bars", bars), ("v", v), ("d", d)) if x not in ("", None)]))
+    code, headers, body = await anyio.to_thread.run_sync(
+        bars_api_roles.proxy_to_leader, path_qs, time.monotonic() - t0, accept_encoding)
+    hdrs = {k: x for k, x in headers if k.lower() not in _HOP_HEADERS}
+    hdrs["X-Bars-Served-By"] = "leader"
+    return Response(content=body, status_code=code, headers=hdrs)
+
+
+def serve_for_follower(path_qs: str, spent_s: float = 0.0, accept_encoding: str = ""):
     """The leader's answer to a follower's handed-off bars request: (status, [(header, value)], body), produced by
     the same functions and the same parameter rules as the public routes. `spent_s` is what the follower already
     spent of the edge's budget, so the sum of every wait still fits the 8 s abort."""
@@ -580,7 +625,7 @@ def serve_for_follower(path_qs: str, spent_s: float = 0.0):
     from fastapi import HTTPException
     from fastapi.encoders import jsonable_encoder
     from starlette.responses import Response as _Resp
-    from api.routers.bars import serve_bars_history, serve_bars_http
+    from api.routers.bars import gzip_with_length, serve_bars_history, serve_bars_http
     from api.services import bars_fetch as _bf
 
     def _json_answer(code, obj, extra=()):
@@ -606,7 +651,11 @@ def serve_for_follower(path_qs: str, spent_s: float = 0.0):
         _bf._req_ctx.budget_spent = max(0.0, float(spent_s or 0.0))
         try:
             if history:
-                out = serve_bars_history(ticker, tf, bars, q.get("v", ""), q.get("d", ""))
+                # The origin entry's answer (`serve_bars_history_origin`): the same build, gzipped by the member's
+                # Accept-Encoding (forwarded by the follower). Its single-flight and memo are per event loop, and
+                # this is a hand-off thread, so the build runs here directly.
+                out = gzip_with_length(serve_bars_history(ticker, tf, bars, q.get("v", ""), q.get("d", "")),
+                                       accept_encoding)
             else:
                 out = serve_bars_http(ticker, tf, bars, since=q.get("since", ""), to=q.get("to", ""), warm=warm,
                                       session=q.get("session", ""))

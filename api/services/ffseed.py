@@ -10,13 +10,13 @@ docs/charts/first-frame-seed-format.md.
 WHAT IS IN A PACK (defaults; `FFSEED_DEPTH_<TF>` overrides):
 
     tf   newest N bars   which bars
-    1    600             regular session (RTH) only, 09:30 <= ET start < close (13:00 on a half day)
-    5    300             RTH only
-    15   300             RTH only
-    30   300             RTH only
+    1    1000            regular session (RTH) only, 09:30 <= ET start < close (13:00 on a half day)
+    5    1000            RTH only
+    15   1000            RTH only
+    30   1000            RTH only
     60   1000            RTH only, the stored 'session' grid (09:30, 10:30 ... 15:30 half bar):
                          the chart's '60' key, NOT the clock-hour '60e' grid
-    D    350             every daily bar (W and M are derived on the device from D)
+    D    FULL (60000)    every daily bar of the WHOLE served series (W and M are derived on the device from D)
 
 and only bars of sessions up to the build's AS-OF session (the last closed session), so a build
 that runs during a session never freezes a forming bar.
@@ -89,7 +89,18 @@ def _int_env(name: str, default: int) -> int:
 
 PREFIX = "ffseed"                      # R2 key prefix
 SEED_TFS = fmt.TFS                     # 1 5 15 30 60 D
-DEFAULT_DEPTH = {"1": 600, "5": 300, "15": 300, "30": 300, "60": 1000, "D": 350}
+#: ⭐ 1 / 5 / 15 / 30 at 1000 (2026-11-28, owner decision, zero-network switch PR 1.6). A device copy draws a view whole
+#: only from COVER_ROWS (app/src/data/barStore/coverRows.js, 600) rows on: a 300-row copy never covered, so every
+#: present-day intraday switch on a never-viewed ticker still waited for the network (60-90 ms). 1000 covers the default
+#: view with its 200-bar lookback and leaves the depth join behind the left edge. Measured cost: section 7 of
+#: docs/charts/first-frame-seed-format.md (+~67 MB of packs, one download per device; the nightly delta grows by
+#: nothing: one session's bars a symbol either way). Pinned >= COVER_ROWS by tests/test_ffseed.py.
+#: ⭐ D IS FULL DEPTH (2026-11-28, owner decision, zero-network switch PR 3.1: "no size or depth reduction"). The
+#: device's D copy is the WHOLE served series (`daily_full_window`), so a D / W / M switch on a never-viewed ticker
+#: needs no network at all: no deep history join (/api/bars-history), no 2,000-row tail. 60000 is the deep history
+#: route's own ceiling (`/api/bars-history` `bars` le=60000); the deepest cap-universe series holds ~12,600 rows.
+#: `FFSEED_DEPTH_D=350` (any value <= FIRST_PAINT_READ["D"]) restores the shallow first-paint window.
+DEFAULT_DEPTH = {"1": 1000, "5": 1000, "15": 1000, "30": 1000, "60": 1000, "D": 60000}
 #: The chart's first-paint ask per timeframe (app/src/utils/barsBackfill.js): intraday
 #: `firstPaintBarsFor(tf, false)` = min(1199, max(600, ceil(target / (390/960)))), D = 600.
 #: Pinned by tests/test_ffseed.py against the JS source.
@@ -335,7 +346,7 @@ def store_read(sym: str, tf: str, count: int) -> Tuple[List[dict], int]:
     path the serve takes for that request) instead of scheduling a vendor fetch, exactly as the
     barspack builder does."""
     from api.services import bars_fetch, bars_sanitize, bars_sqlite
-    rows = bars_sqlite.get_bars(sym, tf, count)
+    rows = bars_fetch.read_newest(sym, tf, count)   # the serve path's read (no island spliced in)
     if not rows:
         return [], 0
     if tf == "60" and any(bars_sqlite.is_old_grid_60m_ts(r[0]) for r in rows):
@@ -358,6 +369,67 @@ def seed_window(sym: str, tf: str, n: int, asof_ymd: int,
         if len(sel) >= n or raw < count or count >= read_max:
             return sel
         count = min(read_max, count * 2)
+
+
+# --------------------------------------------------------------------------------------------
+# the full-depth daily window (PR 3.1)
+# --------------------------------------------------------------------------------------------
+#
+# WHAT A DAILY CHART HOLDS once its history has joined: the tail (/api/bars, the newest rows through the serve
+# formatter) and, OLDER than the tail's first bar, the sealed history (/api/bars-history: the worker's whole stored
+# series through the SAME formatter, `bars_fetch._fmt_sqlite_bars`), spliced by the client's seam rule
+# (utils/historyPrepend.prependOlder): refused WHOLE when the two closes at the tail's first bar differ by more than
+# 2% (utils/barsMerge._closeMismatch), and the split then off for that key, which asks the full depth from
+# /api/bars (the same formatter over the whole series again). This builds exactly that, on the worker's store:
+#   tail   = the chart's first-paint read (FIRST_PAINT_READ["D"] rows), as the shallow seed always read it;
+#   deep   = one read of the whole series (`n` rows, the history route's ceiling);
+#   joined = deep's bars older than the tail's first + the tail, or deep alone where the seam refuses.
+# A symbol whose store read returned fewer than `n` rows holds nothing older: its window is WHOLE (the pack's
+# `whole`, ffseed_format); one that filled `n` is `partial` and the device still joins its history.
+
+SEAM_MISMATCH = 0.02          # utils/barsMerge._closeMismatch: > 2% at the shared bar refuses the join
+
+
+def _seam_refuses(deep_bar: Optional[dict], tail_bar: dict) -> bool:
+    if not deep_bar:
+        return False
+    try:
+        a, b = float(tail_bar["c"]), float(deep_bar["c"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return b != 0 and abs(a - b) / abs(b) > SEAM_MISMATCH
+
+
+def join_daily(deep: List[dict], tail: List[dict]) -> List[dict]:
+    """The chart's daily series from its sealed history and its tail (see the block above)."""
+    if not tail:
+        return list(deep)
+    if not deep:
+        return list(tail)
+    first = tail[0].get("t")
+    seam = next((b for b in deep if b.get("t") == first), None)
+    if _seam_refuses(seam, tail[0]):
+        return list(deep)
+    return [b for b in deep if isinstance(b.get("t"), str) and b["t"] < first] + list(tail)
+
+
+def daily_full_window(sym: str, n: int, asof_ymd: int,
+                      read: Callable[[str, str, int], Tuple[List[dict], int]] = store_read) -> Tuple[List[dict], bool]:
+    """(the full-depth daily window of `sym`, whole?). `whole`: the store holds fewer than `n` rows, so nothing older
+    exists (the window starts at the series' first served bar)."""
+    count = FIRST_PAINT_READ["D"]
+    tail, raw_tail = read(sym, "D", count)
+    if raw_tail < count:
+        deep, raw = tail, raw_tail                 # one read already holds every stored row
+    else:
+        deep, raw = read(sym, "D", n)
+    sel = select_window(join_daily(deep, tail), "D", n, asof_ymd)
+    return sel, raw < n
+
+
+def daily_is_full(n: int) -> bool:
+    """Is a D depth of `n` the full-depth mode (deeper than the chart's first-paint read)?"""
+    return int(n) > FIRST_PAINT_READ["D"]
 
 
 # --------------------------------------------------------------------------------------------
@@ -397,9 +469,12 @@ def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: s
     packed symbols whose last bar is the session's last regular bucket (`tail_share` of the pack)."""
     n = depth if depth is not None else depth_for(tf)
     asof_ymd = int(asof.strftime("%Y%m%d"))
-    pb = fmt.PackBuilder(tf, asof=asof.isoformat(), build=build, depth=n, comp=comp)
+    full = tf == "D" and daily_is_full(n)
+    pb = fmt.PackBuilder(tf, asof=asof.isoformat(), build=build, depth=n, comp=comp, whole=full)
     stats = {"no_bars": 0, "stale": 0, "old_grid": 0, "inexact": 0, "error": 0, "short": 0, "bars": 0,
              "incomplete": 0, "reach_last": 0}
+    if full:
+        stats["partial"] = 0
     gate = (complete if complete is not None else _proven_complete(asof)) if tf in GATED_TFS else None
     last_bucket = last_rth_bucket_ts(tf, asof) if tf != "D" else None
     for sym in symbols:
@@ -411,8 +486,12 @@ def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: s
             if not proven:
                 stats["incomplete"] += 1
                 continue
+        whole = False
         try:
-            bars = seed_window(sym, tf, n, asof_ymd, read=read)
+            if full:
+                bars, whole = daily_full_window(sym, n, asof_ymd, read=read)
+            else:
+                bars = seed_window(sym, tf, n, asof_ymd, read=read)
         except OldGridSeries:
             stats["old_grid"] += 1
             continue
@@ -433,7 +512,10 @@ def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: s
             stats["inexact"] += 1
             continue
         stats["bars"] += facts["bars"]
-        if facts["bars"] < n:
+        if full and not whole:
+            pb.mark_partial(sym)
+            stats["partial"] += 1
+        if facts["bars"] < n and not full:
             stats["short"] += 1
         if last_bucket is not None and int(bars[-1]["t"]) == last_bucket:
             stats["reach_last"] += 1
@@ -475,6 +557,9 @@ def manifest_entry(tf: str, build: str, data: bytes, stats: dict) -> dict:
         "skipped": {k: stats.get(k, 0) for k in ("no_bars", "stale", "old_grid", "inexact", "error", "incomplete")},
         "short": stats["short"],
     }
+    if "partial" in stats:
+        # the full-depth daily pack: every symbol's whole series but `partial` of them (devices read the trailer)
+        entry["whole"] = {"partial": stats["partial"]}
     done = completeness_of(tf, stats)
     if done is not None:
         entry["complete"] = done

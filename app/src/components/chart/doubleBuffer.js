@@ -75,6 +75,28 @@ export function nextShadowSym(sym) {
   return order.length ? order[0] : null
 }
 
+/**
+ * ⭐ (lane C, zero-network PR 2.1) WHAT THE HIDDEN LAYER HOLDS: `{sym, tf}`. The row ahead at the front's timeframe when a
+ * list (or a typed ticker) names one; with none, the front's OWN symbol at the member's habitual next timeframe
+ * (`habitTf`, tfHabit.js), so a timeframe press flips. null: nothing to hold.
+ */
+export function shadowTargetFor(frontSym, frontTf, habitTf) {
+  if (!frontSym) return null
+  const next = nextShadowSym(frontSym)
+  if (next && next !== frontSym) return { sym: next, tf: frontTf }
+  if (habitTf && frontTf && String(habitTf) !== String(frontTf)) return { sym: frontSym, tf: String(habitTf) }
+  return null
+}
+
+/** (PR 2.1) The view check of a TIMEFRAME press: a timeframe switch keeps the outgoing zoom WIDTH in bars and pins the
+ *  newest bar at the right margin (StockChart pendingTfReframeRef / settlingFrameOf), exactly the pin the hidden chart is
+ *  held at; a view lock or a replay view lock frames a timeframe switch by rules not proved here: refused. */
+export function tfViewParity(front, shadow, ctx = {}) {
+  if (front && front.frame && (lockOf(front) || front.replayLock)) return 'view-lock'
+  if (shadow && shadow.frame && (lockOf(shadow) || shadow.replayLock)) return 'view-lock'
+  return viewParity(front, shadow, ctx)
+}
+
 // ─── the flip rule ──────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Show the shadow, or switch the front as today?
@@ -93,9 +115,16 @@ export function nextShadowSym(sym) {
 export function flipDecision(want, report, barsNow, view) {
   if (!want) return { flip: false, why: 'no-front' }
   if (!report) return { flip: false, why: 'no-shadow' }
+  // ⭐ (lane C, zero-network PR 2.1) THE TIMEFRAME-PRESS FORM (`want.press === 'tf'`): the same symbol at the timeframe
+  // pressed (`want.tf`: the code the bar pressed, which a plain ticker's chart resolves to itself; any other resolution
+  // refuses on 'tf' below). Not in change-date mode: an intraday replay reads a window per timeframe, its switch has its
+  // own warm (prefetchReplayTimeframes), and a hidden chart is never proved against it here.
+  if (want.press === 'tf' && want.cutoff) return { flip: false, why: 'tf-replay' }
   // (owner, 2026-11-27; it was F6's refusal of any replay) change-date mode: the hidden chart drew under the front's
   // cutoff, or it shows other bars than the switch would (StockChart cuts every bar after it; intraday reads its window)
   if ((want.cutoff || null) !== (report.cutoff || null)) return { flip: false, why: 'cutoff' }
+  // (owner, 2026-11-27) the date the member went to (the date box's anchor, `date|width`): drawn under the same one
+  if ((want.anchor || null) !== (report.anchor || null)) return { flip: false, why: 'anchor' }
   if (report.sym !== want.sym) return { flip: false, why: 'sym' }
   if (want.tf == null || report.tf !== want.tf) return { flip: false, why: 'tf' }
   if (!!report.ext !== !!want.ext) return { flip: false, why: 'session' }
@@ -159,6 +188,7 @@ function lockFrameFor(front, tf) {
   }
   return null
 }
+const sameAnchor = (a, b) => (!a && !b) || (!!a && !!b && a.date === b.date && _same(a.width, b.width))
 /** The hidden chart's history does not reach its frame's left edge (the switch would wait for the rows that cover it). */
 const shortOf = (m) => Number.isFinite(m.rows) && m.frame.fromRight > m.rows - 1 + 0.5
 /** 'ok' when the normal switch from the front's view would frame the symbol as the hidden chart shows it: the same
@@ -167,6 +197,21 @@ const shortOf = (m) => Number.isFinite(m.rows) && m.frame.fromRight > m.rows - 1
 export function viewParity(front, shadow, ctx = {}) {
   const b = viewBlocked(front) || viewBlocked(shadow)
   if (b) return b
+  // (owner, 2026-11-27) THE DATE THE MEMBER WENT TO frames every switch before any lock or pin (StockChart
+  // anchorOwnsFrame): each chart frames its OWN rows at it (a prop both layers get), and reads back the frame it gives
+  // (`anchorFrame`). Alike when the hidden chart holds the same anchor, sits at that frame, and its rows hold the date
+  // and reach the frame's left edge (a date before its loaded rows: its earliest bars, which may still be loading).
+  // ⭐ (the cold-ticker measurement, 2026-11-28: 16 of 16 arrows refused for a view lock) decided BEFORE the locks: a
+  // pan or zoom at the date writes the front a view lock, which frames no switch while the anchor does (StockChart's
+  // lock branches run only when !anchorOwnsFrame(); the widget moves the anchor to the member's view instead), so a lock
+  // only the front held refused every press at the date.
+  if (!sameAnchor(front.anchor, shadow.anchor)) return 'view-anchor'
+  if (front.anchor) {
+    const af = shadow.anchorFrame
+    if (!af || shadow.anchorEarliest) return 'view-short'
+    if (!near(shadow.frame.fromRight, af.fromRight) || !near(shadow.frame.toRight, af.toRight)) return 'view-frame'
+    return shortOf(shadow) ? 'view-short' : 'ok'
+  }
   if (!sameLocks(front, shadow)) return 'view-lock'
   const lf = lockFrameFor(front, ctx.tf)
   if (lf && lf.refuse) return lf.refuse
@@ -213,6 +258,8 @@ function pinFrameFor(front, shadow, w) {
  */
 export function mirrorFrameFor(front, shadow, ctx = {}) {
   if (viewBlocked(front) || viewBlocked(shadow)) return null
+  // (owner, 2026-11-27) never over a date anchor: each chart frames its own symbol at it (the prop both layers get)
+  if (front.anchor || shadow.anchor) return null
   const locksAlike = sameLocks(front, shadow)
   const l = lockOf(front)
   const modeOf = (f) => ({ fromRight: f.fromRight, toRight: f.toRight, activeRange: null, locked: !!l, lock: l ? { ...l } : null,
@@ -247,7 +294,7 @@ export function noteDecision(d, sym, extra = {}) {
   _stats.why[d.why] = (_stats.why[d.why] || 0) + 1
   _stats.last.push(`${sym}:${d.why}`)
   if (_stats.last.length > 32) _stats.last.splice(0, _stats.last.length - 32)
-  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null })
+  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null, press: extra.press ?? 'sym' })
   if (_stats.log.length > 64) _stats.log.splice(0, _stats.log.length - 64)
   try { if (typeof window !== 'undefined') window.__uctDoubleBuffer = _stats } catch { /* no window */ }
 }

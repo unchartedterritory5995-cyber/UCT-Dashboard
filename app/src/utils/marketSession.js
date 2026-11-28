@@ -421,7 +421,20 @@ if (typeof window !== 'undefined') {
 // such bar, so a lag computed from this is evidence to read, never a defect on its own.
 const _RTH_OPEN_MINUTES = 570        // 09:30 ET
 const _EXT_OPEN_MINUTES = 240        // 04:00 ET
-const _EXT_CLOSE_MINUTES = 1200      // 20:00 ET
+const _EXT_CLOSE_MINUTES = 1200      // 20:00 ET (17:00 on an early-close day: _sessionCloseMinutesET)
+
+/** ⭐ THE ONE SESSION CLOSE (2026-11-28): ET minute-of-day the `session` ('rth' | 'extended') of the ET calendar date `d`
+ *  (an etWallDate) ends: the regular close (16:00, 13:00 on an early-close day), or the extended one four hours later
+ *  (20:00, 17:00 on an early-close day: the server's `intraday_ext_session_complete`). Every frontier reader here and
+ *  the switch's proof roll (barStore/prefetch, via sessionCloseMinuteOfUnix) take it from here. */
+function _sessionCloseMinutesET(d, session = 'rth') {
+  const rth = _effectiveCloseMinutesET(d)
+  return session === 'extended' ? rth + (_EXT_CLOSE_MINUTES - 960) : rth
+}
+/** The same close for the ET day of unix second `unixSec`. */
+export function sessionCloseMinuteOfUnix(unixSec, { extended = false } = {}) {
+  return _sessionCloseMinutesET(etWallDate(unixSec * 1000), extended ? 'extended' : 'rth')
+}
 
 // ⛔ ONE TIMEZONE LOOKUP PER DAY, NOT PER BAR. A per-bar `toLocaleString` was the
 // single largest cost of rendering an intraday chart (2,852 bars: ~290 ms of main
@@ -479,14 +492,15 @@ function _bucketStartUnix(unixSec, tfMin) {
 export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
   const tfMin = Number(tf)
   if (!Number.isFinite(tfMin) || tfMin <= 0) return null
-  const d = new Date(nowMs)
+  // ⛔ THE ET CALENDAR, NEVER THE BROWSER'S (2026-11-28): `new Date(nowMs)` read the LOCAL weekday, so east of New York
+  // the ET evening was already the next day (20:49 ET Friday = Saturday in Berlin / Tokyo): the frontier read null and no
+  // intraday copy counted as behind. Every other reader here takes etWallDate (marketSession.localZone.test.js).
+  const d = etWallDate(nowMs)
   if (_isNonTradingDayET(d)) return null
   const nowSec = Math.floor(nowMs / 1000)
   const mins = _etMinutesOfUnix(nowSec)
   const open = session === 'extended' ? _EXT_OPEN_MINUTES : _RTH_OPEN_MINUTES
-  const close = session === 'extended'
-    ? _EXT_CLOSE_MINUTES
-    : _effectiveCloseMinutesET(d)           // early-close aware, one calendar
+  const close = _sessionCloseMinutesET(d, session)   // early-close aware, one calendar, both sessions
   // Session over: the last completed bar is the one ending at the close.
   const probe = mins >= close ? nowSec - (mins - (close - 1)) * 60 : nowSec
   const curStart = _bucketStartUnix(probe, tfMin)
@@ -625,10 +639,10 @@ export function isCacheCurrentForView(bars, lastT, tf, { session = 'rth', nowMs 
 export function expectedFormingBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
   if (expectedLatestCompletedBar(tf, nowMs, { session }) == null) return null
   const tfMin = Number(tf)
-  const d = new Date(nowMs)
+  const d = etWallDate(nowMs)   // (the ET calendar's date: the early close of the ET day, never the browser's)
   const nowSec = Math.floor(nowMs / 1000)
   const mins = _etMinutesOfUnix(nowSec)
-  const close = session === 'extended' ? _EXT_CLOSE_MINUTES : _effectiveCloseMinutesET(d)
+  const close = _sessionCloseMinutesET(d, session)
   if (mins >= close) return null            // nothing forms after the close
   // The bucket containing NOW — not completed + tf, which walks off the irregular
   // opening hour exactly as the completed-bar arithmetic did.
@@ -711,7 +725,7 @@ function _reachesExtendedClose(tailT, tf) {
   const tfMin = Math.max(1, Number(tf) || 5)
   const tailD = etWallDate(tailT * 1000)
   const tailMin = tailD.getHours() * 60 + tailD.getMinutes()
-  const extClose = _effectiveCloseMinutesET(tailD) + (_EXT_CLOSE_MINUTES - 960)
+  const extClose = _sessionCloseMinutesET(tailD, 'extended')
   return tailMin >= extClose - 2 * tfMin
 }
 

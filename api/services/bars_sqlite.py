@@ -127,10 +127,9 @@ FILE_IDENTITY_CHECK_S = 1.0
 
 
 def _multiprocess_tier() -> bool:
-    try:
-        return int(str(os.environ.get("BARS_API_WORKERS", "1")).strip() or 1) > 1
-    except ValueError:
-        return False
+    """ONE authority (review of #2962, L3): `bars_api_roles.multiprocess()`, i.e. `workers()` after its memory clamp,
+    so a container clamped to one process runs the single-process settings."""
+    return _roles.multiprocess()
 
 
 def _file_identity():

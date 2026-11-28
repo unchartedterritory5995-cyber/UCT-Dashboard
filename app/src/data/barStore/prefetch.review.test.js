@@ -163,12 +163,15 @@ describe('#2d typed warm', () => {
     const w = await boot()
     const p = w.pf.warmTypedSymbol('TYS', 'D')
     for (let i = 0; i < 50 && !w.server.calls.length; i++) await w.server.flush()
-    expect(w.server.calls.length).toBe(1)                                   // the typed request is on the wire
+    expect(w.server.calls.filter((c) => !c.q.history).length).toBe(1)      // the typed request is on the wire
     const off = w.store.subscribe(w.k('TYS', 'D'), () => {}, { priority: 'visible' })
     await tick(0)                                                           // its first poll joins the typed request
     await settle(w)
     await expect(p).resolves.toBe('network')
-    expect(w.server.calls.length).toBe(1)
+    // ONE tail (the chart joined the typed one); (2026-11-28) the deep history the warm primed is the only other request
+    expect(w.server.calls.filter((c) => !c.q.history).length).toBe(1)
+    // (2026-11-28, review of #2959: not weakened) exactly ONE history, the warm's, which the chart's subscribe joined
+    expect(w.server.calls.filter((c) => c.q.history).map((c) => c.q.sym)).toEqual(['TYS'])
     off()
   })
 })

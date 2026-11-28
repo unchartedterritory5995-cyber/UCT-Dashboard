@@ -882,8 +882,13 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None, defer_swap=Non
         # ⛔ Several bars-api processes (review of #2962, H1): the cross-process barrier FIRST (no follower reads
         # or holds a connection across the replace; a no-op with one process), then this process's locks.
         from api.services import bars_api_roles as _roles
-        with _roles.store_swap_barrier(reason="adopted clustered store"), \
-                bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
+        try:
+            _barrier = _roles.store_swap_barrier(reason="adopted clustered store")
+            _barrier.__enter__()
+        except BaseException:
+            bars_sqlite.stop_write_tracking()      # (review of #2962, L2) never leave tracking on past a refusal
+            raise
+        with _roles.held(_barrier), bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
             # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
             # written since.
             changed = sorted(pending | bars_sqlite.stop_write_tracking())

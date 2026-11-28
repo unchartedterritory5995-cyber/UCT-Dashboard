@@ -19,8 +19,9 @@
 // closed and deleted. A crash at any point leaves either the old committed generation or the new one.
 //
 // ⭐ READ: index row → ONE positioned read into a reused buffer → inflate + decodeBody (codec.js) →
-// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads only: the page is never
-// served them (tfs.SERVED_TFS, review of #2537 H1). Symbols are keyed as /api/bars names them
+// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads and diagnostics only: the
+// worker never answers a W / M read (tfs.WORKER_SERVED_TFS); the PAGE derives them from the D copy it reads
+// (source.js, resample.deriveServed: only from a whole copy whose period in progress is known, PR 3.3). Symbols are keyed as /api/bars names them
 // (upper case; class shares with '-', e.g. BRK-B); a '.' spelling in a file is found too. A symbol the
 // file does not hold reads null: no device copy, the chart asks the network.
 //
@@ -60,7 +61,7 @@
 //       charts' own bars and stream requests go first. A hint to the browser's scheduler, not a bandwidth cap; a
 //       browser that does not know the member ignores it, and the edge never sees it.
 
-import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC } from './codec'
+import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError, SEED_FIELDS, SEED_MAGIC, isWhole } from './codec'
 import { parseDelta, applyDelta, newSetOf } from './delta'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
@@ -69,6 +70,7 @@ import { closeMinuteOf } from './fresh'
 import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
+import { _closeMismatch } from '../../utils/barsMerge'
 
 export { STORED_TFS, DERIVED_TFS, SERVED_TFS } from './tfs'
 
@@ -363,6 +365,10 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     let seed
     try { seed = _decodeRow(L, i) } catch { L.bad++; return { out: null, why: 'bad' } }
     if (!seed) return { out: null, why: 'bad' }
+    // ⭐ WHOLE (the full-depth daily pack, codec.isWhole): the copy starts at the series' first served bar, so nothing
+    // older exists for a history join to add (source.js `wholeFrom`; the bar store skips the deep join). Today's
+    // overlay only appends, so the flag survives _append below.
+    const whole = isWhole(L.index, S)
     // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
     seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
     // ...unless its rows stop before that session's last bucket (_shortOfClose). Then:
@@ -384,13 +390,23 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       seed.through = seed.t[seed.t.length - 1]
       return { out: seed, why: 'seed-short' }
     }
+    if (whole) seed.whole = true
     if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
     // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
     // bar and continues this symbol's window across exactly one night.
     const add = overlay.read(S, String(tf), asof)
     if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
+    // ⛔ A SPLIT THE SEED DOES NOT KNOW (review of PR 3.4, MEDIUM). The server's day row comes with the snapshot's
+    // prevDay close, the prior session's close on TODAY's basis. Off the seed's last close by the client's own seam
+    // rule (utils/barsMerge._closeMismatch, > 2%: the one rule, asked, not restated)
+    // (the same session, on the seed's basis), the basis moved overnight (a split the vendor listed late): the
+    // post-split row is never joined to pre-split history; the copy stays the seed, and the server answers.
+    if (add.prevClose != null && seed.c.length && _closeMismatch({ c: add.prevClose }, { c: seed.c[seed.c.length - 1] })) {
+      return { out: seed, why: 'seed-only:prev-close' }
+    }
     const out = add.cols ? _append(seed, add.cols) : seed
     out.through = Math.max(seed.through, add.through)
+    if (whole) out.whole = true
     // today's forming bar is the copy's last row (forming.js): said so, for W / M and the reader
     if (add.forming && add.cols) out.forming = add.forming
     return { out, why: 'ok' }
@@ -490,10 +506,15 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       return false
     },
 
-    /** M5: this browser has no room for the seed (until the marker expires): {status: 'no-room', ...} or null. */
-    ingestBlocked() {
+    /** M5: this browser has no room for timeframe `tf` (until the marker expires): {status: 'no-room', ...} or null.
+     *  Without `tf`: is EVERY download blocked (workerCore then asks nothing, not even the manifest)?
+     *  ⭐ A "no room" for D blocks ONLY D (review of zero-network PR 3.1): the full-depth D pack is ~130 MB, by far the
+     *  likeliest to find no room, and a marker that stopped every timeframe held the intraday packs and their nightly
+     *  deltas (tens of KB) for three days too. The intraday seed keeps flowing; D tries again when its marker expires. */
+    ingestBlocked(tf) {
       const n = state.noRoom
       if (!n || !(now() < n.until)) return null
+      if (n.tf === 'D' && String(tf) !== 'D') return null
       return { status: 'no-room', ...n }
     },
 
@@ -512,6 +533,18 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       return a && names.has(a) ? a : null
     },
 
+    /** The stored timeframes of `manifest` whose build this engine does not hold (a download, delta or full, is due):
+     *  workerCore jitters the start of those (DOWNLOAD_JITTER_MS). A malformed entry counts as due (ingest refuses it). */
+    due(manifest) {
+      const out = []
+      for (const tf of STORED_TFS) {
+        const e = manifest?.tfs?.[tf]
+        if (!e) continue
+        if (!_isCurrent(live.get(tf), { ...e, build: manifest.build })) out.push(tf)
+      }
+      return out
+    },
+
     has(sym, tf) {
       const L = live.get(DERIVED_TFS[tf] ?? String(tf))
       return !!L && typeof sym === 'string' && L.index.row.has(sym.toUpperCase())
@@ -519,7 +552,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     buildOf(tf) { return live.get(DERIVED_TFS[tf] ?? String(tf))?.build ?? null },
     info() {
       const tfs = {}
-      for (const [tf, L] of live) tfs[tf] = { build: L.build, asof: L.index.asof, gen: L.gen, count: L.index.count, bytes: L.bytes, comp: L.index.comp, bad: L.bad, via: L.via ?? 'full' }
+      for (const [tf, L] of live) tfs[tf] = { build: L.build, asof: L.index.asof, gen: L.gen, count: L.index.count, bytes: L.bytes, comp: L.index.comp, bad: L.bad, via: L.via ?? 'full', whole: L.index.whole === true, partial: L.index.partial?.size ?? 0 }
       return { tfs }
     },
 
@@ -564,7 +597,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         try { out.push(await api.ingest({ build: manifest.build, ...e, tf, url, delta }, { signal })) } catch (err) {
           out.push({ tf, status: 'error', error: String(err?.message || err) })
         }
-        if (out[out.length - 1]?.status === 'no-room') break   // M5: the next timeframe would not fit either
+        // M5: after an intraday no-room the next timeframe would not fit either; after D's (the big one) it may
+        const last = out[out.length - 1]
+        if (last?.status === 'no-room' && last.tf !== 'D') break
       }
       return out
     },
@@ -677,7 +712,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     await api.open()
     const cur = live.get(tf)
     if (_isCurrent(cur, entry)) return { tf, status: 'current', build: cur.build, via: cur.via ?? 'full' }
-    const blocked = api.ingestBlocked()
+    const blocked = api.ingestBlocked(tf)
     if (blocked) return { ...blocked, tf }
     const backoff = await _backoffFor(tf, entry)
     if (backoff) return backoff
@@ -788,6 +823,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       const tr = {
         asof: dt.asof, base: dt.base, basis: dt.basis, build: dt.build, comp: dt.comp, depth: dt.depth,
         fields: [...SEED_FIELDS], grid: dt.grid, kind: 'ffseed', symbols, tf: dt.tf, tunit: dt.tunit, v: 1, via: 'delta',
+        // the new build's whole / partial, exactly as its full pack says them (delta.parseDelta: the delta carries them)
+        ...(dt.whole ? { whole: true, partial: [...dt.partial].sort() } : {}),
       }
       const tb = _enc.encode(JSON.stringify(tr))
       const tail = new Uint8Array(PACK_TAIL_BYTES)
@@ -804,6 +841,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       // 3. ⭐ THE CHECK, its only copy: READ IT BACK through the reader, the trailer then every record, as a
       //    chart will read them. decodeRecord holds each to the new build's bars/first/last and column CRC.
       const index = _indexOf(h, tf)
+      if (index.whole !== (dt.whole === true) || index.partial.size !== dt.partial.size || [...dt.partial].some((x) => !index.partial.has(x))) {
+        throw new IngestError('delta: the new file reads back another whole / partial')
+      }
       let buf = new Uint8Array(4096)
       for (const [sym, e] of Object.entries(symbols)) {
         const j = index.row.get(sym)

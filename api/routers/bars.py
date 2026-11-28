@@ -24,6 +24,7 @@ from fastapi.responses import ORJSONResponse as JSONResponse
 # payload DICT along (`payload_of`, never `orjson.loads(response.body)`), and `_serve_bars_impl`
 # renders the finished answer once (`render_once`, Server-Timing `ser`). api/services/bars_payload.py.
 from api.services.bars_payload import PayloadResponse, payload_of as _payload_of, render_once as _render_once
+from api.services.bars_payload import dumps as _bars_payload_dumps
 
 from api.services.bars_fetch import (
     # Core fetch/cache functions (used by routes below)
@@ -1255,17 +1256,83 @@ def _carry_headers(new, old):
 _render_state = _threading.local()
 
 
-def _render_answer(resp, append_timing: bool = True):
-    """Serialize a finished answer (once; no-op when already rendered or deferred) and,
-    with `append_timing`, add `ser;dur=<ms>` to its Server-Timing. Returns the ms or None."""
+def _unencodable_fields(payload) -> list:
+    """The top-level keys of `payload` orjson cannot encode (never raises)."""
+    if not isinstance(payload, dict):
+        return []
+    bad = []
+    for k, v in payload.items():
+        try:
+            _bars_payload_dumps(v)
+        except Exception:                  # noqa: BLE001
+            bad.append(k)
+    return bad
+
+
+def _step_that_added(stages, key, upto: int) -> str:
+    """Label of the first stage (<= `upto`) whose payload carries `key` unencodable."""
+    for label, resp in stages[:upto + 1]:
+        p = getattr(resp, "payload", None)
+        if isinstance(p, dict) and key in _unencodable_fields({key: p.get(key)}) and key in p:
+            return label
+    return stages[upto][0]
+
+
+def _render_finished(stages, ticker: str, tf: str, append_timing: bool = True):
+    """Serialize a finished answer ONCE and return `(response, ms)`.
+
+    `stages` = [(label, response), ...]: the serve branch's answer, then the answer after
+    each augment step that changed it. ⛔ A FIELD ORJSON CANNOT ENCODE MUST NOT COST THE
+    ANSWER (review of #2949). With one serialization at the end, a bad value an augment
+    added surfaced here, inside the outer try, and turned the whole chart into the
+    OUTER-CRASH 503; under the old render-per-step path the step that added it failed in
+    its own `try` and the answer went out without it. So when the answer cannot be encoded:
+      * a bad top-level FIELD (`newest_bar_is_forming`, a contract field...) is dropped from
+        the answer, named in the log with the step that added it; the rest is served;
+      * bad `bars` (a step appended an unencodable bar) drops that STEP: the stage before
+        it is rendered instead (and so on back);
+      * nothing renderable at all (the serve branch's own payload is bad) answers what the
+        serve core's crash path answers: the transient 503.
+    A deferred render (`_serve_eth_hourly`'s 15m input) returns the last stage untouched."""
     if getattr(_render_state, "defer", False):
-        return None
-    ms = _render_once(resp)
-    if ms is not None and append_timing:
-        entry = f"ser;dur={ms:.1f}"
-        st = resp.headers.get("server-timing")
-        resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
-    return ms
+        return stages[-1][1], None
+    for i in range(len(stages) - 1, -1, -1):
+        label, resp = stages[i]
+        for attempt in (0, 1):
+            try:
+                ms = _render_once(resp)
+            except Exception as e:         # noqa: BLE001
+                payload = getattr(resp, "payload", None)
+                bad = _unencodable_fields(payload)
+                if attempt == 0 and bad and "bars" not in bad:
+                    _bars_log.error(
+                        "[bars] answer not encodable %s tf=%s (%s: %s): dropping field(s) %s",
+                        ticker, tf, type(e).__name__, e,
+                        ", ".join(f"{k!r} (added by {_step_that_added(stages, k, i)!r})" for k in bad))
+                    keep = {k: v for k, v in payload.items() if k not in bad}
+                    resp = _carry_headers_all(
+                        PayloadResponse(content=keep, status_code=resp.status_code), resp)
+                    continue
+                nxt = f"falling back to step {stages[i - 1][0]!r}" if i else "answering transient"
+                _bars_log.error(
+                    "[bars] answer not encodable %s tf=%s: step %r (%s: %s; fields %s); %s",
+                    ticker, tf, label, type(e).__name__, e, bad or "<payload>", nxt)
+                resp = None
+                break
+            if ms is not None and append_timing:
+                entry = f"ser;dur={ms:.1f}"
+                st = resp.headers.get("server-timing")
+                resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
+            return resp, ms
+    return _fault_response(ticker, tf, "transient"), None
+
+
+def _carry_headers_all(new, old):
+    """Every header of `old` onto `new`, except the body's own (length, type)."""
+    for k, v in old.headers.items():
+        if k not in ("content-length", "content-type"):
+            new.headers[k] = v
+    return new
 
 
 def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
@@ -1292,11 +1359,9 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
     try:
         payload = _payload_of(resp)
     except Exception:
-        _render_answer(resp)
-        return resp
+        return _render_finished([("eth-15m", resp)], ticker, "60")[0]
     if not isinstance(payload, dict):
-        _render_answer(resp)
-        return resp
+        return _render_finished([("eth-15m", resp)], ticker, "60")[0]
     payload["tf"] = "60"
     payload["session"] = "eth"
     # A cash index's 15m hole-repair record (`index_bars._repair_fields`) names 15m buckets and
@@ -1337,13 +1402,15 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
                 payload[k] = None
     out_resp = _carry_headers(
         PayloadResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
+    stages = [("eth-60", out_resp)]
     if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
         try:
             out_resp = _carry_headers(_augment_with_bar_close_state(out_resp, "60"), out_resp)
+            if out_resp is not stages[-1][1]:
+                stages.append(("bar_close_state", out_resp))
         except Exception:                  # noqa: BLE001
             pass
-    _render_answer(out_resp)
-    return out_resp
+    return _render_finished(stages, ticker, "60")[0]
 
 
 # An answer whose server time passes this many ms is logged with its phases (`[bars-slow]`, _serve_bars_impl).
@@ -1593,6 +1660,15 @@ def _serve_bars_impl(
                       "200 no_data instead of another warming 503", ticker, tf)
             response = _no_data_response(ticker, tf, reason="no_provider_data")
 
+        # Each augment below that changes the answer adds a stage: a field one of them adds
+        # that cannot be encoded drops THAT step at render time (`_render_finished`).
+        _stages = [("serve", response)]
+
+        def _stage(label, resp):
+            if resp is not _stages[-1][1]:
+                _stages.append((label, resp))
+            return resp
+
         # ── SERVER-INCLUDE TODAY'S DEVELOPING DAILY BAR (equity/ETF only) ────
         # The sealed daily history from the fetch/cache paths ends at the last
         # CLOSED session; today's forming daily bar is otherwise a SEPARATE
@@ -1610,7 +1686,7 @@ def _serve_bars_impl(
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
-                response = _augment_daily_with_today(response, ticker)
+                response = _stage("daily_today", _augment_daily_with_today(response, ticker))
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1620,7 +1696,7 @@ def _serve_bars_impl(
         if (tf == "D" and not to and is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
-                response = _augment_index_daily_with_today(response, ticker)
+                response = _stage("index_today", _augment_index_daily_with_today(response, ticker))
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1629,7 +1705,7 @@ def _serve_bars_impl(
         # actually see last. Additive: a field appears, nothing changes shape.
         if getattr(response, "status_code", 200) == 200:
             try:
-                response = _augment_with_bar_close_state(response, tf)
+                response = _stage("bar_close_state", _augment_with_bar_close_state(response, tf))
             except Exception:
                 pass  # a decorative field must never break a chart serve
 
@@ -1644,23 +1720,24 @@ def _serve_bars_impl(
             _live_equity = (not _is_breadth and not _is_mkt_ind and not _is_seed
                             and _drec is None and not is_index(ticker))
             try:
-                response = _augment_with_contract(
+                response = _stage("contract", _augment_with_contract(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
                     tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
-                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker)))
             except Exception:
                 pass
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
         # would re-introduce phantom OHLC bars after a corruption fix ships.
-        response.headers["Cache-Control"] = "no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
         # ⭐ THE ONE SERIALIZATION of this answer (bars_payload): every step above passed the
         # dict along. Before `bars;dur` is read, so `dur` still covers the whole serve, and
-        # reported on its own as `ser`. An ETH 60m read defers it (`_serve_eth_hourly`).
-        _ser_ms = _render_answer(response, append_timing=False)
+        # reported on its own as `ser`. An ETH 60m read defers it (`_serve_eth_hourly`). An
+        # unencodable field drops the step that added it (`_render_finished`).
+        response, _ser_ms = _render_finished(_stages, ticker, tf, append_timing=False)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
         # Server-Timing: expose server-compute ms + which cache tier served, so
         # cold vs warm (and cold-fetch vs inflight-wait vs disk) is observable in
         # prod devtools / curl — the cold path was previously unmeasured. Cheap:
@@ -1768,7 +1845,7 @@ def _is_iso_date(t) -> bool:
 
 
 def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
-                       v: str = "", d: str = "", if_none_match: str = ""):
+                       v: str = "", d: str = "", if_none_match: str = "", partial: bool = False):
     """Core serving logic for edge-cacheable SEALED history — SHARED by the web route
     (below) and the WORKER's origin route (worker_main._build_app). It reads only what is
     already stored in THIS process's bars.db (the worker's DEEP db when called there, the
@@ -1824,7 +1901,8 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
                 "note": "index history not served by /api/bars-history",
             }))
         else:
-            rows = _bars_fetch._sqlite.get_bars(sym, tfu, bars)   # PURE read — no fetch, no write
+            # PURE read — no fetch, no write; cut at an unproven gap like /api/bars (`read_newest`)
+            rows = _bars_fetch.read_newest(sym, tfu, bars)
             all_bars = _fmt_sqlite_bars(rows, tfu, sym) if rows else []
     except Exception:
         return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": [], "sealed": False}))
@@ -1839,11 +1917,24 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     last_sealed = sealed[-1]["t"] if sealed else ""
     version = f"{_HISTORY_LOGIC_VERSION}.{last_sealed}"
 
-    out = JSONResponse(content={
+    payload = {
         "ticker": sym,
         "tf": tfu, "bars": sealed, "sealed": True,
         "version": version, "last_sealed": last_sealed, "count": len(sealed),
-    })
+    }
+    if partial:
+        payload["partial"] = True
+    out = JSONResponse(content=payload)
+    if partial:
+        # ⛔⛔ THE WEB'S OWN FALLBACK IS NEVER CACHED (2026-11-28). `partial` = the deep origin did not answer and this
+        # is the WEB pod's store, which may be shallower than the deep one. Stamped like a deep answer it carried
+        # `immutable` for a year under the very URL the deep history lives at, so the edge and every browser that saw
+        # it would have kept the short history until the next sealed day. `no-store` and a marked body instead: the
+        # next ask goes back to the origin. Rail: tests/test_bars_history_origin_fast.py.
+        out.headers["Cache-Control"] = "no-store"
+        out.headers["X-Bars-History"] = "partial"
+        out.headers["Server-Timing"] = f'bars;desc="history-fallback";dur={len(sealed)}'
+        return out
     # Cache policy:
     #  • d matches the CURRENT sealed boundary  → IMMUTABLE, ~1 year. Safe because the date
     #    makes each day's URL unique: when a new trading day seals, the client (and the
@@ -1952,6 +2043,133 @@ async def _history_thread(fn, *args, **kwargs):
     return await _anyio.to_thread.run_sync(_partial(fn, *args, **kwargs), limiter=_history_limiter())
 
 
+# ⛔⛔ THE ORIGIN'S HISTORY SERVE: OWN LIMITER, ONE BUILD PER URL, A SHORT MEMO (2026-11-28 cloud sweep).
+# Deep W/M history took 5-22 s of web app time (Server-Timing `app=`) on cold URLs while the same read costs 30-100 ms
+# cold and 5-10 ms warm on a store copy, and the time did NOT follow the rows (CS: 0 rows, 12.3 s; VET W: 845 rows,
+# 72 ms). Queueing, not work. The ORIGIN (the worker, `BARS_HISTORY_ORIGIN_URL`) served the route as a sync `def` with
+# a sync gate: two hops through anyio's DEFAULT 40-token pool on a pod running ~40 threads (prewarm, deep warm, the
+# history pre-warm sweep, uploads), and every concurrent ask of one URL rebuilt it. The same fix the web route got on
+# 2026-11-25 (#2741), now on the origin side, plus:
+#  - SINGLE-FLIGHT: concurrent asks of one (symbol, tf, depth, d, v, encoding) share ONE build on this loop.
+#  - MEMO: the built (gzipped) answer is kept a short while, so a repeat (a second edge PoP, a browser without the edge
+#    copy, the pre-warm sweep after a member) costs nothing. It can never outlive its own Cache-Control's meaning: an
+#    IMMUTABLE answer is already frozen at the edge for a year under the same URL, a short one is public for an hour
+#    anyway, and the key carries the ET day so a sealed-boundary move is a new key. `no-store`/`no-cache` answers
+#    (breadth, refusals, errors) are never kept: only a `public` answer is.
+_HISTORY_MEMO_TTL_IMMUTABLE_S = 900.0
+_HISTORY_MEMO_TTL_SHORT_S = 60.0
+_HISTORY_MEMO_MAX_BYTES = max(0, int(float(os.environ.get("BARS_HISTORY_MEMO_MB", "64") or 64) * 1024 * 1024))
+_history_memo = __import__("collections").OrderedDict()   # key -> (expires_at, size, status, headers, body)
+_history_memo_lock = _threading.Lock()
+_history_memo_bytes = [0]
+_history_inflight = __import__("weakref").WeakKeyDictionary()   # loop -> {key: Future}
+
+
+def _history_memo_key(ticker, tf, bars, v, d, accept_encoding):
+    from zoneinfo import ZoneInfo
+    day = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+    gz = "gzip" in (accept_encoding or "").lower()
+    return (str(ticker or "").strip().upper(), str(tf or "D").upper(), int(bars), str(v or ""), str(d or ""), day, gz)
+
+
+def _history_memo_get(key):
+    now = _time.monotonic()
+    with _history_memo_lock:
+        hit = _history_memo.get(key)
+        if hit is None:
+            return None
+        if hit[0] <= now:
+            _history_memo.pop(key, None)
+            _history_memo_bytes[0] -= hit[1]
+            return None
+        _history_memo.move_to_end(key)
+        return hit
+
+
+def _history_memo_put(key, resp):
+    cc = (resp.headers.get("cache-control") or "").lower()
+    body = getattr(resp, "body", None)
+    # ONE test: only a `public` answer is kept. `no-store` (refusals, the web fallback) and `no-cache` (breadth) never
+    # start with it; a second clause naming them could not be mutation-proved (it survived its mutant, 2026-11-28).
+    if resp.status_code != 200 or not isinstance(body, (bytes, bytearray)) or not cc.startswith("public"):
+        return
+    ttl = _HISTORY_MEMO_TTL_IMMUTABLE_S if "immutable" in cc else _HISTORY_MEMO_TTL_SHORT_S
+    size = len(body)
+    if size > _HISTORY_MEMO_MAX_BYTES // 4:
+        return
+    headers = [(k, v) for k, v in resp.headers.items() if k.lower() != "content-length"]
+    with _history_memo_lock:
+        old = _history_memo.pop(key, None)
+        if old is not None:
+            _history_memo_bytes[0] -= old[1]
+        _history_memo[key] = (_time.monotonic() + ttl, size, resp.status_code, headers, bytes(body))
+        _history_memo_bytes[0] += size
+        while _history_memo_bytes[0] > _HISTORY_MEMO_MAX_BYTES and _history_memo:
+            _, ev = _history_memo.popitem(last=False)
+            _history_memo_bytes[0] -= ev[1]
+
+
+def _history_memo_clear():
+    with _history_memo_lock:
+        _history_memo.clear()
+        _history_memo_bytes[0] = 0
+
+
+def _history_from_memo(hit):
+    from starlette.responses import Response as _Resp
+    out = _Resp(content=hit[4], status_code=hit[2])
+    for k, v in hit[3]:
+        out.headers[k] = v
+    return out
+
+
+async def serve_bars_history_origin(ticker: str, tf: str = "D", bars: int = 60000, v: str = "", d: str = "",
+                                    accept_encoding: str = ""):
+    """THE ORIGIN ENTRY for `/api/bars-history` (worker_main and bars_api_main): `serve_bars_history` on this route's
+    OWN limiter, gzipped there, one build per URL at a time, the answer memoized briefly (see the block above).
+    Never waits on anyio's default pool and never on the event loop."""
+    import asyncio as _asyncio
+    key = _history_memo_key(ticker, tf, bars, v, d, accept_encoding)
+    hit = _history_memo_get(key)
+    if hit is not None:
+        return _history_from_memo(hit)
+    loop = _asyncio.get_running_loop()
+    flights = _history_inflight.get(loop)
+    if flights is None:
+        flights = _history_inflight[loop] = {}
+    fut = flights.get(key)
+    if fut is not None:
+        hit = await _asyncio.shield(fut)
+        return _history_from_memo(hit) if hit is not None else await _history_build(ticker, tf, bars, v, d,
+                                                                                     accept_encoding, key)
+    fut = flights[key] = loop.create_future()
+    try:
+        resp = await _history_build(ticker, tf, bars, v, d, accept_encoding, key)
+        body = getattr(resp, "body", None)
+        shared = (_time.monotonic(), 0, resp.status_code,
+                  [(k, val) for k, val in resp.headers.items() if k.lower() != "content-length"],
+                  bytes(body)) if isinstance(body, (bytes, bytearray)) else None
+        fut.set_result(shared)
+        return resp
+    except BaseException:
+        if not fut.done():
+            fut.set_result(None)   # a waiter builds its own: a failure is never shared
+        raise
+    finally:
+        flights.pop(key, None)
+
+
+async def _history_build(ticker, tf, bars, v, d, accept_encoding, key):
+    def _serve_and_pack():
+        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d), accept_encoding)
+    resp = await _history_thread(_serve_and_pack)
+    try:
+        _history_memo_put(key, resp)
+    except Exception:  # noqa: BLE001 - the memo is an optimisation, never a failure
+        pass
+    return resp
+
+
 # `require_bars_access`, run on this route's own limiter (see BARS_HISTORY_THREADS). Built by
 # `bars_auth.require_bars_access_on`, never by hand here: the factory calls the gate itself in a thread on the
 # limiter it is given, and the auth auditors recognise its products by identity (a hand-built wrapper, which they
@@ -1984,6 +2202,7 @@ async def get_bars_history(
     if _crypto.serves(ticker, _access):
         return _crypto.pair_history_response(ticker, tf, bars)
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
+    fell_back = False
     # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
     # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,
     # `naaim_series.db`, and the derivation over `breadth_daily_ohlc` — live on the WEB
@@ -2006,14 +2225,16 @@ async def get_bars_history(
             resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
             return await _history_thread(gzip_with_length, resp, request.headers.get("accept-encoding", ""))
         except Exception:
-            pass  # worker unreachable/slow → fall back to the web's own shallow history
+            fell_back = True  # worker unreachable/slow → the web's own history, marked partial and never cached
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
     # (2026-11-25) ...on this route's OWN limiter, never the default pool every sync route shares (see
     # BARS_HISTORY_THREADS), and gzipped there too, off the event loop.
     def _serve_and_pack(accept_encoding: str, inm: str):
-        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm), accept_encoding)
+        extra = {"partial": True} if fell_back else {}
+        return gzip_with_length(serve_bars_history(ticker, tf, bars, v, d, if_none_match=inm, **extra),
+                                accept_encoding)
     return await _history_thread(_serve_and_pack, request.headers.get("accept-encoding", ""),
                                  request.headers.get("if-none-match", ""))
 

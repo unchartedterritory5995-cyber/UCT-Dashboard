@@ -24,8 +24,14 @@
  * CACHING. A minute file is written ONCE (the publisher never republishes a seq), so it is
  * answered `immutable` and the Worker keeps a copy in the data center's Cache API, read only
  * after the entitlement check (the history.js pattern): every member of a data center costs
- * R2 one read per minute, not one each. head.json and today.bin change: never cached at the edge.
- * A 404 is never cached anywhere (the minute is simply not out yet).
+ * R2 one read per minute, not one each. A 404 is never cached anywhere (the minute is simply not out yet).
+ *
+ * ⭐ head.json and today.bin CHANGE, and at 500 members polling once a minute an uncached head was ~22M R2
+ * reads a month (2026-11-28 capacity plan). So the data center keeps head.json for HEAD_EDGE_TTL (2 s: a head
+ * is at most 2 s late) and today.bin for TODAY_EDGE_TTL (60 s) KEYED BY THE HEAD'S `today_seq`: the publisher
+ * writes today.bin BEFORE the head that names it (api/services/minute_frame_publisher.py flush order), so a
+ * copy filed under seq S holds at least S, and a new roll is a new key at once. A head that cannot be read or
+ * names no seq means today.bin is read from R2 and not kept. The BROWSER still gets `no-store` for both.
  *
  * ENTITLEMENT IS ENFORCED (valid member cookie or valid service header, else 401), exactly as on
  * the history lake.
@@ -37,6 +43,10 @@ export const FRAME_TYPE = "application/vnd.uct.umf";
 export const TODAY_TYPE = "application/vnd.uct.umt";
 /** A minute file's edge copy: a day is plenty (the date is in the key; the bucket expires it). */
 export const FRAME_EDGE_TTL = 86400;
+/** head.json's edge copy (seconds): the most a head can be late. */
+export const HEAD_EDGE_TTL = 2;
+/** today.bin's edge copy (seconds), filed under the head's `today_seq`. */
+export const TODAY_EDGE_TTL = 60;
 
 const DATE_RE = /^(\d{4})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const HHMM_RE = /^([01]\d|2[0-3])([0-5]\d)\.bin$/;
@@ -88,39 +98,67 @@ export async function handleLive1m(request, env, entitled, ctx, { cache = defaul
   const key = prefix + what.rel;
   const head = request.method === "HEAD";
 
-  let bytes = null;
-  let fromEdge = false;
-  const ck = what.kind === "frame" && cache ? `${url.origin}${EDGE_KEY_PATH}${encodeURI(key)}` : null;
-  if (ck) {
+  const edgeKey = (k, q = "") => `${url.origin}${EDGE_KEY_PATH}${encodeURI(k)}${q}`;
+  const fromCache = async (ck) => {
+    if (!ck || !cache) return null;
     try {
       const hit = await cache.match(ck);
-      if (hit) { bytes = new Uint8Array(await hit.arrayBuffer()); fromEdge = true; }
-    } catch (_e) { /* a broken cache is a miss */ }
+      return hit ? new Uint8Array(await hit.arrayBuffer()) : null;
+    } catch (_e) { return null; }                  // a broken cache is a miss
+  };
+  const keep = (ck, data, ttl) => {
+    if (!ck || !cache) return;
+    const put = Promise.resolve().then(() => cache.put(ck, new Response(data, {
+      headers: { "cache-control": `public, max-age=${ttl}`, "content-type": "application/octet-stream" },
+    }))).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
+  };
+  const fromR2 = async (k) => {
+    const obj = await bucket.get(k);
+    return obj ? new Uint8Array(await obj.arrayBuffer()) : null;
+  };
+
+  let ck = null;
+  let ttl = FRAME_EDGE_TTL;
+  if (what.kind === "frame") ck = edgeKey(key);
+  else if (what.kind === "head") { ck = edgeKey(key); ttl = HEAD_EDGE_TTL; }
+  else if (what.kind === "today" && cache) {
+    // today.bin is filed under the seq the CURRENT head names (itself at most HEAD_EDGE_TTL late)
+    const hk = prefix + what.rel.replace(/today\.bin$/, "head.json");
+    let headBytes = await fromCache(edgeKey(hk));
+    if (!headBytes) {
+      try { headBytes = await fromR2(hk); if (headBytes) keep(edgeKey(hk), headBytes, HEAD_EDGE_TTL); } catch (_e) { headBytes = null; }
+    }
+    let seq = null;
+    try { seq = headBytes ? JSON.parse(new TextDecoder().decode(headBytes)).today_seq : null; } catch (_e) { seq = null; }
+    if (Number.isInteger(seq) && seq >= 0) { ck = edgeKey(key, `?today_seq=${seq}`); ttl = TODAY_EDGE_TTL; }
   }
+
+  let bytes = await fromCache(ck);
+  const fromEdge = !!bytes;
   if (!bytes) {
-    let obj;
     try {
-      obj = await bucket.get(key);
+      bytes = await fromR2(key);
     } catch (_e) {
       return plain(503, "live1m_unavailable", { "retry-after": "2" });
     }
-    if (!obj) return plain(404, "not_published");
-    bytes = new Uint8Array(await obj.arrayBuffer());
+    if (!bytes) return plain(404, "not_published");
   }
 
   if (what.kind === "head") {
+    if (!fromEdge) {
+      let okHead = false;
+      try { okHead = !!JSON.parse(new TextDecoder().decode(bytes)); } catch (_e) { okHead = false; }
+      if (okHead) keep(ck, bytes, ttl);
+    }
     return new Response(head ? null : bytes, {
       status: 200,
-      headers: { "content-type": "application/json", "cache-control": "no-store", "x-bars-edge": "live1m" },
+      headers: { "content-type": "application/json", "cache-control": "no-store",
+                 "x-bars-edge": fromEdge ? "live1m-edge" : "live1m" },
     });
   }
   if (!isGzip(bytes)) return plain(502, "live1m_bad_object");
-  if (ck && !fromEdge) {
-    const put = Promise.resolve().then(() => cache.put(ck, new Response(bytes, {
-      headers: { "cache-control": `public, max-age=${FRAME_EDGE_TTL}`, "content-type": "application/octet-stream" },
-    }))).catch(() => {});
-    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
-  }
+  if (ck && !fromEdge) keep(ck, bytes, ttl);
   const cacheControl = what.kind === "frame" ? "private, max-age=86400, immutable" : "no-store";
   const base = { "cache-control": cacheControl, "x-bars-edge": fromEdge ? "live1m-edge" : "live1m" };
   if (url.searchParams.get("raw") === "1") {

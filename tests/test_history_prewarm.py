@@ -88,3 +88,23 @@ def test_the_interval_is_only_a_backstop():
     t = 1_000_000.0
     assert HP.pass_due("2026-11-17", "2026-11-17", t, t + 24 * 3600, interval=24 * 3600)
     assert not HP.pass_due("", "", 0.0, t, interval=24 * 3600)         # never warmed and blind: wait
+
+
+# ── the warmed URL is the URL the browser asks for (2026-11-28 cloud sweep) ──────────────────────────────────────
+def test_the_warmed_depth_IS_the_chart_s_fullBarsFor_for_every_sealed_tf():
+    """`bars=` is part of the cached URL, so a depth that differs from the client's warms a URL nobody requests.
+    ⚰️ M was restated as 2000 while the client asks 1200: no monthly history was ever warmed (edge M: 23 MISS / 3 HIT).
+    Parsed from the client source, never restated here (a copy in the test would be a third authority)."""
+    import pathlib
+    import re
+    src = (pathlib.Path(HP.__file__).resolve().parents[2] / "app" / "src" / "utils" / "barsBackfill.js"
+           ).read_text(encoding="utf-8")
+    body = re.search(r"export function fullBarsFor\(tf\)\s*\{(.*?)\n\}", src, re.S).group(1)
+    client = {tf: int(n) for tf, n in re.findall(r"case '([A-Z0-9]+)':\s*return (\d+)", body)}
+    for tf in HP._TFS:
+        assert HP._FULL[tf] == client[tf], f"pre-warm asks {tf} bars={HP._FULL[tf]}, the chart asks bars={client[tf]}"
+
+
+def test_the_warmed_depth_has_ONE_server_authority():
+    from api.services import deep_history_warm
+    assert HP._FULL is deep_history_warm._DEEP_TARGET

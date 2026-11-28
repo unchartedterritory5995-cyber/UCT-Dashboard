@@ -509,14 +509,19 @@ def test_watch_paths_cover_the_services_own_code():
     cfg = json.loads((ROOT / "railway.ingest.json").read_text(encoding="utf-8"))
     watched = set(cfg["build"]["watchPatterns"])
     assert not any("*" in w for w in watched), "keep the ingest watch list narrow: no globs"
-    code = ("import sys, api.stream_ingest_main\n"
+    # Lazily imported, with everything THEY import (review of PR 3.4, C2): vendor_socket_guard, bars_live_ingest, the
+    # minute-frame publisher and codec bars_live_ingest reaches for, and what the publisher's DAILY child process
+    # imports when it runs (massive, massive_adapter, bars_live_store, nyse_calendar): a change to any of them changes
+    # this service, so it must redeploy it.
+    lazy = ["api.services.vendor_socket_guard", "api.services.bars_live_ingest",
+            "api.services.minute_frame_publisher", "api.services.minute_frames", "api.services.massive",
+            "api.services.massive_adapter", "api.services.bars_live_store", "api.services.nyse_calendar"]
+    code = ("import sys, importlib, api.stream_ingest_main\n"
+            f"for m in {lazy!r}: importlib.import_module(m)\n"
             "print(' '.join(sorted(m for m in sys.modules if m.startswith('api.') and m != 'api.services')))\n")
     out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=120)
     assert out.returncode == 0, out.stderr[-2000:]
-    # Lazily imported: vendor_socket_guard, bars_live_ingest, and the minute-frame publisher and
-    # codec bars_live_ingest reaches for its flag check (universe_am_handler / start_minute_frames).
-    mods = out.stdout.split() + ["api.services.vendor_socket_guard", "api.services.bars_live_ingest",
-                                 "api.services.minute_frame_publisher", "api.services.minute_frames"]
+    mods = out.stdout.split() + lazy
     missing = [m for m in mods if m.replace(".", "/") + ".py" not in watched]
     assert not missing, f"add to railway.ingest.json watchPatterns: {missing}"
     for f in ("railway.ingest.json", "requirements.txt"):

@@ -159,7 +159,8 @@ test('the highlighted suggestion is reported once it holds still, and the arrow 
   fireEvent.change(input, { target: { value: 'nv' } })
   await within(screen.getByRole('dialog')).findByRole('button', { name: /^NVDA/ })
   await wait(SETTLED)
-  expect(onTypedIntent.mock.calls.map((c) => c[0])).toContain('NVDA')
+  // (2026-11-28) the top row is not what Enter opens (Enter opens the typed text): it is not warmed
+  expect(onTypedIntent.mock.calls.map((c) => c[0])).not.toContain('NVDA')
   onTypedIntent.mockClear()
   fireEvent.keyDown(input, { key: 'ArrowDown' })
   await wait(SETTLED)
@@ -251,27 +252,28 @@ test('universe: a prefix with one completion names it at once, and the prefix it
   expect(onTypedIntent.mock.calls).toEqual([['NVDA']])  // NVD itself never (it would abort NVDA's warm)
 })
 
-test('universe: a ticker typed to its last key is told at once; a ticker prefix (GOOG) after a short settle, then GOOGL', async () => {
+test('universe: a ticker typed to its last key is told at once, a ticker prefix (GOOG) too, then GOOGL', async () => {
   const onTypedIntent = vi.fn()
   const input = await openWithUniverse(onTypedIntent)
   for (const v of ['G', 'GO', 'GOO']) { fireEvent.change(input, { target: { value: v } }); await wait(20) }
-  expect(onTypedIntent).not.toHaveBeenCalled()           // ambiguous prefixes: nothing yet
-  fireEvent.change(input, { target: { value: 'GOOG' } }); await wait(20)
-  expect(onTypedIntent).not.toHaveBeenCalled()           // a ticker that can still grow (GOOGL) settles briefly first
-  await wait(EXACT_PREFIX_SETTLE_MS)
+  expect(onTypedIntent).not.toHaveBeenCalled()           // ambiguous prefixes that are no ticker: nothing yet
+  // (2026-11-28, cold-arch 3.3 item 2) a ticker that can still grow (GOOGL) is told on its key: no settle
+  expect(EXACT_PREFIX_SETTLE_MS).toBe(0)
+  fireEvent.change(input, { target: { value: 'GOOG' } }); await wait(5)
   expect(onTypedIntent.mock.calls).toEqual([['GOOG']])
-  fireEvent.change(input, { target: { value: 'GOOGL' } }); await wait(20)
+  fireEvent.change(input, { target: { value: 'GOOGL' } }); await wait(5)
   expect(onTypedIntent.mock.calls).toEqual([['GOOG'], ['GOOGL']])   // nothing longer: at once
 })
 
-// ⛔ (review of #2938, T2) an exact ticker that still has longer completions fired on single letters (A, AM, AMZN, each with
-// up to three linked fetches): typed through at a typist's pace, only the finished ticker is told
-test('universe: typing through A and AM to AMZN tells AMZN alone', async () => {
+// ⭐ (2026-11-28, cold-arch 3.3 item 2, supersedes review of #2938 T2) EVERY KEYSTROKE THAT SPELLS A KNOWN TICKER IS TOLD:
+// A, AM, then AMZN (AMZ's one completion), each on its key, and AMZN once. The fetches are bounded by the chart's typed warm,
+// which keeps ONE text live and aborts the older text's tail and linked fetches (prefetch.typedUniverse.test.js).
+test('universe: typing through A and AM to AMZN tells A, AM and AMZN, each on its key, AMZN once', async () => {
   const onTypedIntent = vi.fn()
   const input = await openWithUniverse(onTypedIntent)
   for (const v of ['A', 'AM', 'AMZ']) { fireEvent.change(input, { target: { value: v } }); await wait(30) }
   fireEvent.change(input, { target: { value: 'AMZN' } }); await wait(20)
-  expect(onTypedIntent.mock.calls).toEqual([['AMZN']])
+  expect(onTypedIntent.mock.calls).toEqual([['A'], ['AM'], ['AMZN']])
 })
 
 test('CONTROL universe: text it does not know still waits for the typing pause', async () => {
@@ -282,4 +284,68 @@ test('CONTROL universe: text it does not know still waits for the typing pause',
   expect(onTypedIntent).not.toHaveBeenCalled()
   await wait(SETTLED)
   expect(onTypedIntent.mock.calls).toEqual([['ZZQ']])
+})
+
+// ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TEXT'S LIKELIEST COMPLETIONS, ON EVERY KEYSTROKE AND ON A PASTE
+// (onTypedCandidates): at once (no pause), at most TYPED_CANDIDATES_K, prefix matches of the universe ranked exact >
+// this member's history > popularity > A-Z, the chart's own symbol never among them, told again only when the list
+// changes. Text with completions but no ticker of its own no longer takes the typed slot after the pause.
+const POP_UNIVERSE = { v: 't', symbols: ['CRBG', 'CRBN', 'CRM', 'CRWD', 'CRS', 'AAPL'], pop: [40, 300, 2, 3, 90, 1] }
+const openWithCandidates = async ({ onTypedIntent = vi.fn(), onTypedCandidates = vi.fn(), sym = 'AAPL' } = {}) => {
+  global.fetch = vi.fn(async (url) => ({ ok: true, json: async () => (String(url).includes('/api/ticker-universe') ? POP_UNIVERSE : { symbols: [] }) }))
+  render(<SymbolSearch sym={sym} onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} onTypedCandidates={onTypedCandidates} />)
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`${sym} — click to search`, 'i') }))
+  await wait(10)
+  return { input: screen.getByRole('textbox', { name: 'Search symbol or company' }), onTypedIntent, onTypedCandidates }
+}
+
+test('candidates: every keystroke tells the ranked completions at once, by popularity, at most three', async () => {
+  const { TYPED_CANDIDATES_K } = await import('./SymbolSearch')
+  expect(TYPED_CANDIDATES_K).toBe(3)
+  const { input, onTypedCandidates } = await openWithCandidates()
+  fireEvent.change(input, { target: { value: 'c' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls).toEqual([[['CRM', 'CRWD', 'CRBG']]])
+  fireEvent.change(input, { target: { value: 'crb' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRBG', 'CRBN']])
+  fireEvent.change(input, { target: { value: 'crbg' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRBG']])
+  expect(onTypedCandidates).toHaveBeenCalledTimes(3)
+})
+
+test('candidates: a paste is one change, its exact ticker leads; the chart\'s own symbol is never a candidate', async () => {
+  const { input, onTypedCandidates } = await openWithCandidates({ sym: 'CRM' })
+  fireEvent.change(input, { target: { value: 'CRBN' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls).toEqual([[['CRBN']]])
+  fireEvent.change(input, { target: { value: 'CR' } }); await wait(1)
+  expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRWD', 'CRBG', 'CRS']])
+})
+
+test('candidates: this member\'s history leads popularity', async () => {
+  const th = await import('../../lib/typedHistory')
+  th.__resetTypedHistoryForTests()
+  th.noteOpened('CRS')
+  try {
+    const { input, onTypedCandidates } = await openWithCandidates()
+    fireEvent.change(input, { target: { value: 'cr' } }); await wait(1)
+    expect(onTypedCandidates.mock.calls.at(-1)).toEqual([['CRS', 'CRM', 'CRWD']])
+  } finally { th.__resetTypedHistoryForTests() }
+})
+
+test('candidates: a prefix that is no ticker does not take the typed slot after the pause (the pool owns it)', async () => {
+  const { input, onTypedIntent, onTypedCandidates } = await openWithCandidates()
+  fireEvent.change(input, { target: { value: 'crb' } })
+  await wait(SETTLED)
+  expect(onTypedCandidates).toHaveBeenCalled()
+  expect(onTypedIntent).not.toHaveBeenCalled()
+})
+
+test('CONTROL candidates: with no candidate host the pause still tells the text (the old rule)', async () => {
+  const onTypedIntent = vi.fn()
+  global.fetch = vi.fn(async (url) => ({ ok: true, json: async () => (String(url).includes('/api/ticker-universe') ? POP_UNIVERSE : { symbols: [] }) }))
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  await wait(10)
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search symbol or company' }), { target: { value: 'crb' } })
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['CRB']])
 })

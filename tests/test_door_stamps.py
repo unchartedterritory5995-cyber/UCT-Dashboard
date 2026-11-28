@@ -23,14 +23,14 @@ def doc_of(rel):
     return json.loads((ROOT / rel).read_text(encoding="utf-8"))["definition"]
 
 
-def _future_v2(stamp, pv):
+def _future_v3(stamp, pv):
     legacy = not isinstance(pv, int) or pv <= 4
     if stamp["via"] == "none" and not legacy:
         return FIXTURE["future"]["modernNoneOpacity"]
     return user_definitions.stamped_fill_opacity(stamp, pv)
 
 
-FUTURE_RULES = {1: user_definitions.stamped_fill_opacity, 2: _future_v2}
+FUTURE_RULES = {2: user_definitions.stamped_fill_opacity, 3: _future_v3}
 
 
 def apply_ops(doc, ops):

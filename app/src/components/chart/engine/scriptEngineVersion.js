@@ -232,6 +232,34 @@
  *  fix/fred-deep-index-grid) SP:SPX's extended-hours grid on an intraday chart starts at the chart's first bar (plus the
  *  one row before it, so a hole stays a hole): laid over the index store's whole depth (SP:SPX 15m, 39,012 rows) it was
  *  96,406 rows on a 30,396-bar chart and every deep intraday run half was refused `runtime:limit` (32,768 bars). */
+/** NUMBER PENDING = (engine e101 train; feat/e101-intraday-htf-reads) A HIGHER INTRADAY TIMEFRAME, RESAMPLED FROM THE
+ *  CHART'S OWN BARS (coordinator GO 2026-11-27). `request.security(syminfo.tickerid, "60", x)` on a 15 minute chart was
+ *  refused ("weekly or monthly only"): the write-capability eval's w02 (a 1 hour 50 EMA on a 15 minute chart) and w19 (a
+ *  1h / 4h / D / W trend table). Now `tf_merge` / `tf_live` of 30 / 60 / 120 / 240 minutes above an intraday chart, a
+ *  whole multiple of its minutes, of the chart's OWN symbol: the child runs on the chart's bars resampled into buckets on
+ *  the chart's own grid (`interpret.js::periodStamps` over `intradayBucketStart`: regular hours from the 09:30 open with a
+ *  short last bucket, extended hours on clock hours), ONE rule for the host evaluator and the runtime lane's request
+ *  (`requestAlignment`), with the merge's newest-bar and first-period masks and a chart on neither grid withheld whole by
+ *  name (`request:htf-intraday-session`). The grid is held equal to the chart's measured `barTime.js::bucketStartUnix`
+ *  (30 / 60, both views, every 15 minutes 2024-2027). ⭐ LIVE FOR EVERY CHART by the owner's ruling (2026-11-28:
+ *  "anything and everything goes live for all"): the capability `request-intraday-htf` is admitted by
+ *  `intradayHtfWitness.json::ownerLive` (`intradayHtfGate.js`), and Q-IHTF-1 (`vw-ihtf-grid.pine`) is the check that
+ *  drives the next fix (120 / 240 are unmeasured). The withholding sentences a merge can show are worded for every
+ *  period (a week, a month, a longer intraday bar), and so are the assistant's two higher-timeframe stop rules. The
+ *  Python lane refuses such a tree by name (`tests/test_ast_intraday_htf_fail_closed.py`). Mutants
+ *  `ci/mutants/e101-intraday-htf.json` (9). */
+/** NUMBER PENDING = (engine e100 train; fix/static-color-new-fill-opacity; live by the owner's ruling 2026-11-28, FRED's pixel probe: TradingView paints a
+ *  static color.new(#2962ff, 90) band at alpha byte 26) A STATIC
+ *  fill band whose colour is color.new / color.rgb with a transparency paints (100 - t) / 100, TradingView's decimal
+ *  alpha, not the floating 1 - t/100 (pine.js resolveFillHandles, door 2 in memberDocumentMigration and
+ *  user_definitions). Among whole t only 90 paints a different byte (26, was 25); per-bar colours are unchanged.
+ *  Re-keys translation caches; saved door-1 bands move only where their stored value is still door 1's own. */
+/** NUMBER PENDING = (engine e100 train; fix/hma-floor-sqrt) THE HULL AVERAGE'S ROOT WINDOW IS floor(sqrt(n)), NOT
+ *  round(sqrt(n)), in every Hull path: the formula lane and the runtime lane's ta.hma (interpret.js hullWindows), the
+ *  Python twin (ast_interpret.py _hma_col), the native moving-average overlay (movingAverages.js hma) and the closed
+ *  table (_functions_hull). Measured by FRED's Q-HMA capture (AMEX:SPY 1D): n = 21 floor exact on 8,482/8,482 bars,
+ *  round on none; 9 and 16 agree both ways. Changes engine output for every hma of a non-square length, so the number
+ *  re-keys translation caches and saved indicators recompute with TradingView's values. */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.

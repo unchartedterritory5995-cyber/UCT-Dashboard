@@ -58,6 +58,8 @@ export function serverAnswer(q, mode = 'ok') {
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
   if (mode === 'fail') return { body: { detail: 'boom' }, status: 500 }
   if (q.history) {
+    // 'history-none': a sealed history with nothing older than the tail holds (a young listing; a monthly chart)
+    if (mode === 'history-none') return { body: { ticker: q.sym, tf: q.tf, sealed: true, last_sealed: q.d, bars: ['2026-11-06', '2026-11-09'].map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
     return { body: { ticker: q.sym, tf: q.tf, sealed: true, last_sealed: q.d, bars: HISTORY_DAYS.map((t) => ({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 })) } }
   }
   if (['D', 'W', 'M'].includes(q.tf)) {

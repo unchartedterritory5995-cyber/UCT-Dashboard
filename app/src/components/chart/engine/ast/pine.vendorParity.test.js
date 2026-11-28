@@ -43,10 +43,14 @@ const TR_TRUE = `nz(${TR}, high - low)`
 
 describe('our columns against TradingView’s published reference implementations', () => {
   it('⭐⭐ `hma` IS TradingView’s published composition, exactly', () => {
-    // Published as:
+    // TradingView's composition:
     //   ta.hma(_src, _length) => ta.wma(2 * ta.wma(_src, _length / 2)
     //                                   - ta.wma(_src, _length),
-    //                                   math.round(math.sqrt(_length)))
+    //                                   math.floor(math.sqrt(_length)))
+    // ⭐ 2026-11-27 (engine e100): THE ROOT WINDOW IS FLOORED. This rail used to state `math.round`; FRED's Q-HMA
+    // capture (AMEX:SPY 1D) settled it by measurement -- at n = 21 the floor window (4) is exact on 8,482 of 8,482
+    // bars and the round window (5) on none. 21 is the length here where the two differ (sqrt 4.58); 9, 20 and 55
+    // reach the same window both ways (3, 4.47, 7.42).
     // ⛔ THE ODD LENGTHS ARE THE POINT. `_length / 2` is where our `floor(n / 2)`
     // could have diverged: TradingView's operators page states that int/int with
     // a remainder yields a FRACTIONAL value ("5/2 = 2.5"), so `TA_VETTED`'s
@@ -56,7 +60,7 @@ describe('our columns against TradingView’s published reference implementation
     // than to trust it.
     for (const n of [9, 20, 21, 55]) {
       const half = Math.floor(n / 2)
-      const root = Math.round(Math.sqrt(n))
+      const root = Math.floor(Math.sqrt(n))
       const ours = col(`hma(close, ${n})`)
       const theirs = col(`wma(2 * wma(close, ${half}) - wma(close, ${n}), ${root})`)
       expect(firstFinite(ours), `hma(${n}) warmup`).toBe(firstFinite(theirs))
