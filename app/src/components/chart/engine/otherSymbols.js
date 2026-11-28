@@ -49,6 +49,7 @@ import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf,
   SERIES_EVENT_RECORD, BREADTH_BEFORE_RECORD_CODE } from './ast/interpret'
 // ⭐ RS RATING L13 — the exchange's sessions (a month's first session, a row's next session)
 import { isTradingDay, closeTime, isHalfDay } from '../../../lib/marketClock/sessionCalendar.js'
+import { DEFAULT_LIMITS } from './runtime/limits.js'
 import REQUEST_WITNESSES from './requestWitnesses.json'
 // ⭐⭐ e98 (the 4h grid follows the chart's spec) — the ONE authority for where a custom intraday chart's bars start
 import { resampleSpec } from '../timeframes'
@@ -809,7 +810,7 @@ const RTH_OPEN_MIN = 9 * 60 + 30
  *  keeps where the series' rows begin before the chart, so a chart bar missing its row is the HOLE it was (never read as
  *  a depth gap: `interpret.js::symAlignmentMasks`, `requestSupply.js::firstHeldTime`). The sessions before it are still
  *  walked, so every laid row carries the right previous close. */
-export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extended = false, from = null } = {}) {
+export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extended = false, from = null, maxRows = null } = {}) {
   const out = []
   Object.defineProperty(out, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
   const step = GRID_STEP_MIN[String(tf)]
@@ -879,6 +880,11 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extend
     if (d > lastHeld) break
   }
   if (before) out.push(before)
+  // ⭐⭐ (owner, 2026-11-28) never more rows than a run is computed over: a sparse chart (an illiquid stock's 30m bars, ~16
+  // a session) spans more extended-hours slots than it has bars, so its grid could still pass the run's `HISTORY` ceiling.
+  // The OLDEST rows go: the chart bars before the first row left are a depth gap, so the run starts where the grid does
+  // (`requestSupply.js` `knownFrom`), as a capped run does (`runtimeColumns.js::computeRuntimeColumnsKnown`)
+  if (Number.isInteger(maxRows) && maxRows > 0 && out.length > maxRows) out.splice(0, out.length - maxRows)
   return out
 }
 
@@ -1035,7 +1041,8 @@ export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.SAME_MONTH) return previousMonthBarsOf(held).map((m) => ({ ...m, t: previousMonthFirst(m.t) }))
   if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
     return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming),
-      extended: !!(also && also.extended), from: also && typeof also.from === 'number' ? also.from : null })
+      extended: !!(also && also.extended), from: also && typeof also.from === 'number' ? also.from : null,
+      maxRows: DEFAULT_LIMITS.HISTORY })
   }
   return null
 }
