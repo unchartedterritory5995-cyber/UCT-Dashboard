@@ -131,6 +131,11 @@ export const SLOT = Object.freeze({
   PERSIST: 'persist',     // survives bars — `var`
 })
 
+/** ⭐⭐ E104 — the canonical tree of each COLUMN, carried on a built IR under a Symbol: a spread of the IR (a reused or
+ *  memoised build) keeps it, `JSON.stringify` never writes it, and nothing the VM runs reads it. Read by the static
+ *  start-free proof (`startFreeProof.js`). */
+export const COLUMN_TREES = Symbol.for('uct.runtime.columnTrees')
+
 export class IrError extends Error {
   constructor(message) { super(message); this.name = 'IrError' }
 }

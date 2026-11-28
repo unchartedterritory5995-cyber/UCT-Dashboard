@@ -26,7 +26,8 @@ import { USER_LISTS_URL } from '../../hooks/useUserTickerSet'
 import { PanelFreshnessContext, PanelListContext } from '../../components/terminal'
 import WatchMarksProvider from '../../components/terminal/WatchMarksProvider'
 import HighsLowsPanel from './panels/HighsLowsPanel'
-import UpgradesPanel, { UPGRADES_URL } from './panels/UpgradesPanel'
+import UpgradesPanel from './panels/UpgradesPanel'
+import { upgradesUrl } from './panels/upgradesModel'
 import ConfluencePanel, { CONFLUENCE_URL } from './panels/ConfluencePanel'
 import MoversPanel from './panels/MoversPanel'
 import { CATALYSTS_URL, MOVERS_URL, VOLUME_URL } from './panels/moversModel'
@@ -64,7 +65,7 @@ const CONFL = {
 const MOVERS = { ripping: [{ sym: 'AAA', pct: '+12.50%' }, { sym: 'GGG', pct: '+4.00%' }], drilling: [{ sym: 'DDD', pct: '-8.25%' }] }
 const ROUTES = {
   '/api/nhnl/live?limit=50': HILO,
-  [UPGRADES_URL]: UPDG,
+  [upgradesUrl()]: UPDG,   // the panel reads the whole list (gap audit P1)
   [CONFLUENCE_URL]: CONFL,
   [MOVERS_URL]: MOVERS,
   [CATALYSTS_URL]: { rows: [] },

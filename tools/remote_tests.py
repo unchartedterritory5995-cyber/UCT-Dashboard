@@ -77,6 +77,8 @@ ENV_ALLOWLIST = frozenset({
     "PINE_COLOUR_CENSUS_DIR", "PINE_COLOUR_CENSUS_OUT", "RUNTIME_PERF_CENSUS", "PARTIAL_CENSUS_RUNTIME_ON",
     "PERSISTENCE_CENSUS_STRICT", "UIE_LIMITS_CENSUS", "RUN_HALF_SAMPLE", "RUN_HALF_OUT", "RUN_HALF_REACH",
     "RUN_HALF_INPUTS_FULL",
+    # the capacity replay (tools/capacity_replay/ci_replay.py): a synthetic store, no data of any kind leaves the runner
+    "CAPACITY_REPLAY",
 })
 #: a value: no spaces, quotes, `$`, backticks, backslashes, globs or newlines (it travels through $GITHUB_ENV).
 _ENV_VALUE = re.compile(r"^[A-Za-z0-9_./:;,=+-]{0,200}$")

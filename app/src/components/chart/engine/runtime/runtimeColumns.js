@@ -73,6 +73,7 @@ import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 import { withAmbientRunClock } from './vm.js'
 import { dailyExpressionAdmitted } from '../dailyExpressionGate.js'
 import { intradayHtfAdmitted } from '../intradayHtfGate.js'
+import { startFreeProofOf } from './startFreeProof.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
 // `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
@@ -1197,6 +1198,43 @@ function computeOffListing(def, rows, ctx, opts) {
 // Historical run names the oldest dots (`START_FREE_OLDEST_DOTS_REASON`) whether or not this run held more.
 // ⛔ Anything else (another source, a setting outside the list, a shorter chart, a window that slides) keeps the refusal
 // it had.
+// ⭐⭐ E104 (2026-11-28) — THE STATIC START-FREE PROOF (`startFreeProof.js`). A program whose value on bar i reads only
+// rows[i-R .. i] (no `var`, no carried built-in, finite literal windows, no read of where the chart starts, no `na`-able
+// condition; fail closed on anything else) is run once over the chart's bars, and bars before R are withheld
+// (`withheldBars: R`, `startFree: 'static'`). The proof is read off the built IR before any bar runs: a program it does
+// not prove keeps the refusal it had (`runtime:history-start`, the proof's reason appended).
+export const HISTORY_START_REFUSAL = "this script is drawn bar by bar from its first bar, and this chart's "
+  + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
+  + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
+  + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
+  + 'within the bars it loads) draws it.'
+let _staticStartFreeOn = false
+/** Tests, the census and the release once ruled: does an off-listing listing document try the static proof? */
+export function setStaticStartFreeEnabled(on) { _staticStartFreeOn = on !== false }
+export function staticStartFreeEnabled() { return _staticStartFreeOn }
+function staticStartFreeShape(def, rows, ctx, opts = {}) {
+  if (!_staticStartFreeOn || opts.staticStartFree === false) return false
+  const compute = (def && def.compute) || {}
+  if (compute.objects === true || typeof compute.source !== 'string') return false   // drawings: not proved
+  if (opts.slidingWindow === true || !!(ctx && ctx.framed === true)) return false
+  return Array.isArray(rows) && rows.length > 0
+}
+function computeStaticStartFree(def, rows, ctx, opts) {
+  const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined } }
+  const probe = { reach: null }
+  const a = computeRuntimeColumnsOnce(plain, rows, ctx, { ...opts, sessionRole: 'staticStartFree', startFreeProbe: probe })
+  if (!Number.isInteger(probe.reach)) throw refusal(RUNTIME_HISTORY_GUARD, HISTORY_START_REFUSAL)
+  const from = Math.min(probe.reach, rows.length)
+  for (const k of Object.keys(a)) {
+    const col = a[k]
+    if (!col || typeof col.length !== 'number') continue
+    for (let i = 0; i < from && i < col.length; i += 1) col[i] = NaN
+  }
+  Object.defineProperty(a, RUNTIME_WARMUP_KEY, {
+    value: { withheldBars: from, startFree: 'static', reach: probe.reach }, enumerable: false, configurable: true })
+  return a
+}
+
 let _startFreeOff = false
 /** Tests (the mutants' control): Fred RS off the listing is refused whole, as before e103. */
 export function __startFreeReleaseOffForTests(off) { _startFreeOff = !!off }
@@ -2089,11 +2127,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // ⛔⛔ (e102) OFF until proved exact: refused by name below (`_offListingCurtainOn`)
     if (_offListingCurtainOn && opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
-    throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
-      + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
-      + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
-      + 'TO UNBLOCK: a chart whose loaded history reaches the listing (a daily chart of a symbol listed '
-      + 'within the bars it loads) draws it.')
+    // ⭐⭐ E104 — a program PROVED start-free by reading it (`startFreeProof.js`): drawn from its reach on
+    if (staticStartFreeShape(def, rows, ctx, opts)) return computeStaticStartFree(def, rows, ctx, opts)
+    throw refusal(RUNTIME_HISTORY_GUARD, HISTORY_START_REFUSAL)
   }
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
@@ -2160,6 +2196,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // columns; a run that does not resume lowers afresh below (its own constants).
   const lowerOpts = { historyFromListing: !!(ctx && ctx.historyFromListing === true) }
   let program = reused ? { ...prevSession.program, columns: reused } : lowerIrProgram(built.ir, lowerOpts)
+  // ⭐⭐ E104 — the static start-free proof, read off THIS build before a bar runs (`computeStaticStartFree`)
+  if (opts.startFreeProbe) {
+    const proof = startFreeProofOf(built.ir)
+    if (!proof.startFree) throw refusal(RUNTIME_HISTORY_GUARD, `${HISTORY_START_REFUSAL} (It is not provably start-free: ${proof.why}.)`)
+    opts.startFreeProbe.reach = proof.reach
+  }
   // ⭐ P1 HARDENING — the document is run only by the engine it was minted for, and
   // only while each mapped index still names the output it named at mint.
   const versionWhy = runtimeVersionRefusal(def, program.outputs)

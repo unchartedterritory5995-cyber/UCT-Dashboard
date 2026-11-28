@@ -180,6 +180,8 @@ describe('ECON with every series', () => {
     serve({ [ECON_LATEST_URL]: econAnswer() })
     renderPanel()
     const credits = await screen.findAllByTestId('terminal-econ-credit')
+    // every credit is a publisher's required notice: a share carries it (shareRead, data-share-notice)
+    for (const c of credits) expect(c.hasAttribute('data-share-notice')).toBe(true)
     expect(credits.map((c) => c.getAttribute('data-source'))).toEqual(['bls', 'bea', 'dol', 'fed_board', 'census', 'fhfa', 'nyfed'])
     expect(credits[0].textContent).toBe('Invented BLS line, read on 2031-03-20.')
     expect(credits[6].textContent).toBe('The Effective Federal Funds Rate is invented for UCT Intelligence.')

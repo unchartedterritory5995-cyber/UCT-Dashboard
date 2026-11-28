@@ -764,6 +764,9 @@ function mergeChartSettingsRaw(userSettings) {
     ...(parsed.priceAlertLines === true ? { priceAlertLines: true } : {}),
     // Markers → Your activity → My trades (chartViewOptions.js): same rule — kept only while ON, keep listed.
     ...(parsed.myTradeMarkers === true ? { myTradeMarkers: true } : {}),
+    // Price scale → Scale price chart only (StockChart): ON by default, kept only while OFF, so an untouched blob
+    // merges byte-identically. Undeclared keys are dropped here — keep listed.
+    ...(parsed.scalePriceChartOnly === false ? { scalePriceChartOnly: false } : {}),
     showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
     showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
     darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },

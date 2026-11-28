@@ -194,6 +194,7 @@ describe('OIL with every series', () => {
     expect(text('terminal-oil-line-words')).toContain('1 of 105 weeks have no figure here, and the line breaks there.')
     expect(fig.textContent).toContain('412.3M bbl to 452.1M bbl')
     const credits = screen.getAllByTestId('terminal-oil-credit')
+    for (const c of credits) expect(c.hasAttribute('data-share-notice')).toBe(true)
     expect(credits.map((c) => [c.getAttribute('data-source'), c.textContent])).toEqual([['eia', 'Invented EIA credit (Mar 19, 2031).']])
     expect(text('terminal-oil-footer')).toContain('except the weekly build or draw, a UCT calculation')
   })
