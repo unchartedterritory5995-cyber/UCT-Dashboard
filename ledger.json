@@ -8600,6 +8600,36 @@
     "MCHB",
     "AMCX"
    ]
+  },
+  {
+   "id": "cloud/46155235406-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:33:14+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CCXI",
+    "GLSI",
+    "GLAD",
+    "OPRA",
+    "BZH",
+    "CTNM",
+    "PEBO",
+    "OPTU",
+    "TDUP",
+    "EGY",
+    "AESI",
+    "PDLB",
+    "FNLC"
+   ]
+  },
+  {
+   "id": "cloud/46155235406-1/COV-def-tabs",
+   "at": "2026-11-28T14:33:14+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DSAC",
+    "SVRA",
+    "FBRT"
+   ]
   }
  ]
 }
