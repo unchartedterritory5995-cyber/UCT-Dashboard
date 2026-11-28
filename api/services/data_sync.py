@@ -558,11 +558,15 @@ def complete_deferred_swap(data_dir: Optional[str] = None) -> str:
             except FileNotFoundError:
                 pass
             carried = max(0, _merge_ohlcv_from(p, new, pairs=pairs)) if pairs else 0
-            if not _truncate_checkpoint(p, 60):
-                raise RuntimeError("old store busy at boot")
-            _truncate_checkpoint(new, 30)
-            n_new = _row_count(new)
-            os.replace(new, p)
+            # ⛔ Several bars-api processes (review of #2962, H1): followers boot alongside the leader and may
+            # already read the store, so the boot swap also closes the cross-process barrier (no-op alone).
+            from api.services import bars_api_roles as _roles
+            with _roles.store_swap_barrier(reason="adopted clustered store (boot swap)"):
+                if not _truncate_checkpoint(p, 60):
+                    raise RuntimeError("old store busy at boot")
+                _truncate_checkpoint(new, 30)
+                n_new = _row_count(new)
+                os.replace(new, p)
         except Exception as e:  # noqa: BLE001 -- the old store is untouched
             logger.warning(f"[data_sync] adopt-clustered: boot swap failed; store kept: {e}")
             try:
@@ -875,7 +879,16 @@ def _adopt_clustered_store_locked(data_dir: Optional[str] = None, defer_swap=Non
                 _c.close()
         except sqlite3.Error:
             pass
-        with bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
+        # ⛔ Several bars-api processes (review of #2962, H1): the cross-process barrier FIRST (no follower reads
+        # or holds a connection across the replace; a no-op with one process), then this process's locks.
+        from api.services import bars_api_roles as _roles
+        try:
+            _barrier = _roles.store_swap_barrier(reason="adopted clustered store")
+            _barrier.__enter__()
+        except BaseException:
+            bars_sqlite.stop_write_tracking()      # (review of #2962, L2) never leave tracking on past a refusal
+            raise
+        with _roles.held(_barrier), bars_sqlite._WRITE_LOCK, bars_sqlite.DB_SWAP_LOCK:
             # Pass 2, LOCKED and BUDGETED: the last round's remainder plus whatever was
             # written since.
             changed = sorted(pending | bars_sqlite.stop_write_tracking())
@@ -1170,7 +1183,26 @@ def _swap_in_bars_db(src_db: str, dst: str, bs) -> bool:
     file); busy => refuse, keep the old store. No old main file => any -wal/-shm left behind are
     orphans of a store that no longer exists, and are removed. Then replace and bump the epoch so
     every thread reopens the new inode before its next query. Returns False (store untouched) on
-    any refusal."""
+    any refusal.
+
+    ⛔ Several bars-api processes (BARS_API_WORKERS > 1, review of #2962 H1): the cross-process barrier is taken
+    first (`bars_api_roles.store_swap_barrier`): no follower is reading or holding a connection into the replace,
+    and the new file's floor is persisted before any follower reads it. Followers never write (leader-only), so
+    no follower frame can land between the checkpoint and the replace. Barrier busy = refused, store kept."""
+    from api.services import bars_api_roles as _roles
+    try:
+        barrier = _roles.store_swap_barrier(reason="snapshot installed")
+        barrier.__enter__()
+    except _roles.SwapBarrierBusy as e:
+        logger.error(f"[data_sync] {e}; snapshot NOT installed, old store kept")
+        return False
+    try:
+        return _swap_in_bars_db_locked(src_db, dst, bs)
+    finally:
+        barrier.__exit__(None, None, None)
+
+
+def _swap_in_bars_db_locked(src_db: str, dst: str, bs) -> bool:
     with bs._WRITE_LOCK, bs.DB_SWAP_LOCK:
         if os.path.exists(dst):
             c = sqlite3.connect(dst, timeout=SWAP_BUSY_TIMEOUT_S)
