@@ -1458,15 +1458,13 @@ export default function ChartSettingsModal({
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale price chart only</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={settings.scalePriceChartOnly !== false}
+                <Switch
+                  checked={settings.scalePriceChartOnly !== false}
                   aria-label="Scale price chart only: the price axis fits the candles, indicators run off the edge"
                   title="The price axis fits the candles only; an indicator drawn on price (an RS line, an average) runs off the edge instead of squashing the bars. TradingView calls it the same."
-                  className={`${styles.toggle} ${settings.scalePriceChartOnly !== false ? styles.toggleOn : ''}`}
+                  className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.toggleKnob}
                   onClick={() => setSetting({ scalePriceChartOnly: settings.scalePriceChartOnly === false })}
-                ><span className={styles.toggleKnob} /></button>
+                />
               </div>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Price labels</span>
