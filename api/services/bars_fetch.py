@@ -4350,8 +4350,9 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
     caller leaves the window un-marked and the next ask retries. `fetch` is resolved by the
     caller once, so every round asks the same provider.
     Returns `(reason, count)`: `count` = the rows of the run ending at the cutoff; `reason` = "count" (the ask is
-    held), "floor" (the provider's floor reached), "listing" (two empty rounds spanning >= `_TO_LISTING_EMPTY_DAYS`:
-    the series starts there), "gap" (two empty rounds spanning less: proves nothing), "rounds" (rounds used up)."""
+    held), "floor" (the provider's floor reached), "listing" (two empty rounds spanning >= `_TO_LISTING_EMPTY_DAYS`,
+    or no DAILY bar before the run's oldest row: the series starts there), "gap" (two empty rounds and the daily says
+    the series traded before, or the provider faulted: proves nothing), "rounds" (rounds used up)."""
     lo_ymd, hi_ymd = str(from_ymd), str(to_ymd)
     empty_rounds = 0
     empty_days = 0
@@ -4381,7 +4382,24 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
         if lo_ymd <= _INTRADAY_FLOOR_YMD:
             return "floor", len(run)
         if empty_rounds >= 2:
-            return ("listing" if empty_days >= _TO_LISTING_EMPTY_DAYS else "gap"), len(run)
+            if empty_days >= _TO_LISTING_EMPTY_DAYS:
+                return "listing", len(run)
+            # ⛔⛔ (review of #3011, F2 round 2) the rounds grow only x2 from density, so a RECENT listing's empty
+            # rounds span ~60 days, never 400: without a second fact it was never proven, and its window answered
+            # `filling` (or, scrolled back past the start, the warming 503) forever. The DAILY series is that fact:
+            # no daily bar in the stored daily or the provider's daily before the run's oldest row (before the
+            # cutoff, when the run is empty) = the series starts there.
+            try:
+                if run:
+                    _through = (datetime.fromtimestamp(int(run[0][0]), _ZI("America/New_York")).date()
+                                - timedelta(days=1)).isoformat()
+                else:
+                    _through = datetime.fromtimestamp(int(to_key), _ZI("America/New_York")).date().isoformat()
+            except Exception:              # noqa: BLE001
+                _through = None
+            if _through and _daily_traded_through(ticker_up, _through) is False:
+                return "listing", len(run)
+            return "gap", len(run)
         # ⛔ EACH ROUND IS SIZED, NEVER BLINDLY DOUBLED (review #2951 L2). Doubling alone took a
         # thin 1m name from a 400-day first window to 3,200 days by the last round. The next
         # window is what the rows still missing need at the run's OBSERVED density
@@ -4395,6 +4413,29 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
         lo_ymd = max(_INTRADAY_FLOOR_YMD, (datetime.strptime(hi_ymd, "%Y-%m-%d")
                                            - timedelta(days=days)).strftime("%Y-%m-%d"))
     return "rounds", len(run)
+
+
+def _daily_traded_through(ticker_up: str, through_iso: str):
+    """Did the series trade on or before `through_iso` (YYYY-MM-DD)? True when the stored daily or the provider's
+    daily holds a bar there (the provider over the `_TO_LISTING_EMPTY_DAYS` before it); False when neither does and
+    the provider ANSWERED (no fault: `provider_fault_scope`); None when the provider faulted (unknown, proves nothing)."""
+    try:
+        through_key = int(through_iso.replace("-", ""))
+        if _sqlite.get_bars_before(ticker_up, "D", 1, through_key):
+            return True
+    except Exception:                      # noqa: BLE001 — the store unreadable: ask the provider
+        pass
+    try:
+        from api.services import massive, provider_fault_scope
+        d = datetime.strptime(through_iso, "%Y-%m-%d")
+        frm = (d - timedelta(days=_TO_LISTING_EMPTY_DAYS)).strftime("%Y-%m-%d")
+        with provider_fault_scope.scope() as sc:
+            raw = massive.get_agg_bars(ticker_up, frm, through_iso)
+        if raw:
+            return True
+        return False if sc.clean else None
+    except Exception:                      # noqa: BLE001
+        return None
 
 
 #: (review of #3011, LOAD) after a window fetch that did not prove the window, re-asks inside this many seconds answer
