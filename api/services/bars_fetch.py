@@ -47,6 +47,12 @@ from api.services.nyse_calendar import (
 from api.services.cache import cache
 from api.services import bars_disk_cache as disk_cache
 from api.services import bars_sqlite as _sqlite
+# ⛔⛔ SEVERAL bars-api PROCESSES (BARS_API_WORKERS > 1, review of #2962 H1 + M1): every cap and single-flight map
+# below is a per-process object, so with N processes each "global" limit would be N times larger and the
+# followers would write the store the leader swaps. In a FOLLOWER they are leader-only (`bars_api_roles`): the
+# first claim raises `LeaderOnly` and the route hands the whole request to the leader, where the caps exist ONCE.
+# One process: plain semaphores / dicts / sets, exactly as before.
+from api.services import bars_api_roles as _roles
 from api.services.massive import _get_client, _REST_BASE, to_polygon_symbol
 # ⛔ SECURITY (2026-11-10): every service that imports this module (bars-api,
 # worker, flow-worker, web) talks to Massive with `apiKey=` in the query string;
@@ -169,7 +175,7 @@ def _massive_bar_row(bar) -> dict | None:
 # Prevents N concurrent requests for the same key from each making a separate
 # Massive API call.  The first thread that arrives becomes the "fetcher" and
 # sets the result into cache; all others wait on an Event and read from cache.
-_inflight: dict[str, _threading.Event] = {}
+_inflight: dict[str, _threading.Event] = _roles.LeaderOnlyDict(what="single-flight fetch")
 _inflight_lock = _threading.Lock()
 
 # Bounded concurrency for the SWR background delta-fetch threads ("bars-bg").
@@ -188,7 +194,7 @@ _inflight_lock = _threading.Lock()
 # once). 6 keeps background throughput reasonable while leaving the loop GIL
 # time. Tune via BARS_BG_DELTA_MAX.
 _BG_DELTA_MAX = max(2, int(_os.environ.get("BARS_BG_DELTA_MAX", "6")))
-_bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
+_bg_delta_sem = _roles.LeaderOnlySemaphore(_BG_DELTA_MAX, what="bg delta")
 
 # ── INTERACTIVE TAIL-HEAL RESERVE (2026-09-28) ───────────────────────────────
 # ⛔⛔ THE CLICK LOST TO THE LIST. Measured on production 2026-09-28 11:35 ET: a
@@ -203,7 +209,7 @@ _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 # Bounded: the total ceiling rises by exactly this many slots, all of them
 # reserved for member demand. Tune via BARS_INTERACTIVE_HEAL_MAX (0 disables).
 _INTERACTIVE_HEAL_MAX = max(0, int(_os.environ.get("BARS_INTERACTIVE_HEAL_MAX", "2")))
-_interactive_heal_sem = _threading.Semaphore(_INTERACTIVE_HEAL_MAX)
+_interactive_heal_sem = _roles.LeaderOnlySemaphore(_INTERACTIVE_HEAL_MAX, what="interactive heal")
 _req_ctx = _threading.local()
 
 
@@ -255,7 +261,9 @@ def start_request_budget() -> None:
     callers (seasonality, cot_prewarm, data_exports, discord...) are not behind the
     edge's 8 s abort, so they keep each wait's own ceiling and the D/W/M deltas stay
     blocking for them (review F3)."""
-    _req_ctx.budget_t0 = _time.monotonic()
+    # A request a bars-api FOLLOWER handed to its leader (`bars_api_main.serve_for_follower`) starts with what the
+    # follower already spent (`_req_ctx.budget_spent`), so the two together still fit the edge's abort.
+    _req_ctx.budget_t0 = _time.monotonic() - float(getattr(_req_ctx, "budget_spent", 0.0) or 0.0)
 
 
 def end_request_budget() -> None:
@@ -321,9 +329,9 @@ _REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4
 # replays can't saturate the single-process web pod's threadpool → the 524-outage class.
 # Warm requests are best-effort (skip when no slot); real chart requests wait for one.
 _REPLAY_COLD_CONCURRENCY = int(_os.environ.get("REPLAY_COLD_CONCURRENCY", "2"))
-_replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
+_replay_cold_sem = _roles.LeaderOnlySemaphore(_REPLAY_COLD_CONCURRENCY, what="replay cold fetch")
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
-_deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
+_deepfill_sem = _roles.LeaderOnlySemaphore(_DEEPFILL_MAX, what="deep fill")
 
 # 🔴 Global cap on CONCURRENT truly-cold Layer-4 provider fetches (a first-ever
 # ticker/tf with NO stored rows). Obscure/long-tail names take 15-22s to fetch;
@@ -337,7 +345,7 @@ _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 # in ~3s) instead of adding another 20s hold; the ticker warms on a retry once a slot
 # frees, or via the prewarmer/crawler. Tune via BARS_COLD_FETCH_CONCURRENCY.
 _COLD_FETCH_CONCURRENCY = max(1, int(_os.environ.get("BARS_COLD_FETCH_CONCURRENCY", "3")))
-_cold_fetch_sem = _threading.Semaphore(_COLD_FETCH_CONCURRENCY)
+_cold_fetch_sem = _roles.LeaderOnlySemaphore(_COLD_FETCH_CONCURRENCY, what="cold fetch")
 
 # 🟡 Global cap on CONCURRENT best-effort WARM serves (background prefetch: opening a
 # theme/watchlist warms ~20 holdings at once, across MANY browsers = a lot of concurrent
@@ -422,6 +430,12 @@ def _maybe_kick_deepfill(ticker: str, tf: str, bars: int) -> None:
     ticker_up = ticker.upper()
     marker = f"deepfill_{ticker_up}_{tf}_{_depth_tier(bars)}"
     if cache.get(marker) is not None:
+        return
+    if _roles.is_follower():
+        # ⛔ (review of #2962, round 2 H1) a best-effort kick NEVER hands the request off: every intraday first
+        # paint passes here. Throttle locally, let the leader replay the request in the background.
+        cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+        _roles.defer_to_leader("deepfill", marker)
         return
     if not _deepfill_sem.acquire(blocking=False):
         return
@@ -902,6 +916,7 @@ _market_probe_lock = _threading.Lock()
 
 def _fetch_reference_end(sym: str):
     """End (unix s) of `sym`'s newest PUBLISHED 1m REST bar (one request, newest first), or None."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     client = _get_client()
     now_utc = datetime.utcnow()
     url = (f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(sym)}/range/1/minute"
@@ -916,6 +931,7 @@ def _fetch_reference_end(sym: str):
 def _fetch_market_reference_end():
     """One probe ROUND: the MAX over `_MARKET_REF_TICKERS` of each reference's newest published 1m bar end, or None
     when none answered. A failing reference never sinks the round."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from concurrent.futures import ThreadPoolExecutor
 
     def _one(sym):
@@ -1355,7 +1371,7 @@ def _local_tail_repair(ticker_up: str, tf: str, last_ts: int):
 #: started a write thread per name, all fighting for the SQLite write lock the live store's 1m/5m/D pushes use. A write
 #: that finds no slot is SKIPPED, never queued: the answer carries the derived bars anyway, and a later read writes.
 WM_WRITE_SLOTS = 2
-_WM_WRITE_SEM = _threading.BoundedSemaphore(WM_WRITE_SLOTS)
+_WM_WRITE_SEM = _roles.LeaderOnlyBoundedSemaphore(WM_WRITE_SLOTS, what="W/M write")
 
 
 _D_UNREAD = object()   # `d_last` not read yet: the helper reads the stored daily tail itself
@@ -1545,7 +1561,7 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D
             by[k] = (k, p["o"], p["h"], p["l"], p["c"], int(p["v"] or 0))
     except Exception:                      # noqa: BLE001 — the read serves the store as it is
         return None
-    if todo:
+    if todo and not _roles.defer_to_leader("wm-write", f"{ticker_up}_{tf}"):
         _bounded_job(f"wmderive_{ticker_up}_{tf}",
                      lambda: _sqlite.put_bars(ticker_up, tf, todo, date_tf=True), 0.0, sem=_WM_WRITE_SEM)
     rows = [by[k] for k in sorted(by)]
@@ -2357,6 +2373,8 @@ def _since_async_heal() -> bool:
 
 
 def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, date_tf: bool) -> None:
+    if _roles.defer_to_leader("since-heal", cache_key):   # a follower: the leader heals, this tail answers now
+        return
     """Bounded, deduped background delta heal for the `since=` path (Phase 1.4).
     Mirrors the first-paint `_bg_delta` spawn: acquire a bars-bg slot non-blocking
     (skip if the pool is full — the stale local delta was already served and the next
@@ -2730,6 +2748,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
     The endpoint paginates via a `next_url` field; we follow it until either
     the response stops returning a next_url or we hit the safety page cap.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     multiplier = int(tf)  # 1, 5, 15, 30, 60
     # Lookback scales with max_bars. 16hr/day to account for extended hours.
     # Massive/Polygon retains deep intraday (verified: 1-min back to >=2010,
@@ -2809,6 +2828,7 @@ def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str,
     Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
     FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
     re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if tf == "60":
         src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd, raise_errors)   # 15m base, session-anchored
         return _resample_derived("60", src) if src else []
@@ -2914,6 +2934,7 @@ def _paginate_massive_aggs(client, url: str) -> list[dict]:
 
 def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from FMP (paid tier). Reliable, no rate limits."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     import os, urllib.request
     fmp_key = os.environ.get("FMP_API_KEY", "")
     if not fmp_key:
@@ -2969,6 +2990,7 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
 
 def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
     """Fetch intraday bars from yfinance (fallback). Includes premarket + after-hours."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services.yfinance_pool import fetch_history as _yf_fetch
     from concurrent.futures import TimeoutError as _YfTimeout
     config = _YF_CONFIG.get(tf)
@@ -3265,6 +3287,7 @@ def _fetch_intraday(ticker: str, tf: str, max_bars: int) -> list[dict]:
     here, but the underlying 30-min fetch goes through fetch_with_validation
     (which itself iterates Massive → FMP → yfinance with per-bar validation).
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     import logging as _log
     _logger = _log.getLogger(__name__)
     _set_intraday_source(None)    # never inherit a previous fetch's source on this thread
@@ -3875,6 +3898,7 @@ def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
     tight cap (see _REQUEST_YF_DAILY_TIMEOUT) so a cold chart open never blocks
     on a slow Yahoo call.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     ticker_up = ticker.upper()
     # Skip tickers in a recent-failure backoff window (Yahoo IP throttle / delisted).
     if _yf_daily_in_backoff(ticker_up):
@@ -3923,6 +3947,7 @@ def _fetch_yf_only(ticker_up: str, tf: str, max_bars: int) -> list[dict]:
     yfinance — Massive has no index data. Daily uses period='max'; weekly /
     monthly resample that; intraday reuses the yfinance intraday path.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if tf in ("1", "5", "15", "30", "60"):
         return _fetch_intraday_yfinance(ticker_up, tf, max_bars)
     yf_sym = _YF_ONLY.get(ticker_up, ticker_up)
@@ -4066,6 +4091,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     invoked by the nightly universe warmer — live user requests never call
     yfinance, ensuring zero latency impact.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services.massive import get_agg_bars
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     # ~1.5 calendar days per trading day, capped at 30 years to avoid strftime crash
@@ -4087,6 +4113,7 @@ def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
 
 def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     """Fetch weekly bars — daily from Massive (+ yfinance if deep), resampled."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if deep:
         # Build deep daily series first, then resample. Need enough daily bars
         # to cover max_bars weeks: ~5 trading days/week + buffer.
@@ -4132,6 +4159,7 @@ def _resample_monthly(daily_bars: list[dict]) -> list[dict]:
 
 def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
     """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     if deep:
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
         monthly = _add_only_periods(daily, _resample_monthly_iso(daily), "M")
@@ -4880,6 +4908,8 @@ def kick_snapshot_warm(ticker: str, tf: str, need_before_ymd: int | None = None)
       deep-fill semaphore, with the caller's cutoff day so an already-deep
       store short-circuits instead of re-fetching 30 years.
     Returns whether a warm was dispatched."""
+    if _roles.defer_to_leader('kick_snapshot_warm', f"{ticker}_{tf}"):   # a follower: best effort, the leader runs it
+        return False
     if _os.environ.get("PYTEST_CURRENT_TEST"):
         return False
     tu = (ticker or "").strip().upper()
@@ -5132,7 +5162,7 @@ def shutdown_bars_warm_pool() -> None:
 # layer the moment the bg fetch lands. No request thread is ever held on a provider.
 _cold_bg_pool = _BarsWarmExecutor(max_workers=_COLD_FETCH_CONCURRENCY,
                                   thread_name_prefix="bars-cold-bg")
-_cold_bg_inflight: set[str] = set()
+_cold_bg_inflight: set[str] = _roles.LeaderOnlySet(what="cold bg fetch")
 _cold_bg_lock = _threading.Lock()
 _COLD_BG_QUEUE_MAX = _COLD_FETCH_CONCURRENCY * 4   # running + a small queue; drop beyond
 
@@ -5238,6 +5268,8 @@ def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     provider already answered "nothing" for is not re-asked until its TTL lapses."""
     if cold_negative(ticker_up, tf):
         return
+    if _roles.defer_to_leader("cold-fetch", f"{ticker_up}_{tf}"):
+        return                             # a follower: the leader fetches; this request sheds as before
     key = f"{ticker_up}_{tf}"
     with _cold_bg_lock:
         if key in _cold_bg_inflight or len(_cold_bg_inflight) >= _COLD_BG_QUEUE_MAX:
@@ -5393,12 +5425,12 @@ def _start_bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool):
 _DATE_DELTA_DEADLINE_SECONDS = float(
     _os.environ.get("BARS_DATE_DELTA_DEADLINE_SECONDS", "6.0"))
 _DATE_DELTA_MAX = max(1, int(_os.environ.get("BARS_DATE_DELTA_MAX", "8")))
-_date_delta_sem = _threading.Semaphore(_DATE_DELTA_MAX)
+_date_delta_sem = _roles.LeaderOnlySemaphore(_DATE_DELTA_MAX, what="D/W/M delta")
 # ⭐ Warm (`warm=1`) traffic may hold at most this many of the slots, so a list
 # pre-warm can never starve the chart a member clicked (review F3).
 _DATE_DELTA_WARM_MAX = max(1, min(_DATE_DELTA_MAX - 2, int(
     _os.environ.get("BARS_DATE_DELTA_WARM_MAX", str(max(1, _DATE_DELTA_MAX - 2))))))
-_date_delta_warm_sem = _threading.Semaphore(_DATE_DELTA_WARM_MAX)
+_date_delta_warm_sem = _roles.LeaderOnlySemaphore(_DATE_DELTA_WARM_MAX, what="D/W/M warm delta")
 #: How long an INTERACTIVE request may wait for a free slot (from its budget).
 _DATE_DELTA_SLOT_WAIT_S = 1.0
 #: In-process (non-edge) callers keep the original blocking semantics, with a
@@ -5484,7 +5516,7 @@ _TAIL_GAPFILL_RETRY_S = float(_os.environ.get("BARS_TAIL_GAPFILL_RETRY_S", "60")
 _TAIL_GAPFILL_MAX = max(1, int(_os.environ.get("BARS_TAIL_GAPFILL_MAX", "2")))
 _TAIL_GAPFILL_QUEUE_MAX = 500
 _TAIL_GAPFILL_MAX_KEYS = 20000
-_tail_gapfill_sem = _threading.Semaphore(_TAIL_GAPFILL_MAX)
+_tail_gapfill_sem = _roles.LeaderOnlySemaphore(_TAIL_GAPFILL_MAX, what="tail gap-fill")
 _tail_gapfill_at: dict = {}          # key -> monotonic instant before which no new pass
 _tail_gapfill_pending: dict = {}     # insertion-ordered queue of keys waiting for a slot
 _tail_gapfill_lock = _threading.Lock()
@@ -5496,6 +5528,8 @@ def _gapfill_disabled_in_tests() -> bool:
 
 def _kick_tail_gapfill(ticker_up: str, tf: str) -> bool:
     """Schedule the full-window gap-fill pass for (ticker, tf). True when started now."""
+    if _roles.defer_to_leader('_kick_tail_gapfill', f"{ticker_up}_{tf}"):   # a follower: best effort, the leader runs it
+        return False
     if _DELTA_GAPFILL_DAYS <= 0 or tf not in ("1", "5", "15", "30", "60"):
         return False
     # pytest NO-OP (same reason as `_maybe_kick_deepfill`): a background thread that
@@ -6328,7 +6362,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
             # spawn entirely — the stale payload is still served below and SWR
             # retries shortly, so freshness lags at most one poll instead of
             # the pod melting down under an unbounded thread pile-up.
-            if cache_key not in _inflight and _bg_delta_sem.acquire(blocking=False):
+            if _roles.defer_to_leader("swr-delta", cache_key):
+                pass                       # a follower: the stale payload answers, the leader refreshes
+            elif cache_key not in _inflight and _bg_delta_sem.acquire(blocking=False):
                 _bg_ev = _threading.Event()
                 _inflight[cache_key] = _bg_ev
 
@@ -6759,6 +6795,7 @@ def fetch_with_validation(
     data while FMP/yfinance had the fresh session. Validation still gates every
     candidate — a stale source never licenses admitting a corrupt one.
     """
+    _roles.leader_only("provider fetch")   # a follower hands this request to the leader
     from api.services import source_circuit_breaker as _scb
 
     best_stale = None  # (last_session_yyyymmdd, payload, source) — freshest valid fallback

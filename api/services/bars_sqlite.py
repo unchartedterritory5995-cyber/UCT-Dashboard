@@ -41,7 +41,13 @@ _RECOVERY_COOLDOWN_SECONDS = 60.0
 # only orders writers, which SQLite was going to serialize anyway. Net:
 # orderly in-process queueing instead of wasteful lock-collision churn.
 # Per-process (web and worker are separate processes / separate DBs).
-_WRITE_LOCK = threading.Lock()
+# ⛔⛔ bars-api in SEVERAL processes on one volume (BARS_API_WORKERS > 1, review of #2962 H1): this lock orders the
+# writers of ONE process only, and the leader's store swaps hold it to keep writers out of the checkpoint-to-replace
+# window. A FOLLOWER writing across that window would leave its WAL frames beside the new file (the 2026-11-13
+# "malformed" class), so in a follower acquiring it raises `bars_api_roles.LeaderOnly` and the request is answered
+# by the leader. One process: a plain lock, exactly as before.
+from api.services import bars_api_roles as _roles  # noqa: E402 - stdlib-only module, no import cycle
+_WRITE_LOCK = _roles.LeaderOnlyLock("store write")
 
 #: Held by whoever REPLACES bars.db wholesale (snapshot install, clustered adoption)
 #: across the rename + `bump_db_epoch`, and by any long-lived connection that is not
@@ -112,6 +118,63 @@ def bump_db_epoch() -> None:
         _db_epoch += 1
 
 
+#: ⭐ SEVERAL bars-api PROCESSES on one volume (`bars_api_roles`, BARS_API_WORKERS > 1): only the LEADER replaces
+#: the store file (install, clustered adoption, legacy replace-pull) and bumps `_db_epoch`, which is per process.
+#: A follower's connections would keep reading the replaced (unlinked) inode forever, so in that mode every
+#: thread also re-checks the file's identity (device, inode) at most every FILE_IDENTITY_CHECK_S and re-opens
+#: when it changed. One `os.stat` a second per thread; off (no stat at all) in the single process.
+FILE_IDENTITY_CHECK_S = 1.0
+
+
+def _multiprocess_tier() -> bool:
+    """ONE authority (review of #2962, L3): `bars_api_roles.multiprocess()`, i.e. `workers()` after its memory clamp,
+    so a container clamped to one process runs the single-process settings."""
+    return _roles.multiprocess()
+
+
+def _file_identity():
+    try:
+        st = os.stat(_DB_PATH)
+        return (st.st_dev, st.st_ino)
+    except OSError:
+        return None
+
+
+def _identity_moved() -> bool:
+    """True when this thread's open connection is to a store file that is no longer at `_DB_PATH`."""
+    if getattr(_local, "conn", None) is None or not _multiprocess_tier():
+        return False
+    now = time.monotonic()
+    if now - getattr(_local, "ident_checked", 0.0) < FILE_IDENTITY_CHECK_S:
+        return False
+    _local.ident_checked = now
+    cur = _file_identity()
+    return cur is not None and getattr(_local, "ident", None) is not None and cur != _local.ident
+
+
+def follow_store_identity() -> bool:
+    """A follower request's entry (under `bars_api_roles.follower_read_scope`, so no swap is in flight): if the
+    store file at `_DB_PATH` is no longer the one this process's connections hold, every connection of this
+    process re-opens before the request reads (an epoch bump also voids the per-process floors cache). True when
+    it moved."""
+    global _proc_store_ident
+    cur = _file_identity()
+    if cur is None:
+        return False
+    if _proc_store_ident is None:
+        _proc_store_ident = cur
+        return False
+    if cur == _proc_store_ident and getattr(_local, "ident", None) in (None, cur):
+        return False
+    _proc_store_ident = cur
+    bump_db_epoch()
+    return True
+
+
+#: The store file's identity this process last followed (`follow_store_identity`).
+_proc_store_ident = None
+
+
 def _conn() -> sqlite3.Connection:
     # Snapshot the global ONCE per call so a concurrent bump (single-writer:
     # only the puller calls bump_db_epoch) can't make us stamp an already-
@@ -119,7 +182,7 @@ def _conn() -> sqlite3.Connection:
     # NEXT call sees the gap and reconnects. Better than holding a connection
     # we believe is current when it's not.
     cur_epoch = _db_epoch
-    if getattr(_local, "epoch", -1) != cur_epoch:
+    if getattr(_local, "epoch", -1) != cur_epoch or _identity_moved():
         # bars.db has been replaced since this thread last touched it.
         # Close the stale connection so a fresh one opens below.
         old = getattr(_local, "conn", None)
@@ -176,7 +239,22 @@ def _conn() -> sqlite3.Connection:
         # than private RSS. 256 MB cap keeps the mapped window bounded on the pod.
         c.execute("PRAGMA mmap_size=268435456")
         c.execute("PRAGMA temp_store=MEMORY")
+        if _multiprocess_tier():
+            # ⛔ Several processes on one file (review of #2962, H1). A connection still on a REPLACED file shares
+            # the -wal/-shm NAMES with the new one; closing it as "the last connection" of its (old) inode would
+            # checkpoint the new file's frames into the old inode and DELETE the WAL. Never checkpoint on close:
+            # the leader's WAL checkpointer owns checkpoints.
+            try:
+                c.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+            except (AttributeError, sqlite3.Error):
+                pass
+            if _roles.is_follower():
+                # A follower never writes the store (bars_api_roles: leader-only work); the engine refuses any
+                # write no guard named, so none can reach the file.
+                c.execute("PRAGMA query_only=1")
         _local.conn = c
+        _local.ident = _file_identity() if _multiprocess_tier() else None
+        _local.ident_checked = time.monotonic()
     return _local.conn
 
 
@@ -691,6 +769,7 @@ _pending_floors: dict = {}
 
 def _persist_floors_now(vals: dict) -> None:
     """Write the floors to store_meta at once (max-merge), on a short-lived connection of its own."""
+    _roles.leader_only("store floor write")
     c = sqlite3.connect(_DB_PATH, timeout=5)
     try:
         c.executemany("INSERT INTO store_meta(k, v) VALUES (?, ?) "
@@ -707,6 +786,7 @@ def bump_store_floor(reason: str = "", deleted_from: int | None = None, persist:
     to call from any writer, including one holding its own connection or the lock.
     `deleted_from` = the oldest key a bulk DELETE removed (every series may now have a
     hole from there): no series is sealed again until a repair / fill reaches back to it."""
+    _roles.leader_only("store floor bump")
     now_ms, now_s = float(_now_ms()), time.time()
     with _floor_lock:
         _mem_floors[REV_FLOOR_KEY] = max(_mem_floors[REV_FLOOR_KEY], now_ms)
@@ -758,6 +838,7 @@ def _drop_pending_verified(keys) -> None:
 
 
 def _queue_seal_op(key, op: tuple) -> None:
+    _roles.leader_only("seal proof")              # a follower's proofs would never be flushed (no flusher there)
     with _pending_lock:
         lst = _pending_seals.setdefault(key, [])
         if len(lst) >= 256:
@@ -842,6 +923,7 @@ def _seal_state(row: tuple, pending, pfloor: float, glob: tuple) -> tuple:
 def record_verified(ticker: str, tf: str, checked_at: float) -> None:
     """Queue a proof (see `_VERIFIED_UPSERT_SQL`). Readers see it at once in this
     process (`series_meta` merges the buffer); other processes after the next flush."""
+    _roles.leader_only("verified proof")
     key = (ticker.upper(), str(tf))
     with _pending_lock:
         prev = _pending_verified.get(key)
@@ -3163,6 +3245,12 @@ def _trigger_corruption_recovery() -> None:
     Set ``R2_RECOVERY_ENABLED=1`` to re-enable when R2 is trustworthy.
     """
     global _recovery_active, _recovery_last_attempt
+    if _multiprocess_tier():
+        # ⛔ (review of #2962, H1) force_resync DELETES bars.db and its -wal/-shm by name; with several processes
+        # on the file that cannot be made safe under live readers, so it is refused (fail closed, data kept).
+        _logger.warning("[sqlite] malformed-image detected with several bars-api processes: force_resync "
+                        "refused (it deletes the store under live readers); local data kept")
+        return
     if os.environ.get("R2_RECOVERY_ENABLED", "0") != "1":
         _logger.warning(
             "[sqlite] malformed-image detected but R2_RECOVERY_ENABLED!=1; "
