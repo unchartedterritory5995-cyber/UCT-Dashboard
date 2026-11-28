@@ -34,6 +34,9 @@
  *        hidden one's last element), and the workspace attributes move to the board in front on the DOM
  *   LK18 (red first) the kept element's handlers are the slot's gate: a hidden board's grid writes nothing; the same
  *        board shown again writes through the workspace's CURRENT handlers
+ *   LK19 (board tabs, 2026-11-28) NO LEAK across many switches: K = 2, three rounds over four boards; after every
+ *        switch exactly the front board and the K most recently shown boards are mounted (widget instances, board slots
+ *        in the DOM), and every board dropped ran its teardowns
  * Review of #2923:
  *   LK15 (red first, F2-a) two layer switches to new boards in one frame, then back to the first: its grid carries no
  *        mark (the second switch's mark took it off), and after the frames no grid does
@@ -520,4 +523,28 @@ test("LK18 (red first; Lane G) a hidden board's grid writes nothing; shown again
   await act(async () => { hosts.gridProps['watchlist-1'].onLayoutChange(moved(3), { lg: moved(3) }) })
   await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
   expect(wrote().length, 'the board in front, shown again, did not write through its grid').toBeGreaterThan(0)
+})
+
+test('LK19 (board tabs) many switches over four boards with K = 2: only the front and the K most recent stay mounted', async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount()
+  await settle()
+  const BOARDS = { 'Main Trading': MAIN, 'Two Charts': TWO, 'Intraday Pair': INTRA, 'Fourth Board': FOUR }
+  const order = ['Two Charts', 'Intraday Pair', 'Fourth Board', 'Main Trading']
+  const seen = ['Main Trading']
+  for (let round = 0; round < 3; round++) {
+    for (const name of order) {
+      await go(name)
+      seen.unshift(name)
+      const want = new Set()
+      for (const n of [...new Set(seen)].slice(0, 3)) for (const w of BOARDS[n].layout.widgets) want.add(w.id)
+      const live = Object.keys(hosts.created).filter((id) => (hosts.created[id] || 0) - (hosts.cleanups[id] || 0) > 0)
+      expect(new Set(live), `round ${round}, after ${name}: the mounted widgets`).toEqual(want)
+      for (const id of Object.keys(hosts.created)) {
+        expect((hosts.created[id] || 0) - (hosts.cleanups[id] || 0), `${id} mounted twice (a leak)`).toBeLessThanOrEqual(1)
+      }
+      expect(document.querySelectorAll('[data-board-slot]').length, `round ${round}, after ${name}: board slots in the DOM`).toBe(3)
+    }
+  }
+  expect(hosts.created['chart-1'], 'NON-VACUITY: a dropped board was mounted again later').toBeGreaterThan(1)
 })
