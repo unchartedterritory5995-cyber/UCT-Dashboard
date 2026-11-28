@@ -25,6 +25,7 @@ import ci_replay  # noqa: E402
 pytestmark = pytest.mark.skipif(not ci_replay.enabled(), reason="a measurement: CAPACITY_REPLAY=1 on a Linux runner only")
 
 
+@pytest.mark.timeout(2400)       # the suite default (300 s) is for rails; this is a ~20 min measurement
 def test_the_capacity_replay_on_this_runner(tmp_path):
     summary = ci_replay.run(tmp_path)
     assert any(c.get("ok_rps") for c in summary["cases"]), "no case answered anything: read the server logs"

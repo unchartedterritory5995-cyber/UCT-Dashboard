@@ -49,10 +49,10 @@ def run(tmp_path) -> dict:
     procs = sorted({1, 2, min(4, top), top})
     results = []
     for p in procs:
-        members = "%d,%d" % (60 * p, 120 * p)                 # ~3 asks/s a member: below and above the knee
+        members = "%d,%d,%d" % (40 * p, 70 * p, 100 * p)     # ~3 asks/s a member: through the knee
         outp = os.path.join(OUT, "topo_p%d.json" % p)
         r = _run([sys.executable, "run_topology.py", "--src", REPO, "--procs", str(p), "--mode", "edge",
-                  "--members", members, "--duration", "40", "--ramp", "15", "--shared-socket",
+                  "--members", members, "--duration", "30", "--ramp", "10", "--shared-socket",
                   "--shards", str(max(2, min(6, cpus - top))), "--floor-gb", "1.5", "--out", outp], timeout=900)
         try:
             results += json.load(open(outp))
@@ -66,6 +66,13 @@ def run(tmp_path) -> dict:
             "shared_socket", "cpus", "error", "note")
     summary = {"runner": {"cpus": cpus, "mem_gb": round(mem, 1), "store": "synthetic (synth_store.py defaults)"},
                "cases": [{k: x.get(k) for k in keep if k in x} for x in results]}
+    # the ceiling per process count: the best OK rate of a case with p99 <= 500 ms and no timeout (a case past the knee
+    # collapses: requests queue, time out at 8 s, and OK req/s FALLS, so the knee is the last clean case)
+    knee = {}
+    for c in summary["cases"]:
+        if c.get("ok_rps") and (c.get("p99") or 1e9) <= 500 and not c.get("timeouts"):
+            knee[c["procs"]] = max(knee.get(c["procs"], 0), c["ok_rps"])
+    summary["clean_ceiling_rps_by_procs"] = knee
     json.dump(summary, open(os.path.join(OUT, "summary.json"), "w"), indent=1)
     print(json.dumps(summary, indent=1), flush=True)
     return summary

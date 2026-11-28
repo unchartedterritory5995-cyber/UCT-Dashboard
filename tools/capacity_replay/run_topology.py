@@ -147,7 +147,7 @@ def run_case(a, members, logdir):
     if a.shared_socket:
         srv, logs, roles = start_shared(os.path.abspath(a.src), a.procs, base, data, logdir, tag)
         targets = "http://127.0.0.1:%d" % base
-        mem_pids = lambda: children(srv[0].pid) or [srv[0].pid]  # noqa: E731
+        mem_pids = lambda: [srv[0].pid] + children(srv[0].pid)  # noqa: E731  (the supervisor IS the solo server)
     else:
         srv, logs, roles = start(os.path.abspath(a.src), a.procs, base, data, logdir, tag)
         targets = ",".join("http://127.0.0.1:%d" % (base + i) for i in range(a.procs))
