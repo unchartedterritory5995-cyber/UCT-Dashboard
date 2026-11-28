@@ -86,6 +86,34 @@ def daily_bars_since(sym: str, since_iso: str) -> list[dict]:
     return _daily_bars(sym, since_iso)
 
 
+def massive_daily_bars(sym: str, since_iso: str, to_iso: str | None = None) -> list[dict]:
+    """Daily bars straight from Massive's REST aggregates (split-adjusted), for a
+    caller whose own stored bars could not answer: the LICENSED read that comes
+    before any Yahoo read (licensed-first pass 1; Massive bars are register
+    T-03/T-04, class LA, Yahoo is T-71, class X). One vendor request, bounded by
+    the Massive client's own timeout. `[{t: 'YYYY-MM-DD', o, h, l, c, v}]`
+    oldest first; [] on any failure or an empty answer. Its own name, in a module
+    that imports nothing heavy, so every test can stand it in (conftest)."""
+    from datetime import datetime, timezone
+    try:
+        from api.services import massive
+        raw = massive.get_agg_bars(sym, since_iso, to_iso or date.today().isoformat())
+    except Exception as exc:                                  # noqa: BLE001
+        _log.warning("massive daily bars failed for %s: %s", sym, type(exc).__name__)
+        return []
+    out = []
+    for b in raw or []:
+        try:
+            # a daily aggregate is stamped at the session's midnight ET, the same UTC date
+            day = datetime.fromtimestamp(int(b["t"]) / 1000.0, tz=timezone.utc).date().isoformat()
+        except (KeyError, TypeError, ValueError, OSError):
+            continue
+        out.append({"t": day, "o": b.get("o"), "h": b.get("h"), "l": b.get("l"),
+                    "c": b.get("c"), "v": b.get("v")})
+    out.sort(key=lambda b: b["t"])
+    return out
+
+
 def last_stored_daily_session(sym: str) -> int | None:
     """The newest daily session the local bar store holds for `sym` (a YYYYMMDD
     int), or None when it holds none. One local store read, the accessor the

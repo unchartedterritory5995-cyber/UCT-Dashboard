@@ -2,9 +2,10 @@
 
 Periodic financial DISCLOSURES (income statement, balance sheet, cash flow), never live data. An adapter
 over `services/financial_statements.get_statements`, the canonical service behind
-/api/fundamentals-statements. That service reads FMP first and Yahoo Finance (yfinance) only for a ticker
-FMP holds no statements for, through the product's own memory and disk snapshot cache. The envelope's
-`source` names the one that answered: `fmp`, or `yahoo-finance`.
+/api/fundamentals-statements. That service reads FMP first, then SEC EDGAR (the company's own XBRL
+filings) for a ticker FMP holds no statements for, and Yahoo Finance (yfinance) last, through the product's
+own memory and disk snapshot cache. The envelope's `source` names the one that answered: `fmp`,
+`sec-edgar`, or `yahoo-finance`.
 
 * `as_of` = the newest reported statement PERIOD END (quarterly first, else annual), as UTC midnight of
   that date. That is the data's own time: the period the figures describe, not when we fetched them.
@@ -31,6 +32,8 @@ from api.services.uct_agent.marketdata import envelope as env
 SOURCE = "fmp"                      # asked first; also named when no source answered
 SOURCE_FALLBACK = "yahoo-finance"
 _FALLBACK_LABEL = "Yahoo Finance"   # financial_statements.SOURCE_FALLBACK, as `meta.source` carries it
+SOURCE_EDGAR = "sec-edgar"
+_EDGAR_LABEL = "SEC EDGAR"          # financial_statements.SOURCE_EDGAR, as `meta.source` carries it
 STALE_AFTER_DAYS = 135
 BUILD_PROVIDER_CALLS = 6
 MAX_PERIODS = 8
@@ -48,7 +51,10 @@ NOTE_UNAVAILABLE = "the statements source did not answer; try again shortly"
 
 def _source_of(meta: dict) -> str:
     """The envelope source for the statements that were served."""
-    return SOURCE_FALLBACK if meta.get("source") == _FALLBACK_LABEL else SOURCE
+    src = meta.get("source")
+    if src == _EDGAR_LABEL:
+        return SOURCE_EDGAR
+    return SOURCE_FALLBACK if src == _FALLBACK_LABEL else SOURCE
 
 
 def validate(params: dict) -> Optional[str]:

@@ -9,8 +9,9 @@ Layers (no new subscription):
      finnhub_recent_action), called by the engine for pool names lacking
      analyst_meta so analyst-driven gappers are caught before the wire lands.
      PRIMARY as of 2026-08-05 (see below).
-  4. Finnhub    — `/stock/upgrade-downgrade` fallback leg of the same
-     function, kept for when FMP is down.
+  ⚰️ 4. Finnhub `/stock/upgrade-downgrade` — DELETED 2026-11-28 (licensed-first
+     pass 1). It 403'd on every call on this plan (below), so the "fallback"
+     never returned a row; removing it removes no data.
 
 analyst_meta shape: {action, firm, from_rating, to_rating, price_target, at}
 
@@ -21,9 +22,8 @@ endpoint, not a throttle. `finnhub_recent_action()` (the function name is
 kept for the existing `engine.py` call site) has therefore been returning
 `None` 100% of the time for every catalyst refresh since the plan changed.
 FMP `stable/grades` (already paid, verified 200 with real rows) is now tried
-first; Finnhub stays as an explicit fallback — it costs nothing once FMP
-succeeds (fh_get short-circuits the cached 403 for 24h,
-finnhub_client.py:239-240) and is the safety net if FMP has an outage.
+first. Finnhub was kept as an explicit fallback until 2026-11-28, when it was
+deleted: a leg that 403s on every call is not a safety net.
 
 FMP `stable/grades` carries only a plain ISO date (`"2026-07-31"`), not a
 unix timestamp like Finnhub's `gradeTime` — so the FMP leg's `within_hours`
@@ -38,7 +38,6 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from api.services.finnhub_client import fh_get
 from api.services import fmp_client
 
 logger = logging.getLogger(__name__)
@@ -171,59 +170,23 @@ def analyst_grades_available(ticker: str) -> bool:
 
     What DID regress in the incident this monitor was built for is exactly what
     this measures: Finnhub `/stock/upgrade-downgrade` 403'd on every call for
-    months, so the payload was empty 100% of the time. Same two legs in the
-    same order as `finnhub_recent_action` (FMP primary, Finnhub fallback) so a
-    True here means the path that function depends on can actually deliver.
+    months, so the payload was empty 100% of the time. The same leg as
+    `finnhub_recent_action` (FMP; the dead Finnhub leg was deleted 2026-11-28),
+    so a True here means the path that function depends on can actually deliver.
 
     Never raises.
     """
     if not ticker:
         return False
-    sym = ticker.upper()
-    if _fmp_grades_rows(sym):
-        return True
-    try:
-        rows = fh_get("/stock/upgrade-downgrade", {"symbol": sym}, timeout=_TIMEOUT)
-        return isinstance(rows, list) and bool(rows)
-    except Exception:
-        logger.debug("[catalyst-analyst] Finnhub grades availability probe failed for %s", sym)
-        return False
-
-
-def _finnhub_recent_action(ticker: str, within_hours: int, now: Optional[float] = None) -> Optional[dict]:
-    """Fallback leg — Finnhub `/stock/upgrade-downgrade` (403s on this plan
-    as of 2026-08-05; kept because `fh_get` short-circuits the cached 403 for
-    24h, so this costs nothing once FMP succeeds, and it's the safety net if
-    FMP has an outage)."""
-    rows = fh_get("/stock/upgrade-downgrade", {"symbol": ticker.upper()}, timeout=_TIMEOUT)
-    if not isinstance(rows, list) or not rows:
-        return None
-    rows.sort(key=lambda x: x.get("gradeTime", 0), reverse=True)
-    top = rows[0]
-    grade_time = top.get("gradeTime", 0)
-    now_ts = now if now is not None else time.time()
-    if not grade_time or grade_time < now_ts - within_hours * 3600:
-        return None
-    return _norm_meta({
-        "action": top.get("action"),
-        "company": top.get("company"),
-        "fromGrade": top.get("fromGrade"),
-        "toGrade": top.get("toGrade"),
-        "at": int(grade_time),
-    })
+    return bool(_fmp_grades_rows(ticker.upper()))
 
 
 def finnhub_recent_action(ticker: str, within_hours: int = 36, now: Optional[float] = None) -> Optional[dict]:
     """Most-recent analyst action for one ticker, if within the window.
-    FMP `stable/grades` primary, Finnhub `/stock/upgrade-downgrade` fallback
-    — see module docstring "2026-08-05: FMP promoted to primary". Function
-    name kept unchanged for the existing call site
-    (api/services/catalyst/engine.py:829).
-
-    Routed through the shared api.services.finnhub_client.fh_get for the
-    fallback leg so it shares the process-wide token bucket / 429 cooldown
-    with every other Finnhub caller. The FMP leg is a different provider
-    entirely and never touches that budget.
+    FMP `stable/grades` only — see module docstring "2026-08-05: FMP
+    promoted to primary"; the Finnhub `/stock/upgrade-downgrade` fallback that
+    403'd on every call was deleted 2026-11-28. Function name kept unchanged
+    for the existing call site (api/services/catalyst/engine.py).
 
     `now` (unix seconds) is accepted for tests — defaults to `time.time()`.
     Returns analyst_meta or None; never an empty `_norm_meta` dict.
@@ -231,8 +194,4 @@ def finnhub_recent_action(ticker: str, within_hours: int = 36, now: Optional[flo
     if not ticker:
         return None
 
-    fmp_result = _fmp_recent_action(ticker, within_hours=within_hours, now=now)
-    if fmp_result is not None:
-        return fmp_result
-
-    return _finnhub_recent_action(ticker, within_hours=within_hours, now=now)
+    return _fmp_recent_action(ticker, within_hours=within_hours, now=now)

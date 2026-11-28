@@ -312,8 +312,9 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0, revisio
     research tab when RESEARCH_FMP_DEPTH_ENABLED is on): the FMP multi-year consensus. The
     yfinance leg is read ONLY when FMP did not answer with forward periods; its forward table
     then stands in, and `sources.forward` names it. Estimate revisions are not part of that
-    answer: `?revisions=1` is their own read (yfinance; FMP publishes no revision history),
-    made by the revisions card as a request of its own."""
+    answer: `?revisions=1` is their own read, made by the revisions card as a request of its
+    own: UCT's daily snapshots of FMP's consensus first (licensed-first pass 2; FMP publishes
+    no revision history, we record it), Yahoo Finance when those do not reach back 30 days."""
     # Route-entry line, first 10 min after boot only, BEFORE any import or lock: proves
     # whether the handler started at all when a boot-window open stalls.
     t_start = time.monotonic()
@@ -324,7 +325,24 @@ def research_estimates(sym: str = Depends(sym_path), consensus: int = 0, revisio
     if revisions:
         # The revisions card's own read. One source, named in the answer; a failed read is
         # marked, so an empty list is never a finding about the company.
+        # ⭐ Licensed first (pass 2, 2026-11-28): our own daily snapshots of FMP's consensus
+        # (`estimates.licensed_revisions`) where they reach back 30 days; Yahoo Finance otherwise,
+        # labelled as the fallback, with the snapshot history's state beside it.
         out = {"sym": (sym or "").upper(), "revisions": [], "sources": {"revisions": "Yahoo Finance"}}
+        lic = None
+        try:
+            from api.services.research.estimates import licensed_revisions, LICENSED_REVISIONS_SOURCE
+            lic = licensed_revisions(sym)
+        except Exception as exc:                          # noqa: BLE001 -- the fallback answers
+            _logger.warning("licensed estimate revisions failed for %s: %s", sym, exc)
+        if lic and lic.get("state") == "ok":
+            out["revisions"] = lic["revisions"]
+            out["sources"] = {"revisions": LICENSED_REVISIONS_SOURCE}
+            out["history"] = {"state": "ok", "covers_from": lic.get("covers_from"),
+                              "last_snapshot": lic.get("last_snapshot")}
+            return _fund_marked(out, sym, _EE_FUND_WHY)
+        if lic:
+            out["history"] = {k: lic.get(k) for k in ("state", "covers_from", "tracked")}
         try:
             out["revisions"] = list((get_estimates(sym) or {}).get("revisions") or [])
         except Exception as exc:

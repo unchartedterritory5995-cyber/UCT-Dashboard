@@ -167,6 +167,8 @@ function TrendPair({ quarterly, annual, ccy }) {
 
 // The vendor name the route uses for the FMP statements feed.
 const FMP = 'FMP'
+// The name the route uses when the company's own SEC filings supplied the grids.
+const SEC_EDGAR = 'SEC EDGAR'
 const BASIS_LABEL = { quarterly: 'Quarterly', annual: 'Annual' }
 
 /**
@@ -186,6 +188,15 @@ function StatementsSource({ fin }) {
                   activity="FMP quarterly and annual income statements"
                   fetchedAt={fin.sources.statements_fetched_at}
                   detail="Revenue, EPS and margin grids · fiscal periods" />
+    )
+  }
+  if (vendor === SEC_EDGAR) {
+    return (
+      <SourceLine vendor={vendor} fallback
+                  activity="The company's own 10-K and 10-Q filings, read from SEC EDGAR"
+                  reason={fin.fmp_unavailable
+                    ? 'FMP statement history could not be read right now; showing the figures the company filed with the SEC (US dollar filers, period-end labels).'
+                    : 'FMP holds no statement history for this ticker; showing the figures the company filed with the SEC (US dollar filers, period-end labels).'} />
     )
   }
   return (
@@ -300,9 +311,10 @@ export default function FinancialsTab({ sym, showGrids = true }) {
         </section>
       </div>
       {/* The summary cards are read by a different service from the grids. When
-          the grids are labelled as the FMP feed's, the cards say whose they
-          are, so one line is never read as covering both. */}
-      {showGrids && hasGrids && fin.sources?.statements === FMP && fin.sources?.summary && (
+          the grids are labelled as the FMP feed's (or the company's SEC filings'),
+          the cards say whose they are, so one line is never read as covering both. */}
+      {showGrids && hasGrids && (fin.sources?.statements === FMP || fin.sources?.statements === SEC_EDGAR)
+        && fin.sources?.summary && (
         <SourceLine vendor={fin.sources.summary} testId="financials-summary-source"
                     activity={`${fin.sources.summary} company summary`}
                     detail="Balance sheet and profitability summary" />

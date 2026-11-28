@@ -21,7 +21,11 @@ differently (fiscal against calendar).
 
 The payload says which one supplied the grids, per ticker:
 
-    sources.statements  "FMP" | "Yahoo Finance" | None (no grid rows at all)
+    sources.statements  "FMP" | "SEC EDGAR" | "Yahoo Finance" | None (no grid rows
+                        at all). SEC EDGAR (the company's own XBRL filings,
+                        `edgar_statements`) comes before Yahoo when FMP returned
+                        nothing; Yahoo stands in only when EDGAR has none or has
+                        not answered yet (then on the short TTL)
     sources.summary     "Yahoo Finance" | None  (the balance / metrics block,
                         which still reuses the `get_fundamentals` service)
     sources.statements_fetched_at
@@ -74,7 +78,9 @@ _QUARTERLY_ROWS = 8
 
 #: The names the payload's `sources` block uses, as a member reads them on screen.
 SOURCE_FMP = "FMP"
+SOURCE_EDGAR = "SEC EDGAR"
 SOURCE_FALLBACK = "Yahoo Finance"
+_EDGAR_WAIT_S = 4.0   # the longest a build waits on the EDGAR read it queued
 
 
 def _cache_key(sym):
@@ -252,6 +258,43 @@ def _fetch_statements(sym, quarterly):
     return hist, True
 
 
+def _edgar_snapshot(sym):
+    """The SEC EDGAR statements this process holds (`edgar_statements`; a seam for
+    tests). Never reads SEC on this thread; waits at most `_EDGAR_WAIT_S`."""
+    try:
+        from api.services import edgar_statements
+        return edgar_statements.snapshot(sym, wait_s=_EDGAR_WAIT_S)
+    except Exception as exc:  # noqa: BLE001 -- a fallback's failure is "not read"
+        _logger.warning("EDGAR statements failed for %s: %s", sym, exc)
+        return {"state": "unavailable"}
+
+
+def _edgar_grid(edgar, basis, n, quarterly):
+    """Pure: the grid rows from EDGAR's income rows (newest first), labelled by the
+    period end the company filed, the calendar labels the Yahoo grid uses."""
+    from datetime import date as _date
+    rows = ((edgar or {}).get(basis) or {}).get("income") or []
+    # diluted EPS when the filings state it for any period, else basic: one grid never mixes the two
+    eps_key = ("eps_diluted" if any((r.get("values") or {}).get("eps_diluted") is not None for r in rows)
+               else "eps_basic")
+    points = []
+    for r in rows:
+        try:
+            end = _date.fromisoformat(str(r.get("period_end"))[:10])
+        except ValueError:
+            continue
+        v = r.get("values") or {}
+        points.append({
+            "period": _period_label(end, quarterly),
+            "revenue": _num(v.get("revenue")),
+            "gross": _num(v.get("gross_profit")),
+            "opinc": _num(v.get("operating_income")),
+            "netinc": _num(v.get("net_income")),
+            "eps": _num(v.get(eps_key)),
+        })
+    return _grid_rows(points, n, quarterly)
+
+
 def _fetch_income(sym, quarterly):
     """Return (df_or_None, ok). ``ok`` is False ONLY when the pool call itself
     raised (timeout or any yfinance error) -- a genuine provider failure. A
@@ -326,22 +369,37 @@ def _build_financials(sym):
     annual = _statement_grid(a_hist, _ANNUAL_ROWS, False)
     fmp_ok = q_ok and a_ok
     from_fmp = bool(quarterly or annual)
+    from_edgar = False
+    edgar = {}
 
     if from_fmp:
         legs = (("quarterly", q_ok), ("annual", a_ok))
         statements_ok = fmp_ok
     else:
-        # The fallback: the FMP feed returned nothing for this ticker (it
-        # holds no statements, or its reads failed), so the yfinance frames stand
-        # in, and the payload says so.
-        annual_df, annual_ok = _fetch_income(sym, False)
-        quarterly_df, quarterly_ok = _fetch_income(sym, True)
-        annual = _income_grid(annual_df, _ANNUAL_ROWS, False)
-        quarterly = _income_grid(quarterly_df, _QUARTERLY_ROWS, True)
-        legs = (("quarterly", quarterly_ok), ("annual", annual_ok))
-        # A fallback shown because the FMP read FAILED is not a settled
-        # answer: it takes the short TTL so the FMP grids return in minutes.
-        statements_ok = annual_ok and quarterly_ok and fmp_ok
+        # The FMP feed returned nothing for this ticker (it holds no statements,
+        # or its reads failed). The company's own SEC EDGAR filings come next;
+        # the yfinance frames stand in only when EDGAR has none (or has not
+        # answered yet), and the payload says which.
+        edgar = _edgar_snapshot(sym)
+        if edgar.get("state") == "ok":
+            annual = _edgar_grid(edgar, "annual", _ANNUAL_ROWS, False)
+            quarterly = _edgar_grid(edgar, "quarterly", _QUARTERLY_ROWS, True)
+        from_edgar = bool(quarterly or annual)
+        if from_edgar:
+            legs = (("quarterly", True), ("annual", True))
+            # a stale EDGAR copy is served on the short TTL, like a failed FMP read
+            statements_ok = fmp_ok and not edgar.get("stale")
+        else:
+            annual_df, annual_ok = _fetch_income(sym, False)
+            quarterly_df, quarterly_ok = _fetch_income(sym, True)
+            annual = _income_grid(annual_df, _ANNUAL_ROWS, False)
+            quarterly = _income_grid(quarterly_df, _QUARTERLY_ROWS, True)
+            legs = (("quarterly", quarterly_ok), ("annual", annual_ok))
+            # A fallback shown because the FMP read FAILED, or while EDGAR's read
+            # is still landing, is not a settled answer: it takes the short TTL so
+            # the licensed grids return in minutes.
+            statements_ok = (annual_ok and quarterly_ok and fmp_ok
+                             and edgar.get("state") not in ("pending", "unavailable"))
     unread = [name for name, ok in legs if not ok]
     has_rows = bool(quarterly or annual)
 
@@ -361,6 +419,9 @@ def _build_financials(sym):
 
     if from_fmp:
         currency = _statement_currency(q_hist, quarterly, a_hist, annual)
+    elif from_edgar:
+        # EDGAR's facts are read in USD only (edgar_statements), so that is stated.
+        currency = edgar.get("currency")
     else:
         # yfinance statement frames are in the company's REPORTING currency
         # (Yahoo `financialCurrency`: TSM -> "TWD", TM -> "JPY"), not dollars, so
@@ -372,7 +433,8 @@ def _build_financials(sym):
     # vendor only when that vendor's rows are in the grids; `summary` is the
     # balance / metrics block, which `get_fundamentals` reads.
     sources = {
-        "statements": (SOURCE_FMP if from_fmp else SOURCE_FALLBACK) if has_rows else None,
+        "statements": ((SOURCE_FMP if from_fmp else SOURCE_EDGAR if from_edgar else SOURCE_FALLBACK)
+                       if has_rows else None),
         "summary": SOURCE_FALLBACK if fund else None,
     }
     if from_fmp:
@@ -413,5 +475,5 @@ def _build_financials(sym):
         out["unread"] = unread
     complete = statements_ok and fund_ok
     set_by_completeness(ck, out, complete=complete,
-                        ttl_ok=_FMP_TTL if from_fmp else _CACHE_TTL, ttl_partial=_FAIL_TTL)
+                        ttl_ok=_FMP_TTL if (from_fmp or from_edgar) else _CACHE_TTL, ttl_partial=_FAIL_TTL)
     return out

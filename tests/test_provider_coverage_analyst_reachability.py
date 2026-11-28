@@ -49,18 +49,19 @@ class TestAnalystGradesAvailable:
                             lambda ticker: [{"date": "2026-06-02", "gradingCompany": "Arete"}])
         assert aa.analyst_grades_available("META") is True
 
-    def test_empty_fmp_falls_through_to_finnhub(self, monkeypatch):
+    def test_empty_fmp_is_false_and_finnhub_is_never_asked(self, monkeypatch):
+        """⚰️ This was `test_empty_fmp_falls_through_to_finnhub`. The Finnhub
+        /stock/upgrade-downgrade leg 403'd on every call on this plan and was
+        deleted 2026-11-28 (licensed-first pass 1): FMP alone answers."""
         aa = self._aa()
         monkeypatch.setattr(aa, "_fmp_grades_rows", lambda ticker: [])
-        monkeypatch.setattr(aa, "fh_get",
-                            lambda path, params, timeout=None: [{"gradeTime": 1}])
-        assert aa.analyst_grades_available("AAPL") is True
+        assert not hasattr(aa, "fh_get"), "the dead Finnhub leg is gone"
+        assert aa.analyst_grades_available("AAPL") is False
 
-    def test_both_providers_silent_is_false(self, monkeypatch):
+    def test_the_provider_silent_is_false(self, monkeypatch):
         """The 2026-08-05 incident shape: every call answers with nothing."""
         aa = self._aa()
         monkeypatch.setattr(aa, "_fmp_grades_rows", lambda ticker: None)
-        monkeypatch.setattr(aa, "fh_get", lambda path, params, timeout=None: None)
         assert aa.analyst_grades_available("AAPL") is False
 
     def test_blank_ticker_is_false_without_calling_a_provider(self, monkeypatch):

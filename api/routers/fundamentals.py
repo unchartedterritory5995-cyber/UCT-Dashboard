@@ -319,12 +319,28 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         _log.debug("FMP metrics failed for %s: %s", sym, e)
         legs["fmp_failed"] = True
 
+    # ⭐ LICENSED FIRST (pass 2, 2026-11-28): the 10-session average volume from Massive's
+    # daily bars (register T-03/T-04, LA), the same statistic as Finnhub's
+    # `10DayAverageTradingVolume`. Finnhub is read only when something is still missing
+    # (the average volume, the 52-week range or, with no base market cap, the cap).
+    from api.services import licensed_reference as _lr
+    avg_vol_massive = None
+    if _lr.first():
+        try:
+            mv = _lr.massive_avg_volume(sym, 10)
+            avg_vol_massive = float(mv["avg_volume"]) if mv and mv.get("avg_volume") is not None else None
+        except Exception as e:                                       # noqa: BLE001
+            _log.debug("Massive average volume failed for %s: %s", sym, e)
+    need_fh = (avg_vol_massive is None or fmp.get("yearHigh") is None or fmp.get("yearLow") is None
+               or (base.get("market_cap") is None and fmp.get("marketCap") is None))
+
     fh = {}
-    try:
-        fh = _fh_metric_get(sym, legs=legs)
-    except Exception as e:
-        _log.debug("Finnhub metric failed for %s: %s", sym, e)
-        legs["finnhub_failed"] = True
+    if need_fh:
+        try:
+            fh = _fh_metric_get(sym, legs=legs)
+        except Exception as e:
+            _log.debug("Finnhub metric failed for %s: %s", sym, e)
+            legs["finnhub_failed"] = True
 
     def _safe_float(v) -> float | None:
         try:
@@ -332,7 +348,8 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         except (TypeError, ValueError):
             return None
 
-    # avg_vol: Finnhub-only. Verified live 2026-08-05 against stable/quote +
+    # avg_vol: Massive bars first since licensed-first pass 2 (above); what follows is the
+    # Finnhub fallback. (Was Finnhub-only.) Verified live 2026-08-05 against stable/quote +
     # stable/key-metrics-ttm + stable/ratios-ttm — none of the three carries a
     # 10-day/52-week AVERAGE volume field (`quote.volume` is a single day's
     # volume, a different statistic entirely; substituting it here would be
@@ -362,6 +379,9 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         avg_vol_fh = _safe_float(fh.get("52WeekAverageDailyVolume"))
     if avg_vol_fh is not None:
         avg_vol_fh *= _FH_VOL_MILLIONS
+    avg_vol = avg_vol_massive if avg_vol_massive is not None else avg_vol_fh
+    avg_vol_source = ("massive" if avg_vol_massive is not None
+                      else "finnhub" if avg_vol_fh is not None else None)
 
     # 52-week range: FMP `stable/quote`'s `yearHigh`/`yearLow` are now
     # PRIMARY — verified live 2026-08-05 (AAPL yearHigh=344.57/yearLow=205.59)
@@ -412,7 +432,10 @@ def _build_snapshot(sym: str) -> dict[str, Any]:
         "beta": base.get("beta"),                       # float or None
         "week52_high": w52_high if w52_high is not None else base.get("fifty_two_week_high"),
         "week52_low": w52_low if w52_low is not None else base.get("fifty_two_week_low"),
-        "avg_vol": avg_vol_fh,                          # 10-day avg daily vol (shares)
+        "avg_vol": avg_vol,                             # 10-day avg daily vol (shares)
+        # Which source the average volume came from: "massive" (licensed, first),
+        # "finnhub" (the fallback), None when neither answered.
+        "avg_vol_source": avg_vol_source,
         "div_yield": base.get("dividend_yield_pct"),    # pct e.g. 1.5
         # Stock Profile widget "More Info": key metrics + company profile
         "next_earnings": base.get("next_earnings"),     # ISO 'YYYY-MM-DD'

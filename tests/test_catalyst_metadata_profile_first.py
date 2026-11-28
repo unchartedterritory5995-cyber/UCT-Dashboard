@@ -205,6 +205,9 @@ def test_profile_facts_shape(vendor):
     assert tm.profile_facts("foo") == {
         "name": "Foo Corp", "is_etf": False, "is_fund": False, "market_cap": 5.0e9,
         "price": 42.0, "avg_volume": 9_000_000.0, "year_high": 120.25,
+        # licensed-first pass 2: the profile's sector in the eleven words (GICS
+        # "Information Technology" -> "Technology"); an industry with no Yahoo twin as is.
+        "sector": "Technology", "industry": "Chips",
     }
 
 

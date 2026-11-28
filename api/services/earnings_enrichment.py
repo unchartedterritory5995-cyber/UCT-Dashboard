@@ -339,6 +339,36 @@ def _own_frame(sym: str, since_iso: str) -> Optional[_Frame]:
         return None
 
 
+def _massive_frame(sym: str, since_iso: str) -> Optional[_Frame]:
+    """Massive's daily aggregates since `since_iso` as a `_Frame`: the licensed
+    read that comes BEFORE Yahoo when our own stored bars cannot answer
+    (licensed-first pass 1). The same refusals as `_own_frame`: a bar without a
+    positive open and close, dates out of order, or a newest bar behind the
+    current session, and the frame is not used. Never raises."""
+    try:
+        from api.services import earnings_reaction
+        bars = earnings_reaction.massive_daily_bars(sym, since_iso)
+        if not bars:
+            return None
+        dates, opens, closes = [], [], []
+        for b in bars:
+            day = _dt.datetime.strptime(str(b.get("t"))[:10], "%Y-%m-%d").date()
+            o, c = _positive(b.get("o")), _positive(b.get("c"))
+            if o is None or c is None:
+                return None
+            if dates and day <= dates[-1]:
+                return None
+            dates.append(day)
+            opens.append(o)
+            closes.append(c)
+        if not _frame_is_current(dates[-1]):
+            return None
+        return _Frame(dates, opens, closes)
+    except Exception as e:
+        _logger.debug("massive daily bars cannot answer for %s: %s", sym, e)
+        return None
+
+
 def _run_up_since() -> str:
     return (_dt.date.today() - _dt.timedelta(days=_RUNUP_LOOKBACK_DAYS)).isoformat()
 
@@ -373,8 +403,9 @@ def _run_up_from_closes(closes: list) -> Optional[dict]:
 def get_pre_earnings_context(sym: str) -> Optional[dict]:
     """Recent price action: 5-day and 30-day returns + a one-line label.
 
-    Daily closes come from our own daily bars first; Yahoo answers only when
-    they cannot (section 0). Our bars answer only when the store already holds
+    Daily closes come from our own daily bars first, then Massive's daily
+    aggregates read directly (licensed, `_massive_frame`); Yahoo answers only
+    when neither can (section 0). Our bars answer only when the store already holds
     the current session; this path never starts a catch-up of the store. For
     this function our bars cannot answer with
     fewer than `_RUNUP_MIN_BARS` bars either, so a short frame of ours never
@@ -387,6 +418,10 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
         if own is not None and len(own.closes) >= _RUNUP_MIN_BARS:
             _note_bars_source("own_bars")
             return _run_up_from_closes(own.closes)
+        lic = _massive_frame(sym, _run_up_since())
+        if lic is not None and len(lic.closes) >= _RUNUP_MIN_BARS:
+            _note_bars_source("massive_bars")
+            return _run_up_from_closes(lic.closes)
         _note_bars_source("yahoo")
         import yfinance as _yf
         df = yf_util.bounded_call(
@@ -548,6 +583,11 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
             _note_bars_source("own_bars")
             return _moves_from_frame(dates, report_times,
                                      own.dates, own.opens, own.closes)
+        lic = _massive_frame(sym, since)
+        if lic is not None and _reaches_back(lic, oldest):
+            _note_bars_source("massive_bars")
+            return _moves_from_frame(dates, report_times,
+                                     lic.dates, lic.opens, lic.closes)
 
         _note_bars_source("yahoo")
         import yfinance as _yf

@@ -107,7 +107,8 @@ def _get_anthropic_client():
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
-_EARNINGS_NEWS_MAX_ITEMS    = 4        # max Finnhub headlines per ticker
+_EARNINGS_NEWS_MAX_ITEMS    = 4        # max news headlines per ticker (Massive first, Finnhub last)
+
 # 2026-08-22: 1800 truncated ~1 in 3 warm generations mid-string ("Unterminated
 # string … char 4431") — the prompt asks for a 5-8 sentence note PLUS five
 # 60-90-word bullets, which lands right on the cap. Output tokens are billed
@@ -140,6 +141,85 @@ _ENRICHMENT_LEG_KEYS = ("pre_earnings", "hist_moves", "revisions",
                         "beat_surprises", "implied_move", "key_quotes")
 _FH_TIMEOUT_SECS            = 6        # Finnhub request timeout
 _EARNINGS_AI_MODEL          = os.environ.get("EARNINGS_AI_MODEL", "claude-sonnet-5")  # Haiku→Sonnet 4.6 (2026-05-27)→Sonnet 5 (2026-07-12, richer previews; now generate-once + disk-persisted so the better model is affordable). Env-overridable.
+
+
+def _massive_news_items(sym: str, from_day) -> list | None:
+    """Massive's /v2/reference/news for `sym` since `from_day`, newest first, in
+    the shape the AI earnings prompt reads. None when Massive did not answer (so
+    the caller may try the next source); [] when it answered with nothing new."""
+    import datetime as _dt
+    from api.services import polygon_news
+    res = polygon_news.get_news(sym, limit=10) or {}
+    if res.get("error"):
+        return None
+    out = []
+    for it in res.get("items") or []:
+        published = str(it.get("published_utc") or "")
+        try:
+            ts = _dt.datetime.fromisoformat(published.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if ts.date() < from_day:
+            continue
+        try:
+            dt_str = ts.astimezone().strftime("%I:%M %p").lstrip("0")
+        except Exception:
+            dt_str = ""
+        out.append({"headline": it.get("title") or "", "source": it.get("publisher") or "",
+                    "url": it.get("article_url") or "", "time": dt_str})
+        if len(out) >= _EARNINGS_NEWS_MAX_ITEMS:
+            break
+    return out
+
+
+def _finnhub_news_items(sym: str, from_day, today) -> list:
+    """Finnhub /company-news (the same read the two AI earnings paths made
+    before 2026-11-28), now the LAST source: routed through the budgeted
+    _fh_get so per-symbol news sweeps share the global 429 cooldown."""
+    import datetime as _dt
+    from api.services.earnings_estimates import _fh_get as _fh_budgeted
+    fh_resp = _fh_budgeted(
+        "/company-news",
+        {"symbol": sym, "from": from_day.isoformat(), "to": today.isoformat()},
+        timeout=_FH_TIMEOUT_SECS,
+    )
+    if fh_resp is None:
+        return []  # budget-shed or failed — _fh_get already logged it
+    if not isinstance(fh_resp, list):
+        raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
+    out = []
+    for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
+        ts = item.get("datetime", 0)
+        try:
+            _d = _dt.datetime.fromtimestamp(ts)
+            dt_str = _d.strftime("%I:%M %p").lstrip("0") if ts else ""
+        except Exception:
+            dt_str = ""
+        out.append({"headline": item.get("headline", ""), "source": item.get("source", ""),
+                    "url": item.get("url", ""), "time": dt_str})
+    return out
+
+
+def _earnings_news_items(sym: str, label: str = "analysis") -> list:
+    """The last 3 days of company news (up to `_EARNINGS_NEWS_MAX_ITEMS`) for the
+    AI earnings analysis and preview. Licensed-first pass 1 (2026-11-28): Massive
+    news (/v2/reference/news, register T-06, class LA) first; Finnhub
+    /company-news (T-52, LA) only when Massive did not answer. Never raises."""
+    import datetime as _dt
+    today = _dt.date.today()
+    from_day = today - _dt.timedelta(days=3)
+    try:
+        items = _massive_news_items(sym, from_day)
+        if items is not None:
+            return items
+    except Exception as _e:
+        _logger.warning("Massive news fetch failed for %s (%s): %s", sym, label, _e)
+    try:
+        return _finnhub_news_items(sym, from_day, today)
+    except Exception as _e:
+        _logger.warning("Finnhub news fetch failed for %s (%s): %s", sym, label, _e)
+        return []
+
 
 _anthropic_lock = _threading.Lock()
 
@@ -1536,39 +1616,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     except Exception as _e:
         _logger.warning("Quarterly history processing failed for %s: %s", sym, _e)
 
-    # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ────────────
-    news_items = []
-    try:
-        today_str = _dt.date.today().isoformat()
-        from_str  = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
-        # Routed through the budgeted _fh_get so per-symbol news sweeps share
-        # the global 429 cooldown / junk-symbol skip instead of hammering an
-        # exhausted rate bucket with a raw request per reporter.
-        from api.services.earnings_estimates import _fh_get as _fh_budgeted
-        fh_resp = _fh_budgeted(
-            "/company-news",
-            {"symbol": sym, "from": from_str, "to": today_str},
-            timeout=_FH_TIMEOUT_SECS,
-        )
-        if fh_resp is None:
-            fh_resp = []  # budget-shed or failed — _fh_get already logged it
-        elif not isinstance(fh_resp, list):
-            raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
-        for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
-            ts = item.get("datetime", 0)
-            try:
-                _d = _dt.datetime.fromtimestamp(ts)
-                dt_str = _d.strftime("%I:%M %p").lstrip("0") if ts else ""
-            except Exception:
-                dt_str = ""
-            news_items.append({
-                "headline": item.get("headline", ""),
-                "source":   item.get("source", ""),
-                "url":      item.get("url", ""),
-                "time":     dt_str,
-            })
-    except Exception as _e:
-        _logger.warning("Finnhub news fetch failed for %s: %s", sym, _e)
+    # ── Step 2: company news (last 3 days, up to 4 items) ────────────────────
+    news_items = _earnings_news_items(sym)
 
     # ── Step 3: Run enrichment FIRST so the AI prompt can use it ──────────────
     # All best-effort — each helper returns None on failure. Running this before
@@ -1938,39 +1987,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     except Exception as _e:
         _logger.warning("Quarterly history processing failed for %s (preview): %s", sym, _e)
 
-    # ── Step 2: Finnhub company news (last 3 days, up to 4 items) ─────────────
-    news_items = []
-    try:
-        today_str = _dt.date.today().isoformat()
-        from_str  = (_dt.date.today() - _dt.timedelta(days=3)).isoformat()
-        # Routed through the budgeted _fh_get so per-symbol news sweeps share
-        # the global 429 cooldown / junk-symbol skip instead of hammering an
-        # exhausted rate bucket with a raw request per reporter.
-        from api.services.earnings_estimates import _fh_get as _fh_budgeted
-        fh_resp = _fh_budgeted(
-            "/company-news",
-            {"symbol": sym, "from": from_str, "to": today_str},
-            timeout=_FH_TIMEOUT_SECS,
-        )
-        if fh_resp is None:
-            fh_resp = []  # budget-shed or failed — _fh_get already logged it
-        elif not isinstance(fh_resp, list):
-            raise ValueError(f"Finnhub returned unexpected shape: {type(fh_resp)}")
-        for item in fh_resp[:_EARNINGS_NEWS_MAX_ITEMS]:
-            ts = item.get("datetime", 0)
-            try:
-                _d    = _dt.datetime.fromtimestamp(ts)
-                dt_str = _d.strftime("%I:%M %p").lstrip("0") if ts else ""
-            except Exception:
-                dt_str = ""
-            news_items.append({
-                "headline": item.get("headline", ""),
-                "source":   item.get("source", ""),
-                "url":      item.get("url", ""),
-                "time":     dt_str,
-            })
-    except Exception as _e:
-        _logger.warning("Finnhub news fetch failed for %s (preview): %s", sym, _e)
+    # ── Step 2: company news (last 3 days, up to 4 items) ─────────────────────
+    news_items = _earnings_news_items(sym, label="preview")
 
     # ── Step 3: Run enrichment FIRST so the AI prompt can use it ──────────────
     # All best-effort — each helper returns None on failure. Running this before
@@ -2414,18 +2432,60 @@ def _sym_cap_from_profile(sym: str) -> bool | None:
     return (last * adv) >= 5_000_000 and cap >= 300_000_000
 
 
+#: sym -> (expires_at, verdict) for `_sym_cap_from_massive`: a news build asks the same
+#: names every few minutes, and the two Massive reads behind a verdict answer for a day.
+_SYM_CAP_MASSIVE: dict = {}
+_SYM_CAP_MASSIVE_TTL_S = 6 * 3600
+
+
+def _sym_cap_from_massive(sym: str) -> bool | None:
+    """The gate's verdict from Massive (licensed-first pass 2, 2026-11-28), or None
+    when Massive cannot decide: its ticker details (instrument type, market cap) and
+    the 3-month (63-session) average volume and last close from its daily bars, the
+    same statistic as Yahoo's `three_month_average_volume`. A fund or note is
+    blocked; an instrument Massive does not type as a company, or a missing number,
+    is left to the Yahoo read below."""
+    import time as _t
+    from api.services import licensed_reference as lr
+    if not lr.first():
+        return None
+    hit = _SYM_CAP_MASSIVE.get(sym)
+    if hit is not None and hit[0] > _t.time():
+        return hit[1]
+    ref = lr.massive_reference(sym) or {}
+    mtype = ref.get("type")
+    if mtype in lr.FUND_TYPES:
+        verdict = False
+    elif mtype not in lr.COMPANY_TYPES or not ref.get("market_cap"):
+        return None
+    else:
+        vol = lr.massive_avg_volume(sym, 63)
+        if not vol or not vol.get("last_close"):
+            return None
+        verdict = (vol["last_close"] * vol["avg_volume"]) >= 5_000_000 and ref["market_cap"] >= 300_000_000
+    if len(_SYM_CAP_MASSIVE) > 5000:
+        _SYM_CAP_MASSIVE.clear()
+    _SYM_CAP_MASSIVE[sym] = (_t.time() + _SYM_CAP_MASSIVE_TTL_S, verdict)
+    return verdict
+
+
 def _check_sym_cap(sym: str) -> tuple[str, bool]:
     """Return (sym, allowed) applying $5M dollar-volume AND $300M market-cap gates.
 
-    The company profile decides first; the yfinance read decides when the
-    profile cannot. Fails open on yfinance errors so transient network issues
-    don't silently drop all news. ETFs and non-equity instruments are always
-    blocked.
+    The company profile decides first, then Massive's ticker details and daily bars
+    (licensed-first pass 2); the yfinance read decides when neither can. Fails open
+    on yfinance errors so transient network issues don't silently drop all news.
+    ETFs and non-equity instruments are always blocked.
     """
     try:
         decided = _sym_cap_from_profile(sym)
     except Exception:
         decided = None
+    if decided is None:
+        try:
+            decided = _sym_cap_from_massive(sym)
+        except Exception:
+            decided = None
     if decided is not None:
         return sym, decided
     try:

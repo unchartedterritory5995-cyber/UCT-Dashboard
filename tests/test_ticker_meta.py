@@ -58,7 +58,8 @@ def test_yfinance_happy_path():
                    "industry": "Auto Manufacturers", "exchange": "NASDAQ", "theme": None}
     # disk/mem cache the base meta only (no theme — theme is looked up fresh per call)
     DP.assert_called_once_with("TSLA", {"name": "Tesla Inc", "sector": "Consumer Cyclical",
-                                        "industry": "Auto Manufacturers", "exchange": "NASDAQ"})
+                                        "industry": "Auto Manufacturers", "exchange": "NASDAQ"},
+                               {"name": "yahoo", "sector": "yahoo", "industry": "yahoo", "exchange": "yahoo"})
 
 
 def test_memory_cache_hit_skips_fetch():
@@ -222,7 +223,8 @@ def test_partial_yfinance_missing_name_backfills_name_from_finnhub():
                    "industry": "Semiconductors", "exchange": None, "theme": None}
     # Cached WITH the name now (not the poisoned name=None), GICS industry preserved.
     DP.assert_called_once_with("MU", {"name": "Micron Technology Inc", "sector": "Technology",
-                                      "industry": "Semiconductors", "exchange": None})
+                                      "industry": "Semiconductors", "exchange": None},
+                               {"sector": "yahoo", "industry": "yahoo", "name": "finnhub"})
 
 
 # ── FMP `stable/profile` migration (2026-08-05, plan Task 8) ─────────────────
@@ -342,7 +344,8 @@ def test_fmp_partial_then_finnhub_fills_remainder():
                    "industry": "Semiconductors", "exchange": None, "theme": None}
     DP.assert_called_once_with(
         "MU", {"name": "Micron Technology Inc", "sector": "Technology",
-               "industry": "Semiconductors", "exchange": None})
+               "industry": "Semiconductors", "exchange": None},
+        {"sector": "fmp", "industry": "fmp", "name": "finnhub"})
 
 
 def test_primary_theme_attached_to_result():

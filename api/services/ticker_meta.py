@@ -1,9 +1,11 @@
 """Per-ticker company metadata (name/sector/industry).
 
-Source: yfinance .info (all three) with FMP `stable/profile` then Finnhub
-`profile2` fallback for name/industry (2026-08-05 migration — FMP is the new
-PRIMARY of the two paid/free fallback legs; Finnhub stays as an explicit,
-never-removed fallback since it costs nothing once FMP succeeds first).
+Source (licensed-first pass 2, 2026-11-28): FMP `stable/profile` (name, sector,
+industry, in Yahoo's words where FMP words a group differently, see
+`licensed_reference`) and Massive ticker details (exchange, and the name when FMP
+has none) FIRST; yfinance .info only fills a field they left empty; then the FMP
+profile's exchange and Finnhub `profile2` (name/industry) as the last fallbacks.
+The disk row names the source per field (`_src`).
 In-memory TTLCache + disk-persisted JSON under /data, 24h TTL. Never raises
 — returns all-null on total failure (uncached)."""
 import json
@@ -26,23 +28,36 @@ def _disk_path(ticker: str) -> str:
     return os.path.join(_CACHE_DIR, os.path.basename(f"{ticker}.json"))
 
 
+#: The disk row's version. 2 (licensed-first pass 2, 2026-11-28): a row written before the licensed
+#: reads came first (no `_v`) was Yahoo-first and is not served; the next request rebuilds it.
+#: `_src` names, per field, the source that answered (massive / fmp / yahoo / finnhub). Both keys
+#: live on disk only: `_disk_get` strips them, so the meta every caller reads keeps its shape.
+_DISK_VERSION = 2
+
+
 def _disk_get(ticker: str):
     try:
         p = _disk_path(ticker)
         if time.time() - os.path.getmtime(p) > _TTL:
             return None
         with open(p, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            row = json.load(fh)
     except Exception:
         return None
+    if not isinstance(row, dict) or row.get("_v") != _DISK_VERSION:
+        return None
+    return {k: v for k, v in row.items() if not k.startswith("_")}
 
 
-def _disk_put(ticker: str, data: dict) -> None:
+def _disk_put(ticker: str, data: dict, src: dict | None = None) -> None:
     try:
         os.makedirs(_CACHE_DIR, exist_ok=True)
         tmp = _disk_path(ticker) + ".tmp"
+        row = {**data, "_v": _DISK_VERSION}
+        if src:
+            row["_src"] = src
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(data, fh)
+            json.dump(row, fh)
         os.replace(tmp, _disk_path(ticker))
     except Exception as e:
         _logger.warning("ticker_meta disk write failed for %s: %s", ticker, e)
@@ -179,6 +194,43 @@ def _from_fmp(ticker: str):
     }
 
 
+def _licensed_meta(ticker: str) -> dict:
+    """The LICENSED reads, asked first (licensed-first pass 2, 2026-11-28): FMP `stable/profile`
+    for the name, sector and industry (industry and sector in the words every consumer matches
+    on, `licensed_reference.normalize_*`), Massive ticker details for the exchange (its MIC code
+    mapped to our store's names) and for the name when FMP has none. Each field None when neither
+    says. `_src` names the source per field; `_fmp_asked` says the FMP profile was already read so
+    the gap leg below does not read it twice. Never raises."""
+    from api.services import licensed_reference as lr
+    out = {"name": None, "sector": None, "industry": None, "exchange": None,
+           "_src": {}, "_fmp_asked": False}
+    if not lr.first():
+        return out
+    try:
+        fmp = _from_fmp(ticker) or {}
+        out["_fmp_asked"] = True
+        out["_fmp_row"] = fmp
+    except Exception as e:                                       # noqa: BLE001
+        _logger.info("ticker_meta licensed FMP read failed for %s: %s", ticker, e)
+        fmp = {}
+    try:
+        mas = lr.massive_reference(ticker) or {}
+    except Exception as e:                                       # noqa: BLE001
+        _logger.info("ticker_meta licensed Massive read failed for %s: %s", ticker, e)
+        mas = {}
+    picks = (
+        ("name", fmp.get("name"), "fmp"), ("name", mas.get("name"), "massive"),
+        ("sector", lr.normalize_sector(fmp.get("sector")), "fmp"),
+        ("industry", lr.normalize_industry(fmp.get("industry")), "fmp"),
+        ("exchange", mas.get("exchange"), "massive"),
+    )
+    for field, value, src in picks:
+        if value and not out[field]:
+            out[field] = value
+            out["_src"][field] = src
+    return out
+
+
 def _peek_base(ticker: str):
     """The cached base meta (memory, then the 24h disk cache), or None. NEVER a provider call:
     the batch route answers only what this returns and names the rest missing."""
@@ -205,12 +257,22 @@ def _base_meta(ticker: str) -> dict:
     if hit is not None:
         return hit
 
-    data = {"name": None, "sector": None, "industry": None, "exchange": None}
-    try:
-        data = _from_yfinance(ticker)
-    except Exception as e:
-        _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
-        data = {"name": None, "sector": None, "industry": None, "exchange": None}
+    # ⭐ LICENSED FIRST (pass 2, 2026-11-28): FMP profile + Massive ticker details. Yahoo
+    # (register T-73, class X) is read only when they leave a field empty, and fills only that
+    # field; the FMP gap leg and Finnhub below stay as the last fallbacks, unchanged.
+    lic = _licensed_meta(ticker)
+    src = dict(lic.get("_src") or {})
+    data = {k: lic.get(k) for k in ("name", "sector", "industry", "exchange")}
+    if not all(data.values()):
+        try:
+            yfd = _from_yfinance(ticker)
+        except Exception as e:
+            _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
+            yfd = {}
+        for k in ("name", "sector", "industry", "exchange"):
+            if not data.get(k) and (yfd or {}).get(k):
+                data[k] = yfd[k]
+                src[k] = "yahoo"
 
     # Fall back to FMP, then Finnhub, whenever the NAME is still missing — NOT
     # only when the whole payload is empty. yfinance's .info is flaky and often
@@ -231,33 +293,35 @@ def _base_meta(ticker: str) -> dict:
     # codes like "PCX"; FMP's "NYSE Arca" is the friendly name the legend wants).
     if not data.get("name") or not data.get("exchange"):
         try:
-            fmp = _from_fmp(ticker)
-            data = {
-                "name": data.get("name") or fmp.get("name"),
-                "sector": data.get("sector") or fmp.get("sector"),
-                "industry": data.get("industry") or fmp.get("industry"),
-                # Prefer yfinance's (mapped) exchange — FMP mislabels some ETFs
-                # (SPY → "AMEX"); FMP only fills the gap when yfinance had none.
-                "exchange": data.get("exchange") or fmp.get("exchange"),
-            }
+            # The licensed step already read the FMP profile: its exchange is the one field it
+            # held back (FMP mislabels some ETFs, SPY -> "AMEX"), so it fills only here, last.
+            fmp = lic.get("_fmp_row") if lic.get("_fmp_asked") else _from_fmp(ticker)
+            fmp = fmp or {}
+            from api.services import licensed_reference as _lr
+            for k, v in (("name", fmp.get("name")),
+                         ("sector", _lr.normalize_sector(fmp.get("sector"))),
+                         ("industry", _lr.normalize_industry(fmp.get("industry"))),
+                         # Prefer yfinance's (mapped) exchange — FMP only fills the gap.
+                         ("exchange", fmp.get("exchange"))):
+                if not data.get(k) and v:
+                    data[k] = v
+                    src[k] = "fmp"
         except Exception as e_fmp:
             _logger.info("ticker_meta FMP failed for %s: %s — trying Finnhub", ticker, e_fmp)
 
     if not data.get("name"):
         try:
             fh = _from_finnhub(ticker)
-            data = {
-                "name": data.get("name") or fh.get("name"),
-                "sector": data.get("sector") or fh.get("sector"),
-                "industry": data.get("industry") or fh.get("industry"),
-                "exchange": data.get("exchange"),
-            }
+            for k in ("name", "sector", "industry"):
+                if not data.get(k) and fh.get(k):
+                    data[k] = fh[k]
+                    src[k] = "finnhub"
         except Exception as e2:
             _logger.warning("ticker_meta Finnhub failed for %s: %s", ticker, e2)
 
     if any(data.values()):
         _mem.set(key, data, ttl=_TTL)
-        _disk_put(ticker, data)
+        _disk_put(ticker, data, src)
     return data
 
 
@@ -328,7 +392,7 @@ def peek_exchange(ticker: str):
 
 def get_ticker_meta(ticker: str) -> dict:
     """{name, sector, industry, exchange, theme[, security_type]}. The first four are 24h-cached
-    (yfinance → FMP → Finnhub); theme is the live UCT-taxonomy primary theme; security_type is the
+    (FMP + Massive → yfinance → FMP exchange → Finnhub); theme is the live UCT-taxonomy primary theme; security_type is the
     screener universe's instrument class, present only when known (RS Rating L3)."""
     base = _base_meta(ticker)
     return {**base, "theme": _primary_theme(ticker), **_security_type_field(ticker)}

@@ -8,7 +8,8 @@ Primary source: a single Finviz Elite screener export
 for the ENTIRE market (~11k rows, 100% industry coverage incl. ETFs) in one
 request. We persist that to a SQLite map on the Railway volume, prewarm it on
 startup, and self-heal if it's ever empty/stale. Per-ticker fallbacks
-(yfinance → Finnhub) cover the rare straggler not in the Finviz set.
+(FMP profile → yfinance → Finnhub; licensed first since 2026-11-28) cover the
+rare straggler not in the Finviz set.
 
 Sector/industry barely changes, so a weekly refresh is plenty.
 """
@@ -191,8 +192,23 @@ def _fmp_profile_row(ticker: str):
 
 def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
     """Return (sector, industry, source) for a ticker Finviz didn't cover.
-    Tries yfinance (finest, GICS-style industry) -> FMP `stable/profile` ->
-    Finnhub profile2 (last resort). Never raises."""
+    Licensed first (pass 2, 2026-11-28): FMP `stable/profile`, its words mapped onto
+    the Yahoo/Finviz words where FMP names a group differently
+    (`licensed_reference.normalize_*`, so an industry cohort keeps matching) ->
+    yfinance -> Finnhub profile2 (last resort). Never raises."""
+    from api.services import licensed_reference as _lr
+    fmp_asked = False
+    if _lr.first():
+        fmp_asked = True
+        try:
+            row = _fmp_profile_row(ticker)
+            if row:
+                ind = _lr.normalize_industry(row.get("industry"))
+                sec = _lr.normalize_sector(row.get("sector"))
+                if ind:
+                    return sec, ind, "fmp"
+        except Exception as e:
+            logger.info("[industry_map] FMP (licensed first) %s failed: %s", ticker, e)
     # yfinance
     try:
         import yfinance as yf
@@ -207,7 +223,7 @@ def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional
     # profile2->FMP migration). FMP splits sector from industry (Finnhub
     # profile2 has no sector at all), so a hit here fills BOTH columns.
     try:
-        row = _fmp_profile_row(ticker)
+        row = None if fmp_asked else _fmp_profile_row(ticker)
         if row:
             ind = (row.get("industry") or "").strip() or None
             sec = (row.get("sector") or "").strip() or None

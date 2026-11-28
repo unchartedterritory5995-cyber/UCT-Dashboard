@@ -121,6 +121,16 @@ describe('FinancialsTab -- the source that supplied the grids', () => {
     expect(screen.queryByTestId('financials-summary-source')).toBeNull()
   })
 
+  it('SEC EDGAR grids (licensed-first pass 1): the company filings named, before any Yahoo grid, and the cards say whose they are', async () => {
+    await renderWith({ ...fin, sources: { statements: 'SEC EDGAR', summary: 'Yahoo Finance' } })
+    const src = screen.getByTestId('depth-source')
+    expect(src).toHaveAttribute('data-vendor', 'SEC EDGAR')
+    expect(src).toHaveTextContent('FMP holds no statement history for this ticker; showing the figures the company filed with the SEC')
+    expect(src).not.toHaveTextContent(/Yahoo/)
+    const cards = screen.getByTestId('financials-summary-source')
+    expect(cards).toHaveAttribute('data-vendor', 'Yahoo Finance')
+  })
+
   it('a fallback shown because the FMP read FAILED says so, never "holds no history"', async () => {
     await renderWith({ ...fin, sources: FALLBACK, fmp_unavailable: true })
     const src = screen.getByTestId('depth-source')

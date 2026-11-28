@@ -279,13 +279,14 @@ describe('EE — ConsensusEstimates', () => {
     expect(within(card).getByText('Q3 2027')).toBeInTheDocument()
   })
 
-  it('revisions stay, labelled as Yahoo Finance', async () => {
+  it('revisions from Yahoo Finance are labelled as the fallback', async () => {
     routes['/api/research/estimates/NVDA?consensus=1'] = ESTIMATES(CONSENSUS)
     routes['/api/research/estimates/NVDA?revisions=1'] = REVISIONS
     mount(<ConsensusEstimates sym="NVDA" />)
     const rev = await screen.findByTestId('ee-revisions')
     expect(within(rev).getByTestId('depth-source')).toHaveAttribute('data-vendor', 'Yahoo Finance')
-    expect(within(rev).getByTestId('depth-source')).toHaveAttribute('data-fallback', 'false')
+    // Licensed-first pass 2: UCT's own FMP snapshots come first, so Yahoo is the fallback.
+    expect(within(rev).getByTestId('depth-source')).toHaveAttribute('data-fallback', 'true')
     expect(within(rev).getByTestId('depth-source')).toHaveTextContent('FMP does not publish estimate revisions')
     expect(within(rev).getByText('Current Qtr')).toBeInTheDocument()
     expect(within(rev).getByText('12')).toBeInTheDocument()
