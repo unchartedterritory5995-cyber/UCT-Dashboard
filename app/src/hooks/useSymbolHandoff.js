@@ -25,8 +25,8 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { BoardVisibilityContext, boardHiddenNow, boardIsHiding, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
 import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly, observeGroupSwitches } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
@@ -423,13 +423,24 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // stayed current that long, and a late answer of it (its panes' columns landing) showed it, alone, over the newer
   // one. It ends HERE, in the commit that leaves it: a layout cleanup, so before any late answer can run.
   useLayoutEffect(() => () => { genRef.current += 1 }, [requestedSym, tf, enabled, group])
+  // ⭐⭐ (2026-11-28, cloud sweep 46113707532, COV-zo-wm-arrows: LONE_CHART 12 of 12) WHEN THIS CHART FIRST LEFT A REQUEST
+  // UNSHOWN, since it last showed what was asked (null: it shows it). The hang guard counts from here, never from each new
+  // request: zoomed out, a W/M hold waits for an edge history that answered in 5-22 s, every arrow press (3.23 s apart)
+  // superseded the hold before its 4 s guard, and the board showed the previous symbol for all 12 presses.
+  const unshownSinceRef = useRef(null)
+  // (review of #3009, F1) a keep-alive <Activity> hide runs this chart's cleanups without a newer request: it ends the run
+  // too, so the show's request gets a full guard (the clock never counts the time the board was hidden)
+  const boardVis = useContext(BoardVisibilityContext)
+  const boardVisRef = useRef(boardVis)
+  boardVisRef.current = boardVis
+  useEffect(() => () => { if (boardIsHiding(boardVisRef.current)) unshownSinceRef.current = null }, [])
 
   useEffect(() => {
     // Disabled / nothing requested: pass straight through, same tick. The
     // synchronous setState is the bypass working correctly, not a cascade.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!enabled || !requestedSym || !tf) { setDisplayedSym(requestedSym); return undefined }
-    if (requestedSym === displayedSym) return undefined
+    if (!enabled || !requestedSym || !tf) { unshownSinceRef.current = null; setDisplayedSym(requestedSym); return undefined }
+    if (requestedSym === displayedSym) { unshownSinceRef.current = null; return undefined }
 
     // ⭐ (2026-11-20, the trace) THE SETTLE IS DECIDED HERE, IN THE SAME PASS (it was useSymbolSettle, a layout
     // effect above this hook whose setState forced one more synchronous pass of every chart widget per switch).
@@ -448,7 +459,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         if (scoped) noteSwitchRoute(group, requestedSym, ROUTE_DEFERRED)   // (the switch-speed instrument: how it was shown)
         let inner
         const t = setTimeout(() => { clock.applied(Date.now()); inner = run() }, BURST_SETTLE_MS)
-        return () => { clearTimeout(t); if (typeof inner === 'function') inner() }
+        // (review of #3009, F1) a request LEFT before it ever ran (a held key's repeat) ends the run of unshown requests:
+        // the row the key is released on gets its own full hang guard, never one carried from the first row of the burst
+        return () => { clearTimeout(t); if (typeof inner === 'function') inner(); else unshownSinceRef.current = null }
       }
       clock.applied(now)
     }
@@ -456,7 +469,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
 
     function run() {
       const gen = ++genRef.current
-      const startedAt = Date.now()
+      // (the hang guard's origin: the oldest request this chart has left unshown, see unshownSinceRef)
+      if (unshownSinceRef.current == null) unshownSinceRef.current = Date.now()
+      const startedAt = unshownSinceRef.current
+      const hangIn = () => Math.max(0, startedAt + HANDOFF_HANG_MS - Date.now())   // what is left of the hang guard
       const sess = sessOf(showExtended, member, tf)
       // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
       let shown = false
@@ -565,7 +581,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const landWhole = (outcome) => { if (outcome === 'error' || outcome === 'nodata' || whole()) land(outcome) }
         P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal, cover: need }).then(landWhole, () => land('error'))
         const bound = setTimeout(() => landWhole('hold-timeout'), DAILY_HOLD_MAX_MS)
-        const hang = setTimeout(() => land('hang'), HANDOFF_HANG_MS)
+        const hang = setTimeout(() => land('hang'), hangIn())
         // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
         // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
@@ -677,7 +693,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         forced = true      // (a hold's own guard fires at the same bound: never a second hold after it)
         stopHold()
         commitHere()
-      }, HANDOFF_HANG_MS)
+      }, hangIn())
 
       return () => { alive = false; if (timer) clearTimeout(timer); stopWatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } leaveHold() }
       // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
