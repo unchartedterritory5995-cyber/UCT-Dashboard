@@ -166,3 +166,24 @@ describe('the pool warms the likeliest completions at once, from the device and 
     expect(origin(w)).toEqual([])
   })
 })
+
+// (review of #2979) THE POOL, THE TYPED SLOT AND ITS LINKED CHARTS NEVER EVICT EACH OTHER'S PRIMES: network.deepPrime keeps
+// DEEP_PRIME_MAX primed histories (an LRU that drops even one still in flight), and at 4 the pool's 3 plus the typed
+// text's linked W and M pushed the oldest candidate's history out before its press, which then asked it again.
+describe('primes survive to their press (DEEP_PRIME_MAX)', () => {
+  it('three candidates + the typed text with two linked charts: every press finds its history, none asked twice', async () => {
+    const w = await boot()
+    w.pf.warmTypedCandidates(['CRM', 'CRWD', 'CRBG'], 'D')
+    await turns(w)
+    w.pf.warmTypedSymbol('CRBG', 'D', { cover: COVER, alsoTfs: ['W', 'M'] })
+    await turns(w, 8)
+    await w.server.drain()
+    for (const s of ['CRM', 'CRWD']) {
+      const press = w.pf.prepareDailyForDisplay(s, 'D', { cover: COVER })
+      await w.server.drain(); await press
+    }
+    const hist = w.server.calls.filter((c) => c.q.history).map((c) => `${c.q.sym} ${c.q.tf}`)
+    expect(hist.length).toBe(new Set(hist).size)                        // one history per key: nothing evicted, re-asked
+    expect(hist.sort()).toEqual(['CRBG D', 'CRBG M', 'CRBG W', 'CRM D', 'CRWD D'])
+  })
+})

@@ -1203,7 +1203,8 @@ function ChartPane({
     // match) is ONE intent: the second call would replace the first's pending hidden-pane decision with a slower one
     const cur = typedNextRef.current
     const typedU = String(s || '').toUpperCase()
-    if (cur && cur.s === typedU && cur.center === symRef.current && Date.now() - cur.at < TYPED_INTENT_SAME_MS) return
+    // (review of #2979) ...on the same timeframe: a re-type after a timeframe change is a new key, warmed again
+    if (cur && cur.s === typedU && cur.tf === effectiveTf && cur.center === symRef.current && Date.now() - cur.at < TYPED_INTENT_SAME_MS) return
     // (review of #2934, B1) the typed key and its linked keys ask the rows this chart's view will draw (D/W/M: a cover page)
     let cover = 0
     try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
@@ -1213,7 +1214,7 @@ function ChartPane({
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
     if (!BARSTORE) return
     const center = symRef.current
-    const mine = { s: typedU, center, at: Date.now() }
+    const mine = { s: typedU, tf: effectiveTf, center, at: Date.now() }
     typedNextRef.current = mine
     const live = () => typedNextRef.current === mine && symRef.current === center   // no newer text; same chart symbol
     Promise.resolve(warm).then((r) => {
@@ -1241,15 +1242,13 @@ function ChartPane({
   useEffect(() => { if (chartSym) { try { noteOpened(chartSym, { weight: SHOWN_WEIGHT }) } catch { /* */ } } }, [chartSym])
   const handleTypedCandidates = useCallback((list) => {
     const syms = Array.isArray(list) ? list.filter(Boolean) : []
-    let cover = 0
-    try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
-    try { storeWarmTypedCandidates(syms, effectiveTf, { cover }) } catch { /* a warm never breaks search */ }
+    try { storeWarmTypedCandidates(syms, effectiveTf) } catch { /* a warm never breaks search */ }
     const top = syms[0] ? String(syms[0]).toUpperCase() : null
     if (!top || top === lastTopRef.current) return
     lastTopRef.current = top
     handleTypedIntent(top)
   }, [effectiveTf, handleTypedIntent])
-  useEffect(() => { lastTopRef.current = null }, [chartSym])
+  useEffect(() => { lastTopRef.current = null }, [chartSym, effectiveTf])
 
   const handleChartClick = useCallback((e) => {
     // ⛔ A PORTAL CLICK IS NOT A CHART CLICK (a11y gate §12.2, 2026-11-08). React

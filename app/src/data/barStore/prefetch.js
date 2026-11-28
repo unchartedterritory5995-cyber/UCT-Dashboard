@@ -2324,7 +2324,7 @@ export function createPrefetch(o = {}) {
   //   * The caller (ChartPane) gives the top candidate to the typed slot too, AFTER this call: the pool's entry for it is
   //     what keeps its fetch alive when the typed slot moves to the next text.
   const pool = new Map()   // key -> AbortController (the live candidates' warms)
-  function warmTypedCandidates(syms, tf = 'D', { cover = 0 } = {}) {
+  function warmTypedCandidates(syms, tf = 'D') {   // (review of #2979: no `cover`, the pool asks no tail)
     const keys = []
     for (const s0 of Array.isArray(syms) ? syms : []) {
       if (keys.length >= CANDIDATE_POOL_K) break

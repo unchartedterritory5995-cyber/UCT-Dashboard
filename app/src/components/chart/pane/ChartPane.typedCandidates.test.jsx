@@ -46,7 +46,7 @@ test('every candidate list is warmed as a pool, the pool before the typed slot, 
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   chartSearch().onTypedCandidates(['AMZN', 'AMD', 'AMAT'])
   expect(seq).toEqual(['pool:AMZN,AMD,AMAT', 'typed:AMZN'])
-  expect(poolWarm).toHaveBeenCalledWith(['AMZN', 'AMD', 'AMAT'], 'D', expect.objectContaining({ cover: COVER_ROWS }))
+  expect(poolWarm).toHaveBeenCalledWith(['AMZN', 'AMD', 'AMAT'], 'D')
   expect(storeWarm).toHaveBeenCalledWith('AMZN', 'D', expect.objectContaining({ cover: COVER_ROWS }))
 })
 
@@ -60,6 +60,17 @@ test('the same top candidate is one intent: a new list re-warms the pool, the ty
   chartSearch().onTypedCandidates(['CRM', 'CRWD'])
   expect(storeWarm).toHaveBeenCalledTimes(2)
   expect(storeWarm).toHaveBeenLastCalledWith('CRM', 'D', expect.anything())
+})
+
+// (review of #2979) the same text re-typed after a TIMEFRAME change is a new key: warmed again, on the new timeframe
+test('a re-type after a timeframe change warms the typed slot again, on the new timeframe', () => {
+  const view = render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN'])
+  chartSearch().onTypedIntent('AMZN')
+  view.rerender(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN'])
+  chartSearch().onTypedIntent('AMZN')
+  expect(storeWarm.mock.calls.map((c) => `${c[0]} ${c[1]}`)).toEqual(['AMZN D', 'AMZN 5'])
 })
 
 test('CONTROL: other text told through onTypedIntent still takes the typed slot', () => {
