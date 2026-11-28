@@ -4141,6 +4141,9 @@ function StockChartBody({
                               // the right edge (+0.5 bar, as Go to date puts it) with this many bars across, and a date
                               // before the loaded rows frames the EARLIEST bars with a note. null = the Desk's default frame.
   onAnchorRelease = null,     // () => void — the date-box anchor is handed back (a range button, Reset view): the host clears it
+  anchorFromView = false,     // (owner, 2026-11-27) the anchor was READ OFF this chart's view after the member panned or zoomed it
+                              // (the date box carries the date AND the zoom): a chart the member moved keeps its view at the new
+                              // anchor (no snap to the day's last bar); every other chart, and the next symbol, frames there
   exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
@@ -11972,6 +11975,9 @@ function StockChartBody({
       // navigation, so this re-arm is correct under the RULE — keep it.
       // Inert if the anchor names no loaded bar.
       if (anchorIdx < 0) return
+      // (owner, 2026-11-27) an anchor read off THIS chart's own view after the member moved it is where the member put
+      // it: kept (re-framing would snap the right edge to the day's last bar, up to a session on intraday)
+      if (anchorFromView && userViewMovedRef.current) return
       userViewMovedRef.current = false
       applyAnchorFrame(chart)
       return

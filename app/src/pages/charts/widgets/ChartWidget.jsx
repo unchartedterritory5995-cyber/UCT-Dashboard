@@ -57,6 +57,8 @@ import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 // chart's right-click "Add widget" submenu never drifts from it.
 const ADD_WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
+/** (owner, 2026-11-27) a pan or zoom of the front chart at a date moves the date once it has rested this long. */
+const MEMBER_VIEW_REST_MS = 150
 
 // The chart capture (symbol, tf, visible range, merged settings) is built by ONE
 // shared builder, also used by the touch shell's Tools sheet (MobileChartsApp).
@@ -240,8 +242,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // (an arrow, a typed ticker, a list click) opens there instead of snapping to the present, and the double buffer's
   // hidden pane is framed there too. Cleared by the box's "Latest" (or Enter on an empty field), a range button or Reset
   // view (onAnchorRelease), and entering replay; kept across a timeframe change. In memory only (the 8/19 incident was a
-  // STORED view that sent every search back in time). A plain pan or zoom never sets it (the back-in-time guard stands).
-  const [viewDate, setViewDate] = useState(null)   // { date: 'YYYY-MM-DD', width: bars } | null
+  // STORED view that sent every search back in time). A plain pan or zoom never SETS it (the back-in-time guard stands),
+  // but WHILE it is set the member's own pan or zoom of the front chart MOVES it (`fromView`, below): the date and the
+  // zoom both carry to the next symbol (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and zoom).
+  const [viewDate, setViewDate] = useState(null)   // { date: 'YYYY-MM-DD', width: bars, fromView?: true } | null
+  const viewDateRef = useRef(viewDate)
+  viewDateRef.current = viewDate
   const clearViewDate = useCallback(() => { setViewDate(null) }, [])
   useEffect(() => { if (replayCutoff) setViewDate(null) }, [replayCutoff])
   useEffect(() => {
@@ -257,10 +263,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       return w > 1 ? w : 200
     }
     // a date at or past the newest bar is the present: the anchor goes
-    const anchorAt = (ms, width) => {
+    const anchorAt = (ms, width, fromView = false) => {
       const m = meta()
       if (Number.isFinite(m?.lastMs) && ms >= Date.parse(`${isoOf(m.lastMs)}T00:00:00Z`)) { setViewDate(null); return }
-      setViewDate({ date: isoOf(ms), width })
+      setViewDate(fromView ? { date: isoOf(ms), width, fromView: true } : { date: isoOf(ms), width })
     }
     return {
       goToDate: (ms) => { if (Number.isFinite(ms)) anchorAt(ms, spanOf(meta())) },
@@ -275,6 +281,16 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         try { paneRef.current?.stepBar?.(dir) } catch { /* the pane's */ }
         const m = meta()
         if (Number.isFinite(m?.rightMs)) anchorAt(m.rightMs, spanOf(m))
+      },
+      // (owner, 2026-11-27) the member panned or zoomed the front chart while a date is set: the date is its new right
+      // edge, the span its new width (panned to the newest bar: the present again). Nothing while no date is set.
+      fromView: () => {
+        const cur = viewDateRef.current
+        const m = meta()
+        if (!cur || !Number.isFinite(m?.rightMs)) return
+        const w = Math.round(spanOf(m) * 100) / 100
+        if (cur.date === isoOf(m.rightMs) && Math.abs(cur.width - w) < 1) return
+        anchorAt(m.rightMs, w, true)
       },
     }
   }, [tf])   // eslint-disable-line react-hooks/exhaustive-deps -- paneRef is a ref
@@ -869,7 +885,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const [layerPaneRefs] = useState(() => [{ current: null }, { current: null }])
   const [layerElFns] = useState(() => [0, 1].map((i) => (el) => { layerElRef.current[i] = el }))
   // each layer's time range: the front's moves the shadow's zoom (useDoubleBuffer, F1)
-  const [layerTimeRange] = useState(() => [0, 1].map((i) => () => { dbViewChangedRef.current?.(i) }))
+  // (owner, 2026-11-27) ...and, while a date is set, the member's own move of the FRONT chart moves the date (dateNav
+  // fromView), once the gesture rests (a drag or a wheel fires a range per frame)
+  const memberViewTimerRef = useRef(0)
+  const memberViewRef = useRef(null)
+  memberViewRef.current = (i, info) => {
+    if (!info?.memberMoved || !viewDateRef.current) return
+    if (i != null && i !== dbFrontRef.current) return
+    clearTimeout(memberViewTimerRef.current)
+    memberViewTimerRef.current = setTimeout(() => { memberViewTimerRef.current = 0; dateNav.fromView() }, MEMBER_VIEW_REST_MS)
+  }
+  useEffect(() => () => clearTimeout(memberViewTimerRef.current), [])
+  const [layerTimeRange] = useState(() => [0, 1].map((i) => (r, info) => { dbViewChangedRef.current?.(i); memberViewRef.current?.(i, info) }))
+  const [paneTimeRange] = useState(() => (r, info) => { memberViewRef.current?.(null, info) })
   const dbViewChangedRef = useRef(null)
   dbViewChangedRef.current = db.viewChanged
   // the workspace's mount queue is released ONCE per widget, whichever layer's chart is ready first (F7)
@@ -921,7 +949,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // (F4) a host's price lines for THIS pane's symbol
             ...((paneSym === sym ? hostPriceLines : (hostOverlay?.priceLinesFor?.(paneSym) || null))?.length
               ? { priceLines: paneSym === sym ? hostPriceLines : hostOverlay.priceLinesFor(paneSym) } : {}),
-            ...(layerIdx != null ? { onTimeRangeChange: layerTimeRange[layerIdx] } : {}),
+            onTimeRangeChange: layerIdx != null ? layerTimeRange[layerIdx] : paneTimeRange,
             onCrosshairMove: reportCrosshair,
             subscribeCrosshair: paneSubscribeCrosshair,
             hotkeysActive: hotkeysIsActive,
@@ -967,6 +995,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             anchorWidth: anchorKey ? viewDate.width : null,
             hideAnchorMarker: anchorKey ? true : undefined,
             onAnchorRelease: anchorKey ? clearViewDate : undefined,
+            anchorFromView: anchorKey && viewDate.fromView ? true : undefined,
             // FULLY freeze live in replay: replay is static historical data, so kill the SSE
             // subscription + the per-tick live-price re-render (was left on, which churned the
             // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model

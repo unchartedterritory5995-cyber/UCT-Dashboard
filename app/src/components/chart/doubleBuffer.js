@@ -170,11 +170,14 @@ const shortOf = (m) => Number.isFinite(m.rows) && m.frame.fromRight > m.rows - 1
 export function viewParity(front, shadow, ctx = {}) {
   const b = viewBlocked(front) || viewBlocked(shadow)
   if (b) return b
-  if (!sameLocks(front, shadow)) return 'view-lock'
   // (owner, 2026-11-27) THE DATE THE MEMBER WENT TO frames every switch before any lock or pin (StockChart
   // anchorOwnsFrame): each chart frames its OWN rows at it (a prop both layers get), and reads back the frame it gives
   // (`anchorFrame`). Alike when the hidden chart holds the same anchor, sits at that frame, and its rows hold the date
   // and reach the frame's left edge (a date before its loaded rows: its earliest bars, which may still be loading).
+  // ⭐ (the cold-ticker measurement, 2026-11-28: 16 of 16 arrows refused for a view lock) decided BEFORE the locks: a
+  // pan or zoom at the date writes the front a view lock, which frames no switch while the anchor does (StockChart's
+  // lock branches run only when !anchorOwnsFrame(); the widget moves the anchor to the member's view instead), so a lock
+  // only the front held refused every press at the date.
   if (!sameAnchor(front.anchor, shadow.anchor)) return 'view-anchor'
   if (front.anchor) {
     const af = shadow.anchorFrame
@@ -182,6 +185,7 @@ export function viewParity(front, shadow, ctx = {}) {
     if (!near(shadow.frame.fromRight, af.fromRight) || !near(shadow.frame.toRight, af.toRight)) return 'view-frame'
     return shortOf(shadow) ? 'view-short' : 'ok'
   }
+  if (!sameLocks(front, shadow)) return 'view-lock'
   const lf = lockFrameFor(front, ctx.tf)
   if (lf && lf.refuse) return lf.refuse
   if (lf) {

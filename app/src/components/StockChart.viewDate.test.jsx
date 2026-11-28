@@ -6,8 +6,10 @@
 //   V4 the date cleared: the present again
 //   V5 a range button / Reset view hand the date back (onAnchorRelease); the pass reports its anchor; getDateMeta reads
 //      the anchor and the frame it gives (the double buffer's proof)
+//   V6 (the cold-ticker measurement, 2026-11-28) an anchor read off the chart's OWN view after the member zoomed it
+//      (anchorFromView) keeps the member's view: no snap to the day's last bar; the same new anchor without the flag frames
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, cleanup, act, waitFor } from '@testing-library/react'
+import { render, cleanup, act, waitFor, fireEvent } from '@testing-library/react'
 
 const lw = vi.hoisted(() => ({ created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map(), reads: 0 }))
 // every adaptive frame loop made under the chart, with the options it was made with
@@ -130,9 +132,10 @@ const { default: StockChart } = await import('./StockChart')
 const { LayerPaintContext } = await import('./chart/layerPaint')
 
 // the /charts workspace's chart: the date box's anchor (anchorDate + anchorWidth), no marker line, present kept on a switch
-const Chart = ({ sym, tf = 'D', bars, date = '2006-01-03', width = 120, onRelease, onApi }) => (
+const Chart = ({ sym, tf = 'D', bars, date = '2006-01-03', width = 120, onRelease, onApi, fromView }) => (
   <StockChart sym={sym} tf={tf} chartId="view-date" barsOverride={bars} keepPresentOnSymbolChange
-    anchorDate={date} anchorWidth={date ? width : null} hideAnchorMarker onAnchorRelease={onRelease} onDateNavApi={onApi} />
+    anchorDate={date} anchorWidth={date ? width : null} hideAnchorMarker onAnchorRelease={onRelease} onDateNavApi={onApi}
+    anchorFromView={fromView} />
 )
 const framedAt = async (bars, iso, width) => {
   const to = idxOn(bars, iso) + 0.5
@@ -200,5 +203,24 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
     act(() => { api.resetView() })
     expect(onRelease).toHaveBeenCalledTimes(2)
     view.unmount()
+  })
+  it("V6 an anchor read off the chart's own view after the member zoomed it keeps that view; without the flag it frames", async () => {
+    const zoomOut = async (view) => {
+      await framedAt(AAA, '2006-01-03', 120)
+      const plot = document.querySelector('[data-guide="chart.plot"]')
+      expect(plot).toBeTruthy()
+      fireEvent.wheel(plot)                                  // the member's zoom (StockChart: userViewMovedRef)
+      lw.last = { from: 200, to: 420 }                       // where the member's zoom left the view
+      return view
+    }
+    const a = await zoomOut(render(<Chart sym="AAA" bars={AAA} />))
+    a.rerender(<Chart sym="AAA" bars={AAA} date="2006-02-15" width={220} fromView />)
+    await new Promise((r) => { setTimeout(r, 800) })         // the anchor's re-assert burst has run
+    expect(lw.last).toEqual({ from: 200, to: 420 })          // kept: the member's own view
+    a.unmount()
+    const b = await zoomOut(render(<Chart sym="AAA" bars={AAA} />))
+    b.rerender(<Chart sym="AAA" bars={AAA} date="2006-02-15" width={220} />)   // a jump of the date box: framed there
+    await framedAt(AAA, '2006-02-15', 220)
+    b.unmount()
   })
 })

@@ -16,6 +16,9 @@
 //   W10 (owner, 2026-11-27) the date box: go to 1/3/2006, arrow through 10 symbols: every chart opens at that date with
 //      the same span (both layers carry the anchor), presses flip where the hidden chart is ready; "Latest" clears it
 //   W11 Enter on an empty date field clears it; entering replay clears it
+//   W12 (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and the zoom; 16 of 16 refused for a view
+//      lock) at the date the member zooms and pans the front: the date and the span follow its view, both layers carry
+//      them, the next press flips and opens there; a pan or zoom with no date set never sets one
 import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { Profiler, useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -419,6 +422,35 @@ test('W10 (owner) go to 1/3/2006, arrow through 10 symbols: each opens at that d
   act(() => { setGroup('S8') })
   await settle(400)
   expect(lastProps('S8').anchorDate ?? null).toBe(null)       // back to the present
+})
+test('W12 at the date the member zooms and pans: the date and the zoom carry to the next symbol, and the press flips', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 2 }, { memberMoved: true }) })   // no date set: a plain pan
+  await settle()
+  expect(lastProps('S0').anchorDate ?? null, 'a pan with no date set sent the chart back in time').toBe(null)
+  goTo('01032006')
+  await settle()
+  expect(lastProps('S0').anchorWidth).toBe(165)
+  // the member zooms the front out to 400 bars and pans its right edge to 2/15/2006; the gesture writes it a view lock
+  renders.meta = (p) => (p.sym === 'S0'
+    ? { ...anchoredMeta(p), rightMs: Date.parse('2006-02-15T21:00:00Z'),
+      frame: { fromRight: 4900, toRight: 4500, locked: true, lock: { anchorFrac: 12.25, width: 400, tf: 'D', top: null, bottom: null } } }
+    : anchoredMeta(p))
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 2 }, { memberMoved: true }) })
+  act(() => { lastProps('S0').onTimeRangeChange({ from: 1, to: 3 }, { memberMoved: true }) })     // one gesture, many ranges
+  await settle()
+  expect(lastProps('S0').anchorDate).toBe('2006-02-15')
+  expect(lastProps('S0').anchorWidth).toBe(400)
+  expect(lastProps('S0').anchorFromView).toBe(true)                // the front keeps the member's own view
+  expect(symIn(layer('shadow'))).toBe('S1')
+  expect(lastProps('S1').anchorDate).toBe('2006-02-15')           // the hidden pane is framed there too
+  expect(lastProps('S1').anchorWidth).toBe(400)
+  act(() => { setGroup('S1') })
+  await settle()
+  expect(symIn(layer('front'))).toBe('S1')
+  expect(dbm.doubleBufferStats().last.at(-1), JSON.stringify(dbm.doubleBufferStats().why)).toBe('S1:flip')
 })
 test('W11 (owner) Enter on an empty date field clears the date; entering replay clears it', async () => {
   scanList()

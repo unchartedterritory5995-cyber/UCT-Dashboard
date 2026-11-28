@@ -14,6 +14,8 @@
 //   F6 (owner, 2026-11-27) THE DATE THE MEMBER WENT TO (the date box's anchor): both charts carry it as a prop and frame
 //      their own symbol at it; a flip needs the hidden chart drawn under the same anchor, at the frame it gives its own
 //      rows, those rows holding the date; it is never mirrored
+//   F7 (the cold-ticker measurement, 2026-11-28) a view lock only the front holds (its pan or zoom at the date) refuses
+//      nothing while both charts share the anchor (the anchor frames the switch before any lock)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   flipDecision, viewParity, mirrorFrameFor, acquireShadow, shadowsHeld, MAX_SHADOWS, doubleBufferOn, __setDoubleBufferForTests, DOUBLE_BUFFER_KEY,
@@ -225,6 +227,13 @@ describe('F6 the date the member went to (owner, 2026-11-27: scanning charts at 
   })
   it("alike when the hidden chart sits at the frame the anchor gives ITS rows (whatever the front's own frame)", () => {
     expect(viewParity(at(4700, 4580), at(5200, 5080), D)).toBe('ok')
+  })
+  // (the cold-ticker measurement, 2026-11-28: 16 of 16 arrows refused for a view lock) a pan or zoom at the date writes
+  // the FRONT a view lock; the anchor frames the switch before any lock, so a lock only one chart holds refuses nothing
+  it('F7 a view lock only the front holds (its pan or zoom at the date) refuses nothing while both share the anchor', () => {
+    const zoomed = at(4900, 4500, { frame: { fromRight: 4900, toRight: 4500, locked: true, lock: { anchorFrac: 12.25, width: 400, tf: 'D', top: null, bottom: null } } })
+    expect(viewParity(zoomed, at(5200, 5080), D)).toBe('ok')
+    expect(viewParity({ ...zoomed, anchor: null, anchorFrame: null }, { ...at(5200, 5080), anchor: null, anchorFrame: null }, D)).toBe('view-lock')   // no anchor: the lock rule, as before
   })
   it.each([
     ['view-anchor', at(4700, 4580), at(5200, 5080, { anchor: null, anchorFrame: null })],
