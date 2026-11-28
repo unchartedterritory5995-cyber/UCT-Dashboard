@@ -29,11 +29,11 @@ vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
 vi.mock('../../../utils/barsWarm', async (orig) => ({
   ...(await orig()),
-  prefetchAllTimeframes: (sym, o) => { captured.warms.push({ sym, tfs: o && o.tfs }) },
+  prefetchAllTimeframes: (sym, o) => { captured.warms.push({ sym, tfs: o && o.tfs, edge: o && o.edge, signal: o && o.signal }) },
 }))
-vi.mock('../../../lib/barsPackClient', async (orig) => ({
+vi.mock('../../../lib/firstChartPaint', async (orig) => ({
   ...(await orig()),
-  afterFirstChartPaint: (fn) => { if (captured.painted) fn(); else captured.paintCbs.push(fn) },
+  whenFirstChartPainted: (fn) => { if (captured.painted) fn(); else captured.paintCbs.push(fn); return () => {} },
 }))
 
 import ChartWidget, { TF_DWELL_MS } from './ChartWidget'
@@ -80,6 +80,16 @@ test('after the dwell: every other timeframe on the bar, as native bases, the ha
   // no history: D's bar neighbours first (W, then 4h -> its base 60), then the rest; 45m -> 15; D itself left out
   expect(tfs.slice(0, 2)).toEqual(['W', '60'])
   expect([...tfs].sort()).toEqual(['1', '15', '5', '60', 'W'].sort())
+})
+
+test('(review of #2996, F1) device + edge only (edge: true), and leaving the symbol aborts the dwell signal', () => {
+  render(<Wrap initialOpts={optsFor('D')} />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS + 5) })
+  const w = captured.warms[0]
+  expect(w.edge).toBe(true)
+  expect(w.signal.aborted).toBe(false)
+  act(() => { ctl.setOpts(optsFor('W')) })   // the member left (the timeframe moved on)
+  expect(w.signal.aborted).toBe(true)
 })
 
 test('a timeframe press records the habit, and the next dwell warms that timeframe first', () => {

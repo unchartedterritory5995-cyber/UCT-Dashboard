@@ -94,14 +94,20 @@ describe('prepareRow at another timeframe (tfAt)', () => {
 })
 
 describe('useNeighborFrames schedules the habitual timeframes', () => {
-  it('after the paint, the chart\'s own symbol at its top-2 habitual timeframes, after the neighbour ranks', async () => {
+  it('after the paint, the chart own symbol at its top-2 habitual timeframes (custom codes on its bar), after the neighbour ranks', async () => {
     noteTfPress('D', '240'); noteTfPress('D', '240'); noteTfPress('D', '45')
+    for (const tf of ['240', '45']) snaps.set(keyFor('HHH', tf), Object.freeze({ key: keyFor('HHH', tf), tf: '60', bars: hourly(), developing: null, baseRev: 2, status: 'current', restSeen: true }))
     vi.useFakeTimers()
     try {
-      renderHook(() => useNeighborFrames({ on: true, sym: 'HHH', tf: 'D', showExtended: false, engineRef, recipes: recipes() }))
+      renderHook(() => useNeighborFrames({ on: true, sym: 'HHH', tf: 'D', showExtended: false, engineRef, recipes: recipes(), tfBar: ['5', '45', '60', '240', 'D', 'W'] }))
       vi.advanceTimersByTime(50)   // the requestAnimationFrame after the paint
-      const ranks = scheduled.map((x) => x.rank)
-      expect(ranks).toEqual([PREPARE_RANKS, PREPARE_RANKS + 1])
+      expect(scheduled.map((x) => x.rank)).toEqual([PREPARE_RANKS, PREPARE_RANKS + 1])
+      // WHICH timeframes: the member's 4h, then 45m (review of #2996, F2: TF_ORDER alone filtered them out)
+      const read = []
+      const orig = fakeStore.getBaseSnapshot
+      fakeStore.getBaseSnapshot = (k) => { read.push(k); return orig(k) }
+      try { for (const x of scheduled) drain(x.gen) } finally { fakeStore.getBaseSnapshot = orig }
+      expect(read).toEqual([keyFor('HHH', '240'), keyFor('HHH', '45')])
     } finally { vi.useRealTimers() }
   })
 

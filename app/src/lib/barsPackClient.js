@@ -31,6 +31,7 @@
  * pins this; `'omit'` here reads as a cacheability optimisation and is a
  * total outage.
  */
+import { FIRST_CHART_PAINT_EVENT } from './firstChartPaint'
 import { idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
 import { decodeShardPayload } from './barsPackShard'
 // The worker client loads on the first pack job, so it stays off the page's first-open bytes.
@@ -162,7 +163,8 @@ export async function _ingestHotPack(cfg) {
 // or after PACK_START_MAX_WAIT_MS, whichever is first, then still wait for idle. Pages without a
 // chart start at the time limit.
 export const PACK_START_MAX_WAIT_MS = 15000
-export const FIRST_CHART_PAINT_EVENT = 'uct:first-chart-paint'
+// (the event's name lives in lib/firstChartPaint.js, one authority for it and for the modules that wait on it there)
+export { FIRST_CHART_PAINT_EVENT }
 let _firstChartPainted = false
 
 /** Called by StockChart when a page's first chart has been created (its bars are in). Once. */
