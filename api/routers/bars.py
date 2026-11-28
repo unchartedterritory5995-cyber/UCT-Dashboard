@@ -2055,7 +2055,7 @@ async def _history_thread(fn, *args, **kwargs):
 #    copy, the pre-warm sweep after a member) costs nothing. It can never outlive its own Cache-Control's meaning: an
 #    IMMUTABLE answer is already frozen at the edge for a year under the same URL, a short one is public for an hour
 #    anyway, and the key carries the ET day so a sealed-boundary move is a new key. `no-store`/`no-cache` answers
-#    (breadth, refusals, errors) are never kept.
+#    (breadth, refusals, errors) are never kept: only a `public` answer is.
 _HISTORY_MEMO_TTL_IMMUTABLE_S = 900.0
 _HISTORY_MEMO_TTL_SHORT_S = 60.0
 _HISTORY_MEMO_MAX_BYTES = max(0, int(float(os.environ.get("BARS_HISTORY_MEMO_MB", "64") or 64) * 1024 * 1024))
@@ -2089,8 +2089,9 @@ def _history_memo_get(key):
 def _history_memo_put(key, resp):
     cc = (resp.headers.get("cache-control") or "").lower()
     body = getattr(resp, "body", None)
-    if (resp.status_code != 200 or not isinstance(body, (bytes, bytearray)) or not cc.startswith("public")
-            or "no-store" in cc or "no-cache" in cc):
+    # ONE test: only a `public` answer is kept. `no-store` (refusals, the web fallback) and `no-cache` (breadth) never
+    # start with it; a second clause naming them could not be mutation-proved (it survived its mutant, 2026-11-28).
+    if resp.status_code != 200 or not isinstance(body, (bytes, bytearray)) or not cc.startswith("public"):
         return
     ttl = _HISTORY_MEMO_TTL_IMMUTABLE_S if "immutable" in cc else _HISTORY_MEMO_TTL_SHORT_S
     size = len(body)
