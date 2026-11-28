@@ -654,6 +654,7 @@ def test_unrelated_market_indicators_keep_immutable_history(monkeypatch):
 
 def test_ordinary_stock_history_headers_are_unchanged(monkeypatch):
     from api.routers import bars as br
+    monkeypatch.setattr(br, "_history_known_complete", lambda sym, tf: True)   # a deep store (else it answers partial)
     rows = [{"t": "2026-09-%02d" % i, "c": 1.0} for i in (21, 22, 23, 24, 25)]
     monkeypatch.setattr(br._bars_fetch._sqlite, "get_bars", lambda *a, **k: rows)
     monkeypatch.setattr(br, "_fmt_sqlite_bars",

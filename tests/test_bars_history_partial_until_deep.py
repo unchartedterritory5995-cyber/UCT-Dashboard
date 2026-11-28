@@ -56,7 +56,11 @@ def _assert_partial(r, body):
 
 
 def test_a_series_pinned_to_the_vendor_floor_is_partial_never_immutable(store):
-    # the un-grafted signature: the stored daily starts ON Massive's 2003-09-10 floor (a pre-2003 listing never grafted)
+    # the un-grafted signature: the stored daily starts ON Massive's 2003-09-10 floor (a pre-2003 listing never grafted),
+    # partial even when the cached listing date says the floor (the floor pin wins: a graft attempt is cheap, a year-long
+    # immutable short history is not)
+    meta, kicks = store
+    meta["FLOOR"] = {"ipo": "2003-09-10", "splits": []}
     rows = _daily("FLOOR", date(2003, 9, 10))
     r, body = _history("FLOOR", "D", d=rows[-2]["t"])
     _assert_partial(r, body)

@@ -28,6 +28,12 @@ def _paid_bars_caller(monkeypatch):
     sign_in_bars_caller(monkeypatch)
 
 
+@pytest.fixture(autouse=True)
+def _deep_store(monkeypatch):
+    # the stubbed store stands for a deep one (a shallow store answers `partial`: tests/test_bars_history_partial_until_deep.py)
+    monkeypatch.setattr(bars_mod, "_history_known_complete", lambda sym, tf: True)
+
+
 
 
 def _client():

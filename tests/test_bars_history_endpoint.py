@@ -43,8 +43,10 @@ def _stored(bars):
     """Simulate `bars` already stored in SQLite for a normal symbol — the pure read path.
     `_sqlite.get_bars` returns truthy raw rows; `_fmt_sqlite_bars` formats them into `bars`."""
     raw = [("row",)] if bars else []
+    # the stubbed store stands for a deep one (a shallow store answers `partial`: tests/test_bars_history_partial_until_deep.py)
     with patch.object(bars_fetch._sqlite, "get_bars", return_value=raw), \
-         patch("api.routers.bars._fmt_sqlite_bars", return_value=list(bars)):
+         patch("api.routers.bars._fmt_sqlite_bars", return_value=list(bars)), \
+         patch("api.routers.bars._history_known_complete", return_value=True):
         yield
 
 
