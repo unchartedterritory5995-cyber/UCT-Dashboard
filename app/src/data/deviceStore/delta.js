@@ -28,7 +28,7 @@
 // encoder (testing/fixtures.js) builds packs from served rows; this one encodes exact integer columns.
 
 import { gunzipSync, gzipSync } from 'fflate'
-import { DeviceFormatError, PACK_TAIL_BYTES, SEED_TUNIT, hasComp, inflateBlob } from './codec'
+import { DeviceFormatError, PACK_TAIL_BYTES, SEED_TUNIT, hasComp, inflateBlob, wholeOf } from './codec'
 
 export const DELTA_MAGIC = 'UFFSDLT2'
 /** The magics this reader takes → their version (2: gzip trailer; 1: plain JSON trailer). */
@@ -97,6 +97,8 @@ export function parseDelta(bytes, { tf = null } = {}) {
   return {
     tf: T, tunit: tr.tunit, comp: tr.comp, build: tr.build, base: tr.base, baseAsof: tr.base_asof ?? null,
     asof: tr.asof ?? null, depth: tr.depth ?? null, basis: tr.basis ?? null, grid: tr.grid ?? null, dataEnd, symbols,
+    // the NEW build's whole / partial (codec.wholeOf): what the rebuilt pack's trailer must say (engine._ingestDelta)
+    ...wholeOf(tr, 'delta'),
   }
 }
 

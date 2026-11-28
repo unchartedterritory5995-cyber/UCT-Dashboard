@@ -855,7 +855,9 @@ def test_daily_and_one_minute_are_built_without_the_proof_and_never_refused_with
     assert m["refused"]["5"]["reason"] == "0 symbols, floor 1" and m["refused"]["5"]["incomplete"] == 3
     # their packs are exactly what the builder made before the gate existed: every symbol, same bytes
     for tf in ("1", "D"):
-        pb = fmt.PackBuilder(tf, asof=FRI.isoformat(), build=m["build"], depth=ffseed.depth_for(tf))
+        # (D is the full-depth pack since zero-network PR 3.1: every symbol's whole series, so the trailer says `whole`)
+        pb = fmt.PackBuilder(tf, asof=FRI.isoformat(), build=m["build"], depth=ffseed.depth_for(tf),
+                             whole=tf == "D" and ffseed.daily_is_full(ffseed.depth_for(tf)))
         for sym in SYMS:
             pb.add_served(sym, ffseed.select_window(table[(sym, tf)], tf, ffseed.depth_for(tf), 20261120))
         assert built["packs"][tf] == pb.finish(), tf
