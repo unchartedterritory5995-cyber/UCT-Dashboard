@@ -14,7 +14,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as registry from './nativeRegistry'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
-import { resetRuntimeSessions, resetRuntimeLedgers, runtimeColumnsFor, setRuntimeRunner } from './runtime/runtimeColumns'
+import { resetRuntimeSessions, resetRuntimeLedgers, runtimeColumnsFor, setRuntimeRunner, __barCapOffForTests, setRuntimeDoorClock, computeRuntimeColumns } from './runtime/runtimeColumns'
+import { runtimeWarmupOf } from './runtime/runtimeObjects'
 import { runHalfOf, RUNTIME_OBJECTS_KEY } from './runtime/runtimeObjects'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
@@ -22,7 +23,7 @@ import { __admitEveryRunHalfForTests, __resetRunHalfAdmissionForTests } from './
 import { clearSecondaryBars } from './secondaryBars'
 import { OWN_DAILY_KEY, atOrBeforeGridOf, GRID_ROWS_BEFORE_CHART } from './otherSymbols'
 import { isTradingDay, closeTime } from '../../../lib/marketClock/sessionCalendar'
-import { DEFAULT_LIMITS } from './runtime/limits'
+import { DEFAULT_LIMITS, runBarCapCut, RUN_BAR_CAP_STEP, RUN_BAR_CAP_CODE } from './runtime/limits'
 import { isStartFreeDot } from './runtime/startLatched'
 
 vi.setConfig({ testTimeout: 300000 })
@@ -61,7 +62,7 @@ beforeEach(() => {
   registry.registerRuntimeLane(runtimeColumnsFor)
 })
 afterEach(() => {
-  __resetRunHalfAdmissionForTests(); setRuntimeRunner(null); resetRuntimeSessions(); resetRuntimeLedgers(); clearSecondaryBars()
+  __barCapOffForTests(false); setRuntimeDoorClock(null); __resetRunHalfAdmissionForTests(); setRuntimeRunner(null); resetRuntimeSessions(); resetRuntimeLedgers(); clearSecondaryBars()
   vi.unstubAllEnvs()
 })
 
@@ -115,5 +116,114 @@ describe("the product path: Fred RS at the owner's preset on a 15m chart over a 
       expect(p.live.some((o) => o.props && o.props.text === '                RS Rating')).toBe(true)
       expect(p.live.some(isStartFreeDot)).toBe(true)
     } finally { registry.uninstallUserDefinition(def.id) }
+  })
+})
+
+// ─── ⭐⭐ (owner, 2026-11-28) — A CHART LONGER THAN THE RUN'S CEILING IS COMPUTED ON ITS NEWEST BARS ─────────────────────
+// ⚰️ CAPTURED (production, 2026-11-28): AGL 30m loads 40,000-52,000 bars, and every run over it was refused at bar 0
+// (`runtime:limit`, HISTORY 32,768). TradingView computes a script on the bars it has loaded; so does this run now.
+const CEIL = DEFAULT_LIMITS.HISTORY
+const LONG = FULL.filter((r) => r.t < END).slice(-(CEIL + 500)).map((r, i) => { const c = 500 + i * 0.002 + Math.sin(i / 11); return { t: r.t, o: c, h: c + 0.3, l: c - 0.3, c, v: 1000 } })
+/** Fred RS's run half at the owner's preset over `rows` (15m), through the product path. The pane's clock is held still:
+ *  these rails measure the bar ceiling, never how fast this machine runs 33,000 bars in one thread. */
+function fredOn(rows, id) {
+  setRuntimeDoorClock(() => 0)
+  const stored = JSON.parse(JSON.stringify(memberPaneDefinition({ source: RS, name: 'Fred RS', id }).definition))
+  const { installed, errors } = registry.installUserDefinitions([stored])
+  expect(installed.length, errors.join(' | ')).toBe(1)
+  const def = installed[0]
+  try {
+    const manifest = (def.compute && def.compute.paramManifest) || {}
+    const inputs = {}
+    for (const [name, v] of Object.entries(OWNER)) {
+      const spec = def.inputs.find((x) => x && (x.key === name || (x.fromParam && manifest[x.fromParam] && manifest[x.fromParam].sourceName === name)))
+      inputs[spec.key] = v
+    }
+    const secondary = new Map([['SPX', { bars: SPX15, status: 'available', newestBarIsForming: false }],
+      ['SPX@D', { bars: SPXD, status: 'available', newestBarIsForming: false }],
+      [OWN_DAILY_KEY, { bars: OWND, status: 'available', newestBarIsForming: false }],
+      ['SEED_FRED6725_RS_RATING:RSRATING@D', { bars: SEED, status: 'available' }]])
+    return registry.computeFor(def, rows, inputs, { tf: '15', newestBarIsForming: false, historyFromListing: false,
+      symbol: SPY, secondary, exchangeOf: (t) => (t === 'SPX' ? 'SP' : null) })
+  } finally { registry.uninstallUserDefinition(def.id) }
+}
+
+describe("the run's bar cap", () => {
+  it('a run over the ceiling or fewer bars is not moved; past it, it starts in whole steps and covers at most the ceiling', () => {
+    expect(runBarCapCut(CEIL)).toBe(0)
+    expect(runBarCapCut(100)).toBe(0)
+    for (const n of [CEIL + 1, CEIL + 500, CEIL + RUN_BAR_CAP_STEP, 46000, 51891, 200000]) {
+      const cut = runBarCapCut(n)
+      expect(cut % RUN_BAR_CAP_STEP, `n=${n}`).toBe(0)
+      expect(n - cut, `n=${n}`).toBeLessThanOrEqual(CEIL)
+      expect(n - cut, `n=${n}`).toBeGreaterThan(CEIL - RUN_BAR_CAP_STEP)
+    }
+    // a chart growing a bar at a time keeps its start for a whole step (its run resumes)
+    expect(runBarCapCut(CEIL + 1)).toBe(runBarCapCut(CEIL + RUN_BAR_CAP_STEP))
+  })
+  it('the grid never holds more rows than a run covers: the oldest go', () => {
+    const capped = atOrBeforeGridOf(SPX15, SPXD, '15', { maxRows: 1000 })
+    expect(JSON.stringify(capped)).toBe(JSON.stringify(FULL.slice(-1000)))
+  })
+  it("SERVED (was: refused runtime:limit at bar 0): Fred RS at the owner's preset on a 15m chart past the ceiling", () => {
+    expect(LONG.length).toBeGreaterThan(CEIL)
+    const cols = fredOn(LONG, 'u_bar-cap')
+    const rh = runHalfOf(cols)
+    expect(`${rh && rh.state}:${rh && rh.code}`).toBe('served:null')
+    const p = cols[RUNTIME_OBJECTS_KEY]
+    expect(p.live.some((o) => o.props && o.props.text === '                RS Rating')).toBe(true)
+    expect(p.live.some(isStartFreeDot)).toBe(true)
+    // drawn on the newest bars, the drawings in the CHART's bar indices
+    for (const o of p.live) expect(o.createdBar).toBeGreaterThanOrEqual(runBarCapCut(LONG.length))
+    expect(p.live.some((o) => o.createdBar === LONG.length - 1)).toBe(true)
+  })
+  it("SERVED on a SPARSE chart (AGL 30m's shape: half the extended-hours slots), its grid capped where the chart is not", () => {
+    // every other slot of two-plus years: fewer bars than the ceiling, a grid over its span past it
+    const sparse = FULL.filter((r) => r.t < END).filter((_, i) => i % 2 === 0)
+      .map((r, i) => { const c = 500 + i * 0.002 + Math.sin(i / 11); return { t: r.t, o: c, h: c + 0.3, l: c - 0.3, c, v: 1000 } })
+    expect(sparse.length).toBeLessThan(CEIL)
+    expect(atOrBeforeGridOf(SPX15, SPXD, '15', { from: sparse[0].t }).length).toBeGreaterThan(CEIL)
+    const cols = fredOn(sparse, 'u_bar-cap-sparse')
+    const rh = runHalfOf(cols)
+    expect(`${rh && rh.state}:${rh && rh.code}`).toBe('served:null')
+    expect(cols[RUNTIME_OBJECTS_KEY].live.some((o) => o.props && o.props.text === '                RS Rating')).toBe(true)
+  })
+  // the run itself (no other-symbol grid: the row cap alone), as the run half's document is run
+  const runDef = { id: 'u_bar-cap~run', compute: { kind: 'runtime', fn: 'runtime:u_bar-cap~run', rev: 1, source: RS, objects: true,
+    outputs: { rs: 0 } }, inputs: [], meta: { runtimeHistory: 'listing' } }
+  const runCtx = () => ({ tf: '15', newestBarIsForming: false, historyFromListing: false, symbol: SPY, runtimeInputs: OWNER,
+    secondary: new Map([['SPX', { bars: SPX15, status: 'available', newestBarIsForming: false }],
+      ['SPX@D', { bars: SPXD, status: 'available', newestBarIsForming: false }],
+      [OWN_DAILY_KEY, { bars: OWND, status: 'available', newestBarIsForming: false }],
+      ['SEED_FRED6725_RS_RATING:RSRATING@D', { bars: SEED, status: 'available' }]]),
+    exchangeOf: (t) => (t === 'SPX' ? 'SP' : null) })
+  it('the run over more bars than the ceiling starts at the cap, widened back, the bars before it named runtime:bar-cap', () => {
+    const cut = runBarCapCut(LONG.length)
+    const cols = computeRuntimeColumns(runDef, LONG, runCtx(), { now: () => 0 })
+    expect(cols.rs.length).toBe(LONG.length)
+    for (let i = 0; i < cut; i += 1) expect(Number.isNaN(cols.rs[i]), `bar ${i}`).toBe(true)
+    expect(Number.isFinite(cols.rs[LONG.length - 1])).toBe(true)
+    expect(runtimeWarmupOf(cols)).toMatchObject({ knownFrom: cut, knownFromCode: RUN_BAR_CAP_CODE })
+    expect(runtimeWarmupOf(cols).withheldBars).toBeGreaterThanOrEqual(cut)
+  })
+  // a script that reads no other symbol: no grid moves its start, so the row cap alone decides it
+  const PLAIN = ['//@version=5', 'indicator("bar cap")', 'plot(ta.sma(close, 3))'].join(String.fromCharCode(10))
+  const plainDef = { id: 'u_bar-cap-plain', compute: { kind: 'runtime', fn: 'runtime:u_bar-cap-plain', rev: 1, source: PLAIN,
+    outputs: { value: 0 } }, inputs: [], meta: {} }
+  const plainCtx = { tf: '15', newestBarIsForming: false, historyFromListing: false, symbol: SPY }
+  it('a script reading no other symbol: computed on the newest bars, the bars before them named runtime:bar-cap', () => {
+    const cut = runBarCapCut(LONG.length)
+    const cols = computeRuntimeColumns(plainDef, LONG, plainCtx, { now: () => 0 })
+    const col = cols[Object.keys(cols)[0]]
+    expect(col.length).toBe(LONG.length)
+    expect(Number.isNaN(col[cut - 1])).toBe(true)
+    expect(Number.isFinite(col[LONG.length - 1])).toBe(true)
+    expect(runtimeWarmupOf(cols)).toMatchObject({ knownFrom: cut, knownFromCode: RUN_BAR_CAP_CODE })
+  })
+  it('⛔ CONTROL: the cap switched off, that script is stopped at bar 0, runtime:limit (HISTORY)', () => {
+    __barCapOffForTests(true)
+    let guard = null
+    try { computeRuntimeColumns(plainDef, LONG, plainCtx, { now: () => 0 }) } catch (e) { guard = e && e.guard }
+    expect(guard).toBe('runtime:limit')
   })
 })

@@ -194,16 +194,19 @@ function defaultCache() {
 //  - `env.LAKE_TIER === "0"` turns it off (a plain variable, no code change).
 export const LAKE_ENTRY = "LakePiece";
 export const LAKE_PIECE_ORIGIN = "https://lake-piece.internal";
-const LAKE_PATH_RE = /^\/p\/((?:(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/)*packs\/(1|5|15|30|60|60e)\/([0-9Q-]+)\.pack)\/(s-(?:[A-Z0-9]|_[0-9A-F]{2}){1,64})\/(0|[1-9]\d{0,14})\/([1-9]\d{0,14})\/(0|[1-9]\d{0,14})$/;
+// `v1`: the copy's FORMAT version, in the path and the key. Pieces are kept a year ACROSS Worker versions
+// (cross_version_cache), so a change to what LakePiece answers must change this, or old copies are served.
+export const LAKE_KEY_VERSION = "v1";
+const LAKE_PATH_RE = /^\/p\/v1\/((?:(?!\.{1,2}\/)[A-Za-z0-9_.-]+\/)*packs\/(1|5|15|30|60|60e)\/([0-9Q-]+)\.pack)\/(s-(?:[A-Z0-9]|_[0-9A-F]{2}){1,64})\/(0|[1-9]\d{0,14})\/([1-9]\d{0,14})\/(0|[1-9]\d{0,14})$/;
 
 /** The cached entrypoint's path for one piece: the object, the symbol, its place and its CRC. */
 export function lakePiecePath(key, range) {
-  return `/p/${key}/${range.enc}/${range.offset}/${range.length}/${range.crc}`;
+  return `/p/${LAKE_KEY_VERSION}/${key}/${range.enc}/${range.offset}/${range.length}/${range.crc}`;
 }
 
 /** The piece's Workers Cache key: its CONTENT (object, symbol, length, CRC), never its offset. */
 export function lakeCacheKey(key, range) {
-  return `/p/${key}/${range.enc}/${range.length}/${range.crc}`;
+  return `/p/${LAKE_KEY_VERSION}/${key}/${range.enc}/${range.length}/${range.crc}`;
 }
 
 /** What a cached-entrypoint path names, or null. Nothing else reaches the bucket from there. */
@@ -332,7 +335,7 @@ export async function handleHistory(request, env, entitled, ctx) {
     return plain(503, "history_unavailable", { "retry-after": "2" });
   }
   if (!got) return plain(404, "no_such_piece", { "cache-control": SHORT });
-  const bytes = got.bytes;
+  let bytes = got.bytes;
   const head = request.method === "HEAD";
 
   if (what.kind === "index") {
@@ -344,12 +347,22 @@ export async function handleHistory(request, env, entitled, ctx) {
 
   // The bytes at (o, n) must be exactly this symbol's piece of this series and period, with this CRC.
   // Anything else means the client's index is older than the pack: 409, re-read the index.
-  const piece = bytes.length === range.length ? splitPiece(bytes) : null;
-  const h = piece && piece.header;
-  if (!h || h.series !== what.series || h.period !== what.period || encodeSymbol(h.symbol) !== what.enc
-      || h.crc !== range.crc) {
-    return plain(409, "piece_changed");
+  const thisPiece = (b) => {
+    const pc = b.length === range.length ? splitPiece(b) : null;
+    const h = pc && pc.header;
+    return h && h.series === what.series && h.period === what.period && encodeSymbol(h.symbol) === what.enc
+      && h.crc === range.crc ? pc : null;
+  };
+  let piece = thisPiece(bytes);
+  if (!piece && got.tier) {
+    // The NETWORK'S copy handed back bytes that are not this piece (a format change, a bad fill): it is never
+    // the authority. Read R2 itself; only R2 decides a 409.
+    let direct = null;
+    try { direct = await readObject(bucket, key, range, { origin: url.origin, ctx }); } catch (_e) { direct = null; }
+    const p2 = direct && !direct.cached ? thisPiece(direct.bytes) : null;
+    if (p2) { got = direct; bytes = direct.bytes; piece = p2; }
   }
+  if (!piece) return plain(409, "piece_changed");
   got.keep();
   // history-edge: this data center's copy; history-tier: the network's copy (Workers Cache, a fill or a
   // hit); history: R2 itself. `x-lake-filled` says when the network's copy was made (a measurement aid).
