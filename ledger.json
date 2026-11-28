@@ -9149,6 +9149,28 @@
     "IVA",
     "JCAP"
    ]
+  },
+  {
+   "id": "cloud/46173556675-1/COV-tf-def",
+   "at": "2026-11-28T18:11:12+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DSX",
+    "CAPL",
+    "CTGO",
+    "GCO"
+   ]
+  },
+  {
+   "id": "cloud/46173556675-1/COV-tf-nolist",
+   "at": "2026-11-28T18:11:12+00:00",
+   "source": "cloud",
+   "tickers": [
+    "GT",
+    "HPP",
+    "MBWM",
+    "VTOL"
+   ]
   }
  ]
 }
