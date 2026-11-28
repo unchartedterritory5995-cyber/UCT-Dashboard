@@ -5762,6 +5762,36 @@
     "KR",
     "PGR"
    ]
+  },
+  {
+   "id": "cloud/46117707913-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:40:47+00:00",
+   "source": "cloud",
+   "tickers": [
+    "INTC",
+    "ONON",
+    "CACC",
+    "SAIC",
+    "TNGX",
+    "TARS",
+    "WCC",
+    "TSLA",
+    "CDP",
+    "WMB",
+    "VSAT",
+    "VERX",
+    "VREX"
+   ]
+  },
+  {
+   "id": "cloud/46117707913-1/COV-def-tabs",
+   "at": "2026-11-28T06:40:47+00:00",
+   "source": "cloud",
+   "tickers": [
+    "WGO",
+    "AES",
+    "UMAC"
+   ]
   }
  ]
 }
