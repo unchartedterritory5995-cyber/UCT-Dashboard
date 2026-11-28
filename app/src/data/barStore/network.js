@@ -128,6 +128,9 @@ export const DEEP_PRIME_MAX = 16
 export const EDGE_TAIL_BARS = 30
 /** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */
 export const EDGE_FALLBACK_MS = 600
+/** (2026-11-28) Unheld at EDGE_FALLBACK_MS, the cover fallback looks again this often, at most this many times. */
+export const EDGE_FALLBACK_RECHECK_MS = 150
+export const EDGE_FALLBACK_RECHECKS = 40
 
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
@@ -727,7 +730,7 @@ export function createNetwork({
 
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
   /** (review of #2938, T1) The cover's fallback: the origin is asked the view's cover when the edge history has not landed. */
-  function _armEdgeFallback(r) {
+  function _armEdgeFallback(r, ms = EDGE_FALLBACK_MS) {
     if (r.edgeTimer != null) return
     r.edgeTimer = setTimer(() => {
       r.edgeTimer = null
@@ -736,7 +739,17 @@ export function createNetwork({
       // stuck history job is in flight, so a held arrow through a W/M list during an edge miss sent one 2,000-row origin
       // tail per row passed, the prepares long aborted. A chart on it (refs), a pin (the handoff's holdUntilShown, a
       // prepare's acquire) or a waiting display whose ask was not given up (deepWanted) is what makes the cover worth it.
-      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) return
+      // ⛔⛔ (2026-11-28, cloud COV-date-D-typed: 5 of 6 cold typed D switches committed the 30-row cut at the 4 s hang
+      // guard) ...AND NOTHING HOLDING IT YET IS NOT "NEVER": the typed warm cuts the tail while the member is still
+      // typing, so the first look finds nothing holding the key and simply returned, and the display that then waited
+      // (its pin, the shadow pane's chart) never got the cover. Unheld, it looks again every EDGE_FALLBACK_RECHECK_MS while
+      // the depth is still due, at most EDGE_FALLBACK_RECHECKS times (the held arrow through a list stays free: a row
+      // passed is released, nothing holds it, and it asks nothing).
+      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) {
+        r.edgeRechecks = (r.edgeRechecks || 0) + 1
+        if (r.edgeRechecks <= EDGE_FALLBACK_RECHECKS) _armEdgeFallback(r, EDGE_FALLBACK_RECHECK_MS)
+        return
+      }
       r.edgeFallback = true
       r.coverPage = true
       // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits

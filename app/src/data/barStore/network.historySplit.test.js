@@ -249,6 +249,30 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(tailBars(w), 'the cover page for the display that waits').toContain(dateCoverMaxFor('D'))
   })
 
+  // ⛔⛔ (2026-11-28, cloud COV-date-D-typed, production) the typed warm's cut tail, the member still typing (nothing holds
+  // the key at EDGE_FALLBACK_MS); then the display pins it (the handoff's hold, the shadow pane's chart): the cover page
+  // must still go out, so the hang guard never commits a 30-row EDGE_TAIL cut as the D chart
+  it('a key pinned only AFTER the first fallback look still gets the cover page soon after the pin', async () => {
+    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS, EDGE_FALLBACK_RECHECK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)          // typing: nothing holds the key
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    w.registry.acquire(w.key)                                        // the display holds it (no deepPrime want)
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_RECHECK_MS + 20)
+    expect(tailBars(w), 'the cover page for the display').toEqual([EDGE_TAIL_BARS, dateCoverMaxFor('D')])
+  })
+  it('CONTROL: never held (a row passed in a held arrow): the rechecks end and nothing is asked', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_FALLBACK_RECHECK_MS, EDGE_FALLBACK_RECHECKS, EDGE_TAIL_BARS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + EDGE_FALLBACK_RECHECK_MS * (EDGE_FALLBACK_RECHECKS + 5))
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+    w.registry.acquire(w.key)                                        // held long after: the rechecks are spent
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+  })
+
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
   it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
     const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
