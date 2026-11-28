@@ -489,3 +489,31 @@ def history(sym: str, *, today: Optional[date] = None, register: bool = True) ->
     if not periods:
         out["reason"] = "the snapshots hold no fiscal period ending after " + floor
     return out
+
+
+# ── licensed-first pass 2 (2026-11-28): the revisions card's read ───────────
+
+def eps_points(sym: str, period_ends: list[str]) -> dict:
+    """{period_end: [(snap_date, eps_avg), ...] oldest first} for the named fiscal periods,
+    from the local store only (no vendor call). The Estimates tab's revisions card reads its
+    30- and 90-day-ago consensus here (`research/estimates.licensed_revisions`); a period
+    with no snapshot is absent."""
+    sym = (sym or "").upper().strip()
+    ends = [pe for pe in period_ends or [] if isinstance(pe, str) and len(pe) == 10]
+    if not sym or not ends:
+        return {}
+    out: dict = {}
+    with _conn() as c:
+        q = ("SELECT period_end, snap_date, eps_avg FROM estimate_snapshot WHERE symbol=? AND period_end IN (%s) "
+             "ORDER BY period_end, snap_date" % ",".join("?" * len(ends)))
+        for pe, sd, eps in c.execute(q, (sym, *ends)):
+            out.setdefault(pe, []).append((sd, eps))
+    return out
+
+
+def first_snapshot(sym: str) -> Optional[str]:
+    """The first snapshot date held for `sym`, or None. Local store only."""
+    with _conn() as c:
+        row = c.execute("SELECT MIN(snap_date) FROM estimate_snapshot WHERE symbol=?",
+                        ((sym or "").upper().strip(),)).fetchone()
+    return row[0] if row and row[0] else None

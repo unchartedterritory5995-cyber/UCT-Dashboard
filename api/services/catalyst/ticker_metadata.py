@@ -3,8 +3,9 @@
 Two reads feed one 24h SQLite cache (to bound external calls):
   * the company profile and the share-float read (FMP) supply market cap, the
     instrument type, the 52-week high, float and shares outstanding;
-  * the Yahoo read supplies sector, industry and the average volume, and any of
-    the fields above that the first read has no value for.
+  * since licensed-first pass 2 (2026-11-28) the profile also supplies sector and
+    industry (in Yahoo's words), and Massive's daily bars the 10-session average
+    volume; the Yahoo read is made only for a field those leave empty.
 Used by sources.py to enrich candidates with the fields that
 get_batch_rich_snapshots doesn't provide.
 
@@ -256,7 +257,17 @@ def _profile_facts_from_row(row: dict) -> dict:
         "price": _positive(row.get("price")),
         "avg_volume": _positive(row.get("averageVolume")),
         "year_high": year_high,
+        # Licensed-first pass 2 (2026-11-28): in the words the catalyst engine matches on
+        # (`licensed_reference.normalize_*`). A record from before this pass has neither key,
+        # so its caller reads None and the Yahoo read fills them, as before.
+        "sector": _lr_normalize("sector", row.get("sector")),
+        "industry": _lr_normalize("industry", row.get("industry")),
     }
+
+
+def _lr_normalize(kind: str, value) -> Optional[str]:
+    from api.services import licensed_reference as lr
+    return lr.normalize_sector(value) if kind == "sector" else lr.normalize_industry(value)
 
 
 def _share_counts_from_row(row: dict) -> dict:
@@ -374,14 +385,25 @@ def _fetch_fresh(ticker: str) -> dict:
     failed read, a field the row lacks) the Yahoo read's value is kept. The
     instrument type is "fund" when either read says so.
 
-    Sector and industry stay on the Yahoo read: the catalyst engine groups and
-    matches on those exact strings (the sector banner, the bank-industry score),
-    and another source words them differently. The average volume stays there
-    too: the volume multiple a member sees divides by it, and a different
-    averaging window would move that number.
+    Sector and industry (licensed-first pass 2, 2026-11-28) come from the same
+    profile, in Yahoo's words: the catalyst engine groups and matches on those
+    strings (the sector banner, the bank-industry score), so FMP's wording is
+    mapped onto Yahoo's where FMP names a group differently
+    (`licensed_reference.normalize_*`). The average volume is the 10-session
+    average of Massive's daily bars: the SAME window as Yahoo's
+    `averageVolume10days`, so the volume multiple a member sees divides by the
+    same statistic. The Yahoo read is made only when one of these is still
+    empty, and fills only what is empty.
+
+    The instrument type a profile reads as "company" is trusted without Yahoo
+    only when Massive's ticker details also say company (common stock or an
+    ADR): the gate is never looser than two reads.
     """
     facts = profile_facts(ticker) or {}
     counts = share_counts(ticker) or {}
+    from api.services import licensed_reference as lr
+    if lr.first():
+        return _fetch_licensed_first(ticker, facts, counts, lr)
     out = _fetch_via_yfinance(ticker)
     # The quality gate drops anything that is not a stock. A profile that says
     # "fund" settles it; one that says "company" does not overrule a Yahoo read
@@ -399,6 +421,40 @@ def _fetch_fresh(ticker: str) -> dict:
     for key, value in first.items():
         if value is not None:
             out[key] = value
+    return out
+
+
+def _fetch_licensed_first(ticker: str, facts: dict, counts: dict, lr) -> dict:
+    """`_fetch_fresh` with the licensed reads first (pass 2): the FMP profile and share
+    float, Massive's ticker details (instrument type) and daily bars (10-session average
+    volume); Yahoo only for a field still empty."""
+    kind = _quote_type_from_profile(facts)
+    if kind == "EQUITY":
+        mtype = (lr.massive_reference(ticker) or {}).get("type")
+        if mtype in lr.FUND_TYPES:
+            kind = "ETF"
+        elif mtype not in lr.COMPANY_TYPES:
+            kind = None                   # one read says company, nothing confirms it: ask Yahoo
+    vol = lr.massive_avg_volume(ticker, 10)
+    out = {
+        "sector": facts.get("sector"),
+        "industry": facts.get("industry"),
+        "market_cap": facts.get("market_cap"),
+        "avg_volume_30d": int(vol["avg_volume"]) if vol and vol.get("avg_volume") else None,
+        "fifty_two_week_high": facts.get("year_high"),
+        "quote_type": kind,
+        "float_shares": counts.get("float_shares"),
+        "shares_outstanding": counts.get("shares_outstanding"),
+    }
+    if all(v is not None for v in out.values()):
+        return out
+    yahoo = _fetch_via_yfinance(ticker)
+    for key, value in out.items():
+        if value is None and yahoo.get(key) is not None:
+            out[key] = yahoo[key]
+    # A Yahoo read that says "not a company" wins over a profile's unconfirmed "company".
+    if out.get("quote_type") == "EQUITY" and yahoo.get("quote_type") not in (None, "EQUITY"):
+        out["quote_type"] = yahoo["quote_type"]
     return out
 
 

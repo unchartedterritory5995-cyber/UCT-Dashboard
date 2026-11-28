@@ -401,6 +401,20 @@ def _licensed_fallbacks_cannot_answer(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _licensed_first_pass2_off(monkeypatch):
+    """Licensed-first pass 2 (2026-11-28) put licensed reads in front of Yahoo / Finnhub
+    (ticker metadata, the leveraged-ETF and news-cap gates, logos, DES average volume,
+    estimate revisions). Every one of them asks `licensed_reference.first()` before it
+    runs; this answers False for every test, so a test that stubs Yahoo keeps testing
+    the Yahoo path and no test reaches FMP or Massive through them. The rails of the
+    new reads set it back (`tests/test_licensed_fallbacks_pass2.py`). The module
+    imports only the standard library at import time."""
+    import api.services.licensed_reference as _lr
+    monkeypatch.setattr(_lr, "first", lambda: False)
+    _lr._DETAILS.clear()
+
+
+@pytest.fixture(autouse=True)
 def _reset_snapshot_movers_serve_stale():
     """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
 

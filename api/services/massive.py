@@ -1038,11 +1038,31 @@ def _lev_by_profile_name(ticker: str) -> bool | None:
     return None
 
 
+def _lev_by_massive_name(ticker: str) -> bool | None:
+    """The same name test over Massive's ticker details (licensed-first pass 2,
+    2026-11-28: a second LICENSED wording before the Yahoo one), or None when it
+    cannot decide. A keyword in Massive's name settles it; so does a plain name on
+    an instrument Massive types as a company (common stock, an ADR). A fund whose
+    Massive name does not say stays undecided: the Yahoo wording is still read."""
+    from api.services import licensed_reference as lr
+    if not lr.first():
+        return None
+    ref = lr.massive_reference(ticker) or {}
+    name = str(ref.get("name") or "").lower()
+    if not name:
+        return None
+    if any(kw in name for kw in _LEV_NAME_KEYWORDS):
+        return True
+    if ref.get("type") in lr.COMPANY_TYPES:
+        return False
+    return None
+
+
 def _is_leveraged_etf(ticker: str) -> bool:
     """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache.
 
-    The company profile's name decides first; the yfinance name is read only
-    when the profile cannot decide."""
+    The company profile's name decides first, then Massive's ticker-details name
+    (licensed-first pass 2); the yfinance name is read only when neither can decide."""
     cache_key = f"is_lev_{ticker}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -1052,6 +1072,11 @@ def _is_leveraged_etf(ticker: str) -> bool:
         decided = _lev_by_profile_name(ticker)
     except Exception:
         decided = None
+    if decided is None:
+        try:
+            decided = _lev_by_massive_name(ticker)
+        except Exception:
+            decided = None
     if decided is not None:
         result, verified = decided, True
     else:

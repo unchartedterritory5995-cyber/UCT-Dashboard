@@ -2432,18 +2432,60 @@ def _sym_cap_from_profile(sym: str) -> bool | None:
     return (last * adv) >= 5_000_000 and cap >= 300_000_000
 
 
+#: sym -> (expires_at, verdict) for `_sym_cap_from_massive`: a news build asks the same
+#: names every few minutes, and the two Massive reads behind a verdict answer for a day.
+_SYM_CAP_MASSIVE: dict = {}
+_SYM_CAP_MASSIVE_TTL_S = 6 * 3600
+
+
+def _sym_cap_from_massive(sym: str) -> bool | None:
+    """The gate's verdict from Massive (licensed-first pass 2, 2026-11-28), or None
+    when Massive cannot decide: its ticker details (instrument type, market cap) and
+    the 3-month (63-session) average volume and last close from its daily bars, the
+    same statistic as Yahoo's `three_month_average_volume`. A fund or note is
+    blocked; an instrument Massive does not type as a company, or a missing number,
+    is left to the Yahoo read below."""
+    import time as _t
+    from api.services import licensed_reference as lr
+    if not lr.first():
+        return None
+    hit = _SYM_CAP_MASSIVE.get(sym)
+    if hit is not None and hit[0] > _t.time():
+        return hit[1]
+    ref = lr.massive_reference(sym) or {}
+    mtype = ref.get("type")
+    if mtype in lr.FUND_TYPES:
+        verdict = False
+    elif mtype not in lr.COMPANY_TYPES or not ref.get("market_cap"):
+        return None
+    else:
+        vol = lr.massive_avg_volume(sym, 63)
+        if not vol or not vol.get("last_close"):
+            return None
+        verdict = (vol["last_close"] * vol["avg_volume"]) >= 5_000_000 and ref["market_cap"] >= 300_000_000
+    if len(_SYM_CAP_MASSIVE) > 5000:
+        _SYM_CAP_MASSIVE.clear()
+    _SYM_CAP_MASSIVE[sym] = (_t.time() + _SYM_CAP_MASSIVE_TTL_S, verdict)
+    return verdict
+
+
 def _check_sym_cap(sym: str) -> tuple[str, bool]:
     """Return (sym, allowed) applying $5M dollar-volume AND $300M market-cap gates.
 
-    The company profile decides first; the yfinance read decides when the
-    profile cannot. Fails open on yfinance errors so transient network issues
-    don't silently drop all news. ETFs and non-equity instruments are always
-    blocked.
+    The company profile decides first, then Massive's ticker details and daily bars
+    (licensed-first pass 2); the yfinance read decides when neither can. Fails open
+    on yfinance errors so transient network issues don't silently drop all news.
+    ETFs and non-equity instruments are always blocked.
     """
     try:
         decided = _sym_cap_from_profile(sym)
     except Exception:
         decided = None
+    if decided is None:
+        try:
+            decided = _sym_cap_from_massive(sym)
+        except Exception:
+            decided = None
     if decided is not None:
         return sym, decided
     try:

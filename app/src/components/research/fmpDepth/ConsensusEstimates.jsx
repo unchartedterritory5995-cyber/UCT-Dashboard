@@ -34,7 +34,8 @@ import styles from './FmpDepth.module.css'
 import { PanelSkeleton, useInTerminalPanel } from '../../terminal'
 
 export const estimatesKey = (sym) => `/api/research/estimates/${sym}?consensus=1`
-/** The revisions card's own read (one source: Yahoo Finance). */
+/** The revisions card's own read. One source per answer, named in `sources.revisions`: UCT's daily
+ *  snapshots of FMP's consensus first (licensed-first pass 2), Yahoo Finance as the fallback. */
 const estimateRevisionsKey = (sym) => `/api/research/estimates/${sym}?revisions=1`
 
 const range = (lo, hi, fmt) => (lo == null && hi == null ? fmt(null) : `${fmt(lo)} – ${fmt(hi)}`)
@@ -110,30 +111,45 @@ function YahooForward({ rows, rc }) {
   )
 }
 
-function Revisions({ rows, rc }) {
-  const eps = yahooEps(rc)
+/** The `sources.revisions` value the server sends when the rows are UCT's own FMP snapshots. */
+export const SNAPSHOT_REVISIONS_SOURCE = 'FMP consensus, snapshotted daily by UCT'
+
+function Revisions({ rows, rc, snapshots }) {
+  // Our snapshots are FMP's consensus, on the statements' basis like the consensus table beside it;
+  // Yahoo's EPS currency is not stated for a foreign filer (see yahooEps).
+  const eps = snapshots ? (v) => fmtEps(v, rc) : yahooEps(rc)
+  // A consensus snapshot holds the average, not each analyst: no up/down counts to show.
+  const counts = !snapshots
   return (
     <SidewaysScroll label="Estimate revisions by period, scrolls sideways">
-      <table className={styles.table} aria-label="EPS estimate revisions, Yahoo Finance">
+      <table className={styles.table}
+             aria-label={snapshots ? 'EPS estimate revisions, from FMP consensus snapshots' : 'EPS estimate revisions, Yahoo Finance'}>
         <thead>
-          <tr><th scope="col">Period</th><th scope="col">Current</th><th scope="col">30d ago</th>
-            <th scope="col">90d ago</th><th scope="col">Up (30d)</th><th scope="col">Down (30d)</th></tr>
+          <tr><th scope="col">{snapshots ? 'Fiscal quarter' : 'Period'}</th><th scope="col">Current</th><th scope="col">30d ago</th>
+            <th scope="col">90d ago</th>
+            {counts && <><th scope="col">Up (30d)</th><th scope="col">Down (30d)</th></>}</tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.period}>
+            <tr key={r.period_end || r.period}>
               <th scope="row" className={styles.rowHead}>{r.period}</th>
               <td>{eps(r.current)}</td>
               <td className={styles.muted}>{eps(r.ago30)}</td>
               <td className={styles.muted}>{eps(r.ago90)}</td>
-              <td>{fmtCount(r.up30)}</td>
-              <td>{fmtCount(r.down30)}</td>
+              {counts && <><td>{fmtCount(r.up30)}</td><td>{fmtCount(r.down30)}</td></>}
             </tr>
           ))}
         </tbody>
       </table>
     </SidewaysScroll>
   )
+}
+
+/** "since 4 Oct 2026" from an ISO date, or '' when there is none. */
+function sinceText(iso) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return ''
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`)
+  return ` since ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
 }
 
 /** EPS estimate revisions: a card with its OWN request and its own source line. It shows when the
@@ -145,6 +161,25 @@ export function EstimateRevisions({ sym, rc = null }) {
     { revalidateOnFocus: false })
   const revs = !error && data && !data.paywalled && Array.isArray(data.revisions) ? data.revisions : []
   if (!revs.length) return null
+  const snapshots = data.sources?.revisions === SNAPSHOT_REVISIONS_SOURCE
+  const history = data.history || null
+  if (snapshots) {
+    const no90 = revs.every((r) => r.ago90 == null)
+    return (
+      <section className={styles.card} data-testid="ee-revisions" data-source="fmp-snapshots">
+        <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
+        <SourceLine vendor="FMP" activity="FMP /stable/analyst-estimates (period=quarter), snapshotted daily by UCT"
+                    detail={`UCT records FMP's consensus every weekday evening${sinceText(history?.covers_from)}`} />
+        {reportingCurrencyNote(rc, UNKNOWN_CCY) && (
+          <p className={styles.note} data-testid="ee-revisions-currency">{reportingCurrencyNote(rc, UNKNOWN_CCY)}</p>)}
+        {no90 && (
+          <p className={styles.note} data-testid="ee-revisions-building">
+            The 90-day column fills in once 90 days of snapshots are held.
+          </p>)}
+        <Revisions rows={revs} rc={rc} snapshots />
+      </section>
+    )
+  }
   const note = isForeignCurrency(rc)
     ? 'EPS revisions from Yahoo Finance carry no currency symbol: Yahoo does not state it for this company.'
     : reportingCurrencyNote(rc, UNKNOWN_CCY)
@@ -152,7 +187,15 @@ export function EstimateRevisions({ sym, rc = null }) {
     <section className={styles.card} data-testid="ee-revisions" data-source="yfinance">
       <div className={styles.head}><span className={styles.title}>EPS estimate revisions</span></div>
       <SourceLine vendor={data.sources?.revisions || 'Yahoo Finance'} activity="yfinance eps_trend / eps_revisions"
-                  detail="FMP does not publish estimate revisions" />
+                  detail="FMP does not publish estimate revisions" fallback />
+      {history?.state === 'building' && (
+        <p className={styles.note} data-testid="ee-revisions-building">
+          {history.covers_from
+            ? `UCT has recorded FMP's consensus for this stock${sinceText(history.covers_from)}; revisions switch to it once 30 days are held.`
+            : history.tracked === false
+              ? "UCT's daily consensus snapshots are at their stock limit, so this stock is not being recorded yet."
+              : "UCT starts recording FMP's consensus for this stock on the next weekday evening; revisions switch to it once 30 days are held."}
+        </p>)}
       {note && <p className={styles.note} data-testid="ee-revisions-currency">{note}</p>}
       <Revisions rows={revs} rc={rc} />
     </section>

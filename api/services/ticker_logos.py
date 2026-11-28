@@ -24,6 +24,10 @@ The Finnhub `/stock/profile2` leg (last resort, `_finnhub_logo_bytes`) tries
 FMP `stable/profile` first (2026-08-05 migration) -- see that function's
 docstring for why FMP is a real but currently always-empty attempt here (no
 logo field on that endpoint) rather than a replacement.
+
+Licensed-first pass 2 (2026-11-28): Massive's ticker-details branding
+(`_massive_logo_bytes`, register T-07) is the first automated source, before
+logo.dev, Parqet, FMP's image CDN and Finnhub; Clearbit-via-Yahoo stays last.
 """
 import io
 import json
@@ -54,7 +58,7 @@ _TIMEOUT = 8
 # appear in a `.miss` written by `resolve_and_cache`'s base chain, and a retry
 # therefore always still attempts it even when every base-chain provider is
 # in `skip` (§4 item 5 — the retry can never degenerate into a no-op).
-_SOURCE_NAMES = ("override", "logodev", "parqet", "fmp_image", "finnhub")
+_SOURCE_NAMES = ("override", "massive", "logodev", "parqet", "fmp_image", "finnhub")
 _CLEARBIT_SOURCE_NAME = "clearbit"
 
 # ── per-call transient-failure tracker ─────────────────────────────────────
@@ -416,6 +420,43 @@ def _override_logo_bytes(sym: str):
     return _logodev_domain_bytes(dom) or _url_bytes(f"https://logo.clearbit.com/{dom}")
 
 
+#: Hosts Massive's ticker-details branding URLs point at. The API key is added to the
+#: request only for these, never to any other host a vendor answer might name.
+_MASSIVE_BRANDING_HOSTS = ("api.massive.com", "api.polygon.io")
+
+
+def _massive_logo_bytes(sym: str):
+    """The company's icon from Massive's ticker details (`branding.icon_url`, licensing
+    register T-07, `("massive", "reference")` = LA), licensed-first pass 2 (2026-11-28).
+    `logo_url` is read only when there is no icon. The image must normalise to a PNG:
+    Massive's logos are often SVG, which Pillow cannot read, and a source that returns
+    bytes the cache cannot store would end the chain on a miss (the Parqet/CBRS trap).
+    Never raises; never logs the URL (it carries the API key)."""
+    from urllib.parse import urlparse
+    from api.services import licensed_reference as lr
+    branding = (lr.massive_details(sym) or {}).get("branding") or {}
+    if not isinstance(branding, dict):
+        return None
+    for key in ("icon_url", "logo_url"):
+        url = str(branding.get(key) or "").strip()
+        if not url or not _is_ssrf_safe_url(url):
+            continue
+        if (urlparse(url).hostname or "").lower() not in _MASSIVE_BRANDING_HOSTS:
+            continue
+        try:
+            from api.services import massive
+            api_key = massive._get_client()._api_key
+        except Exception:                                   # noqa: BLE001 -- no key: no request
+            return None
+        if not api_key:
+            return None
+        sep = "&" if "?" in url else "?"
+        raw = _url_bytes(f"{url}{sep}apiKey={api_key}")
+        if raw and _normalize_png(raw):
+            return raw
+    return None
+
+
 def _fetch_sources(sym: str, skip: frozenset = frozenset()):
     """Try each source in priority order; return `(bytes, name)` on success,
     else `(None, tried)` where `tried` names every unskipped source this
@@ -437,13 +478,30 @@ def _fetch_sources(sym: str, skip: frozenset = frozenset()):
     only used by run_miss_retry() at low concurrency (≤2 workers).
     """
     s = _safe(sym)
-    chain = (
-        ("override", lambda: _override_logo_bytes(s)),
-        ("logodev", lambda: _logodev_logo_bytes(s)),
-        ("parqet", lambda: _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")),
-        ("fmp_image", lambda: _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")),
-        ("finnhub", lambda: _finnhub_logo_bytes(s)),
-    )
+    from api.services import licensed_reference as _lr
+    if _lr.first():
+        # ⭐ LICENSED FIRST (pass 2, 2026-11-28): Massive's own branding for the company
+        # (a vendor we hold a licence with) before logo.dev and Parqet (register T-92: not
+        # researched); Finnhub stays behind them and Clearbit-via-Yahoo last, in the retry
+        # chain only. ⚠️ FMP's image CDN keeps its place behind Parqet ON PURPOSE: whether it
+        # answers an unknown ticker with a generic placeholder (which would then be cached
+        # as the company's logo ahead of logo.dev's real one) has never been measured.
+        chain = (
+            ("override", lambda: _override_logo_bytes(s)),
+            ("massive", lambda: _massive_logo_bytes(s)),
+            ("logodev", lambda: _logodev_logo_bytes(s)),
+            ("parqet", lambda: _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")),
+            ("fmp_image", lambda: _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")),
+            ("finnhub", lambda: _finnhub_logo_bytes(s)),
+        )
+    else:
+        chain = (
+            ("override", lambda: _override_logo_bytes(s)),
+            ("logodev", lambda: _logodev_logo_bytes(s)),
+            ("parqet", lambda: _url_bytes(f"https://assets.parqet.com/logos/symbol/{s}")),
+            ("fmp_image", lambda: _url_bytes(f"https://financialmodelingprep.com/image-stock/{s}.png")),
+            ("finnhub", lambda: _finnhub_logo_bytes(s)),
+        )
     tried = []
     for name, fn in chain:
         if name in skip:

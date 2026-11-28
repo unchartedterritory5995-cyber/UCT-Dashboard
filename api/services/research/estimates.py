@@ -209,3 +209,90 @@ def _build_estimates(sym):
                         " ".join(f"{k}={v:.2f}" for k, v in stages.items()), fetch_ok,
                         boot_probe.boot_age())
     return out
+
+
+# ── licensed-first pass 2 (2026-11-28): revisions from our own FMP snapshots ──
+#
+# The revisions card used to read ONLY Yahoo (`eps_trend` / `eps_revisions`, register T-73, class X):
+# FMP publishes no revision history on this plan. But since 2026-10-04 `estimate_history` has
+# snapshotted FMP's quarterly consensus every weekday evening (S&P 500 plus every symbol viewed),
+# so for those symbols the 30-day-ago (and, once 90 days are held, the 90-day-ago) consensus is a
+# number WE recorded from a licensed source. That comes first; Yahoo stays the fallback, labelled.
+#
+# What it cannot say: how many analysts revised up or down (Yahoo's "Up (30d)" / "Down (30d)"):
+# a consensus snapshot holds the average, not each analyst. Those two stay None, and the card
+# leaves the columns out. Annual periods are not snapshotted, so the rows are fiscal quarters.
+
+LICENSED_REVISIONS_SOURCE = "FMP consensus, snapshotted daily by UCT"
+#: A "N days ago" point is the newest snapshot taken on or before the day N days back, and no more
+#: than this many days before it (a weekend or holiday leaves a gap of a few days, never a month).
+_AGO_SLACK_DAYS = 7
+#: The newest snapshot must be this recent for "current" to stand; otherwise the store is stale.
+_CURRENT_MAX_AGE_DAYS = 7
+_MAX_REVISION_ROWS = 4
+
+
+def _point_on_or_before(points, day_iso: str, slack_floor_iso: str):
+    best = None
+    for sd, eps in points:
+        if slack_floor_iso <= sd <= day_iso and eps is not None:
+            best = eps
+    return best
+
+
+def licensed_revisions(sym, *, today=None) -> dict | None:
+    """The revisions card's licensed read, or None when it does not apply (the seam is off, the
+    estimate history is dark, or FMP holds no forward quarter for the symbol).
+
+    -> {"state": "ok", "revisions": [...], "covers_from", "last_snapshot"} when at least one
+       forward quarter has a 30-day-ago point;
+       {"state": "building", "covers_from", "tracked"} otherwise: the history for this symbol
+       does not reach back 30 days yet (or has not started), said as such.
+    Each row: {period, period_end, current, ago30, ago90, up30: None, down30: None}. Reads the
+    consensus cache the card beside it already filled and the local snapshot store; registers
+    the symbol for the daily snapshot (a local write), so viewing the card starts its history."""
+    from datetime import date, timedelta
+    from api.services import licensed_reference as lr
+    s = (sym or "").upper().strip()
+    if not s or not lr.first():
+        return None
+    from api.services import estimate_history as eh
+    if not eh.is_enabled():
+        return None
+    from api.services.research.estimates_consensus import get_consensus, today_et
+    cons = get_consensus(s) or {}
+    quarters = [q for q in (cons.get("quarterly") or []) if isinstance(q, dict) and q.get("period_end")]
+    if cons.get("state") != "ok" or not quarters:
+        return None
+    quarters = quarters[:_MAX_REVISION_ROWS]
+    try:
+        tracked = eh.track(s, "viewed")
+        pts = eh.eps_points(s, [q["period_end"] for q in quarters])
+        covers_from = eh.first_snapshot(s)
+    except Exception as exc:                                        # noqa: BLE001
+        _logger.warning("estimate history read failed for %s: %s", s, exc)
+        return None
+    day = today if isinstance(today, date) else today_et()
+    iso = lambda d: d.isoformat()                                  # noqa: E731
+    rows, last_snap = [], None
+    for q in quarters:
+        p = pts.get(q["period_end"]) or []
+        if not p:
+            continue
+        latest_sd, latest_eps = p[-1]
+        last_snap = max(last_snap or latest_sd, latest_sd)
+        if latest_sd < iso(day - timedelta(days=_CURRENT_MAX_AGE_DAYS)) or latest_eps is None:
+            continue
+        d30, d90 = day - timedelta(days=30), day - timedelta(days=90)
+        rows.append({
+            "period": q.get("label") or q["period_end"],
+            "period_end": q["period_end"],
+            "current": latest_eps,
+            "ago30": _point_on_or_before(p, iso(d30), iso(d30 - timedelta(days=_AGO_SLACK_DAYS))),
+            "ago90": _point_on_or_before(p, iso(d90), iso(d90 - timedelta(days=_AGO_SLACK_DAYS))),
+            "up30": None,
+            "down30": None,
+        })
+    if not any(r["ago30"] is not None for r in rows):
+        return {"state": "building", "covers_from": covers_from, "tracked": bool(tracked)}
+    return {"state": "ok", "revisions": rows, "covers_from": covers_from, "last_snapshot": last_snap}
