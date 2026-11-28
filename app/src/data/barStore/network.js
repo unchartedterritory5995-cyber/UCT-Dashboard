@@ -257,6 +257,8 @@ export function createNetwork({
   // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
   // entry to join into never settles (review of #1795).
   const lakeSettled = new Map()
+  /** (2026-11-28) key -> the depth at which a lake load proved it holds ALL the lake's history (historyFeed `complete`) */
+  const lakeComplete = new Map()
   const LAKE_SETTLED_MAX = 2000
   // ⭐ DEEP D/W/M HISTORY, ONE PAINT (2026-11-19, owner: "about 200 bars instantly and then the rest
   // shortly after, definitely in 2 phases"). A daily chart painted the copy it held (the pack's ~300
@@ -1245,9 +1247,11 @@ export function createNetwork({
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
       let failed = false
+      let complete = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
+          complete = got?.complete === true
           const cur = registry.peek(key)
           if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
           // ⚡ (2026-11-27) A LOAD THAT PROVABLY ADDS NOTHING IS NOT INGESTED (reducer.lakeCopyAddsNothing): the chart's
@@ -1283,6 +1287,11 @@ export function createNetwork({
           lakeSettled.delete(key)
           lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
+          lakeComplete.delete(key)
+          if (complete) {
+            lakeComplete.set(key, held)
+            if (lakeComplete.size > LAKE_SETTLED_MAX) lakeComplete.delete(lakeComplete.keys().next().value)
+          }
           _noteSettled(key)
         })
       lakeSeeds.set(key, p)
@@ -1312,6 +1321,23 @@ export function createNetwork({
      * entry holds no more than one tail answer's rows (a deeper copy, here or saved in this browser,
      * had its history joined), and its join has not settled on this page at the depth it holds now.
      */
+    /**
+     * ⭐ (2026-11-28, zoomed-out short shadows) IS `key`'s WHOLE HISTORY HERE, honestly? Not "nothing is due" (a failed,
+     * partial or pending read can leave that), but proved: D/W/M, the deep SEALED history joined at the depth held (the
+     * split on; a partial or unsealed answer never settles it); intraday, a lake load that read the index and took every
+     * older piece (`complete`), settled at the depth held, with the server's answer of this life held. Unknown is false.
+     */
+    historyComplete(key) {
+      const p = parseKey(key)
+      const r = keys.get(key)
+      const cur = registry.peek(key)
+      if (!p || p.window || !cur || !cur.bars.length) return false
+      const held = cur.bars.length
+      if (isDateTf(p.tf)) return barsHistorySplitEnabled() && !r?.splitOff && _deepJoinedAt(key, held)
+      if (!isIntradayTf(p.tf) || !cur.restSeen) return false
+      const at = lakeComplete.get(key)
+      return at != null && held >= at && !api.lakePending(key)
+    },
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false

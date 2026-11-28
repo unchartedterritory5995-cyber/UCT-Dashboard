@@ -103,6 +103,9 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
     return barsBefore(ls, index, beforeT, want, signal, yieldTask)
   }
 
+  /** How many periods the index holds for a series (0: the lake does not carry it). */
+  function periodsAll(index, series) { return periodsFor(index, series).length }
+
   /** The newest `want` bars strictly older than `beforeT` (plus the one AT it, the seam bar), from the newest pieces. */
   async function barsBefore(ls, index, beforeT, want, signal, yieldTask) {
     const periods = periodsFor(index, ls.series, { to: beforeT })
@@ -117,7 +120,11 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
       pick.unshift(e)
       have += e.last < beforeT ? e.bars : Math.ceil(e.bars / 2)
     }
-    if (!pick.some((e) => e.first < beforeT)) return { bars: [], exhausted: true }
+    // ⭐ (2026-11-28, zoomed-out short shadows) `complete`: the index was read and every piece older than `beforeT` was
+    // taken, so these rows are ALL the lake holds before it (a missing index or a failed load is never complete)
+    // (an index without this series, a symbol the lake does not carry at this timeframe, is never complete)
+    if (!pick.some((e) => e.first < beforeT)) return { bars: [], exhausted: true, complete: periodsAll(index, ls.series) > 0 }
+    const reachedOldest = periods.length > 0 && pick.length > 0 && pick[0] === periods[0]
     const got = await source.loadBars(ls.sym, ls.tf, { from: pick[0].first, to: beforeT, extended: ls.extended, signal, ...(yieldTask !== undefined ? { yieldTask } : {}) })
     if (!got || !got.t.length) return { bars: [], exhausted: true }
     const { t, o, h, l, c, v } = got
@@ -128,7 +135,7 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
     const start = Math.max(0, end - seam - want)
     const rows = []
     for (let i = start; i < end; i++) rows.push({ t: t[i], o: o[i], h: h[i], l: l[i], c: c[i], v: v[i] })
-    return { bars: rows, exhausted: false }
+    return { bars: rows, exhausted: false, complete: reachedOldest && start === 0 }
   }
 
   /**
