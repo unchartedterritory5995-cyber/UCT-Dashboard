@@ -9119,6 +9119,36 @@
     "PSNY",
     "TLRY"
    ]
+  },
+  {
+   "id": "cloud/46174440434-1/COV-def-dd-arrows",
+   "at": "2026-11-28T18:11:09+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ACIC",
+    "ALVO",
+    "TASK",
+    "PHAR",
+    "NGEN",
+    "VNET",
+    "NVRI",
+    "HTLD",
+    "INDI",
+    "TCBX",
+    "LENZ",
+    "QUAD",
+    "PPHC"
+   ]
+  },
+  {
+   "id": "cloud/46174440434-1/COV-def-tabs",
+   "at": "2026-11-28T18:11:09+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FTK",
+    "IVA",
+    "JCAP"
+   ]
   }
  ]
 }
