@@ -216,7 +216,6 @@ class FakeState:
         return self.refs[name]
 
 
-MON_EVENING = int(dt.datetime(2026, 11, 17, 0, 59, tzinfo=dt.timezone.utc).timestamp())
 
 
 def _go(root, state, calls):
