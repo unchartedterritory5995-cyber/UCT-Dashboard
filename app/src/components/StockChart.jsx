@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { anchorHistoryDone } from './chart/anchorHistory'
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint, PaintMemberContext, noteMemberView } from './chart/paintLog'
@@ -20444,10 +20445,10 @@ function StockChartBody({
   // the earliest HELD bars (anchorEarliest), and D/W/M then ask their full depth: while it loads, a name that has bars
   // at the date said it had none. Done: a host's own bars (no longer pending); intraday, its window answered; D/W/M, the
   // full depth asked, settled, and (bar store) no deep history still due.
-  const _anchorHistoryDone = !anchorEarliest ? true
-    : barsOverride ? !barsOverridePending
-      : isIntraday ? !isValidating
-        : (fetchDepth === _fullTarget && !isValidating && !(BARSTORE && (() => { try { return !!storeDeepPending(sym, resolvedTf) } catch { return false } })()))
+  const _anchorHistoryDone = anchorHistoryDone({
+    anchorEarliest: !!anchorEarliest, hasOverride: !!barsOverride, overridePending: !!barsOverridePending, intraday: !!isIntraday,
+    validating: !!isValidating, fetchDepth, fullTarget: _fullTarget, store: !!BARSTORE, deepPending: () => storeDeepPending(sym, resolvedTf),
+  })
 
   return (
     <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendValueBounds, ...legendInks }}

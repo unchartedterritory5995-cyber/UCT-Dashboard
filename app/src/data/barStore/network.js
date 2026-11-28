@@ -51,6 +51,11 @@ import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHist
 import { nextTask } from '../historyLake/source'
 import { lakeCopyAddsNothing } from './reducer'
 
+/** (review of #2947, N1) A window answered `filling` is asked again after this many seconds (the server's Retry-After),
+ *  at most WINDOW_FILL_ROUNDS times (~30 s), then left to the next chart or warm of the key. */
+export const WINDOW_FILL_RETRY_S = 3
+export const WINDOW_FILL_ROUNDS = 10
+
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
 /** Error backoff: first retry, cap. */
@@ -259,6 +264,29 @@ export function createNetwork({
   const answerSubs = new Map()
   /** A tail request of this key's CURRENT life settled with the server's word (rows, no_data or
    *  an error) — after its action was dispatched, so a listener reads the snapshot it produced. */
+  // ⭐⭐ (review of #2947, N1) A WINDOW ANSWERED `filling` IS ASKED AGAIN. The server answers a window it is still fetching
+  // with the rows it holds, `filling: true` and Retry-After 3 (bars_fetch `to-filling`; the 3 is a HEADER, the body has no
+  // retry_after), and a window key is read once (`_nextDelay`: Infinity) with no lake join or scroll-back. So nothing
+  // asked again: `filling` never cleared, heldRows(answered) stayed 0, the handoff waited HANDOFF_HANG_MS, committed short
+  // and STAYED short. Now the chart's own ask (not a shed-able warm, unless a chart holds the key) of a window whose
+  // answer was filling asks again WINDOW_FILL_RETRY_S later, while the store still holds the key, at most
+  // WINDOW_FILL_ROUNDS times; the complete answer clears `filling` and wakes the answered watchers (the handoff's).
+  const fillRounds = new Map()   // window key -> { n, timer }
+  function _armFillRetry(key) {
+    const f = fillRounds.get(key) || { n: 0, timer: null }
+    if (f.timer != null || f.n >= WINDOW_FILL_ROUNDS) return
+    f.n++
+    fillRounds.delete(key)
+    fillRounds.set(key, f)
+    if (fillRounds.size > 500) { const [k0, f0] = fillRounds.entries().next().value; if (f0.timer != null) clearTimer(f0.timer); fillRounds.delete(k0) }
+    f.timer = setTimer(() => {
+      f.timer = null
+      // (an entry here = the key's last answer was filling: a complete one deletes it, `_send`)
+      if (!registry.has(key) || fillRounds.get(key) !== f) { if (fillRounds.get(key) === f) fillRounds.delete(key); return }
+      api.fetchOnce(key, { priority: 'visible', full: true }).catch(() => {})
+    }, WINDOW_FILL_RETRY_S * 1000)
+  }
+
   function _noteAnswered(r) {
     if (r.answered || keys.get(r.key) !== r) return
     r.answered = true
@@ -378,7 +406,10 @@ export function createNetwork({
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
-      return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
+      // ⭐ (review of #2947, N1) a window's `filling` answer (bars_fetch `to-filling`: Retry-After 3 is a HEADER only, the
+      // body has no retry_after) is asked again: `_nextDelay` re-polls it, in bounded rounds, until it is complete
+      const filling = json.filling === true
+      return { ok: true, delta, retryAfterSec: json.retry_after ?? (filling ? WINDOW_FILL_RETRY_S : null), ...(filling ? { filling: true } : {}) }
     }, { front })
   }
 
@@ -657,7 +688,16 @@ export function createNetwork({
       const out = await onJson(json)
       // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
       // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
-      if (kind === 'tail') { r.filling = json?.filling === true; _noteAnswered(r) }
+      if (kind === 'tail') {
+        const was = r.filling
+        r.filling = json?.filling === true
+        _noteAnswered(r)
+        if (r.filling && (!rec.warm || r.refs > 0)) _armFillRetry(r.key)
+        else if (!r.filling) fillRounds.delete(r.key)
+        // ⭐ (review of #2947, N1) the window's COMPLETE answer after a filling one: the handoff's watcher re-reads
+        // heldRows(answered) now (the entry's own change fired while `filling` still said true)
+        if (was && !r.filling) for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
+      }
       return out
     })()
     rec.promise = promise
@@ -747,6 +787,7 @@ export function createNetwork({
     r.errors = 0
     // A delta that found a new history needs the full read NOW (bounded: needsFull clears on it).
     if (res?.delta && s.needsFull) return 0
+    // a windowed (replay / at-a-date) key is read ONCE, whole (a `filling` answer is asked again by `_armFillRetry`)
     if (!isIntradayTf(p.tf) || p.window) return p.window ? Infinity : dailyPollMs
     const tailT = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
     const spent0 = _exhausted(r)

@@ -115,6 +115,71 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
     expect(network.filling(K)).toBe(false)
   })
 
+  // ⭐ (review of #2947, N1) a WINDOW answered `filling` was never asked again (a window is read once; Retry-After 3 is a
+  // header only): `filling` never cleared and the chart at the date stayed short. Now the chart's own ask is repeated.
+  describe('N1 — a window answered `filling` is asked again until it is complete', () => {
+    const KW = keyOf({ sym: 'SIMB', tf: '5', window: { to: Date.UTC(2025, 2, 14, 12) / 1000 } })
+    const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((res) => setTimeout(res, 0)) }
+    function netT(request) {
+      const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
+      const timers = []
+      const network = createNetwork({
+        registry, request, setTimer: (fn, ms) => { const h = { fn, ms }; timers.push(h); return h },
+        clearTimer: (h) => { const i = timers.indexOf(h); if (i >= 0) timers.splice(i, 1) },
+        isHidden: () => false, onVisible: () => () => {},
+      })
+      const fire = async (ms) => { const i = timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = timers.splice(i, 1); t.fn(); await flush(); return true }
+      return { registry, network, timers, fire }
+    }
+    it('the chart's own ask (no loop, no manual fetchOnce) is repeated ~3 s later; the complete answer clears it and wakes the watchers', async () => {
+      const { WINDOW_FILL_RETRY_S } = await import('./network')
+      let filling = true
+      const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))
+      const { network, timers, fire } = netT(request)
+      const woke = []
+      network.subscribeAnswered(KW, () => woke.push(network.filling(KW)))
+      await network.fetchOnce(KW, { priority: 'visible' })
+      expect(network.filling(KW)).toBe(true)
+      expect(request).toHaveBeenCalledTimes(1)
+      expect(WINDOW_FILL_RETRY_S).toBe(3)
+      expect(timers.map((t) => t.ms)).toContain(3000)
+      filling = false
+      expect(await fire(3000)).toBe(true)
+      expect(request).toHaveBeenCalledTimes(2)
+      expect(request.mock.calls[1][0]).toMatch(/[?&]to=2025-03-14(?:&|$)/)
+      expect(network.filling(KW)).toBe(false)
+      expect(woke.at(-1), 'the watcher woke with filling cleared').toBe(false)
+      expect(timers.filter((t) => t.ms === 3000).length, 'complete: nothing more').toBe(0)
+    })
+    it('a chart on the key (its loop) gets the same one repeat, not two', async () => {
+      let filling = true
+      const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))
+      const { network, timers, fire } = netT(request)
+      network.start(KW)
+      await fire(0)
+      expect(network.filling(KW)).toBe(true)
+      expect(timers.filter((t) => t.ms === 3000).length).toBe(1)
+      filling = false
+      await fire(3000)
+      expect(request).toHaveBeenCalledTimes(2)
+      expect(network.filling(KW)).toBe(false)
+      expect(timers.filter((t) => Number.isFinite(t.ms) && t.ms > 0).length, 'a window is not polled').toBe(0)
+    })
+    it('bounded: a window that never completes is asked WINDOW_FILL_ROUNDS more times, then left; a warm alone is not repeated', async () => {
+      const { WINDOW_FILL_ROUNDS } = await import('./network')
+      const request = vi.fn(async () => ({ ...ok(), filling: true }))
+      const { network, timers, fire } = netT(request)
+      await network.fetchOnce(KW, { priority: 'visible' })
+      let rounds = 0
+      while (await fire(3000)) rounds++
+      expect(rounds).toBe(WINDOW_FILL_ROUNDS)
+      expect(request).toHaveBeenCalledTimes(1 + WINDOW_FILL_ROUNDS)
+      const w = netT(vi.fn(async () => ({ ...ok(), filling: true })))
+      await w.network.fetchOnce(KW, { priority: 'background', warm: true })
+      expect(w.timers.filter((t) => t.ms === 3000).length, 'a shed-able warm with no chart: not repeated').toBe(0)
+    })
+  })
+
   it('an error answers the life too (the hold must end on it); an aborted request does not', async () => {
     let fail = true
     const { network, run } = net(vi.fn(async () => { if (fail) throw Object.assign(new Error('x'), { status: 503 }); return ok() }))

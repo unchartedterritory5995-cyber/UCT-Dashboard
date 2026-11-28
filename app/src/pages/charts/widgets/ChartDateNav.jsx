@@ -185,6 +185,8 @@ export default function ChartDateNav({ paneRef, themeVars = null, nav = null, an
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
   const sigRef = useRef('')
+  const navRef = useRef(nav)
+  navRef.current = nav
   const caretRef = useRef(null)
 
   // Poll the chart's date meta so the field mirrors the right-edge date + bounds.
@@ -196,7 +198,12 @@ export default function ChartDateNav({ paneRef, themeVars = null, nav = null, an
       // lite: the five fields this field shows, not the Agent's full read-back (4×/s for the page's life)
       const m = paneRef?.current?.getDateMeta?.({ lite: true }) || null
       const sig = m ? `${m.rightMs}|${m.firstYear}|${m.lastYear}|${m.fullyLoaded}|${m.loading}` : 'null'
-      if (sig !== sigRef.current) { sigRef.current = sig; setMeta(m) }
+      if (sig !== sigRef.current) {
+        sigRef.current = sig; setMeta(m)
+        // (review of #2947, LOW 3) the host notes every view the chart shows (its unanchored newest bar is the present),
+        // not only the ones a jump reads: a halted name's last bar never reads as "the present" for a typed date
+        try { navRef.current?.note?.() } catch { /* the host's */ }
+      }
       timer = setTimeout(tick, 250)
     }
     tick()

@@ -15,6 +15,7 @@
 import { etDateLabel } from '../../../components/chart/barTime'
 import { isDateTf } from '../../../data/barStore/types'
 import { fetchTf } from '../../../components/chart/timeframes'
+import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
 
 const DAY_MS = 86_400_000
 const isoUtc = (ms) => new Date(ms).toISOString().slice(0, 10)
@@ -28,6 +29,22 @@ export function isDatedTf(tf) {
 export function barDayOf(ms, tf) {
   if (!Number.isFinite(ms)) return null
   return isDatedTf(tf) ? isoUtc(ms) : etDateLabel(Math.floor(ms / 1000))
+}
+
+/** The first trading session after `iso` ('YYYY-MM-DD'): a weekend or an exchange holiday is skipped (review of #2947,
+ *  LOW 2: Fri -> Sat -> Sun were dead presses, each re-keying a new `@to=` read). Past two weeks of closed days (never
+ *  seen): the next calendar day. */
+export function nextSessionDay(iso) {
+  let ms = Date.parse(`${iso}T00:00:00Z`)
+  if (!Number.isFinite(ms)) return null
+  for (let i = 0; i < 14; i++) {
+    ms += DAY_MS
+    const day = isoUtc(ms)
+    let open = true
+    try { open = isTradingDay(day) } catch { open = true }
+    if (open) return day
+  }
+  return isoUtc(Date.parse(`${iso}T00:00:00Z`) + DAY_MS)
 }
 
 /**
@@ -81,7 +98,8 @@ export function createDateBoxNav({ meta, stepPane, setDate, getDate, tf, present
       anchorAt(isoUtc(Date.UTC(y, 11, 31)), per)
     },
     /** a step: the pane steps one bar, and its new right edge names the date. At a date on intraday the window ends AT the
-     *  date, so a forward step there cannot move the view: it goes to the next day (its last bar at the right edge). */
+     *  date, so a forward step there cannot move the view: it goes to the next SESSION after the day the chart's right
+     *  edge shows (its last bar at the right edge; review of #2947, LOW 2: never a weekend or a holiday). */
     stepBar: (dir) => {
       const before = read()
       try { stepPane(dir) } catch { /* the pane's */ }
@@ -89,7 +107,7 @@ export function createDateBoxNav({ meta, stepPane, setDate, getDate, tf, present
       if (!Number.isFinite(m?.rightMs)) return
       const cur = getDate()
       if (dir > 0 && cur && !isDatedTf(tf) && Number.isFinite(before?.rightMs) && m.rightMs <= before.rightMs) {
-        anchorAt(isoUtc(Date.parse(`${cur.date}T00:00:00Z`) + DAY_MS), spanOf(m))
+        anchorAt(nextSessionDay(barDayOf(before.rightMs, tf) || cur.date), spanOf(m))
         return
       }
       anchorAt(barDayOf(m.rightMs, tf), spanOf(m))
