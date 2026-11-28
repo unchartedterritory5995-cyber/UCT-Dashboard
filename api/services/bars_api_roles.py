@@ -99,6 +99,10 @@ ESCALATE_DEADLINE_S = 7.5
 #: follower answers 503 + Retry-After, the same shed the single process gives under the same load.
 ESCALATE_MAX = int(os.environ.get("BARS_API_ESCALATE_MAX", "96") or 96)
 _escalate_sem = threading.BoundedSemaphore(max(1, ESCALATE_MAX))
+#: ⛔ A hand-off shed must be one the EDGE reads as deliberate (edge/bars-edge-router/tail.js isDeliberateTierShed: 503
+#: + Retry-After + X-Bars-Shed in {warming, warm-shed}). Any other tag is a tier FAILURE there: the read goes to web
+#: (another store) and opens the 20 s breaker that sends every read to web. The reason travels in its own header.
+SHED_HEADERS = [("Content-Type", "application/json"), ("Retry-After", "2"), ("X-Bars-Shed", "warm-shed")]
 #: Background replays a follower asks for (`defer_to_leader`): their own small cap, never the hand-off slots.
 DEFER_MAX = 8
 DEFER_DEDUP_S = 3.0
@@ -660,8 +664,8 @@ class _LeaderHandler(BaseHTTPRequestHandler):
             # A follower's request that needs leader-only work (`LeaderOnly`): answered here, in full, exactly as
             # the single process answers it.
             if not _escalate_sem.acquire(blocking=False):
-                return self._reply_raw(503, [("Content-Type", "application/json"), ("Retry-After", "2"),
-                                             ("X-Bars-Shed", "leader-busy")], b'{"detail":"bars-api busy"}')
+                return self._reply_raw(503, SHED_HEADERS + [("X-Bars-Shed-Reason", "leader-busy")],
+                                       b'{"detail":"bars-api busy"}')
             try:
                 from api import bars_api_main
                 try:
@@ -695,6 +699,17 @@ class _LeaderHandler(BaseHTTPRequestHandler):
             return self._reply(200, out)
         if path == "/internal/live-want":
             bars_live_store.want_from_follower(str(payload.get("sym") or ""), str(payload.get("tf") or ""))
+            return self._reply(200, {"ok": True})
+        if path == "/internal/kick":
+            # A follower's best-effort kick, run HERE by the function itself, so the LEADER's own throttle governs
+            # (its marker, its semaphore): never a whole-request replay (review of the round-2 fix, F1).
+            fn = _KICKS.get(str(payload.get("kind") or ""))
+            if fn is None:
+                return self._reply(404, {"detail": "unknown kick"})
+            try:
+                fn(*list(payload.get("args") or []))
+            except Exception as e:  # noqa: BLE001 - best effort
+                _log.info("[bars-api] kick %s failed: %s", payload.get("kind"), e)
             return self._reply(200, {"ok": True})
         if path == "/internal/index-refresh":
             # A follower served a stale cash-index copy (stale-while-revalidate): the refresh is the leader's.
@@ -760,7 +775,7 @@ def proxy_to_leader(path_qs: str, spent_s: float = 0.0, accept_encoding: str = "
     except urllib.error.HTTPError as e:
         return e.code, list(e.headers.items()), e.read()
     except Exception as e:  # noqa: BLE001 - the leader is restarting, promoting or past the budget
-        return 503, [("Content-Type", "application/json"), ("Retry-After", "2"), ("X-Bars-Shed", "leader-unreachable")], \
+        return 503, SHED_HEADERS + [("X-Bars-Shed-Reason", "leader-unreachable")], \
             json.dumps({"detail": "bars-api leader unavailable: %s" % type(e).__name__}).encode()
 
 
@@ -844,6 +859,10 @@ def _want_loop() -> None:
             if item[0] == "BG":
                 _replay_in_background(item[1])
                 continue
+            if item[0] == "KICK":
+                forward_to_leader("POST", "/internal/kick", json.dumps({"kind": item[1], "args": item[2]}).encode(),
+                                  bars_service_headers().get("Authorization", ""))
+                continue
             path, (sym, tf) = (item[0], item[1:]) if len(item) == 3 else ("/internal/live-want", item)
             forward_to_leader("POST", path, json.dumps({"sym": sym, "tf": tf}).encode(),
                               bars_service_headers().get("Authorization", ""))
@@ -875,6 +894,26 @@ def _send_want_async(sym: str, tf: str) -> None:
 
 _req_tls = threading.local()
 _deferred: dict = {}
+
+
+def _kick_deepfill(ticker, tf, bars):
+    from api.services import bars_fetch
+    bars_fetch._maybe_kick_deepfill(str(ticker), str(tf), int(bars))
+
+
+#: The kicks a follower may ask the leader to run directly (`send_kick`). Allowlist: a name, never a callable.
+_KICKS = {"deepfill": _kick_deepfill}
+
+
+def send_kick(kind: str, *args) -> None:
+    """Ask the leader to run best-effort kick `kind` itself (`/internal/kick`), async, deduped DEFER_DEDUP_S."""
+    k, t = ("kick", kind) + tuple(args), time.monotonic()
+    if _deferred.get(k, -1e9) > t - DEFER_DEDUP_S:
+        return
+    _deferred[k] = t
+    if len(_deferred) > 20000:
+        _deferred.clear()
+    _send_async(("KICK", kind, list(args)))
 
 
 def set_current_request(path_qs: Optional[str]) -> None:
