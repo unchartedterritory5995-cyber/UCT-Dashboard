@@ -280,6 +280,24 @@ describe('what the panel says about its list', () => {
     ])
   })
 
+  it('carries a publisher\'s required notice whole, first, once, and only when it is shown', () => {
+    const long = 'Source: U.S. Bureau of Labor Statistics. Data retrieved from BLS.gov on 2026-11-20. BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov. ' + 'More words. '.repeat(20)
+    const root = mount(`
+      <p>Showing the top 10 of 54 holdings by weight.</p>
+      <div><p data-share-notice="">${long}</p></div>
+      <p data-share-notice="">This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.</p>
+      <p data-share-notice="" class="gone">A notice on a hidden view.</p>
+      <p data-share-notice="">This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.</p>`)
+    const notes = readPanelNotes(root, { getStyle })
+    expect(notes[0]).toBe(long.trim())
+    expect(notes[0].length).toBeGreaterThan(240)
+    expect(notes).toEqual([
+      long.trim(),
+      'This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.',
+      'Showing the top 10 of 54 holdings by weight.',
+    ])
+  })
+
   it('splits sentences without breaking a decimal, and has no lookbehind (Safari 16.0 to 16.3)', async () => {
     expect(sentencesOf('Up 3.2% today. Showing the first 5 of 9. Done')).toEqual(['Up 3.2% today.', 'Showing the first 5 of 9.', 'Done'])
     const fs = await import('node:fs')
