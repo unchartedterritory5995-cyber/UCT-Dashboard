@@ -7119,6 +7119,26 @@
     "GDRX",
     "VRTS"
    ]
+  },
+  {
+   "id": "cloud/46121450116-1/COV-def-dd-arrows",
+   "at": "2026-11-28T07:33:20+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LEGO",
+    "KARO",
+    "CRESY",
+    "WILC",
+    "NB",
+    "ENIC",
+    "NMRA",
+    "TRON",
+    "NBTX",
+    "APEI",
+    "LE",
+    "IMMX",
+    "MEVO"
+   ]
   }
  ]
 }
