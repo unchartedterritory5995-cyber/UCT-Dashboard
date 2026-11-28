@@ -154,6 +154,34 @@ describe('useDoubleBuffer', () => {
     } finally { held.deep = true }
   })
 
+  // ⭐⭐ (2026-11-28, the cold-coverage run, 4h + 2h) A CUSTOM TIMEFRAME'S SHADOW IS COUNTED IN ITS BASE KEY'S ROWS: heldRows
+  // reads the 60m key a 4h chart resamples, so COVER_ROWS 60m rows (~150 4h bars) are short of a 4h view of COVER_ROWS
+  // bars; the flip compared the two as if alike and flipped to a short page
+  it('H12d a 4h shadow holding COVER_ROWS 60m rows is short of a 4h view (base rows): the normal switch', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    __setDoubleBufferBarsSourceForTests((k, r) => bars[r.sym] ?? null)
+    const rep = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: '240', ext: false, bars: bars[sym], cutoff: null }) })
+    held.rows = COVER_ROWS
+    const h = mount()
+    rep(h.result, 0, 'AAA'); await idle(); rep(h.result, 1, 'BBB')
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().flips).toBe(0)
+  })
+
+  it('H12e control: a 4h shadow whose base rows cover the 4h view (four 60m rows a bar) flips', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    const { baseBarsFor } = await import('./timeframes')
+    __setDoubleBufferBarsSourceForTests((k, r) => bars[r.sym] ?? null)
+    const rep = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: '240', ext: false, bars: bars[sym], cutoff: null }) })
+    held.rows = baseBarsFor('240', COVER_ROWS)
+    const h = mount()
+    rep(h.result, 0, 'AAA'); await idle(); rep(h.result, 1, 'BBB')
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
+  })
+
   it('H12b control: a shadow whose rows cover the view flips', async () => {
     const { COVER_ROWS } = await import('../../data/barStore/coverRows')
     held.rows = COVER_ROWS

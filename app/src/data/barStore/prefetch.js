@@ -1320,12 +1320,17 @@ export function createPrefetch(o = {}) {
       const offEntry = reg.subscribe(key, wake, { wake: 'all' })
       let offAnswered = null
       try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      // (2026-11-28) ...and on its depth SETTLING (network.subscribeSettled): a history join or a lake load that added
+      // nothing moves no entry, and is exactly how a waiter learns nothing more is coming (deepPending / lakePending false)
+      let offSettled = null
+      try { offSettled = st.network?.subscribeSettled?.(key, wake) || null } catch { offSettled = null }
       let set = watchers.get(key)
       if (!set) { set = new Set(); watchers.set(key, set) }
       set.add(wake)
       return () => {
         try { offEntry() } finally {
           if (offAnswered) offAnswered()
+          if (offSettled) offSettled()
           set.delete(wake)
           if (!set.size && watchers.get(key) === set) watchers.delete(key)
         }
@@ -1506,10 +1511,47 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false } = {}) {
     if (!tickers?.length) return
     tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended); return }
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
+  }
+
+  /**
+   * ⭐⭐ (2026-11-28, zero-network plan 1.7) A LIST'S NEIGHBOUR ROWS, FROM THE DEVICE AND THE EDGE, NEVER THE ORIGIN.
+   * The scan lists (watchlist, screener focus, theme tracker) warmed the ±6 rows around the selection with a background
+   * `&warm=1` /api/bars ask on EVERY press: an origin request the edge cannot share (the tail cache refuses `warm=1`), ~2
+   * origin requests a second per scanning member, ~200/s at 500 members (plan section C, "today's risk"). With `edge`
+   * (`prefetchBarsToIDB(rows, tf, { priority: true, edge: true })`) each row is instead
+   *   * read from the DEVICE into memory (_hydrate: IndexedDB / the device seed),
+   *   * D/W/M: its deep sealed history from the EDGE (network.deepPrime, /api/bars-history, one request per key, joined
+   *     by the flip's own tail),
+   *   * intraday: the lake's index and newest pieces from the EDGE (primeLake),
+   * and NOTHING goes to /api/bars. The rows the member reaches next keep their tail ahead of the press as before (the
+   * list's urgent next-row warm, prefetchBars `urgent`: the chart's own URL, which the edge's tail cache shares across
+   * members), so a flip still finds the row current; the press is what asks the origin. Not for `immediate` (the switch's
+   * own ask). A key already held current and whole is left alone.
+   */
+  function _warmFromEdge(tickers, tf, showExtended) {
+    let n = 0
+    for (const sym of [...new Set(tickers)]) {
+      const k = keyFor(sym, tf, { showExtended })
+      const p = k ? parseKey(k) : null
+      if (!p || p.window) continue
+      const date = !isIntradayTf(p.tf)
+      const held = S().peek(k)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)
+        && !(date ? S().deepPending?.(k) : S().lakePending?.(k))) continue
+      n++
+      Promise.resolve().then(async () => {
+        await _hydrate(k)                                                    // the device
+        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid' }); return }   // the edge's history
+        try { S().primeLake?.(k) } catch { /* a warm only */ }                // the edge's lake pieces
+      }).catch(() => {})
+      tickerMeta(sym)
+    }
+    return n
   }
 
   /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first

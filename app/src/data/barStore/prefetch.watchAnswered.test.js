@@ -26,9 +26,9 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version'); localStorage.removeItem('uct.barsHistory.bucket') })
 
-async function boot() {
+async function boot(serverOpts = {}) {
   vi.resetModules()
-  const server = installFakeBarsServer()
+  const server = installFakeBarsServer(serverOpts)
   const { createBarStore } = await import('./index')
   const { createPrefetch } = await import('./prefetch')
   const store = createBarStore({
@@ -70,6 +70,31 @@ describe('prefetch.watch wakes the waiter on the answer being noted', () => {
     await w.server.drain()
     await p
     expect(n).toBe(0)
+    w.store.dispose()
+  })
+
+  // ⭐⭐ (2026-11-28, the cold-coverage run: W + M, the previous chart held ~4 s on 4 of 6 typed presses) A DEEP JOIN THAT
+  // ADDS NOTHING MOVES NO ENTRY. The hold of a set shorter than the view waits for "nothing more is coming" (deepPending
+  // false); woken only by the entry and the answer, it never saw the settle and waited out the hang guard.
+  it('the deep history settles adding nothing older: the waiter is woken, and its wake reads the depth as no longer due', async () => {
+    const w = await boot({ modeFor: (q) => (q.history ? 'history-none' : 'ok') })
+    const seen = []
+    const off = w.pf.watch('NOO', 'D', {}, () => { seen.push(w.pf.deepPending('NOO', 'D')) })
+    const p = w.pf.prepareDailyForDisplay('NOO', 'D')
+    await tick(130)
+    await w.server.flush(40)
+    for (const c of w.server.open()) if (!c.q.history) c.respond()   // the tail answers; the history is still out
+    await w.server.flush(40)
+    expect(w.pf.deepPending('NOO', 'D')).toBe(true)
+    const before = seen.length
+    const rowsBefore = w.store.peek(w.pf.keyFor('NOO', 'D')).bars.length
+    await w.server.drain()                                            // the history lands: nothing older than the tail
+    expect(w.store.peek(w.pf.keyFor('NOO', 'D')).bars.length).toBe(rowsBefore)   // the entry did not move
+    expect(w.pf.deepPending('NOO', 'D')).toBe(false)
+    expect(seen.length).toBeGreaterThan(before)                       // ...and the waiter heard the settle
+    expect(seen[seen.length - 1]).toBe(false)
+    off()
+    await p
     w.store.dispose()
   })
 })

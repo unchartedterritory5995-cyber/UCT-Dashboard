@@ -29,15 +29,17 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null } = {}) {
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null } = {}) {
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
     if (tailGate && url.startsWith('/api/bars/')) await tailGate   // the tail answers when the test says
     if (url.startsWith('/api/bars-history/')) {
+      if (historyGate) await historyGate   // a slow edge: answers when the test says
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
       if (history === 'hang') return new Promise(() => {})   // a cold edge (MISS) still building it
       if (history === 'unsealed') return { ticker: 'SIM', tf: 'D', bars: [], sealed: false }
+      if (history === 'nothing-older') return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(50, '2026-11-09').map((t) => bar(t)) }
       if (history === 'other-basis') return { ticker: 'SIM', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t, 50)) }
       if (history === 'foreign') return { ticker: 'OTHER', tf: 'D', sealed: true, bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
@@ -107,6 +109,47 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
     expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(1399)   // the view's rows, without the edge
+  })
+
+  // ⭐⭐ (2026-11-28, the cold-coverage run: W + M held ~4 s) A JOIN THAT ADDS NOTHING MOVES NO ENTRY, so a waiter woken
+  // only by the entry never learned that nothing more was coming; the settle now tells its own listeners
+  it('a history join that adds nothing older notifies subscribeSettled (the entry did not move), and the depth is no longer due', async () => {
+    const w = world({ history: 'nothing-older' })
+    const settled = vi.fn()
+    const off = w.net.subscribeSettled(w.key, settled)   // (before the ask: the fake answers within the first tick)
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(settled).toHaveBeenCalledTimes(1)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    off()
+  })
+
+  it('CONTROL: a history that fails (the split turns off) does not notify a settle: the full read it queues moves the entry', async () => {
+    const w = world({ history: 'throw' })
+    const settled = vi.fn()
+    w.net.subscribeSettled(w.key, settled)   // (before the ask, as above: otherwise this control could not fail)
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(settled).not.toHaveBeenCalled()
+  })
+
+  // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
+  it('a slow edge answering after the fallback cover landed: the history still joins, once, and the key settles', async () => {
+    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS } = await import('./network')
+    let release
+    const w = world({ historyGate: new Promise((r) => { release = r }) })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS, 1400])
+    expect(w.net.deepPending(w.key)).toBe(true)
+    release()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(w.net.inflight(w.key)).toBe(0)
   })
 
   it('CONTROL: a history that lands in time asks no second tail', async () => {

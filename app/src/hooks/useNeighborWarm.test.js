@@ -39,7 +39,7 @@ describe('useNeighborWarm', () => {
     expect(prefetchBarsToIDB).toHaveBeenCalledTimes(1)
     expect([...prefetchBarsToIDB.mock.calls[0][0]].sort()).toEqual(['B', 'C', 'E', 'F'])
     expect(prefetchBarsToIDB.mock.calls[0][1]).toBe('5')
-    expect(prefetchBarsToIDB.mock.calls[0][2]).toEqual({ priority: true })
+    expect(prefetchBarsToIDB.mock.calls[0][2]).toEqual({ priority: true, edge: true })   // (plan 1.7) device + edge only
   })
 
   it('warms the row on either side URGENTLY: not held behind the daily pack ingest', () => {
