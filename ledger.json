@@ -8886,6 +8886,36 @@
     "MH",
     "GILT"
    ]
+  },
+  {
+   "id": "cloud/46164082610-1/COV-def-dd-arrows",
+   "at": "2026-11-28T16:14:43+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CSR",
+    "AVD",
+    "NTGR",
+    "RR",
+    "YB",
+    "MBVI",
+    "PPLC",
+    "BWB",
+    "FBYD",
+    "CWEN-A",
+    "ASMB",
+    "VTEX",
+    "VNDA"
+   ]
+  },
+  {
+   "id": "cloud/46164082610-1/COV-def-tabs",
+   "at": "2026-11-28T16:14:43+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AMC",
+    "GDOT",
+    "DQ"
+   ]
   }
  ]
 }
