@@ -147,7 +147,10 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
    *   - nothing at or before the cutoff (before the listing, or before 2003-09).
    * Rejects as the source does (an error, an abort): the caller falls back on anything but an abort.
    */
-  async function windowBars(key, { bars: want, signal, yieldTask } = {}) {
+  // `newest` (review of #2986, residual): also read the series' NEWEST session (`newest`: its bars), beside the window, so
+  // the caller can check the lake's basis against the present key it holds. `splitsStale`: the index's `splits_as_of`
+  // lags its newest bar by more than LAKE_SPLITS_STALE_DAYS (a split table that stopped being stamped).
+  async function windowBars(key, { bars: want, signal, yieldTask, newest = false } = {}) {
     const ls = lakeSeriesOfKey(key)
     if (!ls || !ls.series || ls.to == null || !(want > 0)) return null
     // (the index promise is shared with every reader of the symbol: an abort of this read must not reject theirs)
@@ -156,8 +159,25 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     if (!index) return null
     const through = lakeThrough(index, ls.series)
     if (through == null || !(through >= ls.dayStart)) return null
+    const newestP = newest ? newestSession(ls, index, through, signal).catch(() => null) : null
     const bars = await windowRows(ls, index, want, signal, yieldTask)
-    return bars.length ? { bars, through } : null
+    if (!bars.length) return null
+    const asOf = typeof index.splits_as_of === 'string' ? Date.parse(`${index.splits_as_of}T00:00:00Z`) / 1000 : NaN
+    const splitsStale = Number.isFinite(asOf) && through - asOf > LAKE_SPLITS_STALE_DAYS * 86400
+    const out = { bars, through, splitsStale }
+    if (newestP) out.newest = (await newestP) || null
+    return out
+  }
+  /** The bars of the series' newest day in the lake (the last piece's tail), or null. */
+  async function newestSession(ls, index, through, signal) {
+    const all = periodsFor(index, ls.series, {})
+    if (!all.length) return null
+    const from = Math.max(all[all.length - 1].first, through - 86400)
+    const got = await source.loadBars(ls.sym, ls.tf, { from, to: through, extended: ls.extended, signal })
+    if (!got || !got.t.length) return null
+    const out = []
+    for (let k = 0; k < got.t.length; k++) out.push({ t: got.t[k], o: got.o[k], h: got.h[k], l: got.l[k], c: got.c[k], v: got.v[k] })
+    return out
   }
 
   /** ⛔ EXACTLY the newest `want` bars at or before `ls.to` (the origin's count, not scroll-back's "about that many"). The
@@ -268,3 +288,6 @@ export const EDGE_WARM_MAX_KEYS = 2000
 export const PRIME_PIECES = 2
 /** Keys `prime` remembers (a page that opens more starts forgetting the oldest). */
 export const PRIME_MAX_KEYS = 500
+/** (review of #2986) A lake index whose `splits_as_of` lags its newest bar by more than this many days has a stale split
+ *  table: its windows are the origin's. */
+export const LAKE_SPLITS_STALE_DAYS = 7
