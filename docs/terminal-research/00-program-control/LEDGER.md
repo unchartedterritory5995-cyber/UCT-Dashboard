@@ -5311,3 +5311,14 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   estimate job and never takes a snapshot. The other changed modules are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal data reach pass 1 (public share classes with their notices; market FEED and dilution forms; INS sales and window; market FTD; market OIC) · `feat/terminal-data-reach-pass1` · 2026-11-27
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/filings_feed.py`, `api/services/fmp_client.py`, `api/services/insider.py` |
+
+- **What changed.** The market filings feed reads S-3, S-3ASR, 424B1-5, 424B7 and S-8 beside S-1 (a DILUTION form group, 100 rows kept per form); INS gains a held, background-built market list of buys and / or sales over 7, 30 or 90 days (`insider.get_market_insider_trades`), reading a new additive `fmp_client.search_insider_sales`; new held market lists for fails to deliver (`ftd_dataset.market_list`) and open-interest change (`options_analytics/oi_market.py`); the panels, arguments and share classes in `app/src/pages/terminal`.
+- **Flow-worker.** It mounts only its flow routers, the debug dump and the build vouch (`api/flow_worker_main.py`), and its schedulers run the flow jobs only: it never serves the filings feed, an insider list or the research routes, and never runs the filings poll. `filings_feed.py` and `insider.py` are in its closure only through function-level imports in `routers.auth`'s flag readout and the Compass / voice tools; `fmp_client.py` gains one function and changes none it calls (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those three offenders, nothing else).
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
