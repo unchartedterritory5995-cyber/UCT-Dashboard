@@ -46,7 +46,7 @@ test('every candidate list is warmed as a pool, the pool before the typed slot, 
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   chartSearch().onTypedCandidates(['AMZN', 'AMD', 'AMAT'])
   expect(seq).toEqual(['pool:AMZN,AMD,AMAT', 'typed:AMZN'])
-  expect(poolWarm).toHaveBeenCalledWith(['AMZN', 'AMD', 'AMAT'], 'D')
+  expect(poolWarm).toHaveBeenCalledWith(['AMZN', 'AMD', 'AMAT'], 'D', expect.objectContaining({ viewWindow: null }))
   expect(storeWarm).toHaveBeenCalledWith('AMZN', 'D', expect.objectContaining({ cover: COVER_ROWS }))
 })
 

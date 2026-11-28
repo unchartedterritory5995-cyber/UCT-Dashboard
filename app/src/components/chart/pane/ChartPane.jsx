@@ -73,6 +73,8 @@ import useEconomicCatalog from '../engine/useEconomicCatalog'
 import { warmTypedSymbol as legacyWarmTypedSymbol } from '../../../utils/prefetchBars'
 import { warmTypedSymbol as storeWarmTypedSymbol, warmTypedCandidates as storeWarmTypedCandidates, lakeJoined as storeLakeJoined, heldRows as storeHeldRows } from '../../../data/barStore/prefetch'
 import { PaintMemberContext, viewNeed } from '../paintLog'
+import { memberViewDate } from '../viewDate'
+import { viewWindowOfMemberDate } from '../viewWindow'
 import { BARSTORE } from '../barStoreSwitch'
 import { publishTypedNext } from '../neighborFrames'
 import { noteOpened, SHOWN_WEIGHT } from '../../../lib/typedHistory'
@@ -1242,7 +1244,10 @@ function ChartPane({
   useEffect(() => { if (chartSym) { try { noteOpened(chartSym, { weight: SHOWN_WEIGHT }) } catch { /* */ } } }, [chartSym])
   const handleTypedCandidates = useCallback((list) => {
     const syms = Array.isArray(list) ? list.filter(Boolean) : []
-    try { storeWarmTypedCandidates(syms, effectiveTf) } catch { /* a warm never breaks search */ }
+    // (after #2947: charts at any date) at a date, an intraday chart reads the window ending there: the pool warms THAT key
+    let viewWindow = null
+    try { viewWindow = viewWindowOfMemberDate(memberViewDate(paintMemberRef.current), effectiveTf) } catch { viewWindow = null }
+    try { storeWarmTypedCandidates(syms, effectiveTf, { viewWindow, showExtended: extOnRef.current }) } catch { /* a warm never breaks search */ }
     const top = syms[0] ? String(syms[0]).toUpperCase() : null
     if (!top || top === lastTopRef.current) return
     lastTopRef.current = top

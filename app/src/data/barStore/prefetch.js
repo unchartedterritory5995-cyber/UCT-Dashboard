@@ -2382,15 +2382,23 @@ export function createPrefetch(o = {}) {
   //   * The caller (ChartPane) gives the top candidate to the typed slot too, AFTER this call: the pool's entry for it is
   //     what keeps its fetch alive when the typed slot moves to the next text.
   const pool = new Map()   // key -> AbortController (the live candidates' warms)
-  function warmTypedCandidates(syms, tf = 'D') {   // (review of #2979: no `cover`, the pool asks no tail)
+  //   * ⭐ (2026-11-28, after #2947: charts at any date) AT A DATE an intraday chart reads the WINDOW ending there
+  //     (chart/viewWindow, the `@to=` key), never the plain key: the caller passes that window (`viewWindow`; ChartPane:
+  //     viewWindowOfMemberDate of the member's date) and each candidate is warmed at THAT key. ⛔ A window key has no edge
+  //     copy (the lake carries no `@to=` key, network lakeCarriesKey), so after the device's copy it is asked from the
+  //     origin in the shed-able background warm lane, exactly as the date's list warm asks its next rows
+  //     (prefetchViewWindow): the pool's one origin ask, at most CANDIDATE_POOL_K, only while a date is set. D/W/M at a
+  //     date read the plain key (their deep history covers any date), so a window changes nothing there.
+  function warmTypedCandidates(syms, tf = 'D', { viewWindow = null, showExtended } = {}) {   // (review of #2979: no `cover`, the pool asks no tail)
+    const to = viewWindow && Number.isFinite(viewWindow.to) && isIntradayTf(normTf(String(tf))) ? viewWindow.to : null
     const keys = []
     for (const s0 of Array.isArray(syms) ? syms : []) {
       if (keys.length >= CANDIDATE_POOL_K) break
       const T = String(s0 || '').trim().toUpperCase()
       if (!_isSym(T)) continue
-      const k = keyFor(T, tf)
+      const k = to != null ? keyFor(T, tf, { showExtended, window: { to } }) : keyFor(T, tf)
       const p = k ? parseKey(k) : null
-      if (!p || p.window || keys.includes(k)) continue
+      if (!p || (to != null) !== !!p.window || keys.includes(k)) continue
       keys.push(k)
     }
     for (const [k, c] of [...pool]) if (!keys.includes(k)) { pool.delete(k); c.abort() }
@@ -2400,8 +2408,9 @@ export function createPrefetch(o = {}) {
       const p = parseKey(k)
       const date = !isIntradayTf(p.tf)
       const held = S().peek(k)
-      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)
-        && !(date ? S().deepPending?.(k) : S().lakePending?.(k))) continue
+      // (a window is a past date's rows: whole once answered, never behind the clock, no edge depth to join)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)
+        && (p.window || (!_behindClock(k, held) && !(date ? S().deepPending?.(k) : S().lakePending?.(k))))) continue
       const ctl = new AbortController()
       pool.set(k, ctl)
       n++
@@ -2410,6 +2419,11 @@ export function createPrefetch(o = {}) {
         if (signal.aborted) return
         await _hydrate(k)                                  // the device's copy, into memory
         if (signal.aborted) return
+        if (p.window) {                                    // a date's window: no edge copy, the background warm lane
+          const h = S().peek(k)
+          if (!(h?.restSeen && HANDOFF_PAINTS.includes(h.status))) _defer(k, 'background', { depth: 4000, warm: true })
+          return
+        }
         if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'visible', signal }); return }   // the edge's history
         try { S().primeLake?.(k) } catch { /* a warm only */ }   // the edge's lake pieces
       }).catch(() => {})
