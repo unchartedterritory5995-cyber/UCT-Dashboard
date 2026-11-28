@@ -244,8 +244,9 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     // (2) needs no second check: viewParity answers its FIRST difference and 'view-short' is its LAST check on the
     // unanchored path (blocked views, locks, the lock's frame or the zoom are all decided before it), so a 'view-short'
     // there means every other part matched (doubleBuffer.test.js pins that order).
-    // ⛔ (when timeframe presses return, #3033) this rule is never for a timeframe press: add `!tfPress &&` here
-    if (!d.flip && d.why === 'view-short' && report && !anch && !cut && BARSTORE) {
+    // ⛔ (#3033) never for a timeframe press: a timeframe press is framed by its own rules (tfViewParity), and a hidden
+    // chart short of its frame at another timeframe is not what the switch would draw (useDoubleBuffer.tfFlip T5e)
+    if (!d.flip && d.why === 'view-short' && report && !tfPress && !anch && !cut && BARSTORE) {
       try {
         if (historyComplete(report.sym, report.tf, { showExtended: !!report.ext })) d = { flip: true, why: 'flip', short: true }
       } catch { /* the refusal stands */ }

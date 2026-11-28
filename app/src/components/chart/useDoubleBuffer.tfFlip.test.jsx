@@ -22,7 +22,8 @@ vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return () => false } }))
 const painted = vi.hoisted(() => [])
 vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) => { painted.push(a) } }))
-vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => 0, deepPending: () => true, lakePending: () => true }))
+const HC = vi.hoisted(() => ({ whole: false }))
+vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: () => 0, deepPending: () => true, lakePending: () => true, historyComplete: () => HC.whole }))
 
 const { useDoubleBuffer, barsNowFor, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
@@ -140,6 +141,17 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     expect(e.view.tf, 'framed at the pressed timeframe').toBe('W')
     expect(e.view.front).toBeTruthy()
     expect(e.view.shadow).toBeTruthy()
+  })
+
+  it('T5e (#3038 x #3033) a timeframe press whose hidden layer is view-short with its history WHOLE still refuses', async () => {
+    const h = await ready()
+    HC.whole = true
+    try {
+      panes[1].m = { ...meta(), rows: 50 }   // the hidden chart's frame reaches past its 50 rows: 'view-short'
+      press(h, { tf: 'W' })
+      expect(h.result.current.front, 'a timeframe press flipped to a short layer').toBe(0)
+      expect(db.doubleBufferStats().why['view-short']).toBe(1)
+    } finally { HC.whole = false }
   })
 
   it('T5d CONTROL: a timeframe flip logs no view detail', async () => {
