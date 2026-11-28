@@ -5032,6 +5032,50 @@
     "NDSN",
     "XPO"
    ]
+  },
+  {
+   "id": "cloud/46115048873-1/COV-tf-def",
+   "at": "2026-11-28T06:06:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BJRI",
+    "ALGN",
+    "KEX",
+    "PTON"
+   ]
+  },
+  {
+   "id": "cloud/46115048873-1/COV-tf-zo",
+   "at": "2026-11-28T06:06:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MTG",
+    "CON",
+    "IART",
+    "SIMO"
+   ]
+  },
+  {
+   "id": "cloud/46115048873-1/COV-tf-date",
+   "at": "2026-11-28T06:06:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FCEL",
+    "VITL",
+    "PRKS",
+    "PFGC"
+   ]
+  },
+  {
+   "id": "cloud/46115048873-1/COV-tf-nolist",
+   "at": "2026-11-28T06:06:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "XPEL",
+    "PBI",
+    "CX",
+    "OPCH"
+   ]
   }
  ]
 }
