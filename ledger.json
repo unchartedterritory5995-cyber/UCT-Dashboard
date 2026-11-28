@@ -8782,6 +8782,36 @@
     "WOR",
     "UAN"
    ]
+  },
+  {
+   "id": "cloud/46156798243-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:51:40+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PCRX",
+    "BGS",
+    "AVB",
+    "HDL",
+    "DMAC",
+    "GEVO",
+    "GGB",
+    "GROY",
+    "CYH",
+    "WRLD",
+    "EBF",
+    "SAH",
+    "BBOT"
+   ]
+  },
+  {
+   "id": "cloud/46156798243-1/COV-def-tabs",
+   "at": "2026-11-28T14:51:40+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CBK",
+    "SWMR",
+    "JBLU"
+   ]
   }
  ]
 }
