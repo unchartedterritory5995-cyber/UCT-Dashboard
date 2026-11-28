@@ -101,7 +101,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, isIntradayHtfCode, intradayHtfRefusal, isBelowADay, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, isIntradayHtfCode, intradayHtfRefusal, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL, LOWER_TF_VOLUME_DEFINITION } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 // ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
@@ -15746,14 +15746,6 @@ export class Resolver {
    *  (`lowerTfRefusal`): look-ahead, another symbol, a code the store does not
    *  serve, or the reading TradingView has not been captured giving. The ONE
    *  reader here; both refusal sites (the call's own and a tuple element's) ask it. */
-  /** ⭐⭐ E101 INTRADAY-HTF (door, 2026-11-28) — is `code` a higher intraday read this resolver takes as a TARGET for the
-   *  run's supply to decide per chart (admitted, and no intraday chart in hand: the door's daily-base probe)? ONE
-   *  predicate, asked by `requestTargetOf` (which builds the target) and `lowerTfDeclineOf` (which then must not call
-   *  the same read a lower-timeframe one), so the two cannot disagree about one request. */
-  deferredIntradayHtf(code) {
-    return this.intradayHtfReads === true && isIntradayHtfCode(code) && !isBelowADay(this.basePeriod)
-  }
-
   lowerTfDeclineOf(node) {
     // ⛔ ONLY what `requestTargetOf` already read for this call (`requestCodes`):
     // nothing here resolves an argument again, so naming a refusal is free.
@@ -15761,8 +15753,6 @@ export class Resolver {
     const asked = this.requestCodes.get(node)
     const { code, other } = asked
     if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
-    // ⭐⭐ E101 INTRADAY-HTF — a deferred higher intraday read of this chart's own symbol is not a lower one
-    if (other === null && this.deferredIntradayHtf(code)) return null
     const args = node.args || []
     const placed = positionaliseSecurityArgs(args)
     if (!placed) return null
@@ -15807,10 +15797,8 @@ export class Resolver {
    *  to refuse it by name instead of taking it for an ordinary request. */
   lowerTfServedCodeOf(node) {
     if (!this.requestCodes || !this.requestCodes.has(node)) return null
-    const { code, other } = this.requestCodes.get(node)
+    const { code } = this.requestCodes.get(node)
     if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
-    // ⭐⭐ E101 INTRADAY-HTF — a deferred higher intraday read is not a served lower one (`deferredIntradayHtf`)
-    if (other === null && this.deferredIntradayHtf(code)) return null
     return this.lowerTfDeclineOf(node) === null ? code : null
   }
 
@@ -16620,18 +16608,6 @@ export class Resolver {
         if (!shape.ok) return null
         return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true,
           dailyReach: shape.reach, ...(look === true ? { lookaheadOn: true } : {}) }
-      } else if (this.deferredIntradayHtf(code)) {
-        // ⭐⭐ E101 INTRADAY-HTF (door, 2026-11-28) — A CHECK WITH NO INTRADAY CHART IN HAND: the member door's run probe
-        // (`memberPaneDefinition.js::runtimeLaneDocument`, `probeRuntimeProgram(source)`) translates on the default daily
-        // base, where `"60"` would read as a timeframe BELOW the chart and take the lower-timeframe path (a path the run
-        // lane never serves). ⚰️ So a member's 1 hour EMA on a 15 minute chart was refused at the door on production,
-        // with the host's sentence, while the run on that chart would have drawn it (write-capability w02 / w19 re-asked
-        // 2026-11-28). An admitted intraday read of this chart's own symbol is therefore the request's TARGET here, and
-        // whether THIS chart is one it sits above is the run's supply's decision, per chart, by name
-        // (`requestSupply.js`: `intradayHtfRefusal` refuses it on a daily chart, serves it above an intraday one), as a
-        // daily read above an intraday chart is. ⛔ The host translator never sets `intradayHtfReads`: its pictures and
-        // lower-timeframe reads are unchanged.
-        if (other !== null || own === null) return null
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also

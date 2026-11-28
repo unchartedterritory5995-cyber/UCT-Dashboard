@@ -10730,13 +10730,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // keeps its own codes, and an unstated chart is refused: its bars' minutes are not assumed.
         const intradayRead = n.type !== 'tf' && isIntradayHtfCode(code)
         if (intradayRead) {
-          const stated = (opts && opts.tf) ?? null
-          const why = intradayHtfRefusal(code, stated)
-          // ⭐⭐ E101 INTRADAY-HTF (door, 2026-11-28) — A COMPILE-ONLY CHECK HOLDS NO BARS AND NO CHART: the member door's
-          // probes build `request.security(…, "60", x)[1]` as a column over zero bars (`pineRuntimeFrontend.js::columnOf`),
-          // the same "compile-only build" C23 names there. With no bar nothing is computed, so nothing is wrong to refuse;
-          // every evaluation WITH bars keeps the rule whole (an unstated chart is refused, never assumed).
-          if (why && !(length === 0 && stated === null)) refuse('interpret:timeframe', `${why}.`)
+          const why = intradayHtfRefusal(code, (opts && opts.tf) ?? null)
+          if (why) refuse('interpret:timeframe', `${why}.`)
         } else if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
         else assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
