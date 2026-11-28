@@ -5852,6 +5852,26 @@
     "AXON",
     "FTRE"
    ]
+  },
+  {
+   "id": "cloud/46117835164-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:52:41+00:00",
+   "source": "cloud",
+   "tickers": [
+    "GATX",
+    "SKM",
+    "IWM",
+    "ACI",
+    "AGL",
+    "PRCH",
+    "TDG",
+    "FMX",
+    "OTIS",
+    "LASR",
+    "CHEF",
+    "REXR",
+    "APLD"
+   ]
   }
  ]
 }
