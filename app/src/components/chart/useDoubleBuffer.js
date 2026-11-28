@@ -339,7 +339,12 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
         const front = p[b.front], shadow = p[1 - b.front]
         if (!front || !shadow || !b.syms[1 - b.front]) return
         let frame = null
-        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
+        // (review of #3008, F5) a hidden chart at ANOTHER timeframe takes only the pin (the front's width): a view lock or
+        // a replay view lock counts bars of the front's timeframe, which mean nothing at another one
+        const fm = front.getDateMeta?.()
+        const otherTf = String(b.tfs[1 - b.front]) !== String(b.tfs[b.front])
+        if (otherTf && fm && ((fm.frame && fm.frame.locked && fm.frame.lock) || fm.replayLock)) return
+        try { frame = mirrorFrameFor(fm, shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
         // (N4) restoreView also writes the view lock under the pane's key, which both layers share
         // (`uct.charts.viewLock.<chartId>`): the frame carries the FRONT's locks, so the write stores the lock the front
         // holds; read again here, at the write, so a lock the member changed in between is never overwritten
@@ -394,7 +399,9 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       const f = b.syms[b.front]
       const ftf = b.tfs[b.front]
       // (lane C, PR 2.1) the row ahead at the front's timeframe, or (no list) the front's symbol at its habitual next one
-      const habit = ftf != null ? habitualTfs(String(ftf), { k: 1, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null })[0] : null
+      // (review of #3008, F4) never in change-date mode: a timeframe press there never flips ('tf-replay'), so a hidden
+      // chart at the habitual timeframe would load a replay window for nothing
+      const habit = ftf != null && !cutoffRef.current ? habitualTfs(String(ftf), { k: 1, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null })[0] : null
       const target = shadowTargetFor(f, ftf, habit)
       const s = 1 - b.front
       const holds = (x) => x.syms[s] === target.sym && String(x.tfs[s]) === String(target.tf)
