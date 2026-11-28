@@ -8101,6 +8101,49 @@
     "CSHR",
     "INDV"
    ]
+  },
+  {
+   "id": "cloud/46132104054-1/COV-def-dd-typed",
+   "at": "2026-11-28T09:54:13+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NECB",
+    "BRBS",
+    "OBA",
+    "CBNK",
+    "MBUU",
+    "SMC",
+    "ANGI",
+    "TATT",
+    "LUMN"
+   ]
+  },
+  {
+   "id": "cloud/46132104054-1/COV-zo-h4h2-typed",
+   "at": "2026-11-28T09:54:13+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FMBH",
+    "SORN",
+    "OFRM",
+    "CMPX",
+    "EQR",
+    "LSAK",
+    "SDHC",
+    "SIBN",
+    "EOSE"
+   ]
+  },
+  {
+   "id": "cloud/46132104054-1/COV-tf-def",
+   "at": "2026-11-28T09:54:13+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BWFG",
+    "UP",
+    "BKH",
+    "ELA"
+   ]
   }
  ]
 }
