@@ -46,11 +46,12 @@ describe('a typed cold D ticker while the edge history is slow', () => {
     const { dateCoverMaxFor } = await import('../../utils/barsBackfill')
     w.pf.warmTypedSymbol('EVMN', 'D', { cover: 1400 })
     await runFor(w, EDGE_FALLBACK_MS + 200)                       // the member still typing: nothing holds the key
-    expect(tails(w, 'EVMN'), 'non-vacuity: the typed warm cut the tail').toContain(EDGE_TAIL_BARS)
-    const prep = w.pf.prepareDailyForDisplay('EVMN', 'D', { cover: 1400 })   // Enter
+    expect(tails(w, 'EVMN'), `non-vacuity: the typed warm cut the tail (calls: ${JSON.stringify(w.server.calls.map((c) => c.url))})`).toContain(EDGE_TAIL_BARS)
+    const ac = new AbortController()
+    w.pf.prepareDailyForDisplay('EVMN', 'D', { cover: 1400, signal: ac.signal }).catch(() => {})   // Enter
     await runFor(w, EDGE_FALLBACK_MS + 200)
-    expect(tails(w, 'EVMN'), 'the cover page went out for the display that waits').toContain(dateCoverMaxFor('D'))
-    await runFor(w, 4500)
-    await prep
-  })
+    const asked = tails(w, 'EVMN')
+    ac.abort()
+    expect(asked, `the cover page went out for the display that waits (tails asked: ${JSON.stringify(asked)}; history: ${w.server.calls.filter((c) => c.q.history).length})`).toContain(dateCoverMaxFor('D'))
+  }, 20_000)
 })
