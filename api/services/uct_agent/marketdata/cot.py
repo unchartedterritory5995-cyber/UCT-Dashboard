@@ -23,7 +23,8 @@ resolved against `cot_service.SYMBOL_MAP` / `SYMBOL_NAMES` plus the alias table 
 guessed: it is listed in `not_covered`, and the covered roster (code + name, from the service) rides along so the
 member can be told what IS covered. A mapped market with no stored rows is `no_history` — refused, never filled.
 
-Access: served only through the gateway (`POST /api/agent/data`, `require_admin_dark` → `require_paid`), and only
+Access: served only through the gateway (`POST /api/agent/data`, `require_admin_dark` → `require_paid`: admin-only
+unless UCT_AGENT_MEMBERS_ENABLED=1), and only
 while UCT_AGENT_DATA=1 and `cot.positioning` is listed in UCT_AGENT_DATA_KINDS (fail-closed). No other door reads it.
 """
 from __future__ import annotations

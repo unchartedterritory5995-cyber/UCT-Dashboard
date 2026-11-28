@@ -33,6 +33,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import {
   formatCompactTerminal, formatCurrency, formatDateTimeEt, formatNumber, formatPercent, formatTimeEt,
@@ -107,20 +108,23 @@ function FailedRead({ err, onRetry, code }) {
   )
 }
 
-function VolumeTable({ rows, label }) {
+/** Customization pass 1: the table's columns (components/terminal/PanelTable). The server's order
+ *  (furthest above usual volume first) is the default; a header click sorts the rows shown. */
+export const UNVOL_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'multiple', label: 'Vol vs usual', sort: (r) => r.multiple, title: "Volume against the stock's usual volume. 3.0× is three times the usual." },
+  { key: 'chg', label: 'Day change', sort: (r) => r.chgPct, title: 'The change on the day and the price it is measured at' },
+  { key: 'avgVol', label: 'Avg volume', sort: (r) => r.avgVol, phoneHide: true, title: 'Average shares traded a day over the last 30 completed sessions' },
+  { key: 'industry', label: 'Industry', type: 'text', sort: (r) => r.industry || null, phoneHide: true, thClass: styles.wrapCell },
+  { key: 'why', label: 'Why', title: 'Open the why-is-it-moving read for the stock, beside this list' },
+])
+
+function VolumeTable({ rows, label, table }) {
+  const shows = table.shows
   return (
     <div className={styles.tableBox} data-fold="510">
       <table className={styles.table} data-testid="terminal-unvol-table" aria-label={label}>
-        <thead>
-          <tr>
-            <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-            <th scope="col" title="Volume against the stock's usual volume. 3.0× is three times the usual.">Vol vs usual</th>
-            <th scope="col" title="The change on the day and the price it is measured at">Day change</th>
-            <th scope="col" className={styles.phoneHide} title="Average shares traded a day over the last 30 completed sessions">Avg volume</th>
-            <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}>Industry</th>
-            <th scope="col" title="Open the why-is-it-moving read for the stock, beside this list">Why</th>
-          </tr>
-        </thead>
+        <PanelTableHead table={table} testId="terminal-unvol" />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.sym} data-testid={`terminal-unvol-row-${r.sym}`}>
@@ -128,17 +132,17 @@ function VolumeTable({ rows, label }) {
                 <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                 <PanelSymbol sym={r.sym} className={styles.sym} />
               </td>
-              <td>{multipleText(r.multiple)}</td>
-              <td>
+              {shows('multiple') && <td>{multipleText(r.multiple)}</td>}
+              {shows('chg') && <td>
                 <span className={tone(r.chgPct)}>{formatPercent(r.chgPct, { decimals: 2, signed: true, absent: NA })}</span>
                 <br />
                 <span className={styles.muted}>{formatCurrency(r.price, { absent: 'no price' })}</span>
-              </td>
-              <td className={styles.phoneHide}>{formatCompactTerminal(r.avgVol, { absent: NA })}</td>
-              <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.industry || NA}</td>
-              <td>
+              </td>}
+              {shows('avgVol') && <td className={styles.phoneHide}>{formatCompactTerminal(r.avgVol, { absent: NA })}</td>}
+              {shows('industry') && <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.industry || NA}</td>}
+              {shows('why') && <td>
                 <PanelCommand cmd={`${r.sym} MOVE`} label={`Why is ${r.sym} moving`} className={styles.linkBtn}>Why</PanelCommand>
-              </td>
+              </td>}
             </tr>
           ))}
         </tbody>
@@ -210,7 +214,8 @@ export default function UnusualVolumePanel({ side: sideProp = null, min: minProp
   const onLast = stage === 'last' || stage === 'lastEmpty'
   const view = stage === 'now' ? nowView : onLast ? lastView : null
   const read = stage === 'now' || stage === 'nowEmpty' ? now : onLast ? last : null
-  const rows = view ? view.rows : []
+  const table = usePanelTable({ columns: UNVOL_COLUMNS })
+  const rows = useMemo(() => table.apply(view ? view.rows : []), [view, table.apply])
   const moving = stage === 'now' && unvolIsMoving(nowView.liveAt)
   const stamp = stage === 'now' ? readingStamp(nowView.liveAt) : null
   usePanelFreshness(stage === 'now' ? panelAsOf(SOURCE, nowView.liveAt) : onLast ? panelAsOf(SOURCE, lastView.session) : null)
@@ -234,6 +239,7 @@ export default function UnusualVolumePanel({ side: sideProp = null, min: minProp
             data-testid={`terminal-unvol-min-${key}`}>{m.chip}</button>
         ))}
       </div>
+      <PanelColumns table={table} testId="terminal-unvol-columns" />
     </div>
   )
 
@@ -337,8 +343,8 @@ export default function UnusualVolumePanel({ side: sideProp = null, min: minProp
           {count(view.unread)} {plural(view.unread, 'stock', 'stocks')} came back with no volume reading and {plural(view.unread, 'is', 'are')} not listed.
         </p>
       ) : null}
-      <VolumeTable rows={rows}
-        label={`Unusual volume, ${onLast ? 'the last full session' : 'by now'}, ${rows.length} ${plural(rows.length, 'stock', 'stocks')}, highest first`} />
+      <VolumeTable rows={rows} table={table}
+        label={`Unusual volume, ${onLast ? 'the last full session' : 'by now'}, ${rows.length} ${plural(rows.length, 'stock', 'stocks')}, ${table.sort ? 'sorted by the column header' : 'highest first'}`} />
       <CoverageLine coverage={view.coverage} density="widget" />
       {method}
     </>,

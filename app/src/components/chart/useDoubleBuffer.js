@@ -41,7 +41,7 @@ import { setFlipProbe } from './flipReady'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, shadowTargetFor, flipDecision, viewParity, tfViewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, shadowTargetFor, flipDecision, viewParity, tfViewParity, viewDetail, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
 import { habitualTfs } from './tfHabit'
 
@@ -223,10 +223,16 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       : { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null }
     const holds = b.syms[s] === want_sym && (!tfPress || String(b.tfs[s]) === String(wantTf))
     const report = okSlot && holds ? reportsRef.current[s] : null
+    let detail = null
     const view = () => {
       const p = panesNowRef.current ? panesNowRef.current() : []
-      return tfPress ? tfViewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: String(wantTf) })
-        : viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
+      const fm = p[f]?.getDateMeta?.(), sm = p[s]?.getDateMeta?.()
+      const vtf = tfPress ? String(wantTf) : fr?.tf
+      const v = tfPress ? tfViewParity(fm, sm, { tf: vtf }) : viewParity(fm, sm, { tf: vtf })
+      // (diagnostics, 2026-11-28) a view refusal logs what it compared (doubleBufferStats().log[].view): a symbol press
+      // (#3025) and a timeframe press alike, each against the timeframe it was framed at
+      if (v !== 'ok') { try { detail = viewDetail(fm, sm, { tf: vtf }) } catch { detail = null } }
+      return v
     }
     let d = flipDecision(want, report, barsNowFor, view)
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
@@ -253,7 +259,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row'
         : tfPress && String(b.tfs[s]) !== String(wantTf) ? 'shadow-other-tf' : 'shadow-unreported' }
     }
-    return { d, report }
+    return { d, report, view: detail }
   }
   const slotOkRef = useRef(slotOk)
   slotOkRef.current = slotOk
@@ -283,12 +289,13 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     const f = buf.front
     const s = 1 - f
     // a symbol AND a timeframe change in one render (a template, the agent): the normal switch of both
-    const { d, report } = symPress && tfMoved ? { d: { flip: false, why: 'sym-and-tf' }, report: null }
+    const { d, report, view: viewSeen } = symPress && tfMoved ? { d: { flip: false, why: 'sym-and-tf' }, report: null, view: null }
       : decide(sym, buf, slotOk, settings, cutoff, anchor, tfPress ? String(tf) : null)
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {
       d, sym, from: f, tf: report?.tf ?? (tfPress ? String(tf) : undefined), bars: report?.bars?.length || 1, press: tfPress ? 'tf' : 'sym',
+      view: String(d.why).startsWith('view') ? viewSeen : null,
       sinceSet: t.set[s] != null ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] != null ? Math.round(now - t.report[s]) : null,
     }
     if (d.flip) {
@@ -314,7 +321,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     const p = pendingRef.current
     if (!p) return
     pendingRef.current = null
-    noteDecision(p.d, p.press === 'tf' ? `${p.sym}@${p.tf ?? '?'}` : p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport, press: p.press })
+    noteDecision(p.d, p.press === 'tf' ? `${p.sym}@${p.tf ?? '?'}` : p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport, press: p.press, view: p.view })
     if (!p.d.flip) return
     recordPaint(p.sym, p.tf, p.bars, 'flip', member)
     try {

@@ -25,6 +25,7 @@ import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import {
   formatCompactTerminal, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -64,22 +65,30 @@ const outcomeOf = (q, parsed) => (!q.body && !q.error ? 'loading' : q.error && !
  *  step 510 of the fold ladder (see marketPanels.module.css); a paired list (four columns) fits and names none.
  *  `paired`: two lists sit side by side, so each keeps only the columns that fit half a panel
  *  (the company name and the share count are in the one-list view, `H52 HIGHS` / `H52 LOWS`). */
-function SideTable({ side, rows, total, offset, live, paired = false }) {
+/** Customization pass 1: the lists' columns (components/terminal/PanelTable), one sort for both
+ *  lists. Each list's own order (biggest move first) is the default and decides which stocks are
+ *  listed; a header click sorts the stocks listed. Two lists side by side have no company or share
+ *  count column, so those are not offered then (`available`). */
+export const H52_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'name', label: 'Company', type: 'text', sort: (r) => r.name || null, phoneHide: true, thClass: styles.wrapCell },
+  { key: 'price', label: 'Last', sort: (r) => r.price },
+  { key: 'pct', label: 'Change', sort: (r) => r.pct, title: 'Against the prior close' },
+  { key: 'volume', label: 'Volume', sort: (r) => r.volume, phoneHide: true, title: 'Shares traded in the session' },
+  { key: 'rvol', label: 'Volume vs usual', sort: (r) => r.rvol, phoneHide: true, title: 'Volume against the 20-day average' },
+])
+
+function SideTable({ side, rows, total, offset, live, paired = false, table }) {
   const words = HIGHS52_SIDES[side]
+  const shows = table.shows
+  const head = { ...table, visible: table.visible.map((c) => (
+    c.key === 'price' ? { ...c, label: live ? 'Last' : 'Close', title: live ? 'The latest price' : 'The close of that session' }
+      : c.key === 'rvol' && paired ? { ...c, label: 'Vs usual volume' } : c)) }
   return (
     <div className={styles.tableBox} data-fold={paired ? undefined : '510'}>
       <table className={styles.table} data-testid={`terminal-h52-${side}`}>
         <caption className={styles.caption}>{words.caption} ({count(total)})</caption>
-        <thead>
-          <tr>
-            <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-            {paired ? null : <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}>Company</th>}
-            <th scope="col" title={live ? 'The latest price' : 'The close of that session'}>{live ? 'Last' : 'Close'}</th>
-            <th scope="col" title="Against the prior close">Change</th>
-            {paired ? null : <th scope="col" className={styles.phoneHide} title="Shares traded in the session">Volume</th>}
-            <th scope="col" className={styles.phoneHide} title="Volume against the 20-day average">{paired ? 'Vs usual volume' : 'Volume vs usual'}</th>
-          </tr>
-        </thead>
+        <PanelTableHead table={head} testId={`terminal-h52-${side}`} />
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-h52-${side}-row-${r.sym}`}>
@@ -87,11 +96,11 @@ function SideTable({ side, rows, total, offset, live, paired = false }) {
                 <span className={styles.rowNum} aria-hidden="true">{offset + i + 1}</span>
                 <PanelSymbol sym={r.sym} className={styles.sym} />
               </td>
-              {paired ? null : <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.name || NA}</td>}
-              <td>{formatCurrency(r.price, { absent: NA })}</td>
-              <td className={tone(r.pct)}>{formatPercent(r.pct, { decimals: 2, signed: true, absent: NA })}</td>
-              {paired ? null : <td className={styles.phoneHide}>{formatCompactTerminal(r.volume, { absent: NA })}</td>}
-              <td className={styles.phoneHide}>{r.rvol == null ? NA : `${formatNumber(r.rvol, { decimals: 1 })}×`}</td>
+              {shows('name') && <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.name || NA}</td>}
+              {shows('price') && <td>{formatCurrency(r.price, { absent: NA })}</td>}
+              {shows('pct') && <td className={tone(r.pct)}>{formatPercent(r.pct, { decimals: 2, signed: true, absent: NA })}</td>}
+              {shows('volume') && <td className={styles.phoneHide}>{formatCompactTerminal(r.volume, { absent: NA })}</td>}
+              {shows('rvol') && <td className={styles.phoneHide}>{r.rvol == null ? NA : `${formatNumber(r.rvol, { decimals: 1 })}×`}</td>}
             </tr>
           ))}
         </tbody>
@@ -148,10 +157,15 @@ function Highs52Board({ side, view, fallback, staleNote }) {
   const lows = useMemo(() => drillRead(lowsQ.body, { side: 'lows', live }), [lowsQ.body, live])
   const [all, setAll] = useState(false)
 
-  const lists = [
+  const listed = [
     { side: 'highs', q: highsQ, read: highs, state: outcomeOf(highsQ, highs), shown: side !== 'lows' },
     { side: 'lows', q: lowsQ, read: lows, state: outcomeOf(lowsQ, lows), shown: side !== 'highs' },
   ].filter((l) => l.shown).map((l) => ({ ...l, rows: l.state === 'ok' ? (all ? l.read.rows : l.read.rows.slice(0, MAX_ROWS)) : [] }))
+  const paired = listed.filter((x) => x.state === 'ok' && x.rows.length).length > 1
+  const columns = useMemo(() => H52_COLUMNS.map((c) => (c.key === 'name' || c.key === 'volume' ? { ...c, available: !paired } : c)), [paired])
+  const table = usePanelTable({ columns })
+  // The sort orders the stocks each list shows; which stocks are shown stays the list's own.
+  const lists = listed.map((l) => ({ ...l, rows: table.apply(l.rows) }))
   const okLists = lists.filter((l) => l.state === 'ok')
   const anyRows = okLists.some((l) => l.rows.length > 0)
 
@@ -200,6 +214,7 @@ function Highs52Board({ side, view, fallback, staleNote }) {
         <span className={styles.lede} data-testid="terminal-h52-totals">
           {countsSentence({ mode: view.mode, date: view.date, highs: nH, lows: nL, count })}
         </span>
+        {anyRows ? <PanelColumns table={table} testId="terminal-h52-columns" /> : null}
       </div>
       {live ? null : (
         <p className={fallback ? styles.note : styles.muted} role={fallback ? 'status' : undefined} data-testid="terminal-h52-day">
@@ -224,10 +239,10 @@ function Highs52Board({ side, view, fallback, staleNote }) {
           <div className={`${styles.split} ${styles.splitFair}`}>
             {lists.map((l) => {
               if (l.state !== 'ok' || !l.rows.length) return null
-              const table = <SideTable key={l.side} side={l.side} rows={l.rows} total={l.read.rows.length} offset={offset} live={live}
-                paired={lists.filter((x) => x.state === 'ok' && x.rows.length).length > 1} />
+              const el = <SideTable key={l.side} side={l.side} rows={l.rows} total={l.read.rows.length} offset={offset} live={live}
+                paired={paired} table={table} />
               offset += l.rows.length
-              return table
+              return el
             })}
           </div>
           {lists.map((l) => (l.state === 'ok'
@@ -258,7 +273,7 @@ function Highs52Board({ side, view, fallback, staleNote }) {
         {live && view.basis === 'intraday'
           ? 'A stock is listed once it trades above its highest price of the prior 52 weeks, or below its lowest. '
           : ''}
-        Highs are ordered biggest gain first and lows biggest fall first. Change is against the prior close; Volume vs usual
+        Highs are ordered biggest gain first and lows biggest fall first{table.sort ? ' (sorted here by the column header you picked)' : ''}. Change is against the prior close; Volume vs usual
         is the session&apos;s volume against the 20-day average. A sign (+/-) marks every change, so color is never the only
         signal. Click a symbol to load it into the linked panels; type a row number to do the same. For highs and lows of
         the day, run <PanelCommand cmd="HILO" label="New highs and lows of the day">HILO</PanelCommand>.

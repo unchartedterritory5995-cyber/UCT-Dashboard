@@ -276,6 +276,24 @@ export function mirrorFrameFor(front, shadow, ctx = {}) {
   if (pin) return modeOf(pin)
   return locksAlike ? null : modeOf(shadow.frame)
 }
+/**
+ * (2026-11-28, sweep 2 COV-zo-h4h2-arrows: 24 of 24 refused 'view-frame', 24 flips the sweep before) WHAT A VIEW REFUSAL
+ * COMPARED: both charts' frames (counted from the newest bar), their locks, rows, plot widths and pins, and the frame the
+ * front's lock gives the next symbol. Diagnostics only: logged with the decision (doubleBufferStats().log[].view).
+ */
+export function viewDetail(front, shadow, ctx = {}) {
+  const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v ?? null)
+  const of = (m) => (!m ? null : {
+    fromRight: r1(m.frame?.fromRight), toRight: r1(m.frame?.toRight), locked: !!m.frame?.locked,
+    lock: m.frame?.lock ? { anchorFrac: r1(m.frame.lock.anchorFrac), width: r1(m.frame.lock.width), tf: m.frame.lock.tf ?? null } : null,
+    replayLock: m.replayLock || null, rows: m.rows ?? null, plotWidthPx: r1(m.plotWidthPx), pinReserve: m.pinReserve ?? null,
+    anchor: m.anchor || null, priceAuto: m.priceAuto ?? null,
+  })
+  let lf = null
+  try { lf = front && front.frame ? lockFrameFor(front, ctx.tf) : null } catch { lf = null }
+  return { front: of(front), shadow: of(shadow), lockFrame: lf ? { fromRight: r1(lf.fromRight), toRight: r1(lf.toRight), refuse: lf.refuse ?? null } : null, tf: ctx.tf ?? null }
+}
+
 /** (N4) Is the mirror's frame still the front's mode at the write? restoreView writes the hidden chart's view lock under
  *  the pane's key, which both layers share (`uct.charts.viewLock.<chartId>`): only the lock the front holds may go there. */
 export function mirrorStillFits(frame, front) {
@@ -294,7 +312,7 @@ export function noteDecision(d, sym, extra = {}) {
   _stats.why[d.why] = (_stats.why[d.why] || 0) + 1
   _stats.last.push(`${sym}:${d.why}`)
   if (_stats.last.length > 32) _stats.last.splice(0, _stats.last.length - 32)
-  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null, press: extra.press ?? 'sym' })
+  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null, press: extra.press ?? 'sym', ...(extra.view ? { view: extra.view } : {}) })
   if (_stats.log.length > 64) _stats.log.splice(0, _stats.log.length - 64)
   try { if (typeof window !== 'undefined') window.__uctDoubleBuffer = _stats } catch { /* no window */ }
 }

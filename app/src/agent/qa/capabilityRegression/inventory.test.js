@@ -33,8 +33,21 @@ const write = (f, s) => fs.writeFileSync(path.join(HERE, f), s.replace(/\r\n/g, 
 const readJson = (f) => JSON.parse(fs.readFileSync(path.join(HERE, f), 'utf8'))
 
 const catalog = await registerCatalog(ALL_KINDS)
-// production's server-gated set (agentProdKinds.test.js GATED_EXPECTED) — for the report only
-const PROD_GATED = new Set(['chart.describeSetup', 'stock.dailyBars', 'stock.quote', 'stock.themes'])
+// production's server-gated set (agentProdKinds.test.js GATED_EXPECTED, armed 2026-11-24) — for the report only
+const PROD_GATED = new Set(['chart.describeSetup', 'cot.positioning', 'history.afterEvent', 'rs.compare',
+  'stock.analystActions', 'stock.auctionCalendar', 'stock.companyDeals', 'stock.companyRecord',
+  'stock.confluenceBoard', 'stock.consensusRating', 'stock.dailyBars', 'stock.darkPoolLevels', 'stock.daysLikeToday',
+  'stock.dilutionWatch', 'stock.dividendsCalendar', 'stock.earningsReactions', 'stock.earningsSeason',
+  'stock.economyBoard', 'stock.estimatesBreadth', 'stock.estimatesHistory', 'stock.eventsTimeline',
+  'stock.expectedMove', 'stock.factorExposure', 'stock.failsToDeliver', 'stock.flowRecord', 'stock.gammaLevels',
+  'stock.groupDrill', 'stock.groupOwnership', 'stock.groupRank', 'stock.insiderBuying', 'stock.ipoCalendar',
+  'stock.ipoUnlock', 'stock.ivHistory', 'stock.ivRankLeaders', 'stock.liquidityBoard', 'stock.marketHistory',
+  'stock.marketRegime', 'stock.oiChange', 'stock.oilReport', 'stock.ownershipReport', 'stock.positionTypes',
+  'stock.quote', 'stock.realCurve', 'stock.revenueSplit', 'stock.riskProfile', 'stock.seasonality',
+  'stock.seasonalityBoard', 'stock.sectorEarnings', 'stock.sessionHighsLows', 'stock.setupHistory', 'stock.setups',
+  'stock.shortInterest', 'stock.shortList', 'stock.splitsDividends', 'stock.themeRotation', 'stock.themes',
+  'stock.tideHistory', 'stock.topFlowPicks', 'stock.treasuryYields', 'stock.uct20List', 'stock.uctRating',
+  'stock.volumeFootprint', 'stock.yearlyHighsLows'])
 catalog.prod = catalog.all.filter(n => catalog.ungated.includes(n) || PROD_GATED.has(n))
 const contract = contractOf(catalog.all)
 const ENTRIES = [...corpus.intents, ...corpus.refusals, ...golden.workflows]

@@ -770,6 +770,19 @@ def _auto_structures_flag(is_admin: bool, is_paid: bool = False) -> dict:
         return {}
 
 
+def _uct_agent_members_flag(is_paid: bool) -> dict:
+    """`uct_agent_members_enabled`: ALWAYS present (an explicit False when off, so the feature-status strip can vouch
+    for OFF). True only for a PAID viewer (an admin is paid) while UCT_AGENT_MEMBERS_ENABLED=1, read PER CALL through the
+    SAME predicate the Agent's routes ask (api/routers/uct_agent.members_enabled), so the browser's door and the
+    server's cannot disagree. The browser reads it first (app/src/agent/agentFlag.js): a member's browser makes no
+    Agent request while it is False. Never raises: a failure reads as False (the door stays closed)."""
+    try:
+        from api.routers import uct_agent
+        return {"uct_agent_members_enabled": bool(is_paid and uct_agent.members_enabled())}
+    except Exception:  # noqa: BLE001 -- a feature flag must never become a login outage
+        return {"uct_agent_members_enabled": False}
+
+
 def _chart_iq_flag(is_admin: bool, is_paid: bool = False) -> dict:
     """`chart_iq_enabled: True` while this viewer may draw Chart IQ on a chart: an admin while CHART_IQ_ENABLED is on, a
     PAID member while CHART_IQ_MEMBERS_ENABLED is on too. Read PER CALL through the SAME predicates the route asks
@@ -998,6 +1011,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_auto_structures_flag(is_admin, bool(is_paid_plan or trial_active)),
         # ── Chart IQ (CHART_IQ_ENABLED / CHART_IQ_MEMBERS_ENABLED, dark): the chart toggle's one signal ──
         **_chart_iq_flag(is_admin, bool(is_paid_plan or trial_active)),
+        # ── UCT Agent member door (UCT_AGENT_MEMBERS_ENABLED): the browser's first answer, explicit False when off ──
+        **_uct_agent_members_flag(bool(is_paid_plan or trial_active)),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are

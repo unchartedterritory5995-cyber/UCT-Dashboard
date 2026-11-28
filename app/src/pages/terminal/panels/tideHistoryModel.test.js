@@ -5,7 +5,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   TIDE_HISTORY_CODE, TIDE_MISSING_NAMED, TIDE_ROWS_SHOWN, TIDE_SCOPES, TIDE_SCOPE_ARG_WORDS, TIDE_SESSIONS_ASKED, TIDE_SUM_WINDOWS,
-  anyUnreadable, barWidth, barsFor, countText, cutLine, dayWords, leftOutText, missingNote, normTideScope, parseTideScope, premiumText, printsLine,
+  anyUnreadable, barWidth, barsFor, countText, cutLine, dayWords, forGoodNote, leftOutText, missingNote, normTideScope, parseTideScope, premiumText, printsLine,
+  recoveredNote, recoveredText,
   signOf, storedLine, sumOver, summaryFor, throughWords, tideHistoryCommandArgs, tideHistoryRead, tideHistoryUrl,
 } from './tideHistoryModel'
 
@@ -113,7 +114,7 @@ describe('reading the answer', () => {
     const view = tideHistoryRead(body([sess('2026-11-17', 2_500_000, 900_000), sess('2026-11-18', -300_000, 1_100_000, { data_through: '16:14', prints_counted: 2040 })]))
     expect(view.state).toBe('ok')
     expect(view.rows.map((r) => r.session)).toEqual(['2026-11-18', '2026-11-17'])
-    expect(view.rows[0]).toEqual({ session: '2026-11-18', netCall: -300_000, netPut: 1_100_000, net: -1_400_000, prints: 2040, unsigned: 90, unreadable: null, through: '16:14' })
+    expect(view.rows[0]).toEqual({ session: '2026-11-18', netCall: -300_000, netPut: 1_100_000, net: -1_400_000, prints: 2040, unsigned: 90, unreadable: null, through: '16:14', recovered: false })
     expect(view).toMatchObject({ stored: 2, began: '2026-11-17', latest: '2026-11-18', checkedThrough: '2026-11-18', backfill: false })
     expect(view.filters).toContain('50+ contracts and $10K+ premium')
     expect(view.storedNote).toContain('stored once after its close')
@@ -276,5 +277,40 @@ describe('missing sessions and the cut', () => {
     expect(cutLine(view, 45)).toBeNull()
     expect(cutLine({ rows: Array.from({ length: 250 }), stored: 1300 }, 250)).toBe('Showing the newest 250 of 1,300 stored sessions; this panel reads at most 250.')
     expect(cutLine({ rows: Array.from({ length: 3 }), stored: 3 }, 3)).toBeNull()
+  })
+})
+
+describe('sessions recovered later and sessions missing for good', () => {
+  const recov = (over) => tideHistoryRead(body([sess('2026-11-18', 5, 2), sess('2026-11-17', 1, 1, { source: 'catchup' }), sess('2026-11-16', 3, 1)], over))
+
+  it('a row the catch-up stored says "recovered later"; a row stored on the night says nothing', () => {
+    const view = recov({ recovered_sessions: ['2026-11-17'] })
+    expect(view.rows.map((r) => r.recovered)).toEqual([false, true, false])
+    expect(view.rows.map(recoveredText)).toEqual([null, 'recovered later', null])
+    expect(recoveredText({ recovered: undefined })).toBeNull()
+  })
+
+  it('reads the two lists, keeps only real days, and an older server without them reads as none', () => {
+    const view = recov({ recovered_sessions: ['2026-11-17', 'x', null], missing_for_good: [{ session: '2026-11-12', reason: 'r' }, { session: 'soon' }, null, 'x'] })
+    expect(view.recovered).toEqual(['2026-11-17'])
+    expect(view.forGood).toEqual(['2026-11-12'])
+    const old = recov()
+    expect([old.recovered, old.forGood]).toEqual([[], []])
+    expect([recoveredNote(old), forGoodNote(old)]).toEqual([null, null])
+    expect(tideHistoryRead(null)).toMatchObject({ recovered: [], forGood: [] })
+  })
+
+  it('says in plain words which days came back later and which never will', () => {
+    expect(recoveredNote({ recovered: ['2026-11-17'] })).toBe(
+      'Tue Nov 17 was missed after its close and recovered later from the tape, which still held all of that day.')
+    expect(recoveredNote({ recovered: ['2026-11-13', '2026-11-17'] })).toBe(
+      'Fri Nov 13 and Tue Nov 17 were missed after their close and recovered later from the tape, which still held all of those days.')
+    expect(forGoodNote({ forGood: ['2026-11-12'] })).toBe(
+      'Thu Nov 12 is missing for good: the tape was read again later and did not hold all of that day.')
+    const eight = DAYS.slice(1, 9)
+    expect(forGoodNote({ forGood: eight })).toBe(
+      '8 sessions (the newest: Thu Nov 5, Fri Nov 6, Mon Nov 9, Tue Nov 10, Wed Nov 11, Thu Nov 12) are missing for good: the tape was read again later and did not hold all of those days.')
+    expect(recoveredNote({ recovered: [] })).toBeNull()
+    expect(forGoodNote({ forGood: [] })).toBeNull()
   })
 })

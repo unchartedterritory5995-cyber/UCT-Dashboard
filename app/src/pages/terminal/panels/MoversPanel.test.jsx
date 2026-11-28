@@ -14,6 +14,7 @@ vi.mock('../../../hooks/useLivePrices', () => ({
 
 import MoversPanel, { NO_CATALYST } from './MoversPanel'
 import { CATALYSTS_URL, MOVERS_URL, VOLUME_URL, sessionOf } from './moversModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 
 const MOVERS = { ripping: [{ sym: 'AAA', pct: '+12.50%' }, { sym: 'BBB', pct: '+4.00%' }], drilling: [{ sym: 'CCC', pct: '-8.25%' }] }
 const CATALYSTS = { rows: [{ ticker: 'AAA', tag: 'Earnings', thesis_text: 'Beat and **raised** guidance.', gap_pct: 11, vol_x: 6.5, price: 50 }] }
@@ -276,5 +277,45 @@ describe('MOST', () => {
     renderPanel({ lens: 'volume' })
     await screen.findByTestId('terminal-movers-table')
     expect(screen.queryByTestId('coverage-line')).toBeNull()
+  })
+})
+
+describe('MOST keeps its sort and floors with the board (customization pass 1)', () => {
+  const renderIn = (saved, props = {}) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <ViewHost saved={saved}><MoversPanel {...props} /></ViewHost>
+    </SWRConfig>,
+  )
+  it('the sort and both floors survive a remount from the saved record', async () => {
+    ok()
+    const saved = savedView()
+    const first = renderIn(saved, { lens: 'up' })
+    await screen.findByTestId('terminal-movers-table')
+    fireEvent.click(screen.getByTestId('terminal-movers-sort-pct'))
+    fireEvent.change(screen.getByTestId('terminal-movers-min-price'), { target: { value: '5' } })
+    expect(symsInTable()).toEqual(['BBB', 'AAA'])
+    expect(saved.view).toEqual({ sort: { key: 'pct', dir: 'asc' }, filters: { minPrice: 5 } })
+    first.unmount()
+    renderIn(saved, { lens: 'up' })
+    await screen.findByTestId('terminal-movers-table')
+    expect(symsInTable()).toEqual(['BBB', 'AAA'])
+    expect(screen.getByTestId('terminal-movers-min-price').value).toBe('5')
+  })
+  it('a lens chip writes the lens into the command and puts the sort back to that lens order', async () => {
+    ok()
+    const saved = savedView({ sort: { key: 'pct', dir: 'asc' } })
+    const onRun = vi.fn()
+    renderIn(saved, { lens: 'up', onRun })
+    await screen.findByTestId('terminal-movers-table')
+    fireEvent.click(screen.getByTestId('terminal-movers-lens-down'))
+    expect(onRun).toHaveBeenCalledWith('MOST DOWN', { here: true })
+    expect(saved.view).toBeNull()
+  })
+  it('a stored floor that is not a choice reads as Any', async () => {
+    ok()
+    renderIn(savedView({ filters: { minPrice: 7 } }))
+    await screen.findByTestId('terminal-movers-table')
+    expect(screen.getByTestId('terminal-movers-min-price').value).toBe('0')
+    expect(symsInTable()).toContain('CCC')   // $3.20: a $7 floor that is not a choice filters nothing
   })
 })

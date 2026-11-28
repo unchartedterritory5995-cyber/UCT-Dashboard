@@ -1,7 +1,7 @@
 """UCT Agent COACH (Wave 3, owner-authorized 2026-11-03) -- the intelligent trading coach, DARK by default.
 
 Everything under this package is behind ONE server flag, `UCT_AGENT_COACH` (default off; reported by
-/api/agent/config as `coach`), on top of the Agent's own admin-dark gate. Off, nothing here runs: the browser
+/api/agent/config as `coach`), on top of the Agent's own door (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1). Off, nothing here runs: the browser
 registers no coach capability, the model gets no coach block, the concepts route is 404 and the guard is never
 consulted (an ordinary turn is served exactly as before).
 

@@ -30,10 +30,11 @@ match); several matches are `ambiguous` with the candidates, none is `not_covere
 
 Everything here is a historical observation of stored data. Nothing forecasts.
 
-Access: served only through the gateway (`POST /api/agent/data`, `require_admin_dark` → `require_paid`), only while
+Access: served only through the gateway (`POST /api/agent/data`, `require_admin_dark` → `require_paid`: admin-only
+unless UCT_AGENT_MEMBERS_ENABLED=1), only while
 UCT_AGENT_DATA=1, `rs.leadership` is listed in UCT_AGENT_DATA_KINDS (fail-closed) and, being model-isolated,
 UCT_AGENT_ISOLATED=1 — and then for purpose "answer" only. The RS ranking / sector strength / groups routes it mirrors
-are all `require_paid`; this door is stricter (paid AND admin while the Agent is dark).
+are all `require_paid`; this door is the same or stricter (paid, AND admin unless UCT_AGENT_MEMBERS_ENABLED=1).
 """
 from __future__ import annotations
 

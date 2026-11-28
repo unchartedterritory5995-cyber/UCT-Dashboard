@@ -11,9 +11,8 @@
 // ⛔ A failed read is an error with Retry, never "no symbols"; a list no evening has built says when it will be;
 // every symbol left out is counted in words, never ranked on fewer sessions.
 import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {
@@ -24,13 +23,26 @@ import styles from './marketPanels.module.css'
 
 const SIDES = ['high', 'low']
 
+/** Customization pass 1: the table's columns (components/terminal/PanelTable). Which end of the list
+ *  (RICH highest, CHEAP lowest) is the command and decides which symbols are listed; a header click
+ *  sorts the symbols listed. */
+export const IVR_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Stock', type: 'text', sort: (r) => r.sym, required: true, thClass: undefined },
+  { key: 'rank', label: 'IV rank', sort: (r) => r.ivRank, title: 'Where the latest ATM IV sits between its own low and high, 0 to 100' },
+  { key: 'iv', label: 'ATM IV', sort: (r) => r.atmIv, thClass: styles.snugWrap, title: 'The latest ATM IV, with the low and high it is ranked between' },
+  { key: 'pctl', label: 'Percentile', sort: (r) => r.ivPercentile, title: 'The share of its earlier sessions whose ATM IV was below the latest' },
+  { key: 'sessions', label: 'Sessions', sort: (r) => r.sessions, phoneHide: true, title: 'How many logged sessions the rank reads' },
+  { key: 'oi', label: 'Open int.', sort: (r) => r.openInterest, phoneHide: true, title: "Open interest across the symbol's listed options" },
+])
+
 export default function IvRankPanel({ side: sideProp = 'high', onView = null }) {
   const inPanel = useInTerminalPanel()
   const writeBack = usePanelWriteBack()
   const [side, setSide] = useState(() => (sideProp === 'low' ? 'low' : 'high'))
   const read = useMarketRead(IV_RANK_URL, { refreshInterval: (latest) => ivRankPollMs(latest?.body) })
   const view = useMemo(() => ivRankRead(read.body), [read.body])
-  const rows = useMemo(() => (view.state === 'ok' ? (side === 'low' ? view.low : view.high) : []), [view, side])
+  const table = usePanelTable({ columns: IVR_COLUMNS })
+  const rows = useMemo(() => table.apply(view.state === 'ok' ? (side === 'low' ? view.low : view.high) : []), [view, side, table.apply])
   usePanelFreshness(view.state === 'ok' && view.session ? panelAsOf(IV_RANK_SOURCE, view.session) : null)
   usePanelSymbolRows(rows.map((r) => r.sym), side === 'low' ? 'lowest IV rank' : 'highest IV rank')
 
@@ -118,20 +130,14 @@ export default function IvRankPanel({ side: sideProp = 'high', onView = null }) 
   return wrap('ok', (
     <>
       {read.error && <p className={styles.note} role="status">{failureText(read.error, IV_RANK_WHAT)} Showing the last read.</p>}
-      <p className={styles.lede} data-testid="terminal-ivrank-counts">{rankedText(view)}</p>
+      <div className={styles.head}>
+        <p className={styles.lede} data-testid="terminal-ivrank-counts">{rankedText(view)}</p>
+        <PanelColumns table={table} testId="terminal-ivrank-columns" />
+      </div>
       {leftOutText(view) ? <p className={styles.muted} data-testid="terminal-ivrank-left-out">{leftOutText(view)}</p> : null}
       <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-ivrank-table" aria-label={`${label}, ${rows.length} symbols`}>
-          <thead>
-            <tr>
-              <th scope="col">Stock</th>
-              <th scope="col" title="Where the latest ATM IV sits between its own low and high, 0 to 100">IV rank</th>
-              <th scope="col" className={styles.snugWrap} title="The latest ATM IV, with the low and high it is ranked between">ATM IV</th>
-              <th scope="col" title="The share of its earlier sessions whose ATM IV was below the latest">Percentile</th>
-              <th scope="col" className={styles.phoneHide} title="How many logged sessions the rank reads">Sessions</th>
-              <th scope="col" className={styles.phoneHide} title="Open interest across the symbol's listed options">Open int.</th>
-            </tr>
-          </thead>
+        <table className={styles.table} data-testid="terminal-ivrank-table" aria-label={`${label}, ${rows.length} symbols${table.sort ? ', sorted by the column header' : ''}`}>
+          <PanelTableHead table={table} testId="terminal-ivrank" />
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.key} data-testid={`terminal-ivrank-row-${r.sym}`}>
@@ -139,17 +145,17 @@ export default function IvRankPanel({ side: sideProp = 'high', onView = null }) 
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td>
+                {table.shows('rank') && <td>
                   <span data-testid={`terminal-ivrank-rank-${r.sym}`}>{rankText(r.ivRank)}</span>
                   {r.word ? <><br /><span className={styles.muted}>{r.word}</span></> : null}
-                </td>
-                <td>
+                </td>}
+                {table.shows('iv') && <td>
                   <span>{ivText(r.atmIv)}</span>
                   {rangeText(r) ? <><br /><span className={`${styles.muted} ${styles.snugWrap} ${styles.phoneWrap}`}>{rangeText(r)}</span></> : null}
-                </td>
-                <td>{percentileText(r.ivPercentile)}</td>
-                <td className={styles.phoneHide}>{sessionsText(r.sessions)}</td>
-                <td className={styles.phoneHide}>{oiText(r.openInterest)}</td>
+                </td>}
+                {table.shows('pctl') && <td>{percentileText(r.ivPercentile)}</td>}
+                {table.shows('sessions') && <td className={styles.phoneHide}>{sessionsText(r.sessions)}</td>}
+                {table.shows('oi') && <td className={styles.phoneHide}>{oiText(r.openInterest)}</td>}
               </tr>
             ))}
           </tbody>

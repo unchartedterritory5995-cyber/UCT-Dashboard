@@ -11,6 +11,7 @@ import { render, screen, fireEvent, cleanup, within } from '@testing-library/rea
 import { SWRConfig } from 'swr'
 
 import EtfPanel, { ETF_SYMBOLS_URL, HOLDINGS_SHOWN, familyRows, familyUrl, holdingsUrl } from './EtfPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -129,5 +130,49 @@ describe('ETF in the registry', () => {
     expect(variantFor('ETF', true).variant.panel).toBe('Etf')
     expect(parseCommand('SMH ETF')).toMatchObject({ ok: true, type: 'function', code: 'ETF', sym: 'SMH' })
     expect((await PANEL_IMPORTERS.Etf()).default).toBe(EtfPanel)
+  })
+})
+
+describe('ETF sorts and picks columns, kept with the board (customization pass 1)', () => {
+  const renderIn = (sym, saved) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <ViewHost saved={saved}><EtfPanel sym={sym} /></ViewHost>
+    </SWRConfig>,
+  )
+  const holdingSyms = () => within(screen.getByTestId('terminal-etf-holdings')).getAllByRole('row').slice(1)
+    .map((r) => r.getAttribute('data-testid').replace('terminal-etf-holding-', ''))
+  it('the holdings shown stay the top 25 by weight and sort among themselves; kept on remount', async () => {
+    serve({ [holdingsUrl('SMH')]: SMH_HOLDINGS, [familyUrl('SMH')]: EMPTY_FAMILY, [ETF_SYMBOLS_URL]: { symbols: ['SMH'] } })
+    const saved = savedView()
+    renderIn('SMH', saved)
+    await screen.findByTestId('terminal-etf-holdings')
+    fireEvent.click(screen.getByTestId('terminal-etf-holdings-sort-h.weight'))
+    fireEvent.click(screen.getByTestId('terminal-etf-holdings-sort-h.weight'))
+    expect(holdingSyms()).toHaveLength(HOLDINGS_SHOWN)
+    expect(holdingSyms()[0]).toBe(`S${HOLDINGS_SHOWN - 1}`)
+    expect(holdingSyms()).not.toContain(`S${HOLDINGS_SHOWN}`)
+    expect(screen.getByTestId('terminal-etf-more').textContent).toContain('sorted here by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-etf-holdings-columns'))
+    fireEvent.click(screen.getByTestId('terminal-etf-holdings-columns-col-h.sector'))
+    cleanup()
+    serve({ [holdingsUrl('SMH')]: SMH_HOLDINGS, [familyUrl('SMH')]: EMPTY_FAMILY, [ETF_SYMBOLS_URL]: { symbols: ['SMH'] } })
+    renderIn('SMH', saved)
+    await screen.findByTestId('terminal-etf-holdings')
+    expect(holdingSyms()[0]).toBe(`S${HOLDINGS_SHOWN - 1}`)
+    expect(within(screen.getByTestId('terminal-etf-holdings')).queryByRole('columnheader', { name: 'Sector' })).toBeNull()
+  })
+  it('the family table sorts on its own; hiding a family column leaves the holdings alone', async () => {
+    serve({ [holdingsUrl('NVDA')]: { symbol: 'NVDA', holdings: [] }, [familyUrl('NVDA')]: NVDA_FAMILY, [ETF_SYMBOLS_URL]: { symbols: ['SMH'] } })
+    const saved = savedView({ cols: { hidden: ['h.sector'] } })
+    renderIn('NVDA', saved)
+    await screen.findByTestId('terminal-etf-family')
+    fireEvent.click(screen.getByTestId('terminal-etf-family-sort-f.factor'))
+    fireEvent.click(screen.getByTestId('terminal-etf-family-sort-f.factor'))
+    const fam = within(screen.getByTestId('terminal-etf-family')).getAllByRole('row').slice(1).map((r) => r.getAttribute('data-testid'))
+    expect(fam).toEqual(['terminal-etf-family-row-NVDS', 'terminal-etf-family-row-NVDL'])
+    fireEvent.click(screen.getByTestId('terminal-etf-family-columns'))
+    fireEvent.click(screen.getByTestId('terminal-etf-family-columns-col-f.name'))
+    expect(saved.view.cols.hidden.sort()).toEqual(['f.name', 'h.sector'])
+    expect(saved.view.sort).toEqual({ key: 'f.factor', dir: 'asc' })
   })
 })

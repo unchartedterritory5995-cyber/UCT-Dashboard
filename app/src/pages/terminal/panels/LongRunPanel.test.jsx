@@ -17,6 +17,7 @@ import LongRunPanel, {
   DEFAULT_LENS, LONG_RUN_LENSES, LONG_RUN_LENS_KEYS, LONG_RUN_ROUTES, MAX_ROWS, defaultLongRunSort, listedDate, longRunCell,
   longRunColumns, longRunCommand, longRunMethod, longRunRows, longRunUrl, longRunView, parseLongRunLens,
 } from './LongRunPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import * as model from './longRunModel'
 
 const GAINERS = {
@@ -60,12 +61,13 @@ function serve(routes) {
 }
 const httpError = (status) => Object.assign(new Error(`http ${status}`), { status })
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), freshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), freshness = vi.fn(), code = null, saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><LongRunPanel {...props} /></ViewHost> : <LongRunPanel {...props} />
   const tree = (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={freshness}>
         <PanelListContext.Provider value={{ open: vi.fn(), run, rerun, publish: vi.fn(), publishRows }}>
-          <LongRunPanel {...props} />
+          {body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -353,5 +355,27 @@ describe('LEAD panel', () => {
     expect(symsInTable()[0]).toBe('S000')
     expect(screen.getByTestId('terminal-lead-method').textContent).toContain('Showing the first 100 of 104 in this order.')
     expect(publishRows.mock.calls.at(-1)[0]).toHaveLength(100)
+  })
+})
+
+describe('LEAD remembers a sort the member picked, per lens (customization pass 1)', () => {
+  it('each lens opens on its own default; a picked sort is kept for that lens and survives a remount', async () => {
+    serve({ [longRunUrl('30D')]: GAINERS, [longRunUrl('VOL1Y')]: VOLUME })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-lead-table')
+    expect(saved.view).toBeNull()   // the lens default is not stored
+    fireEvent.click(screen.getByTestId('terminal-lead-sort-gainPct'))
+    expect(symsInTable()).toEqual(['CCC', 'BBB', 'AAA'])
+    expect(saved.view).toEqual({ filters: { 's.30D': 'gainPct|asc' } })
+    fireEvent.click(screen.getByTestId('terminal-lead-lens-VOL1Y'))
+    await screen.findByTestId('terminal-lead-row-DDD')
+    expect(headers()).toContain('Times the record ▼')   // the other lens opens on its own default
+    cleanup()
+    serve({ [longRunUrl('30D')]: GAINERS })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-lead-table')
+    expect(symsInTable()).toEqual(['CCC', 'BBB', 'AAA'])
+    expect(screen.getByTestId('terminal-lead-sort-gainPct').closest('th').getAttribute('aria-sort')).toBe('ascending')
   })
 })
