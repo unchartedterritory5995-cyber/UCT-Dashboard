@@ -30,7 +30,7 @@ import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
   rw.applied = true
-  chart.window.setWindow(rw.rows, { span: rw.span })
+  chart.window.setWindow(rw.rows, { span: rw.span, tail: rw.tail })
 }
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -12278,7 +12278,9 @@ function StockChartBody({
         } catch { /* no view yet */ }
         const _geom = paintedGeomRef.current
         const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
-        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+        // (`tail`: bars right of the view's right edge, so a view scrolled back in history is cut on the right too)
+        const _tail = _geom && Number.isFinite(_geom.ro) && _geom.ro < 0 ? -_geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, tail: _tail, applied: false }
       }
       applyRenderWindow(chartRef.current, _pw.rw)
     }
