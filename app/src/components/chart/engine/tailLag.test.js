@@ -27,7 +27,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as registry from './nativeRegistry'
 import { createBinder } from './binder'
-import { addInstance } from './instanceControls'
+import { addInstance, setInstanceInput } from './instanceControls'
 import { mergeChartSettings } from '../chartDefaults'
 import { createFakeChart } from './__tests__/fakeChart'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
@@ -425,7 +425,7 @@ async function heldWorkers() {
 }
 
 /** Fred RS installed from the library, a real binder over a recording chart, and the held worker. */
-async function fredOnAChart() {
+async function fredOnAChart({ atScriptDefaults = false } = {}) {
   // the committed record's evidence, as the server serves it: a new instance carries the owner's
   // TradingView settings (house/houseNames.withHouseCreateInputs), admitted only by captures at moved settings
   setRunHalfObjectEvidence([committedRunHalfEvidence(runtimeSourceHash(RS))])
@@ -438,7 +438,18 @@ async function fredOnAChart() {
   setRuntimeRunner(workerRunner(() => { worker = w.factory(); return worker }))
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
-  const cs = addInstance(mergeChartSettings({}), def.id, registry)
+  let cs = addInstance(mergeChartSettings({}), def.id, registry)
+  if (atScriptDefaults) {
+    // the script's own values ("Reset to defaults"), through the validating door, in place of UCT's (the owner's preset)
+    const made = (cs.indicatorInstances || []).find((i) => i.defId === def.id)
+    const moved = (inst) => (def.inputs || []).filter((spec) => inst.inputs && inst.inputs[spec.key] !== undefined
+      && JSON.stringify(inst.inputs[spec.key]) !== JSON.stringify(spec.default)).map((spec) => spec.key)
+    expect(moved(made).length, 'control: a new instance carries the owner preset').toBeGreaterThan(0)
+    for (const key of moved(made)) {
+      cs = setInstanceInput(cs, made.instanceId, key, (def.inputs.find((spec) => spec.key === key) || {}).default, registry)
+    }
+    expect(moved((cs.indicatorInstances || []).find((i) => i.defId === def.id)), 'at the script defaults').toEqual([])
+  }
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const id = instances[0].instanceId
   // the drawing layer, recorded: what it was last set to (`run:` the run's drawings, `host:` the host program's)
@@ -595,7 +606,9 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
     // (e103) the reproduction is the CURTAIN's answer: Fred RS's start-free release (`computeStartFree`), which now
     // answers this chart first, is switched off so the curtain's run is what is reproduced
     __startFreeReleaseOffForTests(true)
-    const f = await fredOnAChart()
+    // and at the script's defaults: at UCT's (the owner's preset, a Historical new-high type) the curtain's two runs end
+    // with different oldest dots (TradingView's batched label collector; `fredStartFree.test.js`), so it never serves
+    const f = await fredOnAChart({ atScriptDefaults: true })
     try {
       f.settle(rsChartThrough(13, 45), rsSecondary(spx5Through(13, 45)))
       expect(f.servedByRun()).toBe(true)
