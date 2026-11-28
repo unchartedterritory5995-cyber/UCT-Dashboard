@@ -379,7 +379,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   function ensureFrom(from, span = st.span) {
     if (!(st.ws > 0)) return
     const full = primary ? series.get(primary)?.full : null
-    const next = extendedStart(st.ws, from, span, full ? full.length - st.ws : 0)
+    const next = extendedStart(st.ws, from, span, full ? (st.we ?? full.length) - st.ws : 0)
     if (next < st.ws) extendTo(next)
   }
   /** Move the window END right to full index `newWe` (null: to the newest bar): every series re-set, primary first. */
@@ -388,11 +388,23 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     const full = primary ? series.get(primary)?.full : null
     if (!full) return false
     st.extending = true
+    // ⛔ (review of #2970, F2) NOTHING MOVES. The library numbers its indices from the window START, which an end move
+    // leaves where it is, so the view it showed is the same logical range after the re-set; the library may still move
+    // it (its shiftVisibleRangeOnNewBar compensation is skipped when the cut's last bar is visible), so it is put back.
+    let kept = null
+    try { kept = chart.timeScale().getVisibleLogicalRange() } catch { /* no view yet */ }
     try {
       if (newWe == null || newWe >= full.length) { st.we = null; st.weTime = null } else { st.we = newWe; st.weTime = full[newWe].time }
       if (primary) applyOne(primary)
       for (const w of series.keys()) if (w !== primary) applyOne(w)
+      if (kept && !st.dropping) {
+        try {
+          const now = chart.timeScale().getVisibleLogicalRange()
+          if (!now || now.from !== kept.from || now.to !== kept.to) chart.timeScale().setVisibleLogicalRange(kept)
+        } catch { /* a stub chart */ }
+      }
     } finally { st.extending = false }
+    syncCutLabels()
     fireChange()
     return true
   }
@@ -404,7 +416,31 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     extendEndTo(Math.ceil((Math.ceil(to) + marginFor(s) + reachFor(s)) / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP)
   }
   /** Take the right cut away (the view goes to the present). */
-  function dropEnd() { if (st.we != null) extendEndTo(null) }
+  // (the caller moves the view at once: scrollToPosition / scrollToRealTime / a rightOffset that re-scrolls)
+  function dropEnd() { if (st.we == null) return; st.dropping = true; try { extendEndTo(null) } finally { st.dropping = false } }
+
+  // ⛔⛔ (review of #2970, F1) A CUT SERIES' LAST BAR IS NOT THE LAST PRICE. Under a right cut the library's last bar is
+  // the bar at the cut (a 2012 close on a dated view), and `priceLineVisible` / `lastValueVisible` (price line source
+  // LastBar) would draw it on the axis labelled as the last price, inside the visible range, and the averages' and the
+  // volume's axis tags would read the cut too. While the window is cut on the right every series' price line and last
+  // value tag are hidden; the app's own options come back when the cut goes. `options()` answers the app's.
+  function syncCutLabels() {
+    const cut = st.we != null
+    for (const rec of series.values()) {
+      if (!rec.raw) continue
+      if (cut && !rec.labels) {
+        let o = null
+        try { o = rec.raw.options() } catch { /* a double */ }
+        rec.labels = { priceLineVisible: o ? o.priceLineVisible : undefined, lastValueVisible: o ? o.lastValueVisible : undefined }
+        try { rec.raw.applyOptions({ priceLineVisible: false, lastValueVisible: false }) } catch { /* a double */ }
+      } else if (!cut && rec.labels) {
+        const back = {}
+        for (const k of ['priceLineVisible', 'lastValueVisible']) if (rec.labels[k] !== undefined) back[k] = rec.labels[k]
+        rec.labels = null
+        try { if (Object.keys(back).length) rec.raw.applyOptions(back) } catch { /* a double */ }
+      }
+    }
+  }
 
   const ts = () => chart.timeScale()
   const handlers = new Map()   // app handler -> library handler
@@ -438,6 +474,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
         // a position counts from the NEWEST bar, and the library's newest is the cut's: the cut goes first
         case 'scrollToPosition': return (...a) => { dropEnd(); return raw.scrollToPosition(...a) }
         case 'scrollToRealTime': return (...a) => { dropEnd(); return raw.scrollToRealTime(...a) }
+        case 'applyOptions': return (o) => { if (o && o.rightOffset !== undefined) dropEnd(); return raw.applyOptions(o) }
         case 'scrollPosition': return () => {
           const v = raw.scrollPosition()
           const full = primary ? series.get(primary)?.full : null
@@ -587,6 +624,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
         rec.handed = cut
         st.passSkipped.push({ rec, w, cut })
       } else rec.set(cut)
+      if ((st.we != null) !== !!rec.labels || (st.we == null && [...series.values()].some((r) => r.labels))) syncCutLabels()
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
       if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
@@ -636,6 +674,21 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
             const b = target.barsInLogicalRange(r ? { ...r, from: r.from - st.ws, to: r.to - st.ws } : r)
             const after = st.we != null && rec.full ? Math.max(0, rec.full.length - st.we) : 0
             return b ? { ...b, barsBefore: b.barsBefore + st.ws, barsAfter: b.barsAfter + after } : b
+          }
+          // while the window is cut on the right the price line and last-value tag stay hidden (syncCutLabels): the app's
+          // own choice is kept for when the cut goes, and `options()` answers it
+          case 'applyOptions': return (o) => {
+            if (!rec.labels || !o) return target.applyOptions(o)
+            const own = { ...o }
+            for (const k of ['priceLineVisible', 'lastValueVisible']) if (k in own) { rec.labels[k] = own[k]; delete own[k] }
+            return target.applyOptions(own)
+          }
+          case 'options': return () => {
+            const o = target.options()
+            if (!rec.labels) return o
+            const out = { ...o }
+            for (const k of ['priceLineVisible', 'lastValueVisible']) if (rec.labels[k] !== undefined) out[k] = rec.labels[k]
+            return out
           }
           case 'attachPrimitive': return (p, ...rest) => target.attachPrimitive(wrapPrimitive(p), ...rest)
           case 'getPane': return () => wrapPane(target.getPane())

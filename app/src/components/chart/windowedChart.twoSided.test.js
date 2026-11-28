@@ -165,6 +165,63 @@ describe('a dated view is cut on the right too', () => {
     expect(b.ts.getVisibleRange().to).toBe(T(N - 1))
   })
 
+  it('D2b the price line and last-value tags never show the cut bar as the last price', async () => {
+    // (review of #2970, F1) both options on, as the chart sets them on the candles and the averages / volume
+    const b = board()
+    for (const s of [b.candles, b.vol, b.ma]) s.applyOptions({ priceLineVisible: true, lastValueVisible: true })
+    await openDated(b)
+    expect(b.chart.window.windowEnd()).not.toBeNull()
+    for (const s of [b.candles, b.vol, b.ma]) {
+      expect(rawOf(s).options().priceLineVisible).toBe(false)            // the library draws no line at the cut's close
+      expect(rawOf(s).options().lastValueVisible).toBe(false)            // ... and no axis tag
+      expect(s.options().priceLineVisible).toBe(true)                    // the app's own choice, as it set it
+      expect(s.options().lastValueVisible).toBe(true)
+    }
+    // the app turns a tag off and on while cut: kept for later, never handed to the library
+    b.ma.applyOptions({ lastValueVisible: false, color: '#123456' })
+    expect(rawOf(b.ma).options().color).toBe('#123456')
+    expect(b.ma.options().lastValueVisible).toBe(false)
+    b.ma.applyOptions({ lastValueVisible: true })
+    expect(rawOf(b.ma).options().lastValueVisible).toBe(false)
+    // the view goes to the present: the cut goes, and every tag is the app's again (at the true newest bar)
+    b.ts.scrollToPosition(4, false)
+    await frame()
+    expect(b.chart.window.windowEnd()).toBeNull()
+    for (const s of [b.candles, b.vol, b.ma]) {
+      expect(rawOf(s).options().priceLineVisible).toBe(true)
+      expect(rawOf(s).options().lastValueVisible).toBe(true)
+    }
+    expect(rawOf(b.candles).data().at(-1).time).toBe(T(N - 1))
+    // a view with no cut never touches them
+    const a = board()
+    a.candles.applyOptions({ priceLineVisible: true, lastValueVisible: true })
+    await openDated(a, 0)
+    expect(rawOf(a.candles).options().priceLineVisible).toBe(true)
+  })
+
+  it('D3b an end extension leaves the view exactly where it was; a rightOffset change takes the cut away', async () => {
+    // (review of #2970, F2) pans right in small steps: every extension of the end puts the view back as it found it
+    const b = board(); await openDated(b)
+    const we0 = b.chart.window.windowEnd()
+    let moved = 0
+    for (let k = 0; k < 12 && b.chart.window.windowEnd() === we0; k++) {
+      const r = b.ts.getVisibleLogicalRange()
+      const want = { from: r.from + 100, to: r.to + 100 }
+      b.ts.setVisibleLogicalRange(want)
+      await frame()
+      const got = b.ts.getVisibleLogicalRange()
+      if (Math.abs(got.from - want.from) > 0.01 || Math.abs(got.to - want.to) > 0.01) moved++
+    }
+    expect(b.chart.window.windowEnd()).not.toBe(we0)                    // the end did move right
+    expect(moved).toBe(0)
+    // StockChart's live Right margin (timeScale().applyOptions({ rightOffset })) re-scrolls to the right edge: the
+    // newest bar, not the cut's
+    b.ts.applyOptions({ rightOffset: 5 })
+    await frame()
+    expect(b.chart.window.windowEnd()).toBeNull()
+    expect(rawOf(b.candles).data().at(-1).time).toBe(T(N - 1))
+  })
+
   it('D8 a view near the present is never cut', async () => {
     const b = board(); await openDated(b, 300, N - 1 - 300 - SPAN)
     expect(b.chart.window.windowEnd()).toBeNull()
