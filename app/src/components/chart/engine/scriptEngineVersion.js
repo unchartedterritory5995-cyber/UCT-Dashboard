@@ -228,7 +228,10 @@
  *  the reading survives, checked by value (`startLatched.js::START_FREE_SETTINGS`: SpxValue, offset, both look-backs, both
  *  new-high/low types, the plot/hide switches, dot colours and sizes), so UCT's default (the owner's TradingView preset:
  *  7200, 90, 'Historical RS New Highs', 30) draws there; a Historical type keeps only labels among the run's newest 50,
- *  the ones TradingView's batched collector keeps from any first bar, and names the oldest dots. */
+ *  the ones TradingView's batched collector keeps from any first bar, and names the oldest dots. (2026-11-28,
+ *  fix/fred-deep-index-grid) SP:SPX's extended-hours grid on an intraday chart starts at the chart's first bar (plus the
+ *  one row before it, so a hole stays a hole): laid over the index store's whole depth (SP:SPX 15m, 39,012 rows) it was
+ *  96,406 rows on a 30,396-bar chart and every deep intraday run half was refused `runtime:limit` (32,768 bars). */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.

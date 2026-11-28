@@ -24,6 +24,7 @@ import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 /** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
@@ -1451,7 +1452,7 @@ function zoomLimitsOf(chart) {
     const w = ts?.width?.(), o = ts?.options?.() || {}
     if (!(Number.isFinite(w) && w > 0)) return null
     const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
-    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : MIN_BAR_SPACING
     return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
   } catch { return null }
 }
@@ -1921,7 +1922,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
-import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
+import { armRuntimeLaneWarm } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1980,7 +1981,17 @@ engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
 // paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
 // for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
 // paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
-const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
+// ⭐⭐ (Fred RS run half, 2026-11-26) — AT BOOT NOW, NOT AFTER THE FIRST PAINT, AND WITH THE DOCUMENTS: the worker is
+// spawned as soon as the member's installed definitions say a chart will use the lane, and their run halves / runtime
+// documents are run once over stand-in bars as soon as it is ready (`runtimeWarmDocuments`, the WARM job), so the
+// chart's first real run meets a loaded, compiled, optimised worker. ⚰️ Measured (production-flag bundle, smoke@ AGL
+// 1D, n=20 reloads): the worker was spawned only when the first run was asked (after the host lane), and that run took
+// 520-650 ms from its post, against 390-440 ms in a worker that had already loaded. The worker loads on its own thread
+// and its bytes are its own chunk (no first-open bytes); the page's own cost is the 8 KB loader and one `new Worker`.
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js')
+  .then((m) => m.warmRuntimeLane({ warm: engineRegistry.runtimeWarmDocuments() }))
+const startNow = (fn) => fn()
+const nextTask = (fn) => { setTimeout(fn, 0) }
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -5279,11 +5290,12 @@ function StockChartBody({
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
   // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
-  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page. ⭐⭐ (2026-11-26) at boot, in the next task (not
+  // after the first paint, not in idle time: `warmRuntimeLaneNow` above says why).
   useEffect(() => {
     armRuntimeLaneWarm({
-      afterPaint: afterFirstChartPaint,
-      idle: whenIdle,
+      afterPaint: startNow,
+      idle: nextTask,
       permitted: runtimePaneEnabled,
       usesLane: engineRegistry.anyInstalledRuntimeDefinition,
       load: warmRuntimeLaneNow,
@@ -12526,6 +12538,9 @@ function StockChartBody({
         // bug. Exact-range charts are frozen historical windows: never
         // auto-shift them.
         shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
+        // ⭐ (2026-11-28, cold-arch 3.3 item 7) zoomed all the way out, a daily chart holds 2014 to today: the library's
+        // 0.5 px floor held 787 bars on a 394 px plot (chart/zoomOutLimit.js)
+        minBarSpacing: MIN_BAR_SPACING,
       },
     }
 
