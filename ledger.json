@@ -8337,6 +8337,78 @@
     "GETY",
     "INMD"
    ]
+  },
+  {
+   "id": "cloud/46136625506-1/COV-date-D-arrows",
+   "at": "2026-11-28T11:17:02+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SHBI",
+    "AIOT",
+    "AMSF",
+    "NGVC",
+    "APXT",
+    "ADTN",
+    "IAUX",
+    "AVR",
+    "GOOS",
+    "LSPD",
+    "PFBC",
+    "CMRE",
+    "CCU"
+   ]
+  },
+  {
+   "id": "cloud/46136625506-1/COV-date-D-typed",
+   "at": "2026-11-28T11:17:02+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CLYM",
+    "EVCM",
+    "EDN",
+    "EVMN",
+    "HVT",
+    "YORW",
+    "MLAA",
+    "TKC",
+    "GCMG"
+   ]
+  },
+  {
+   "id": "cloud/46136625506-1/COV-date-15-arrows",
+   "at": "2026-11-28T11:17:02+00:00",
+   "source": "cloud",
+   "tickers": [
+    "GLIBA",
+    "LNZA",
+    "AXIA",
+    "SLSR",
+    "CLBR",
+    "SION",
+    "TRNS",
+    "AGRO",
+    "WEYS",
+    "TRC",
+    "CHGG",
+    "ASM",
+    "TCMD"
+   ]
+  },
+  {
+   "id": "cloud/46136625506-1/COV-date-15-typed",
+   "at": "2026-11-28T11:17:02+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TCBI",
+    "DBVT",
+    "WBD",
+    "ACVA",
+    "CLVT",
+    "ATS",
+    "IBEX",
+    "CNTA",
+    "WRD"
+   ]
   }
  ]
 }
