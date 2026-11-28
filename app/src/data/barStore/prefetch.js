@@ -1513,10 +1513,10 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false, signal } = {}) {
     if (!tickers?.length) return
     tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
-    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended); return }
+    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended, signal); return }
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
@@ -1535,7 +1535,8 @@ export function createPrefetch(o = {}) {
    * members), so a flip still finds the row current; the press is what asks the origin. Not for `immediate` (the switch's
    * own ask). A key already held current and whole is left alone.
    */
-  function _warmFromEdge(tickers, tf, showExtended) {
+  // (lane C, #2996 F1) `signal`: aborted when the member leaves the symbol (the chart's dwell), nothing more is asked
+  function _warmFromEdge(tickers, tf, showExtended, signal = null) {
     let n = 0
     for (const sym of [...new Set(tickers)]) {
       const k = keyFor(sym, tf, { showExtended })
@@ -1547,8 +1548,10 @@ export function createPrefetch(o = {}) {
         && !(date ? S().deepPending?.(k) : S().lakePending?.(k))) continue
       n++
       Promise.resolve().then(async () => {
+        if (signal?.aborted) return
         await _hydrate(k)                                                    // the device
-        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid' }); return }   // the edge's history
+        if (signal?.aborted) return
+        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid', ...(signal ? { signal } : {}) }); return }   // the edge's history
         try { S().primeLake?.(k) } catch { /* a warm only */ }                // the edge's lake pieces
       }).catch(() => {})
       tickerMeta(sym)
@@ -1560,11 +1563,14 @@ export function createPrefetch(o = {}) {
    *  ChartWidget): its entries go first once no chart shows `sym` (registry `_evict`). `tfs`: the NATIVE timeframes to
    *  warm (the chart's bar, a custom code already mapped to its base), first ones first; default every native one.
    *  ⭐ (lane C, PR 1.5) the same keys and the same lane as the list's dwell: device -> edge -> origin is each key's own
-   *  load path (`_defer`); cancellation and single-flight are the queue's. */
-  function prefetchAllTimeframes(sym, { tfs = ALL_TFS, showExtended } = {}) {
-    if (!sym) return
+   *  load path (`_defer`); cancellation and single-flight are the queue's.
+   *  ⭐⭐ (review of #2996, F1) `edge`: from the DEVICE and the EDGE only (_warmFromEdge: device copy, the edge's deep
+   *  history / lake pieces), never an origin `&warm=1` /api/bars (~7 per 300 ms rest, nothing the edge tail cache can
+   *  share); `signal` aborts what has not been asked yet when the member leaves the symbol. */
+  function prefetchAllTimeframes(sym, { tfs = ALL_TFS, showExtended, edge = false, signal } = {}) {
+    if (!sym || signal?.aborted) return
     const list = [...new Set((Array.isArray(tfs) && tfs.length ? tfs : ALL_TFS).map(String))]
-    for (const tf of list) prefetchBarsToIDB([sym], tf, { dwell: true, showExtended })
+    for (const tf of list) prefetchBarsToIDB([sym], tf, edge ? { edge: true, showExtended, signal } : { dwell: true, showExtended })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {

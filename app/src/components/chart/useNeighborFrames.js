@@ -165,6 +165,10 @@ export function* prepareRow(sym, rank, c, tfAt = null) {
   const bars = spec ? deriveCustomTf(all, spec) : all
   if (!bars || !bars.length) { nfCount('barsSkipped'); return }
   if (spec) yield
+  // (review of #2996, F3) at ANOTHER timeframe the chart's recipes (session, colours, volume) are this timeframe's, so the
+  // derived arrays would be filed under signatures the arriving chart never asks: only the bars (the custom resample, the
+  // one real cost) are prepared there
+  if (tfAt) { nfCount('barsPrepared'); return }
   // the chart's own chain, in the chart's own order (StockChart: sessionBars → filteredBars → sessionAppliedBars → displayBars)
   const filtered = deriveSession(bars, r)
   if (!filtered || !filtered.length) return
@@ -182,9 +186,6 @@ export function* prepareRow(sym, rank, c, tfAt = null) {
   if (r.vol.on) { deriveVol(filtered, hvc, deriveVolExtremes(filtered, r), r); yield }
   if (r.volMa.on) { deriveVolMa(filtered, r); yield }
   nfCount('barsPrepared')
-  // ⛔ (lane C) not at ANOTHER timeframe: the binder prepares the chart's indicator instances as they are on ITS
-  // timeframe (an instance can be timeframe-scoped), so the habitual timeframe's bars arrays only
-  if (tfAt) return
   const binder = c.engineRef.current ? c.engineRef.current.binder : null
   if (binder && typeof binder.prepare === 'function') {
     yield* binder.prepare({ bars: filtered, sym, newestBarIsForming: newestBarIsFormingOf(snap), points: rank < POINTS_RANKS })
@@ -198,7 +199,10 @@ export function* prepareRow(sym, rank, c, tfAt = null) {
  *   rows?: object[]|null, viewWindow?: {to: number}|null}} o   `rows`: the rows the chart shows (held against the
  *   derived-bars budget); `viewWindow`: the window the chart reads at a date the member went to (chart/viewWindow)
  */
-export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes, rows = null, viewWindow = null }) {
+export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes, rows = null, viewWindow = null, tfBar = null }) {
+  // (review of #2996, F2) the host's timeframe bar (custom 4h / 2h / 45m included), as the hidden layer reads it
+  const tfBarRef = useRef(tfBar)
+  tfBarRef.current = tfBar
   const [owner] = useState(() => ({}))   // this chart, as the idle queue's owner
   // what a queued piece reads when it runs: this chart's LATEST recipes and view (written after each commit)
   const recipesRef = useRef(recipes)
@@ -230,7 +234,8 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
       order.forEach((n, rank) => scheduleIdle(owner, rank, prepareRow(n, rank, ctx)))
       // (lane C, PR 1.5) then this chart's own symbol at the member's habitual next timeframes
       const v0 = viewRef.current
-      const habit = v0.viewWindow ? [] : habitualTfs(v0.tf, { k: HABIT_TF_RANKS, available: [...TF_ORDER, String(v0.tf)] })   // not at a date (its windows are another question)
+      const bar = Array.isArray(tfBarRef.current) && tfBarRef.current.length ? tfBarRef.current : [...TF_ORDER, String(v0.tf)]
+      const habit = v0.viewWindow ? [] : habitualTfs(v0.tf, { k: HABIT_TF_RANKS, available: bar })   // not at a date (its windows are another question)
       habit.forEach((htf, j) => scheduleIdle(owner, PREPARE_RANKS + j, prepareRow(symU, PREPARE_RANKS + j, ctx, htf)))
       // ⭐ a row whose bars change after it was prepared (its deeper history landed) is prepared again
       unwatch()

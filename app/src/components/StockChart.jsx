@@ -4194,6 +4194,7 @@ function StockChartBody({
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
   onTimeRangeChange = null, // (payload: {from, to}, { memberMoved }) => void — fires when visible time range changes; memberMoved says a member moved this chart, not a load or a re-frame
+  tfBarCodes = null, // (lane C) the codes on the host's timeframe bar: the habitual timeframes prepared ahead (useNeighborFrames)
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
@@ -11421,7 +11422,7 @@ function StockChartBody({
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow, tfBar: tfBarCodes })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
