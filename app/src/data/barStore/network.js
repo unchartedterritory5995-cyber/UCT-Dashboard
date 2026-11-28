@@ -230,6 +230,10 @@ export function idleLand(fn, { timeout = DEEPEN_IDLE_TIMEOUT_MS, now = () => Dat
  * @param {ReturnType<import('./registry').createRegistry>} o.registry
  * @param {(url:string, opts:{priority:string, signal:AbortSignal}) => Promise<object>} [o.request]
  */
+/** (2026-11-28) a PARTIAL /api/bars-history answer (the web's shallow fallback) is asked again after these waits; the
+ *  last repeats until a sealed, non-partial answer comes or the key goes */
+export const PARTIAL_RETRY_MS = Object.freeze([5000, 15000, 60000])
+
 export function createNetwork({
   registry, request = barsLaneRequest, promote = promoteLaneRequest,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
@@ -775,15 +779,18 @@ export function createNetwork({
     return _send(r, 'scroll', url, priority, async (json) => {
       if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
       if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
+      // ⛔ (2026-11-28) the web's shallow fallback (the worker's deep origin did not answer) answers sealed AND partial:
+      // its rows are joined for display, but the deep history is not here (see `_retryPartial`)
+      const partial = json.partial === true
       const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
       const before = registry.getSnapshot(r.key)
       if (rows.length && prependOlder(before.bars, rows) === before.bars) {
         // nothing older, or another price basis at the join: refused whole (#1116's seam rule)
-        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0 }
+        return rows.some((b) => before.bars.length && b.t < before.bars[0].t) ? { error: true } : { ok: true, added: 0, partial }
       }
-      if (!rows.length) return { ok: true, added: 0 }
+      if (!rows.length) return { ok: true, added: 0, partial }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: rows, ticker: p.sym } })
-      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history' }
+      return { ok: true, added: (after?.depth ?? 0) - before.depth, source: 'history', partial }
     }, viaPrime).then((res) => {
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
@@ -795,7 +802,14 @@ export function createNetwork({
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
-      if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // ⛔⛔ (2026-11-28) A PARTIAL ANSWER IS NOT THE DEEP HISTORY. Settled as joined, the key's depth read "done" for its
+      // whole life and a worker outage left the member on a short D/W/M chart. Its waiters are released (its rows are on
+      // screen), nothing is recorded as joined, and the deep history is asked again with backoff until a sealed,
+      // non-partial answer comes (`_retryPartial`).
+      if (!res?.aborted) {
+        if (res?.ok && res.partial === true) { _settleDeep(r.key, false); _retryPartial(r) }
+        else { r.partialTries = 0; _settleDeep(r.key, !!res?.ok) }
+      }
       // (review of #2938, T1) a slow history names itself: the edge MISS rate is what the fallback above pays for
       const ms = now() - askedAt
       if (ms > EDGE_FALLBACK_MS && !res?.aborted) {
@@ -805,6 +819,19 @@ export function createNetwork({
       }
       return res
     })
+  }
+
+  /** A partial deep answer: ask the history again after PARTIAL_RETRY_MS[n] (the last repeats), while the key lives. */
+  function _retryPartial(r) {
+    const i = r.partialTries = (r.partialTries || 0) + 1
+    const ms = PARTIAL_RETRY_MS[Math.min(i - 1, PARTIAL_RETRY_MS.length - 1)]
+    if (r.partialTimer != null) return
+    r.partialTimer = setTimer(() => {
+      r.partialTimer = null
+      if (keys.get(r.key) !== r) return
+      r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
+      _drain(r)
+    }, ms)
   }
 
   /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
