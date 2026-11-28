@@ -59,14 +59,29 @@ describe('a list at a date: the neighbour hold and the urgent next rows name the
 })
 
 describe('the wiring', () => {
-  it('Watchlists passes the colour\'s window to both the hold and the urgent warm; ChartWidget publishes its date', () => {
+  it('Watchlists warms each variant the colour reads per timeframe; ChartWidget notes its key family while shown', () => {
     const wl = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/Watchlists.jsx'), 'utf8')
-    expect(wl).toMatch(/const groupDay = groupDateFor\(hubGroupRef\.current\)/)
-    expect(wl).toMatch(/holds\.get\(tf\)\.set\([^\n]*viewWindow: windowOf\(tf\)/)
-    expect(wl).toMatch(/prefetchBars\(urgentNext, tf, \{ urgent: true, \.\.\.\(windowOf\(tf\) \? \{ viewWindow: windowOf\(tf\) \} : \{\}\) \}\)/)
+    expect(wl).toMatch(/const variants = tfs\.flatMap\(\(tf\) => warmVariantsFor\(hubGroupRef\.current, tf\)/)
+    expect(wl).toMatch(/holds\.get\(id\)\.set\([^\n]*\.\.\.\(viewWindow \? \{ viewWindow \} : \{\}\)/)
+    expect(wl).toMatch(/for \(const \{ tf, viewWindow \} of variants\) prefetchBars\(urgentNext, tf, \{ urgent: true, \.\.\.\(viewWindow \? \{ viewWindow \} : \{\}\) \}\)/)
     const cw = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/charts/widgets/ChartWidget.jsx'), 'utf8')
-    expect(cw).toMatch(/publishGroupDate\(activeColor, groupDateOwner, groupDateDay\)/)
+    expect(cw).toMatch(/noteGroupChartWhileShown\(layerBoard, activeColor, groupDateOwner, \{ tf: groupEntryTf, day: groupEntryDay \}\)/)
+    expect(cw).toMatch(/groupChartEntry\(tf, groupDateDay\)/)
     const ww = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/charts/widgets/WatchlistWidget.jsx'), 'utf8')
     expect(ww).toMatch(/group: color/)
+  })
+})
+
+describe('one timeframe, both key families (a dated and a present chart on the colour)', () => {
+  it('the urgent plain call and the urgent window call for the same rows keep each other (neither aborts the other)', async () => {
+    const w = await boot()
+    const vw = w.viewWindowOfDate('2025-03-14', '5')
+    w.pf.prefetchBars(['AAA'], '5', { urgent: true })
+    w.pf.prefetchBars(['AAA'], '5', { urgent: true, viewWindow: vw })
+    await vi.advanceTimersByTimeAsync(200)
+    await w.server.drain({ advance: () => vi.advanceTimersByTimeAsync(200) })
+    const calls = w.server.calls.filter((c) => c.q.sym === 'AAA' && c.q.tf === '5')
+    expect(calls.some((c) => c.q.to == null), 'the plain row was asked').toBe(true)
+    expect(calls.some((c) => c.q.to === '2025-03-14'), 'and the window row').toBe(true)
   })
 })

@@ -1518,8 +1518,11 @@ export function createPrefetch(o = {}) {
       // made the second call cancel the first timeframe's next rows.
       const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf, wOpts || {})))
       const callTf = parseKey([...keep][0] || '')?.tf
+      // (review of #3020) PER KEY FAMILY: a list warms one timeframe's plain AND window rows when charts on the colour read
+      // both, and one call must not abort the other's rows
+      const callTo = parseKey([...keep][0] || '')?.window?.to ?? null
       for (const [k, c] of urgentCtl) {
-        if (!keep.has(k) && parseKey(k)?.tf === callTf) {
+        if (!keep.has(k) && parseKey(k)?.tf === callTf && (parseKey(k)?.window?.to ?? null) === callTo) {
           c.abort(); urgentCtl.delete(k)
           if (call) scanTrace({ ev: 'warm-abort', key: k, by: call })
         }
