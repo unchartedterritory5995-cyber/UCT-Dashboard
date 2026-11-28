@@ -75,7 +75,7 @@
       "requirementTags": [],
       "recurrenceOrigin": "pine",
       "pineVersion": null,
-      "doorVersion": 1
+      "doorVersion": 2
     },
     "placement": {
       "target": "pane",
