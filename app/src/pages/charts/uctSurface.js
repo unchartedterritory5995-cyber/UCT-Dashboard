@@ -10,13 +10,30 @@ import { useLayoutEffect, useState } from 'react'
 
 const TRANSPARENT = /^(transparent|rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\))$/i
 
-/** The first opaque background colour on the first-child chain under `el` (≤ 5 levels). */
+// The first colour stop of a CSS gradient, when it is fully opaque (`rgb(…)` or `#…`).
+// Computed style serialises a `to bottom` gradient as `linear-gradient(rgb(r, g, b) 0%, …)`,
+// so the first stop is the TOP of the canvas — the edge the header sits on.
+const FIRST_STOP = /gradient\(\s*(?:[^,()]*,\s*)?(rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|#[0-9a-f]{3,8}\b)/i
+
+/** The first painted canvas on the first-child chain under `el` (≤ 5 levels): an opaque
+ *  background colour, or the top stop of a gradient canvas. A layer that is fixed to the
+ *  window or not showing (a hidden toast) is not the canvas and is skipped.
+ *
+ *  ⚰️ 2026-11-27: a gradient canvas has a TRANSPARENT background-color (the gradient is a
+ *  background-image), so this used to walk past it and land on the watchlist's hidden
+ *  toast (rgba(12,12,12,0.92)) — a teal watchlist under a near-black header. */
 export function paintedSurface(el) {
   let node = el?.firstElementChild || null
   for (let depth = 0; node && depth < 5; depth++) {
     const view = node.ownerDocument?.defaultView
-    const bg = view ? view.getComputedStyle(node).backgroundColor : ''
-    if (bg && !TRANSPARENT.test(bg)) return bg
+    const cs = view ? view.getComputedStyle(node) : null
+    if (cs && cs.position !== 'fixed' && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0') {
+      const bg = cs.backgroundColor
+      if (bg && !TRANSPARENT.test(bg)) return bg
+      const img = cs.backgroundImage
+      const m = img && img !== 'none' ? FIRST_STOP.exec(img) : null
+      if (m) return m[1]
+    }
     node = node.firstElementChild
   }
   return null
