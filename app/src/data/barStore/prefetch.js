@@ -1040,6 +1040,10 @@ export function createPrefetch(o = {}) {
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
+    // ⭐ (review of #2935, D-1) pinned for the whole prepare (ensure's own pin ends when ITS answer settles, before this
+    // reports) and then handed to the hold that lasts until the chart subscribes (finally, below)
+    const reg = S().registry
+    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
       // ⭐ THE CACHE READ IS RACED, NOT AWAITED (2026-11-16). The IDB read can take 400-900 ms
@@ -1103,6 +1107,11 @@ export function createPrefetch(o = {}) {
       return 'error'
     } finally {
       _release(key)
+      // ⭐ (review of #2935, D-1) the target stays pinned from this report until its chart subscribes (registry
+      // holdUntilShown: bounded in time and count), so no other key's landing can drop it between prepare and commit;
+      // the hold is taken BEFORE the prepare's own pin goes, so there is no moment the target is idle
+      try { reg?.holdUntilShown?.(key) } catch { /* a hold is an optimisation */ }
+      try { reg?.release?.(key) } catch { /* no registry */ }
     }
   }
 
@@ -1373,6 +1382,10 @@ export function createPrefetch(o = {}) {
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
+    // (review of #2935, D2-b) pinned for the whole prepare and handed to the hold that lasts until the chart subscribes,
+    // exactly as prepareForDisplay's (below, finally)
+    const reg = S().registry
+    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
     try {
       // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
       // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
@@ -1402,6 +1415,8 @@ export function createPrefetch(o = {}) {
       return 'error'
     } finally {
       _release(key)
+      try { reg?.holdUntilShown?.(key) } catch { /* a hold is an optimisation */ }
+      try { reg?.release?.(key) } catch { /* no registry */ }
     }
   }
 

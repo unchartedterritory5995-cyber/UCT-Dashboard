@@ -292,6 +292,12 @@ export function createNetwork({
     return r
   }
   const _session = (r) => ([...r.sessions.keys()].includes('eth') ? 'eth' : 'rth')
+  // ⭐ (review of #2935, E1) an entry the registry drops takes its request in flight with it (aborted: its answer is
+  // that life's). Its queued jobs stay: one that runs later reads the key's NEW life (no `since=` on an empty entry).
+  const offEvict = registry.onEvict?.((key) => {
+    const r = keys.get(key)
+    if (r?.inflight) { try { r.inflight.ac?.abort() } catch { /* gone */ } r.inflight = null }
+  }) ?? null
 
   // ── one request ───────────────────────────────────────────────────────────
   // ⭐ D/W/M SPLIT (the legacy chart's Phase 5, utils/barsHistorySplit.js): the origin answers only
@@ -586,6 +592,7 @@ export function createNetwork({
           : await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
+        if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
         if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
@@ -595,6 +602,10 @@ export function createNetwork({
         return { error: true, retryAfterMs: e?.retryAfterMs ?? null }
       }
       if (ac?.signal.aborted) return { aborted: true }   // a joined request outlived our abort
+      // ⭐ (review of #2935, E1) the key was evicted while this was in flight: its answer belongs to that life, never to a
+      // new entry it would create (a `since=` delta would land on an EMPTY entry as "answered"). Dropped; the next
+      // chart or warm of the key asks again, on its own life.
+      if (!registry.has(r.key)) return { aborted: true, evicted: true }
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       const out = await onJson(json)
       if (kind === 'tail') _noteAnswered(r)
@@ -1006,6 +1017,7 @@ export function createNetwork({
     stats() { return { keys: keys.size, requests, inflight: api.inflight() } },
     dispose() {
       offVisible?.()
+      offEvict?.()
       for (const k of [...keys.keys()]) { const r = keys.get(k); r.refs = 1; api.stop(k) }
     },
   }
