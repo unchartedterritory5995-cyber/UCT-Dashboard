@@ -41,6 +41,7 @@ import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBa
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
+import { HANDOFF_HANG_MS } from '../../hooks/handoffBudget'
 
 /** How long a member rests on a symbol (after the background warm starts) before its other intraday
  *  timeframes' lake depth loads: a scan past a row never pays for it. */
@@ -118,13 +119,17 @@ function lastDailyBarInsane(arr) {
   return Math.abs(o - c) / c > 0.5
 }
 
+/** (2026-11-28) How long a timeframe press keeps the frame on screen while the new key holds no rows at all: the symbol
+ *  hand-off's own budget (HANDOFF_HANG_MS, hooks/handoffBudget.js), one number for both. */
+export const TF_SWITCH_EMPTY_HOLD_MS = HANDOFF_HANG_MS
+
 export function useBarSnapshotBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, breadthSeries, replayCutoff, viewWindow = null,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
   // (`_intradayDeepArmed` / `_setIntradayDeepArmed` are the legacy source's; this one arms by deadline, below)
   _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount,
   axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
-  _onScreenSrcRef, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
+  _onScreenSrcRef, _shownTfRef = null, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
   _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled,
   // P3-S1 review fix 1 — the developing bar's OWN channel (StockChart's refs; the legacy hook
   // ignores them): `_storeDevRef` holds the newest developing bar (legacy shape), and
@@ -262,8 +267,16 @@ export function useBarSnapshotBars({
   // nothing else (`_tfSwitchHold` below), yet its subscription re-rendered the whole chart when the new key's first
   // answer landed on EVERY symbol switch, a render that changed nothing on screen (`StockChart.switchStateRenders.test`).
   // Off a timeframe switch the hook reads the store's value as it renders and is not woken by it.
+  // (the empty-switch hold's condition, below: computed here because it subscribes `_answered` too)
+  // ⭐ (B3, 2026-11-28) EVERY timeframe press of one symbol, not only D / W / M -> intraday: intraday -> D on a cold D
+  // key, intraday -> W / M, and a CUSTOM timeframe (`_customBars` is null until its native base key loads) handed the
+  // chart nothing too, and the empty arm cleared it (StockChart.tfSwitchFromDaily C4-C7).
+  const _shown = _shownTfRef?.current || null
+  const _fromOtherTf = !_hasOverride && !replayCutoff && !!key
+    && !!_shown && _shown.sym === sym && String(_shown.tf) !== String(resolvedTf)
   const _answered = useSyncExternalStore(
-    useCallback((cb) => (key && _isTfSwitch ? store.network.subscribeAnswered(key, cb) : () => {}), [store, key, _isTfSwitch]),
+    useCallback((cb) => (key && (_isTfSwitch || _fromOtherTf) ? store.network.subscribeAnswered(key, cb) : () => {}),
+      [store, key, _isTfSwitch, _fromOtherTf]),
     () => (key ? store.network.answered(key) : false),
     () => false,
   )
@@ -277,6 +290,7 @@ export function useBarSnapshotBars({
   // timeframe stays on screen for at most LAKE_JOIN_WAIT_MS from the switch; then whatever is held
   // paints. A key the lake does not carry, or one already deep, never waits.
   const _lakeSwitchRef = useRef({ key: null, t0: 0 })
+  const _emptySwitchRef = useRef({ key: null, t0: 0, done: false })   // (below) the daily-to-intraday empty hold
   if (!_isTfSwitch) {
     // a later switch to the same key is a new switch with its own bound (review of #1795)
     if (_lakeSwitchRef.current.key !== null) _lakeSwitchRef.current = { key: null, t0: 0, done: false }
@@ -304,7 +318,48 @@ export function useBarSnapshotBars({
     Promise.resolve().then(() => store.lakeSeed?.(key, { awaited: true })).catch(() => {}).then(wake)
     return () => { alive = false; clearTimeout(id) }
   }, [_lakeHold, key, store])
-  const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
+  // ⭐⭐ (2026-11-28, production: a D -> 1m press showed an EMPTY chart for ~100 ms, the cloud rig 2 of 8 presses) A
+  // TIMEFRAME PRESS NEVER PAINTS AN EMPTY CHART. `_isTfSwitch` reads the intraday series last on screen
+  // (`_onScreenSrcRef`, which a DAILY chart never writes), so a press from D / W / M onto an intraday key with no rows yet
+  // handed the chart nothing and updateChart's empty arm cleared every series. While the new key has no rows the frame on
+  // screen (the same symbol at another timeframe, `_shownTfRef`) stays, for TF_SWITCH_EMPTY_HOLD_MS at most (the symbol
+  // hand-off's HANDOFF_HANG_MS); after it the chart's own loading state shows, as before.
+  if (!_fromOtherTf) {
+    if (_emptySwitchRef.current.key !== null) _emptySwitchRef.current = { key: null, t0: 0, done: false }
+  } else if (_emptySwitchRef.current.key !== key) {
+    // ⭐ (cloud A/B 46156420212, COV-tf-date: four presses 4.8 s apart onto empty past-date windows kept the old D frame
+    // ~19 s under four new labels, WRONG_CHART) THE BOUND IS THE HOLD CHAIN'S, not each key's: a press while the same
+    // shown frame is still held keeps the first press's start, so the old timeframe is never on screen past the bound.
+    const prev = _emptySwitchRef.current
+    const chain = prev.key !== null && prev.shownSym === _shown.sym && String(prev.shownTf) === String(_shown.tf)
+    // eslint-disable-next-line react-hooks/purity
+    _emptySwitchRef.current = chain ? { ...prev, key } : { key, t0: Date.now(), done: false, shownSym: _shown.sym, shownTf: _shown.tf }
+  }
+  // A TERMINAL empty answer (the server said no data: the key is UNAVAILABLE) releases the hold at once: the chart shows
+  // that answer, never the old timeframe's candles over it for the whole bound. ⛔ ONLY a terminal one (re-review of
+  // #3033): an EARLY empty answer that fills later is not settled. A 503 `warming` (REST_ERROR, answered, no rows), a
+  // window answered `filling` with no rows, a transient network error the loop retries: each would drop the held frame
+  // for an empty canvas (the 150 ms skeleton timer, then rows). Those hold, inside the bound.
+  // ...and an ANSWERED EMPTY 200 is settled too (cloud A/B 46156420212: a past-date window before the listing answered
+  // no rows in ~50 ms, and the hold kept the old frame over it): answered, no rows, no developing bar, no error (a 503
+  // `warming` or a retried error sets one: still loading) and not `filling` (a window the server is still fetching).
+  const _answeredEmpty = _answered && !!snap && !(snap.bars?.length) && !snap.developing && !snap.error
+    && !(key && store.network.filling?.(key))
+  const _settledEmpty = snap?.error === 'no_data' || status === STATUS.UNAVAILABLE || _answeredEmpty
+  // (the released state of an answered-empty press is the honest note under the NEW timeframe: `data.reason`
+  // 'empty_window', StockChart's no-data note; never a blank canvas, never the old timeframe)
+  const _emptyWindowNote = _fromOtherTf && _answeredEmpty && snap?.error !== 'no_data'
+  // ⛔ ONE bound: the timer below sets `done` at TF_SWITCH_EMPTY_HOLD_MS (no second age check beside it, review of #3033).
+  const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
+    && !(Array.isArray(chosen) && chosen.length > 0) && !_settledEmpty
+  useEffect(() => {
+    if (!_emptyHold) return undefined
+    const sw = _emptySwitchRef.current
+    const left = Math.max(0, TF_SWITCH_EMPTY_HOLD_MS - (Date.now() - sw.t0))
+    const id = setTimeout(() => { sw.done = true; _setLakeTick((n) => n + 1) }, left + 1)
+    return () => clearTimeout(id)
+  }, [_emptyHold, key])
+  const _tfSwitchHold = (_isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)) || _emptyHold
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
   // (what this chart has SHOWN of a device copy, per key and view: see `_deviceRefused`). ⛔ Written after the commit, never
@@ -320,6 +375,7 @@ export function useBarSnapshotBars({
     if (snap.error === 'no_data' && !snap.bars.length && !snap.developing) {
       return { ticker: snap.sym, tf: snap.tf, bars: [], no_data: true }
     }
+    if (_emptyWindowNote) return { ticker: snap.sym, tf: snap.tf, bars: [], no_data: true, reason: 'empty_window' }
     if (!snap.restSeen) return undefined
     const rows = legacyBars(snap)
     const dev = snap.developing ? rows[rows.length - 1] : null
@@ -337,7 +393,7 @@ export function useBarSnapshotBars({
       // this source told its strategies "unknown" at every hour, so a closed newest bar was read as forming.
       newest_bar_is_forming: newestBarIsFormingOf(snap),
     }
-  }, [snap])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [snap, _emptyWindowNote])  // eslint-disable-line react-hooks/exhaustive-deps
   const error = useMemo(() => {
     const e = snap?.error
     if (!e || e === 'no_data') return undefined
