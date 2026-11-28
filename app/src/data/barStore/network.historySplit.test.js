@@ -387,6 +387,39 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     stop()
   })
 
+  it('...a cover that ERRORS, then the chart\'s own next tail (no Retry, not a cover page) answers its 20 rows: no cut short', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS, EDGE_TAIL_BARS } = await import('./network')
+    let failCover = true
+    const w = world({ history: 'hang', pin: false, listing: 20, tailHook: async (ti, url) => {
+      if (failCover && Number(/[?&]bars=(\d+)/.exec(url)[1]) === dateCoverMaxFor('D')) { failCover = false; throw Object.assign(new Error('origin down'), { status: 502 }) }
+    } })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    w.registry.acquire(w.key, { display: true })
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 50)
+    expect(w.net.cutShort(w.key), 'non-vacuity: the failed cover left a cut short').toBe(true)
+    const asked = tailBars(w).length
+    const stop = w.net.start(w.key, { depth: w.depth })              // the chart mounts: its own first tail
+    await vi.advanceTimersByTimeAsync(3000)
+    const after = tailBars(w).slice(asked)
+    expect(after.length && after.every((b) => b > EDGE_TAIL_BARS), `non-vacuity: the chart's own deep tail (coverPage not set) (${JSON.stringify(after)})`).toBe(true)
+    expect(w.net.cutShort(w.key), 'its 20 rows are the chart').toBe(false)
+    stop()
+  })
+
+  it('a cut key that came to hold MORE than EDGE_TAIL_BARS rows another way (a saved copy, its cover unanswered) is no cut short', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    expect(w.net.cutShort(w.key), 'non-vacuity: cut, its cover never asked').toBe(true)
+    const gen = w.registry.getSnapshot(w.key).gen
+    w.registry.dispatch(w.key, { type: 'rest-full', key: w.key, gen, payload: { ticker: 'SIM', tf: 'D', bars: weekdays(350, '2026-11-10').map((t) => bar(t)) } })
+    expect(w.registry.peek(w.key).bars.length, 'non-vacuity: more than the cut').toBeGreaterThan(EDGE_TAIL_BARS)
+    expect(w.net.deepPending(w.key), 'non-vacuity: the depth still due').toBe(true)
+    expect(w.net.cutShort(w.key), 'rows above the cut are a chart').toBe(false)
+  })
+
   // ⛔ (review of #3034; the owner: a short chart must be impossible) THE HANG GUARD'S LAST LOOK
   it('coverNow: a cut D key still at EDGE_TAIL_BARS whose cover never went out asks it at once, and only once', async () => {
     const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
