@@ -250,6 +250,7 @@
   "pine:x",
   "request:formula-unsupported",
   "request:htf-first-period-partial",
+  "request:htf-intraday-session",
   "request:htf-lookahead-first-period-partial",
   "request:htf-lookahead-forming-unmeasured",
   "request:htf-newest-unconfirmed",
