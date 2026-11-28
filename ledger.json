@@ -8856,6 +8856,36 @@
     "MESO",
     "MBLY"
    ]
+  },
+  {
+   "id": "cloud/46162855345-1/COV-def-dd-arrows",
+   "at": "2026-11-28T16:01:00+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FOR",
+    "AFJK",
+    "SPH",
+    "RZLV",
+    "PSFE",
+    "CGNT",
+    "USAC",
+    "APC",
+    "MLR",
+    "IMCR",
+    "ALMS",
+    "CRNC",
+    "AKTS"
+   ]
+  },
+  {
+   "id": "cloud/46162855345-1/COV-def-tabs",
+   "at": "2026-11-28T16:01:00+00:00",
+   "source": "cloud",
+   "tickers": [
+    "IMTX",
+    "MH",
+    "GILT"
+   ]
   }
  ]
 }
