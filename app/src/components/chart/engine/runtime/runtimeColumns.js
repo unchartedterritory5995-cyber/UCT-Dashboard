@@ -72,6 +72,7 @@ import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 import { withAmbientRunClock } from './vm.js'
 import { dailyExpressionAdmitted } from '../dailyExpressionGate.js'
+import { intradayHtfAdmitted } from '../intradayHtfGate.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
 // `opts.now` reaches the pane budget, the VM's `WALL_TIME` and the translator's
@@ -451,7 +452,8 @@ function runKey(def, ctx, withSupply = true) {
   const ld = ctx && Number.isInteger(ctx.listingDepthBars) ? `|ld${ctx.listingDepthBars}` : ''
   // ⭐ U-DAILY (e96, part B) — a run made with the daily-expression capability open is another run (its session, its
   // memo): unchanged while it is closed, as committed (`dailyExpressionGate.js`)
-  const dx = dailyExpressionAdmitted() ? '|dx' : ''
+  // ⭐⭐ E101 INTRADAY-HTF — and with the intraday higher-timeframe capability open (`intradayHtfGate.js`)
+  const dx = (dailyExpressionAdmitted() ? '|dx' : '') + (intradayHtfAdmitted() ? '|ih' : '')
   return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
@@ -1658,7 +1660,7 @@ export function buildMemoKey(def, irOpts) {
   // ⭐ U-DAILY (e96, part B) — a build made with the daily-expression capability open is another build
   // (`dailyExpressionGate.js`); the key is unchanged while it is closed, as committed
   return JSON.stringify([runtimeContentKey(def), rest, strategyBrokerGateOn() === true,
-    buildBarCountClass(Array.isArray(bars) ? bars.length : 0), ...(dailyExpressionAdmitted() ? ['dx'] : [])])
+    buildBarCountClass(Array.isArray(bars) ? bars.length : 0), ...(dailyExpressionAdmitted() ? ['dx'] : []), ...(intradayHtfAdmitted() ? ['ih'] : [])])
 }
 /** The binding constants a build with `irOpts` reads, as the front end assembles them (`bindConstsFor`). */
 const bindConstsOfOpts = (irOpts) => bindConstsFor({ tf: irOpts.tf, inputs: irOpts.inputs || {}, symbol: irOpts.symbol })
@@ -3008,7 +3010,7 @@ export function runtimeOwnDailyQuestion(source, tf, symbol = null) {
   const sym = symbolOf({ symbol })
   // ⭐ U-DAILY (e96, part B) — whether a daily EXPRESSION is read there depends on its capability's admission too
   // (`dailyExpressionGate.js`): an answer given with it closed is never the answer with it open
-  const gate = dailyExpressionAdmitted() ? 'dx|' : ''
+  const gate = (dailyExpressionAdmitted() ? 'dx|' : '') + (intradayHtfAdmitted() ? 'ih|' : '')
   return { key: `${t}|${symbolKey(sym)}|${gate}${source}`, tf: t, symbol: sym || null }
 }
 /** The memoised answer for a question's key, or undefined when it has not been answered in this tab. */

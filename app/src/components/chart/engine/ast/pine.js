@@ -101,7 +101,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, isIntradayHtfCode, intradayHtfRefusal, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL, LOWER_TF_VOLUME_DEFINITION } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 // ⭐⭐ T4 E2 — `request.earnings` / `request.dividends` / `request.splits` (`eventAsSecurity`, `otherSymbolOf`)
@@ -9014,6 +9014,10 @@ export class Resolver {
      *  `request-daily-expression` is admitted (`dailyExpressionGate.js`: the run lane passes its answer). A resolver not
      *  told so mints nothing new. */
     this.aboveDailyExpressions = opts.aboveDailyExpressions === true
+    /** ⭐⭐ E101 INTRADAY-HTF — a higher INTRADAY timeframe of this chart's own symbol above an intraday chart (`"60"`
+     *  on a 15 minute chart), only where the capability `request-intraday-htf` is admitted (`intradayHtfGate.js`: the
+     *  run lane passes its answer). A resolver not told so declines it, as every resolver always did. */
+    this.intradayHtfReads = opts.intradayHtfReads === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -16516,6 +16520,9 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⭐⭐ E101 INTRADAY-HTF — `"120"` / `"2H"`, read by this branch alone: `PINE_TF_SPELLING` also feeds the
+      // `timeframe.*` family, which this unit does not widen
+      if (!code && raw !== null && this.intradayHtfReads && ['120', '2H'].includes(String(raw).trim().toUpperCase())) code = '120'
       // ⛔ (request unit PR 2, EXT-OWN) — an extended-session ticker is read at the chart's own daily timeframe only
       if (extendedOwn && code !== this.basePeriod) return null
       // ⭐⭐ C47 — THE QUARTER, `'3M'`, FOR A LOOK-AHEAD REQUEST ON A DAILY CHART.
@@ -16610,6 +16617,14 @@ export class Resolver {
         // ⛔ `code` STAYS SET, so no reader can mistake it for the identity.
         if (this.lowerTfDeclineOf(node) !== null) return null
         return { own, other: null, venue: null, code, live: false, lower: true, positional }
+      } else if (isIntradayHtfCode(code)) {
+        // ⭐⭐ E101 INTRADAY-HTF — A HIGHER INTRADAY TIMEFRAME OF THIS CHART'S OWN SYMBOL: `tf_merge` (look-ahead off)
+        // or `tf_live` (on) of that code, resampled from the chart's own bars on the chart's own grid
+        // (`interpret.js::periodStamps`). Only where admitted (`this.intradayHtfReads`), above an intraday chart, a whole
+        // multiple of its minutes (`intradayHtfRefusal`, the one decision), of this chart's own symbol written by name;
+        // anything else declines as it always did, refused by name at the request.
+        if (!this.intradayHtfReads || other !== null || own === null) return null
+        if (intradayHtfRefusal(code, this.basePeriod) !== null) return null
       } else if (!TF_RESAMPLABLE.includes(code) && code !== '3M') {
         return null
       }

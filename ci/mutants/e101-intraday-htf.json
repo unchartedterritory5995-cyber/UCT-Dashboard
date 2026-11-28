@@ -1,0 +1,78 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "E101 INTRADAY-HTF (feat/e101-intraday-htf-reads, NUMBER PENDING): a higher intraday timeframe (30 / 60 / 120 / 240) of the chart's own symbol, resampled from an intraday chart's own bars on the chart's measured grid (interpret.js::periodStamps over intradayBucketStart), read by the host evaluator's tf_merge / tf_live arms and the runtime lane's request (requestAlignment), behind the closed capability request-intraday-htf. Each mutant breaks one rule and must turn its rail red.",
+ "mutants": [
+  {
+   "id": "I1",
+   "mutant": "clock-anchor: the session grid anchors a regular-hours bucket at the clock hour instead of the 09:30 open",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (m >= RTH_OPEN_MINUTE && m < close) anchor = RTH_OPEN_MINUTE + floorTo(m - RTH_OPEN_MINUTE)",
+   "to": "    if (m >= RTH_OPEN_MINUTE && m < close) anchor = floorTo(m)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "every 15 minutes"
+  },
+  {
+   "id": "I2",
+   "mutant": "half-day: the 13:00 early close is ignored, so a half day's last bucket runs to 16:00",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const close = EARLY_CLOSE_MINUTE.get(iso) ?? RTH_CLOSE_MINUTE",
+   "to": "    const close = RTH_CLOSE_MINUTE",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "half day"
+  },
+  {
+   "id": "I3",
+   "mutant": "non-multiple: a target that is not a whole number of the chart's bars is accepted (45 -> 60)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (m % b !== 0) return `'${c}' minutes is not a whole number of this chart's '${String(base)}' minute bars`",
+   "to": "  if (false) return ''",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "45 -> 60"
+  },
+  {
+   "id": "I4",
+   "mutant": "partial-first: a chart starting mid-bucket is taken as starting its bucket, so the partial bucket is drawn",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  return t !== null && !!stamps[0] && stampStart(stamps[0]) === t",
+   "to": "  return t !== null && !!stamps[0]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "mid-bucket"
+  },
+  {
+   "id": "I5",
+   "mutant": "session-mask: a chart on neither measured grid is not withheld by name (its read reads as na)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (!unplaced) return null\n  nameChartClock(opts, [INTRADAY_HTF_SESSION_CODE], opts && opts.tf)",
+   "to": "  if (unplaced || !unplaced) return null\n  nameChartClock(opts, [INTRADAY_HTF_SESSION_CODE], opts && opts.tf)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "neither grid"
+  },
+  {
+   "id": "I6",
+   "mutant": "bar-time: the resampled bucket's bar keeps the day stamp instead of its start's unix second",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      out.push({ t: start === null ? iso : start, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })",
+   "to": "      out.push({ t: iso, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/intradayHtfReads.test.js",
+   "expectRed": "requestAlignment"
+  },
+  {
+   "id": "I7",
+   "mutant": "gate-open: the door builds the read whether or not the capability is admitted (a member's chart moves)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        if (!this.intradayHtfReads || other !== null || own === null) return null",
+   "to": "        if (other !== null || own === null) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfRuntime.test.js",
+   "expectRed": "refused by name, as before"
+  },
+  {
+   "id": "I8",
+   "mutant": "grid-swap: a regular-hours chart is put on the clock grid",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "export const INTRADAY_HTF_GRID_BY_KIND = Object.freeze({ regular: 'session', extended: 'clock' })",
+   "to": "export const INTRADAY_HTF_GRID_BY_KIND = Object.freeze({ regular: 'clock', extended: 'clock' })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfRuntime.test.js",
+   "expectRed": "look-ahead off"
+  }
+ ]
+}

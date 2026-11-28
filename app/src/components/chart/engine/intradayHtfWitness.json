@@ -1,0 +1,9 @@
+{
+ "_": "E101 INTRADAY-HTF (NUMBER PENDING): the capability `request-intraday-htf`, a higher intraday timeframe read above an intraday chart on the runtime lane (`request.security(syminfo.tickerid, \"60\", ta.ema(close, 50))` on a 15 minute chart; 30 / 60 / 120 / 240, a whole multiple of the chart's minutes, look-ahead off or on). NOT ADMITTED: `admitted` turns true only beside evidence that meets the capability registry's rule (`api/services/rollout_gate.py::pine_capability_admission`): at least two captures graded MATCH with the runtime pane on, of two distinct scripts, at least one a community script. Until then the door declines such a read as before (`intradayHtfGate.js`). The first evidence is queue row Q-IHTF-1 (probe below: AMEX:SPY 15m and 5m, extended hours off and on, a 13:00 half day and a DST week, plus one symbol outside the New York session, which the engine withholds by name). The grid itself (30 / 60, both views) is the chart's measured one (`vw-time-session-spy-60-{rth,ext}-2026-09-28`); what the probe settles is a REQUEST read on a lower chart, 120 / 240, and the EMA's history start.",
+ "capability": "request-intraday-htf",
+ "admitted": false,
+ "status": "ungraded",
+ "queueRow": "Q-IHTF-1",
+ "probe": "tools/visual_conformance/probes/vw-ihtf-grid.pine",
+ "evidence": []
+}

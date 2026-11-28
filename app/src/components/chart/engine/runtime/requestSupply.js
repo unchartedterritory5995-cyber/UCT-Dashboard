@@ -24,7 +24,7 @@
 // run by name; the newest bar alone is withheld by the caller (its outputs `NaN`,
 // its drawings not drawn), as the host withholds that bar.
 
-import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
+import { requestAlignment, TF_RESAMPLABLE, TF_LADDER, isIntradayHtfCode, intradayHtfRefusal } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS,
   SERIES_PAGE_FILLED, BARS_ASK_MAX, otherSymbolLabel } from '../otherSymbols.js'
@@ -502,6 +502,8 @@ export function requestTargetsUnservable(targets, count) {
     // (`requestAlignment`, `live`). Look-ahead at any other code (the quarter, which the object pass
     // alone reads) keeps its refusal; look-ahead at the chart's own period never reaches here (the
     // host's reader answers `live: false` for it, and the lowering folds it).
+    // ⭐⭐ E101 INTRADAY-HTF — a higher intraday timeframe (the door admitted it) is the supply's, per chart
+    if (code !== null && isIntradayHtfCode(code)) continue
     if (target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) return LOOKAHEAD_UNSERVED
     if (code !== null && !TF_RESAMPLABLE.includes(code)) {
       return `a \`request.security\` reads the \`${target.code}\` timeframe; the run reads another timeframe only `
@@ -604,11 +606,21 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     // witnessed bar for bar on `vw-request-htf-alignment-spy-1d-2026-10-02` (A01 / A04 / A06). ⚰️ It was
     // refused whatever the code ("the realtime half of that alignment is not measured yet") while the host
     // lane drew the same request as a column. Any other look-ahead read keeps the refusal, by name.
-    if (target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) {
+    // ⭐⭐ E101 INTRADAY-HTF — A HIGHER INTRADAY TIMEFRAME, look-ahead off or on, above THIS chart: the host's one decision
+    // (`interpret.js::intradayHtfRefusal`), then the host's own alignment below (`requestAlignment`: `periodStamps`)
+    const intradayHtf = code !== null && isIntradayHtfCode(code)
+    if (intradayHtf) {
+      const why = intradayHtfRefusal(code, ctx && ctx.tf)
+      if (why) {
+        return refuse(`a \`request.security\`${at(site)} reads the \`${target.code}\` timeframe on a \`${ctx && ctx.tf}\` `
+          + `chart: ${why}, so nothing is drawn bar by bar`)
+      }
+    }
+    if (!intradayHtf && target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) {
       return refuse(`a \`request.security\`${at(site)} ${LOOKAHEAD_UNSERVED.slice('a `request.security` '.length)}, `
         + 'so nothing is drawn bar by bar')
     }
-    if (code !== null) {
+    if (code !== null && !intradayHtf) {
       // ⭐ ONLY THE MERGE THE HOST SERVES: a weekly or monthly read ABOVE the chart's own
       // timeframe (`TF_RESAMPLABLE`, the host `tf_merge` codes).
       const above = TF_LADDER.indexOf(code) > TF_LADDER.indexOf(chartCode) && TF_LADDER.indexOf(chartCode) >= 0
