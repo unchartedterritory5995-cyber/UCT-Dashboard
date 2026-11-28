@@ -350,8 +350,18 @@ export function useBarSnapshotBars({
   // 'empty_window', StockChart's no-data note; never a blank canvas, never the old timeframe)
   const _emptyWindowNote = _fromOtherTf && _answeredEmpty && snap?.error !== 'no_data'
   // ⛔ ONE bound: the timer below sets `done` at TF_SWITCH_EMPTY_HOLD_MS (no second age check beside it, review of #3033).
+  // ⛔ (P2, the lead's rule for a KEPT key) A COPY BEHIND THE CLOCK IS NOT A FRAME TO PAINT ON A PRESS: its newest bucket
+  // is older than the one forming now (a key the dwell kept, an entry the LRU held: nothing fed it since its last answer,
+  // and its stored status, derived then, still read 'current'), so until this key answers the press holds the shown
+  // frame (the same bounded hold) instead of painting the gapped rows and then the jump. Within the forming bucket, it
+  // paints at once.
+  const _behindForming = _fromOtherTf && isIntraday && !_isCustomTf && !!snap && !_answered && (() => {
+    const tail = snap.developing?.t ?? (snap.bars.length ? snap.bars[snap.bars.length - 1].t : null)
+    const f = expectedFormingBar(resolvedTf, serverNow(), { session: showExtended ? 'extended' : 'rth' })
+    return f != null && typeof tail === 'number' && tail < f
+  })()
   const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
-    && !(Array.isArray(chosen) && chosen.length > 0) && !_settledEmpty
+    && (!(Array.isArray(chosen) && chosen.length > 0) || _behindForming) && !_settledEmpty
   useEffect(() => {
     if (!_emptyHold) return undefined
     const sw = _emptySwitchRef.current

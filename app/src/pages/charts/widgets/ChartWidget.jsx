@@ -29,6 +29,12 @@ import { noteTfPress, habitualTfs } from '../../../components/chart/tfHabit'
 import { TF_ORDER } from '../../../components/chart/keyboardShortcuts'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
+import { getBarStore } from '../../../data/barStore/index'
+import { chartKeyFor } from '../../../components/chart/useBarSnapshotBars'
+import { BARSTORE } from '../../../components/chart/barStoreSwitch'
+import { isAppVisible, onDeskHiddenChange } from '../../../lib/deskVisibility'
+/** (P2) the native intraday keys a habitual timeframe's keep may hold (D / W / M are not lake-joined here) */
+const KEEP_INTRADAY = new Set(['1', '5', '15', '30', '60'])
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import PendingSwitchCue, { usePendingCue } from '../../../components/chart/PendingSwitchCue'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
@@ -473,6 +479,46 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // StockChart's own rule (utils/viewSession.resolveShowExtended — the one derivation) on the settings the
   // canvas itself draws with (`canvasCs`: the widget's blob over the ACCOUNT's settings, not the defaults).
   paneExtRef.current = resolveShowExtended(canvasCs)
+  const paneExt = paneExtRef.current
+  // ⭐ (P2, the tf-press tail: 23 of 45 slow presses waited on the FIRST visit's lake join + decode, 87-125 ms, the pieces
+  // already cached) THE TWO HABITUAL TIMEFRAMES' LAKE DEPTH IS JOINED BEFORE THE PRESS: after the same dwell as the warm
+  // above, their intraday keys are KEPT (store.keepKey: pinned, no stream, no request) and their lake load runs then, one
+  // piece per task (not awaited: it yields to frames). The press finds the whole depth (lakePending false); a kept copy
+  // whose tail aged still holds for its own answer (store.keepKey). Never at a date, never in replay, never on a hidden
+  // page; the session toggle (`paneExt`) keeps the other session's keys.
+  useEffect(() => {
+    if (!sym || replayCutoff || dated || !BARSTORE) return undefined
+    let alive = true
+    let cancelPaintWait = null
+    const keeps = []
+    const release = () => { for (const off of keeps.splice(0)) { try { off() } catch { /* gone */ } } }
+    const timer = setTimeout(() => {
+      cancelPaintWait = whenFirstChartPainted(() => {
+        if (!alive || !isAppVisible()) return
+        try {
+          const store = getBarStore()
+          const first = habitualTfs(tf, { k: 2, available: tfBarKey.split(',') })
+          for (const c of first) {
+            const base = fetchTf(c)
+            if (!KEEP_INTRADAY.has(String(base)) || String(base) === String(fetchTf(tf))) continue
+            const key = chartKeyFor({ sym, resolvedTf: String(base), showExtended: !!paneExt, replayCutoff: null, hasOverride: false })
+            if (!key) continue
+            keeps.push(store.keepKey(key))
+            try { store.lakeSeed?.(key) } catch { /* a warm never breaks the chart */ }
+          }
+        } catch { /* a keep never breaks the chart */ }
+      })
+    }, TF_DWELL_MS)
+    // a hidden page keeps nothing (the next dwell, visible, keeps them again)
+    const offHidden = onDeskHiddenChange((hidden) => { if (hidden) release() })
+    const onVis = () => { if (typeof document !== 'undefined' && document.visibilityState === 'hidden') release() }
+    try { document.addEventListener('visibilitychange', onVis) } catch { /* no document */ }
+    return () => {
+      alive = false; clearTimeout(timer); cancelPaintWait?.(); release()
+      try { offHidden() } catch { /* gone */ }
+      try { document.removeEventListener('visibilitychange', onVis) } catch { /* no document */ }
+    }
+  }, [sym, tf, tfBarKey, replayCutoff, dated, paneExt])
 
   // Expose an imperative chart API for the Compare Symbols tool (read/write the
   // active chart's comparison overlays + the % price scale). Reads live settings

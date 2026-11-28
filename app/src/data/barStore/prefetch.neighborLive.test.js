@@ -16,6 +16,8 @@
 //       AHEAD pairs; a row leaving is released; clear() releases all; a hidden page subscribes none
 //   L2b ...only while the member navigates: TAIL_ACTIVE_MS after the last selection change they are released
 //   L3  the page cap: at most NEIGHBOR_LIVE_MAX_KEYS keys ride the stream as a neighbour (the store's watchLive)
+//   K1  (P2) store.keepKey: the habitual timeframes' keeps pin a key with NO stream and no request, at most
+//       HABIT_KEEP_MAX_KEYS a page, refcounted
 //   L4  (review of #2721) a live re-sort (the same selection) never changes the rows on the stream (it would reconnect the
 //       chart's own stream); a press does
 //   L5  (review, LOW) the page turning hidden, or the session ending, mid-window releases them within LIVE_RECHECK_MS
@@ -263,6 +265,27 @@ describe('L2: the hold puts the rows ahead on the stream, bounded', () => {
     expect(w.stream.ahead()).toEqual(['A2:1', 'A3:1', 'A4:1', 'A5:1'])
     for (const f of [...off, again]) f()
     expect(w.stream.ahead()).toEqual([])
+    w.store.dispose()
+  })
+
+  it('K1 keepKey pins with no stream and no request, at most HABIT_KEEP_MAX_KEYS a page, refcounted', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('ok')
+    const { HABIT_KEEP_MAX_KEYS } = await import('./index')
+    expect(HABIT_KEEP_MAX_KEYS).toBe(4)
+    const asks0 = w.server.open().length
+    const offs = ['K1', 'K2', 'K3', 'K4'].map((s) => w.store.keepKey(w.k(s)))
+    expect(offs.map((f) => !!f.refused)).toEqual([false, false, false, false])
+    expect(w.store.keepKey(w.k('K5')).refused, 'a fifth keep').toBe(true)
+    expect(w.stream.ahead(), 'a keep rides no stream').toEqual([])
+    expect(w.server.open().length, 'a keep asks nothing').toBe(asks0)
+    const again = w.store.keepKey(w.k('K1'))                          // refcounted: the same key twice
+    offs[0]()
+    expect(w.store.keepKey(w.k('K6')).refused, 'K1 is still kept').toBe(true)
+    again()
+    const k6 = w.store.keepKey(w.k('K6'))
+    expect(k6.refused).toBeFalsy()
+    for (const f of [...offs.slice(1), k6]) f()
     w.store.dispose()
   })
 

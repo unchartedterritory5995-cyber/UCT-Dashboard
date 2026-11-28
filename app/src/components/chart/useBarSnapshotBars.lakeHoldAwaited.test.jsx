@@ -136,4 +136,56 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     expect(loadOf(w)).toBeTruthy()
     expect(waitsNow(w)).toBe('yields')
   })
+
+  // (P2, the tf-press tail: the first visit of a timeframe waited on its lake join + decode) a key the dwell KEPT and
+  // lake-joined before the press (ChartWidget: store.keepKey + store.lakeSeed) is switched to with nothing to wait on
+  it('H3 (P2) the 60m key kept and lake-joined before the press: no hold at the press, its whole depth at once', async () => {
+    const w = world({ lakeDelayMs: 300, restDelayMs: 80 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)                                  // the dwell: the keep, the warm's tail, the join
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})   // the dwell warm: one ask
+    w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    expect(w.store.lakePending(k60), 'the dwell joined the lake').toBe(false)
+    const deep = w.store.peek(k60)?.bars.length || 0
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }   // (StockChart writes what it painted)
+    h.rerender(p)
+    expect(h.result.current._tfSwitchHold, 'the press waited on something').toBe(false)
+    // (the store's sealed rows, plus the developing bar the chart's copy carries)
+    expect(h.result.current.bars?.length, 'the whole depth in the first frame').toBeGreaterThanOrEqual(deep)
+    expect(deep).toBeGreaterThan(answer(60, Date.now()).bars.length)
+    off()
+  })
+
+  // ⛔ (lead's rule for a kept key) A KEPT COPY IS NEVER CURRENT BY BEING KEPT: no stream feeds it, so once its tail aged
+  // past the forming bucket the press holds for its OWN answer, never paints the gapped copy
+  it('H4 (P2) a kept copy whose tail aged past a bucket roll: the press holds for its own answer (no gapped paint)', async () => {
+    const w = world({ lakeDelayMs: 50, restDelayMs: 120 })
+    let p = params()
+    const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+    await act(async () => { await vi.advanceTimersByTimeAsync(500) })
+    const off = w.store.keepKey(k60)
+    w.store.network.fetchOnce(k60, { priority: 'background', session: 'rth' }).catch(() => {})   // the dwell warm: one ask
+    w.store.lakeSeed(k60)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    const tailBefore = w.store.peek(k60)?.bars.at(-1)?.t
+    expect(tailBefore, 'the kept copy was answered').toBeTruthy()
+    await act(async () => { await vi.advanceTimersByTimeAsync(2 * 3600 * 1000) })   // two 60m buckets roll; nothing feeds it
+    h.rerender(p)
+    p = { ...p, resolvedTf: '60', _barsTf: '60' }
+    p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
+    p._shownTfRef = { current: { sym: SYM, tf: '5' } }   // (StockChart writes what it painted)
+    h.rerender(p)
+    const firstBars = h.result.current.bars
+    expect(h.result.current._tfSwitchHold || !(firstBars?.length), 'the aged kept copy painted at the press').toBe(true)
+    for (let i = 0; i < 30; i++) { await act(async () => { await vi.advanceTimersByTimeAsync(20) }); h.rerender(p) }
+    expect(h.result.current._tfSwitchHold).toBe(false)
+    expect(h.result.current.bars.at(-1).t, 'the answer brought the tail current').toBeGreaterThan(tailBefore)
+    off()
+  })
 })

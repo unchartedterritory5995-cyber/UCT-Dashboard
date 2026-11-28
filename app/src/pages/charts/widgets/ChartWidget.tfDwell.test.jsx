@@ -2,6 +2,8 @@
 // and timeframe warms every OTHER timeframe on its bar (a custom code as its native base: 4h / 2h -> 60, 45m -> 15), the
 // member's habitual next timeframes first; never before the page's first chart paint, never in replay; a press on the
 // bar records the habit. On the REAL ChartWidget + ChartPane; StockChart is a stub.
+// (P2) after the dwell the two habitual timeframes' INTRADAY keys are KEPT (store.keepKey: pinned, no stream) and
+// lake-seeded (not awaited); released on the next press and when the page hides; never at a date or in replay.
 import { render, cleanup, act } from '@testing-library/react'
 import { useEffect, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -9,7 +11,15 @@ import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import { WorkspaceContext } from '../WorkspaceContext'
 import { WidgetDoorContext } from '../widgetDoors'
 
-const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false }))
+const captured = vi.hoisted(() => ({ props: null, warms: [], paintCbs: [], painted: false, keeps: [], seeds: [] }))
+vi.mock('../../../components/chart/barStoreSwitch', async (orig) => ({ ...(await orig()), BARSTORE: true }))
+vi.mock('../../../data/barStore/index', async (orig) => {
+  const m = await orig()
+  const keepKey = (key) => { const w = { key, released: false }; captured.keeps.push(w); return () => { w.released = true } }
+  const lakeSeed = (key, o) => { captured.seeds.push({ key, o }); return Promise.resolve(false) }
+  // the real store, its keepKey / lakeSeed observed (the replay path reads the store too)
+  return { ...m, getBarStore: () => new Proxy(m.getBarStore(), { get: (t, k) => (k === 'keepKey' ? keepKey : k === 'lakeSeed' ? lakeSeed : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) }) }
+})
 vi.mock('../../../components/StockChart', () => ({
   default: (props) => { captured.props = props; return <span data-testid="chart-sym">{props.sym}</span> },
 }))
@@ -25,7 +35,7 @@ vi.mock('../../../hooks/useWatchlistAlerts', () => ({ default: () => ({ alerts: 
 vi.mock('../../../hooks/useFundamentalSnapshot', () => ({ default: () => ({ data: null, isLoading: false }) }))
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: () => {}, setPrefMerged: () => {}, loading: false }), parsePref: (_r, f) => f }))
 vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
-vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
+vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null, prefetchTickerMeta: () => {} }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
 vi.mock('../../../utils/barsWarm', async (orig) => ({
   ...(await orig()),
@@ -64,7 +74,7 @@ const optsFor = (tf) => ({ tf, settings: { header: { timeframes: BAR } } })
 beforeEach(() => {
   vi.useFakeTimers()
   __resetTfHabitForTests()
-  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null
+  captured.warms.length = 0; captured.paintCbs.length = 0; captured.painted = true; captured.props = null; captured.keeps.length = 0; captured.seeds.length = 0
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
@@ -119,8 +129,8 @@ test('never before the first chart paint: queued, then run once it has painted',
   render(<Wrap initialOpts={optsFor('D')} />)
   act(() => { vi.advanceTimersByTime(TF_DWELL_MS + 5) })
   expect(captured.warms).toHaveLength(0)
-  expect(captured.paintCbs).toHaveLength(1)
-  act(() => { captured.paintCbs[0]() })
+  expect(captured.paintCbs.length).toBeGreaterThanOrEqual(1)   // the warm (and P2's keep) wait for the paint
+  act(() => { for (const f of captured.paintCbs) f() })
   expect(captured.warms).toHaveLength(1)
 })
 
@@ -128,4 +138,34 @@ test('CONTROL: in replay the chart warms nothing here (the replay warm owns its 
   render(<Wrap initialOpts={optsFor('D')} replayCutoff="2020-03-16" />)
   act(() => { vi.advanceTimersByTime(TF_DWELL_MS * 3) })
   expect(captured.warms).toHaveLength(0)
+})
+
+test('(P2) after the dwell the habitual INTRADAY key is kept and lake-seeded (not awaited), released on the next press', () => {
+  render(<Wrap initialOpts={optsFor('D')} />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS - 5) })
+  expect(captured.keeps).toHaveLength(0)                         // not before the dwell
+  act(() => { vi.advanceTimersByTime(10) })
+  // D's habitual next timeframes: W (a date key: not kept) and 4h (its native base 60): one keep, the 60m key
+  expect(captured.keeps).toHaveLength(1)
+  expect(captured.keeps[0].key).toMatch(/_60/)
+  expect(captured.seeds.map((x) => x.key)).toEqual([captured.keeps[0].key])
+  expect(captured.seeds[0].o?.awaited).toBeFalsy()
+  act(() => { ctl.setOpts(optsFor('W')) })                       // the member pressed on: released
+  expect(captured.keeps[0].released).toBe(true)
+})
+
+test('(P2) a hidden page keeps nothing: the keeps are released when the page hides', async () => {
+  const { setDeskHidden } = await import('../../../lib/deskVisibility')
+  render(<Wrap initialOpts={optsFor('D')} />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS + 5) })
+  expect(captured.keeps).toHaveLength(1)
+  act(() => { setDeskHidden(true) })
+  expect(captured.keeps[0].released).toBe(true)
+  act(() => { setDeskHidden(false) })
+})
+
+test('(P2) CONTROL: nothing kept in replay', () => {
+  render(<Wrap initialOpts={optsFor('D')} replayCutoff="2020-03-16" />)
+  act(() => { vi.advanceTimersByTime(TF_DWELL_MS * 3) })
+  expect(captured.keeps).toHaveLength(0)
 })
