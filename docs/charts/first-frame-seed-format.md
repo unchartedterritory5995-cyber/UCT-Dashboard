@@ -637,7 +637,11 @@ source.js / persist.js) and asks no deep history join for an entry that still st
 (`network.deepPending`); its tail asks only the newest 30 rows. An entry the server's answer rebuilds onto
 another basis no longer starts there and is due its history again.
 
-**W and M** come from a whole D copy whose period in progress is known (PR 3.3, `resample.deriveServed`).
+**W and M** are NOT served from the device yet. PR 3.3 built the derivation from a whole D copy
+(`resample.deriveServed`, behind `tfs.DEVICE_WM_FROM_FULL_D`, OFF): `tools/ffseed_wm_parity.py` found that
+`/api/bars?tf=W|M` serves the STORED vendor W / M rows, which are not this D resampled (volume, the pre-2004
+adjustment history, a few recent weeks), so a derived W / M would differ from the server's. The newest week
+equals the server's for 200 / 200 symbols. Next: seed the stored W / M rows as their own packs.
 
 **The daily delta** is one merged row per symbol per night (the new session's bar, plus any bar the serve path
 changed: a corrections-ledger edit, a healed split); a symbol named in the base manifest's `splits` is a whole

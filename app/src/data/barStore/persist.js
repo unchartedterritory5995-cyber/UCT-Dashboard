@@ -378,6 +378,10 @@ export function createPersist({
   function _deviceHit(key, p, gen, got, ownDev = null, atIdle = false) {
     // (`n`: the copy's row count without building its rows, deviceStore/source.js; a copy with no `n` has rows)
     if (!got || !(got.n ?? got.rows?.length)) return false
+    // ⛔ A DEVICE W / M COPY IS ONLY EVER A WHOLE ONE (zero-network PR 3.3; the source derives them only from a whole D
+    // copy whose period in progress is known, deviceStore/resample.deriveServed). Held here too, by the copy's own
+    // `wholeFrom`: a W / M copy that does not say it is whole is never applied (the H1 behaviour of #2537).
+    if ((p.cacheTf === 'W' || p.cacheTf === 'M') && !Number.isFinite(got.wholeFrom)) return false
     // ⛔ NOTHING JOINS ONCE THE PAGE HAS SEEN A KILL (review of #2615, item 2). The kill marks only the entries holding
     // device rows at that moment (onDeviceStoreKill above); a copy read before it whose join waited for idle would join
     // after it, unmarked, and its rows would read as vouched.
