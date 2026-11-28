@@ -8409,6 +8409,36 @@
     "CNTA",
     "WRD"
    ]
+  },
+  {
+   "id": "cloud/46139767019-1/COV-def-dd-arrows",
+   "at": "2026-11-28T11:25:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BOC",
+    "MFI",
+    "ALX",
+    "HNST",
+    "ACDC",
+    "AGCC",
+    "MBIN",
+    "NPAC",
+    "TACH",
+    "DEFT",
+    "NGNE",
+    "QCRH",
+    "PONY"
+   ]
+  },
+  {
+   "id": "cloud/46139767019-1/COV-def-tabs",
+   "at": "2026-11-28T11:25:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NC",
+    "ANAB",
+    "MGTX"
+   ]
   }
  ]
 }
