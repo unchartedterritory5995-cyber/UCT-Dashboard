@@ -20,6 +20,10 @@ from api.bars_auth import require_bars_access, require_bars_access_on, bars_serv
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
 # upgrade with no call-site change. Matches api/services/bars_fetch.py.
 from fastapi.responses import ORJSONResponse as JSONResponse
+# ⭐ ONE SERIALIZATION PER ANSWER (2026-11-27): the serve core and its augment steps pass the
+# payload DICT along (`payload_of`, never `orjson.loads(response.body)`), and `_serve_bars_impl`
+# renders the finished answer once (`render_once`, Server-Timing `ser`). api/services/bars_payload.py.
+from api.services.bars_payload import PayloadResponse, payload_of as _payload_of, render_once as _render_once
 
 from api.services.bars_fetch import (
     # Core fetch/cache functions (used by routes below)
@@ -155,7 +159,8 @@ def _fetch_already_running(response) -> bool:
     nothing anywhere" are different claims and only the first one is exempt.
     """
     try:
-        body = orjson.loads(bytes(getattr(response, "body", b"") or b"") or b"{}")
+        body = (_payload_of(response) if isinstance(response, PayloadResponse)
+                else orjson.loads(bytes(getattr(response, "body", b"") or b"") or b"{}"))
     except Exception:  # noqa: BLE001 — an unreadable body proves nothing either way
         return False
     return body.get("warming") is True or body.get("error") == "warming"
@@ -864,7 +869,7 @@ def _augment_daily_with_today(response, ticker: str):
         append today's bar.
     """
     try:
-        payload = orjson.loads(response.body)
+        payload = _payload_of(response)
     except Exception:
         return response
     bars = payload.get("bars")
@@ -923,7 +928,7 @@ def _augment_daily_with_today(response, ticker: str):
         except Exception:                                          # noqa: BLE001
             pass  # a shape surprise must never block a good serve
     payload["bars"] = bars + [today_bar]
-    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    return PayloadResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
 def _augment_index_daily_with_today(response, ticker: str, now: float | None = None):
@@ -932,7 +937,7 @@ def _augment_index_daily_with_today(response, ticker: str, now: float | None = N
     regular session; none before the open, on a day with no session, or from a stale or
     proxied 5m series). Returns the original response on ANY problem."""
     try:
-        payload = orjson.loads(response.body)
+        payload = _payload_of(response)
     except Exception:
         return response
     if not isinstance(payload, dict) or not isinstance(payload.get("bars"), list):
@@ -942,7 +947,7 @@ def _augment_index_daily_with_today(response, ticker: str, now: float | None = N
     if out is None:
         return response
     payload["bars"] = out
-    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    return PayloadResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
 _INTRADAY_TFS = ("1", "5", "15", "30", "60")
@@ -958,7 +963,7 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
     tail IS the store's). ⛔ A terminal ``no_data`` answer is left exactly as it is —
     Problem B's contract is untouched."""
     try:
-        payload = orjson.loads(response.body)
+        payload = _payload_of(response)
     except Exception:
         return response
     if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
@@ -968,7 +973,7 @@ def _augment_with_tail_status(response, ticker: str, tf: str, session: str | Non
     headers = _apply_tail_status(payload, ticker, tf, session)
     if headers is None:
         return response
-    out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    out = PayloadResponse(content=payload, status_code=getattr(response, "status_code", 200))
     for k, v in headers.items():
         out.headers[k] = v
     return out
@@ -1056,7 +1061,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
     hole repair last changed held history, `index_bars.repair_rth_holes`) and the contract,
     which reads only bars.db, has none for it: the answer's own value stands."""
     try:
-        payload = orjson.loads(response.body)
+        payload = _payload_of(response)
     except Exception:
         return response
     if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
@@ -1091,7 +1096,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
         except Exception:
             headers = {}
     payload.pop("tail_pending", None)      # the since path's marker is the router's to read, never a client's
-    out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    out = PayloadResponse(content=payload, status_code=getattr(response, "status_code", 200))
     for h in ("retry-after", "x-bars-shed"):
         if h in response.headers:
             out.headers[h] = response.headers[h]
@@ -1129,7 +1134,7 @@ def _augment_with_bar_close_state(response, tf: str):
     because a decorative field could not be computed.
     """
     try:
-        payload = orjson.loads(response.body)
+        payload = _payload_of(response)
     except Exception:
         return response
     rows = payload.get("bars")
@@ -1174,7 +1179,7 @@ def _augment_with_bar_close_state(response, tf: str):
     except Exception:
         return response
     payload["newest_bar_is_forming"] = state
-    return JSONResponse(content=payload,
+    return PayloadResponse(content=payload,
                         status_code=getattr(response, "status_code", 200))
 
 
@@ -1245,6 +1250,24 @@ def _carry_headers(new, old):
     return new
 
 
+#: Set by `_serve_eth_hourly` around its 15m read: that answer is an input, read as a dict,
+#: so `_serve_bars_impl` leaves it unrendered. Thread-local: each serve runs on its own thread.
+_render_state = _threading.local()
+
+
+def _render_answer(resp, append_timing: bool = True):
+    """Serialize a finished answer (once; no-op when already rendered or deferred) and,
+    with `append_timing`, add `ser;dur=<ms>` to its Server-Timing. Returns the ms or None."""
+    if getattr(_render_state, "defer", False):
+        return None
+    ms = _render_once(resp)
+    if ms is not None and append_timing:
+        entry = f"ser;dur={ms:.1f}"
+        st = resp.headers.get("server-timing")
+        resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
+    return ms
+
+
 def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
     """tf=60 on the ETH (clock-hour) grid, from the 15m serve. See the block above."""
     since15 = ""
@@ -1259,12 +1282,20 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         except (TypeError, ValueError):
             since15 = since
     n15 = _eth_src_count(bars)
-    resp = _serve_bars_impl(ticker, "15", n15, since15, to, warm, session="eth")
+    # The 15m answer is an input here, not an answer: it is left unrendered and its dict is
+    # read directly (`_defer_render`); only the 60m answer built below is serialized.
+    _render_state.defer = True
     try:
-        payload = orjson.loads(resp.body)
+        resp = _serve_bars_impl(ticker, "15", n15, since15, to, warm, session="eth")
+    finally:
+        _render_state.defer = False
+    try:
+        payload = _payload_of(resp)
     except Exception:
+        _render_answer(resp)
         return resp
     if not isinstance(payload, dict):
+        _render_answer(resp)
         return resp
     payload["tf"] = "60"
     payload["session"] = "eth"
@@ -1305,13 +1336,18 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
             for k in ("complete_through", "developing"):
                 payload[k] = None
     out_resp = _carry_headers(
-        JSONResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
+        PayloadResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
     if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
         try:
             out_resp = _carry_headers(_augment_with_bar_close_state(out_resp, "60"), out_resp)
         except Exception:                  # noqa: BLE001
             pass
+    _render_answer(out_resp)
     return out_resp
+
+
+# An answer whose server time passes this many ms is logged with its phases (`[bars-slow]`, _serve_bars_impl).
+SLOW_BARS_LOG_MS = 500
 
 
 def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0, session=""):
@@ -1422,15 +1458,15 @@ def _serve_bars_impl(
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
                 # breadth-build once the bars-layer cache lands (Phase 2).
                 _mark_serve("breadth")
-                response = JSONResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
+                response = PayloadResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
             elif _is_mkt_ind:
                 from api.services.market_indicators import series as _mseries
                 _mark_serve("market-indicator")
-                response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
+                response = PayloadResponse(content=_mseries.build_bars(ticker, tf, bars))
             elif _is_seed:
                 from api.services import pine_seed_store as _seeds
                 _mark_serve("pine-seed")
-                response = JSONResponse(content=_seeds.build_bars(ticker, tf, bars))
+                response = PayloadResponse(content=_seeds.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
@@ -1451,7 +1487,7 @@ def _serve_bars_impl(
                     except ValueError:
                         since_int = None
                 data = fetch_index_bars(ticker, tf, bars, since_int)
-                response = JSONResponse(content=data)
+                response = PayloadResponse(content=data)
             elif to:
                 # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
                 response = _get_bars_to_response(ticker, tf, bars, to, warm=bool(warm))
@@ -1621,6 +1657,10 @@ def _serve_bars_impl(
         # would re-introduce phantom OHLC bars after a corruption fix ships.
         response.headers["Cache-Control"] = "no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
+        # ⭐ THE ONE SERIALIZATION of this answer (bars_payload): every step above passed the
+        # dict along. Before `bars;dur` is read, so `dur` still covers the whole serve, and
+        # reported on its own as `ser`. An ETH 60m read defers it (`_serve_eth_hourly`).
+        _ser_ms = _render_answer(response, append_timing=False)
         # Server-Timing: expose server-compute ms + which cache tier served, so
         # cold vs warm (and cold-fetch vs inflight-wait vs disk) is observable in
         # prod devtools / curl — the cold path was previously unmeasured. Cheap:
@@ -1636,7 +1676,14 @@ def _serve_bars_impl(
                     _st += f', {_lbl};dur={_ms:.1f}'
             except Exception:
                 pass
+            if _ser_ms is not None:
+                _st += f', ser;dur={_ser_ms:.1f}'
             response.headers["Server-Timing"] = _st
+            # ⭐ (2026-11-27) A SLOW ANSWER NAMES ITSELF. A cold D2000 took 5.1 s on production and nothing on the pod
+            # recorded why (only uvicorn's access line, aged out of `railway logs` within the hour). Any answer whose
+            # server time passes SLOW_BARS_LOG_MS is logged with its key and every phase, so the next one can be read.
+            if _dur_ms > SLOW_BARS_LOG_MS:
+                _log.warning(f"[bars-slow] {str(ticker)[:16]} tf={tf} bars={bars} since={bool(since)} to={bool(to)} {_st}")
         except Exception:
             pass
         return response

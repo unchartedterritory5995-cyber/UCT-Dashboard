@@ -80,4 +80,23 @@ describe('the typed warm fetches each linked chart key before Enter', () => {
     await tick(50)
     expect(asked(w, 'AA').filter((t) => t !== 'D')).toEqual([])
   })
+
+  // ⛔ (review of #2934, B2) the linked fetches of a typed text the store already holds (no warm request of its own) are
+  // cancelled by the next text's, like a warm's own request is: the 0 ms highlight warm can fire on every highlight
+  it("a held name's linked fetch is aborted when the next text asks its own", async () => {
+    const w = await boot()
+    w.mem.memPut('AA', 'D', HELD)
+    w.pf.warmTypedSymbol('aa', 'D')
+    await tick(20)
+    await w.srv.drain(); await tick(20)                  // AA's daily answer lands: a known name, its bars current
+    w.pf.warmTypedSymbol('aa', 'D', { alsoTfs: ['5'] })
+    await tick(20)
+    const five = w.srv.calls.find((c) => !c.q.history && c.q.sym === 'AA' && c.q.tf === '5')
+    expect(five, 'the linked 5m key was asked').toBeTruthy()
+    expect(five.done).toBe(false)
+    w.pf.warmTypedSymbol('aa', 'D', { alsoTfs: ['15'] })
+    await tick(20)
+    expect(five.aborted, "the earlier text's linked fetch kept running").toBe(true)
+  })
 })
+

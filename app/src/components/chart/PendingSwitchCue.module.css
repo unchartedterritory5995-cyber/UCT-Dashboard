@@ -1,0 +1,44 @@
+/* A held symbol switch (PendingSwitchCue.jsx): a thin line across the chart's top edge and a small chip. Pointer events
+   pass through: the chart under it stays fully usable. The line sweeps three times and rests (no endless animation). */
+.cue {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.line {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--ut-gold), transparent);
+  background-size: 40% 100%;
+  background-repeat: no-repeat;
+  animation: pendingSweep 900ms ease-in-out 3;
+  opacity: 0.85;
+}
+
+.chip {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ut-gold) 45%, transparent);
+  color: var(--text-bright);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+@keyframes pendingSweep {
+  from { background-position: -40% 0; }
+  to { background-position: 140% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line { animation: none; background-size: 100% 100%; opacity: 0.5; }
+}
