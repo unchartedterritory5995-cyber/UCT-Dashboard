@@ -1555,6 +1555,9 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D
         by = {int(r[0]): tuple(r) for r in stored_rows}
         if source == "stored" and _wm_ahead_of_daily(by.get(int(periods[-1]["t"].replace("-", ""))), periods[-1]):
             return None
+        _held0 = by.get(int(periods[0]["t"].replace("-", "")))
+        if _held0 is not None and not _wm_same_basis(periods[0]["o"], _held0[1]):
+            return None                    # (follow-up to #3001) the daily is on another price basis than the W/M table
         todo = [p for p in periods if _wm_differs(by.get(int(p["t"].replace("-", ""))), p)]
         for p in periods:
             k = int(p["t"].replace("-", ""))
@@ -1568,6 +1571,42 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D
     if bars and len(rows) > max(int(bars), len(stored_rows)):
         rows = rows[-max(int(bars), len(stored_rows)):]
     return rows, rows[-1][0]
+
+
+#: one repair of a (ticker, hole) per this many seconds: the provider's answer for a past session does not change
+_DAILY_HOLE_REPAIR_TTL = 6 * 3600
+
+
+def _kick_daily_hole_repair(ticker_up: str, missing: list) -> bool:
+    """Fetch the stored daily's MISSING sessions (`missing`, YYYYMMDD) once, in the background, deduped, so the next
+    read derives W/M from a complete daily.
+    ⛔⛔ (follow-up to #3001) `_delta_daily` only fetches AFTER the daily's last bar, so nothing healed an INTERIOR hole:
+    after one whole-market poll-outage day every uncovered name's M first-miss paid the bounded synchronous provider
+    delta (`_wm_cold_behind`) for the rest of the month. Returns whether a repair was asked for."""
+    if not missing:
+        return False
+    lo, hi = min(missing), max(missing)
+    marker = f"dhole_{ticker_up}_{lo}_{hi}"
+    if cache.get(marker) is not None:
+        return False
+
+    def _repair(_t=ticker_up, _lo=lo, _hi=hi, _want=set(missing), _m=marker):
+        from api.services import massive, provider_fault_scope
+        f = f"{str(_lo)[:4]}-{str(_lo)[4:6]}-{str(_lo)[6:]}"
+        t = f"{str(_hi)[:4]}-{str(_hi)[4:6]}-{str(_hi)[6:]}"
+        with provider_fault_scope.scope() as sc:
+            raw = massive.get_agg_bars(_t, f, t)
+        got = [b for b in _massive_raw_to_iso(raw, _t) if int(b["t"].replace("-", "")) in _want]
+        if got:
+            _sqlite.put_bars(_t, "D", got, date_tf=True)
+        if got or sc.clean:                # answered (a fault is retried by a later read)
+            cache.set(_m, 1, ttl=_DAILY_HOLE_REPAIR_TTL)
+    try:
+        # never waited on (deadline 0); no free slot = nothing starts, a later read asks again
+        _bounded_job(f"dhole::{ticker_up}::{lo}::{hi}", _repair, 0.0, sem=_date_delta_sem, slot_wait=0.0)
+    except Exception:                      # noqa: BLE001 — a repair never breaks a read
+        return False
+    return True
 
 
 def _wm_cold_behind(ticker_up: str, tf: str, tail, d_last) -> bool:
@@ -1586,6 +1625,9 @@ def _wm_cold_behind(ticker_up: str, tf: str, tail, d_last) -> bool:
             return False
         in_p = [r for r in drows if _wm_key_of(tf, int(r[0])) == key_d]
         complete = _wm_period_rows_complete(tf, key_d, in_p, int(d_last))
+        if not complete:
+            _have = {int(r[0]) for r in in_p}
+            _kick_daily_hole_repair(ticker_up, [d for d in _wm_period_sessions(tf, key_d, int(d_last)) if d not in _have])
         if k == key_d:
             return (not complete) and float(tail[4]) != float(drows[-1][4])
         return not (complete and key_d == _wm_next_key(tf, k))
@@ -2465,12 +2507,10 @@ def _wm_period_end_ymd(tf: str, key: int) -> int:
     return int((nxt - timedelta(days=1)).strftime("%Y%m%d"))
 
 
-def _wm_period_rows_complete(tf: str, key: int, rows, d_last: int) -> bool:
-    """`rows` (the stored daily rows of the period `key`) are exactly the NYSE sessions from the period's start
-    through its end or the daily's tail, whichever is first: no hole at its start, inside, or at its end."""
+def _wm_period_sessions(tf: str, key: int, d_last: int) -> list:
+    """The NYSE sessions (YYYYMMDD) of the period `key` from its start through its end or `d_last`, whichever is first."""
     start = _wm_period_start(tf, key)
     end = min(_wm_period_end_ymd(tf, key), int(d_last))
-    have = sorted(int(r[0]) for r in rows)
     want = []
     s, e = str(start), str(end)
     d, last = datetime(int(s[:4]), int(s[4:6]), int(s[6:])), datetime(int(e[:4]), int(e[4:6]), int(e[6:]))
@@ -2478,7 +2518,33 @@ def _wm_period_rows_complete(tf: str, key: int, rows, d_last: int) -> bool:
         if _is_trading_day_ymd(d):
             want.append(int(d.strftime("%Y%m%d")))
         d += timedelta(days=1)
-    return bool(want) and have == want
+    return want
+
+
+def _wm_period_rows_complete(tf: str, key: int, rows, d_last: int) -> bool:
+    """`rows` (the stored daily rows of the period `key`) are exactly the NYSE sessions from the period's start
+    through its end or the daily's tail, whichever is first: no hole at its start, inside, or at its end."""
+    want = _wm_period_sessions(tf, key, d_last)
+    return bool(want) and sorted(int(r[0]) for r in rows) == want
+
+
+#: (follow-up to #3001) the largest open-to-open gap read as the SAME price basis: a split/reverse split adjusts one
+#: side by its ratio (2x, 10x, ...), an ordinary period keeps its first session's open to the cent
+_WM_BASIS_TOL = 0.02
+#: an appended period's open against the previous period's close: beyond this ratio it is another basis, not a move
+_WM_APPEND_MAX_RATIO = 2.0
+
+
+def _wm_same_basis(a_open, b_open) -> bool:
+    """Two bars of the SAME period (same first session) on the same price basis: their opens agree within
+    `_WM_BASIS_TOL`. Unknown (a zero or missing open) reads as the same basis, as before."""
+    try:
+        a, b = float(a_open), float(b_open)
+    except (TypeError, ValueError):
+        return True
+    if a <= 0 or b <= 0:
+        return True
+    return abs(a / b - 1.0) <= _WM_BASIS_TOL
 
 
 def _wm_next_key(tf: str, key: int) -> int:
@@ -2523,11 +2589,22 @@ def _reconcile_developing_period(ticker: str, tf: str, out_rows: list[dict]) -> 
             in_p = [r for r in kept if _wm_key_of(tf, int(r[0])) == k]
             complete = _wm_period_rows_complete(tf, k, in_p, d_last)
             if k == tail:
-                if complete and (p.get("v") or 0) > (out[-1].get("v") or 0):
+                # ⛔ (follow-up to #3001) MORE VOLUME IS NEWER only when the daily is further along on the same
+                # basis: the same close = the same last session (a vendor correction with LESS volume on the stored
+                # side keeps the stored bar), and another open = another price basis (a reverse split adjusts the
+                # W/M side and leaves the unadjusted daily with more volume: replacing it is a scale jump)
+                if (complete and (p.get("v") or 0) > (out[-1].get("v") or 0)
+                        and float(p["c"]) != float(out[-1]["c"]) and _wm_same_basis(p.get("o"), out[-1].get("o"))):
                     out[-1] = p
                 continue
             if k != _wm_next_key(tf, tail) or not complete:
                 break
+            try:
+                ratio = float(p["o"]) / float(out[-1]["c"])
+            except (TypeError, ValueError, ZeroDivisionError):
+                break
+            if not (1.0 / _WM_APPEND_MAX_RATIO <= ratio <= _WM_APPEND_MAX_RATIO):
+                break                      # the next period on another price basis than the series: never appended
             out.append(p)
         return out
     except Exception:                      # noqa: BLE001 — the store as it is
