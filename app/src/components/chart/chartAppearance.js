@@ -26,7 +26,7 @@ export const APPEARANCE_SECTION_KEYS = Object.freeze({
   // `grid` carries `grid.lines`; `scaleTime` is the right margin, price decimals, time format and time zone;
   // `sessionBreaks` is Grid → Session breaks. (Background → "Shade pre / post-market" writes the per-chart
   // `extendedHoursShading` below — it is the chart's session/data mode, so it is never copied or section-reset.)
-  canvas: Object.freeze(['bgMode', 'background', 'bgGradient', 'grid', 'crosshair', 'textSize', 'textColor', 'showPriceLabels', 'showMaLabels', 'watermark', 'scaleTime', 'sessionBreaks']),
+  canvas: Object.freeze(['bgMode', 'background', 'bgGradient', 'grid', 'crosshair', 'textSize', 'textColor', 'showPriceLabels', 'showMaLabels', 'scalePriceChartOnly', 'watermark', 'scaleTime', 'sessionBreaks']),
   header: Object.freeze(['header']),
   // `preMarketLevels` is Previous-day levels → Pre-market high & low; `priceAlertLines` is Your activity → Price alerts;
   // `myTradeMarkers` is Your activity → My trades.
