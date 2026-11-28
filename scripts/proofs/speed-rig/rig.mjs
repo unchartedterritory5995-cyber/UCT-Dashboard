@@ -475,8 +475,14 @@ try {
   const isoOwns = (path) => ISOLATE === 'browser' && (path === '/api/auth/preferences' || path === '/api/workspace/doc' || path.startsWith('/api/workspace/doc/'))
   if (DIST) {
     if (OVERRIDE || STUB > 0) throw new Error('--dist cannot be combined with --override or --stub')
-    const { existsSync } = await import('node:fs')
-    const { join, extname } = await import('node:path')
+    const { existsSync, lstatSync, realpathSync } = await import('node:fs')
+    const { join, extname, sep } = await import('node:path')
+    // (2026-11-28 audit) the build is the CANDIDATE's output: a symlink in it (assets/x.js -> /proc/self/environ, which
+    // is THIS process's environment, BENCH_* included) would hand a file outside the build to the candidate's own page.
+    // Only regular files, really inside the build directory, are ever served.
+    const DIST_REAL = realpathSync(DIST)
+    const inBuild = (f) => { try { const st = lstatSync(f); if (!st.isFile() || st.isSymbolicLink()) return false; return realpathSync(f).startsWith(DIST_REAL + sep) } catch { return false } }
+    if (!inBuild(join(DIST, 'index.html'))) throw new Error('--dist: index.html is not a regular file inside the build')
     const TYPES = { '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.map': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.wasm': 'application/wasm' }
     const indexHtml = readFileSync(join(DIST, 'index.html'))
     const entry = (String(indexHtml).match(/\/assets\/index-[\w-]+\.js/) || [''])[0]
@@ -501,7 +507,7 @@ try {
       if (isoOwns(u.pathname) && !distOwns(m.params)) return    // the --isolate=browser handler owns these
       if (u.pathname.startsWith('/assets/')) {
         const f = join(DIST, decodeURIComponent(u.pathname))
-        if (existsSync(f)) { out.dist.served += 1; answer(requestId, TYPES[extname(f).toLowerCase()] || 'application/octet-stream', readFileSync(f)); return }
+        if (existsSync(f) && inBuild(f)) { out.dist.served += 1; answer(requestId, TYPES[extname(f).toLowerCase()] || 'application/octet-stream', readFileSync(f)); return }
         if (out.dist.passedOn.length < 40) out.dist.passedOn.push(u.pathname)
       } else if (resourceType === 'Document' && !u.pathname.startsWith('/api/')) {
         out.dist.documents += 1

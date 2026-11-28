@@ -88,7 +88,7 @@ on:
         required: false
         default: ''
       build_env:
-        description: "B side only: VITE_* laid over production's (KEY=VAL,KEY=VAL), to A/B a build flag"
+        description: "B side only: VITE_* flags laid over production's (KEY=VAL,KEY=VAL; values 0, 1, empty or a short word; no TOKEN/KEY/SECRET/PASSWORD names)"
         required: false
         default: ''
   pull_request:
@@ -107,6 +107,10 @@ permissions:
 
 env:
   CHROME_VERSION: '158.0.8127.36'   # Chrome for Testing; the owner PC runs 158.0.8127.37 (stable), the nearest CfT build
+  # ⛔ the sha256 of that version's chrome-linux64.zip, checked on EVERY run before it is unzipped (a cache entry is never
+  # trusted: it runs next to BENCH_*). Measured 2026-11-28 on a download whose MD5 matched Google's own x-goog-hash
+  # (xmTYpjL3Of9XM+V8v3+UHw==, 208,062,943 bytes). A new CHROME_VERSION needs its own pin, measured the same way.
+  CHROME_ZIP_SHA256: 'dba9cc838e1ce269c33ea68170881127bd15d078fc3ca5891c90802819a4d7c7'
   NODE_VERSION: '24'
 
 jobs:
@@ -126,7 +130,6 @@ jobs:
     env:
       SIDE: ${{ matrix.side }}
       REF: ${{ matrix.side == 'B' && inputs.build_ref || (matrix.side == 'A' && inputs.base_ref) || '' }}
-      EXTRA_ENV: ${{ matrix.side == 'B' && inputs.build_env || '' }}
       NODE_BUILD_VERSION: '20.18.0'   # Dockerfile.web's frontend stage (node:20.18.0-bookworm-slim): one build, one Node
     steps:
       - uses: actions/checkout@v4
@@ -143,13 +146,17 @@ jobs:
           if [ -z "$REF" ]; then echo "side $SIDE: production's own front end, nothing to build"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           git init -q "$RUNNER_TEMP/resolve" && cd "$RUNNER_TEMP/resolve"
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          # a partial clone fetches a missing object on demand: never here (a fork's commit must not arrive by lookup)
+          export GIT_NO_LAZY_FETCH=1
           if [[ "$REF" =~ ^[0-9a-f]{7,40}$ ]]; then
             # a commit: only one master holds (a fork's pull request commit is fetchable from this repo too, by sha)
-            git fetch -q --filter=tree:0 origin master
+            git fetch -q --filter=tree:0 origin refs/heads/master
+            master=$(git rev-parse --verify FETCH_HEAD)   # captured at once: FETCH_HEAD is rewritten by any later fetch
             sha=$(git rev-parse --verify --quiet "${REF}^{commit}") || { echo "::error::$REF is no commit on master"; exit 1; }
-            git merge-base --is-ancestor "$sha" FETCH_HEAD || { echo "::error::$REF is not on master: name a branch of this repository"; exit 1; }
+            git merge-base --is-ancestor "$sha" "$master" || { echo "::error::$REF is not on master: name a branch of this repository"; exit 1; }
           elif [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,200}$ && "$REF" != *..* && "$REF" != -* ]]; then
-            sha=$(git ls-remote origin "refs/heads/$REF" | cut -f1)
+            # ls-remote matches a pattern as a ref-name SUFFIX: keep only the line whose name is exactly refs/heads/$REF
+            sha=$(git ls-remote --heads origin "refs/heads/$REF" | awk -v want="refs/heads/$REF" '$2 == want {print $1}')
             [ -n "$sha" ] || { echo "::error::no branch '$REF' in ${GITHUB_REPOSITORY}"; exit 1; }
           else
             echo "::error::build_ref/base_ref '$REF': a branch name or a master commit"; exit 1
@@ -172,14 +179,11 @@ jobs:
         if: steps.ref.outputs.skip == 'false'
         with:
           node-version: ${{ env.NODE_BUILD_VERSION }}
-      - uses: actions/cache@v4
-        if: steps.ref.outputs.skip == 'false'
-        id: nm
-        with:
-          path: src/app/node_modules
-          key: speed-rig-nm-${{ env.NODE_BUILD_VERSION }}-${{ hashFiles('src/app/package-lock.json') }}
+      # ⛔ NO dependency cache in this job (2026-11-28 audit): it runs the candidate's install scripts and build, so
+      # anything it saved (node_modules, ~/.npm) could be poisoned for a later honest build, base_ref=master included.
+      # A fresh npm ci takes ~5 s here (measured: 540 packages in 5 s).
       - name: Install (npm ci, from the candidate's lock)
-        if: steps.ref.outputs.skip == 'false' && steps.nm.outputs.cache-hit != 'true'
+        if: steps.ref.outputs.skip == 'false'
         run: cd src/app && npm ci --no-audit --no-fund
       - name: Build (vite build with production's VITE_* constants)
         if: steps.ref.outputs.skip == 'false'
@@ -187,7 +191,10 @@ jobs:
           SHA: ${{ steps.ref.outputs.sha }}
         run: |
           set -euo pipefail
-          python3 scripts/proofs/speed-rig/vite_env.py env --dockerfile src/Dockerfile.web --extra "$EXTRA_ENV" > "$RUNNER_TEMP/vite.env"
+          # build_env (B only) is read HERE, from the event payload: an `env:` value is printed in the public log
+          extra=""
+          if [ "$SIDE" = "B" ]; then extra=$(jq -r '.inputs.build_env // ""' "$GITHUB_EVENT_PATH"); fi
+          python3 scripts/proofs/speed-rig/vite_env.py env --dockerfile src/Dockerfile.web --extra "$extra" > "$RUNNER_TEMP/vite.env"
           keys=$(cut -d= -f1 "$RUNNER_TEMP/vite.env" | paste -sd, -)
           echo "VITE_* set: $keys"
           set -a; . "$RUNNER_TEMP/vite.env"; set +a
@@ -196,6 +203,8 @@ jobs:
           (cd src/app && NODE_OPTIONS='--max-old-space-size=4096' npx vite build --outDir "$dist" --emptyOutDir --logLevel warn)
           echo "built in $(( $(date +%s) - t0 )) s"
           find "$dist" -name '*.map' -delete   # hidden maps (vite.config sourcemap: 'hidden'): no page asks for one
+          # a build holds regular files only: a symlink could point the pass job's server at a file outside it
+          if [ -n "$(find "$dist" ! -type f ! -type d -print -quit)" ]; then echo "::error::the build holds a symlink or special file"; exit 1; fi
           python3 scripts/proofs/speed-rig/vite_env.py meta "$dist" --side "$SIDE" --ref "$REF" --sha "$SHA" --env-keys "$keys"
           du -sh "$dist"
       - uses: actions/cache/save@v4
@@ -301,19 +310,28 @@ jobs:
           [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
       - uses: actions/cache@v4
         with:
-          path: ~/cft
-          key: cft-${{ env.CHROME_VERSION }}-linux64
-      - name: Chrome for Testing (pinned)
+          path: ~/cft-zip
+          key: cft-zip-${{ env.CHROME_VERSION }}-linux64
+      - name: Chrome for Testing (pinned, sha256-verified on every run)
         run: |
           set -euo pipefail
-          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
-            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
-            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          # only the ZIP is cached, and its sha256 is checked against the pin before anything is unzipped: a cache entry
+          # another run saved never runs unverified; the browser is unpacked fresh into this job's temp
+          zip="$HOME/cft-zip/chrome-linux64.zip"
+          if [ ! -f "$zip" ]; then
+            mkdir -p "$HOME/cft-zip"
+            curl -fsSL --retry 3 -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
           fi
+          if ! echo "${CHROME_ZIP_SHA256}  $zip" | sha256sum -c --quiet -; then
+            rm -f "$zip"
+            echo "::error::Chrome for Testing ${CHROME_VERSION}: the zip's sha256 is not the pinned one (a poisoned cache or a changed download): refusing to run it"
+            exit 1
+          fi
+          rm -rf "$RUNNER_TEMP/cft" && mkdir -p "$RUNNER_TEMP/cft" && unzip -q "$zip" -d "$RUNNER_TEMP/cft"
           # Chrome's own sandbox (user namespaces), as on a member's machine: Ubuntu 24.04 restricts them by default
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
-          "$HOME/cft/chrome-linux64/chrome" --version
-          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$RUNNER_TEMP/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
       # the candidate builds (the build job's), from this run's cache entries: never an artifact
       - uses: actions/cache/restore@v4
         if: inputs.base_ref != ''
@@ -395,18 +413,28 @@ jobs:
           [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
       - uses: actions/cache@v4
         with:
-          path: ~/cft
-          key: cft-${{ env.CHROME_VERSION }}-linux64
-      - name: Chrome for Testing (pinned)
+          path: ~/cft-zip
+          key: cft-zip-${{ env.CHROME_VERSION }}-linux64
+      - name: Chrome for Testing (pinned, sha256-verified on every run)
         run: |
           set -euo pipefail
-          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
-            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
-            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          # only the ZIP is cached, and its sha256 is checked against the pin before anything is unzipped: a cache entry
+          # another run saved never runs unverified; the browser is unpacked fresh into this job's temp
+          zip="$HOME/cft-zip/chrome-linux64.zip"
+          if [ ! -f "$zip" ]; then
+            mkdir -p "$HOME/cft-zip"
+            curl -fsSL --retry 3 -o "$zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
           fi
+          if ! echo "${CHROME_ZIP_SHA256}  $zip" | sha256sum -c --quiet -; then
+            rm -f "$zip"
+            echo "::error::Chrome for Testing ${CHROME_VERSION}: the zip's sha256 is not the pinned one (a poisoned cache or a changed download): refusing to run it"
+            exit 1
+          fi
+          rm -rf "$RUNNER_TEMP/cft" && mkdir -p "$RUNNER_TEMP/cft" && unzip -q "$zip" -d "$RUNNER_TEMP/cft"
+          # Chrome's own sandbox (user namespaces), as on a member's machine: Ubuntu 24.04 restricts them by default
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
-          "$HOME/cft/chrome-linux64/chrome" --version
-          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$RUNNER_TEMP/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
       - name: Check lane ${{ matrix.lane }}
         env:
           BENCH_EMAIL: ${{ secrets.BENCH_EMAIL }}

@@ -4,7 +4,7 @@ candidate front end is built with, and the record of what was built.
     python scripts/proofs/speed-rig/vite_env.py env [--extra K=V,K=V] [--dockerfile <candidate>/Dockerfile.web]
         prints KEY=VALUE lines: vite-env.json (production's values) with --extra laid over them (the B side's own
         flags, for an A/B of a flag). Refuses a key that is not VITE_[A-Z0-9_]+, a value that is not a short flag
-        ([A-Za-z0-9._:-], at most 64), and, with --dockerfile, a key that Dockerfile.web does not declare as an ARG (it
+        (0, 1, empty or [A-Za-z0-9._:-] at most 16), a name that reads as a credential (TOKEN/KEY/SECRET/PASSWORD), and, with --dockerfile, a key that Dockerfile.web does not declare as an ARG (it
         could never reach production's build, so a candidate built with it measures a build nobody can ship).
     python scripts/proofs/speed-rig/vite_env.py meta <dist> --side B --ref <ref> --sha <sha> [--env-keys K,K]
         writes <dist>/build-meta.json (side, ref, commit, entry script, the VITE_* names) and prints it. When the
@@ -24,7 +24,10 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 KEY = re.compile(r"VITE_[A-Z0-9_]+")
-VALUE = re.compile(r"[A-Za-z0-9._:-]{0,64}")
+#: a build FLAG: 0, 1, empty, or a short word (2026-11-28 audit: never a credential, which is longer)
+VALUE = re.compile(r"[A-Za-z0-9._:-]{0,16}")
+#: a name that says it holds a credential is refused outright, whatever its value (the audit's rule)
+SECRETISH = re.compile(r"TOKEN|KEY|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTH", re.I)
 ENTRY = re.compile(r"/assets/index-[\w-]+\.js")
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"
 
@@ -48,6 +51,8 @@ def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = Non
     for k, v in env.items():
         if not KEY.fullmatch(k):
             raise ValueError(f"{k!r} is not a VITE_* name")
+        if SECRETISH.search(k):
+            raise ValueError(f"{k}: a credential's name (TOKEN/KEY/SECRET/PASSWORD) is never a build flag here")
         if not isinstance(v, str) or not VALUE.fullmatch(v):
             raise ValueError(f"{k}: the value is not a short flag (refused, not printed)")
     if dockerfile_text is not None:
@@ -62,7 +67,8 @@ def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = Non
         # index-Dbeet4b5.js (the parity check's MISMATCH). So a declared ARG Railway leaves unset gets its ARG default.
         for k, v in decl.items():
             if k not in env:
-                if not VALUE.fullmatch(v):
+                # a credential-named ARG (VITE_PICOVOICE_ACCESS_KEY) is filled only EMPTY, as an unset one builds
+                if not VALUE.fullmatch(v) or (SECRETISH.search(k) and v):
                     raise ValueError(f"{k}: the ARG default is not a short flag (refused, not printed)")
                 env[k] = v
     return env
@@ -115,8 +121,11 @@ def self_check() -> int:
     # a declared ARG the file leaves unset is set as production's build sets it: its default, else empty
     df2 = df + "ARG VITE_C\nARG VITE_D=1\n"
     ok = ok and build_env({"VITE_A": "1"}, "", df2) == {"VITE_A": "1", "VITE_B": "1", "VITE_C": "", "VITE_D": "1"}
+    # a credential-named ARG with no default is filled empty (as production builds it), and a 16-char word passes
+    ok = ok and build_env({"VITE_A": "x" * 16}, "", df + "ARG VITE_PICOVOICE_ACCESS_KEY\n").get("VITE_PICOVOICE_ACCESS_KEY") == ""
     for bad in (({"VITE_A": "1"}, "VITE_C=1", df), ({"VITE_A": "a b"}, "", None), ({"NODE_OPTIONS": "x"}, "", None),
-                ({"VITE_A": "x" * 65}, "", None), ({}, "VITE_A", None)):
+                ({"VITE_A": "x" * 17}, "", None), ({}, "VITE_A", None), ({}, "VITE_API_KEY=1", None), ({}, "VITE_RENDER_TOKEN=ab", None),
+                ({"VITE_DB_PASSWORD": ""}, "", None), ({"VITE_A": "1"}, "", df + "ARG VITE_X_SECRET=abc\n")):
         try:
             build_env(*bad)
             ok = False
