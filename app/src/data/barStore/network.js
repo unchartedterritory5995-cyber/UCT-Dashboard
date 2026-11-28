@@ -407,7 +407,7 @@ export function createNetwork({
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
       // ⭐ (review of #2947, N1) a window's `filling` answer (bars_fetch `to-filling`: Retry-After 3 is a HEADER only, the
-      // body has no retry_after) is asked again: `_nextDelay` re-polls it, in bounded rounds, until it is complete
+      // body has no retry_after) is asked again (`_armFillRetry`, in bounded rounds) until it is complete
       const filling = json.filling === true
       return { ok: true, delta, retryAfterSec: json.retry_after ?? (filling ? WINDOW_FILL_RETRY_S : null), ...(filling ? { filling: true } : {}) }
     }, { front })
@@ -689,7 +689,7 @@ export function createNetwork({
       // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
       // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
       if (kind === 'tail') {
-        const was = r.filling
+        const was = r.filling || fillRounds.has(r.key)   // (the record may be a new one: a one-shot's is collected)
         r.filling = json?.filling === true
         _noteAnswered(r)
         if (r.filling && (!rec.warm || r.refs > 0)) _armFillRetry(r.key)
@@ -1095,7 +1095,8 @@ export function createNetwork({
     answered(key) { return !!keys.get(key)?.answered },
     /** (review of #2947, M1) The key's last tail answer was the server's `filling` one: a window still landing, its rows
      *  short of what it will hold. A later complete answer clears it. */
-    filling(key) { return !!keys.get(key)?.filling },
+    // (N1) ...also after the key's record went (a one-shot ask's record is collected when it settles): a repeat still due
+    filling(key) { return !!keys.get(key)?.filling || fillRounds.has(key) },
     /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
     subscribeAnswered(key, cb) {
       let set = answerSubs.get(key)
