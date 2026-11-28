@@ -160,7 +160,7 @@ def test_a_pack_the_run_did_not_rebuild_is_never_uploaded(world):
     tmp_path, raw, r2, vend = world
     assert _run(tmp_path, r2, vend) == CD.EXIT_OK
     sent = {k for k in r2.puts if k.endswith(".pack")}
-    rebuilt = {f"{PREFIX}{rel}" for rel in CD.daily.touched_packs(DAYS_B)}
+    rebuilt = {f"{PREFIX}packs/{rel}" for rel in CD.daily.touched_packs(DAYS_B)}
     assert sent and sent <= rebuilt, sent - rebuilt
     untouched = {k for k in r2.objects if k.endswith(".pack")} - rebuilt
     assert untouched, "the fixture must hold packs this run does not rebuild"
@@ -214,16 +214,19 @@ def test_trailers_read_by_range_give_the_publish_index_entries(tmp_path):
 
 def test_the_lag_check_is_loud_past_one_session_and_quiet_across_a_holiday():
     v = CD.lag_verdict
-    # Thanksgiving week: the lake ends Wed 11-25, Thu is a holiday, Fri's file posts on Sat
-    assert v("2026-11-25", "2026-11-25", dt.date(2026, 11, 28))[0] == CD.EXIT_OK
-    assert v("2026-11-25", "2026-11-27", dt.date(2026, 11, 28))[0] == CD.EXIT_OK      # one session behind
-    assert v("2026-11-25", "2026-11-30", dt.date(2026, 12, 1))[0] == CD.EXIT_BEHIND   # Fri and Mon missing
+    nov = ["2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25"]     # Thu 11-26 is Thanksgiving: no file
+    # Thanksgiving week: the lake ends Wed 11-25; Fri's file posts on Sat
+    assert v("2026-11-25", nov, dt.date(2026, 11, 28))[0] == CD.EXIT_OK
+    assert v("2026-11-25", nov + ["2026-11-27"], dt.date(2026, 11, 28))[0] == CD.EXIT_OK      # one behind
+    assert v("2026-11-25", nov + ["2026-11-27", "2026-11-30"], dt.date(2026, 12, 1))[0] == CD.EXIT_BEHIND
     # the vendor stopped: nothing new to fold, but the calendar alone says behind
-    assert v("2026-11-20", "2026-11-20", dt.date(2026, 11, 26))[0] == CD.EXIT_BEHIND
-    assert v("2026-11-20", "2026-11-20", dt.date(2026, 11, 24))[0] == CD.EXIT_OK      # Mon only
-    assert v(None, "2026-11-20", dt.date(2026, 11, 24))[0] == CD.EXIT_BEHIND
-    assert CD.lag_sessions("2026-11-25", "2026-11-25") == 0
-    assert CD.lag_sessions("2026-11-20", "2026-11-24") == 2
+    assert v("2026-11-20", ["2026-11-20"], dt.date(2026, 11, 26))[0] == CD.EXIT_BEHIND
+    assert v("2026-11-20", ["2026-11-20"], dt.date(2026, 11, 24))[0] == CD.EXIT_OK           # Mon only
+    assert v(None, ["2026-11-20"], dt.date(2026, 11, 24))[0] == CD.EXIT_BEHIND
+    assert CD.lag_sessions("2026-11-25", nov) == 0
+    assert CD.lag_sessions("2026-11-20", nov) == 3
+    assert CD.lag_sessions("2026-11-25", nov + ["2026-11-27"]) == 1, "the holiday is not a session"
+    assert CD.lag_sessions("2026-11-25", []) == 0
 
 
 def test_vendor_listing_and_pack_keys():

@@ -142,17 +142,15 @@ def pack_key_of(key: str, prefix: str) -> Optional[Tuple[str, str]]:
     return rest[0], rest[1]
 
 
-def lag_sessions(lake_last_day: Optional[str], vendor_last_day: Optional[str]) -> int:
-    """Trading sessions the vendor has published that the lake lacks: weekdays after the lake's last day
-    up to and including the vendor's newest file. The vendor publishes no file for a weekend or a holiday,
-    so a holiday is never counted unless a later session exists."""
-    if not vendor_last_day:
+def lag_sessions(lake_last_day: Optional[str], vendor_days: Iterable[str]) -> int:
+    """Sessions the vendor has PUBLISHED that the lake lacks: its day files after the lake's last day. Counting
+    the files, never the calendar, is what keeps a holiday (no file) from reading as a missed session."""
+    days = [d for d in vendor_days or () if d]
+    if not days:
         return 0
     if not lake_last_day:
         return 99
-    if vendor_last_day <= lake_last_day:
-        return 0
-    return daily.trading_days_between(lake_last_day, _dt.date.fromisoformat(vendor_last_day)) + 1
+    return sum(1 for d in days if d > lake_last_day)
 
 
 def lake_last_day(index_doc: Optional[dict]) -> Optional[str]:
@@ -169,19 +167,21 @@ def lake_last_day(index_doc: Optional[dict]) -> Optional[str]:
 CALENDAR_ALLOWANCE = 2
 
 
-def lag_verdict(lake_day: Optional[str], vendor_day: Optional[str], today: _dt.date, *,
+def lag_verdict(lake_day: Optional[str], vendor_days: Iterable[str], today: _dt.date, *,
                 max_behind: int = 1) -> Tuple[int, str]:
     """(exit code, sentence) for the lag check. BEHIND when the vendor has published more than
     `max_behind` sessions the lake lacks (our refresh failed), or when more than CALENDAR_ALLOWANCE
     weekdays have passed since the lake's last day whatever the vendor has (the vendor stopped)."""
-    n = lag_sessions(lake_day, vendor_day)
+    days = sorted(d for d in vendor_days or () if d)
+    newest = days[-1] if days else None
+    n = lag_sessions(lake_day, days)
     cal = daily.trading_days_between(lake_day, today) if lake_day else 99
     if n > max_behind:
-        return EXIT_BEHIND, f"LAKE BEHIND: ends {lake_day}, the vendor has {vendor_day} ({n} sessions behind)"
+        return EXIT_BEHIND, f"LAKE BEHIND: ends {lake_day}, the vendor has {newest} ({n} sessions behind)"
     if cal > CALENDAR_ALLOWANCE:
         return EXIT_BEHIND, (f"LAKE BEHIND: ends {lake_day}, {cal} weekdays before {today} "
-                             f"(the vendor's newest day is {vendor_day})")
-    return EXIT_OK, f"lake ends {lake_day}; vendor's newest day {vendor_day} ({n} behind)"
+                             f"(the vendor's newest day is {newest})")
+    return EXIT_OK, f"lake ends {lake_day}; vendor's newest day {newest} ({n} behind)"
 
 
 # ── the network ─────────────────────────────────────────────────────────────────────────────────
@@ -255,12 +255,12 @@ def fetch_splits(api_key: str) -> list:
 
 # ── the run ─────────────────────────────────────────────────────────────────────────────────────
 
-def check_lag(r2, bucket: str, prefix: str, vendor_last: Optional[str], today: _dt.date) -> Tuple[int, str]:
+def check_lag(r2, bucket: str, prefix: str, vendor_days: Iterable[str], today: _dt.date) -> Tuple[int, str]:
     try:
         doc = get_json(r2, bucket, f"{prefix}v1/index/s-{daily.REFERENCE_SYMBOL}.json")
     except Exception as e:  # noqa: BLE001
         return EXIT_FAILED, f"could not read {daily.REFERENCE_SYMBOL}'s live index: {type(e).__name__}"
-    return lag_verdict(lake_last_day(doc), vendor_last, today)
+    return lag_verdict(lake_last_day(doc), vendor_days, today)
 
 
 def _build(raw: Path, tree: Path, days: List[str], jobs: int) -> int:
@@ -287,7 +287,7 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     vendor_last = max(sizes) if sizes else None
     log(f"vendor: {len(sizes)} day files in {years}, newest {vendor_last}")
     if check_only:
-        code, msg = check_lag(r2, bucket, prefix, vendor_last, today)
+        code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
         log(f"[lake-cloud] {msg}")
         return code
 
@@ -299,7 +299,7 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
     days = sorted(set(plan["new"]) | set(plan["holes"]) | set(plan["changed"]))
     log(f"plan: new={plan['new']} holes={plan['holes']} changed={plan['changed']}")
     if not days:
-        code, msg = check_lag(r2, bucket, prefix, vendor_last, today)
+        code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
         log(f"[lake-cloud] nothing to fold; {msg}")
         return code
     if dry_run:
@@ -398,7 +398,7 @@ def run(work: Path, bucket: str, prefix: str, *, dry_run: bool = False, check_on
                   Body=json.dumps({"published_through": through, "at": time.time(), "runner": "github-actions",
                                    "days": days, "built_at": built_at}).encode())
     log(f"[lake-cloud] published through {through} ({len(days)} days, {len(local)} packs)")
-    code, msg = check_lag(r2, bucket, prefix, vendor_last, today)
+    code, msg = check_lag(r2, bucket, prefix, sizes.keys(), today)
     log(f"[lake-cloud] {msg}")
     return code
 
