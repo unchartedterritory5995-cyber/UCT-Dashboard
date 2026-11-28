@@ -191,9 +191,9 @@ describe('lake pieces decode off the main thread', () => {
     const P = (i) => pieces[i % pieces.length]
     const deep = Array.from({ length: 12 }, (_, i) => dec.decode(P(i).headerJson, P(i).body))
     expect(deep.every((d) => typeof d.then === 'function')).toBe(true)
-    // ticker B's first paint: its load passes no yield (network.lakeSeed awaited)
-    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: null })
-    const got = await src.loadBars('MU-LT', '5')
+    // ticker B's first paint: its load's yield answers nothing (network.js: a paint awaits the load)
+    const src = createHistorySource({ fetch: edge(), decoder: dec })
+    const got = await src.loadBars('MU-LT', '5', { yieldTask: () => null })
     expectBars(got)
     const s = dec.stats()
     expect(s.urgentInline).toBe(3)                       // all three of B's pieces, at once
