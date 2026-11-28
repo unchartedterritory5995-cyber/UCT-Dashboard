@@ -8144,6 +8144,36 @@
     "BKH",
     "ELA"
    ]
+  },
+  {
+   "id": "cloud/46132898858-1/COV-def-dd-arrows",
+   "at": "2026-11-28T09:58:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CRD-B",
+    "NRGV",
+    "CEPF",
+    "ITRG",
+    "SBXE",
+    "ZKH",
+    "KOPN",
+    "EU",
+    "AQST",
+    "DCTH",
+    "PFIS",
+    "PDM",
+    "BLFS"
+   ]
+  },
+  {
+   "id": "cloud/46132898858-1/COV-def-tabs",
+   "at": "2026-11-28T09:58:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "RGC",
+    "ARLP",
+    "TMQ"
+   ]
   }
  ]
 }
