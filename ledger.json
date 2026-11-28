@@ -8812,6 +8812,50 @@
     "SWMR",
     "JBLU"
    ]
+  },
+  {
+   "id": "cloud/46156420212-1/COV-tf-def",
+   "at": "2026-11-28T14:56:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "HLLY",
+    "ENTA",
+    "BRCB",
+    "PLBC"
+   ]
+  },
+  {
+   "id": "cloud/46156420212-1/COV-tf-zo",
+   "at": "2026-11-28T14:56:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MSB",
+    "ORRF",
+    "AAT",
+    "GNE"
+   ]
+  },
+  {
+   "id": "cloud/46156420212-1/COV-tf-date",
+   "at": "2026-11-28T14:56:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SKYH",
+    "EVTC",
+    "COUR",
+    "JOBY"
+   ]
+  },
+  {
+   "id": "cloud/46156420212-1/COV-tf-nolist",
+   "at": "2026-11-28T14:56:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MVBF",
+    "USAS",
+    "MESO",
+    "MBLY"
+   ]
   }
  ]
 }
