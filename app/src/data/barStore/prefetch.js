@@ -68,13 +68,13 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO, sessionCloseMinuteOfUnix } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, isRthBar } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, isRthBar } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { isKnownTicker } from '../../lib/tickerUniverse'
@@ -108,6 +108,9 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
 /** The most linked charts' keys a typed warm fetches beside its own (_fetchLinked): a board's linked group is 2-4 charts. */
 export const LINKED_TYPED_MAX = 3
+/** (2026-11-28, zero-network plan 1.4) How many of the typed text's likeliest completions are warmed at once
+ *  (warmTypedCandidates). The top one also takes the typed slot (warmTypedSymbol: linked charts, the hidden pane). */
+export const CANDIDATE_POOL_K = 3
 /** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
 const ASK_AGAIN = Object.freeze([])
 /** ⚰️ (2026-11-25) How long the handoff USED to wait for the tail of a copy behind the clock before it painted the copy as
@@ -126,6 +129,8 @@ const SCAN_WARM_CAP = 100
 const DEEP_WARM_TFS = Object.freeze(['D', 'W', 'M'])
 const DEEP_WARM_CAP = 120
 const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
+/** The rows ahead a date's windowed warm takes (prefetchViewWindow): the list's next rows, never a whole list. */
+const VIEW_WINDOW_WARM_MAX = 3
 // The typed warm's re-ask window is the legacy module's TYPED_REASK_MS (imported above), never a
 // number of this module's: both warmers skip a re-ask on the same rule.
 const COOLDOWN_MAX_KEYS = 400
@@ -567,17 +572,18 @@ export function createPrefetch(o = {}) {
   // `dwell`: the dwell's all-timeframes warm (registry `_evict`): an entry this warm MAKES is marked once it has its
   // answer, so it goes first out of the registry once no chart shows its symbol; any other warm of the key makes it
   // ordinary.
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0 } = {}) {
+  // `session` ('rth' | 'eth'; default: the global session): the warm's own, where a pane's differs (review of #3004, LOW)
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0, session: sessOpt = undefined } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const R = S().registry
       const made = !!dwell && !R?.has?.(key)
       if (!dwell) R?.setDwell?.(key, false)
-      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace })
+      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace, session: sessOpt })
       if (made) R?.setDwell?.(key, true)
       return s
     }))
   }
-  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0 }) {
+  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0, session: sessOpt = undefined }) {
     const s0 = await _hydrate(key)
     const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
     const flip = _flipPaints(key, s0)
@@ -592,13 +598,13 @@ export function createPrefetch(o = {}) {
     decide?.('ensure')
     // A local copy the flip would refuse never satisfies the warm: only a server answer does
     // (`local: false`, exactly as prepareForDisplay asks).
-    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace })
+    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace, ...(sessOpt ? { session: sessOpt } : {}) })
   }
 
   /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
    *  if any asker wanted it, warm only if every asker sent warm (a non-warm ask is not shed). */
   const RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
-  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false } = {}) {
+  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false, session: sessOpt = undefined } = {}) {
     if (!key) return
     if (!batch) {
       batch = new Map()
@@ -609,7 +615,8 @@ export function createPrefetch(o = {}) {
       })
     }
     const have = batch.get(key)
-    if (!have) { batch.set(key, { priority, depth, warm, front, dwell }); return }
+    if (!have) { batch.set(key, { priority, depth, warm, front, dwell, ...(sessOpt ? { session: sessOpt } : {}) }); return }
+    if (sessOpt === 'eth') have.session = 'eth'   // (an extended asker's rows include the regular session's)
     if (RANK[priority] < RANK[have.priority]) have.priority = priority
     have.depth = Math.max(have.depth, depth)
     have.warm = have.warm && warm
@@ -708,7 +715,7 @@ export function createPrefetch(o = {}) {
       const iso = etDateOf(probe)
       const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
       if (dow === 0 || dow === 6 || isHolidayISO(iso)) continue
-      const closeMin = ext ? 1200 : rthCloseMinuteOf(probe)
+      const closeMin = sessionCloseMinuteOfUnix(probe, { extended: ext })   // (17:00 extended on a half day)
       let c = probe - etMinuteOfDay(probe) * 60 + closeMin * 60
       c += (closeMin - etMinuteOfDay(c)) * 60      // (a DST change in between)
       return c
@@ -737,15 +744,45 @@ export function createPrefetch(o = {}) {
   // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
   // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
   const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
-  /** When the newest CLOSED bucket of `tf` opened (ms): what `_markShort` stamps a short copy as lacking (#2721). */
-  const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
-    return !_ownGrace(key, s, n)
+    return !_ownGrace(key, s, n, showExtended)
+  }
+  /**
+   * ⭐⭐ (2026-11-28, B9: the cold-coverage run after the 11-27 half day, CRAI on a 1m + 15m board: the switch held the
+   * previous chart to the 4 s hang guard) THE ROLL A PROOF MUST REACH IS THE VIEW'S NEWEST CLOSED BUCKET, NOT THE CLOCK'S.
+   * In the session the two are one instant (the current bucket opened when the newest closed one ended). After the close
+   * the clock keeps rolling every bucket while the session's frontier stays at its close (13:00 on a half day): an
+   * illiquid name's tail (CRAI 1m 12:56, three buckets short of the close) came back `verified` by the server's proof
+   * (the live stream's watermark, 20:00 ET), and the grace asked that proof to reach 20:49, the minute the member pressed
+   * Enter. It never could, so the copy read behind all evening, the switch never painted it and nothing more was asked.
+   * The earlier of the two: the clock's roll inside the session, the newest session close at or before now outside it
+   * (today's once it has closed, else the previous session's; the half day's 13:00, the extended view's 20:00).
+   * ⛔ Read on the ET calendar (barTime etDateOf / etMinuteOfDay), never a local Date: on a page east of New York the
+   * evening is already the next day locally (utils/marketSession expectedLatestCompletedBar reads the local weekday).
+   */
+  function _proofRollMs(key, tf, showExtended) { return _proofRoll(key, tf, showExtended).ms }
+  /** The proof roll (ms) and whether the view's session is over (`out`: its roll then stands still at the close). */
+  function _proofRoll(key, tf, showExtended) {
+    const clock = _rollMs(tf)
+    const p = parseKey(key)
+    const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
+    const sec = Math.floor(now() / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    const day = !(dow === 0 || dow === 6 || isHolidayISO(iso))
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    const closeMin = sessionCloseMinuteOfUnix(sec, { extended: ext })     // (marketSession: the one session close)
+    if (day && m >= open && m < closeMin) return { ms: clock, out: false }   // in the session: the clock's roll IS the frontier's
+    const close = day && m >= closeMin
+      ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
+      : (_prevSessionCloseUnix(sec, ext) ?? NaN) * 1000
+    return { ms: Number.isFinite(close) && close < clock ? close : clock, out: true }
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
-  function _ownGrace(key, s, n) {
+  function _ownGrace(key, s, n, showExtended) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -767,11 +804,15 @@ export function createPrefetch(o = {}) {
     // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
-      const roll = _rollMs(tf0)
+      const { ms: roll, out } = _proofRoll(key, tf0, showExtended)
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
-      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll) return true
+      // ⛔ (2026-11-28, hardening) OUTSIDE THE SESSION the roll stands still (the close), so "TAIL_LAG_WINDOW_MS since the
+      // roll" is true all evening of any answer, even one the server built before it had stored the session's last
+      // bucket. There the ANSWER itself must have landed that long after the close (`a.at`: when ensure noted it).
+      const settled = out ? a.at - roll >= TAIL_LAG_WINDOW_MS : now() - roll >= TAIL_LAG_WINDOW_MS
+      if (settled && s.verifiedThrough * 1000 >= roll) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
@@ -834,7 +875,11 @@ export function createPrefetch(o = {}) {
     if (!_short(key, showExtended)) return
     const tf = parseKey(key)?.tf
     if (!tf || !isIntradayTf(tf)) return
-    try { S().registry?.dispatch?.(key, { type: ACTION.AWAIT_CLOSED, key, payload: { t: Math.floor(_prevRollMs(tf) / 1000) } }) } catch { /* a status only */ }
+    // ⛔ (2026-11-28) the bucket the copy lacks is the one ending at the PROOF ROLL (_proofRollMs): in the session the newest
+    // closed bucket by the clock, after the close the session's last one. The clock's previous bucket (#2721's rule) after
+    // the close named a bucket no regular-session copy can ever hold, and it read UPDATING until the next answer.
+    const t = bucketStartUnix(Math.floor(_proofRollMs(key, tf, showExtended) / 1000) - 1, tf)
+    try { S().registry?.dispatch?.(key, { type: ACTION.AWAIT_CLOSED, key, payload: { t } }) } catch { /* a status only */ }
   }
   /** What the switch reports after painting `key`: 'updating' while its copy is marked short (see _markShort). */
   function _paintedOutcome(key) {
@@ -891,10 +936,10 @@ export function createPrefetch(o = {}) {
   }
 
   // ── the handoff ─────────────────────────────────────────────────────────────
-  function peekDisplayable(sym, tf, { showExtended } = {}) {
+  function peekDisplayable(sym, tf, { showExtended, viewWindow = null } = {}) {
     if (!sym || !tf) return false
     if (!isNativeTf(tf) || !isIntradayTf(tf)) return true
-    const key = keyFor(sym, tf, { showExtended })
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return true
     const held = S().peek(key)
     if (!held) _hydrate(key)   // the mem half lands synchronously
@@ -943,8 +988,8 @@ export function createPrefetch(o = {}) {
    * sealed + developing), or null. The P3-S1 replacement of the `memPeek` readers (the handoff's
    * daily fast path, useDayFacts): an unseen key is hydrated, its mem half in this same call.
    */
-  function peekBars(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function peekBars(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return null
     if (!S().peek(key)) _hydrate(key)
     const s = S().peek(key)
@@ -956,8 +1001,8 @@ export function createPrefetch(o = {}) {
    *  whole legacy array (a new object + date string per bar: ~11 ms on a deep daily set, on every daily
    *  switch, just to read its length; production CPU profile 2026-11-19). An unseen key is hydrated, its
    *  mem half in this same call, exactly as peekBars does. */
-  function holdsBars(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function holdsBars(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return false
     if (!S().peek(key)) _hydrate(key)
     const s = S().peek(key)
@@ -967,12 +1012,15 @@ export function createPrefetch(o = {}) {
   /** SYNCHRONOUS: how many rows (closed + the developing one) the store holds for the chart `sym` / `tf`
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
-   *  handoff asks it after its own peek, which already did. */
-  function heldRows(sym, tf, { showExtended, answered = false, upTo = COVER_ROWS } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+   *  handoff asks it after its own peek, which already did. `viewWindow` ({to}): the window an INTRADAY chart reads at a
+   *  past date (a replay cutoff, the date box's anchor: chart/useBarSnapshotBars chartKeyFor), so the rows counted are
+   *  the ones that chart draws, never the plain key's newest rows (owner, 2026-11-27: charts at any date). */
+  function heldRows(sym, tf, { showExtended, viewWindow = null, answered = false, upTo = COVER_ROWS } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const s = key ? S().peek(key) : null
     if (!s) return 0
-    if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
+    // ...and never a `filling` answer (review of #2947, M1): a window the server is still fetching is not its rows yet
+    if (answered && !(s.restSeen && S().network?.answered?.(key) && !S().network?.filling?.(key))) return 0
     return _viewRows(s, key, extOf(showExtended), upTo)
   }
   /**
@@ -1036,8 +1084,8 @@ export function createPrefetch(o = {}) {
     return isCacheCurrentForView(rows, lastT, normTf(tf), { session: extOf(showExtended) ? 'extended' : 'rth', nowMs: now() })
   }
 
-  async function prepareForDisplay(sym, tf, { signal = null, showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  async function prepareForDisplay(sym, tf, { signal = null, showExtended, viewWindow = null, need = 0 } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
@@ -1090,7 +1138,22 @@ export function createPrefetch(o = {}) {
         return _paintedOutcome(key)
       }
       if (heldPaints) { await _joined(lake); return 'current' }
-      if (localPaints) { await _joined(lake); return 'current' }   // legacy: no request
+      if (localPaints) {
+        // ⛔⛔ (2026-11-28, B9: the cold-coverage run, a 1m + 15m board zoomed out, CRAI typed: the 15m chart held the
+        // previous symbol to the 4 s hang guard) A LOCAL COPY SHORT OF THE VIEW IS ASKED FOR, AT ONCE. The device's copy
+        // (~300 newest rows) passes the paint rule, so this branch asked nothing and reported 'current' after the lake's
+        // join; where the lake added nothing (an illiquid name: no bar shared with the device rows) the rows stayed short
+        // of the view the handoff waits to cover (`need`, useSymbolHandoff viewNeed), and no request was ever made for
+        // the rows that would. Short, the switch's own ask leaves beside the lake's join, and the report waits for its
+        // answer when the join leaves the copy short. A copy that covers the view, or a caller naming no need: no request.
+        const short = () => need > 0 && _viewRows(S().peek(key), key, extOf(showExtended), need) < need
+        const ask = short()
+          ? ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended), own: true })
+          : null
+        await _joined(lake)
+        if (ask && short()) return _outcome(await ask, { aborted: !!signal?.aborted })
+        return 'current'   // legacy: no request
+      }
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a
       // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
@@ -1206,8 +1269,8 @@ export function createPrefetch(o = {}) {
    *   held    what the store holds for the key right now: 'device' | 'server' (the device copy joined by an
    *           answer) | another source | 'none'. What a chart committed now paints first.
    */
-  function deviceVerdict(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function deviceVerdict(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const p = key ? parseKey(key) : null
     if (!p) return { paints: false, reason: 'no-key', held: 'none' }
     // a held copy the device rule refuses for its age or a rolled bucket is brought forward first (its synchronous half
@@ -1239,8 +1302,8 @@ export function createPrefetch(o = {}) {
    * A 'stale' copy is re-read first, asking the device for a newer one than it holds (URGENT_NEWER): the frame of the minute
    * that just ended may be in.
    */
-  function deviceHold(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function deviceHold(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const p = key ? parseKey(key) : null
     if (!p || p.window || !isIntradayTf(p.tf)) return null
     const r = _deviceRefusal(S().peek(key), showExtended)
@@ -1251,8 +1314,8 @@ export function createPrefetch(o = {}) {
 
   /** ...and while it holds, THE bars request for that key, now (the chart's own when it is shown, which then joins it): the
    *  prepare's request, at `visible` rank, never a warm. Resolves with the snapshot; never rejects. */
-  function askForDisplay(sym, tf, { showExtended, signal = null } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function askForDisplay(sym, tf, { showExtended, viewWindow = null, signal = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return Promise.resolve(null)
     return ensure(key, { until: PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended), own: true })
   }
@@ -1276,8 +1339,8 @@ export function createPrefetch(o = {}) {
   // The hydrate above exists only because the device read would make the entry; with no device read there is nothing
   // to do, and the key press leaves that key exactly as the store-off key press does (hooks/useSymbolHandoff
   // primeDeviceFor is never called then).
-  function deviceWarm(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function deviceWarm(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key || !deviceServesTf(parseKey(key)?.cacheTf)) return Promise.resolve(false)
     const st = S()
     try { if (!st.peek(key)) _hydrate(key, URGENT) } catch { /* a store with no registry: the read below still leaves */ }
@@ -1307,8 +1370,8 @@ export function createPrefetch(o = {}) {
   // right after it writes the answer (prefetch.watchBehindAnswer). Only a waiter of this function is woken, and the only
   // caller is the symbol handoff with the device store on (useSymbolHandoff watchEntry): with the store off nothing is
   // ever registered here.
-  function watch(sym, tf, { showExtended } = {}, cb) {
-    const key = keyFor(sym, tf, { showExtended })
+  function watch(sym, tf, { showExtended, viewWindow = null } = {}, cb) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const st = S()
     const reg = st.registry
     if (!key || !reg?.subscribe) return null
@@ -1317,12 +1380,17 @@ export function createPrefetch(o = {}) {
       const offEntry = reg.subscribe(key, wake, { wake: 'all' })
       let offAnswered = null
       try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      // (2026-11-28) ...and on its depth SETTLING (network.subscribeSettled): a history join or a lake load that added
+      // nothing moves no entry, and is exactly how a waiter learns nothing more is coming (deepPending / lakePending false)
+      let offSettled = null
+      try { offSettled = st.network?.subscribeSettled?.(key, wake) || null } catch { offSettled = null }
       let set = watchers.get(key)
       if (!set) { set = new Set(); watchers.set(key, set) }
       set.add(wake)
       return () => {
         try { offEntry() } finally {
           if (offAnswered) offAnswered()
+          if (offSettled) offSettled()
           set.delete(wake)
           if (!set.size && watchers.get(key) === set) watchers.delete(key)
         }
@@ -1337,14 +1405,14 @@ export function createPrefetch(o = {}) {
    *  waited for, false when none was running). Starts nothing; never rejects. The typed ticker's frame is prepared on
    *  the bars Enter will read, so the pane names it only after the typed warm's lake join has landed (a frame prepared on
    *  the rows before the join is filed under an array the switch no longer reads). */
-  function lakeJoined(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function lakeJoined(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const p = key ? S().lakeLoading?.(key) : null
     return p ? Promise.resolve(p).then(() => true, () => true) : Promise.resolve(false)
   }
 
-  function lakePending(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function lakePending(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     return !!key && !!S().lakePending?.(key)
   }
 
@@ -1379,8 +1447,8 @@ export function createPrefetch(o = {}) {
     return outcome
   }
 
-  async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended, cover = 0 } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended, viewWindow = null, cover = 0 } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
@@ -1400,7 +1468,7 @@ export function createPrefetch(o = {}) {
       // its history due for certain, so it leaves before the read; a saved copy that turns out deep
       // (its history joined on an earlier visit) is not due, and takes the old path.
       const t0 = now()
-      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
+      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })
       const hyd = _hydrate(key, URGENT)
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
@@ -1408,7 +1476,7 @@ export function createPrefetch(o = {}) {
         const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null, cover })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
-      S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
+      S().deepPrime?.(key, { priority: 'visible', want: true, wantSignal: signal })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
       const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {}, cover })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
@@ -1424,8 +1492,8 @@ export function createPrefetch(o = {}) {
 
   /** D/W/M: is the deep sealed history still due for the chart `sym` / `tf` would show? The handoff
    *  then prepares instead of painting a held shallow set at once (see prepareDailyForDisplay). */
-  function deepPending(sym, tf, { showExtended } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+  function deepPending(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     return !!key && !!S().deepPending?.(key)
   }
 
@@ -1503,17 +1571,69 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false, signal, warmers = true } = {}) {
     if (!tickers?.length) return
-    tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+    // (review of #2996, F1b) `warmers: false` (the chart's timeframe dwell): no companion warmer is told, so no server
+    // indicator-column batch goes to the origin per timeframe on every rest, never aborted on leave
+    if (warmers) tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended, { network: edge === true, tail: edge === 'tail', signal }); return }
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
-  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first
-   *  once no chart shows `sym` (registry `_evict`). */
-  function prefetchAllTimeframes(sym) {
-    if (!sym) return
-    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf, { dwell: true })
+  /**
+   * ⭐⭐ (2026-11-28, zero-network plan 1.7) A LIST'S NEIGHBOUR ROWS, FROM THE DEVICE AND THE EDGE, NEVER THE ORIGIN.
+   * The scan lists (watchlist, screener focus, theme tracker) warmed the ±6 rows around the selection with a background
+   * `&warm=1` /api/bars ask on EVERY press: an origin request the edge cannot share (the tail cache refuses `warm=1`), ~2
+   * origin requests a second per scanning member, ~200/s at 500 members (plan section C, "today's risk"). With `edge`
+   * (`prefetchBarsToIDB(rows, tf, { priority: true, edge: true })`) each row is instead
+   *   * read from the DEVICE into memory (_hydrate: IndexedDB / the device seed),
+   *   * D/W/M: its deep sealed history from the EDGE (network.deepPrime, /api/bars-history, one request per key, joined
+   *     by the flip's own tail),
+   *   * intraday: the lake's index and newest pieces from the EDGE (primeLake),
+   * and NOTHING goes to /api/bars. The rows the member reaches next keep their tail ahead of the press as before (the
+   * list's urgent next-row warm, prefetchBars `urgent`: the chart's own URL, which the edge's tail cache shares across
+   * members), so a flip still finds the row current; the press is what asks the origin. Not for `immediate` (the switch's
+   * own ask). A key already held current and whole is left alone.
+   */
+  // (lane C, #2996 F1) `signal`: aborted when the member leaves the symbol (the chart's dwell), nothing more is asked
+  function _warmFromEdge(tickers, tf, showExtended, { network = true, tail = false, signal = null } = {}) {
+    let n = 0
+    for (const sym of [...new Set(tickers)]) {
+      const k = keyFor(sym, tf, { showExtended })
+      const p = k ? parseKey(k) : null
+      if (!p || p.window) continue
+      const date = !isIntradayTf(p.tf)
+      const held = S().peek(k)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)
+        && !(date ? S().deepPending?.(k) : S().lakePending?.(k))) continue
+      n++
+      Promise.resolve().then(async () => {
+        if (signal?.aborted) return
+        await _hydrate(k)                                                    // the device
+        if (signal?.aborted) return                                          // (lane C) the member left meanwhile
+        // ('tail': a visible row's page in the chart's own URL, shared by the edge's tail cache; never `&warm=1`)
+        if (tail) { if (!(S().peek(k)?.restSeen && HANDOFF_PAINTS.includes(S().peek(k).status))) await prefetch([k], { priority: 'grid', ...(signal ? { signal } : {}) }); return }
+        if (!network) return                                                 // ('device': a whole list, the device alone)
+        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid', ...(signal ? { signal } : {}) }); return }   // the edge's history
+        try { S().primeLake?.(k) } catch { /* a warm only */ }                // the edge's lake pieces
+      }).catch(() => {})
+      tickerMeta(sym)
+    }
+    return n
+  }
+
+  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press; the chart's own dwell,
+   *  ChartWidget): its entries go first once no chart shows `sym` (registry `_evict`). `tfs`: the NATIVE timeframes to
+   *  warm (the chart's bar, a custom code already mapped to its base), first ones first; default every native one.
+   *  ⭐ (lane C, PR 1.5) the same keys and the same lane as the list's dwell: device -> edge -> origin is each key's own
+   *  load path (`_defer`); cancellation and single-flight are the queue's.
+   *  ⭐⭐ (review of #2996, F1) `edge`: from the DEVICE and the EDGE only (_warmFromEdge: device copy, the edge's deep
+   *  history / lake pieces), never an origin `&warm=1` /api/bars (~7 per 300 ms rest, nothing the edge tail cache can
+   *  share); `signal` aborts what has not been asked yet when the member leaves the symbol. */
+  function prefetchAllTimeframes(sym, { tfs = ALL_TFS, showExtended, edge = false, signal } = {}) {
+    if (!sym || signal?.aborted) return
+    const list = [...new Set((Array.isArray(tfs) && tfs.length ? tfs : ALL_TFS).map(String))]
+    for (const tf of list) prefetchBarsToIDB([sym], tf, edge ? { edge: true, showExtended, signal, warmers: false } : { dwell: true, showExtended })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
@@ -1942,9 +2062,19 @@ export function createPrefetch(o = {}) {
     const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
     if (!list.length) return
     const tf = chartTf || 'D'
-    prefetchBarsToIDB(list.slice(0, memTop), tf, { priority: true, visible: true })
-    prefetchBarsToIDB(list.slice(memTop), tf, { priority: true })
-    if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
+    // ⭐ (2026-11-28, zero-network plan 1.7 follow-up, review of #2984) FROM THE DEVICE, NEVER THE ORIGIN: a list opening
+    // sent a `&warm=1` /api/bars for up to `cap` (500) rows, an origin ask per row the edge's tail cache cannot share. Now
+    // each row is read from the DEVICE only (prefetchBarsToIDB `edge: 'device'`): no /api/bars, and no deep history either
+    // (500 primed histories would be ~500 MB of edge reads, and the primes are kept 16 at a time). The rows around the
+    // selection get the neighbour warm (device + edge history / lake, `edge: true`) and the next ones their urgent tail, as
+    // before; a click on any other row asks its tail through the edge's shared tail cache. The intraday top rows still warm
+    // the edge's lake tier (edgeWarmList, below).
+    // ...and the rows ON SCREEN (memTop) also ask their page in the chart's own URL (no `&warm=1`), which the edge's tail
+    // cache shares across members: a first click on a visible row of a list just opened finds its server answer, as
+    // before (prefetch.keepAhead K1), without a per-member origin ask the edge cannot share.
+    prefetchBarsToIDB(list.slice(0, memTop), tf, { priority: true, visible: true, edge: 'tail' })
+    prefetchBarsToIDB(list.slice(memTop), tf, { priority: true, edge: 'device' })
+    if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true, edge: 'device' })
     warmMemFromIDB(list.slice(0, memTop), tf !== 'D' ? [tf, 'D'] : ['D'])
     edgeWarmList(list, { chartTf: tf })
   }
@@ -2024,6 +2154,17 @@ export function createPrefetch(o = {}) {
     const [y, m, d] = String(cutoffIso).split('-').map(Number)
     const to = Date.UTC(y, m - 1, d, 17) / 1000   // 12:00/13:00 ET: its ET date is the cutoff
     for (const tf of REPLAY_WARM_TFS) _defer(keyFor(sym, tf, { window: { to } }), 'background', { depth: bars, warm: true })
+  }
+
+  /** ⭐ (review of #2947, H2: charts at any date) A date the member went to: the WINDOWED (`@to=`) key of `tf` for each
+   *  of `syms` (the rows the list names next), the key the chart reads there (chart/viewWindow), as replay's warm does.
+   *  Nothing on D/W/M (their charts read the plain key at a date) or without a window. */
+  function prefetchViewWindow(syms, tf, viewWindow, { showExtended, bars = 4000 } = {}) {
+    if (!viewWindow || !Number.isFinite(viewWindow.to) || !tf) return
+    for (const sym of [...new Set((syms || []).filter(Boolean))].slice(0, VIEW_WINDOW_WARM_MAX)) {
+      const key = keyFor(sym, tf, { showExtended, window: { to: viewWindow.to } })
+      if (key && parseKey(key)?.window) _defer(key, 'background', { depth: bars, warm: true, ...(typeof showExtended === 'boolean' ? { session: session(showExtended) } : {}) })
+    }
   }
 
   function prefetchBarOnIntent(sym, tf = 'D', { delay = 120 } = {}) {
@@ -2138,12 +2279,16 @@ export function createPrefetch(o = {}) {
     return n
   }
 
-  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0) {
+  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0, viewWindow = null, showExtended = undefined) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
-    const key = keyFor(T, tf)
+    // ⭐ (review of #2947, speed follow-up) A CHART AT A DATE WARMS THE WINDOW IT WILL READ: the typed ticker's window
+    // ending at the member's date (chart/viewWindow), never the plain key's newest rows (another set of bars)
+    // (review of #3004, LOW) on the PANE's session: its ETH can differ from the global (`showExtended`, the chart's own)
+    const key = keyFor(T, tf, viewWindow ? { window: viewWindow, showExtended } : {})
     const p = key ? parseKey(key) : null
-    if (!p || p.window || !isIntradayTf(p.tf)) return null
+    if (!p || !isIntradayTf(p.tf) || (p.window && !viewWindow)) return null
+    if (p.window) return _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended)
     if (typed && typed.key !== key) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
@@ -2233,9 +2378,39 @@ export function createPrefetch(o = {}) {
     return !gone() && inLake === true
   }
 
-  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0 } = {}) {
+  /** The typed ticker's WINDOW at the member's date (an intraday chart the date box sent to a past date): its lake pieces
+   *  primed now, its read asked (the window's lake-first read, network `_windowRead`), the linked intraday timeframes'
+   *  windows warmed beside it. Superseded by a newer text like the plain warm. */
+  function _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended) {
+    if (typed && typed.key !== key) {
+      if (!typed.kept) typed.ctl.abort()
+      typed = null
+    }
+    if (typed && typed.key === key) return null
+    const held = S().peek(key)
+    if (held?.restSeen && DISPLAYABLE.includes(held.status)) return null
+    const ctl = new AbortController()
+    const mine = { key, ctl, kept: false }
+    typed = mine
+    try { S().primeLake?.(key) } catch { /* a warm only */ }
+    for (const t2 of alsoTfs || []) {
+      if (String(t2) === String(tf) || !isIntradayTf(fetchTf(String(t2)))) continue
+      try { prefetchViewWindow([T], t2, viewWindow, { showExtended }) } catch { /* a warm only */ }
+    }
+    return (async () => {
+      // the same vouching as the plain warm (`_typedIsTicker`): a partial word nothing knows asks nothing
+      const isTicker = await _typedIsTicker(T, () => typed !== mine)
+      if (typed !== mine) return 'superseded'
+      if (!isTicker) return 'unknown'
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: S().peek(key) || {}, ...(typeof showExtended === 'boolean' ? { session: session(showExtended) } : {}) })
+      if (ctl.signal.aborted && !mine.kept) return false
+      return s?.restSeen && !s.error && s.depth ? 'network' : false
+    })().catch(() => false).finally(() => { if (typed === mine) typed = null })
+  }
+
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0, viewWindow = null, showExtended = undefined } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover, viewWindow, showExtended)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
@@ -2302,12 +2477,83 @@ export function createPrefetch(o = {}) {
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
+  // ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TYPED CANDIDATE POOL. The typed warm (above) starts when the text IS a
+  // ticker or has ONE completion; a member typing a ticker whose prefix several tickers share (C, CR, CRB on the way to
+  // CRBG) had nothing in flight until the last key, and Enter ~150 ms later met a cold page still on the wire
+  // (production COV typed cells: 226-568 ms). The search now reports, on EVERY keystroke and on a paste, the text's
+  // likeliest completions (lib/tickerUniverse rankedCompletions: exact > this member's history > popularity > A-Z), and
+  // each of the first CANDIDATE_POOL_K is warmed here FROM THE DEVICE AND THE EDGE ONLY: its device copy is read into memory
+  // (_hydrate), D/W/M ask the deep sealed history from the edge (network.deepPrime, /api/bars-history), intraday the
+  // lake's index and newest pieces (primeLake, the edge's R2 tier). ⛔ NEVER THE ORIGIN: a candidate sends no /api/bars
+  // (cold-arch capacity rule, kept under the owner's ruling: device -> edge -> origin, and only a PRESS, or the typed
+  // slot's one tail ahead for the top candidate, asks the origin). So the ticker the member stops on has its deep rows in
+  // memory keys before its last one, and its tail (30 rows) is the only thing the typed slot or Enter still asks.
+  //   * Each candidate has its OWN AbortController; a list that no longer holds a candidate aborts it (a queued ask never
+  //     reaches the network). A request another caller joined (the typed slot's, Enter's) is only detached (network.js
+  //     holder counts), so the candidate that becomes the typed text keeps its fetch.
+  //   * Nothing for a key already held current and whole.
+  //   * At most ONE per candidate: a candidate the list keeps is not asked again.
+  //   * The caller (ChartPane) gives the top candidate to the typed slot too, AFTER this call: the pool's entry for it is
+  //     what keeps its fetch alive when the typed slot moves to the next text.
+  const pool = new Map()   // key -> AbortController (the live candidates' warms)
+  //   * ⭐ (2026-11-28, after #2947: charts at any date) AT A DATE an intraday chart reads the WINDOW ending there
+  //     (chart/viewWindow, the `@to=` key), never the plain key: the caller passes that window (`viewWindow`; ChartPane:
+  //     viewWindowOfMemberDate of the member's date) and each candidate is warmed at THAT key. ⛔ A window key has no edge
+  //     copy (the lake carries no `@to=` key, network lakeCarriesKey), so after the device's copy it is asked from the
+  //     origin in the shed-able background warm lane, exactly as the date's list warm asks its next rows
+  //     (prefetchViewWindow): the pool's one origin ask, at most CANDIDATE_POOL_K, only while a date is set. D/W/M at a
+  //     date read the plain key (their deep history covers any date), so a window changes nothing there.
+  function warmTypedCandidates(syms, tf = 'D', { viewWindow = null, showExtended } = {}) {   // (review of #2979: no `cover`, the pool asks no tail)
+    const to = viewWindow && Number.isFinite(viewWindow.to) && isIntradayTf(normTf(String(tf))) ? viewWindow.to : null
+    const keys = []
+    for (const s0 of Array.isArray(syms) ? syms : []) {
+      if (keys.length >= CANDIDATE_POOL_K) break
+      const T = String(s0 || '').trim().toUpperCase()
+      if (!_isSym(T)) continue
+      // (review of #2979) the PANE's session on both branches: 60m regular hours and extended are two keys (`_60` / `_60e`)
+      const k = keyFor(T, tf, { showExtended, window: to != null ? { to } : null })
+      const p = k ? parseKey(k) : null
+      if (!p || (to != null) !== !!p.window || keys.includes(k)) continue
+      keys.push(k)
+    }
+    for (const [k, c] of [...pool]) if (!keys.includes(k)) { pool.delete(k); c.abort() }
+    let n = 0
+    for (const k of keys) {
+      if (pool.has(k)) continue
+      const p = parseKey(k)
+      const date = !isIntradayTf(p.tf)
+      const held = S().peek(k)
+      // (a window is a past date's rows: whole once answered, never behind the clock, no edge depth to join)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)
+        && (p.window || (!_behindClock(k, held) && !(date ? S().deepPending?.(k) : S().lakePending?.(k))))) continue
+      const ctl = new AbortController()
+      pool.set(k, ctl)
+      n++
+      const signal = ctl.signal
+      Promise.resolve().then(async () => {
+        if (signal.aborted) return
+        await _hydrate(k)                                  // the device's copy, into memory
+        if (signal.aborted) return
+        if (p.window) {                                    // a date's window: no edge copy, the background warm lane
+          const h = S().peek(k)
+          // (review of #2979) under the candidate's OWN signal (never the shared _defer batch, which carries none): a list
+          // that drops the candidate aborts its window ask, so a ticker typed past never reaches the origin
+          if (!(h?.restSeen && HANDOFF_PAINTS.includes(h.status))) await prefetch([k], { priority: 'background', depth: 4000, warm: true, signal })
+          return
+        }
+        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'visible', signal }); return }   // the edge's history
+        try { S().primeLake?.(k) } catch { /* a warm only */ }   // the edge's lake pieces
+      }).catch(() => {})
+    }
+    return n
+  }
+
   return {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
-    prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
+    prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
+    prefetchBarOnIntent, warmTypedSymbol, warmTypedCandidates, createNeighborHold, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -2339,15 +2585,17 @@ export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepare
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }
 export function prefetchBarsToIDB(tickers, tf = 'D', opts = {}) { return _f().prefetchBarsToIDB(tickers, tf, opts) }
-export function prefetchAllTimeframes(sym) { return _f().prefetchAllTimeframes(sym) }
+export function prefetchAllTimeframes(sym, opts = {}) { return _f().prefetchAllTimeframes(sym, opts) }
 export function prefetchListAllTimeframes(tickers, opts = {}) { return _f().prefetchListAllTimeframes(tickers, opts) }
 export function prefetchGridWarm(tickers) { return _f().prefetchGridWarm(tickers) }
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) { return _f().warmMemFromIDB(tickers, tfs) }
 export function prewarmVisibleList(tickers, opts = {}) { return _f().prewarmVisibleList(tickers, opts) }
 export function prefetchListDeep(tickers, opts = {}) { return _f().prefetchListDeep(tickers, opts) }
 export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f().prefetchReplayTimeframes(sym, cutoffIso, opts) }
+export function prefetchViewWindow(syms, tf, viewWindow, opts = {}) { return _f().prefetchViewWindow(syms, tf, viewWindow, opts) }
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D', opts = {}) { return _f().warmTypedSymbol(sym, tf, opts) }
+export function warmTypedCandidates(syms, tf = 'D', opts = {}) { return _f().warmTypedCandidates(syms, tf, opts) }
 export function createNeighborHold() { return _f().createNeighborHold() }
 export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 

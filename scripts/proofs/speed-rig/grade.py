@@ -15,6 +15,12 @@ What changed from the PC copy, and why:
   * STALE's expectation. The PC copy pins the 2026-11-27 half day. Here it is --expect-day / --expect-intraday when
     given, else DERIVED from the sweep: the freshest daily bar any D chart of the sweep showed, and per intraday
     timeframe the freshest bar of that timeframe minus two bars (labelled "derived" in the summary).
+  * REUSED TICKERS (2026-11-28): the plan hands out never-used tickers first, then names past the ledger's reuse window
+    (plan.REUSE_AFTER_DAYS); the rig records them (freshTickers.reused). Their switches are graded in their own row,
+    'TICKERS reused', beside 'TICKERS never-used', at the top of the table: a reused name's browser is cold, its server
+    side may be warm, so only the never-used row is the fully cold number. Only a pass's FIRST switch to one of its
+    planned tickers counts there; every other switch naming a symbol (the board's fixed symbol, a tab revisit, the
+    second timeframe press on one ticker, a record with no plan) is 'TICKERS revisit/fixed'.
   * The summary: per pass, then per BOARD (zoom x board, arrows and typed together), p50 / p100 of the full frame,
     with every label the rig recorded (runner, CPU, Chrome, Cloudflare colo, production commit, isolation).
   * --compare <dir>: grade another sweep (the owner-PC run) with the SAME rules and print both side by side.
@@ -32,12 +38,29 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
-#: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the symbol disagree on its developing close by more than
-#: this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
+ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+#: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the switch's symbol disagree on its developing close by more
+#: than this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
 #: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
 CLOSE_TOL = 0.005
 INTRA_MIN = {'1': 1, '5': 5, '15': 15, '30': 30, '45': 45, '60': 60, '120': 120, '240': 240}
+
+
+def tf_paints(tf, sp):
+    """(F6) Does a frame whose smallest gap between its newest bars is `sp` seconds (rig.mjs --pattern=tf samples it per
+    frame) show timeframe `tf`? None: not sampled / unknown, so the frame cannot be told apart."""
+    if sp is None or tf is None:
+        return None
+    t = str(tf).upper()
+    if t in INTRA_MIN:
+        return abs(sp - INTRA_MIN[t] * 60) < 1
+    if t in ('D', '1D'):
+        return abs(sp - 86400) < 1
+    if t in ('W', '1W'):
+        return abs(sp - 7 * 86400) < 1
+    if t in ('M', '1M'):
+        return 28 * 86400 - 1 <= sp <= 31 * 86400 + 1
+    return None
 
 
 def day(t):
@@ -85,7 +108,8 @@ def expectations(passes: list, opts: dict) -> dict:
                 nb = (x or {}).get('nb')
                 if not nb:
                     continue
-                tf = str(tfs.get(cid) or 'D').upper()
+                # (F7) a timeframe press's chart is at the timeframe pressed, not the board's
+                tf = str((p.get('tf') if p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf') else tfs.get(cid)) or 'D').upper()
                 t = nb[0]
                 if isinstance(t, (int, float)) and tf in INTRA_MIN:
                     best_i[tf] = max(best_i.get(tf, t), t)
@@ -149,6 +173,40 @@ def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
     return None
 
 
+def _bar_session(t) -> str:
+    """'ext' when a chart's newest bar is an intraday bar outside the regular session, else 'rth'. The chart's time axis is
+    the ET WALL CLOCK written as UTC (measured: the 11-27 half day's last 1m bar is 12:59 'UTC'), so the hour is read as
+    given. A D / W / M bar (a date) is the regular session's."""
+    if not isinstance(t, (int, float)):
+        return 'rth'
+    m = int(t // 60) % 1440
+    return 'rth' if 9 * 60 + 30 <= m < 16 * 60 else 'ext'
+
+
+def close_check(p: dict, frames: list, ids: list, tol: float) -> tuple[bool, dict]:
+    """(mismatch, {chart: its final developing close}) for the charts that END on the switch's symbol (the last frame's
+    header names it, first word exactly: a chart on another symbol has nothing to agree with). Needs two such charts.
+    Skipped (no mismatch, reason recorded) when they end in different sessions: after hours, an intraday chart with
+    extended hours ends on the post-market price while a D chart keeps the regular close, and both are right.
+    A timeframe press (dir == 'tf') changes one chart's timeframe, never its symbol, so the same rule holds: only the
+    charts at the pressed symbol are compared."""
+    tgt = str(p.get('sym') or '').upper()
+    ends, sess = {}, {}
+    for cid in ids:
+        last = next((f['c'][cid] for f in reversed(frames) if f['c'].get(cid) and f['c'][cid].get('nb')), None)
+        if last and tgt and _first_word(last.get('hs')) == tgt and isinstance(last['nb'][1], (int, float)):
+            ends[cid] = float(last['nb'][1])
+            sess[cid] = _bar_session(last['nb'][0])
+    info = {'closes': ends}
+    if len(ends) < 2:
+        return False, info
+    if len(set(sess.values())) > 1:
+        info['skipped'] = f"sessions differ ({', '.join(f'{c} {v}' for c, v in sorted(sess.items()))})"
+        return False, info
+    hi, lo = max(ends.values()), min(ends.values())
+    return bool(hi > 0 and (hi - lo) / hi > tol), info
+
+
 def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     """One switch, by the PC grader's rules (verbatim but for STALE's expectation)."""
     key = p['key']
@@ -158,6 +216,15 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     for cid in ids:
         pre = [f['c'][cid] for f in frames if f['t'] < key and f['c'].get(cid) and f['c'][cid].get('nb')]
         post = [f for f in frames if f['t'] >= key and f['c'].get(cid)]
+        # (2026-11-28) BLANK: the chart had bars before the key and a frame after it shows none (a blank chart was
+        # never flagged: frames with no newest bar were skipped). Any such frame fails the switch.
+        had = any(x.get('nb') for x in pre)
+        blank = [f for f in post if f['c'].get(cid) is not None and not f['c'][cid].get('nb')] if had else []
+        if blank:
+            flags.add('BLANK')
+            blank_at = (round(blank[0]['t'] - key), round(blank[-1]['t'] - key))
+        else:
+            blank_at = None
         # (2026-11-28, COV-zo-wm-typed presses 0 and 3, COV-zo-m1-typed 0, COV-date-D-typed 1) NO FRAME BEFORE THE KEY: the
         # sampler's first frame (+8-17 ms) still showed the PREVIOUS symbol (OSIS, BOKF, FSLY, NOW), and with no base it was
         # read as the new chart's first paint: "a short paint at 17 ms" (OSIS's 349 months) that was the old chart, "a stale
@@ -172,9 +239,18 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         # while both charts switched together at 4035 ms. A frame is that tick when the header still names the old symbol
         # and the newest bar's time, the row count and the view are the pre-key frame's, and its close is not the close the
         # chart shows once the header names the target (that would be the new bars under a late header: WRONG_CHART stands).
-        k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
+        tfpress = p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf')
+        sampled = tfpress and any(f['c'][cid].get('sp') is not None for f in post)
+        if sampled:
+            # (F6/F8) a timeframe press keeps its header: the new chart is the first frame AT THE TIMEFRAME PRESSED (a tick on
+            # the old timeframe's chart, or the old chart itself still on screen, is not it); _skip_old_ticks reads headers
+            k0 = next((k for k, f in enumerate(post) if f['c'][cid].get('nb') and tf_paints(p['tf'], f['c'][cid].get('sp'))), None)
+            if k0 is None:
+                flags.add('WRONG_CHART')   # the pressed timeframe never painted within the probe
+        else:
+            k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
         if k0 is None:
-            detail[cid] = {'shown': None}
+            detail[cid] = {'shown': None, 'blank': blank_at}
             continue
         s = post[k0]['c'][cid]
         shown[cid] = post[k0]['t'] - key
@@ -220,7 +296,8 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         tgt = str(p.get('sym') or '').upper()
         same = lambda h, sym: bool(sym) and _first_word(h) == str(sym).upper()  # noqa: E731  (exact: AA is not AAPL)
         wrong = []
-        if any(f['c'][cid].get('hs') for f in post):
+        # (F6) the symbol-header rules do not read a timeframe press (one symbol before and after); its own rule is below
+        if any(f['c'][cid].get('hs') for f in post) and not tfpress:
             for j2, f in enumerate(post[:k0]):
                 if same(f['c'][cid].get('hs'), tgt) and not (hs_pre and same(hs_pre, tgt)):
                     wrong.append({'kind': 'new-header-over-old-candles', 'frame': j2, 'dt': round(f['t'] - key)})
@@ -230,7 +307,14 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
                     wrong.append({'kind': 'old-header-over-new-candles', 'frame': k0 + j2, 'dt': round(f['t'] - key)})
         if wrong:
             flags.add('WRONG_CHART')
-        if stale(fin.get('nb', [None])[0] if fin.get('nb') else None, tfs.get(cid), exp):
+        if sampled:
+            for j2, f in enumerate(post[k0 + 1:]):
+                if tf_paints(p['tf'], f['c'][cid].get('sp')) is False:
+                    wrong.append({'kind': 'other-tf-after-the-press-painted', 'frame': k0 + 1 + j2, 'dt': round(f['t'] - key), 'sp': f['c'][cid].get('sp')})
+                    flags.add('WRONG_CHART')
+                    break
+        ctf = p.get('tf') if (p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf')) else tfs.get(cid)   # a timeframe press (--pattern=tf): its own tf
+        if stale(fin.get('nb', [None])[0] if fin.get('nb') else None, ctf, exp):
             flags.add('STALE')
         vis = [c for c in changes if c[0] != 'history-changed']
         full = (vis[-1][1] + shown[cid]) if vis else shown[cid]
@@ -248,20 +332,15 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         ids = []
     if sw_full is None or (never and p.get('dir') != 'tab') or (sw_full is not None and sw_full > 30):
         flags.add('OVER_30MS')
-    # the developing closes the board ends on, for the charts that end on the target (a single chart has nothing to agree with)
-    tgt_up = str(p.get('sym') or '').upper()
-    ends = {}
-    for cid in ids:
-        last = next((f['c'][cid] for f in reversed(frames) if f['c'].get(cid) and f['c'][cid].get('nb')), None)
-        if last and _first_word(last.get('hs')) == tgt_up and isinstance(last['nb'][1], (int, float)):
-            ends[cid] = float(last['nb'][1])
-    if len(ends) >= 2:
-        hi, lo = max(ends.values()), min(ends.values())
-        if hi > 0 and (hi - lo) / hi > float(exp.get('closeTol', CLOSE_TOL)):
-            flags.add('CLOSE_MISMATCH')
-        for cid, c in ends.items():
-            if cid in detail:
-                detail[cid]['endClose'] = c
+    # the developing closes the board ends on (close_check: the charts at the symbol, one session)
+    mism, cinfo = close_check(p, frames, ids, float(exp.get('closeTol', CLOSE_TOL)))
+    if mism:
+        flags.add('CLOSE_MISMATCH')
+    for cid, c in cinfo['closes'].items():
+        if cid in detail:
+            detail[cid]['endClose'] = c
+    if cinfo.get('skipped') and detail:
+        next(iter(detail.values()))['closeCheck'] = 'skipped: ' + cinfo['skipped']
     if len(ids) == 2:
         a, b = shown.get(ids[0]), shown.get(ids[1])
         if a is None or b is None or abs(a - b) > 34:
@@ -278,6 +357,20 @@ def pct(xs, q):
     if not xs:
         return None
     return xs[min(len(xs) - 1, int(q * len(xs)))] if q < 1 else xs[-1]
+
+
+def ticker_class(sym, planned: set, reused: set, first: set):
+    """Which TICKERS row a switch counts in (2026-11-28, #3014 review): 'never-used' / 'reused' ONLY for the FIRST switch
+    to one of the pass's planned tickers (freshTickers.list + typed); every other switch that names a symbol (the board's
+    fixed start symbol, a tab revisit, the 2nd.. timeframe press on one ticker, a record with no plan) is
+    'revisit/fixed': it is not a cold ticker, whatever the ledger says. None for a switch that names no symbol."""
+    if not sym:
+        return None
+    s = str(sym).upper()
+    if s not in planned or s in first:
+        return 'revisit/fixed'
+    first.add(s)
+    return 'reused' if s in reused else 'never-used'
 
 
 def board_of(name: str) -> str:
@@ -306,13 +399,18 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
     exp = expectations(passes, opts)
     results, by, labels = [], {}, {}
     for n, rec, raw, tfs in passes:
-        for p in raw:
+        ft = rec.get('freshTickers') or {}
+        planned = {str(x).upper() for x in (ft.get('list') or []) + (ft.get('typed') or [])}
+        reused = {str(x).upper() for x in (ft.get('reused') or [])}
+        first = set()
+        for p in sorted(raw, key=lambda q: q.get('key') or 0):
             r = grade_switch(p, rec, tfs, exp)
             r['pass'] = n
+            r['tickers'] = ticker_class(r.get('sym'), planned, reused, first)
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
-            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'isolate', 'os'):
+            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'webBuildId', 'isolate', 'os'):
                 if lb.get(f) is not None:
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
@@ -328,7 +426,8 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
         except (OSError, ValueError):
             problems.append(f'{n}: unreadable')
     for r in results:
-        for key in (r['pass'], 'BOARD ' + board_of(r['pass'])):
+        tk = [] if r.get('tickers') is None else ['TICKERS ' + r['tickers']]
+        for key in (r['pass'], 'BOARD ' + board_of(r['pass']), *tk):
             g = by.setdefault(key, {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0})
             g['n'] += 1
             g['fail'] += 1 if r['flags'] else 0
@@ -354,7 +453,12 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
         wall = (datetime.fromisoformat(t1) - datetime.fromisoformat(t0)).total_seconds()
         run = {'from': t0, 'to': t1, 'wallSeconds': round(wall), 'passSeconds': sorted(h.get('seconds') for h in hs),
                'exits': {str(k): sum(1 for h in hs if h.get('exit') == k) for k in sorted({h.get('exit') for h in hs}, key=str)},
-               'sessions': sorted({h.get('session') for h in hs}), 'deployDuring': sorted(h['pass'] for h in hs if h.get('deployDuring'))}
+               'sessions': sorted({h.get('session') for h in hs}), 'deployDuring': sorted(h['pass'] for h in hs if h.get('deployDuring')),
+               # per pass: the API pod's commit and the FRONT's (web-front: commit + build_id) at its start and end
+               'builds': {h['pass']: {'api': [(h.get('before') or {}).get('apiCommit'), (h.get('after') or {}).get('apiCommit')],
+                                      'front': [(h.get('before') or {}).get('webBuild'), (h.get('after') or {}).get('webBuild')],
+                                      'frontBuildId': [(h.get('before') or {}).get('webBuildId'), (h.get('after') or {}).get('webBuildId')],
+                                      'deploys': h.get('deploys') or (['api'] if h.get('deployDuring') else [])} for h in hs}}
         for h in hs:
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
@@ -370,7 +474,8 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
            '',
            f"runner {', '.join(lb.get('runner', ['?']))} | CPU {', '.join(lb.get('cpu', ['?']))} x{', '.join(lb.get('cores', ['?']))} | "
            f"Chrome {', '.join(lb.get('chrome', ['?']))} | Cloudflare colo {', '.join(lb.get('colo', ['?']))} | "
-           f"production api {', '.join(lb.get('apiCommit', ['?']))} web {', '.join(lb.get('webBuild', ['?']))} | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
+           f"production API {', '.join(lb.get('apiCommit', ['?']))} | FRONT {', '.join(lb.get('webBuild', ['?']))} "
+           f"({', '.join(lb.get('webBuildId', ['?']))}; they deploy apart) | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
            '',
            f"STALE judged against: day {g['expect']['day']} ({g['expect']['dayHow']}), intraday {g['expect']['intradayHow']}",
            '']
@@ -378,10 +483,14 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
         r = g['run']
         out[2:2] = [f"wall {r['wallSeconds']} s ({r['from']} to {r['to']}), {len(r['passSeconds'])} passes of {r['passSeconds'][0]}-{r['passSeconds'][-1]} s; "
                     f"exits {r['exits']}; session {', '.join(map(str, r['sessions']))}"
-                    + (f"; A DEPLOY LANDED DURING {', '.join(r['deployDuring'])}" if r['deployDuring'] else ''), '']
+                    + (f"; A DEPLOY LANDED DURING {', '.join(r['deployDuring'])}" if r['deployDuring'] else ''), '',
+                    'Builds per pass (API commit, FRONT commit and build_id; start -> end):', '',
+                    *[f"- {n}: API {' -> '.join(dict.fromkeys(str(x) for x in b['api']))} | FRONT {' -> '.join(dict.fromkeys(str(x) for x in b['front']))} "
+                      f"({' -> '.join(dict.fromkeys(str(x) for x in b['frontBuildId']))})"
+                      + (f" | A DEPLOY LANDED ({', '.join(b['deploys'])})" if b['deploys'] else '') for n, b in sorted(r.get('builds', {}).items())], '']
     head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
     out += [head, '|' + '---|' * (len(ORDER) + 5 + (3 if cmp else 0))]
-    keys = sorted(g['rows'], key=lambda k: (not k.startswith('BOARD '), k))
+    keys = sorted(g['rows'], key=lambda k: (0 if k.startswith('TICKERS ') else 1 if k.startswith('BOARD ') else 2, k))
     for k in keys:
         r = g['rows'][k]
         line = f"| {k} | {r['switches']} | {r['failed']} | " + ' | '.join(str(r['flags'].get(o, 0)) for o in ORDER) + f" | {r['p50']} | {r['p100']} |"
@@ -416,18 +525,31 @@ def self_check() -> None:
     # a prefix pair (old AAPL, target AA): both rules still apply (the header's first word is compared exactly)
     pnopre = {'i': 8, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(1012, 'AAPL', 10, ni=349, lr=(-438, 352)), fr(1080, 'AA', 20)]}
     ptick = {'i': 9, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 11), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
-    # two charts of the symbol ending on different developing closes (the W+M board's two-week-old monthly close), and the
-    # control: the same closes within tolerance
-    def fr2(t, sym, c1, c2):
+    # CLOSE_MISMATCH: two charts of the symbol ending on different developing closes (the W+M board's two-week-old monthly
+    # close), a ~0.6% gap (over the 0.5% tolerance) and a 0.4% one (under it), a second chart whose header names ANOTHER
+    # symbol (never compared), charts in different sessions (D vs an after-hours intraday bar: skipped), and timeframe presses
+    def fr2(t, sym, c1, c2, sym2=None, t1='2026-11-27', t2='2026-11-01'):
         a = fr(t, sym, c1)['c']['flip-chart']
-        return {'t': t, 'c': {'flip-chart': a, 'flip-chart-2': {**a, 'nb': ['2026-11-01', c2]}}}
+        a = {**a, 'nb': [t1, c1]}
+        return {'t': t, 'c': {'flip-chart': a, 'flip-chart-2': {**a, 'hs': sym2 or sym, 'nb': [t2, c2]}}}
     tfs2 = {'flip-chart': 'W', 'flip-chart-2': 'M'}
-    mism = {'i': 10, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 177.67)]}
-    agree = {'i': 11, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 169.36)]}
-    gm = grade_switch(mism, {'flips': []}, tfs2, exp)
-    ga = grade_switch(agree, {'flips': []}, tfs2, exp)
-    assert 'CLOSE_MISMATCH' in gm['flags'], gm
-    assert 'CLOSE_MISMATCH' not in ga['flags'], ga
+    cases = {
+        'mism': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 177.67)], {}, True),
+        'agree': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 169.36)], {}, False),
+        'six-tenths': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 100.6)], {}, True),
+        'four-tenths': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 100.4)], {}, False),
+        'other-symbol': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 50.0, sym2='CCC')], {}, False),
+        'other-session': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, t2=1795821000)], {}, False),   # 23:10 'UTC' = after hours
+        'same-session-intraday': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, t1=1795784340, t2=1795784100)], {}, True),
+        'tf-press': ([fr2(990, 'BBB', 10, 10), fr2(1012, 'BBB', 100.0, 103.0)], {'dir': 'tf', 'tf': 'M'}, True),
+        'tf-press-other': ([fr2(990, 'BBB', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, sym2='CCC')], {'dir': 'tf', 'tf': 'M'}, False),
+    }
+    for nm, (frs, extra, want) in cases.items():
+        sw = {'i': 40, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': frs, **extra}
+        got = 'CLOSE_MISMATCH' in grade_switch(sw, {'flips': []}, tfs2, exp)['flags']
+        assert got == want, (nm, got)
+    assert close_check({'sym': 'BBB'}, cases['other-session'][0], ['flip-chart', 'flip-chart-2'], CLOSE_TOL)[1].get('skipped', '').startswith('sessions differ')
+    assert _bar_session(1795784340) == 'rth' and _bar_session(1795821000) == 'ext' and _bar_session('2026-11-27') == 'rth'
     g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
     assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
     assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
@@ -446,9 +568,63 @@ def self_check() -> None:
     assert g[1]['flags'] == ['OVER_30MS'] and g[1]['full'] == 80, g[1]
     assert 'VISIBLE_CHANGE' in g[2]['flags'] and g[2]['full'] == 29, g[2]
     assert g[3]['flags'] == ['STALE'], g[3]
+    # (F6/F8) timeframe presses: the old 1m chart (and a tick on it) is not the 5m paint; a frame back at 1m after the 5m paint
+    # is a wrong chart; a press that never paints its timeframe is one too
+    def tfr(t, close, sp, ni=999):
+        f = fr(t, 'AAA', close, ni=ni)
+        f['c']['flip-chart'].update({'nb': [1795784340, close], 'sp': sp})
+        return f
+    tfok = {'i': 20, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1030, 11, 60), tfr(1272, 10, 300, ni=600)]}
+    tfback = {'i': 21, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1029, 10, 300, ni=600), tfr(1050, 10, 60)]}
+    tfnever = {'i': 22, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1030, 11, 60)]}
+    tg = [grade_switch(x, {'flips': []}, tfs, {**exp, 'intraday': {'5': 0, '1': 0}}) for x in (tfok, tfback, tfnever)]
+    assert tg[0]['charts']['flip-chart']['shown'] == 272 and 'WRONG_CHART' not in tg[0]['flags'] and 'VISIBLE_CHANGE' not in tg[0]['flags'], tg[0]
+    assert 'WRONG_CHART' in tg[1]['flags'] and tg[1]['charts']['flip-chart']['wrong'][0]['kind'] == 'other-tf-after-the-press-painted', tg[1]
+    assert 'WRONG_CHART' in tg[2]['flags'], tg[2]
+    assert tf_paints('240', 14400) and not tf_paints('240', 3600) and tf_paints('M', 30 * 86400) and tf_paints('5', None) is None
+    # (F7) STALE on a timeframe press is judged at its own timeframe
+    e7 = expectations([('x', {}, [{'dir': 'tf', 'tf': '45', 'frames': [{'c': {'flip-chart': {'nb': [5000, 1]}}}]}], {'flip-chart': 'D'})], {})
+    assert '45' in e7['intraday'], e7
+    # BLANK: the chart had bars, then a frame after the key shows none (both under the old header and at the target)
+    def bl(t, sym):
+        f = fr(t, sym, 0)
+        f['c']['flip-chart']['nb'] = None
+        return f
+    blank1 = {'i': 30, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), bl(1012, 'AAA'), fr(1029, 'BBB', 20)]}
+    blank2 = {'i': 31, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), bl(1012, 'BBB'), bl(1180, 'BBB'), fr(1260, 'BBB', 20)]}
+    nobars = {'i': 32, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [bl(990, 'AAA'), fr(1012, 'BBB', 20)]}
+    gb = [grade_switch(x, {'flips': []}, tfs, exp) for x in (blank1, blank2, nobars)]
+    assert 'BLANK' in gb[0]['flags'] and 'BLANK' in gb[1]['flags'], gb[:2]
+    assert 'BLANK' not in gb[2]['flags'], gb[2]   # a chart that never had bars before the key is the first paint's case
+    assert 'BLANK' not in g[0]['flags']
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / developing closes apart told apart)')
+    # the ticker rows: only the FIRST switch to a PLANNED ticker is never-used / reused; a second switch to it, an
+    # unplanned symbol (the board's SPY) and a record with no plan count as revisit/fixed
+    fs = set()
+    assert [ticker_class(x, {'AAA', 'BBB'}, {'BBB'}, fs) for x in ('AAA', 'BBB', 'AAA', 'SPY', None)] == ['never-used', 'reused', 'revisit/fixed', 'revisit/fixed', None]
+    assert ticker_class('AAA', set(), set(), set()) == 'revisit/fixed'
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        again = {**late, 'i': 9, 'key': 5000, 'frames': [{**f, 't': f['t'] + 4000} for f in late['frames']]}
+        for name, sws, ftk in (('COV-def-dd-arrows', [clean], {'list': ['BBB'], 'reused': ['BBB']}),
+                               ('COV-def-dd-typed', [late, again], {'list': ['BBB'], 'reused': []}),
+                               ('COV-def-dd-old', [late], {})):
+            json.dump({'flips': [], 'freshTickers': ftk, 'tf': 'D'}, open(os.path.join(td, name + '.json'), 'w'))
+            json.dump(sws, open(os.path.join(td, name + '.jump.json'), 'w'))
+        gd = grade_dir(td, {'expect-day': '2026-11-27'})
+        ru, nu, rv = (gd['rows'].get('TICKERS ' + k) for k in ('reused', 'never-used', 'revisit/fixed'))
+        assert ru and nu and rv and ru['switches'] == 1 and ru['p100'] == 12 and nu['switches'] == 1 and rv['switches'] == 2, gd['rows']
+        assert table(gd).index('TICKERS never-used') < table(gd).index('BOARD def dd'), 'the ticker split is not at the top of the table'
+    # both builds per pass, and a FRONT-only deploy is flagged (the API's commit alone would have hidden it)
+    with tempfile.TemporaryDirectory() as td:
+        hb = {"pass": "P", "exit": 0, "seconds": 80, "session": "x", "deploys": ["front"], "deployDuring": True,
+              "before": {"at": "2026-11-28T08:00:00+00:00", "apiCommit": "93b68df463", "webBuild": "271b53f2d2", "webBuildId": "assets/index-A.js"},
+              "after": {"at": "2026-11-28T08:01:20+00:00", "apiCommit": "93b68df463", "webBuild": "7ddc3190ad", "webBuildId": "assets/index-B.js"}}
+        json.dump(hb, open(os.path.join(td, 'P.health.json'), 'w'))
+        tb = table(grade_dir(td, {'expect-day': '2026-11-27'}))
+        assert '- P: API 93b68df463 | FRONT 271b53f2d2 -> 7ddc3190ad (assets/index-A.js -> assets/index-B.js) | A DEPLOY LANDED (front)' in tb, tb
+    print('grade self-check: ok (API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses / developing closes apart (0.6%, other symbol, other session, timeframe press) told apart)')
 
 
 def main() -> int:

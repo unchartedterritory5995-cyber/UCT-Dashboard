@@ -107,6 +107,17 @@ is not permission. If it is on the watch list and the market is open, it waits.
 other way: a change there deploys **nothing** to flow-worker and ships inert.
 `tools/flow_worker_watch_coverage.py` fails a diff that strands such a change.
 
+### Tier 2 too — stream-ingest's watch list (2026-11-28, zero-network PR 3.4)
+Any file in `railway.ingest.json` `watchPatterns` restarts **stream-ingest** on merge, which drops and re-opens the
+Massive stock socket (a live-feed gap for every chart, and the minute frames' gap). Since PR 3.4 that list includes
+the minute-frame publisher's DAILY child and everything it imports, so these are **after-hours files** too:
+`api/services/massive.py`, `massive_adapter.py`, `bars_live_store.py`, `nyse_calendar.py`, `session_calendar.py`,
+`snapshot_hl.py`, `cache.py`, `cache_policy.py`, `log_redaction.py`, `provider_errors.py`,
+`provider_licensing_class.py`, `yf_util.py`, `vendor_symbols.py` and `live_price_source.py` (the 14 added by
+PR 3.4), beside the ingest service's own files. ⛔ `railway.ingest.json` is the authority, not this list:
+`tests/test_stream_ingest_skeleton.py::test_watch_paths_cover_the_services_own_code` derives the import closure
+and fails a module that is missing from it.
+
 ## How to tell which tier you are in
 
 ```sh

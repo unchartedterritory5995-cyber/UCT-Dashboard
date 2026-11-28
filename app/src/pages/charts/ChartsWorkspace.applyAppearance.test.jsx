@@ -71,7 +71,9 @@ const WIDGETS = [
   { id: 'c3', type: 'chart', color: 'A', x: 0, y: 10, w: 12, h: 10, opts: { tf: 'W' } },
   { id: 'w1', type: 'watchlist', color: 'A', x: 12, y: 10, w: 12, h: 10, opts: { settings: { textColor: '#999999' } } },
 ]
-const BOARD = (widgets = WIDGETS) => JSON.stringify({ widgets, cols: 24, version: 1 })
+// "Widgets match the chart" is ON by default (owner 11-28) and would re-skin the watchlist to the
+// chart's look; this file is about chart → chart, so the board records the link as off.
+const BOARD = (widgets = WIDGETS) => JSON.stringify({ widgets, cols: 24, version: 1, matchChart: { on: false } })
 const layoutSaves = () => setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout').map(([, v]) => JSON.parse(v))
 const pass = (ms) => act(() => { vi.advanceTimersByTime(ms) })
 function renderWS() {

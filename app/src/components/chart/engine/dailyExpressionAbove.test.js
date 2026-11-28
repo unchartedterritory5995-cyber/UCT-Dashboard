@@ -28,7 +28,7 @@ import { OWN_DAILY_KEY, setRequestWitnessRows } from './otherSymbols'
 import { clearSecondaryBars } from './secondaryBars'
 import { SCRIPT_ENGINE_VERSION } from './scriptEngineVersion'
 import {
-  dailyExpressionAdmitted, dailyExpressionAdmissionReasons, setDailyExpressionAdmissionForMeasurement,
+  dailyExpressionAdmitted, dailyExpressionAdmissionReasons, setDailyExpressionAdmissionForMeasurement, dailyExpressionOwnerLive,
   DAILY_EXPRESSION_WITNESS, DAILY_EXPRESSION_CAPABILITY,
 } from './dailyExpressionGate'
 import { setOffListingCurtainEnabled as __e102Curtain } from './runtime/runtimeColumns.js'
@@ -99,7 +99,21 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('U-DAILY B — CLOSED, as committed: refused by name, the bare read unchanged', () => {
+describe('U-DAILY B — LIVE by the owner\'s ruling (2026-11-28), as committed', () => {
+  it('⭐ admitted by `ownerLive`, while the row still says what EVIDENCE the registry\'s rule lacks', () => {
+    expect(dailyExpressionOwnerLive()).toBe(true)
+    expect(dailyExpressionAdmitted()).toBe(true)
+    expect(dailyExpressionAdmissionReasons(DAILY_EXPRESSION_WITNESS)).toContain('not marked admitted')
+    expect(dailyExpressionOwnerLive({ ...DAILY_EXPRESSION_WITNESS, ownerLive: undefined })).toBe(false)
+  })
+  it('⭐ a member\'s chart draws a 3 day average with no override', () => {
+    const cols = run(SMA3)
+    near(cols.x[0], 83, 'bar 0 (rows 2..4)')
+  })
+})
+
+describe('U-DAILY B — CLOSED by a measurement: refused by name, the bare read unchanged', () => {
+  beforeEach(() => setDailyExpressionAdmissionForMeasurement(false))
   it('⛔ the capability is not admitted, and its row says why', () => {
     expect(dailyExpressionAdmitted()).toBe(false)
     expect(DAILY_EXPRESSION_WITNESS.capability).toBe(DAILY_EXPRESSION_CAPABILITY)

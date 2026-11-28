@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ChartDateNav.module.css'
+import { parseDate } from '../../../components/chart/dateText'
 
 // Time Navigator — the top-bar date box (MarketSmith-style). Sits between the
 // timeframe buttons and the info fields. Type a date + Enter (or pick from the
@@ -9,6 +10,9 @@ import styles from './ChartDateNav.module.css'
 // (click a year to frame that whole calendar year). All chart work is done by
 // StockChart's imperative API, reached through `paneRef` (ChartPane handle):
 //   goToDate(ms) · goToYear(y) · stepBar(dir) · ensureFullHistory() · getDateMeta()
+// ⭐ (owner, 2026-11-27: scanning charts AT a past date) A HOST MAY TAKE THE JUMPS: `nav` ({goToDate, goToYear, stepBar})
+// receives them instead of the pane, so the /charts widget can carry the date to every next symbol. While the host
+// says the box is `anchored`, a "Latest" button (and Enter on an empty field) hands the date back (`onLatest`).
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -19,18 +23,7 @@ const fmtDate = (ms) => {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`
 }
 
-// Accepts M/D/YYYY (the masked form). Returns a UTC-midnight ms.
-const parseDate = (txt) => {
-  if (!txt) return null
-  const s = String(txt).trim()
-  const mm = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/)
-  if (!mm) return null
-  let m = +mm[1], d = +mm[2], y = +mm[3]
-  if (!y || !m || !d) return null
-  if (y < 100) y += 2000
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null
-  return Date.UTC(y, m - 1, d)
-}
+// M/D/YYYY -> UTC-midnight ms: THE one parser (chart/dateText.js), shared with the draft's warm
 
 // Smart M/D/YYYY mask: the user types digits only and the slashes appear on their
 // own. Month/day take 2 digits only when the first two form a valid value (so "15…"
@@ -174,13 +167,19 @@ export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYe
   )
 }
 
-export default function ChartDateNav({ paneRef, themeVars = null }) {
+// ⭐ (2026-11-28, PR 1.2) `onDraft(text, ms)`: each draft as the member types it (the masked text, '' when the edit ends;
+// `ms`: parseDate(text, {whole: true}), the date Enter will go to, or null while it is not one yet)
+// without a date), so a host can warm the date before Enter (chart/dateWarm.js).
+export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null, onDraft = null }) {
+  const jump = () => nav || paneRef?.current
   const [meta, setMeta] = useState(null)
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
   const sigRef = useRef('')
+  const navRef = useRef(nav)
+  navRef.current = nav
   const caretRef = useRef(null)
 
   // Poll the chart's date meta so the field mirrors the right-edge date + bounds.
@@ -192,7 +191,12 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
       // lite: the five fields this field shows, not the Agent's full read-back (4×/s for the page's life)
       const m = paneRef?.current?.getDateMeta?.({ lite: true }) || null
       const sig = m ? `${m.rightMs}|${m.firstYear}|${m.lastYear}|${m.fullyLoaded}|${m.loading}` : 'null'
-      if (sig !== sigRef.current) { sigRef.current = sig; setMeta(m) }
+      if (sig !== sigRef.current) {
+        sigRef.current = sig; setMeta(m)
+        // (review of #2947, LOW 3) the host notes every view the chart shows (its unanchored newest bar is the present),
+        // not only the ones a jump reads: a halted name's last bar never reads as "the present" for a typed date
+        try { navRef.current?.note?.() } catch { /* the host's */ }
+      }
       timer = setTimeout(tick, 250)
     }
     tick()
@@ -202,8 +206,9 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
   const shown = editing ? draft : fmtDate(meta?.rightMs)
 
   const submit = () => {
+    if (!String(draft || '').trim() && anchored && onLatest) { onLatest(); setEditing(false); return }   // a cleared date
     const ms = parseDate(draft)
-    if (ms != null) { paneRef?.current?.goToDate?.(ms) }
+    if (ms != null) { jump()?.goToDate?.(ms) }
     setEditing(false)
   }
 
@@ -229,7 +234,7 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         className={styles.step}
         title="Step back one bar"
         aria-label="Step back one bar"
-        onClick={() => paneRef?.current?.stepBar?.(-1)}
+        onClick={() => jump()?.stepBar?.(-1)}
       >◀</button>
       <input
         className={styles.field}
@@ -239,11 +244,11 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         title="Go to a date — type and press Enter"
         data-guide="chart.goToDate"
         onFocus={(e) => { setEditing(true); setDraft(fmtDate(meta?.rightMs)); requestAnimationFrame(() => e.target.select()) }}
-        onChange={(e) => setDraft(maskMDY(e.target.value))}
+        onChange={(e) => { const t = maskMDY(e.target.value); setDraft(t); onDraft?.(t, parseDate(t, { whole: true })) }}
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
-          else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
+          else if (e.key === 'Escape') { setEditing(false); onDraft?.('', null); e.currentTarget.blur() }
         }}
       />
       <button
@@ -251,8 +256,17 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
         className={styles.step}
         title="Step forward one bar"
         aria-label="Step forward one bar"
-        onClick={() => paneRef?.current?.stepBar?.(1)}
+        onClick={() => jump()?.stepBar?.(1)}
       >▶</button>
+      {anchored && onLatest && (
+        <button
+          type="button"
+          className={styles.step}
+          title="Back to the latest bar: every next symbol opens at the present again"
+          aria-label="Back to the latest bar"
+          onClick={() => onLatest()}
+        >Latest</button>
+      )}
       <button
         ref={caretRef}
         type="button"
@@ -274,8 +288,8 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
           maxMs={meta?.lastMs}
           years={years}
           loadingYears={meta ? !meta.fullyLoaded : false}
-          onPickDate={(ms) => { paneRef?.current?.goToDate?.(ms); setOpen(false) }}
-          onPickYear={(y) => { paneRef?.current?.goToYear?.(y); setOpen(false) }}
+          onPickDate={(ms) => { jump()?.goToDate?.(ms); setOpen(false) }}
+          onPickYear={(y) => { jump()?.goToYear?.(y); setOpen(false) }}
           onClose={() => setOpen(false)}
           themeVars={themeVars}
         />

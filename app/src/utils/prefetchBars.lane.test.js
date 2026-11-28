@@ -62,8 +62,9 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await flush()
     expect(pending.length).toBe(1)
     pending[0].resolve({ bars: [1] })
-    expect(await a).toEqual({ bars: [1] })
-    expect(await b).toEqual({ bars: [1] })
+    // (the answer carries the time its data is as of, `_asOfMs`, since #2967)
+    expect(await a).toEqual(expect.objectContaining({ bars: [1] }))
+    expect(await b).toEqual(expect.objectContaining({ bars: [1] }))
   })
 
   it('a shed (503) holds urgent / grid / background until the backoff lifts; visible still goes', async () => {
@@ -79,6 +80,18 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await vi.advanceTimersByTimeAsync(3500)
     await flush()
     expect(pending.map((p) => p.url)).toContain('/x/held')
+  })
+
+  // (review of #3012, LOW) a 429 says when to ask again too: the error carries its Retry-After, as a 503's does
+  it('a 429 and a 503 each carry their Retry-After on the error (retryAfterMs)', async () => {
+    for (const [status, url] of [[429, '/x/rl'], [503, '/x/sh']]) {
+      const r = lane.barsLaneRequest(url, { priority: 'visible' })
+      await flush()
+      pending.at(-1).resolve({ error: 'busy' }, status, { 'Retry-After': '4' })
+      await expect(r).rejects.toMatchObject({ status, retryAfterMs: 4000 })
+      await vi.advanceTimersByTimeAsync(5000)
+      await flush()
+    }
   })
 
   it('a waiting request honors its abort (and never reaches the network)', async () => {
@@ -114,7 +127,7 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     await expect(p1).rejects.toMatchObject({ name: 'AbortError' })
     expect(pending[0].opts.signal.aborted).toBe(false)          // p2 still holds it
     pending[0].resolve({ bars: [7] })
-    expect(await p2).toEqual({ bars: [7] })
+    expect(await p2).toEqual(expect.objectContaining({ bars: [7] }))
     const a3 = new AbortController()
     const p3 = lane.barsLaneRequest('/x/solo', { priority: 'visible', signal: a3.signal })
     await flush()

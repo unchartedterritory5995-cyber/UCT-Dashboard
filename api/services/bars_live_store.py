@@ -109,6 +109,7 @@ _state = {
     "pushes": 0,
     "rows_written": 0,
     "daily_last_ok_mono": None,
+    "daily_last_ok_wall": None,   # time.time() of the same success: compared against a session's CLOSE (review of #3001)
     "daily_rows_written": 0,
     "daily_polls": 0,
     "backfill_epoch": None,       # the epoch the current backfill pass serves
@@ -1297,6 +1298,7 @@ def apply_daily_report(msg) -> None:
     with _lock:
         _daily_seen.update(payload or ())
         _state["daily_last_ok_mono"] = _now_mono()
+        _state["daily_last_ok_wall"] = time.time()
         _state["daily_rows_written"] += int(n or 0)
         _state["daily_polls"] += 1
 
@@ -1719,6 +1721,7 @@ def status() -> dict:
     lp = s.pop("last_push_mono")
     s["last_push_age_s"] = None if lp is None else round(_now_mono() - lp, 1)
     dl = s.pop("daily_last_ok_mono")
+    s.pop("daily_last_ok_wall", None)
     s["daily_age_s"] = None if dl is None else round(_now_mono() - dl, 1)
     return s
 

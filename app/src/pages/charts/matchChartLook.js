@@ -5,9 +5,11 @@
 // the chart changes. A widget can step out on its own (`opts.ownLook`), either from its ⚙
 // panel's "Match the chart" box or simply by changing its own colours.
 //
-// Stored on the layout: `layout.matchChart = { on: true, chartId }`. chartId is the chart
-// the switch was turned on from; when that chart is gone (or none was named) the lead is the
-// top-left chart on the board.
+// Stored on the layout: `layout.matchChart = { on, chartId }`. ON BY DEFAULT (owner 11-28:
+// "make it all live fully for everyone and everything always"): a layout with no record
+// matches its chart; only an explicit `{ on: false }` (the member turned it off) does not.
+// chartId is the chart the switch was turned on from; when that chart is gone (or none was
+// named) the lead is the top-left chart on the board.
 //
 // Everything here is PURE. The writes reuse the existing "All widgets" theme mapping
 // (mapThemeToWidgetSettings / patchWidgetOptsWithTheme), so a matched widget is exactly what
@@ -17,9 +19,10 @@ import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { mapThemeToWidgetSettings, patchWidgetOptsWithTheme, WIDGET_GLOBAL_PREF_KEYS } from '../../components/chart/chartThemes'
 import { sanitizeChartTabs } from './chartTabs'
 
-/** Is the switch on for this layout? */
+/** Is the switch on for this layout? On unless the member turned it off. */
 export function matchChartOn(layout) {
-  return !!(layout && layout.matchChart && layout.matchChart.on)
+  if (!layout) return false
+  return !(layout.matchChart && layout.matchChart.on === false)
 }
 
 /** The chart widget whose look the board follows, or null when the board has no chart. */

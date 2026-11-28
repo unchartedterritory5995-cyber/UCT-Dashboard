@@ -50,12 +50,30 @@ import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, 
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
 import { nextTask } from '../historyLake/source'
 import { lakeCopyAddsNothing } from './reducer'
+import { _closeMismatch } from '../../utils/barsMerge'
+
+/** (review of #2947, N1) A window answered `filling` is asked again after this many seconds (the server's Retry-After),
+ *  at most WINDOW_FILL_ROUNDS times (~30 s), then left to the next chart or warm of the key. */
+export const WINDOW_FILL_RETRY_S = 3
+export const WINDOW_FILL_ROUNDS = 10
+
+/** (PR 1.1) How long the chart's own read of a window gives the history lake before it asks the origin beside it (a
+ *  warm lake answers in tens of ms; a cold one, from R2, in 380-650 ms against the origin's 140-210: measured 2026-11-28). */
+export const WINDOW_LAKE_HEAD_START_MS = 80
+/** (review of #2986, F-A) Once the origin has answered a window short (or failed), how much longer the lake is waited for. */
+export const WINDOW_LAKE_MAX_WAIT_MS = 800
+const HEAD_START = Symbol('head start')
+const JOINED = Symbol('a non-warm joiner')
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
 /** Error backoff: first retry, cap. */
 export const ERROR_RETRY_MS = 1500
 export const ERROR_RETRY_MAX_MS = 30_000
+/** (2026-11-28, the cloud sweep) A tail answered 429 or 503 is asked again, at most this many times in a row, before
+ *  the key counts as answered with the error: meanwhile a display holding for the key's answer keeps waiting (inside its
+ *  hang guard) instead of committing a lake / device copy without its tail as current. */
+export const RATE_LIMIT_HOLD_ROUNDS = 3
 /** A terminal `no_data` key is re-asked this rarely (a listing can start trading). */
 export const NO_DATA_POLL_MS = 300_000
 /**
@@ -99,9 +117,13 @@ export function serverTailOf(s) {
 }
 export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'background'])
 /** A deep D/W/M history fetched ahead of its join (`deepPrime`) is kept this long for the key's
- *  history job to take, and at most this many at once (each ~1-2 MB parsed). */
+ *  history job to take, and at most this many at once (each ~1-2 MB parsed).
+ *  ⭐ (2026-11-28, zero-network plan 1.4 + 1.7, owner: "upgrade rather than downgrade") 16, was 4: the typed candidate
+ *  pool (3), the typed slot and its linked charts (up to 3), and a list's neighbour rows (up to 8) each prime one, and at
+ *  4 the oldest primes were evicted before their press, so the row the member reached asked its history again at the
+ *  flip. ~16-32 MB of client memory at the most, released as each is joined or after the TTL. */
 export const DEEP_PRIME_TTL_MS = 120_000
-export const DEEP_PRIME_MAX = 4
+export const DEEP_PRIME_MAX = 16
 /** The newest rows the origin answers for a daily view's cover whose deep history the edge brings (`_tailJob`). */
 export const EDGE_TAIL_BARS = 30
 /** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */
@@ -220,6 +242,9 @@ export function createNetwork({
   beforeAnswer = null,
   // (fn) => cancel: where a BACKGROUND deepening's window lands (idleLand: idle time, giving way to input; tests pass their own)
   idle = idleLand,
+  // (key) => true when the entry already starts at its symbol's first served bar (index.js: persist.deviceWhole, the
+  // full-depth daily device copy, zero-network PR 3.2): its deep history join is never due
+  wholeHistory = null,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -247,6 +272,13 @@ export function createNetwork({
   const deepSettled = new Map()    // key -> bars its entry held when its history join settled on this page
   const deepSubs = new Map()       // key -> Set<cb>: waiters on the key's history join settling
   const deepWanted = new Map()     // key -> ms until which a display waits on its join (its job: visible)
+  // ⭐⭐ (2026-11-28, the cold-coverage run) key -> Set<cb>: listeners of the key's depth SETTLING (its history join or its lake
+  // load), whatever it added. A settle that adds nothing moves no entry, so a waiter woken only by the entry (the switch's
+  // hold: prefetch.watch) never learned that nothing more was coming, and held the previous chart to the hang guard.
+  const settleSubs = new Map()
+  function _noteSettled(key) {
+    for (const cb of [...(settleSubs.get(key) || [])]) { try { cb() } catch { /* a listener's */ } }
+  }
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -259,6 +291,54 @@ export function createNetwork({
   const answerSubs = new Map()
   /** A tail request of this key's CURRENT life settled with the server's word (rows, no_data or
    *  an error) — after its action was dispatched, so a listener reads the snapshot it produced. */
+  // ⭐⭐ (review of #2947, N1) A WINDOW ANSWERED `filling` IS ASKED AGAIN. The server answers a window it is still fetching
+  // with the rows it holds, `filling: true` and Retry-After 3 (bars_fetch `to-filling`; the 3 is a HEADER, the body has no
+  // retry_after), and a window key is read once (`_nextDelay`: Infinity) with no lake join or scroll-back. So nothing
+  // asked again: `filling` never cleared, heldRows(answered) stayed 0, the handoff waited HANDOFF_HANG_MS, committed short
+  // and STAYED short. Now the chart's own ask (not a shed-able warm, unless a chart holds the key) of a window whose
+  // answer was filling asks again WINDOW_FILL_RETRY_S later, while the store still holds the key, at most
+  // WINDOW_FILL_ROUNDS times; the complete answer clears `filling` and wakes the answered watchers (the handoff's).
+  const fillRounds = new Map()   // window key -> { n, timer }
+  function _armFillRetry(key) {
+    const f = fillRounds.get(key) || { n: 0, timer: null }
+    if (f.timer != null || f.n >= WINDOW_FILL_ROUNDS) return
+    f.n++
+    fillRounds.delete(key)
+    fillRounds.set(key, f)
+    if (fillRounds.size > 500) { const [k0, f0] = fillRounds.entries().next().value; if (f0.timer != null) clearTimer(f0.timer); fillRounds.delete(k0) }
+    f.timer = setTimer(() => {
+      f.timer = null
+      // (an entry here = the key's last answer was filling: a complete one deletes it, `_send`)
+      if (!registry.has(key) || fillRounds.get(key) !== f) { if (fillRounds.get(key) === f) fillRounds.delete(key); return }
+      // (review of #2947, LOW) only while something still asks for the key: a chart on it, a one-shot ask in flight, or the
+      // entry pinned (the handoff's prepare); a key no chart shows any more is not asked again
+      const r = keys.get(key)
+      if (!(r?.refs > 0 || r?.once > 0 || (registry.refs?.(key) ?? 0) > 0)) { fillRounds.delete(key); return }
+      api.fetchOnce(key, { priority: 'visible', full: true }).catch(() => {})
+    }, WINDOW_FILL_RETRY_S * 1000)
+  }
+
+  // (the rate-limited tail's repeat for a one-shot ask: `_send`) one timer per key, after Retry-After (bounded), while a
+  // one-shot ask or a pin still holds the key
+  const limitTimers = new Map()
+  // key -> the Set of live waiters' signals (deepPrime wantSignal). Cleared with deepWanted (the join settled, the want
+  // expired), so a waiter that finished without aborting leaves nothing behind; at most WANT_HOLDERS_MAX keys.
+  const wantHolders = new Map()
+  const WANT_HOLDERS_MAX = 500
+  const limitRounds = new Map()   // key -> rate-limited tail answers in a row
+  function _armLimitRetry(key, retryAfterMs) {
+    if (limitTimers.has(key)) return
+    const ms = Math.min(ERROR_RETRY_MAX_MS, Math.max(ERROR_RETRY_MS, Number.isFinite(retryAfterMs) ? retryAfterMs : 0))
+    limitTimers.set(key, setTimer(() => {
+      limitTimers.delete(key)
+      const r = keys.get(key)
+      if (!registry.has(key) || r?.refs > 0) return   // gone, or a chart's own loop asks again
+      if (!(r?.once > 0 || (registry.refs?.(key) ?? 0) > 0)) return
+      api.fetchOnce(key, { priority: 'visible' }).catch(() => {})
+    }, ms))
+    if (limitTimers.size > 500) { const [k0, t0] = limitTimers.entries().next().value; clearTimer(t0); limitTimers.delete(k0) }
+  }
+
   function _noteAnswered(r) {
     if (r.answered || keys.get(r.key) !== r) return
     r.answered = true
@@ -289,10 +369,12 @@ export function createNetwork({
         key, refs: 0, sessions: new Map(), priority: 'background', depth: 0,
         cover: 0,                 // D/W/M: the rows a view of this key will draw (barsCountFor `cover`)
         inflight: null,           // { ac, kind, promise }
+        side: null,               // the edge fallback's cover tail, beside `inflight` (see _armEdgeFallback)
         queue: [],                // pending scroll-back jobs
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
         pollSt: createTailPollState(),
         answered: false,          // a tail request of THIS life settled (see `answered`)
+        filling: false,           // its last tail answer was `filling` (a window the server is still fetching)
       }
       keys.set(key, r)
     }
@@ -304,6 +386,7 @@ export function createNetwork({
   const offEvict = registry.onEvict?.((key) => {
     const r = keys.get(key)
     if (r?.inflight) { try { r.inflight.ac?.abort() } catch { /* gone */ } r.inflight = null }
+    if (r?.side) { try { r.side.ac?.abort() } catch { /* gone */ } r.side = null }
   }) ?? null
 
   // ── one request ───────────────────────────────────────────────────────────
@@ -315,7 +398,15 @@ export function createNetwork({
   const _splitFor = (r, p) => !!p && isDateTf(p.tf) && !p.window && !r.splitOff && barsHistorySplitEnabled()
 
   // `full`: never a `since=` delta (the switch's one re-ask of an own answer still behind: prefetch._askOwn)
-  function _tailJob(r, priority, { warm = false, front = false, full = false } = {}) {
+  // `fullRead`: the full read a failed edge history queued (F1: its settle, and no other tail's, ends `fullDue`)
+  function _tailJob(r, priority, { warm = false, front = false, full = false, side = false, fullRead: asked = false } = {}) {
+    // ⛔ (review of #2989, LOW) ANY non-side tail of a split-off key IS its full read (the split off, it asks the whole
+    // depth): an abort of the queued one (kick's invalidate, an idle eviction) re-asks through _schedule/_tail without the
+    // mark, and only a marked read ended `fullDue`, so the depth stayed "due" for good. Captured when the job runs.
+    const fullRead = asked || (!side && !!r.splitOff)
+    // (2026-11-28, the cloud sweep) the cover fallback's ONE tail (`_armEdgeFallback`) asks the whole page a view can draw
+    const coverPage = !!r.coverPage
+    r.coverPage = false
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -323,6 +414,7 @@ export function createNetwork({
     const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover })
     const split = _splitFor(r, p)
     let bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
+    if (split && coverPage) bars = Math.min(wanted, Math.max(dateCoverFor(p.tf, r.cover), r.cover || 0, dateCoverMaxFor(p.tf)))
     // ⭐⭐ (2026-11-27, approved: the server-tail numbers) THE COVERING DAILY PAGE COMES FROM THE EDGE. A view's cover asked
     // of the origin is a 2,000-row sqlite read and JSON build: 18-275 ms of server work on a cold name (bars-api
     // Server-Timing, production), behind a 76-96 ms network floor. The deep sealed history is edge-cached (br, HIT in
@@ -341,6 +433,10 @@ export function createNetwork({
     if (split && isDateTf(p.tf) && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
       _armEdgeFallback(r)
+    } else if (split && r.cover > 0 && wanted > bars && _whole(r.key)) {
+      // (zero-network PR 3.2) the entry already holds every older row (a whole device copy): the newest rows are all the
+      // origin is asked, and no history follows (`_whole`), so there is nothing to fall back for
+      bars = Math.min(bars, EDGE_TAIL_BARS)
     }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
@@ -350,6 +446,7 @@ export function createNetwork({
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
     // legacy warmers send it; never on a subscriber's own poll.
     const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
+    const viaLake = _windowFromLake(r, p) ? { fetch: (signal, rec) => _windowRead(r, url, bars, priority, signal, { warm, front, rec }), viaLake: true } : null
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -376,12 +473,207 @@ export function createNetwork({
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
       const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
-      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
+      // ⭐⭐ (2026-11-28, COV-zo-wm-typed SPGI / AMH held to the 4 s hang guard) A DEPTH LEFT "DUE" IS A HISTORY ASKED. A
+      // monthly view zoomed out asks its cover (1,187 rows) and no deeper depth, so `wantNow` was the ask and no history was
+      // queued, while deepPending still read "due" (held <= DATE_COVER_MAX, never joined): the daily hold waited for a join
+      // nothing would bring. Where a view's cover was asked (`r.cover`: a shown, typed or linked key, never a warm, B1) and
+      // the depth is still due after the answer, the history is asked; its join (or its "nothing older") settles it.
+      // (A tail shorter than its ask is NOT proof the listing ended: the origin may hold less than the edge's history.)
+      const coverDue = r.cover > 0 && api.deepPending(r.key)
+      if (split && !r.histAsked && !joinedHere && !_whole(r.key) && ((wantNow > bars && wantNow > (after?.depth ?? 0)) || coverDue)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
-      return { ok: true, delta, retryAfterSec: json.retry_after ?? null }
-    }, { front })
+      // ⭐ (review of #2947, N1) a window's `filling` answer (bars_fetch `to-filling`: Retry-After 3 is a HEADER only, the
+      // body has no retry_after) is asked again (`_armFillRetry`, in bounded rounds) until it is complete
+      const filling = json.filling === true
+      return { ok: true, delta, retryAfterSec: json.retry_after ?? (filling ? WINDOW_FILL_RETRY_S : null), ...(filling ? { filling: true } : {}) }
+    }, { front, side, fullRead, ...(viaLake || {}) })
+  }
+
+  // ⭐⭐ A CHART AT A PAST DATE READS THE LAKE (2026-11-28, zero-network plan PR 1.1). A windowed intraday key (`@to=`: the
+  // chart anchored at a date, replay) is read ONCE, whole (`_nextDelay`: Infinity), and that read went to the origin's
+  // `/api/bars?to=` (95-130 ms server-cold, a store miss a vendor replay of seconds) although the history lake at the edge
+  // holds the same bars. Its read now asks the lake first (historyFeed `windowBars`: the newest `bars` bars at or before the
+  // origin's cutoff) and lands EXACTLY as the origin's answer would (the same `{ ticker, tf, bars }` shape, the same
+  // REST_FULL, the same `answered`), so every reader of a window (the switch, the double buffer, heldRows) is unchanged and
+  // the chart draws it once. The origin answers instead when:
+  //   - the lake cannot: no index or series, the window's day past the lake's newest session (a `to` the lake has not
+  //     published yet MUST use the origin), nothing at or before the cutoff;
+  //   - the lake read fails (anything but an abort: an abort is the caller's);
+  //   - ⛔ THE SEAM: bars this page already holds for the same series disagree with the lake's on a shared bar by more than
+  //     2% (utils/historyPrepend.prependOlder's rule: a split or re-basis the lake's table has not caught up with). The held
+  //     series read are the window key's own and the plain (present) key's; a lake window that shares no bar with either is
+  //     taken (the lake's adjustment is the present basis, the origin's).
+  // `windowLakeOff`: a key whose lake read fell back asks the origin for the rest of its record's life (a later life asks
+  // the lake again: the index is held, so a refusal costs nothing).
+  const windowSources = new Map()   // window key -> 'lake' | 'origin': where its last read was answered (bounded)
+  function _noteWindowSource(key, src) {
+    windowSources.delete(key)
+    windowSources.set(key, src)
+    if (windowSources.size > 500) windowSources.delete(windowSources.keys().next().value)
+  }
+  function _windowFromLake(r, p) {
+    return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !r.windowLakeOff
+  }
+  async function _windowRead(r, url, bars, priority, signal, { warm, front, rec = null }) {
+    const p = parseKey(r.key)
+    const abortErr = () => new DOMException('The load was aborted', 'AbortError')
+    // (review of #2986, F3) the caller's abort settles every wait below at once: the lake's index read is shared and never
+    // takes the signal, so waiting for it after an abort could outlast the abort by a cold index read
+    const aborted = signal ? new Promise((_, rej) => {
+      if (signal.aborted) rej(abortErr())
+      else signal.addEventListener?.('abort', () => rej(abortErr()), { once: true })
+    }) : null
+    aborted?.catch(() => {})
+    const orAbort = (pr) => (aborted ? Promise.race([pr, aborted]) : pr)
+    // the plain key held on this page: the lake's NEWEST session is compared with it (the split check, `_windowSeamOk`)
+    const at = r.key.indexOf('@to=')
+    const plainHeld = at > 0 ? (registry.peek(r.key.slice(0, at))?.bars?.length ?? 0) > 0 : false
+    // the lake's answer: the payload, or null when the origin must answer (a refusal, a failure, a seam that disagrees)
+    // (review of #2986, F2) `.then(ok).catch(...)`: a throw in the seam or daily check falls back too, never errors the chart
+    // (review of #2986, L3) a refusal only because the newest session was not known in time is TRANSIENT: the origin
+    // answers this read, and the record keeps asking the lake (`windowLakeOff` stays off)
+    let transient = false
+    const askedGen = registry.getSnapshot(r.key).gen   // (F-H) the life this read's answer lands in
+    const lake = Promise.resolve().then(() => history.windowBars(r.key, { bars, signal, newest: plainHeld })).then(
+      (got) => {
+        if (got && got.newestUnknown && plainHeld) transient = true
+        return got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got)
+          ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null
+      },
+    ).catch((e) => { if (signal?.aborted) throw e; return null })   // the caller's abort; any other failure falls back
+    lake.catch(() => {})
+    // a chart that subscribed, or a non-warm ask that joined, while the lake was read never rides a shed-able warm (`_tail`)
+    const plainUrl = () => (warm && (r.refs > 0 || rec?.wantPlain) ? url.replace(/&warm=1(?=&|$)/, '') : url)
+    // ⭐ (review of #2986, F1) THE ORIGIN FALLBACK IS A LANE REQUEST: its record says so (url, and `warm` when it really
+    // leaves with `&warm=1`), so a joiner promotes or follows it up (`_tail`), a shed warm is never the chart's error
+    // (`quiet`), and a warm's `filling` answer arms no repeat (`_armFillRetry`)
+    const ask = (u, o) => {
+      if (rec) { rec.url = u; rec.warm = /[?&]warm=1(?:&|$)/.test(u); rec.sent = true }
+      return request(u, o)
+    }
+    const refused = () => { if (!transient) r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
+    const won = (src) => { _noteWindowSource(r.key, src) }
+    // ⛔ (review of #2986, F1 blocker) A WINDOW IS WHOLE ONLY WHEN IT HOLDS THE BARS ASKED. The origin serves short windows
+    // UNFLAGGED (a read >= 0.9 x asked counts as covered and is cached an hour; a cold fetch with no slot, or a failed
+    // fetch thread, re-reads what is stored; nothing stored serves recent bars, an EMPTY window after the cutoff), and the
+    // lake can be short too (its 2003-09 floor, the deficit passes' cap). Only a whole answer wins outright.
+    const lakeWhole = (x) => !!x && x.bars.length >= bars
+    const originWhole = (o) => !!o && o.filling !== true && Array.isArray(o.bars) && o.bars.length >= bars
+    // ⭐ (measured 2026-11-28, 12 cold tickers at random dates, production) A COLD LAKE IS SLOWER THAN THE ORIGIN: the
+    // index and a piece from R2 took 380-650 ms, the origin's `to=` 138-214 ms. A WARM lake (the date warm, a neighbour's
+    // warm, the edge's copy) answers in tens of ms. So the chart's own read gives the lake WINDOW_LAKE_HEAD_START_MS, then
+    // asks the origin beside it; the first WHOLE answer lands, else the LONGER of the two once both are in (a tie: the
+    // lake's); the other is given up (the origin's request aborted; the lake's pieces still land in the page's cache).
+    // A warm never races.
+    // ⛔⛔ (review of #2986, F-E) ...UNTIL A CHART JOINS IT. A chart that joins a warm still reading the lake rides this read
+    // (`_tail`: a lake-first record is no lane request yet), so the warm's wait was the chart's, with no head start and no
+    // ceiling: a stalled R2 never settled the chart, and a cold lake cost it 380-650 ms instead of a race at 80. A non-warm
+    // joiner (`rec.onJoin`) or a chart subscribing switches this read to the racing path, from that moment.
+    let joinedNow = null
+    const joined = new Promise((resolve) => { joinedNow = resolve })
+    if (rec) rec.onJoin = () => joinedNow(JOINED)
+    if (warm && !(r.refs > 0) && !rec?.wantPlain) {
+      const v = await orAbort(Promise.race([lake, joined]))
+      if (signal?.aborted) throw abortErr()
+      if (v === JOINED) return _windowRace()
+      if (lakeWhole(v)) { won('lake'); return v }
+      if (!v) refused()
+      // ⛔ (review of #2986, F-B) a SHORT lake window from a warm is not landed outright (it would be displayable, and
+      // the switch would paint it short): the origin is asked on the warm's lane and the LONGER lands (a tie: the lake's)
+      const o = await ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) }).then((x) => ({ o: x }), (e) => ({ e }))
+      if (signal?.aborted) throw abortErr()
+      const on = o.o && Array.isArray(o.o.bars) ? o.o.bars.length : -1
+      if (v && v.bars.length >= on) { won('lake'); return v }
+      won('origin')
+      if (o.e) throw o.e
+      return o.o
+    }
+    return _windowRace()
+    async function _windowRace() {
+    let timer = null
+    const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
+    const first = await orAbort(Promise.race([lake, head])).finally(() => { if (timer != null) { clearTimer(timer); timer = null } })
+    if (signal?.aborted) throw abortErr()
+    if (first !== HEAD_START && lakeWhole(first)) { won('lake'); return first }
+    if (first === null) {
+      refused()
+      return ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+    }
+    // the lake is slow, or short: the origin beside it
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let ceil = null
+    // (review of #2986, LOW) the ceiling's timer goes with an abort too
+    const giveUp = () => { try { ac?.abort() } catch { /* aborted */ } if (ceil != null) { clearTimer(ceil); ceil = null } }
+    signal?.addEventListener?.('abort', giveUp, { once: true })
+    const origin = ask(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
+      .then((o) => ({ o }), (e) => ({ e }))
+    try {
+      const v = await orAbort(new Promise((resolve) => {
+        let done = false
+        const fin = (x) => { if (!done) { done = true; resolve(x) } }
+        lake.then((x) => { if (lakeWhole(x)) fin({ lake: x }) }, () => {})
+        origin.then((res) => {
+          if (res.o && originWhole(res.o)) { fin(res); return }
+          // ⛔ (review of #2986, F-A) A CEILING ON THE WAIT FOR THE LAKE. The origin answered short (or failed): the lake is
+          // waited for at most WINDOW_LAKE_MAX_WAIT_MS more (its piece reads and the shared index read take no timeout of
+          // their own: a stalled R2 never settles), then the origin's answer lands (a `filling` one keeps its repeat)
+          ceil = setTimer(() => { ceil = null; fin({ ...res, ceiling: true }) }, WINDOW_LAKE_MAX_WAIT_MS)
+          lake.then(() => { if (ceil != null) { clearTimer(ceil); ceil = null } }, () => {})
+        })
+        Promise.allSettled([lake, origin]).then(([lx, ox]) => {
+          const x = lx.status === 'fulfilled' ? lx.value : null
+          const res = ox.value
+          const on = res.o && Array.isArray(res.o.bars) ? res.o.bars.length : -1
+          fin(x && x.bars.length >= on ? { lake: x } : res)
+        })
+      }))
+      if (signal?.aborted) throw abortErr()
+      if (v.lake) { giveUp(); won('lake'); return v.lake }
+      won('origin')
+      // ⭐ (review of #2986, the deepening) the origin landed short at the ceiling: a lake that settles WHOLE later adds
+      // its older rows behind the left edge, as a background deepening (one visible draw; a right-pinned view stays)
+      // ⛔ (review of #2986, round 5) ...NEVER INTO A VISIBLE EMPTY LEFT AREA: a window chart zoomed out past its bar 0
+      // shows the space the rows would fill, so they are kept for the member's next scroll-back (`_scrollJob` lands them
+      // first, in place of an origin ask), on the life this read answered (`askedGen`)
+      if (v.ceiling && v.o) lake.then((x) => { if (lakeWhole(x) && keys.get(r.key) === r) r.pendingDeepen = { rows: x.bars, gen: askedGen } }, () => {})
+      if (v.e) throw v.e
+      return v.o
+    } finally {
+      signal?.removeEventListener?.('abort', giveUp)
+    }
+    }
+  }
+  /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
+   *  last shared one, the 2% rule)? True when none are shared. */
+  // ⛔ (review of #2986) ...AND THE DAILY SERIES THE PAGE HOLDS. A window in 2006 shares no bar with the present
+  // intraday series, so a split the lake's table has not caught up with (published a session behind) cannot show on an
+  // intraday seam. The symbol's held DAILY bars (the origin's, on the present basis; a D chart at a date reads the plain
+  // key) span the window's days: each shared day's last regular-session close must sit inside that day's daily range
+  // (2% slack). A split moves every lake price by its ratio, far outside it: the origin answers.
+  // ⛔ (review of #2986, residual) ...AND THE LAKE'S NEWEST SESSION AGAINST THE HELD PLAIN KEY. A split newer than the lake's
+  // last publish moves the lake's WHOLE series off the origin's basis, its newest bars included; the plain (present) key is
+  // almost always held before a go-to-date, so the lake's newest rows (`got.newest`, historyFeed windowBars `newest`) are
+  // checked against it on the 2% rule. And a lake whose split table is stale (`splitsStale`: `splits_as_of` more than
+  // LAKE_SPLITS_STALE_DAYS behind its newest bar) is the origin's.
+  function _windowSeamOk(key, got) {
+    const rows = Array.isArray(got) ? got : got?.bars
+    if (!Array.isArray(got) && got?.splitsStale) return false
+    const at = key.indexOf('@to=')
+    const plain = at > 0 ? key.slice(0, at) : null
+    for (const k of [key, plain]) {
+      const held = k ? registry.peek(k)?.bars : null
+      if (held?.length && !_seamAgrees(held, rows)) return false
+    }
+    const plainBars = plain ? registry.peek(plain)?.bars : null
+    // ⛔ (review of #2986, F-F) the newest session NOT KNOWN in time (its read timed out) is no pass: with the present key
+    // held, an unchecked basis is the origin's
+    if (plainBars?.length && got?.newestUnknown) return false
+    if (plainBars?.length && got?.newest?.length && !_seamAgrees(plainBars, got.newest)) return false
+    const p = parseKey(key)
+    const daily = p ? registry.peek(`${p.sym}_D`)?.bars : null
+    return !daily?.length || _dailyAgrees(daily, rows)
   }
 
   /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
@@ -405,6 +697,7 @@ export function createNetwork({
     if (until == null) return false
     if (now() < until) return true
     deepWanted.delete(key)
+    wantHolders.delete(key)
     return false
   }
   /** ⭐ THE ONE AUTHORITY FOR "IS THE DEEP HISTORY DUE" on this page (`deepPending` and the tail's trigger): did the
@@ -420,6 +713,7 @@ export function createNetwork({
    *  recovers) records nothing, so a later key life asks again (review of #2869). Waiters are released either way. */
   function _settleDeep(key, joined = true) {
     deepWanted.delete(key)
+    wantHolders.delete(key)   // (the waiters' asks are answered: none of them holds the key any more)
     const held = registry.peek(key)?.bars.length
     if (joined && held != null) {
       deepSettled.delete(key)
@@ -427,6 +721,8 @@ export function createNetwork({
       if (deepSettled.size > LAKE_SETTLED_MAX) deepSettled.delete(deepSettled.keys().next().value)
     }
     for (const cb of [...(deepSubs.get(key) || [])]) { try { cb() } catch { /* ignore */ } }
+    // (a failed join is not "nothing more is coming": the split is off and the full read it queued wakes the entry)
+    if (joined) _noteSettled(key)
   }
 
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
@@ -436,10 +732,25 @@ export function createNetwork({
     r.edgeTimer = setTimer(() => {
       r.edgeTimer = null
       if (keys.get(r.key) !== r || !api.deepPending(r.key)) return   // gone, or the history joined in time
+      // ⛔ (review of #3012, F-D) ONLY WHILE SOMETHING STILL SHOWS, HOLDS OR WAITS FOR THE KEY. The record lives while its
+      // stuck history job is in flight, so a held arrow through a W/M list during an edge miss sent one 2,000-row origin
+      // tail per row passed, the prepares long aborted. A chart on it (refs), a pin (the handoff's holdUntilShown, a
+      // prepare's acquire) or a waiting display whose ask was not given up (deepWanted) is what makes the cover worth it.
+      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) return
       r.edgeFallback = true
+      r.coverPage = true
+      // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits
+      // on IS that request: a cover tail queued behind it ran only once the edge answered, which is the wait this exists
+      // to end. With the slot busy, the cover is asked BESIDE it (`r.side`, the only second request a key ever sends).
+      if (r.inflight?.kind === 'scroll' && !r.side) { _tailJob(r, r.priority, { side: true }); return }
       _queueTail(r, r.priority)
       _drain(r)
     }, EDGE_FALLBACK_MS)
+  }
+
+  /** Does the entry already hold its symbol's whole series (`wholeHistory`)? Never throws. */
+  function _whole(key) {
+    try { return wholeHistory?.(key) === true } catch { return false }
   }
 
   /** History answers slower than EDGE_FALLBACK_MS (most likely an edge MISS), newest last: `{ key, ms }`. */
@@ -477,7 +788,9 @@ export function createNetwork({
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
         r.splitOff = true
-        _queueTail(r, r.priority)
+        // ⛔ (F1, 2026-11-28) the full read it queues is still to come: the depth stays due until it settles (deepPending)
+        r.fullDue = true
+        _queueTail(r, r.priority, { fullRead: true })   // (only THIS read's settle clears `fullDue`: _send)
         _drain(r)
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
@@ -499,6 +812,12 @@ export function createNetwork({
     if (!history) return false
     const p = parseKey(key)
     return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+  }
+
+  /** Is `key` a window (`@to=`) whose read asks the lake first (`_windowFromLake`)? */
+  function lakeCarriesWindow(key) {
+    const p = parseKey(key)
+    return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !keys.get(key)?.windowLakeOff
   }
 
   const _lakeCarries = (r) => {
@@ -545,6 +864,20 @@ export function createNetwork({
    *  has nothing older, fails, or disagrees at the join hands over to the server window, queued
    *  behind whatever took the slot meanwhile (≤1 request per key still holds). */
   function _scrollJob(r, opts) {
+    // ⭐ (review of #2986, the deepening; L2) a window's lake rows kept after a short ceiling answer land first, on the
+    // life they were asked in (`gen`: the reducer drops another life's), through _joinLakeWindow's rules: the lake must
+    // hold the join bar (the gap rule) and agree with it (prependOlder's basis check). Refused or stale: discarded, and
+    // the scroll asks as it always did.
+    const pend = r.pendingDeepen
+    if (pend) {
+      r.pendingDeepen = null
+      const s0 = registry.getSnapshot(r.key)
+      if (pend.gen === s0.gen && s0.bars.length) {
+        const oldest = s0.bars[0].t
+        return Promise.resolve(_landBackground(r, opts.priority || 'urgent', () => _joinLakeWindow(r, pend.gen, { bars: pend.rows }, oldest)))
+          .then((res) => (res?.ok && res.added > 0 ? res : _scrollJob(r, opts)))
+      }
+    }
     if (!history || !_lakeCarries(r)) return _serverScrollJob(r, opts)
     return _lakeScrollJob(r, opts).then((res) => {
       if (res?.aborted || res?.ok || res?.dropped) return res   // (dropped: a window for a chart the member left, _landBackground)
@@ -623,12 +956,14 @@ export function createNetwork({
     }
   }
 
-  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null } = {}) {
+  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null, side = false, fullRead = false, viaLake = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
     // Read at failure time: the lane may have rewritten a queued warm into a non-warm request.
-    const rec = { ac, kind, promise: null, url, priority, warm: /[?&]warm=1(?:&|$)/.test(url), followUp: null }
+    // (review of #2986, F1) a window read from the lake first is no lane request until its origin fallback leaves
+    // (`_windowRead` then marks this record: its url, and `warm` when it leaves with `&warm=1`)
+    const rec = { ac, kind, promise: null, url, priority, warm: !viaLake && /[?&]warm=1(?:&|$)/.test(url), followUp: null, viaLake, sent: !viaLake, wantPlain: false }
     // ⛔ A SHED WARM IS NOT THE CHART'S ERROR. A best-effort `&warm=1` that failed while a chart
     // subscribes to the key says nothing about the chart's data: no REST_ERROR (the chart's own
     // non-warm request, queued behind it, owns the answer).
@@ -637,12 +972,33 @@ export function createNetwork({
       let json
       try {
         json = fetchFn
-          ? await fetchFn(ac?.signal ?? null)
+          ? await fetchFn(ac?.signal ?? null, rec)
           : await request(url, { priority, signal: ac?.signal ?? null, ...(front ? { front: true } : {}) })
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
-        if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
+        if (quiet()) { if (fullRead) r.fullDue = false; return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null } }
+        // ⛔⛔ (2026-11-28, the cloud sweep: COV-def-m1-typed LNG, /api/bars/LNG?tf=15 answered 429 three times, and the chart
+        // showed the lake copy WITHOUT its tail, a 2-day-stale newest bar, then the fresh tail 100 ms later) A RATE-LIMITED
+        // TAIL IS NOT AN ANSWER. A 429 / 503 is asked again after its Retry-After (the loop's backoff for a chart, one timer
+        // for a held one-shot ask), up to RATE_LIMIT_HOLD_ROUNDS times in a row, and meanwhile the key is NOT answered: a
+        // display holding for it keeps waiting, inside its hang guard, instead of committing a copy without its tail as
+        // current. Past the rounds it is the error it always was.
+        // (the count is the KEY's, not the record's: a one-shot ask's record is collected when it settles)
+        // ⛔ (2026-11-28, chart rails: StockChart.warmingTimeout) ...BUT A 503 `warming` IS AN ANSWER: the server telling
+        // the chart it is fetching a name it may never find (a typo, a made-up ticker). The chart shows it and gives up
+        // honestly after WARMING_GIVE_UP_MS, which counts from the error it sees: held here, it never saw one and its
+        // skeleton spun on. Only a 429, or a 503 that is not `warming` (a shed), holds.
+        if (kind === 'tail' && (e?.status === 429 || (e?.status === 503 && !e?.warming)) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
+          limitRounds.set(r.key, (limitRounds.get(r.key) || 0) + 1)
+          if (limitRounds.size > 500) limitRounds.delete(limitRounds.keys().next().value)
+          if (!(r.refs > 0)) _armLimitRetry(r.key, e?.retryAfterMs)
+          // (review of #3012, LOW) a rate-limited FULL read is still to come: `fullDue` stays until its repeat settles
+          return { error: true, limited: true, retryAfterMs: e?.retryAfterMs ?? null }
+        }
+        if (fullRead) r.fullDue = false   // (F1) the full read settled (failed): nothing more is coming from it
+        // (review of #3012, LOW) the rounds end with the error: the key's next ask starts a fresh count
+        limitRounds.delete(r.key)
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
           registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: e?.warming ? 'warming' : String(e?.status || 'network') } })
@@ -655,15 +1011,34 @@ export function createNetwork({
       // new entry it would create (a `since=` delta would land on an EMPTY entry as "answered"). Dropped; the next
       // chart or warm of the key asks again, on its own life.
       if (!registry.has(r.key)) return { aborted: true, evicted: true }
+      // (F1) a split-off key's full read answered: cleared BEFORE its rows land, so the wake they cause reads it settled.
+      // ⛔ ONLY that read (review of #2989): the edge fallback's side cover, or any other tail, settling while it is still
+      // queued is a shallow answer, and clearing on it read the depth done before the full depth landed
+      if (fullRead) r.fullDue = false
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       const out = await onJson(json)
-      if (kind === 'tail') _noteAnswered(r)
+      // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
+      // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
+      if (kind === 'tail') {
+        limitRounds.delete(r.key)
+        const was = r.filling || fillRounds.has(r.key)   // (the record may be a new one: a one-shot's is collected)
+        r.filling = json?.filling === true
+        _noteAnswered(r)
+        if (r.filling && (!rec.warm || r.refs > 0)) _armFillRetry(r.key)
+        else if (!r.filling) fillRounds.delete(r.key)
+        // ⭐ (review of #2947, N1) the window's COMPLETE answer after a filling one: the handoff's watcher re-reads
+        // heldRows(answered) now (the entry's own change fired while `filling` still said true)
+        if (was && !r.filling) for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
+      }
       return out
     })()
     rec.promise = promise
-    r.inflight = rec
+    // `side`: the edge fallback's cover tail, sent beside the request holding the slot (see _armEdgeFallback)
+    if (side) r.side = rec
+    else r.inflight = rec
     promise.finally(() => {
       if (r.inflight?.promise === promise) r.inflight = null
+      if (r.side?.promise === promise) r.side = null
       _drain(r)
     })
     return promise
@@ -690,6 +1065,8 @@ export function createNetwork({
     const inf = r.inflight
     if (inf?.kind === 'tail') {
       const best = _best(inf.priority, priority)
+      // (review of #2986, F1) a window still reading the lake: a non-warm joiner makes its origin fallback non-warm
+      if (inf.viaLake && !inf.sent && !opts.warm) { inf.wantPlain = true; try { inf.onJoin?.() } catch { /* the read's */ } }
       // ⛔ A NON-WARM CALLER NEVER RIDES A `&warm=1` REQUEST (#1118 finding 4): the server may
       // shed a warm, and the chart would get 'warming' for its own data.
       if (inf.warm && !opts.warm) {
@@ -747,6 +1124,7 @@ export function createNetwork({
     r.errors = 0
     // A delta that found a new history needs the full read NOW (bounded: needsFull clears on it).
     if (res?.delta && s.needsFull) return 0
+    // a windowed (replay / at-a-date) key is read ONCE, whole (a `filling` answer is asked again by `_armFillRetry`)
     if (!isIntradayTf(p.tf) || p.window) return p.window ? Infinity : dailyPollMs
     const tailT = s.developing ? s.developing.t : (s.bars.length ? s.bars[s.bars.length - 1].t : null)
     const spent0 = _exhausted(r)
@@ -760,7 +1138,7 @@ export function createNetwork({
     for (const r of keys.values()) if (r.paused && r.refs > 0) { r.paused = false; _schedule(r, 0) }
   })
 
-  const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
+  const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.side && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
 
   const api = {
     /** (review of #2938, T1) the slow history answers of this page (diagnostics; the rig reads it). */
@@ -793,7 +1171,11 @@ export function createNetwork({
       if (--r.refs > 0) return
       if (r.timer != null) { clearTimer(r.timer); r.timer = null }
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
+      if (r.side) { r.side.ac?.abort(); r.side = null }
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
+      // (review of #2947, LOW) the last chart left: a window's filling repeat goes with it unless the entry is still pinned
+      const f = fillRounds.get(key)
+      if (f && !((registry.refs?.(key) ?? 0) > 0)) { if (f.timer != null) clearTimer(f.timer); fillRounds.delete(key) }
       const spent = _exhausted(r)
       keys.delete(key)
       _noteBudget(key, spent, false)
@@ -801,14 +1183,15 @@ export function createNetwork({
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
     /** Prime the lake for `key` now (historyFeed `prime`: index + newest pieces into the HTTP cache),
      *  ahead of its open: a typed ticker or a row the pointer rests on. No-op where it does not carry. */
-    primeLake(key) {
-      if (!history?.prime || !lakeCarriesKey(key)) return
-      try { history.prime(key) } catch { /* a warm only */ }
+    // ...and a window's (a chart at a past date, PR 1.2's date warm): the pieces its lake read takes (historyFeed `prime`)
+    primeLake(key, opts) {
+      if (!history?.prime || !(lakeCarriesKey(key) || lakeCarriesWindow(key))) return
+      try { if (opts) history.prime(key, opts); else history.prime(key) } catch { /* a warm only */ }
     },
     /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
      *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
     lakeEdgeWarm(key, opts) {
-      if (!history?.edgeWarm || !lakeCarriesKey(key)) return Promise.resolve(0)
+      if (!history?.edgeWarm || !(lakeCarriesKey(key) || lakeCarriesWindow(key))) return Promise.resolve(0)
       try { return Promise.resolve(history.edgeWarm(key, opts)).catch(() => 0) } catch { return Promise.resolve(0) }
     },
     /**
@@ -861,6 +1244,7 @@ export function createNetwork({
       if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
+      let failed = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
@@ -881,9 +1265,12 @@ export function createNetwork({
           if (!after || after.bars.length <= before) return false
           return after.restSeen ? 'join' : 'seed'
         })
-        .catch(() => false)
+        .catch(() => { failed = true; return false })
         .finally(() => {
           if (lakeSeeds.get(key) === p) { lakeSeeds.delete(key); lakeAwaited.delete(key) }
+          // ⛔ (F2, 2026-11-28) A LOAD THAT FAILED SETTLED NOTHING: recorded as settled at what is held, it read "nothing more
+          // is coming" (lakePending false) and woke the hold to paint the shallow rows. Still due; a later load asks again.
+          if (failed) return
           const cur = registry.peek(key)
           const held = cur?.bars.length
           if (held == null) return          // nothing to join into: still due when the key is built
@@ -896,9 +1283,17 @@ export function createNetwork({
           lakeSettled.delete(key)
           lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
+          _noteSettled(key)
         })
       lakeSeeds.set(key, p)
       return p
+    },
+    /** `cb` on each settle of `key`'s depth (its history join, its lake load), whatever it added; returns the unsubscribe. */
+    subscribeSettled(key, cb) {
+      let set = settleSubs.get(key)
+      if (!set) { set = new Set(); settleSubs.set(key, set) }
+      set.add(cb)
+      return () => { set.delete(cb); if (!set.size && settleSubs.get(key) === set) settleSubs.delete(key) }
     },
     /** The lake load of `key` in flight (lakeSeed's shared promise), or null. Starts nothing. */
     lakeLoading(key) { return lakeSeeds.get(key) || null },
@@ -920,7 +1315,11 @@ export function createNetwork({
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
-      if (keys.get(key)?.splitOff) return false
+      // ⛔ (F1, 2026-11-28) the edge failed, so the full depth comes from the origin: due until that read settles. It read
+      // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
+      // read filled it in (a short paint, then the jump).
+      if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
+      if (_whole(key)) return false                // the entry holds the whole series: nothing older to join
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
@@ -935,9 +1334,36 @@ export function createNetwork({
      * the NEWEST text's tail queued behind the older texts' histories. An aborted prime leaves the lane and is forgotten
      * (the history job then asks for itself, as for a prime that failed).
      */
-    deepPrime(key, { priority = 'urgent', want = false, signal = null } = {}) {
+    deepPrime(key, { priority = 'urgent', want = false, signal = null, wantSignal = null } = {}) {
       if (signal?.aborted || !api.deepPending(key)) return Promise.resolve(false)
-      if (want) deepWanted.set(key, now() + DEEP_WANT_MS)
+      // `wantSignal` (review of #3012, F-D): the waiting display's own ask; when every such waiter has given up, the key
+      // is no longer wanted (its cover fallback then sends nothing)
+      if (want && !wantSignal?.aborted) {
+        deepWanted.set(key, now() + DEEP_WANT_MS)
+        if (wantSignal) {
+          let set = wantHolders.get(key)
+          if (!set) {
+            set = new Set()
+            wantHolders.set(key, set)
+            while (wantHolders.size > WANT_HOLDERS_MAX) wantHolders.delete(wantHolders.keys().next().value)
+          }
+          set.add(wantSignal)
+          // ⛔ an abort counts only against the waiters it was one of: after a settle (the set gone) or a newer want (a new
+          // set), an old prepare's late abort must not take the key's want away
+          wantSignal.addEventListener?.('abort', () => {
+            if (wantHolders.get(key) !== set) return
+            set.delete(wantSignal)
+            if (set.size) return
+            wantHolders.delete(key)
+            deepWanted.delete(key)
+          }, { once: true })
+        }
+      }
+      // ⭐⭐ (2026-11-28, the cloud sweep: zoomed-out W/M waited on /api/bars-history 5-22 s server-side while the origin's
+      // /api/bars?tf=W&bars=2000 answered in 467 ms) ANY DISPLAY WAITING ON A DEEP JOIN gets the cover fallback, not only a
+      // tail cut to EDGE_TAIL_BARS: still unjoined EDGE_FALLBACK_MS later, the origin is asked the whole page a view can
+      // draw (the deepest tail page, DATE_COVER_MAX), so the hold's hang-time commit is nearly whole, not ~600 rows
+      if (want && isDateTf(parseKey(key)?.tf)) { const rw = _rec(key); if (!rw.edgeFallback) _armEdgeFallback(rw) }
       // The depth was lost since the key's last join (the entry was evicted and rebuilt): ask again.
       const r = keys.get(key)
       if (r?.histAsked && !(r.inflight?.kind === 'scroll') && deepSettled.has(key)) r.histAsked = false
@@ -986,6 +1412,10 @@ export function createNetwork({
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
     lakeCarries(key) { return lakeCarriesKey(key) },
+    /** Does a read of window `key` ask the lake first (a chart at a past date: `_windowFromLake`)? */
+    lakeCarriesWindow(key) { return lakeCarriesWindow(key) },
+    /** Where window `key`'s last read was answered on this page: 'lake' | 'origin' | null (diagnostics, the rig). */
+    windowSource(key) { return windowSources.get(key) ?? null },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)
@@ -1069,6 +1499,12 @@ export function createNetwork({
      * The chart's timeframe-switch hold keys on it (useBarSnapshotBars).
      */
     answered(key) { return !!keys.get(key)?.answered },
+    /** (review of #2947, M1) The key's last tail answer was the server's `filling` one: a window still landing, its rows
+     *  short of what it will hold. A later complete answer clears it. */
+    // (N1) ...also after the key's record went (a one-shot ask's record is collected when it settles): a repeat still due
+    /** (diagnostics, rails) live waiters on the key's deep join that passed a wantSignal */
+    wantHolders(key) { return wantHolders.get(key)?.size ?? 0 },
+    filling(key) { return !!keys.get(key)?.filling || fillRounds.has(key) },
     /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
     subscribeAnswered(key, cb) {
       let set = answerSubs.get(key)
@@ -1076,11 +1512,13 @@ export function createNetwork({
       set.add(cb)
       return () => { set.delete(cb); if (!set.size && answerSubs.get(key) === set) answerSubs.delete(key) }
     },
-    /** Requests in flight for `key` (0|1), or across all keys. */
+    /** Requests in flight for `key` (0|1, or 2 while the edge fallback's cover runs beside a stuck history: `r.side`), or
+     *  across all keys. */
     inflight(key) {
-      if (key != null) return keys.get(key)?.inflight ? 1 : 0
+      const of = (r) => (r?.inflight ? 1 : 0) + (r?.side ? 1 : 0)
+      if (key != null) return of(keys.get(key))
       let n = 0
-      for (const r of keys.values()) if (r.inflight) n++
+      for (const r of keys.values()) n += of(r)
       return n
     },
     stats() { return { keys: keys.size, requests, inflight: api.inflight() } },
@@ -1091,6 +1529,56 @@ export function createNetwork({
     },
   }
   return api
+}
+
+/** Index of the first bar of ascending `rows` with `t >= x` (rows.length when none). */
+function _lowerBound(rows, x) {
+  let lo = 0, hi = rows.length
+  while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m].t < x) lo = m + 1; else hi = m }
+  return lo
+}
+/** Do ascending `held` and `rows` agree (historyPrepend's 2% close rule) on their first and last shared bar? True when
+ *  they share none. */
+export function _seamAgrees(held, rows) {
+  if (!held?.length || !rows?.length) return true
+  const lo = rows[0].t, hi = rows[rows.length - 1].t
+  const i0 = _lowerBound(held, lo)
+  const i1 = _lowerBound(held, hi + 1) - 1
+  for (const i of i0 <= i1 ? [i0, i1] : []) {
+    const h = held[i]
+    const j = _lowerBound(rows, h.t)
+    if (j < rows.length && rows[j].t === h.t && _closeMismatch(h, rows[j])) return false
+  }
+  return true
+}
+
+/** Do intraday `rows` agree with held `daily` bars (unix t, a UTC-midnight date)? Each ET day both hold: its last bar
+ *  starting before 16:00 ET closes inside the day's [low, high] with 2% slack. True when they share no day. Reads at
+ *  most the first and the last shared day (a split moves them all). */
+export function _dailyAgrees(daily, rows) {
+  if (!daily?.length || !rows?.length) return true
+  const byDay = new Map()
+  for (const b of daily) byDay.set(new Date(b.t * 1000).toISOString().slice(0, 10), b)
+  const closes = new Map()   // ET day -> its last regular-session close
+  for (const r of rows) {
+    const d = etDateOf(r.t)
+    if (!d || !byDay.has(d)) continue
+    const m = _etMinute(r.t)
+    if (m >= 570 && m < 960) closes.set(d, r.c)
+  }
+  const days = [...closes.keys()].sort()
+  for (const d of days.length > 1 ? [days[0], days[days.length - 1]] : days) {
+    const b = byDay.get(d), c = closes.get(d)
+    if (!(c >= b.l * 0.98 && c <= b.h * 1.02)) return false
+  }
+  return true
+}
+let _etMinFmt = null
+function _etMinute(unixSec) {
+  if (!_etMinFmt) _etMinFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' })
+  const parts = _etMinFmt.formatToParts(new Date(unixSec * 1000))
+  const h = Number(parts.find((x) => x.type === 'hour')?.value), mi = Number(parts.find((x) => x.type === 'minute')?.value)
+  return h * 60 + mi
 }
 
 const _RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
