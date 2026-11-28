@@ -654,8 +654,15 @@ def ab_table(ga: dict, gb: dict) -> str:
     return '\n'.join(out)
 
 
-NO_DATA_NOTE = re.compile(r'No chart data available|No \S+ bars for \S+ (at this date|yet)')
 _TF_BASE = {'45': '15', '120': '60', '240': '60'}
+_TF_LABEL = {'1': '1m', '5': '5m', '15': '15m', '30': '30m', '45': '45m', '60': '1h', '120': '2h', '240': '4h'}
+
+
+def _no_data_note(txt: str, sym: str, tf: str) -> bool:
+    """The chart's own no-data note for THIS press: it names the symbol (and, in the 'No <tf> bars for <sym>' form, the
+    pressed timeframe's label). A note naming another symbol or timeframe is another press's."""
+    s, lab = re.escape(sym), re.escape(_TF_LABEL.get(tf, tf))
+    return bool(re.search(r'No chart data available for ' + s + r'\b', txt) or re.search(r'No ' + lab + r' bars for ' + s + r'\b', txt))
 
 
 def no_data_press(rec: dict, p: dict) -> bool:
@@ -688,7 +695,10 @@ def no_data_press(rec: dict, p: dict) -> bool:
                 and 'to-no-data' in str(q.get('st') or '')), None)
     if ans is None:
         return False
-    # (2) the independent deep source: its earliest for this symbol and timeframe is after the date
+    # (2) the independent deep source: its earliest for this symbol and timeframe is after the date AND after the day the
+    # press's own request asked to (`to=`: after an earliest-bars landing the presses ask around the view, not the date)
+    mt = re.search(r'[?&]to=(\d{4}-\d{2}-\d{2})', str(ans.get('u')))
+    to_day = mt.group(1) if mt else None
     want = g.get('wantDay')
     if not want:
         m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', str(g.get('asked') or ''))
@@ -696,10 +706,11 @@ def no_data_press(rec: dict, p: dict) -> bool:
     deep = fl.get('deep') or {}
     e = deep.get('earliest') or {}
     first = _day_of(e.get('t')) if e.get('t') is not None else None
-    if not want or str(deep.get('tf')) != tf or not first or not first > want:
+    if not want or not to_day or str(deep.get('tf')) != tf or not first or not first > want or not first > to_day:
         return False
     # (3) the chart's no-data note on screen after the key
-    if not any(NO_DATA_NOTE.search(str(d.get('txt') or '')) for d in fl.get('dom') or [] if (d.get('t') or 0) >= key):
+    if not any(_no_data_note(str(d.get('txt') or ''), sym, tf) for d in fl.get('dom') or []
+               if (d.get('t') or 0) >= key and d.get('w', 'flip-chart') in ('flip-chart', None)):
         return False
     # (4) no candles after the answer
     end = ans.get('e') or key
@@ -796,6 +807,17 @@ def self_check() -> None:
     assert not no_data_press(nd_rec(), nd_p([{'t': 1200, 'c': {'flip-chart': {'nb': ['2026-11-01', 8.08]}}}])), '(4) candles after the answer'
     assert not no_data_press({**nd_rec(), 'goToDate': {}}, nd_p()), 'not a date pass'
     assert mark_pass(blank(), nd_rec(deep_t='2015-03-02'), nd_p()) == blank(), "any condition missing keeps the flags"
+    # (review of #3068) after an earliest-bars landing the press asks `to=` around the view: a deep earliest before THAT day
+    # means bars exist there, whatever the asked date (a wrong server to-no-data must not pass)
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth&to=2021-08-02'), nd_p()), '(2) the press asked to= after the deep earliest'
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth'), nd_p()), '(1/2) no to= day on the request'
+    assert not no_data_press(nd_rec(u='/api/bars/CDRO?tf=1&bars=1200&session=rth&to=2016-01-04', deep_t='2016-03-01'), nd_p()), '(2) the deep earliest is before the ASKED date (bars exist there)'
+    early = nd_rec(); early['flips'][0]['dom'] = [{'t': 990, 'txt': 'No chart data available for CDRO.'}]
+    assert not no_data_press(early, nd_p()), '(3) a note from before the key (an earlier press)'
+    assert not no_data_press(nd_rec(note='No chart data available for CGC.'), nd_p()), '(3) a note naming another symbol'
+    assert not no_data_press(nd_rec(note='No 1h bars for CDRO at this date. Pick a later date'), nd_p()), '(3) a note naming another timeframe'
+    other = nd_rec(); other['flips'][0]['dom'] = [{'t': 1016, 'txt': 'No chart data available for CDRO.', 'w': 'list-1'}]
+    assert not no_data_press(other, nd_p()), "(3) another widget's note"
     assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2005, 'month': 8, 'day': 1}, 'to': {'year': 2006, 'month': 1, 'day': 3}}}})
     assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2026, 'month': 5, 'day': 29}, 'to': {'year': 2026, 'month': 12, 'day': 8}}}})
     def fr(t, sym, close, ni=999, lr=(899, 999), y0=100.0):
