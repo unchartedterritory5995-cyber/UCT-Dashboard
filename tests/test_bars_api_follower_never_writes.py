@@ -151,6 +151,9 @@ def test_a_follower_process_writing_during_a_swap_leaves_a_sound_store_it_then_r
     # ...and its thread-local connection to the tmp store: restored with `_local`, so a later test on this thread never
     # reads this test's store through a connection the restored `_DB_PATH` no longer names.
     monkeypatch.setattr(bars_sqlite, "_local", threading.local())
+    # ...and the swap's floor bump must not START the process-wide meta flusher: it would run for the rest of the
+    # session and flush later tests' in-process proofs out of their buffers (Linux CI, test_bars_wm_from_live_daily).
+    monkeypatch.setattr(bars_sqlite, "_ensure_meta_flusher", lambda: None)
     monkeypatch.setenv("BARS_API_WORKERS", "2")
     db, new = tmp_path / "bars.db", tmp_path / "incoming.db"
     _mkstore(db, gen=1)
