@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ChartDateNav.module.css'
+import { parseDate } from '../../../components/chart/dateText'
 
 // Time Navigator — the top-bar date box (MarketSmith-style). Sits between the
 // timeframe buttons and the info fields. Type a date + Enter (or pick from the
@@ -22,18 +23,7 @@ const fmtDate = (ms) => {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`
 }
 
-// Accepts M/D/YYYY (the masked form). Returns a UTC-midnight ms.
-const parseDate = (txt) => {
-  if (!txt) return null
-  const s = String(txt).trim()
-  const mm = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/)
-  if (!mm) return null
-  let m = +mm[1], d = +mm[2], y = +mm[3]
-  if (!y || !m || !d) return null
-  if (y < 100) y += 2000
-  if (m < 1 || m > 12 || d < 1 || d > 31) return null
-  return Date.UTC(y, m - 1, d)
-}
+// M/D/YYYY -> UTC-midnight ms: THE one parser (chart/dateText.js), shared with the draft's warm
 
 // Smart M/D/YYYY mask: the user types digits only and the slashes appear on their
 // own. Month/day take 2 digits only when the first two form a valid value (so "15…"
@@ -177,7 +167,10 @@ export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYe
   )
 }
 
-export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null }) {
+// ⭐ (2026-11-28, PR 1.2) `onDraft(text, ms)`: each draft as the member types it (the masked text, '' when the edit ends;
+// `ms`: parseDate(text, {whole: true}), the date Enter will go to, or null while it is not one yet)
+// without a date), so a host can warm the date before Enter (chart/dateWarm.js).
+export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null, onDraft = null }) {
   const jump = () => nav || paneRef?.current
   const [meta, setMeta] = useState(null)
   const [open, setOpen] = useState(false)
@@ -251,11 +244,11 @@ export default function ChartDateNav({ paneRef, themeVars = null, nav = null, an
         title="Go to a date — type and press Enter"
         data-guide="chart.goToDate"
         onFocus={(e) => { setEditing(true); setDraft(fmtDate(meta?.rightMs)); requestAnimationFrame(() => e.target.select()) }}
-        onChange={(e) => setDraft(maskMDY(e.target.value))}
+        onChange={(e) => { const t = maskMDY(e.target.value); setDraft(t); onDraft?.(t, parseDate(t, { whole: true })) }}
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
-          else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
+          else if (e.key === 'Escape') { setEditing(false); onDraft?.('', null); e.currentTarget.blur() }
         }}
       />
       <button
