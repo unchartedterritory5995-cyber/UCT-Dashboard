@@ -578,7 +578,8 @@ def test_a_stored_wm_behind_a_holed_daily_is_answered_from_the_provider_first(st
     hole = TUE if tf == "W" else date(2026, 11, 10)
     full, stored = _seed_old_tail(tf, WED, monkeypatch, hole=hole, old_sessions=2 if tf == "W" else 10)
     rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
-    provider = dict(rs(full)[-1])                                   # the provider's own developing period
+    provider = dict(rs(full)[-1])                                   # the provider's own developing period, with a
+    provider["c"] = provider["h"]                                   # close no stored daily row carries (tells the paths apart)
     calls = []
     monkeypatch.setattr(bars_fetch, "_delta_weekly" if tf == "W" else "_delta_monthly",
                         lambda t, last: calls.append(last) or [provider])
