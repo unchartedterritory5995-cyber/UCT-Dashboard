@@ -35,7 +35,11 @@ from fastapi import HTTPException, Request
 # correctness bonus on top of the speed). Aliased as JSONResponse so every
 # existing bars-serving call site upgrades with no other change; the constructor
 # signature (content/status_code/headers) is identical.
-from fastapi.responses import ORJSONResponse as JSONResponse
+# ⭐ (2026-11-27) ...and LAZY: `PayloadResponse` IS an ORJSONResponse that keeps its payload
+# dict and renders on first read of `.body`. The /api/bars router reads the dict
+# (`bars_payload.payload_of`) and serializes the finished answer ONCE; an in-process caller
+# that reads `.body` gets exactly the bytes it got before. See api/services/bars_payload.py.
+from api.services.bars_payload import PayloadResponse as JSONResponse
 from api.services.nyse_calendar import (
     NYSE_HOLIDAYS_YYYYMMDD as _NYSE_HOLIDAYS_YYYYMMDD_LEAF,
 )
