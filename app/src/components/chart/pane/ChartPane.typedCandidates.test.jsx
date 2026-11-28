@@ -73,6 +73,19 @@ test('a re-type after a timeframe change warms the typed slot again, on the new 
   expect(storeWarm.mock.calls.map((c) => `${c[0]} ${c[1]}`)).toEqual(['AMZN D', 'AMZN 5'])
 })
 
+// (mutant C5 of #2979 survived the test above: its onTypedIntent re-told the text, so a top that never reset on the
+// timeframe change went unseen) a PREFIX several tickers share ('AM') reaches the pane through the candidate list ONLY
+// (the search tells onTypedIntent on an exact or unique match): its top must take the typed slot again on the new
+// timeframe, so the pool's remembered top resets on a timeframe change, not only on a symbol change
+test('a prefix re-typed after a timeframe change, told only as candidates, warms its top again on the new timeframe', () => {
+  const view = render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN', 'AMD', 'AMAT'])
+  view.rerender(<ChartPane sym="NVDA" tf="5" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
+  chartSearch().onTypedCandidates(['AMZN', 'AMD', 'AMAT'])
+  expect(storeWarm.mock.calls.map((c) => `${c[0]} ${c[1]}`)).toEqual(['AMZN D', 'AMZN 5'])
+  expect(poolWarm.mock.calls.map((c) => c[1])).toEqual(['D', '5'])
+})
+
 test('CONTROL: other text told through onTypedIntent still takes the typed slot', () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   chartSearch().onTypedCandidates(['AMZN'])
