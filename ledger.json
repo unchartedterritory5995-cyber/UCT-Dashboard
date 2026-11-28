@@ -8500,6 +8500,36 @@
     "RLX",
     "XFOR"
    ]
+  },
+  {
+   "id": "cloud/46154851526-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:28:55+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LWAC",
+    "FBIZ",
+    "BYND",
+    "DC",
+    "PTOR",
+    "COTY",
+    "BORR",
+    "GLP",
+    "MQ",
+    "DRDB",
+    "OOMA",
+    "NRP",
+    "ACTG"
+   ]
+  },
+  {
+   "id": "cloud/46154851526-1/COV-def-tabs",
+   "at": "2026-11-28T14:28:55+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TMP",
+    "VHI",
+    "CCII"
+   ]
   }
  ]
 }
