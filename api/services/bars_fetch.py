@@ -377,7 +377,11 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
         _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
     else:
-        _note_fetch_span(ticker_up, tf, fetched, _t0)    # all of it was already stored
+        # All of it was already stored: the fetch still PROVES its span (review #2951 L1),
+        # and a payload cached while the proof was missing (the startup prewarm runs with
+        # none) is a cut answer the proof now lets through whole: bust it as above.
+        _note_fetch_span(ticker_up, tf, fetched, _t0)
+        cache.delete_prefix(f"bars_{ticker_up}_{tf}_")
     return len(missing)
 
 
@@ -4246,12 +4250,22 @@ def _contiguous_tail(ticker_up: str, tf: str, rows):
     return rows
 
 
-def read_newest(ticker: str, tf: str, n: int) -> list:
+def read_newest(ticker: str, tf: str, n: int, with_raw: bool = False):
     """THE chart read of a series' newest `n` rows: `bars_sqlite.get_bars` cut at the first
     unproven gap (`_contiguous_tail`). Every path that SERVES (or seeds, or caches for serving)
-    a newest-N intraday window reads through this, never `get_bars` directly."""
+    a newest-N intraday window reads through this, never `get_bars` directly.
+
+    `with_raw=True` returns `(rows, stored_n)`: `stored_n` is how many rows the store HELD
+    for the ask, before the cut. ⛔ DEPTH IS JUDGED ON `stored_n`, NEVER ON THE CUT
+    (review #2951 M3): a cut is "do not draw across this hole", not "fetch the newest
+    window again". Counted as missing depth, a name the provider has not printed for days
+    (whose full fetch comes back stale, persists nothing and so proves nothing) was cut,
+    called partial and refetched on every poll. The hole behind a cut is filled by the
+    chart's own scroll-back (`to=`, `_fill_to_window`) and the background deepfill."""
     t = str(ticker).upper()
-    return _contiguous_tail(t, tf, _sqlite.get_bars(t, tf, n))
+    raw = _sqlite.get_bars(t, tf, n)
+    rows = _contiguous_tail(t, tf, raw)
+    return (rows, len(raw or ())) if with_raw else rows
 
 
 def _et_day_bounds(ymd: str) -> tuple[int, int]:
@@ -4283,11 +4297,13 @@ def _to_window_lookback_days(tf: str, bars: int, run, density_rows=None) -> int:
                or max(1.0, 390.0 / mult))
     need = int(bars) - (len(run) if run else 0)
     need = max(1, min(need, _REPLAY_INTRADAY_COLD_BARS))
-    return min(400, max(10, int(need / max(density, 1.0) * 1.5) + 5))
+    return min(_TO_FILL_ROUND_MAX_DAYS, max(10, int(need / max(density, 1.0) * 1.5) + 5))
 
 
 #: Rounds a `to=` window job may fetch further back while its contiguous run is short.
 _TO_FILL_MAX_ROUNDS = int(_os.environ.get("BARS_TO_FILL_MAX_ROUNDS", "4"))
+#: The widest window one fill round may ask for (also `_to_window_lookback_days`'s ceiling).
+_TO_FILL_ROUND_MAX_DAYS = 400
 #: The provider's intraday floor (Replay Mode, `_fetch_intraday_range`).
 _INTRADAY_FLOOR_YMD = "2003-09-01"
 
@@ -4323,10 +4339,18 @@ def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
         run = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
         if len(run) >= int(bars) or empty_rounds >= 2 or lo_ymd <= _INTRADAY_FLOOR_YMD:
             return
+        # ⛔ EACH ROUND IS SIZED, NEVER BLINDLY DOUBLED (review #2951 L2). Doubling alone took a
+        # thin 1m name from a 400-day first window to 3,200 days by the last round. The next
+        # window is what the rows still missing need at the run's OBSERVED density
+        # (`_to_window_lookback_days`, <= 400 days); only after an EMPTY window (a halt the
+        # density says nothing about) does it grow, to twice the last one, still <= 400.
         span = (datetime.strptime(hi_ymd, "%Y-%m-%d") - datetime.strptime(lo_ymd, "%Y-%m-%d")).days
+        days = _to_window_lookback_days(tf, bars, run)
+        if empty_rounds:
+            days = min(_TO_FILL_ROUND_MAX_DAYS, max(days, span * 2))
         hi_ymd = lo_ymd
         lo_ymd = max(_INTRADAY_FLOOR_YMD, (datetime.strptime(hi_ymd, "%Y-%m-%d")
-                                           - timedelta(days=max(10, span * 2))).strftime("%Y-%m-%d"))
+                                           - timedelta(days=days)).strftime("%Y-%m-%d"))
 
 
 def _replay_warming_response(resp_ticker: str, tf: str) -> JSONResponse:
@@ -5700,11 +5724,12 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         last_ts = _sqlite.get_last_ts(ticker_up, tf)
         if last_ts is None:
             return None
-        stored_rows = read_newest(ticker_up, tf, bars)
+        stored_rows, _stored_n = read_newest(ticker_up, tf, bars, with_raw=True)
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
+        # Depth is the store's (`stored_n`): a cut is not missing depth (`read_newest`).
         if not stored_rows or not (
-            len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
+            _stored_n >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
@@ -5761,7 +5786,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     _time_ck("last_ts")
     # ⛔ Never an older island spliced in and counted as depth (see `_contiguous_tail`).
-    stored_rows = read_newest(ticker_up, tf, bars) if last_ts is not None else []
+    stored_rows, _stored_n = (read_newest(ticker_up, tf, bars, with_raw=True)
+                              if last_ts is not None else ([], 0))
     _time_ck("get_bars")
     # 60m grid migration, serve-time half (the bounded boot sweep is the other):
     # rows in the pre-2026-11-10 clock-hour layout are never served. The ticker's
@@ -5771,9 +5797,10 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         try:
             rebuild_sixty_min_grid(ticker_up)
             last_ts = _sqlite.get_last_ts(ticker_up, tf)
-            stored_rows = read_newest(ticker_up, tf, bars) if last_ts is not None else []
+            stored_rows, _stored_n = (read_newest(ticker_up, tf, bars, with_raw=True)
+                                      if last_ts is not None else ([], 0))
         except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
-            last_ts, stored_rows = None, []
+            last_ts, stored_rows, _stored_n = None, [], 0
 
     # W/M on a live daily (`_wm_overlay`): the answer carries the periods the stored daily derives, whatever happens to
     # their write (background, deduped, never awaited); `wm_drv` on Server-Timing is the derive's cost.
@@ -5803,8 +5830,11 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                  or (tf in ("W", "M") and _wm_live_daily(ticker_up)))
     _time_ck("live_cov")
     _fresh_needed = False if _wm_live else (_needs_fresh(last_ts, tf, ticker_up) if stored_rows else True)
+    # The store's depth for this ask: the rows it HELD, before an unproven gap cut them (a
+    # cut is never missing depth, `read_newest`), or the W/M overlay's derived rows.
+    _depth_n = max(len(stored_rows), _stored_n)
     if stored_rows and not _fresh_needed and (
-        len(stored_rows) >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
+        _depth_n >= bars * 0.9 or _history_complete(ticker_up, tf, bars)
         or (_live and bars <= _bls.LIVE_HISTORY_MAX_BARS and _bls.history_complete(ticker_up, tf))
     ):
         # SQLite has enough fresh data (or holds the full available history,
@@ -5856,7 +5886,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         # backfill of a stock with fewer bars than requested) — then it's NOT
         # partial; only a delta is needed. Without this guard such a chart would
         # re-run the full yfinance/Massive pull on every poll forever.
-        is_partial = len(stored_rows) < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
+        is_partial = _depth_n < bars * 0.9 and not _history_complete(ticker_up, tf, bars)
 
         # Deep INTRADAY pan-backfill is served SYNCHRONOUSLY (2026-07-02).
         # A deep request (bars >= _DEEP_REQUEST_THRESHOLD) on an intraday TF

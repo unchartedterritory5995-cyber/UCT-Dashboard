@@ -158,8 +158,9 @@ def test_aapl_60m_newest_n_read_is_not_stitched_from_islands(store, warm_serve):
     cache.delete_prefix("bars_AAPL_60_")
     assert _max_gap(got) <= GAP, "islands stitched into one series"
     assert got[0]["t"] == recent[0]["t"] and got[-1]["t"] == recent[-1]["t"]
-    # the short answer is not called covered: the deep fill is asked for the depth
-    assert warm_serve == [("AAPL", "60", 20000)]
+    # ⛔ a cut is not missing depth (review #2951 M3): the store HELD the depth, so no
+    # newest-window refetch; the hole is the scroll-back's (`to=`) and deepfill's to fill
+    assert warm_serve == []
 
 
 def test_the_warm_prefetch_never_seeds_a_stitched_series(store, monkeypatch):
@@ -167,11 +168,49 @@ def test_the_warm_prefetch_never_seeds_a_stitched_series(store, monkeypatch):
     bars_sqlite.put_bars("AAPL", "60", [b for isl in islands for b in isl] + recent)
     monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda *a, **k: False)
     cache.delete_prefix("bars_AAPL_60_")
-    # 4200 contiguous rows of 20000 asked: not complete enough to seed a warm
-    assert bars_fetch.serve_warm_from_cache("AAPL", "60", 20000) is None
+    # the store holds the depth (18200 of 20000): the warm seeds the CUT series, never the stitch
+    r = bars_fetch.serve_warm_from_cache("AAPL", "60", 20000)
+    assert r is not None and _max_gap(_body(r)["bars"]) <= GAP
+    assert _body(r)["bars"][0]["t"] == recent[0]["t"]
     r = bars_fetch.serve_warm_from_cache("AAPL", "60", 4000)
     assert r is not None and _max_gap(_body(r)["bars"]) <= GAP
     cache.delete_prefix("bars_AAPL_60_")
+
+
+def _illiquid_with_gap(ticker):
+    """A name that has not printed for 10 days, with a 30-day interior hole: 60 sessions
+    after the hole, 700 before it. 60m: bars=600 and bars=5000 both read across the hole and
+    the store HOLDS both depths (a store shorter than its ask is partial on master too)."""
+    end = _dt.date.today() - _dt.timedelta(days=10)
+    newer = [d for d in _days(end - _dt.timedelta(days=120), end)][-60:]
+    older = [d for d in _days(newer[0] - _dt.timedelta(days=1200), newer[0] - _dt.timedelta(days=30))][-700:]
+    bars_sqlite.put_bars(ticker, "60", [b for d in older + newer for b in _h60_day(d)])
+    return older, newer
+
+
+@pytest.mark.parametrize("bars", [600, 5000])
+def test_a_stale_illiquid_cut_read_is_not_refetched_on_every_poll(store, monkeypatch, bars):
+    """review #2951 M3: the full fetch of a name with no recent print comes back STALE, so it
+    persists nothing and proves nothing; if the cut counted as missing depth the read was
+    partial forever and every poll refetched. At most ONE vendor fetch across many polls."""
+    import time as _t
+    older, newer = _illiquid_with_gap("ILLQ")
+    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda *a, **k: False)   # tail verified
+    monkeypatch.setattr(bars_fetch, "_live_derive_on_read", lambda *a, **k: None)
+    monkeypatch.setattr(bars_fetch, "_is_cold_stale_intraday", lambda *a, **k: False)
+    fetches = []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday", lambda t, tf, n: fetches.append(n) or [])
+    monkeypatch.setattr(bars_fetch, "_delta_intraday", lambda *a, **k: fetches.append("delta") or [])
+    stored_n = len(bars_sqlite.get_bars("ILLQ", "60", bars))
+    for _ in range(12):
+        cache.delete_prefix("bars_ILLQ_60_")                # each poll past the memory TTL
+        got = _body(bars_fetch._get_bars_inner("ILLQ", "60", bars))["bars"]
+        assert _max_gap(got) <= GAP
+        for _w in range(100):                               # let any background job land
+            if not any("ILLQ" in str(k) for k in bars_fetch._inflight):
+                break
+            _t.sleep(0.01)
+    assert len(fetches) <= 1, f"{len(fetches)} vendor fetches over 12 polls (store held {stored_n} rows)"
 
 
 def test_a_contiguous_read_passes_through_whole(store):
@@ -239,6 +278,21 @@ def test_a_deepfill_that_found_nothing_missing_still_proves_its_span(store, monk
     finally:
         bars_fetch._set_intraday_source(None)
     assert len(bars_fetch.read_newest("DFILL", "60", 5000)) == len(old) + len(new)
+
+
+def test_a_deepfill_that_proves_a_span_busts_the_payloads_cut_without_it(store, monkeypatch):
+    """review #2951 L1: the startup prewarm caches answers with NO proofs (a cut halt); a
+    no-op deepfill that proves the span must drop those payloads, as the filling one does."""
+    old, new = _halted("BUST")
+    cache.set("bars_BUST_60_5000", {"bars": "cut"}, ttl=600)
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday", lambda t, tf, n: list(old + new))
+    monkeypatch.setattr(bars_fetch, "_is_intraday_stale", lambda raw: False)
+    bars_fetch._set_intraday_source("massive")
+    try:
+        assert bars_fetch._deepfill_once("BUST", "60", 5000) == 0
+    finally:
+        bars_fetch._set_intraday_source(None)
+    assert cache.get("bars_BUST_60_5000") is None
 
 
 # ── N3: sizing and filling a to= window ───────────────────────────────────────
@@ -341,6 +395,23 @@ def test_two_empty_windows_end_the_fill(store, monkeypatch):
     bars_fetch._get_bars_to_response("NEW", "15", 1000, "2016-06-30")
     cache.delete_prefix("towin_NEW_")
     assert len(calls) == 2, calls
+
+
+def test_no_fill_round_asks_for_more_than_its_rows_need(store, monkeypatch):
+    """review #2951 L2: a thin 1m name (5 rows a session) short of a 4000-row window. Blind
+    doubling took the rounds to 800 / 1600 / 3200 days; every round is now sized from the
+    observed density for the rows still missing, never past `_TO_FILL_ROUND_MAX_DAYS`."""
+    thin = lambda d: [_bar(_et(d, 10, 0) + k * 3600) for k in range(5)]   # noqa: E731
+    days = {d.isoformat(): d for d in _days(_dt.date(2004, 1, 2), _dt.date(2016, 6, 30))}
+    bars_sqlite.put_bars("THIN1", "1", [b for d in list(days.values())[-3:] for b in thin(d)])
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", _provider(days, thin, calls))
+    cache.delete_prefix("towin_THIN1_")
+    bars_fetch._get_bars_to_response("THIN1", "1", 4000, "2016-06-30")
+    cache.delete_prefix("towin_THIN1_")
+    span = lambda c: (_dt.date.fromisoformat(c[1]) - _dt.date.fromisoformat(c[0])).days   # noqa: E731
+    assert len(calls) >= 2
+    assert max(span(c) for c in calls) <= bars_fetch._TO_FILL_ROUND_MAX_DAYS, [span(c) for c in calls]
 
 
 def test_lookback_is_sized_from_observed_density():
