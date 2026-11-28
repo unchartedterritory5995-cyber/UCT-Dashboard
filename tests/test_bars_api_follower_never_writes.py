@@ -148,6 +148,9 @@ def test_a_follower_process_writing_during_a_swap_leaves_a_sound_store_it_then_r
     monkeypatch.setattr(bars_sqlite, "_mem_floors", dict(bars_sqlite._mem_floors))
     monkeypatch.setattr(bars_sqlite, "_pending_floors", dict(bars_sqlite._pending_floors))
     monkeypatch.setattr(bars_sqlite, "_floors_cache", {})
+    # ...and its thread-local connection to the tmp store: restored with `_local`, so a later test on this thread never
+    # reads this test's store through a connection the restored `_DB_PATH` no longer names.
+    monkeypatch.setattr(bars_sqlite, "_local", threading.local())
     monkeypatch.setenv("BARS_API_WORKERS", "2")
     db, new = tmp_path / "bars.db", tmp_path / "incoming.db"
     _mkstore(db, gen=1)
