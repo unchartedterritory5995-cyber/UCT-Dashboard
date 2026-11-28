@@ -83,7 +83,10 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(oiChangeUrl(s, side), { refreshInterval: pace })
   const view = useMemo(() => oiChangeRead(read.body), [read.body])
-  const table = usePanelTable({ columns: OIC_COLUMNS })
+  // Volume is offered only when the answer carries it (the log has no volume for some days).
+  const volumeHere = view.state === 'ok' && !!view.volumePresent
+  const columns = useMemo(() => OIC_COLUMNS.map((c) => (c.key === 'volume' ? { ...c, available: volumeHere } : c)), [volumeHere])
+  const table = usePanelTable({ columns })
   // The pace follows the server's own word (adjusted during render from the last answer).
   const wantPace = view.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS
   if (wantPace !== pace) setPace(wantPace)
@@ -207,7 +210,7 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
           <table className={styles.table} data-testid="terminal-oic-table"
             aria-label={`Open interest change for ${s}, ${side === 'any' ? 'calls and puts' : `${noun}s only`}, ${table.sort
               ? `sorted by ${OIC_SORTED_BY[table.sort.key]}, ${table.sort.dir === 'asc' ? 'lowest' : 'highest'} first` : 'biggest change in contracts first'}`}>
-            <PanelTableHead testId="terminal-oic" table={{ ...table, visible: table.visible.filter((c) => c.key !== 'volume' || withVolume).map((c) => (
+            <PanelTableHead testId="terminal-oic" table={{ ...table, visible: table.visible.map((c) => (
               c.key === 'oi' ? { ...c, title: `Open interest in the ${dayWords(view.session)} record, and in the ${prior} record` }
                 : c.key === 'volume' ? { ...c, title: `Contracts traded on ${dayWords(view.volumeSession)}` } : c)) }} />
             <tbody>

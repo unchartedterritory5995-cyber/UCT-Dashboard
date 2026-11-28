@@ -19,7 +19,7 @@
 import { useMemo, useState } from 'react'
 import {
   PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun,
-  usePanelSymbolRows,
+  usePanelSortSlot, usePanelSymbolRows,
 } from '../../../components/terminal'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import {
@@ -143,7 +143,9 @@ function LongRunList({ lens }) {
   const building = !view.rows.length && (view.building || isWarmingBody(read.body))
   const warmPoll = useWarmingPoll(building, read.retry, { everyMs: 10_000, maxTries: 18 })
   const columns = useMemo(() => longRunColumns(lens), [lens])
-  const [sort, setSort] = useState(() => defaultLongRunSort(lens))
+  // Customization pass 1: each lens opens on its own default sort, and a sort the member picks is
+  // kept with the board for that lens (`s.30D`, `s.VOL1Y`, ...).
+  const [sort, setSort] = usePanelSortSlot(lens, defaultLongRunSort(lens))
   const sorted = useMemo(() => sortRows(view.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [view.rows, sort])
   const rows = useMemo(() => sorted.slice(0, MAX_ROWS), [sorted])
   const asOf = view.asOf || read.receivedAt

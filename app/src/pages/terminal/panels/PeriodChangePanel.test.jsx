@@ -24,6 +24,7 @@ vi.mock('../../calendar/earningsModalRow', async (orig) => ({ ...(await orig()),
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import PeriodChangePanel, { MAX_ROWS, PAGE_ROWS, PERIOD_CHANGE_CODE, periodChangeUrl, periodGroupsUrl } from './PeriodChangePanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -61,8 +62,9 @@ function serve(routes) {
 }
 const asked = () => jsonFetcher.mock.calls.map(([url]) => url)
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <PeriodChangePanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <PeriodChangePanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -590,4 +592,31 @@ describe('PCHG accessibility', () => {
     await screen.findByTestId('terminal-pchg-members')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('PCHG sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('sorts the ranked stocks shown; the ranking still decides who is listed; kept on remount', async () => {
+    serve({ [YTD_URL]: OK })
+    const saved = savedView()
+    const { publishRows } = renderPanel({}, { saved })
+    await screen.findByTestId('terminal-pchg-table')
+    fireEvent.click(screen.getByTestId('terminal-pchg-table-sort-close'))
+    expect(symsOnScreen()).toEqual(['BBB', 'AAA', 'DDD', 'CCC'])
+    expect(publishRows).toHaveBeenLastCalledWith(['$BBB', '$AAA', '$DDD', '$CCC'])
+    fireEvent.click(screen.getByTestId('terminal-pchg-columns'))
+    fireEvent.click(screen.getByTestId('terminal-pchg-columns-col-industry'))
+    cleanup()
+    serve({ [YTD_URL]: OK })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-pchg-table')
+    expect(symsOnScreen()).toEqual(['BBB', 'AAA', 'DDD', 'CCC'])
+    expect(screen.queryByRole('columnheader', { name: /Industry/ })).toBeNull()
+  })
+  it('the first page is the biggest movers, then sorted: a sort never pulls in a stock from further down', async () => {
+    serve({ [YTD_URL]: { ...OK, results: many(PAGE_ROWS + 10), count: PAGE_ROWS + 10 } })
+    renderPanel({}, { saved: savedView({ sort: { key: 'pct', dir: 'asc' } }) })
+    await screen.findByTestId('terminal-pchg-table')
+    expect(symsOnScreen()).toHaveLength(PAGE_ROWS)
+    expect(symsOnScreen()[0]).toBe(`T${String(PAGE_ROWS - 1).padStart(3, '0')}`)
+  })
 })

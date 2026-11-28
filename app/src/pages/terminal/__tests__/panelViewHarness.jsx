@@ -16,6 +16,7 @@ export function ViewHost({ saved, children }) {
   const value = useMemo(() => ({
     view: saved.view,
     setView: (v) => { saved.view = normalizeView(v) || null; saved.writes += 1 },
+    get: () => saved.view,
   }), [saved])
   return <PanelViewContext.Provider value={value}>{children}</PanelViewContext.Provider>
 }

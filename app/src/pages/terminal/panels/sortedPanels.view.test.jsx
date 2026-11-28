@@ -17,12 +17,12 @@ import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const SORTED = ['BreakoutPanel', 'EarningsReactionsPanel', 'GroupDrillPanel', 'InsiderClustersPanel', 'InsiderPanel',
-  'RsLeadersPanel', 'UpgradesPanel', 'WatchlistPanel', 'MoversPanel']
+  'RsLeadersPanel', 'UpgradesPanel', 'WatchlistPanel', 'MoversPanel', 'GroupTablePanel', 'GroupPositioningMembers', 'LongRunPanel']
 
 describe('the panels that sort keep the sort in their view', () => {
   it.each(SORTED)('%s takes its sort from the panel view', (name) => {
     const src = fs.readFileSync(path.join(HERE, `${name}.jsx`), 'utf8')
-    expect(src).toMatch(/usePanelSort\(|usePanelView\(/)
+    expect(src).toMatch(/usePanelSort\(|usePanelSortSlot\(|usePanelView\(/)
     expect(src).not.toMatch(/\[sort, setSort\] = useState\(/)
   })
 })

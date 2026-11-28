@@ -519,6 +519,15 @@ describe('OIC sorts and picks columns, kept with the board (customization pass 1
     expect(screen.queryByRole('columnheader', { name: /Volume/ })).toBeNull()
     expect(screen.getByTestId('terminal-oic-sort-oi').closest('th').getAttribute('aria-sort')).toBe('descending')
   })
+  it('a day with no volume offers no Volume column in the Columns menu', async () => {
+    serve({ [URL]: answer({ volume_present: false, rows: [row({ volume: null })], matched: 1 }) })
+    renderPanel()
+    await screen.findByTestId('terminal-oic-table')
+    expect(screen.queryByRole('columnheader', { name: /Volume/ })).toBeNull()
+    fireEvent.click(screen.getByTestId('terminal-oic-columns'))
+    expect(screen.queryByTestId('terminal-oic-columns-col-volume')).toBeNull()
+    expect(screen.getByTestId('terminal-oic-columns-col-oi')).toBeTruthy()
+  })
   it('a sort never changes which contracts are listed', async () => {
     serve({ [URL]: many(40) })
     renderPanel(undefined, { saved: savedView({ sort: { key: 'change', dir: 'asc' } }) })

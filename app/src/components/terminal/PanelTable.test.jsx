@@ -5,8 +5,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { useEffect, useMemo, useState } from 'react'
 import { PanelViewContext } from './terminalPanel'
-import usePanelView, { usePanelSort } from './usePanelView'
-import { PanelColumns, PanelTableHead, applySort, cycleSort, usePanelTable } from './PanelTable'
+import usePanelView, { readSortSlot, sortSlotKey, usePanelSort, usePanelSortSlot } from './usePanelView'
+import { MENU_GAP, PanelColumns, PanelTableHead, applySort, cycleSort, placeMenu, usePanelTable } from './PanelTable'
 import { expectNoAxeViolations } from '../../pages/journal-2-0/a11y/axeHarness'
 
 afterEach(() => cleanup())
@@ -245,5 +245,109 @@ describe('usePanelSort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'reset' }))
     expect(onSet).toHaveBeenLastCalledWith(undefined)
     expect(screen.getByTestId('s').textContent).toBe('order:asc')
+  })
+})
+
+describe('the Columns menu is never cut', () => {
+  const view = { width: 1000, height: 800 }
+  const btn = (left, top) => ({ left, right: left + 70, top, bottom: top + 26 })
+  it('placeMenu: under the button, kept inside the window, above when below has no room', () => {
+    expect(placeMenu(btn(100, 50), { width: 200, height: 300 }, view)).toMatchObject({ left: 100, top: 80, up: false })
+    // a button at the right edge: the menu moves left so its right edge stays GAP inside the window
+    expect(placeMenu(btn(950, 50), { width: 200, height: 300 }, view).left).toBe(1000 - MENU_GAP - 200)
+    // a button at the left edge of a phone
+    expect(placeMenu(btn(4, 50), { width: 200, height: 300 }, { width: 390, height: 800 }).left).toBe(MENU_GAP)
+    // near the bottom: it opens above, and never past the top
+    const up = placeMenu(btn(100, 700), { width: 200, height: 300 }, view)
+    expect(up.up).toBe(true)
+    expect(up.top).toBe(700 - 4 - 300)
+    // too tall for either side: it keeps to the room it has and scrolls inside
+    const tall = placeMenu(btn(100, 300), { width: 200, height: 2000 }, view)
+    expect(tall.maxHeight).toBe(800 - MENU_GAP - 330)
+    // wider than a tiny window: it is pinned to the gap
+    expect(placeMenu(btn(10, 50), { width: 500, height: 100 }, { width: 300, height: 800 }).left).toBe(MENU_GAP)
+  })
+  it('is drawn on document.body, outside the clipping panel, placed from the button', () => {
+    const rects = {
+      't-cols': { left: 940, right: 1010, top: 40, bottom: 66, width: 70, height: 26 },
+      't-cols-menu': { left: 0, right: 220, top: 0, bottom: 260, width: 220, height: 260 },
+    }
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function rect() {
+      return rects[this.getAttribute?.('data-testid')] || { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 }
+    })
+    const was = [window.innerWidth, window.innerHeight]
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 768 })
+    try {
+      render(<div data-testid="clip" style={{ overflow: 'hidden', height: 40 }}><Table /></div>)
+      fireEvent.click(screen.getByTestId('t-cols'))
+      const menu = screen.getByTestId('t-cols-menu')
+      expect(screen.getByTestId('clip').contains(menu)).toBe(false)
+      expect(menu.parentElement).toBe(document.body)
+      expect(menu.style.left).toBe(`${1024 - MENU_GAP - 220}px`)
+      expect(menu.style.top).toBe('70px')
+      expect(menu.getAttribute('data-placement')).toBe('below')
+      // focus is in the menu (the portal is at the end of the page)
+      expect(menu.contains(document.activeElement)).toBe(true)
+      // a click outside closes it
+      fireEvent.mouseDown(screen.getByTestId('clip'))
+      expect(screen.queryByTestId('t-cols-menu')).toBeNull()
+    } finally {
+      spy.mockRestore()
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: was[0] })
+      Object.defineProperty(window, 'innerHeight', { configurable: true, value: was[1] })
+    }
+  })
+  it('a column the answer cannot fill is neither drawn nor offered', () => {
+    function Partial() {
+      const cols = COLS.map((c) => (c.key === 'note' ? { ...c, available: false } : c))
+      const t = usePanelTable({ columns: cols })
+      return (
+        <div>
+          <PanelColumns table={t} testId="p-cols" />
+          <table aria-label="p"><PanelTableHead table={t} /><tbody><tr><td>{t.shows('note') ? 'note' : 'none'}</td></tr></tbody></table>
+        </div>
+      )
+    }
+    render(<Partial />)
+    expect(screen.queryByRole('columnheader', { name: /Note/ })).toBeNull()
+    expect(screen.getByText('none')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('p-cols'))
+    expect(screen.queryByTestId('p-cols-col-note')).toBeNull()
+    expect(screen.getByTestId('p-cols-col-pct')).toBeTruthy()
+  })
+})
+
+describe('usePanelSortSlot: several sorts in one panel', () => {
+  function Slot({ slot, def }) {
+    const [sort, setSort] = usePanelSortSlot(slot, def)
+    return (
+      <div>
+        <span data-testid={`s-${slot}`}>{`${sort.key}:${sort.dir}`}</span>
+        <button type="button" onClick={() => setSort({ key: 'pct', dir: 'asc' })}>{`sort ${slot}`}</button>
+        <button type="button" onClick={() => setSort(def)}>{`reset ${slot}`}</button>
+      </div>
+    )
+  }
+  it('two hooks in one panel keep two sorts; the record as it stands is the base, so neither writes over the other', () => {
+    const store = { view: null }
+    function Host({ children }) {
+      const value = useMemo(() => ({ view: store.view, setView: (v) => { store.view = v || null }, get: () => store.view }), [])
+      return <PanelViewContext.Provider value={value}>{children}</PanelViewContext.Provider>
+    }
+    render(<Host><Slot slot="rank" def={{ key: 'order', dir: 'asc' }} /><Slot slot="members" def={{ key: 'short', dir: 'desc' }} /></Host>)
+    fireEvent.click(screen.getByRole('button', { name: 'sort rank' }))
+    fireEvent.click(screen.getByRole('button', { name: 'sort members' }))
+    expect(store.view).toEqual({ filters: { 's.rank': 'pct|asc', 's.members': 'pct|asc' } })
+    fireEvent.click(screen.getByRole('button', { name: 'reset rank' }))
+    expect(store.view).toEqual({ filters: { 's.members': 'pct|asc' } })
+    expect(screen.getByTestId('s-rank').textContent).toBe('order:asc')
+  })
+  it('the slot name and its text are cleaned', () => {
+    expect(sortSlotKey('30D')).toBe('s.30D')
+    expect(sortSlotKey('a b/c')).toBe('s.abc')
+    expect(readSortSlot('pct|asc')).toEqual({ key: 'pct', dir: 'asc' })
+    expect(readSortSlot('pct|up')).toBeNull()
+    expect(readSortSlot('')).toBeNull()
   })
 })

@@ -24,7 +24,7 @@
 // wrapping, which fits any width.
 import { useEffect, useMemo, useState } from 'react'
 import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness,
+  panelAsOf, PanelCommand, PanelSkeleton, PanelState, PanelTableHead, useInTerminalPanel, usePanelFreshness, usePanelTable,
 } from '../../../components/terminal'
 import Select from '../../../components/ui/Select'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -65,25 +65,34 @@ function Figure({ cell }) {
   )
 }
 
-function Grid({ view }) {
+/**
+ * Customization pass 1: the board's sort (components/terminal/PanelTable). The rows are the funds in
+ * the server's order by default; a click on a month sorts the funds by that month's figure, a click
+ * on Fund by symbol. A figure with too few years behind it (dimmed) sinks to the bottom with the
+ * missing ones, so a thin record never tops a sort. Sort only: the months are the board, and which
+ * months a narrow panel shows is the board's own rule, so there is no Columns menu here.
+ */
+export function seasbColumns(view) {
+  return [
+    { key: 'fund', label: 'Fund', type: 'text', sort: (r) => r.symbol, required: true, thClass: own.fundHead },
+    ...view.months.map((m, i) => ({
+      key: `m${m.month}`,
+      label: <>{m.label}{m.mark ? <span className={`${own.mark} ${m.mark === 'now' ? own.markNow : ''}`}>{MARK_WORD[m.mark]}</span> : null}</>,
+      sort: (r) => (r.cells[i] && r.cells[i].tone !== 'thin' ? r.cells[i].value : null),
+      thClass: `${own.month} ${m.mark === 'now' ? own.now : ''} ${m.narrow ? '' : styles.phoneHide}`,
+      title: m.mark === 'now' ? `${m.long}, this month` : m.mark === 'next' ? `${m.long}, next month` : m.long,
+      thProps: { 'data-testid': 'terminal-seasb-month', 'data-month': m.month, 'data-mark': m.mark || undefined },
+    })),
+  ]
+}
+
+function Grid({ view, table }) {
   const spec = SEAS_MEASURES[view.measure]
   return (
     <div className={styles.tableBox} data-fold="590">
       <table className={`${styles.table} ${own.grid}`} data-testid="terminal-seasb-table"
         aria-label={`Seasonality board, ${spec.word} month return by fund, from ${view.months[0].long} forward`}>
-        <thead>
-          <tr>
-            <th scope="col" className={own.fundHead}>Fund</th>
-            {view.months.map((m) => (
-              <th key={m.month} scope="col" data-testid="terminal-seasb-month" data-month={m.month} data-mark={m.mark || undefined}
-                className={`${own.month} ${m.mark === 'now' ? own.now : ''} ${m.narrow ? '' : styles.phoneHide}`}
-                title={m.mark === 'now' ? `${m.long}, this month` : m.mark === 'next' ? `${m.long}, next month` : m.long}>
-                {m.label}
-                {m.mark ? <span className={`${own.mark} ${m.mark === 'now' ? own.markNow : ''}`}>{MARK_WORD[m.mark]}</span> : null}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <PanelTableHead table={table} testId="terminal-seasb" />
         <tbody>
           {view.rows.map((row) => (
             <tr key={row.symbol} data-testid="terminal-seasb-row" data-symbol={row.symbol} data-kind={row.kind}>
@@ -144,7 +153,10 @@ function SeasonalityBoardBody({ code, measure: measureProp }) {
   const read = useMarketRead(SEASB_URL, { refreshInterval: every })
   const want = read.error && !read.body ? (canRetry(read.error) ? SEASB_POLL_MS : 0) : pollMs(read.body)
   useEffect(() => { setEvery(want) }, [want])
-  const view = useMemo(() => seasonalityBoardRead(read.body, measure), [read.body, measure])
+  const board = useMemo(() => seasonalityBoardRead(read.body, measure), [read.body, measure])
+  const columns = useMemo(() => seasbColumns(board), [board])
+  const table = usePanelTable({ columns })
+  const view = useMemo(() => ({ ...board, rows: table.apply(board.rows) }), [board, table.apply])
   const facts = useMemo(() => boardFacts(read.body), [read.body])
 
   const dated = !read.loading && view.rows.length > 0
@@ -242,7 +254,7 @@ function SeasonalityBoardBody({ code, measure: measureProp }) {
           {facts.why ? <li className={styles.muted} data-testid="terminal-seasb-no-facts">{facts.why}</li> : null}
         </ul>
       ) : null}
-      {stacked ? <Stacked view={view} /> : <Grid view={view} />}
+      {stacked ? <Stacked view={view} /> : <Grid view={view} table={table} />}
       {without}
       <p className={styles.muted} data-testid="terminal-seasb-method">
         Each figure is the {SEAS_MEASURES[measure].word} of that calendar month&apos;s close-to-close return over the years
@@ -250,7 +262,7 @@ function SeasonalityBoardBody({ code, measure: measureProp }) {
         bars start, so a fund listed later has fewer years behind each month. A dimmed figure has fewer
         than {view.minYears} years behind it: too few to lean on, and never coloured. A partial first or last month is
         not counted. Green and red mark the sign of a figure only. A record of what happened, not a forecast.
-        Source: the UCT daily bar store. Click a fund to open its own seasonality (SEAS) beside this panel.
+        Source: the UCT daily bar store.{table.sort ? ' The funds are sorted by the column header you picked; a dimmed or missing figure sorts last.' : ''} Click a fund to open its own seasonality (SEAS) beside this panel.
       </p>
     </>
   ))

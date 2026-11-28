@@ -274,6 +274,9 @@ export function Panel({
   // Customization pass 1: `(panelId, view)` saves the panel's view (sort, columns, filters) with
   // the board, without re-running its command. null (a pop-out) keeps the view in the panel.
   onView = null,
+  // `(panelId) => view`: the panel's view as the board holds it NOW (two hooks in one panel write
+  // from it, so neither writes over the other's change).
+  onViewGet = null,
   // The new shell (boards in tabs): `{ editing }` draws the one-line header and shows the layout
   // controls only while "Edit board" is on. null (the default) is today's header, untouched.
   tabsHeader = null,
@@ -348,8 +351,9 @@ export function Panel({
   // shell. NOT part of `identity`, so a view change never remounts the body.
   const panelId = panel.id
   const writeView = useCallback((v) => onView?.(panelId, v), [onView, panelId])
-  const viewApi = useMemo(() => ({ view: panel.view || null, setView: onView ? writeView : null }),
-    [panel.view, onView, writeView])
+  const readView = useCallback(() => onViewGet?.(panelId), [onViewGet, panelId])
+  const viewApi = useMemo(() => ({ view: panel.view || null, setView: onView ? writeView : null, get: onViewGet ? readView : null }),
+    [panel.view, onView, writeView, onViewGet, readView])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -1479,6 +1483,7 @@ export default function TerminalShell() {
     layoutRef.current = next
     save(next)
   }, [save])
+  const onPanelViewGet = useCallback((panelId) => layoutRef.current.panels.find((p) => p.id === panelId)?.view, [])
   const onDuplicate = (i) => {
     const res = duplicatePanel(layout, i)
     if (!res.ok) { setNotice({ kind: 'error', text: `This board already shows ${MAX_VISIBLE} panels. Close one to make room.` }); return }
@@ -2130,6 +2135,7 @@ export default function TerminalShell() {
                 onNotice={setNotice}
                 tabsHeader={tabsOn ? { editing: boardEditing } : null}
                 onView={onPanelView}
+                onViewGet={onPanelViewGet}
               />
           ))}
         </div>

@@ -5,7 +5,7 @@ export {
   PanelListContext, usePanelBoard, usePanelList, usePanelOpen, usePanelRows, usePanelRun, usePanelRerun, usePanelSymbolRows, QuietPanelFreshness,
   PanelLinkContext, usePanelLinkedSym, PanelViewContext,
 } from './terminalPanel'
-export { default as usePanelView, usePanelSort } from './usePanelView'
+export { default as usePanelView, usePanelSort, usePanelSortSlot } from './usePanelView'
 export { PanelColumns, PanelTableHead, usePanelTable } from './PanelTable'
 export { default as BoardFromList } from './BoardFromList'
 export { default as PanelSkeleton } from './PanelSkeleton'

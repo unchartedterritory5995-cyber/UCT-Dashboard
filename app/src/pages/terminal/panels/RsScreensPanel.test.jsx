@@ -30,6 +30,7 @@ import RsScreensPanel, {
   pickRsScreen, rsScanBody, rsScanView, rsScreenCell, rsScreenColumns, rsScreensCommandArgs, rsScreensOf,
 } from './RsScreensPanel'
 import * as model from './rsScreensModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -93,12 +94,13 @@ function serve({ saved = SAVED, scans = {} } = {}) {
 const scanCalls = () => jsonFetcher.mock.calls.filter(([url]) => url === RS_SCAN_URL).map(([, init]) => JSON.parse(init.body))
 const ALL_SCANS = Object.fromEntries(STARTERS.map((s) => [s.id, scanAnswer(s.id)]))
 
-function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><RsScreensPanel {...props} /></ViewHost> : <RsScreensPanel {...props} />
   const tree = (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open, run, rerun: vi.fn(), publish: vi.fn(), publishRows }}>
-          <RsScreensPanel {...props} />
+          {body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -527,4 +529,31 @@ describe('RSS accessibility', () => {
     await screen.findByTestId('terminal-rss-off')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('RSS sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('sorts the stocks shown (row numbers follow); the columns a screen hides are its own; kept on remount', async () => {
+    serve({ scans: ALL_SCANS })
+    const saved = savedView()
+    const { publishRows } = renderPanel({}, { saved })
+    await screen.findByTestId('terminal-rss-table')
+    const rows = model.rsScanView(scanAnswer(LEADERS), screenOf(LEADERS), { now: NOW }).rows
+    const byPrice = rows.filter((x) => x.price != null).sort((a, b) => b.price - a.price).map((x) => x.sym)
+      .concat(rows.filter((x) => x.price == null).map((x) => x.sym))
+    fireEvent.click(screen.getByTestId(`terminal-rss-sort-${LEADERS}.price`))
+    expect(symsInTable()).toEqual(byPrice)
+    expect(publishRows).toHaveBeenLastCalledWith(byPrice.map((s) => `$${s}`))
+    expect(screen.getByTestId(`terminal-rss-row-${byPrice[0]}`).textContent.startsWith('1')).toBe(true)
+    expect(screen.getByTestId('terminal-rss-method').textContent).toContain('sorted here by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-rss-columns'))
+    fireEvent.click(screen.getByTestId(`terminal-rss-columns-col-${LEADERS}.group`))
+    expect(headers()).not.toContain('Industry')
+    expect(saved.view.cols.hidden).toEqual([`${LEADERS}.group`])
+    cleanup()
+    serve({ scans: ALL_SCANS })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-rss-table')
+    expect(symsInTable()).toEqual(byPrice)
+    expect(headers()).not.toContain('Industry')
+  })
 })

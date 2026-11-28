@@ -14,6 +14,8 @@
 //   firstDir      the direction of the first click ('desc' default for numbers, 'asc' for text)
 //   thClass       the panel's own header-cell class (its CSS module keeps the look of its cells)
 //   phoneHide     the column steps aside on a phone / narrow panel (marketPanels `phoneHide`)
+//   available     false: this answer cannot fill it, so it is neither drawn nor offered
+//   thProps       extra attributes for the header cell (a panel's own data- attributes)
 //   defaultHidden hidden until the member shows it      required  can never be hidden
 //
 // ⭐ THE LIST'S OWN ORDER IS THE DEFAULT. `defaultSort: null` keeps the order the server sent
@@ -23,7 +25,8 @@
 //
 // The sort itself is the shared DataGrid seed (`lib/presentation/dataGrid`: nextSort, sortRows,
 // ariaSortFor): blanks sink to the bottom both ways, equal values keep the list's order.
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../lib/presentation/dataGrid'
 import Checkbox from '../ui/Checkbox'
 import usePanelView from './usePanelView'
@@ -70,7 +73,10 @@ export function usePanelTable({ columns, defaultSort = null, filters = undefined
     ? view.sort : (defaultSort || null)
   const required = useMemo(() => new Set(columns.filter((c) => c.required).map((c) => c.key)), [columns])
   const hidden = useMemo(() => new Set(view.hidden.filter((k) => known.has(k) && !required.has(k))), [view.hidden, known, required])
-  const visible = useMemo(() => columns.filter((c) => !hidden.has(c.key)), [columns, hidden])
+  // A column the answer cannot fill (`available: false`, e.g. OIC's volume when none was sent) is not
+  // drawn and not offered in the Columns menu.
+  const visible = useMemo(() => columns.filter((c) => c.available !== false && !hidden.has(c.key)), [columns, hidden])
+  const absent = useMemo(() => new Set(columns.filter((c) => c.available === false).map((c) => c.key)), [columns])
 
   const sortKey = sort ? `${sort.key}:${sort.dir}` : ''
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +103,7 @@ export function usePanelTable({ columns, defaultSort = null, filters = undefined
 
   return {
     columns, visible, sort, hidden, view, setView, apply, requestSort, toggleColumn, reset, isDefault,
-    shows: (key) => !hidden.has(key),
+    shows: (key) => !hidden.has(key) && !absent.has(key),
     ariaSort: (key) => ariaSortFor(sort, key, isSortable(columns.find((c) => c.key === key)) ? 'none' : undefined),
   }
 }
@@ -110,12 +116,12 @@ export function PanelTableHead({ table, testId = null }) {
         {table.visible.map((c) => {
           const cls = [c.thClass, c.phoneHide ? mp.phoneHide : null].filter(Boolean).join(' ') || undefined
           if (!isSortable(c)) {
-            return <th key={c.key} scope="col" className={cls} title={c.title}>{c.label}</th>
+            return <th key={c.key} scope="col" className={cls} title={c.title} {...(c.thProps || {})}>{c.label}</th>
           }
           const active = table.sort?.key === c.key
           const caret = sortCaretFor(table.sort, c.key)
           return (
-            <th key={c.key} scope="col" className={cls} aria-sort={table.ariaSort(c.key)} title={c.title}>
+            <th key={c.key} scope="col" className={cls} aria-sort={table.ariaSort(c.key)} title={c.title} {...(c.thProps || {})}>
               <button type="button" className={`${styles.sortBtn} ${active ? styles.sortActive : ''}`}
                 onClick={() => table.requestSort(c.key)}
                 data-testid={testId ? `${testId}-sort-${c.key}` : undefined}>
@@ -130,53 +136,96 @@ export function PanelTableHead({ table, testId = null }) {
   )
 }
 
-/** The "Columns" menu: a soft-square list (a required column is ticked and fixed) and "Reset". */
+/** Pure: where the floating Columns menu goes, in viewport pixels (`position: fixed`). Under the
+ *  button, its left edge on the button's, kept `GAP` inside the window on both sides; above the
+ *  button when there is more room there than below; `maxHeight` is the room it has. */
+export const MENU_GAP = 16
+export function placeMenu(btn, menu, view) {
+  const w = Math.min(menu.width || 0, Math.max(0, view.width - 2 * MENU_GAP))
+  const left = Math.max(MENU_GAP, Math.min(btn.left, view.width - MENU_GAP - w))
+  const below = view.height - MENU_GAP - (btn.bottom + 4)
+  const above = btn.top - 4 - MENU_GAP
+  const up = (menu.height || 0) > below && above > below
+  const room = Math.max(120, up ? above : below)
+  const h = Math.min(menu.height || 0, room)
+  return { left, top: up ? Math.max(MENU_GAP, btn.top - 4 - h) : btn.bottom + 4, maxHeight: room, up }
+}
+
+/**
+ * The "Columns" menu: a soft-square list (a required column is ticked and fixed) and "Reset".
+ * ⛔ IT IS NEVER CUT. The panel body scrolls (`.panelBody { overflow: auto }`), the shell hides its
+ * overflow (`.shell`), and a table box scrolls sideways (`.tableBox`), so a menu drawn inside the
+ * panel was clipped by all three. It is drawn in a portal on `document.body`, fixed, placed from
+ * the button (`placeMenu`) and placed again on scroll and resize. Focus moves into it when it opens
+ * (the portal is at the end of the page, so Tab would not reach it otherwise), Escape closes it and
+ * gives focus back, and focus leaving it closes it.
+ */
 export function PanelColumns({ table, testId = null, label = 'Columns' }) {
   const [open, setOpen] = useState(false)
-  // The menu opens toward the side with room: from the button's left edge, unless that would run
-  // past the window's right edge (a Columns button at the end of a wide toolbar).
-  const [toEnd, setToEnd] = useState(false)
-  const boxRef = useRef(null)
+  const [pos, setPos] = useState(null)
   const btnRef = useRef(null)
+  const menuRef = useRef(null)
   const id = useId()
-  useEffect(() => {
+  const close = useCallback((refocus) => { setOpen(false); setPos(null); if (refocus) btnRef.current?.focus() }, [])
+  const place = useCallback(() => {
+    const b = btnRef.current?.getBoundingClientRect?.()
+    const m = menuRef.current?.getBoundingClientRect?.()
+    if (!b || typeof window === 'undefined') return
+    setPos(placeMenu(b, { width: m?.width || 0, height: m?.height || 0 }, { width: window.innerWidth, height: window.innerHeight }))
+  }, [])
+  useLayoutEffect(() => {
     if (!open) return undefined
-    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); btnRef.current?.focus() } }
+    place()
+    menuRef.current?.querySelector('input:not([disabled]), button:not([disabled])')?.focus()
+    const onDown = (e) => {
+      if (btnRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return
+      close(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(true) } }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey, true)
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey, true) }
-  }, [open])
-  const choosable = table.columns.filter((c) => c.label)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey, true)
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open, place, close])
+  const onBlur = (e) => {
+    const to = e.relatedTarget
+    if (to && (menuRef.current?.contains(to) || btnRef.current?.contains(to))) return
+    if (to) close(false)
+  }
+  const choosable = table.columns.filter((c) => c.label && c.available !== false)
+  const menu = open ? (
+    <div ref={menuRef} className={styles.colsMenu} id={id} role="group" aria-label="Show columns" onBlur={onBlur}
+      style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden', left: 0, top: 0 }}
+      data-placement={pos ? (pos.up ? 'above' : 'below') : undefined}
+      data-testid={testId ? `${testId}-menu` : undefined}>
+      <p className={styles.colsHint}>Show columns</p>
+      {choosable.map((c) => (
+        <label key={c.key} className={`${styles.colsRow} ${c.required ? styles.colsFixed : ''}`}>
+          <Checkbox className={styles.soft} checked={!table.hidden.has(c.key)} disabled={!!c.required}
+            onChange={() => table.toggleColumn(c.key)}
+            data-testid={testId ? `${testId}-col-${c.key}` : undefined} />
+          <span>{c.label}{c.required ? <span className={styles.colsNote}> (always shown)</span> : null}</span>
+        </label>
+      ))}
+      <button type="button" className={styles.colsReset} onClick={() => table.reset()} disabled={table.isDefault}
+        data-testid={testId ? `${testId}-reset` : undefined}>
+        Reset sort and columns
+      </button>
+    </div>
+  ) : null
   return (
-    <div className={styles.colsBox} ref={boxRef}>
-      <button type="button" ref={btnRef} className={styles.colsBtn} aria-expanded={open} aria-controls={id}
-        onClick={() => {
-          const r = btnRef.current?.getBoundingClientRect?.()
-          const room = typeof window !== 'undefined' ? window.innerWidth : 0
-          setToEnd(!!r && room > 0 && r.left + 288 > room - 16)
-          setOpen((o) => !o)
-        }} data-testid={testId || undefined}>
+    <div className={styles.colsBox}>
+      <button type="button" ref={btnRef} className={styles.colsBtn} aria-expanded={open} aria-controls={open ? id : undefined}
+        onClick={() => (open ? close(false) : setOpen(true))} data-testid={testId || undefined}>
         {label}{table.isDefault ? '' : ' (changed)'}
       </button>
-      {open && (
-        <div className={`${styles.colsMenu} ${toEnd ? styles.colsMenuEnd : ''}`} id={id} role="group" aria-label="Show columns"
-          data-testid={testId ? `${testId}-menu` : undefined}>
-          <p className={styles.colsHint}>Show columns</p>
-          {choosable.map((c) => (
-            <label key={c.key} className={`${styles.colsRow} ${c.required ? styles.colsFixed : ''}`}>
-              <Checkbox className={styles.soft} checked={!table.hidden.has(c.key)} disabled={!!c.required}
-                onChange={() => table.toggleColumn(c.key)}
-                data-testid={testId ? `${testId}-col-${c.key}` : undefined} />
-              <span>{c.label}{c.required ? <span className={styles.colsNote}> (always shown)</span> : null}</span>
-            </label>
-          ))}
-          <button type="button" className={styles.colsReset} onClick={() => table.reset()} disabled={table.isDefault}
-            data-testid={testId ? `${testId}-reset` : undefined}>
-            Reset sort and columns
-          </button>
-        </div>
-      )}
+      {menu && typeof document !== 'undefined' ? createPortal(menu, document.body) : menu}
     </div>
   )
 }
