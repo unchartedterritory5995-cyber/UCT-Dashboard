@@ -9089,6 +9089,36 @@
     "HQ",
     "CABA"
    ]
+  },
+  {
+   "id": "cloud/46174036808-1/COV-def-dd-arrows",
+   "at": "2026-11-28T18:06:48+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VLGEA",
+    "DDI",
+    "LRMR",
+    "KFRC",
+    "BTGO",
+    "NGL",
+    "GRFS",
+    "SES",
+    "BDN",
+    "TACO",
+    "GSM",
+    "NBBK",
+    "CDNL"
+   ]
+  },
+  {
+   "id": "cloud/46174036808-1/COV-def-tabs",
+   "at": "2026-11-28T18:06:48+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MTW",
+    "PSNY",
+    "TLRY"
+   ]
   }
  ]
 }
