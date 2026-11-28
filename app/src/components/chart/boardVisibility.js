@@ -193,6 +193,16 @@ export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
     if (vis.state === 'disposed') return
     if (!boardHiddenNow(vis)) { notify(...args); return }
     if (cancel) return
+    // ⭐ (lane C, typed Enter 'shadow-unreported') A HIDDEN LAYER'S FIRST PASS OF A NEW ROW IS NOT LEFT FOR IDLE TIME. The
+    // double buffer sets `vis.promptUntil` when it retargets the layer (a new symbol or timeframe) and clears it when that
+    // layer's chart reports: until then, the feed re-renders in its OWN task (setTimeout 0: never inside a key or input
+    // task), so the chart has drawn the row by the next key; a member typing leaves no idle period for 500 ms. Every later
+    // update stays idle-deferred, as before.
+    if (Number.isFinite(vis.promptUntil) && (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) < vis.promptUntil) {
+      const t = setTimeout(() => { cancel = null; if (vis.state !== 'disposed') notify() }, 0)
+      cancel = () => clearTimeout(t)
+      return
+    }
     cancel = idleTask(() => { cancel = null; if (vis.state !== 'disposed') notify() })
   }
   const unVis = vis.subscribe(() => {

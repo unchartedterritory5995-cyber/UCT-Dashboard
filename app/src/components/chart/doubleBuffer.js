@@ -81,18 +81,56 @@ export function nextShadowSym(sym) {
  * (`habitTf`, tfHabit.js), so a timeframe press flips. null: nothing to hold.
  */
 export function shadowTargetFor(frontSym, frontTf, habitTf) {
-  if (!frontSym) return null
-  const next = nextShadowSym(frontSym)
-  if (next && next !== frontSym) return { sym: next, tf: frontTf }
-  if (habitTf && frontTf && String(habitTf) !== String(frontTf)) return { sym: frontSym, tf: String(habitTf) }
-  return null
+  return shadowTargetsFor(frontSym, frontTf, habitTf ? [habitTf] : [], 1)[0] || null
 }
+
+/**
+ * ⭐ (lane C, plan 2.4) WHAT `n` HIDDEN LAYERS HOLD, most likely press first: the first row a list (or a typed ticker)
+ * names around the front (typed first, else the row ahead; neighborFrames.scanNeighborsFor) at the front's timeframe,
+ * THEN the front's own symbol at its first habitual next timeframe, then the other rows, then the other timeframes. One
+ * layer: exactly shadowTargetFor.
+ * ⭐⭐ (P1, 2026-11-28: the cloud A/Bs 46139290381 / 46134916859, 0 of 480 timeframe presses flipped on a listed board,
+ * every one 'shadow-other-row') INTERLEAVED, not every row first: with the rows first, the row ahead and the row behind
+ * took both hidden panes of the third layer and a timeframe press never found its frame held.
+ */
+export function shadowTargetsFor(frontSym, frontTf, habitTfs = [], n = 1) {
+  if (!frontSym || !(n > 0)) return []
+  const rows = scanNeighborsFor(frontSym).filter((x) => x && x !== frontSym).map((x) => ({ sym: x, tf: frontTf }))
+  const tfs = (Array.isArray(habitTfs) ? habitTfs : [habitTfs]).filter((h) => h && frontTf && String(h) !== String(frontTf))
+    .map((h) => ({ sym: frontSym, tf: String(h) }))
+  const out = []
+  for (const tg of [...rows.slice(0, 1), ...tfs.slice(0, 1), ...rows.slice(1), ...tfs.slice(1)]) {
+    if (out.length >= n) break
+    if (!out.some((o) => o.sym === tg.sym && String(o.tf) === String(tg.tf))) out.push(tg)
+  }
+  return out
+}
+
+/** (lane C, plan 2.4; owner YES 2026-11-28) A THIRD LAYER per double-buffered widget (two hidden panes, +25-40 MB each at
+ *  DPR 2) on a desktop of 8 GB or more (navigator.deviceMemory, which Chrome caps at 8; a browser that does not say keeps
+ *  two layers; the touch tier never double-buffers at all). Off with localStorage `uct.thirdLayer` = '0'. Read once per
+ *  page load. */
+export const THIRD_LAYER_KEY = 'uct.thirdLayer'
+let _third = null
+export function thirdLayerOn() {
+  if (_third !== null) return _third
+  if (!doubleBufferOn()) return (_third = false)
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(THIRD_LAYER_KEY) === '0') return (_third = false)
+  } catch { /* storage refused: the default */ }
+  let mem = null
+  try { mem = typeof navigator !== 'undefined' ? navigator.deviceMemory : null } catch { mem = null }
+  return (_third = Number.isFinite(mem) && mem >= 8)
+}
+/** Tests: force it (null re-reads). */
+export function __setThirdLayerForTests(v) { _third = v === null || v === undefined ? null : !!v }
 
 /** (PR 2.1) The view check of a TIMEFRAME press: a timeframe switch keeps the outgoing zoom WIDTH in bars and pins the
  *  newest bar at the right margin (StockChart pendingTfReframeRef / settlingFrameOf), exactly the pin the hidden chart is
  *  held at; a view lock or a replay view lock frames a timeframe switch by rules not proved here: refused. */
 export function tfViewParity(front, shadow, ctx = {}) {
-  if (front && front.frame && (lockOf(front) || front.replayLock)) return 'view-lock'
+  // ONE check: a lock only the front holds is refused by viewParity's own sameLocks; one both hold (the mirror gave the
+  // hidden chart the front's) would be framed there by the front's timeframe's lock, so it is refused here
   if (shadow && shadow.frame && (lockOf(shadow) || shadow.replayLock)) return 'view-lock'
   return viewParity(front, shadow, ctx)
 }
