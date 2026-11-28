@@ -869,7 +869,12 @@ function applyRest(state, action, ctx, kind) {
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)
       } else if (dev.provisional || dev.ticked || revOf(devIn.rev) > revOf(dev.rev)) {
-        const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
+        // ⛔ (2026-11-28, review of #2956, F2) AN ANSWER OLDER THAN THE LAST TICK NEVER MOVES THE CLOSE BACK. The edge
+        // caches the tail for seconds, so a re-read mid-stream can carry the bar as it was before the newest tick; with no
+        // time it was merged as newer and its close replaced the live one until the next tick. The answer's as-of time
+        // (`_asOfMs`, utils/prefetchBars _chartLaneFetch) orders it against the bar's last trade (mergePushBar `older`).
+        const asOf = numOrNull(p._asOfMs)
+        const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym, ...(asOf != null && finite(dev.tradeTs) ? { tradeTs: asOf } : {}) })
         if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
       }
       // The server answered for this very bucket: a restored (LOCAL) forming bar is now its.
