@@ -1935,6 +1935,7 @@ import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceW
 import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars, viewWindowOfDate } from './chart/useBarSnapshotBars'
+import { deepPending as storeDeepPending } from '../data/barStore/prefetch'
 // ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
 // functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
 // so the rows a member is about to reach are derived in idle time and found on the switch.
@@ -9530,6 +9531,10 @@ function StockChartBody({
   const _storeDevPaintRef = useRef(null)
   // updateChart's handle on the store paint (stable; reads the ref at call time).
   const _paintStoreDev = useCallback((afterSetData) => { _storeDevPaintRef.current?.(afterSetData) }, [])
+  // (owner, 2026-11-27) the date box's anchor on intraday: the window ending at the date (chart/viewWindow), read by the
+  // bars (`@to=`) and by the neighbour frames (review of #2947, H2)
+  const _anchorViewWindow = useMemo(() => (anchorWidth > 0 && anchorDate && !replayCutoff ? viewWindowOfDate(anchorDate, resolvedTf) : null),
+    [anchorWidth, anchorDate, replayCutoff, resolvedTf])
   // ── Bar DATA region → chart/useLegacyChartBars.js | chart/useBarSnapshotBars.js (P3-S1 `useChartBars`) ──
   const {
     bars, data, error, mutate, isValidating, compareData, idbReadyForRef, idbBarsRef,
@@ -9540,7 +9545,7 @@ function StockChartBody({
     sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
     // (owner, 2026-11-27) the date box's anchor: an intraday chart reads the window ending at the date (the key the
     // switch's range-at-date request prepared: chart/viewDate.js)
-    viewWindow: anchorWidth > 0 && anchorDate && !replayCutoff ? viewWindowOfDate(anchorDate, resolvedTf) : null,
+    viewWindow: _anchorViewWindow,
     compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
     _overlayActive, barCount, _depthKey, _fpDwellReady, _setFpDwellReady, _intradayDeepArmed,
@@ -11403,7 +11408,7 @@ function StockChartBody({
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -20435,18 +20440,31 @@ function StockChartBody({
   }, [onDateNavApi, barCount, isValidating, fetchDepth, originLoading])
 
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
+  // ⭐ (review of #2947, M2) "NO BARS AT THE DATE" ONLY ONCE THE WHOLE HISTORY IS HERE. A date before the loaded rows frames
+  // the earliest HELD bars (anchorEarliest), and D/W/M then ask their full depth: while it loads, a name that has bars
+  // at the date said it had none. Done: a host's own bars (no longer pending); intraday, its window answered; D/W/M, the
+  // full depth asked, settled, and (bar store) no deep history still due.
+  const _anchorHistoryDone = !anchorEarliest ? true
+    : barsOverride ? !barsOverridePending
+      : isIntraday ? !isValidating
+        : (fetchDepth === _fullTarget && !isValidating && !(BARSTORE && (() => { try { return !!storeDeepPending(sym, resolvedTf) } catch { return false } })()))
 
   return (
     <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars, ...legendValueBounds, ...legendInks }}
       data-bar-currentness={barCurrentness ?? undefined}
       data-bar-tail={typeof _renderedTailT === 'number' ? _renderedTailT : undefined}
       data-live-badge={liveBadge}>
-      {anchorEarliest && filteredBars?.length > 0 && (
+      {anchorEarliest && filteredBars?.length > 0 && (_anchorHistoryDone ? (
         // (owner, 2026-11-27) the date box went to a date this symbol has no bar at: say so, and which bars are shown
         <div className={styles.replayBadge} role="status" data-view-date-note="">
           {`No ${tfWatermarkLabel(resolvedTf)} bars at ${_mdy(anchorDate)}: showing the earliest, ${_mdy(filteredBars[0].t)}`}
         </div>
-      )}
+      ) : (
+        // (review of #2947, M2) its history is still loading: the earliest bars HELD are not the earliest it has
+        <div className={styles.replayBadge} role="status" data-view-date-loading="">
+          {`Loading ${tfWatermarkLabel(resolvedTf)} history to ${_mdy(anchorDate)}…`}
+        </div>
+      ))}
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%

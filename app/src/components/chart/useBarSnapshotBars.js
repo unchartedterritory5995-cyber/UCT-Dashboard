@@ -78,13 +78,8 @@ export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOv
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : vw })
 }
 
-/** The window an INTRADAY chart anchored at `dateIso` ('YYYY-MM-DD') reads: the one ending at that ET date (noon UTC is
- *  that ET date, as the replay window's); null on D/W/M, a custom timeframe, or no date. */
-export function viewWindowOfDate(dateIso, resolvedTf) {
-  if (!dateIso || !resolvedTf || isDateTf(resolvedTf) || !isNativeTf(resolvedTf)) return null
-  const to = dateLabelToUnix(String(dateIso).slice(0, 10)) + 43200
-  return Number.isFinite(to) ? { to } : null
-}
+// (the window an intraday chart reads at a past date: chart/viewWindow.js, one rule for every reader)
+export { viewWindowOfDate } from './viewWindow'
 
 /**
  * THE developing bar a view paints (P3-S2): snapshot.developing in the legacy shape `{t,o,h,l,c,v}`

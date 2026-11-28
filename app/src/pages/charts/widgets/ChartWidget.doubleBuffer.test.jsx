@@ -16,6 +16,8 @@
 //   W10 (owner, 2026-11-27) the date box: go to 1/3/2006, arrow through 10 symbols: every chart opens at that date with
 //      the same span (both layers carry the anchor), presses flip where the hidden chart is ready; "Latest" clears it
 //   W11 Enter on an empty date field clears it; entering replay clears it
+//   W13 (review of #2947, H2) at the date the widget asks for the next rows' windows (useDateWindowWarm: its day and tf);
+//      at the present, none
 //   W12 (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and the zoom; 16 of 16 refused for a view
 //      lock) at the date the member zooms and pans the front: the date and the span follow its view, both layers carry
 //      them, the next press flips and opens there; a pan or zoom with no date set never sets one
@@ -123,6 +125,9 @@ vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, s
 vi.mock('../../../hooks/useThemeIndexBars', () => ({ default: () => ({ isIndex: false, bars: null, name: null, sector: null, loading: false }) }))
 vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
+// (review of #2947, H2) the date's window warm the widget asks for (components/chart/useDateWindowWarm.js has its rails)
+const dateWarms = vi.hoisted(() => [])
+vi.mock('../../../components/chart/useDateWindowWarm', () => ({ useDateWindowWarm: (a) => { dateWarms.push(a) } }))
 
 
 import ChartWidget from './ChartWidget'
@@ -451,6 +456,18 @@ test('W12 at the date the member zooms and pans: the date and the zoom carry to 
   await settle()
   expect(symIn(layer('front'))).toBe('S1')
   expect(dbm.doubleBufferStats().last.at(-1), JSON.stringify(dbm.doubleBufferStats().why)).toBe('S1:flip')
+})
+test('W13 at the date the widget warms the next rows at that date; at the present it names no date', async () => {
+  scanList()
+  render(<Wrap initial="S0" />)
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ sym: 'S0', day: null })
+  goTo('01032006')
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ sym: 'S0', tf: 'D', day: '2006-01-03' })
+  fireEvent.click(within(layer('front')).getByRole('button', { name: 'Back to the latest bar' }))
+  await settle()
+  expect(dateWarms.at(-1)).toMatchObject({ day: null })
 })
 test('W11 (owner) Enter on an empty date field clears the date; entering replay clears it', async () => {
   scanList()

@@ -31,6 +31,8 @@ import PendingSwitchCue, { usePendingCue } from '../../../components/chart/Pendi
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
+import { createDateBoxNav } from './dateBoxNav'
+import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
@@ -257,47 +259,19 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     // rightMs: NOON UTC of the date, which is that ET date (the window formula: etDate(rightMs))
     noteMemberDate(switchMember, viewDate && !replayCutoff ? { rightMs: Date.parse(`${viewDate.date}T12:00:00Z`), offset: 0.5, width: viewDate.width, tf } : null)
   }, [switchMember, viewDate, tf, replayCutoff])
-  const dateNav = useMemo(() => {
-    const isoOf = (ms) => new Date(ms).toISOString().slice(0, 10)
-    const meta = () => { try { return paneRef.current?.getDateMeta?.() || null } catch { return null } }
-    const spanOf = (m) => {
-      const f = m?.frame
-      const w = f && Number.isFinite(f.fromRight) && Number.isFinite(f.toRight) ? f.fromRight - f.toRight : NaN
-      return w > 1 ? w : 200
-    }
-    // a date at or past the newest bar is the present: the anchor goes
-    const anchorAt = (ms, width, fromView = false) => {
-      const m = meta()
-      if (Number.isFinite(m?.lastMs) && ms >= Date.parse(`${isoOf(m.lastMs)}T00:00:00Z`)) { setViewDate(null); return }
-      setViewDate(fromView ? { date: isoOf(ms), width, fromView: true } : { date: isoOf(ms), width })
-    }
-    return {
-      goToDate: (ms) => { if (Number.isFinite(ms)) anchorAt(ms, spanOf(meta())) },
-      // a year: its last day at the right edge, a year of bars across (W 52, M 12; D and intraday the member's span)
-      goToYear: (y) => {
-        if (!Number.isFinite(y)) return
-        const per = String(tf) === 'W' ? 52 : String(tf) === 'M' ? 12 : String(tf) === 'D' ? 252 : spanOf(meta())
-        anchorAt(Date.UTC(y, 11, 31), per)
-      },
-      // a step: the pane steps, and its new right edge is the date (the present, once it reaches the newest bar)
-      stepBar: (dir) => {
-        try { paneRef.current?.stepBar?.(dir) } catch { /* the pane's */ }
-        const m = meta()
-        if (Number.isFinite(m?.rightMs)) anchorAt(m.rightMs, spanOf(m))
-      },
-      // (owner, 2026-11-27) the member panned or zoomed the front chart while a date is set: the date is its new right
-      // edge, the span its new width (panned to the newest bar: the present again). Nothing while no date is set.
-      fromView: () => {
-        const cur = viewDateRef.current
-        const m = meta()
-        if (!cur || !Number.isFinite(m?.rightMs)) return
-        const w = Math.round(spanOf(m) * 100) / 100
-        if (cur.date === isoOf(m.rightMs) && Math.abs(cur.width - w) < 1) return
-        anchorAt(m.rightMs, w, true)
-      },
-    }
-  }, [tf])   // eslint-disable-line react-hooks/exhaustive-deps -- paneRef is a ref
+  // the newest bar the front chart showed while NOT anchored: the present (dateBoxNav; review of #2947, H1)
+  const presentRef = useRef(null)
+  const dateNav = useMemo(() => createDateBoxNav({
+    meta: () => paneRef.current?.getDateMeta?.() || null,
+    stepPane: (dir) => { paneRef.current?.stepBar?.(dir) },
+    setDate: setViewDate,
+    getDate: () => viewDateRef.current,
+    tf,
+    presentRef,
+  }), [tf])   // eslint-disable-line react-hooks/exhaustive-deps -- paneRef is a ref
   const anchorKey = viewDate && !replayCutoff ? `${viewDate.date}|${viewDate.width}` : null
+  // ⭐ (review of #2947, H2) at a date on intraday the next rows' WINDOWS are warmed (the key each chart reads there)
+  useDateWindowWarm({ sym, tf, day: anchorKey ? viewDate.date : null, showExtendedRef: paneExtRef })
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT

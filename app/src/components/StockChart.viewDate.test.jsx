@@ -8,6 +8,12 @@
 //      the anchor and the frame it gives (the double buffer's proof)
 //   V6 (the cold-ticker measurement, 2026-11-28) an anchor read off the chart's OWN view after the member zoomed it
 //      (anchorFromView) keeps the member's view: no snap to the day's last bar; the same new anchor without the flag frames
+//   V7 (review of #2947, H1) INTRADAY, the real chart: at 1/3/2006 on 15m the chart reads the window ending at the date
+//      (its newest bar is that day's last), and the date box's jumps (chart widget dateBoxNav) keep the date through a
+//      step back, a zoom, a forward step at the window's end (the next day) and a later past date; only the present
+//      clears it. A winter extended-hours bar (19:00 ET) is dated in ET
+//   V8 (review of #2947, M2) a date before the HELD rows while the history is still loading: a loading cue, never the
+//      false "No D bars at 1/3/2006"; the note once the whole history is here
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor, fireEvent } from '@testing-library/react'
 
@@ -129,11 +135,12 @@ beforeEach(() => {
 })
 
 const { default: StockChart } = await import('./StockChart')
+const { createDateBoxNav, barDayOf } = await import('../pages/charts/widgets/dateBoxNav')
 const { LayerPaintContext } = await import('./chart/layerPaint')
 
 // the /charts workspace's chart: the date box's anchor (anchorDate + anchorWidth), no marker line, present kept on a switch
-const Chart = ({ sym, tf = 'D', bars, date = '2006-01-03', width = 120, onRelease, onApi, fromView }) => (
-  <StockChart sym={sym} tf={tf} chartId="view-date" barsOverride={bars} keepPresentOnSymbolChange
+const Chart = ({ sym, tf = 'D', bars, date = '2006-01-03', width = 120, onRelease, onApi, fromView, pending }) => (
+  <StockChart sym={sym} tf={tf} chartId="view-date" barsOverride={bars} barsOverridePending={pending} keepPresentOnSymbolChange
     anchorDate={date} anchorWidth={date ? width : null} hideAnchorMarker onAnchorRelease={onRelease} onDateNavApi={onApi}
     anchorFromView={fromView} />
 )
@@ -202,6 +209,43 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
     expect(onRelease).toHaveBeenCalledTimes(1)
     act(() => { api.resetView() })
     expect(onRelease).toHaveBeenCalledTimes(2)
+    view.unmount()
+  })
+  it('V8 (M2) while the history is still loading, a date before the held rows shows a loading cue, never the false note', async () => {
+    const view = render(<Chart sym="LATE" bars={LATE} pending />)
+    await waitFor(() => expect(document.querySelector('[data-view-date-loading]')).toBeTruthy())
+    expect(document.querySelector('[data-view-date-note]'), 'it said "no bars at the date" before its history was here').toBe(null)
+    view.rerender(<Chart sym="LATE" bars={LATE} pending={false} />)
+    const note = await waitFor(() => { const n = document.querySelector('[data-view-date-note]'); expect(n).toBeTruthy(); return n })
+    expect(note.textContent).toMatch(/1\/3\/2006/)
+    expect(document.querySelector('[data-view-date-loading]')).toBe(null)
+    view.unmount()
+  })
+  it('V7 (H1) intraday at the date: a step back, a zoom, a forward step and a later past date keep the date; the present clears it', async () => {
+    const W15 = quarterHoursOf('2005-12-27', '2006-01-03')   // the window ending at the date (`@to=`): its newest bar is 1/3's last
+    let api = null
+    const view = render(<Chart sym="AAA" tf="15" bars={W15} width={78} onApi={(a) => { api = a }} />)
+    await framedAt(W15, '2006-01-03', 78)
+    await waitFor(() => expect(api).toBeTruthy())
+    let date = { date: '2006-01-03', width: 78 }
+    const nav = createDateBoxNav({
+      meta: () => api.getDateMeta(), stepPane: (d) => act(() => { api.stepBar(d) }), setDate: (v) => { date = v }, getDate: () => date,
+      tf: '15', presentRef: { current: null }, now: () => Date.parse('2026-11-27T20:00:00Z'),
+    })
+    nav.stepBar(-1)                                         // one 15m bar back, the same day
+    expect(date, 'a step back dropped the date').toEqual({ date: '2006-01-03', width: 78 })
+    const last = W15.length - 1
+    lw.last = { from: last + 0.5 - 200, to: last + 0.5 }    // the member zooms out to 200 bars, the right edge at 1/3's last bar
+    nav.fromView()
+    expect(date, 'a zoom dropped the date').toEqual({ date: '2006-01-03', width: 200, fromView: true })
+    nav.stepBar(1)                                          // at the window's end: the next day
+    expect(date, 'a forward step dropped the date').toEqual({ date: '2006-01-04', width: 200 })
+    nav.goToDate(Date.UTC(2010, 0, 4))                      // a later past date
+    expect(date?.date, 'a later past date dropped the date').toBe('2010-01-04')
+    nav.goToDate(Date.UTC(2026, 10, 27))                    // the present
+    expect(date).toBe(null)
+    expect(barDayOf(Date.parse('2006-01-04T00:00:00Z'), '15')).toBe('2006-01-03')   // 19:00 ET on 1/3 (winter): ET
+    expect(barDayOf(Date.parse('2006-01-04T00:00:00Z'), 'D')).toBe('2006-01-04')    // a daily bar's calendar date
     view.unmount()
   })
   it("V6 an anchor read off the chart's own view after the member zoomed it keeps that view; without the flag it frames", async () => {

@@ -102,6 +102,19 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
     expect(network.answered(K)).toBe(false)
   })
 
+  // (review of #2947, M1) the server's `to=` path answers a window it is still fetching with `filling: true`
+  it('a `filling` answer answers the life but is marked filling; a later complete answer clears it', async () => {
+    let filling = true
+    const { network, run } = net(vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) })))
+    network.start(K)
+    await run()
+    expect(network.answered(K)).toBe(true)
+    expect(network.filling(K)).toBe(true)
+    filling = false
+    await network.fetchOnce(K)                              // the retry: the window complete
+    expect(network.filling(K)).toBe(false)
+  })
+
   it('an error answers the life too (the hold must end on it); an aborted request does not', async () => {
     let fail = true
     const { network, run } = net(vi.fn(async () => { if (fail) throw Object.assign(new Error('x'), { status: 503 }); return ok() }))

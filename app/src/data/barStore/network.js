@@ -293,6 +293,7 @@ export function createNetwork({
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
         pollSt: createTailPollState(),
         answered: false,          // a tail request of THIS life settled (see `answered`)
+        filling: false,           // its last tail answer was `filling` (a window the server is still fetching)
       }
       keys.set(key, r)
     }
@@ -654,7 +655,9 @@ export function createNetwork({
       if (!registry.has(r.key)) return { aborted: true, evicted: true }
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       const out = await onJson(json)
-      if (kind === 'tail') _noteAnswered(r)
+      // ⭐ (review of #2947, M1) a WINDOW the server is still fetching answers with the rows it holds, `filling: true` and
+      // Retry-After 3 (bars_fetch `to-filling`): this life is answered, but its rows are not the window yet (`filling`)
+      if (kind === 'tail') { r.filling = json?.filling === true; _noteAnswered(r) }
       return out
     })()
     rec.promise = promise
@@ -1049,6 +1052,9 @@ export function createNetwork({
      * The chart's timeframe-switch hold keys on it (useBarSnapshotBars).
      */
     answered(key) { return !!keys.get(key)?.answered },
+    /** (review of #2947, M1) The key's last tail answer was the server's `filling` one: a window still landing, its rows
+     *  short of what it will hold. A later complete answer clears it. */
+    filling(key) { return !!keys.get(key)?.filling },
     /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
     subscribeAnswered(key, cb) {
       let set = answerSubs.get(key)

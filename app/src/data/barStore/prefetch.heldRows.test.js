@@ -7,10 +7,11 @@ import { createPrefetch } from './prefetch'
 function stubStore() {
   const held = new Map()
   const answered = new Set()
+  const filling = new Set()
   return {
-    held, answered,
+    held, answered, filling,
     peek: (key) => held.get(key) ?? null,
-    network: { answered: (key) => answered.has(key) },
+    network: { answered: (key) => answered.has(key), filling: (key) => filling.has(key) },
   }
 }
 const rows = (n) => Array.from({ length: n }, (_, i) => ({ t: 1_700_000_000 + i * 1800 }))
@@ -60,6 +61,20 @@ describe('prefetch.heldRows', () => {
     expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(150)      // at the present: the plain key, as before
     store.held.delete(windowed)
     expect(pf.heldRows('AAA', '30', { showExtended: true, viewWindow: w })).toBe(0)   // the window not held: nothing
+  })
+
+  // (review of #2947, M1) a window the server is still fetching answers 200 + `filling: true` with the rows it holds
+  it('with answered: 0 while the answer is `filling` (a window still landing); its count once a complete answer came', () => {
+    const store = stubStore()
+    const pf = createPrefetch({ store })
+    const key = pf.keyFor('AAA', '15', { showExtended: true, window: { to: Date.UTC(2025, 2, 14, 12) / 1000 } })
+    store.held.set(key, { bars: rows(40), developing: null, restSeen: true })
+    store.answered.add(key)
+    store.filling.add(key)
+    const w = { to: Date.UTC(2025, 2, 14, 12) / 1000 }
+    expect(pf.heldRows('AAA', '15', { showExtended: true, viewWindow: w, answered: true })).toBe(0)
+    store.filling.delete(key)
+    expect(pf.heldRows('AAA', '15', { showExtended: true, viewWindow: w, answered: true })).toBe(40)
   })
 
   it('with answered: 0 for a saved copy alone, the count once the server answered in this life', () => {
