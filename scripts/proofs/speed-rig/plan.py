@@ -165,8 +165,10 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra.append("--typed=" + ",".join(pk["typed"]))
         if pk.get("reused"):
             extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
-        if p["kind"] == "tabs":
-            extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
+        if p["kind"] == "tabs" or "--kept-tab=1" in p["args"]:
+            # (review of #3052) the kept-board arrows pass makes tab layouts too: its own suffix, never the tab pass's
+            tag = "kept" if "--kept-tab=1" in p["args"] else p["zoom"]
+            extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{tag}")
         if args.dry:
             extra = ["--dry=1"]
         plan["passes"][p["name"]] = {"args": [*COMMON, *p["args"], *extra], "kind": p["kind"], "board": p["board"], "zoom": p["zoom"],
