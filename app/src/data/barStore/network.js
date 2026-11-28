@@ -312,7 +312,10 @@ export function createNetwork({
   // (the rate-limited tail's repeat for a one-shot ask: `_send`) one timer per key, after Retry-After (bounded), while a
   // one-shot ask or a pin still holds the key
   const limitTimers = new Map()
-  const wantHolders = new Map()   // key -> waiting displays that passed a wantSignal (deepPrime)
+  // key -> the Set of live waiters' signals (deepPrime wantSignal). Cleared with deepWanted (the join settled, the want
+  // expired), so a waiter that finished without aborting leaves nothing behind; at most WANT_HOLDERS_MAX keys.
+  const wantHolders = new Map()
+  const WANT_HOLDERS_MAX = 500
   const limitRounds = new Map()   // key -> rate-limited tail answers in a row
   function _armLimitRetry(key, retryAfterMs) {
     if (limitTimers.has(key)) return
@@ -499,6 +502,7 @@ export function createNetwork({
     if (until == null) return false
     if (now() < until) return true
     deepWanted.delete(key)
+    wantHolders.delete(key)
     return false
   }
   /** ⭐ THE ONE AUTHORITY FOR "IS THE DEEP HISTORY DUE" on this page (`deepPending` and the tail's trigger): did the
@@ -514,6 +518,7 @@ export function createNetwork({
    *  recovers) records nothing, so a later key life asks again (review of #2869). Waiters are released either way. */
   function _settleDeep(key, joined = true) {
     deepWanted.delete(key)
+    wantHolders.delete(key)   // (the waiters' asks are answered: none of them holds the key any more)
     const held = registry.peek(key)?.bars.length
     if (joined && held != null) {
       deepSettled.delete(key)
@@ -1112,10 +1117,19 @@ export function createNetwork({
       if (want && !wantSignal?.aborted) {
         deepWanted.set(key, now() + DEEP_WANT_MS)
         if (wantSignal) {
-          wantHolders.set(key, (wantHolders.get(key) || 0) + 1)
+          let set = wantHolders.get(key)
+          if (!set) {
+            set = new Set()
+            wantHolders.set(key, set)
+            while (wantHolders.size > WANT_HOLDERS_MAX) wantHolders.delete(wantHolders.keys().next().value)
+          }
+          set.add(wantSignal)
+          // ⛔ an abort counts only against the waiters it was one of: after a settle (the set gone) or a newer want (a new
+          // set), an old prepare's late abort must not take the key's want away
           wantSignal.addEventListener?.('abort', () => {
-            const n = (wantHolders.get(key) || 1) - 1
-            if (n > 0) { wantHolders.set(key, n); return }
+            if (wantHolders.get(key) !== set) return
+            set.delete(wantSignal)
+            if (set.size) return
             wantHolders.delete(key)
             deepWanted.delete(key)
           }, { once: true })
@@ -1260,6 +1274,8 @@ export function createNetwork({
     /** (review of #2947, M1) The key's last tail answer was the server's `filling` one: a window still landing, its rows
      *  short of what it will hold. A later complete answer clears it. */
     // (N1) ...also after the key's record went (a one-shot ask's record is collected when it settles): a repeat still due
+    /** (diagnostics, rails) live waiters on the key's deep join that passed a wantSignal */
+    wantHolders(key) { return wantHolders.get(key)?.size ?? 0 },
     filling(key) { return !!keys.get(key)?.filling || fillRounds.has(key) },
     /** Listen to `answered(key)` turning true. Returns the unsubscribe function. */
     subscribeAnswered(key, cb) {
