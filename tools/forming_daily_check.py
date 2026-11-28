@@ -97,6 +97,19 @@ def av_series(frames: list, symbols: set) -> dict:
     return out
 
 
+def frame_minutes(frames: list, symbols: set) -> dict:
+    """{sym: {minute_of_day: (o, h, l, c, v)}}: the minute bars THE DEVICE builds today's D bar from (every block of
+    every frame in seq order: a late or replace block for an already published minute wins, as the rollup applies it)."""
+    out: dict = {}
+    for f in frames:
+        for blk in f["blocks"]:
+            mod = et_parts(blk["minute"] * 60)[1]
+            for sym, row in blk["rows"].items():
+                if sym in symbols:
+                    out.setdefault(sym, {})[mod] = tuple(row[:5])
+    return out
+
+
 def daily_rows(frames: list, symbols: set) -> dict:
     """{sym: (row, minute_of_day)}: the newest DAILY-section row per symbol (frames carry the server's
     daily bar after the close when MINUTE_FRAMES_WITH_DAILY=1 on stream-ingest)."""
@@ -147,6 +160,7 @@ def _compare(a, s) -> int:
     frames = load_frames(s, day)
     with_av = sum(1 for f in frames if f["flags"] & FLAG_AV)
     avs = av_series(frames, set(syms))
+    fmins = frame_minutes(frames, set(syms))
     with_daily = sum(1 for f in frames if f["flags"] & FLAG_DAILY)
     drows = daily_rows(frames, set(syms))
     print(f"{now:%Y-%m-%d %H:%M} ET  frames {len(frames)}, carrying av {with_av}, carrying the daily section {with_daily}")
@@ -182,6 +196,15 @@ def _compare(a, s) -> int:
             "av_newest": newest_av_min is not None and av[newest_av_min], "av_newest_at": newest_av_min,
         }
         row["c_eq_1600"] = bool(row["m1600"]) and r4(D["c"]) in (r4(row["m1600"]["o"]), r4(row["m1600"]["c"]))
+        # ⭐ THE DEVICE'S OWN INPUT (zero-network PR 3.4): the regular-session minutes of the FRAMES, what
+        # deviceStore/live.js rolls today's forming D bar up from (O first open, H max, L min), and its volume, the
+        # newest `av`. Mid-session these must equal the server's D bar for DEVICE_FORMING_DAILY to be exact.
+        fr = sorted((m, b) for m, b in (fmins.get(sym) or {}).items() if 570 <= m < close)
+        row["frame_regular_minutes"] = len(fr)
+        if fr:
+            row["fo_eq"] = r4(D["o"]) == r4(fr[0][1][0])
+            row["fh_eq"] = r4(D["h"]) == r4(max(b[1] for _, b in fr))
+            row["fl_eq"] = r4(D["l"]) == r4(min(b[2] for _, b in fr))
         fd = drows.get(sym)
         row["frame_daily"] = fd and {"row": fd[0], "at": fd[1]}
         row["frame_daily_eq"] = bool(fd) and all(float(a) == float(D[k]) for a, k in zip(fd[0], "ohlcv"))
@@ -201,6 +224,9 @@ def _compare(a, s) -> int:
     print(f"  O = first regular minute's open  {count('o_eq')}/{n}")
     print(f"  H = regular minutes' max         {count('h_eq')}/{n}")
     print(f"  L = regular minutes' min         {count('l_eq')}/{n}")
+    nf = sum(1 for x in ok if x.get("frame_regular_minutes"))
+    print(f"  FRAMES (the device's input): O {count('fo_eq')}/{nf}  H {count('fh_eq')}/{nf}  L {count('fl_eq')}/{nf}"
+          f"   (symbols with regular-session minutes in the frames: {nf}/{n})")
     print(f"  C = last regular minute's close  {count('c_eq_last_regular')}/{n}"
           f"   (= the {close // 60}:00 minute's open or close: {count('c_eq_1600')}/{n})")
     for key, label in (("av_1559", "av at the last regular minute"), ("av_1600", "av at the closing minute"),
@@ -239,6 +265,9 @@ def _compare(a, s) -> int:
     for x in ok:
         if not (x["o_eq"] and x["h_eq"] and x["l_eq"]):
             print("  O/H/L differs:", x["sym"], x["D"], {k: x[k] for k in ("o_eq", "h_eq", "l_eq")})
+        if x.get("frame_regular_minutes") and not (x.get("fo_eq") and x.get("fh_eq") and x.get("fl_eq")):
+            print("  O/H/L differs from the FRAMES' minutes:", x["sym"], x["D"],
+                  {k: x.get(k) for k in ("fo_eq", "fh_eq", "fl_eq")})
     if a.json:
         Path(a.json).write_text(json.dumps({"at": now.isoformat(), "rows": rows}, indent=1, default=str),
                                 encoding="utf-8")
