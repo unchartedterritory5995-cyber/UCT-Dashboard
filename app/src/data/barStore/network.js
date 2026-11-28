@@ -230,6 +230,10 @@ export function idleLand(fn, { timeout = DEEPEN_IDLE_TIMEOUT_MS, now = () => Dat
  * @param {ReturnType<import('./registry').createRegistry>} o.registry
  * @param {(url:string, opts:{priority:string, signal:AbortSignal}) => Promise<object>} [o.request]
  */
+/** (2026-11-28) a PARTIAL /api/bars-history answer (the web's shallow fallback) is asked again after these waits; the
+ *  last repeats until a sealed, non-partial answer comes or the key goes */
+export const PARTIAL_RETRY_MS = Object.freeze([5000, 15000, 60000])
+
 export function createNetwork({
   registry, request = barsLaneRequest, promote = promoteLaneRequest,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
@@ -391,6 +395,7 @@ export function createNetwork({
     const r = keys.get(key)
     if (r?.inflight) { try { r.inflight.ac?.abort() } catch { /* gone */ } r.inflight = null }
     if (r?.side) { try { r.side.ac?.abort() } catch { /* gone */ } r.side = null }
+    _dropPartial(r)   // (review of #3050) an evicted key's partial retry goes with it
   }) ?? null
 
   // ── one request ───────────────────────────────────────────────────────────
@@ -779,8 +784,8 @@ export function createNetwork({
     return _send(r, 'scroll', url, priority, async (json) => {
       if (!json?.sealed || !Array.isArray(json.bars)) return { error: true }
       if (json.ticker && String(json.ticker).toUpperCase() !== p.sym) return { error: true }
-      // ⛔ (review of #3038) the web's shallow fallback answers sealed AND partial (the worker's deep origin did not answer):
-      // its rows are shown, but it is never "the whole history" (historyComplete)
+      // ⛔ (2026-11-28) the web's shallow fallback (the worker's deep origin did not answer) answers sealed AND partial:
+      // its rows are joined for display, but the deep history is not here (see `_retryPartial`)
       const partial = json.partial === true
       const rows = json.bars.map((b) => (typeof b?.t === 'string' ? { ...b, t: dateLabelToUnix(b.t) } : b))
       const before = registry.getSnapshot(r.key)
@@ -802,7 +807,16 @@ export function createNetwork({
       }
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
-      if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // ⛔⛔ (2026-11-28) A PARTIAL ANSWER IS NOT THE DEEP HISTORY. Settled as joined, the key's depth read "done" for its
+      // whole life and a worker outage left the member on a short D/W/M chart. Its waiters are released (its rows are on
+      // screen), nothing is recorded as joined, and the deep history is asked again with backoff until a sealed,
+      // non-partial answer comes (`_retryPartial`).
+      if (!res?.aborted) {
+        // `partialSettled`: nothing more is coming NOW (the hold does not wait DEEP_WANT_MS on every revisit of a key whose
+        // deep origin is down), while nothing is recorded as joined
+        if (res?.ok && res.partial === true) { r.partialSettled = true; _settleDeep(r.key, false); _retryPartial(r) }
+        else { r.partialTries = 0; if (res?.ok) r.partialSettled = false; _settleDeep(r.key, !!res?.ok) }
+      }
       // (review of #3038) the whole D/W/M history is here only after a sealed, NON-partial answer joined
       deepComplete.delete(r.key)
       if (res?.ok && res.partial !== true && keys.get(r.key) === r) {
@@ -822,6 +836,38 @@ export function createNetwork({
       return res
     })
   }
+
+  /** (review of #3050) A key something still shows, holds or waits for (#3012 F-D's rule), still in the registry (read
+   *  without creating it: a retry never resurrects an evicted entry). */
+  const _heldNow = (r) => registry.has(r.key) && (r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))
+  /** A partial deep answer: ask the history again after PARTIAL_RETRY_MS[n] (the last repeats, jittered), while the key is
+   *  held; paused while the page is hidden; dropped when nothing holds the key (shown again, its history is asked anew). */
+  function _retryPartial(r) {
+    if (r.partialTimer != null) return
+    const i = r.partialTries = (r.partialTries || 0) + 1
+    const last = i - 1 >= PARTIAL_RETRY_MS.length - 1
+    const base = PARTIAL_RETRY_MS[Math.min(i - 1, PARTIAL_RETRY_MS.length - 1)]
+    const ms = last ? Math.round(base * (0.85 + Math.random() * 0.3)) : base
+    r.partialTimer = setTimer(() => {
+      r.partialTimer = null
+      if (keys.get(r.key) !== r) return
+      if (!_heldNow(r)) { _forgetPartial(r); return }
+      if (isHidden()) { r.partialPaused = true; return }
+      r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
+      _drain(r)
+    }, ms)
+  }
+  /** (review of #3050) The retry is dropped: the record forgets the partial answer too, so the key's next life (a chart
+   *  opening it, a tail answer rebuilding an evicted entry) asks its deep history again instead of reading it as "done"
+   *  (`histAsked` kept and `partialSettled` true left a D/W/M chart short for the record's life). */
+  const _forgetPartial = (r) => {
+    if (!r) return
+    if (r.partialTimer != null) { clearTimer(r.partialTimer); r.partialTimer = null }
+    r.partialPaused = false
+    if (r.partialSettled) { r.partialSettled = false; r.histAsked = false }
+    r.partialTries = 0
+  }
+  const _dropPartial = _forgetPartial
 
   /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
   function lakeCarriesKey(key) {
@@ -1152,6 +1198,8 @@ export function createNetwork({
 
   const offVisible = onVisible(() => {
     for (const r of keys.values()) if (r.paused && r.refs > 0) { r.paused = false; _schedule(r, 0) }
+    // (review of #3050) a partial retry that came due while hidden asks now
+    for (const r of keys.values()) if (r.partialPaused) { r.partialPaused = false; if (_heldNow(r)) { r.queue.push({ run: () => _historyJob(r), resolve: () => {} }); _drain(r) } else _forgetPartial(r) }
   })
 
   const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.side && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
@@ -1188,6 +1236,7 @@ export function createNetwork({
       if (r.timer != null) { clearTimer(r.timer); r.timer = null }
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
       if (r.side) { r.side.ac?.abort(); r.side = null }
+      _dropPartial(r)
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
       // (review of #2947, LOW) the last chart left: a window's filling repeat goes with it unless the entry is still pinned
       const f = fillRounds.get(key)
@@ -1371,6 +1420,8 @@ export function createNetwork({
       // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
       // read filled it in (a short paint, then the jump).
       if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
+      // (review of #3050) a partial answer was the last word: nothing more is coming NOW (its retry still asks)
+      if (keys.get(key)?.partialSettled) return false
       if (_whole(key)) return false                // the entry holds the whole series: nothing older to join
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
