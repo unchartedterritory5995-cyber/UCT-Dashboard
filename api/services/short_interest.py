@@ -1,6 +1,19 @@
 """Short interest + days-to-cover for a ticker.
 
-Two sources, one shape, chosen per call by ``SHORT_INTEREST_SOURCE`` (TERM-046):
+Three sources, one shape, chosen per call by ``SHORT_INTEREST_SOURCE`` (TERM-046):
+
+* ``massive`` (added 2026-11-28, licensed-first pass 1) — FINRA short interest
+  read through Massive (``short_data.get_stock``: ``/stocks/v1/short-interest``,
+  licensing register T-93, class LA), with the float from FMP
+  ``/stable/shares-float`` (T-39, LA) and, when FMP has none, the float the
+  nightly Finviz export keeps. Every field is the vendor's own number for a
+  READ settlement date (never inferred), and the prior-month figure is the
+  report two settlements back from Massive's own history. ⛔ Nobody has called
+  the Massive route with this site's key yet: a refusal, an empty answer or a
+  build still running makes THIS call answer from the Finviz path, labelled
+  ``fallback_from: "massive"`` with the reason, never a blank or a zero.
+  Not the code default: the owner's 2026-09-29 ruling names Finviz, and
+  production sets ``finviz``; ``massive`` is his switch to flip.
 
 * ``yfinance`` (DEFAULT, unset, or any unrecognised value) — today's source,
   byte-for-byte: yfinance pulls FINRA-reported short interest from Yahoo
@@ -88,10 +101,11 @@ _CACHE_TTL = 3600  # 1 hour — short interest barely changes intraday
 SOURCE_ENV = "SHORT_INTEREST_SOURCE"
 SOURCE_YFINANCE = "yfinance"
 SOURCE_FINVIZ = "finviz"
+SOURCE_MASSIVE = "massive"
 # ⭐ The mode table `feature_flag_index.mode_flags` reads by AST: default AND
 # vocabulary as literals, in the expression the code itself falls back to.
 SHORT_INTEREST_MODE_FLAGS = {
-    "SHORT_INTEREST_SOURCE": (SOURCE_YFINANCE, (SOURCE_YFINANCE, SOURCE_FINVIZ)),
+    "SHORT_INTEREST_SOURCE": (SOURCE_YFINANCE, (SOURCE_YFINANCE, SOURCE_FINVIZ, SOURCE_MASSIVE)),
 }
 DEFAULT_SOURCE, SOURCES = SHORT_INTEREST_MODE_FLAGS[SOURCE_ENV]
 
@@ -104,9 +118,10 @@ def source() -> str:
 
 
 def history_enabled() -> bool:
-    """The dated history is recorded only while the Finviz source is armed —
-    flag off writes nothing anywhere."""
-    return source() == SOURCE_FINVIZ
+    """The dated history is recorded only while the Finviz source is armed, or
+    the Massive source whose fallback it is (the fallback's prior-month figure
+    comes from that history) — flag off writes nothing anywhere."""
+    return source() in (SOURCE_FINVIZ, SOURCE_MASSIVE)
 
 
 def _fmt_int(v) -> int | None:
@@ -145,9 +160,139 @@ def _crowd_tier(pct: float) -> str:
 
 
 def get_short_interest(ticker: str) -> dict[str, Any]:
-    if source() == SOURCE_FINVIZ:
+    src = source()
+    if src == SOURCE_MASSIVE:
+        return _get_short_interest_massive(ticker)
+    if src == SOURCE_FINVIZ:
         return _get_short_interest_finviz(ticker)
     return _get_short_interest_yfinance(ticker)
+
+
+# ── the Massive source (FINRA through Massive, float from FMP) ───────────────
+
+MASSIVE_WAIT_S = 3.0        # the longest one call waits on short_data's background build
+FMP_FLOAT_TIMEOUT_S = 8
+MASSIVE_SOURCE_LABEL = "FINRA short interest, through Massive"
+FLOAT_SOURCE_FMP = "FMP shares float"
+
+
+def _massive_stock(sym: str) -> dict:
+    """short_data's answer for one stock (a seam for tests). Never builds on
+    this thread: short_data waits at most `MASSIVE_WAIT_S` on its own build."""
+    from api.services import short_data
+    return short_data.get_stock(sym, wait_s=MASSIVE_WAIT_S)
+
+
+def _fmp_float(sym: str) -> tuple[float | None, float | None]:
+    """(float shares, shares outstanding) from FMP, each None when unknown."""
+    from api.services import fmp_client
+    body = fmp_client.body_or_none(fmp_client.get_shares_float, sym, timeout=FMP_FLOAT_TIMEOUT_S)
+    row = body[0] if isinstance(body, list) and body and isinstance(body[0], dict) else {}
+
+    def pos(v):
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 else None
+
+    return pos(row.get("floatShares")), pos(row.get("outstandingShares"))
+
+
+def _massive_reason(ans: Any) -> str | None:
+    """Why the Massive answer cannot serve this call, or None when it can."""
+    if not isinstance(ans, dict):
+        return "no answer"
+    status = ans.get("status")
+    if status != "ok":
+        return str(status or "no answer")
+    interest = ans.get("interest") or {}
+    if interest.get("state") != "ok" or not interest.get("reports"):
+        return f"short interest {interest.get('state') or 'missing'}"
+    return None
+
+
+def _get_short_interest_massive(ticker: str) -> dict[str, Any]:
+    from api.services import short_data
+    from api.services.provider_licensing_class import licensing_class_for
+
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"error": "ticker required"}
+    cache_key = f"short::massive::{sym}"
+    cached = _CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+
+    try:
+        ans = _massive_stock(sym)
+    except Exception as e:  # noqa: BLE001 — a failed read falls back, never raises
+        _log.warning("massive short interest failed for %s: %s", sym, type(e).__name__)
+        ans = None
+    reason = _massive_reason(ans)
+    if reason is not None:
+        out = _get_short_interest_finviz(sym)
+        if isinstance(out, dict):
+            out = dict(out, fallback_from=SOURCE_MASSIVE, massive_state=reason)
+        return out
+
+    reports = ans["interest"]["reports"]
+    newest = reports[0]
+    settle = date.fromisoformat(newest["settlement_date"])
+    shares_short = newest.get("short_interest")
+
+    # the prior-month figure: the report two settlements back, only when Massive
+    # holds exactly that settlement (a gap in its history is unknown, never the
+    # nearest other report)
+    prior = None
+    try:
+        want = settlement_dates_before(settle, 3)[2].isoformat()
+    except IndexError:
+        want = None
+    for r in reports[1:4]:
+        if want and r.get("settlement_date") == want:
+            prior = r.get("short_interest")
+            break
+    change = None
+    if shares_short is not None and prior and prior > 0:
+        change = round((shares_short - prior) / prior * 100.0, 2)
+
+    try:
+        flt, out_sh = _fmp_float(sym)
+    except Exception as e:  # noqa: BLE001 — no float is "unknown", never a failed answer
+        _log.warning("fmp float failed for %s: %s", sym, type(e).__name__)
+        flt, out_sh = None, None
+    float_source = FLOAT_SOURCE_FMP if flt is not None else None
+    if flt is None:
+        held = (ans.get("float") or {}).get("shares")
+        if isinstance(held, (int, float)) and held > 0:
+            flt, float_source = float(held), short_data.FLOAT_SOURCE
+    pct, withheld = short_data.pct_of_float(shares_short, flt)
+    pct_out = None
+    if shares_short is not None and out_sh:
+        p = shares_short / out_sh * 100.0
+        pct_out = round(p, 2) if p <= short_data.PCT_FLOAT_MAX else None
+
+    result = {
+        "ticker": sym,
+        "shares_short": shares_short,
+        "shares_short_prior_month": prior,
+        "shares_short_change_pct": change,
+        "days_to_cover": newest.get("days_to_cover"),
+        "short_pct_of_float": pct,
+        "short_pct_of_shares_outstanding": pct_out,
+        # ⛔ unknown is never "low": no short float, no crowding verdict.
+        "crowded": _crowd_tier(pct) if pct is not None else None,
+        "as_of": _epoch(settle),
+        "source": MASSIVE_SOURCE_LABEL,
+        "as_of_date": settle.isoformat(),
+        "as_of_basis": "read: the settlement date Massive reports with the figure",
+        "float_source": float_source,
+        "float_withheld": withheld,
+        "derived_fields": [k for k, v in (("short_pct_of_float", pct),
+                                           ("short_pct_of_shares_outstanding", pct_out),
+                                           ("shares_short_change_pct", change)) if v is not None],
+        "licensing_class": licensing_class_for("massive", "short_interest"),
+        "freshness": "refreshing" if ans.get("refreshing") else None,
+    }
+    _CACHE.set(cache_key, dict(result), _CACHE_TTL)
+    return result
 
 
 def _get_short_interest_yfinance(ticker: str) -> dict[str, Any]:

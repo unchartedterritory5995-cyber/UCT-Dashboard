@@ -2,15 +2,20 @@
 Company Intelligence panel, the earnings model's fiscal calendar and the Agent's
 `fundamentals` kind.
 
-ONE payload shape, two possible sources, and `meta.source` names the one used:
+ONE payload shape, three possible sources, and `meta.source` names the one used:
 
 * **FMP first.** The statements come from `research/financial_history.get_history`
   (the reader the Financials panels already use: three statement legs, one process
   cache, up to 24 quarters and 12 fiscal years). Nothing is fetched or cached a
   second time here: this module only reshapes that answer.
-* **Yahoo Finance (yfinance) only when FMP answered and holds no statements for the
-  ticker.** A read that FAILED is not "holds nothing": it returns an honest
-  "temporarily unavailable" answer that is retried, never the other source.
+* **SEC EDGAR next, when FMP answered and holds no statements for the ticker**
+  (`edgar_statements`: the company's own XBRL filings, public domain). Read off
+  the request thread; while that read is still landing (or failed), Yahoo
+  stands in for that one answer, which is not stored.
+* **Yahoo Finance (yfinance) last**, only when FMP holds no statements and EDGAR
+  has none either (or has not answered yet). A read that FAILED is not "holds
+  nothing": it returns an honest "temporarily unavailable" answer that is
+  retried, never the other source.
 
 We normalize a curated, stable set of line items to snake_case keys, compute a TTM
 column for the flow statements (sum of the last 4 reported quarters), and cache the
@@ -63,7 +68,9 @@ _QUIET_TTL = 14 * 86400     # inside that window: re-read only to pick up a rest
 _DUE_TTL = 24 * 3600        # outside it: a new quarter can land any day
 
 SOURCE_LICENSED = "FMP"
+SOURCE_EDGAR = "SEC EDGAR"         # edgar_statements.SOURCE: the company's own XBRL filings
 SOURCE_FALLBACK = "Yahoo Finance"
+_EDGAR_WAIT_S = 4.0         # the longest a build waits on the EDGAR read it queued
 _LICENSED_CALLS = 6         # three statement legs x (quarterly, annual)
 _FALLBACK_CALLS = 6         # the six bounded yfinance statement reads
 
@@ -564,12 +571,90 @@ def _build_first(sym: str) -> tuple:
         return licensed, {"ok": "keep", "half": "retry"}.get(state, "brief")
     if state == "error":
         return _unavailable(sym), "retry"
+    # FMP holds nothing for this ticker: the company's own filings (SEC EDGAR,
+    # public domain) come before Yahoo Finance (licensing register T-73, class X).
+    edgar = _edgar_snapshot(sym)
+    if edgar.get("state") == "ok":
+        out = _build_edgar(sym, edgar)
+        if out is not None:
+            # a stale EDGAR copy is served but not stored over a fresher one
+            return out, ("brief" if edgar.get("stale") else "keep")
     out = _build(sym)
     meta = out.setdefault("meta", {})
-    meta["sources_tried"] = [SOURCE_LICENSED, SOURCE_FALLBACK]
+    meta["sources_tried"] = [SOURCE_LICENSED, SOURCE_EDGAR, SOURCE_FALLBACK]
+    meta["edgar_state"] = edgar.get("state")
     # the security-type lookup on the empty path is one more read
     meta["build_calls"] = _LICENSED_CALLS + _FALLBACK_CALLS + (1 if out.get("error") else 0)
+    if edgar.get("state") in ("pending", "unavailable"):
+        # EDGAR has not answered yet: Yahoo stands in for now, and the answer is
+        # not stored, so the next build after EDGAR's read lands serves EDGAR.
+        return out, "brief"
     return out, ("brief" if out.get("error") else "keep")
+
+
+def _edgar_snapshot(sym: str) -> dict:
+    """The SEC EDGAR statements this process holds (a seam for tests). Never
+    reads SEC on this thread; waits at most `_EDGAR_WAIT_S` on its own read."""
+    try:
+        from api.services import edgar_statements
+        return edgar_statements.snapshot(sym, wait_s=_EDGAR_WAIT_S)
+    except Exception as e:  # noqa: BLE001 -- EDGAR is a fallback; its failure is "not read"
+        _log.warning("statements %s EDGAR snapshot failed: %s", sym, e)
+        return {"state": "unavailable"}
+
+
+def _edgar_rows(edgar: dict, basis: str, stmt: str) -> list:
+    rows = []
+    for r in (edgar.get(basis) or {}).get(stmt) or []:
+        reported = str(r.get("period_end") or "")[:10]
+        rows.append({"period": _month_end_period(reported), "reported_period": reported,
+                     "values": {k: _clean(v) for k, v in (r.get("values") or {}).items()}})
+    return rows
+
+
+def _build_edgar(sym: str, edgar: dict) -> dict | None:
+    """The payload from SEC EDGAR's company facts, the shape every other source
+    has. None when it carries no statement rows."""
+    from api.services import edgar_statements as es
+    inc_a, inc_q = _edgar_rows(edgar, "annual", "income"), _edgar_rows(edgar, "quarterly", "income")
+    bal_a, bal_q = _edgar_rows(edgar, "annual", "balance"), _edgar_rows(edgar, "quarterly", "balance")
+    cf_a, cf_q = _edgar_rows(edgar, "annual", "cashflow"), _edgar_rows(edgar, "quarterly", "cashflow")
+    if not any([inc_a, inc_q, bal_a, bal_q, cf_a, cf_q]):
+        return None
+    income_schema = [(k, None) for k, *_ in es.INCOME]
+    cash_schema = [(k, None) for k, *_ in es.CASHFLOW]
+    meta = {
+        "source": SOURCE_EDGAR,
+        "source_kind": es.SOURCE_KIND,
+        "retrieved_at": time.time(),
+        "fetched_at": edgar.get("fetched_at"),
+        "cik": edgar.get("cik"),
+        "currency": edgar.get("currency"),
+        "units": "reporting currency, absolute (EPS per share)",
+        "fiscal_year_end": (inc_a[0]["period"][5:] if inc_a else None),
+        "annual_periods": len(inc_a),
+        "quarterly_periods": len(inc_q),
+        "reported_keys": sorted({k for spec in es.STATEMENTS.values() for k, *_ in spec}),
+        "calculated_in_client": ["gross_margin", "operating_margin", "ebitda_margin",
+                                 "net_margin", "fcf_margin", "yoy", "cagr"],
+        "ttm_method": "sum of the last four reported quarters; point-in-time keys carried from the latest quarter",
+        "period_basis": ("period is the fiscal period end on its month end; "
+                         "reported_period is the period end as filed"),
+        "sources_tried": [SOURCE_LICENSED, SOURCE_EDGAR],
+        "build_calls": _LICENSED_CALLS,
+    }
+    if edgar.get("stale"):
+        meta["stale"] = True
+    return {
+        "ticker": sym,
+        "income": {"annual": inc_a, "quarterly": inc_q, "ttm": _ttm(inc_q, income_schema),
+                   "ttm_series": _ttm_series(inc_q, income_schema)},
+        "balance": {"annual": bal_a, "quarterly": bal_q,
+                    "ttm": bal_q[0]["values"] if bal_q else None, "ttm_series": []},
+        "cashflow": {"annual": cf_a, "quarterly": cf_q, "ttm": _ttm(cf_q, cash_schema),
+                     "ttm_series": _ttm_series(cf_q, cash_schema)},
+        "meta": meta,
+    }
 
 
 def _build(sym: str) -> dict:

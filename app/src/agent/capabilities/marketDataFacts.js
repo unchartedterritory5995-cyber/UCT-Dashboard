@@ -137,9 +137,9 @@ const NO_FUNDAMENTALS = {
  * MD-1 wording on the gateway part only). Pure; exported for tests. → { lines, items, source }
  */
 /** The `fundamentals` envelope's `source` → the name the member reads. The gateway names the source that answered
- *  (FMP first; Yahoo Finance only for a ticker FMP has no statements for), so the sentence follows it and never
- *  names one by default. */
-const STATEMENT_SOURCES = { fmp: 'FMP', 'yahoo-finance': 'Yahoo Finance' }
+ *  (FMP first; then the company's own SEC EDGAR filings, and Yahoo Finance last, for a ticker FMP has no statements
+ *  for), so the sentence follows it and never names one by default. */
+const STATEMENT_SOURCES = { fmp: 'FMP', 'sec-edgar': 'SEC EDGAR filings', 'yahoo-finance': 'Yahoo Finance' }
 
 export function fundamentalsFacts(env, symbol) {
   const sym = String(symbol || '').toUpperCase()

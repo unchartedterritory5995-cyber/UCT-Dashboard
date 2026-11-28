@@ -174,33 +174,27 @@ def test_all_actions_older_than_window_returns_none_via_full_fallthrough(monkeyp
     assert aa.finnhub_recent_action("XOM", within_hours=36, now=now) is None
 
 
-# ── Finnhub fallback: used only when FMP yields nothing ─────────────────────
+# ── ⚰️ The Finnhub fallback was DELETED 2026-11-28 (licensed-first pass 1) ──
+# /stock/upgrade-downgrade 403'd on every call on this plan, so the leg never
+# returned a row. Two tests that drove it with a fake 200 are replaced by this
+# one: FMP holding nothing is None, and Finnhub is never asked.
 
-def test_finnhub_fallback_used_when_fmp_empty(monkeypatch):
+def test_fmp_empty_is_none_and_finnhub_is_never_asked(monkeypatch):
     now = time.time()
+    asked = []
 
-    _mock_fmp_and_finnhub(
-        monkeypatch, fmp_rows=[],
-        finnhub_payload=[{"symbol": "MSFT", "action": "up", "company": "Barclays",
-                           "fromGrade": "Hold", "toGrade": "Buy",
-                           "gradeTime": int(now - 3600)}],
-    )
-    result = aa.finnhub_recent_action("MSFT", within_hours=36, now=now)
-    assert result is not None
-    assert result["action"] == "up"
-    assert result["firm"] == "Barclays"
+    def fmp_get(url, params=None, timeout=None):
+        return _Resp(200, [])
 
+    def any_other(url, params=None, timeout=None):
+        asked.append(url)
+        return _Resp(200, [{"symbol": "MSFT", "action": "up", "company": "Barclays",
+                             "fromGrade": "Hold", "toGrade": "Buy", "gradeTime": int(now - 3600)}])
 
-def test_finnhub_fallback_stale_grade_returns_none(monkeypatch):
-    now = time.time()
-
-    _mock_fmp_and_finnhub(
-        monkeypatch, fmp_rows=[],
-        finnhub_payload=[{"symbol": "MSFT", "action": "up", "company": "Barclays",
-                           "fromGrade": "Hold", "toGrade": "Buy",
-                           "gradeTime": int(now - 40 * 3600)}],  # 40h old, outside 36h window
-    )
+    monkeypatch.setattr(aa.fmp_client._session, "get", fmp_get)
+    monkeypatch.setattr("requests.get", any_other)
     assert aa.finnhub_recent_action("MSFT", within_hours=36, now=now) is None
+    assert asked == []
 
 
 # ── Guardrails: no fabrication, no wasted calls ──────────────────────────────

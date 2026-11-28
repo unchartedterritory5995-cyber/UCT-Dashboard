@@ -157,26 +157,30 @@ def _captured_ttl(monkeypatch):
     return result, seen.get("ttl")
 
 
-# ── Requirement 1: Finnhub stays primary ────────────────────────────────────
+# ── Requirement 1 (licensed-first pass 1, 2026-11-28): FMP is the only source ─
+# The Finnhub /stock/price-target leg that used to stand in front of FMP was
+# deleted: it 403s plan-forbidden on this account (licensing register T-52), so
+# it never returned a value. ⚰️ This test used to be
+# `test_finnhub_success_short_circuits_fmp`; the leg it described is gone.
 
-def test_finnhub_success_short_circuits_fmp(monkeypatch):
-    """When Finnhub supplies a full price target, FMP's price-target-consensus
-    leg is never called at all. (The consensus leg is FMP-primary as of P2
-    Task 5 and legitimately fires its own `stable/grades-consensus` call
-    regardless of the price-target outcome — this test only locks in the
-    price-target leg's own Finnhub-primary/FMP-fallback ordering.)"""
-    monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=True))
+def test_finnhub_price_target_is_never_asked_and_fmp_answers(monkeypatch):
+    asked = []
+    responder = _fh_responder(pt_ok=True)
+
+    def spy(url, params=None, timeout=None):
+        asked.append(url)
+        return responder(url, params=params, timeout=timeout)
+
+    monkeypatch.setattr(ee.requests, "get", spy)
     _mock_consensus_rejects(monkeypatch)
-    pt_spy = MagicMock(side_effect=_fmp_not_found)
+    pt_spy = MagicMock(side_effect=_fmp_value_or_not_found(_FMP_PT_CONSENSUS))
     monkeypatch.setattr(ee.fmp_client, "get_price_target_consensus", pt_spy)
 
     result = ee.get_earnings_intel(SYM)
 
-    assert pt_spy.call_count == 0
-    assert result["price_target"] == {
-        "targetHigh": 500.0, "targetLow": 300.0, "targetMean": 420.0,
-        "targetMedian": 415.0, "lastUpdated": "2026-08-01",
-    }
+    assert not any("price-target" in u for u in asked), asked
+    assert pt_spy.call_count == 1
+    assert result["price_target"]["targetHigh"] == 480.0
 
 
 # ── Requirement 2: fallback fires, keeps the SAME shape, never fabricates ──
@@ -371,9 +375,10 @@ def test_fmp_fallback_succeeds_despite_an_exhausted_finnhub_token_bucket(monkeyp
 
 
 def test_fmp_call_never_consumes_a_finnhub_bucket_token(monkeypatch):
-    """End-to-end token accounting: 3 real Finnhub HTTP legs are attempted
-    (earnings, recommendation, price-target — the last one empty), and the
-    FMP fallback runs on top. Exactly 3 tokens should be spent, not 4."""
+    """End-to-end token accounting: 2 real Finnhub HTTP legs are attempted
+    (earnings, recommendation; the dead price-target leg was deleted
+    2026-11-28), and the FMP price target runs on top. Exactly 2 tokens
+    should be spent, not 3."""
     monkeypatch.setattr(ee.requests, "get", _fh_responder(pt_ok=False))
     _mock_consensus_rejects(monkeypatch)
     _mock_price_target(monkeypatch, _FMP_PT_CONSENSUS)
@@ -382,7 +387,7 @@ def test_fmp_call_never_consumes_a_finnhub_bucket_token(monkeypatch):
     ee.get_earnings_intel(SYM)
     after = fhc._fh_bucket_tokens
 
-    assert abs((before - after) - 3.0) < 0.05
+    assert abs((before - after) - 2.0) < 0.05
 
 
 # ── Requirement 5: the FMP call is bounded and never raises out of this

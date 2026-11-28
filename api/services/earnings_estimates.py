@@ -145,13 +145,12 @@ def get_earnings_intel(ticker: str) -> dict | None:
                          None when Finnhub omits them, never a phantom 0.
         consensus     – {buy, hold, sell, strongBuy, strongSell, period}
         price_target  – {targetHigh, targetLow, targetMean, targetMedian, lastUpdated}
-                         Finnhub primary; falls back to FMP's
-                         stable/price-target-consensus when Finnhub's
-                         /stock/price-target 403s plan-forbidden (not
-                         transient — simply unavailable on this account's
-                         tier). FMP has no analog for targetMean/lastUpdated,
-                         so those stay None on the fallback path rather than
-                         being fabricated from a different-named FMP field.
+                         FMP's stable/price-target-consensus (the only
+                         source since 2026-11-28: Finnhub's
+                         /stock/price-target 403s on this plan and its leg
+                         was deleted). FMP has no analog for
+                         targetMean/lastUpdated, so those stay None rather
+                         than being fabricated from a different-named FMP field.
     """
     ticker = ticker.upper()
     cache_key = f"earnings_intel_{ticker}"
@@ -226,28 +225,13 @@ def get_earnings_intel(ticker: str) -> dict | None:
             }
 
     # ── 3. Price target ──────────────────────────────────────────────────────
-    price_target = None
-    pt_raw = _fh_get("/stock/price-target", {"symbol": ticker})
-    if isinstance(pt_raw, dict) and pt_raw.get("targetMean") is not None:
-        price_target = {
-            "targetHigh": pt_raw.get("targetHigh"),
-            "targetLow": pt_raw.get("targetLow"),
-            "targetMean": pt_raw.get("targetMean"),
-            "targetMedian": pt_raw.get("targetMedian"),
-            "lastUpdated": pt_raw.get("lastUpdated", ""),
-        }
-    if price_target is None:
-        # Finnhub stays primary above — this only fires when it yielded
-        # nothing. /stock/price-target 403s plan-forbidden on this account
-        # (cached via _FH_FORBIDDEN_TTL, see _fh_get) — not a transient
-        # failure, that endpoint is simply not on the current tier. FMP's
-        # stable/price-target-consensus IS live on this plan (analyst_grades.py
-        # already calls it for a different surface) and covers the same range
-        # data. A DIFFERENT provider budget: never touches _fh_take_token or
-        # _fh_cooldown_until, and carries its own bounded timeout (never an
-        # unbounded external call on the shared request-path threadpool — the
-        # documented 524-outage class here).
-        price_target = _fmp_price_target_fallback(ticker)
+    # FMP stable/price-target-consensus, the only source (licensed-first pass 1,
+    # 2026-11-28). The Finnhub /stock/price-target leg that stood in front of it
+    # was DELETED: it 403s plan-forbidden on this account (licensing register
+    # T-52: "recommendations/PT ... 403 on this plan for months"), so it never
+    # returned a value; removing it removes no data. Its own bounded timeout,
+    # never an unbounded call on the shared request-path threadpool.
+    price_target = _fmp_price_target_fallback(ticker)
 
     # If all three failed, negative-cache briefly. Uncached failures made every
     # 5-min enrichment recompute retry the whole day's reporters × 3 calls —

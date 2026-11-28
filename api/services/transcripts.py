@@ -1,12 +1,13 @@
-"""Earnings call transcript service — FMP/Finnhub fetch + Claude AI summarization.
+"""Earnings call transcript service — FMP fetch + Claude AI summarization.
 
-FMP `stable/earning-call-transcript(-dates)` PRIMARY (2026-08-05), Finnhub
-`/stock/transcripts*` fallback:
+FMP `stable/earning-call-transcript(-dates)`, the only source:
   1. FMP   stable/earning-call-transcript-dates → newest (year, quarter)
      FMP   stable/earning-call-transcript?symbol=&year=&quarter= → full text
-  1b. Finnhub /stock/transcripts/list → transcript IDs (fallback leg)
-      Finnhub /stock/transcripts?id={id} → full transcript text
   2. Claude Haiku/Sonnet summarization → structured bullets + sentiment
+
+⚰️ The Finnhub `/stock/transcripts/list` + `/stock/transcripts` fallback leg was
+DELETED 2026-11-28 (licensed-first pass 1): it 403'd on every call on this plan
+(below; licensing register T-52), so it never returned a transcript.
 
 Cache: 24h on success, 1h on miss.
 
@@ -19,9 +20,9 @@ been permanently hidden for every user (CLAUDE.md documented this as
 
 FMP `stable/earning-call-transcript-dates` + `stable/earning-call-transcript`
 (already paid FMP Ultimate, verified 200 with real content — 84 quarters for
-AAPL, full body for the latest) are now tried first. Finnhub stays as an
-explicit fallback (costs nothing once FMP succeeds — fh_get short-circuits
-the cached 403 for 24h — and is the safety net if FMP has an outage).
+AAPL, full body for the latest) are now tried first. Finnhub was kept as an
+explicit fallback until 2026-11-28, when the leg was deleted: a fallback that
+403s on every call is not a safety net.
 
 The FMP call plumbing (auth, bounded timeout, error handling) is NOT
 duplicated here — it's delegated to api.services.fmp_transcripts' private
@@ -94,82 +95,17 @@ def _fetch_latest_transcript_fmp(symbol: str) -> dict | None:
     }
 
 
-def _fetch_latest_transcript_finnhub(symbol: str) -> dict | None:
-    """Fallback leg — Finnhub /stock/transcripts/list + /stock/transcripts.
-    403s on this plan as of 2026-08-05; kept because fh_get short-circuits
-    the cached 403 for 24h (costs nothing once FMP succeeds) and is the
-    safety net if FMP has an outage.
-
-    Routed through the shared api.services.finnhub_client.fh_get so both
-    legs share the process-wide token bucket / 429 cooldown with every other
-    Finnhub caller instead of spending the same process budget uncoordinated.
-    """
-    from api.services.finnhub_client import fh_get
-
-    # Step 1: list available transcripts
-    data = fh_get("/stock/transcripts/list", {"symbol": symbol}, timeout=10)
-    if not isinstance(data, dict):
-        return None
-    transcripts = data.get("transcripts", [])
-    if not transcripts:
-        return None
-
-    # Pick the most recent transcript
-    latest = transcripts[0]
-    transcript_id = latest.get("id")
-    if not transcript_id:
-        return None
-
-    # Step 2: fetch full transcript
-    detail = fh_get("/stock/transcripts", {"id": transcript_id}, timeout=15)
-    if not isinstance(detail, dict):
-        return None
-
-    # Concatenate all speech entries
-    parts = detail.get("transcript", [])
-    if not parts:
-        return None
-
-    text_parts = []
-    for part in parts:
-        name = part.get("name", "")
-        speech_items = part.get("speech", [])
-        if isinstance(speech_items, list):
-            for s in speech_items:
-                speaker = s.get("name", name)
-                content = s.get("speech", "")
-                if content:
-                    text_parts.append(f"{speaker}: {content}")
-        elif isinstance(speech_items, str) and speech_items:
-            text_parts.append(f"{name}: {speech_items}")
-
-    full_text = "\n\n".join(text_parts)
-    if not full_text.strip():
-        return None
-
-    return {
-        "text":    _smart_truncate(full_text),
-        "quarter": latest.get("quarter") or detail.get("quarter"),
-        "year":    latest.get("year") or detail.get("year"),
-        "title":   latest.get("title", ""),
-    }
-
-
 def _fetch_latest_transcript(symbol: str) -> dict | None:
-    """Fetch the most recent earnings call transcript. FMP primary, Finnhub
-    fallback — see module docstring "2026-08-05: FMP promoted to primary".
+    """Fetch the most recent earnings call transcript from FMP (the dead
+    Finnhub leg was deleted 2026-11-28, see the module docstring).
 
     Returns {text, quarter, year, title} or None if unavailable.
     """
     try:
-        fmp_result = _fetch_latest_transcript_fmp(symbol)
+        return _fetch_latest_transcript_fmp(symbol)
     except Exception as exc:
         _logger.warning("FMP transcript fetch failed for %s: %s", symbol, exc)
-        fmp_result = None
-    if fmp_result is not None:
-        return fmp_result
-
-    return _fetch_latest_transcript_finnhub(symbol)
+        return None
 
 
 def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int | None) -> dict | None:
