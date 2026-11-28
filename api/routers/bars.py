@@ -1984,6 +1984,46 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
 _bars_history_proxy_client = None
 
 
+#: ⛔⛔ (2026-11-28) THE DEEP-HISTORY PROXY'S CIRCUIT BREAKER. With a hung worker every /api/bars-history request held a
+#: web connection for up to httpx's 15 s read on the one shared AsyncClient (100-connection pool) before falling back
+#: to the shallow store on the route's 8-thread limiter; at 500 members' retries (~17 req/s) the pool saturates. After a
+#: proxy failure or timeout the proxy is SKIPPED for this many seconds: requests answer the shallow store at once
+#: (still `partial`, never cached). Then ONE request probes (half-open): success closes it, failure re-opens it.
+HISTORY_PROXY_BREAKER_SECONDS = float(os.environ.get("BARS_HISTORY_PROXY_BREAKER_SECONDS", "20"))
+_history_breaker = {"open_until": 0.0, "probing": False}
+_history_breaker_lock = _threading.Lock()
+
+
+def _history_proxy_allowed() -> bool:
+    """May this request try the worker? Closed: yes. Open (inside the window): no. Half-open (the window over): only
+    the ONE request that claims the probe; the others skip until its answer lands."""
+    now = _time.monotonic()
+    with _history_breaker_lock:
+        until = _history_breaker["open_until"]
+        if until <= 0.0:
+            return True
+        if now < until or _history_breaker["probing"]:
+            return False
+        _history_breaker["probing"] = True
+        return True
+
+
+def _history_proxy_succeeded() -> None:
+    with _history_breaker_lock:
+        _history_breaker["open_until"] = 0.0
+        _history_breaker["probing"] = False
+
+
+def _history_proxy_failed() -> None:
+    with _history_breaker_lock:
+        _history_breaker["open_until"] = _time.monotonic() + max(0.0, HISTORY_PROXY_BREAKER_SECONDS)
+        _history_breaker["probing"] = False
+
+
+def _history_breaker_reset_for_tests() -> None:
+    _history_proxy_succeeded()
+
+
 async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
     """Forward a sealed-history request to the WORKER origin (its DEEP bars.db) and return the
     response verbatim — body + the immutable/short Cache-Control — so Cloudflare caches the
@@ -2221,11 +2261,17 @@ async def get_bars_history(
         # ⛔ BREADTH TOO, for the same reason: a breadth pseudo-ticker's sealed history is
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
-        try:
-            resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
-            return await _history_thread(gzip_with_length, resp, request.headers.get("accept-encoding", ""))
-        except Exception:
-            fell_back = True  # worker unreachable/slow → the web's own history, marked partial and never cached
+        if not _history_proxy_allowed():
+            fell_back = True  # the breaker is open: the web's own history at once, marked partial, never cached
+        else:
+            try:
+                resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            except Exception:
+                _history_proxy_failed()
+                fell_back = True  # worker unreachable/slow → the web's own history, marked partial and never cached
+            else:
+                _history_proxy_succeeded()
+                return await _history_thread(gzip_with_length, resp, request.headers.get("accept-encoding", ""))
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
