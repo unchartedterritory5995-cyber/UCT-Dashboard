@@ -38,7 +38,11 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'OVER_30MS']
+ORDER = ['WRONG_CHART', 'BLANK', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+#: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the switch's symbol disagree on its developing close by more
+#: than this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
+#: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
+CLOSE_TOL = 0.005
 INTRA_MIN = {'1': 1, '5': 5, '15': 15, '30': 30, '45': 45, '60': 60, '120': 120, '240': 240}
 
 
@@ -169,6 +173,40 @@ def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
     return None
 
 
+def _bar_session(t) -> str:
+    """'ext' when a chart's newest bar is an intraday bar outside the regular session, else 'rth'. The chart's time axis is
+    the ET WALL CLOCK written as UTC (measured: the 11-27 half day's last 1m bar is 12:59 'UTC'), so the hour is read as
+    given. A D / W / M bar (a date) is the regular session's."""
+    if not isinstance(t, (int, float)):
+        return 'rth'
+    m = int(t // 60) % 1440
+    return 'rth' if 9 * 60 + 30 <= m < 16 * 60 else 'ext'
+
+
+def close_check(p: dict, frames: list, ids: list, tol: float) -> tuple[bool, dict]:
+    """(mismatch, {chart: its final developing close}) for the charts that END on the switch's symbol (the last frame's
+    header names it, first word exactly: a chart on another symbol has nothing to agree with). Needs two such charts.
+    Skipped (no mismatch, reason recorded) when they end in different sessions: after hours, an intraday chart with
+    extended hours ends on the post-market price while a D chart keeps the regular close, and both are right.
+    A timeframe press (dir == 'tf') changes one chart's timeframe, never its symbol, so the same rule holds: only the
+    charts at the pressed symbol are compared."""
+    tgt = str(p.get('sym') or '').upper()
+    ends, sess = {}, {}
+    for cid in ids:
+        last = next((f['c'][cid] for f in reversed(frames) if f['c'].get(cid) and f['c'][cid].get('nb')), None)
+        if last and tgt and _first_word(last.get('hs')) == tgt and isinstance(last['nb'][1], (int, float)):
+            ends[cid] = float(last['nb'][1])
+            sess[cid] = _bar_session(last['nb'][0])
+    info = {'closes': ends}
+    if len(ends) < 2:
+        return False, info
+    if len(set(sess.values())) > 1:
+        info['skipped'] = f"sessions differ ({', '.join(f'{c} {v}' for c, v in sorted(sess.items()))})"
+        return False, info
+    hi, lo = max(ends.values()), min(ends.values())
+    return bool(hi > 0 and (hi - lo) / hi > tol), info
+
+
 def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     """One switch, by the PC grader's rules (verbatim but for STALE's expectation)."""
     key = p['key']
@@ -294,6 +332,15 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         ids = []
     if sw_full is None or (never and p.get('dir') != 'tab') or (sw_full is not None and sw_full > 30):
         flags.add('OVER_30MS')
+    # the developing closes the board ends on (close_check: the charts at the symbol, one session)
+    mism, cinfo = close_check(p, frames, ids, float(exp.get('closeTol', CLOSE_TOL)))
+    if mism:
+        flags.add('CLOSE_MISMATCH')
+    for cid, c in cinfo['closes'].items():
+        if cid in detail:
+            detail[cid]['endClose'] = c
+    if cinfo.get('skipped') and detail:
+        next(iter(detail.values()))['closeCheck'] = 'skipped: ' + cinfo['skipped']
     if len(ids) == 2:
         a, b = shown.get(ids[0]), shown.get(ids[1])
         if a is None or b is None or abs(a - b) > 34:
@@ -478,6 +525,32 @@ def self_check() -> None:
     # a prefix pair (old AAPL, target AA): both rules still apply (the header's first word is compared exactly)
     pnopre = {'i': 8, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(1012, 'AAPL', 10, ni=349, lr=(-438, 352)), fr(1080, 'AA', 20)]}
     ptick = {'i': 9, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 11), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    # CLOSE_MISMATCH: two charts of the symbol ending on different developing closes (the W+M board's two-week-old monthly
+    # close), a ~0.6% gap (over the 0.5% tolerance) and a 0.4% one (under it), a second chart whose header names ANOTHER
+    # symbol (never compared), charts in different sessions (D vs an after-hours intraday bar: skipped), and timeframe presses
+    def fr2(t, sym, c1, c2, sym2=None, t1='2026-11-27', t2='2026-11-01'):
+        a = fr(t, sym, c1)['c']['flip-chart']
+        a = {**a, 'nb': [t1, c1]}
+        return {'t': t, 'c': {'flip-chart': a, 'flip-chart-2': {**a, 'hs': sym2 or sym, 'nb': [t2, c2]}}}
+    tfs2 = {'flip-chart': 'W', 'flip-chart-2': 'M'}
+    cases = {
+        'mism': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 177.67)], {}, True),
+        'agree': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 169.36)], {}, False),
+        'six-tenths': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 100.6)], {}, True),
+        'four-tenths': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 100.4)], {}, False),
+        'other-symbol': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 50.0, sym2='CCC')], {}, False),
+        'other-session': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, t2=1795821000)], {}, False),   # 23:10 'UTC' = after hours
+        'same-session-intraday': ([fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, t1=1795784340, t2=1795784100)], {}, True),
+        'tf-press': ([fr2(990, 'BBB', 10, 10), fr2(1012, 'BBB', 100.0, 103.0)], {'dir': 'tf', 'tf': 'M'}, True),
+        'tf-press-other': ([fr2(990, 'BBB', 10, 10), fr2(1012, 'BBB', 100.0, 103.0, sym2='CCC')], {'dir': 'tf', 'tf': 'M'}, False),
+    }
+    for nm, (frs, extra, want) in cases.items():
+        sw = {'i': 40, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': frs, **extra}
+        got = 'CLOSE_MISMATCH' in grade_switch(sw, {'flips': []}, tfs2, exp)['flags']
+        assert got == want, (nm, got)
+    assert close_check({'sym': 'BBB'}, cases['other-session'][0], ['flip-chart', 'flip-chart-2'], CLOSE_TOL)[1].get('skipped', '').startswith('sessions differ')
+    assert _bar_session(1795784340) == 'rth' and _bar_session(1795821000) == 'ext' and _bar_session('2026-11-27') == 'rth'
+    print('grade self-check: CLOSE_MISMATCH ok (a two-week-old close, 0.6% over / 0.4% under, another symbol, another session, timeframe presses told apart)')
     g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
     assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
     assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
