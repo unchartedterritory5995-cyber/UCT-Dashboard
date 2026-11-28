@@ -396,16 +396,21 @@ test('W10 (owner) go to 1/3/2006, arrow through 10 symbols: each opens at that d
   const w = lastProps('S0').anchorWidth
   expect(lastProps('S0').anchorDate).toBe('2006-01-03')
   expect(w).toBe(165)                                         // the member's span (the front's frame: 160 - -5)
+  // ⚠️ Under act() the handoff's show lands when the settle's act scope ends (its last tick), so the hidden pane's
+  // retarget, scheduled from that commit (afterPaint), runs only once time moves again: a press straight after the
+  // settle would race its own retarget (the member had zero time on the chart). `listAt` then a short look (100 ms of
+  // fake time) is the member's cadence: the list centres on the new row, the hidden pane takes the next one
   for (const s of SYMS.slice(1)) {
     act(() => { setGroup(s) })
     await settle(400)
     expect(symIn(layer('front'))).toBe(s)
     expect(lastProps(s).anchorDate, `${s} opened at another date`).toBe('2006-01-03')
     expect(lastProps(s).anchorWidth, `${s} opened at another span`).toBe(w)
+    expect(dbm.doubleBufferStats().last.at(-1), `${s} did not flip`).toBe(`${s}:flip`)   // every press at the date flips
     act(() => { listAt(s) })
-    await settle(400)
+    await settle(100)
   }
-  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBeGreaterThanOrEqual(5)
+  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBe(9)
   const latest = within(layer('front')).getByRole('button', { name: 'Back to the latest bar' })
   fireEvent.click(latest)
   await settle()
