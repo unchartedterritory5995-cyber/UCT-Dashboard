@@ -259,10 +259,13 @@ describe('W3 — the lake\'s window equals the origin\'s `to=` answer, on 20 fix
       const src = fakeSource(market)
       const viaLake = net({ request: o2.request, history: createHistoryFeed({ source: src }) })
       await viaLake.network.fetchOnce(K, { depth: bars, priority: 'visible' })
-      expect(o2.urls, 'the lake answered').toEqual([])
       const a = ohlcv(viaOrigin.registry.peek(K).bars)
       const b = ohlcv(viaLake.registry.peek(K).bars)
       expect(a.length, 'non-vacuity: the origin answered bars').toBeGreaterThan(0)
+      // a whole window sends nothing to the origin; one that is all there is (short of the asked: a listing's first week,
+      // the 2003-09 floor) asks it beside the lake (review of #2986, F1's mirror) and lands the lake's, the same bars
+      expect(o2.urls.length, 'the lake answered').toBe(a.length >= asked ? 0 : 1)
+      expect(viaLake.network.windowSource(K)).toBe('lake')
       expect(a).toEqual(originTo(market[sym][tf], date, asked))
       expect(b).toEqual(a)
       // ...in ONE read of the pieces: the piece the cutoff falls in counts only its share before it, so the older piece
