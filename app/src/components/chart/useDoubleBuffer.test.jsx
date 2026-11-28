@@ -524,7 +524,7 @@ describe('useDoubleBuffer', () => {
     const frame = { fromRight: 0.99 * 4019, toRight: (0.99 - 1) * 4019, locked: true, lock }
     return [{ ...meta(160), frame, rows: 25553 }, { ...meta(160), frame: { ...frame, lock: { ...lock } }, rows }]
   }
-  it('H22 a short shadow whose history is PROVED whole (historyComplete) flips, at the lock frame, on the store's bars', async () => {
+  it("H22 a short shadow whose history is PROVED whole (historyComplete) flips, at the lock frame, on the store's bars", async () => {
     const h = await ready()
     await idle()
     ;[panes[0].m, panes[1].m] = zoomed(828)

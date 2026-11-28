@@ -10,7 +10,8 @@ const OPEN = Date.UTC(2026, 10, 10, 14, 30) / 1000     // Tue 09:30 ET
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(OPEN * 1000 + 60 * 60_000) })
 afterEach(() => { vi.useRealTimers() })
 
-const older = (n) => Array.from({ length: n }, (_, i) => ({ t: OPEN - (n - i) * 300, o: 10, h: 11, l: 9, c: 10, v: 5 }))
+// older rows that share the answer's bars (the join proves its price basis over them)
+const older = (n) => Array.from({ length: n + 12 }, (_, i) => ({ t: OPEN - (n - i) * 300, o: 10, h: 11, l: 9, c: 10, v: 5 }))
 function world(olderBars) {
   const request = vi.fn(async () => {
     const bars = []
@@ -33,7 +34,7 @@ async function seeded(olderBars) {
 describe('historyComplete', () => {
   it('C1 a lake load that took every older piece: complete', async () => {
     const w = await seeded(vi.fn(async () => ({ bars: older(300), exhausted: false, complete: true })))
-    expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(300)
+    expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(12)   // the lake's rows joined
     expect(w.net.historyComplete(w.key)).toBe(true)
   })
   it('C2 a lake load that answered rows but NOT all the lake holds: not complete', async () => {
