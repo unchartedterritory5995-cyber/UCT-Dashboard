@@ -110,8 +110,9 @@ def checkout(sha: str, dest: str) -> None:
 
 
 def check_tree(out: str) -> list[str]:
-    """Every file of a build, relative; refuses anything but directories and single-link regular files."""
-    files = []
+    """Every file of a build, relative; refuses anything but directories and single-link regular files, and a file or a
+    build larger than a build can be (MAX_FILE, MAX_TOTAL, MAX_FILES: the same bounds unpack holds)."""
+    files, total = [], 0
     for root, dirs, names in os.walk(out, followlinks=False):
         for d in dirs:
             st = os.lstat(os.path.join(root, d))
@@ -122,6 +123,9 @@ def check_tree(out: str) -> list[str]:
             st = os.lstat(p)
             if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
                 raise SystemExit(f"refused: the build holds a symlink, hardlink or special file ({len(files)} files in)")
+            total += st.st_size
+            if st.st_size > MAX_FILE or total > MAX_TOTAL or len(files) >= MAX_FILES:
+                raise SystemExit(f"refused: the build is larger than a build can be ({len(files)} files, {total} bytes in)")
             files.append(os.path.relpath(p, out).replace(os.sep, "/"))
     return sorted(files)
 
@@ -209,9 +213,18 @@ def build_side(side: str, ref: str, sha: str, extra: str, out_root: str, tmp: st
            "--pids-limit", "4096", "-e", "HOME=/tmp", "-e", "npm_config_cache=/tmp/.npm", "-e", "NODE_OPTIONS=--max-old-space-size=4096",
            "--env-file", env_file, "-v", f"{os.path.join(src, 'app')}:/app", "-v", f"{dist}:/out", "-w", "/app", IMAGE,
            "sh", "-c", "npm ci --no-audit --no-fund && npx vite build --outDir /out --emptyOutDir --logLevel warn"]
+    import secrets
     import time
     t0 = time.time()
-    p = subprocess.run(cmd, timeout=1800)
+    # the container's output is the CANDIDATE's: a line it prints like `::set-output::` / `::add-mask::` would be read
+    # as a workflow command. GitHub ignores every command between ::stop-commands::<token> and ::<token>::, and the
+    # token is random, so the candidate cannot end the window early.
+    token = secrets.token_hex(16)
+    print(f"::stop-commands::{token}", flush=True)
+    try:
+        p = subprocess.run(cmd, timeout=1800)
+    finally:
+        print(f"::{token}::", flush=True)
     if p.returncode != 0:
         raise SystemExit(f"the side {side} build failed in its container (exit {p.returncode})")
     print(f"side {side}: built in its container in {round(time.time() - t0)} s", flush=True)
@@ -310,6 +323,13 @@ def self_check() -> int:
         os.link(os.path.join(b, "index.html"), os.path.join(b, "assets", "hl"))
         ok &= refused(lambda: check_tree(b))
         os.remove(os.path.join(b, "assets", "hl"))
+        # and a file larger than a build's bound
+        global MAX_FILE
+        keep, MAX_FILE = MAX_FILE, 3
+        try:
+            ok &= refused(lambda: check_tree(b))
+        finally:
+            MAX_FILE = keep
         try:
             os.symlink("/proc/self/environ", os.path.join(b, "assets", "sl.js"))
             ok &= refused(lambda: check_tree(b))

@@ -95,7 +95,11 @@ def parity(sha: str, entry: str, prod_commit: str | None, prod_entry: str | None
 
 
 def meta(dist: str, side: str, ref: str, sha: str, env_keys: list[str]) -> tuple[dict, int]:
-    html = open(os.path.join(dist, "index.html"), encoding="utf-8").read()
+    ip = os.path.join(dist, "index.html")
+    if os.path.getsize(ip) > 1 << 20:   # a vite index.html is a few KB: the candidate's file is never read unbounded
+        raise SystemExit("refused: the build's index.html is larger than 1 MB")
+    with open(ip, encoding="utf-8", errors="replace") as f:
+        html = f.read(1 << 20)
     m = ENTRY.search(html)
     if not m:
         raise SystemExit(f"{dist}/index.html names no /assets/index-*.js: not a vite build")

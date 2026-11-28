@@ -58,7 +58,20 @@ def production() -> dict:
     ray = hh.get("cf-ray") or hh.get("CF-RAY") or ""
     return {"at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "apiUptime": h.get("uptime_seconds"),
             "apiCommit": str(h.get("commit") or h.get("git_sha") or "")[:12] or None, "webBuild": str(b.get("commit") or "")[:12] or None,
+            "webBuildId": b.get("build_id") or None,
             "colo": ray.rsplit("-", 1)[-1] if "-" in ray else None, "error": h.get("error")}
+
+
+def deploys(h0: dict, h1: dict) -> list[str]:
+    """What changed between a pass's start and end: 'api' (its commit, or its uptime fell: a restart) and/or 'front'
+    (web-front's commit or build_id). The two deploy apart, so either one is A DEPLOY LANDED."""
+    out = []
+    if (h0.get("apiCommit") and h1.get("apiCommit") and h0["apiCommit"] != h1["apiCommit"]) or (
+            isinstance(h0.get("apiUptime"), (int, float)) and isinstance(h1.get("apiUptime"), (int, float)) and h1["apiUptime"] < h0["apiUptime"]):
+        out.append("api")
+    if any(h0.get(k) and h1.get(k) and h0[k] != h1[k] for k in ("webBuild", "webBuildId")):
+        out.append("front")
+    return out
 
 
 def session_now() -> str:
@@ -209,7 +222,7 @@ def run_passes(a, plan, lane, rig, sides=(), reps: int = 1) -> int:
         extra = ([f"--dist={side['dist']}", f"--build-label={side['label']}"] if side and side["dist"] else [])
         h0, t0, sess = production(), time.time(), session_now()
         tag = f"{name} [{side['side']} run {k}: {side['label']}]" if side else name
-        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} start {tag} [{sess}] production api {h0['apiCommit']} web {h0['webBuild']} colo {h0['colo']}", flush=True)
+        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} start {tag} [{sess}] production api {h0['apiCommit']} front {h0['webBuild']} ({h0.get('webBuildId')}) colo {h0['colo']}", flush=True)
         log = open(os.path.join(d, f"{fname}.log"), "w", encoding="utf-8")
         try:
             p = subprocess.run(["node", rig, os.path.join(d, f"{fname}.json"), *spec["args"], *extra], stdout=log, stderr=subprocess.STDOUT, timeout=PASS_TIMEOUT_S)
@@ -221,11 +234,12 @@ def run_passes(a, plan, lane, rig, sides=(), reps: int = 1) -> int:
         h1 = production()
         health = {"pass": name, "run": k if side else None, "lane": a.lane, "side": side["side"] if side else None, "build": side["label"] if side else "production",
                   "position": position, "exit": rc, "seconds": round(time.time() - t0), "session": sess, "before": h0, "after": h1,
-                  "deployDuring": bool(h0.get("apiCommit") and h1.get("apiCommit") and h0["apiCommit"] != h1["apiCommit"])
-                  or bool(isinstance(h0.get("apiUptime"), (int, float)) and isinstance(h1.get("apiUptime"), (int, float)) and h1["apiUptime"] < h0["apiUptime"])}
+                  "deploys": deploys(h0, h1)}
+        health["deployDuring"] = bool(health["deploys"])
         json.dump(health, open(os.path.join(d, f"{fname}.health.json"), "w", encoding="utf-8"), indent=1)
         tail = open(os.path.join(d, f"{fname}.log"), encoding="utf-8", errors="replace").read().splitlines()[-6:]
-        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} {tag} exit {rc} in {health['seconds']} s{' (A DEPLOY LANDED DURING IT)' if health['deployDuring'] else ''}", flush=True)
+        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} {tag} exit {rc} in {health['seconds']} s"
+              f"{' (A DEPLOY LANDED DURING IT: ' + ', '.join(health['deploys']) + ')' if health['deployDuring'] else ''}", flush=True)
         for line in tail:
             line = TOKENISH.sub(r"\1[redacted]", line)
             for v in secrets():
@@ -272,6 +286,12 @@ def self_check() -> int:
         ok = (leaks == 1 and not os.path.exists(os.path.join(d, "c.png")) and fake not in a_log and "abc123def" not in a_log
               and "uct_session=[redacted]" in a_log and fake not in b_json and os.path.exists(os.path.join(d, "d.json")))
         print(f"self-check {'ok' if ok else 'FAILED'}: leaks={leaks} a.log={a_log!r}")
+        # a deploy of EITHER build mid-pass is flagged, and named
+        a = {"apiCommit": "aaa", "apiUptime": 50, "webBuild": "fff", "webBuildId": "assets/index-1.js"}
+        dk = [deploys(a, a), deploys(a, {**a, "webBuild": "ggg"}), deploys(a, {**a, "webBuildId": "assets/index-2.js"}),
+              deploys(a, {**a, "apiUptime": 3}), deploys(a, {**a, "apiCommit": "bbb", "webBuild": "ggg"})]
+        dok = dk == [[], ["front"], ["front"], ["api"], ["api", "front"]]
+        print(f"self-check {'ok' if dok else 'FAILED'}: deploys {dk}")
         if not ok:
             return 1
         # the A/B sides: parsed, refused when half-given or pointing at no build, interleaved by plan position
@@ -293,7 +313,7 @@ def self_check() -> int:
         r2 = "".join(s["side"] for _n, s, _k in runs_of(plan, {"passes": ["P0"]}, sides, 2))
         ab_ok = ab_ok and r2 == "ABBABAAB"
         print(f"self-check {'ok' if ab_ok else 'FAILED'}: A/B sides {r0}")
-        return 0 if ab_ok else 1
+        return 0 if ok and dok and ab_ok else 1
 
 
 if __name__ == "__main__":
