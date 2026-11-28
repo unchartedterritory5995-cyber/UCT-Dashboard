@@ -72,7 +72,7 @@ describe('useDoubleBuffer: three layers', () => {
     expect(db.doubleBufferStats().flips).toBe(1)
   })
 
-  it('L6 typing on: a new candidate takes the ROW pane, the previous candidate's pane is kept until the new one reports', async () => {
+  it('L6 typing on: a new candidate takes the ROW pane, the previous candidate pane is kept until the new one reports', async () => {
     nf.publishScanNeighbors('AAA', ['BBB'], ['ZZZ'])
     const h = mount()
     reportAll(h)
