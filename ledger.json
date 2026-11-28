@@ -8039,6 +8039,36 @@
     "ATAI",
     "DCH"
    ]
+  },
+  {
+   "id": "cloud/46126874712-1/COV-def-dd-arrows",
+   "at": "2026-11-28T08:40:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ABR",
+    "IPI",
+    "IRD",
+    "RBCAA",
+    "LXEO",
+    "IACO",
+    "PTLO",
+    "IEP",
+    "FCBC",
+    "MLP",
+    "RTAC",
+    "YALA",
+    "STEM"
+   ]
+  },
+  {
+   "id": "cloud/46126874712-1/COV-def-tabs",
+   "at": "2026-11-28T08:40:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ORGO",
+    "KRT",
+    "MATV"
+   ]
   }
  ]
 }
