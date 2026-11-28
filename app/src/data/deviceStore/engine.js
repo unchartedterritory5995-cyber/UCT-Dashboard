@@ -19,8 +19,9 @@
 // closed and deleted. A crash at any point leaves either the old committed generation or the new one.
 //
 // ⭐ READ: index row → ONE positioned read into a reused buffer → inflate + decodeBody (codec.js) →
-// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads only: the page is never
-// served them (tfs.SERVED_TFS, review of #2537 H1). Symbols are keyed as /api/bars names them
+// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads and diagnostics only: the
+// worker never answers a W / M read (tfs.WORKER_SERVED_TFS); the PAGE derives them from the D copy it reads
+// (source.js, resample.deriveServed: only from a whole copy whose period in progress is known, PR 3.3). Symbols are keyed as /api/bars names them
 // (upper case; class shares with '-', e.g. BRK-B); a '.' spelling in a file is found too. A symbol the
 // file does not hold reads null: no device copy, the chart asks the network.
 //
@@ -496,10 +497,15 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       return false
     },
 
-    /** M5: this browser has no room for the seed (until the marker expires): {status: 'no-room', ...} or null. */
-    ingestBlocked() {
+    /** M5: this browser has no room for timeframe `tf` (until the marker expires): {status: 'no-room', ...} or null.
+     *  Without `tf`: is EVERY download blocked (workerCore then asks nothing, not even the manifest)?
+     *  ⭐ A "no room" for D blocks ONLY D (review of zero-network PR 3.1): the full-depth D pack is ~130 MB, by far the
+     *  likeliest to find no room, and a marker that stopped every timeframe held the intraday packs and their nightly
+     *  deltas (tens of KB) for three days too. The intraday seed keeps flowing; D tries again when its marker expires. */
+    ingestBlocked(tf) {
       const n = state.noRoom
       if (!n || !(now() < n.until)) return null
+      if (n.tf === 'D' && String(tf) !== 'D') return null
       return { status: 'no-room', ...n }
     },
 
@@ -582,7 +588,9 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         try { out.push(await api.ingest({ build: manifest.build, ...e, tf, url, delta }, { signal })) } catch (err) {
           out.push({ tf, status: 'error', error: String(err?.message || err) })
         }
-        if (out[out.length - 1]?.status === 'no-room') break   // M5: the next timeframe would not fit either
+        // M5: after an intraday no-room the next timeframe would not fit either; after D's (the big one) it may
+        const last = out[out.length - 1]
+        if (last?.status === 'no-room' && last.tf !== 'D') break
       }
       return out
     },
@@ -695,7 +703,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     await api.open()
     const cur = live.get(tf)
     if (_isCurrent(cur, entry)) return { tf, status: 'current', build: cur.build, via: cur.via ?? 'full' }
-    const blocked = api.ingestBlocked()
+    const blocked = api.ingestBlocked(tf)
     if (blocked) return { ...blocked, tf }
     const backoff = await _backoffFor(tf, entry)
     if (backoff) return backoff

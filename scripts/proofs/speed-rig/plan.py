@@ -9,7 +9,7 @@ every stocks, test using different ones each time to make sure they are cold"), 
   (d) typed D and W zoomed out to 2014 on a single chart
   (e) a past date (1/3/2006) through the Time Navigator on D and 15m, arrows and typed
   (f) memory after 50 arrows over a fresh 51-ticker list
-37 passes, 427 tickers. Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
+41 passes, 443 tickers (37 + the 4 timeframe-change passes, lane C). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
 the sweep starts: no ticker is shared between two passes, two sweeps, or a sweep and any earlier PC run.
 
 LANES. isolate=browser (default): each pass's board state lives in its own browser (rig.mjs header), so passes on one
@@ -50,7 +50,7 @@ FC = ["--focus-check=1", "--human-type=1"]
 BOARDS = [("dd", "test-board"), ("tc", "tc2000-sw-board"), ("m1", "one-fifteen-board"), ("m5h1", "m5h1-board"),
           ("d30", "d30-board"), ("h4h2", "h4h2-board"), ("wm", "wm-board")]
 #: a pass's wall time on the PC (2026-11-28 coverage run: ~85-95 s a switching pass, ~150 s the tab pass), for lanes
-SECONDS = {"arrows": 90, "typed": 92, "tabs": 155, "zoom": 100, "date": 95, "mem": 175}
+SECONDS = {"arrows": 90, "typed": 92, "tabs": 155, "zoom": 100, "date": 95, "mem": 175, "tf": 200}
 
 
 def passes() -> list[dict]:
@@ -71,6 +71,11 @@ def passes() -> list[dict]:
     for tf in ("D", "15"):
         add(f"COV-date-{tf}-arrows", [f"--tf={tf}", "--pattern=down", "--flips=12", "--dwell=1000", "--go-to-date=1/3/2006", *J], 13, 0, "date", f"date-{tf}", "date")
         add(f"COV-date-{tf}-typed", [f"--tf={tf}", "--pattern=typed", "--dwell=2500", "--go-to-date=1/3/2006", *J, *FC], 3, 6, "date", f"date-{tf}", "date")
+    # (lane C, 2026-11-28, goal A4) TIMEFRAME CHANGES: on 3 fresh rows in turn, every toolbar timeframe (1, 5, 15, 30, custom 45m,
+    # 1h, custom 2h, custom 4h, D, W, M; a code the bar shed is pressed in its More timeframes menu), key = the click;
+    # default, zoomed out, at a past date, and with NO list linked (the list on group B, each ticker typed in)
+    for name, extra in (("def", []), ("zo", ["--zoom-out-max=1"]), ("date", ["--go-to-date=6/14/2016"]), ("nolist", ["--tf-nolist=1"])):
+        add(f"COV-tf-{name}", ["--tf=D", "--pattern=tf", "--tf-syms=3", "--dwell=2500", *extra, *J], 4, 0, "tf", f"tf-{name}", "date" if name == "date" else ("zo" if name == "zo" else "def"))
     add("COV-MEM50", [f"--board={BOARDS_DIR}/one-fifteen-board.json", "--pattern=down", "--flips=50", "--dwell=1000", "--mem-probe=1", *J], 51, 0, "mem", "m1", "mem")
     return out
 
@@ -148,9 +153,9 @@ def build(args, led: dict) -> tuple[dict, dict]:
 def self_check() -> None:
     allp = passes()
     names = [p["name"] for p in allp]
-    assert len(names) == 37 and len(set(names)) == 37, len(names)
+    assert len(names) == 41 and len(set(names)) == 41, len(names)
     need = sum(p["list"] + p["typed"] for p in allp)
-    assert need == 427, need
+    assert need == 443, need
     led = L.empty()
     led["pool"]["tickers"] = [f"T{i:04d}" for i in range(1000)]
     led["runs"] = [{"id": "pc/x", "at": L.now(), "tickers": [f"T{i:04d}" for i in range(100)]}]
@@ -159,11 +164,11 @@ def self_check() -> None:
         sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days = "s1", ".*", 0, "browser", 1, 8, False, None
     plan, led2 = build(A, json.loads(json.dumps(led)))
     got = [t for p in plan["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
-    assert len(got) == 427 and len(set(got)) == 427, "two passes share a ticker"
+    assert len(got) == 443 and len(set(got)) == 443, "two passes share a ticker"
     assert not set(got) & {f"T{i:04d}" for i in range(100)}, "a ticker an earlier run used was handed out"
     # browser lanes on ONE account: PER_ACCOUNT lanes, every pass once, never more lanes per account than it may carry
     flat1 = [n for ln in plan["lanes"] for n in ln["passes"]]
-    assert len(led2["runs"]) == 1 + 37 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
+    assert len(led2["runs"]) == 1 + 41 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
     assert sorted(flat1) == sorted(names) and {ln["slot"] for ln in plan["lanes"]} == {1}
     A.sweep_id, A.accounts = "s1b", 4
     planb, _ = build(A, json.loads(json.dumps(led)))
@@ -192,7 +197,7 @@ def self_check() -> None:
     plan4, _ = build(A, json.loads(json.dumps(led)))
     flat = [n for ln in plan4["lanes"] for n in ln["passes"]]
     assert sorted(flat) == sorted(names) and len(plan4["lanes"]) == 3 and plan4["maxParallel"] == 3
-    print("plan self-check: ok (37 passes, 427 tickers, no ticker shared, exhaustion refused, at most 2 browsers per account)")
+    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused, at most 2 browsers per account)")
 
 
 def main() -> int:

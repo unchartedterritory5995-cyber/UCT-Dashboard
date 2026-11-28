@@ -30,7 +30,7 @@ import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
   rw.applied = true
-  chart.window.setWindow(rw.rows, { span: rw.span })
+  chart.window.setWindow(rw.rows, { span: rw.span, tail: rw.tail })
 }
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -4194,6 +4194,7 @@ function StockChartBody({
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
   onTimeRangeChange = null, // (payload: {from, to}, { memberMoved }) => void — fires when visible time range changes; memberMoved says a member moved this chart, not a load or a re-frame
+  tfBarCodes = null, // (lane C) the codes on the host's timeframe bar: the habitual timeframes prepared ahead (useNeighborFrames)
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
@@ -11421,7 +11422,7 @@ function StockChartBody({
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow, tfBar: tfBarCodes })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -12278,7 +12279,9 @@ function StockChartBody({
         } catch { /* no view yet */ }
         const _geom = paintedGeomRef.current
         const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
-        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+        // (`tail`: bars right of the view's right edge, so a view scrolled back in history is cut on the right too)
+        const _tail = _geom && Number.isFinite(_geom.ro) && _geom.ro < 0 ? -_geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, tail: _tail, applied: false }
       }
       applyRenderWindow(chartRef.current, _pw.rw)
     }

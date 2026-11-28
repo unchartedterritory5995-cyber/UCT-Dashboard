@@ -170,7 +170,8 @@ describe('#2d typed warm', () => {
     await expect(p).resolves.toBe('network')
     // ONE tail (the chart joined the typed one); (2026-11-28) the deep history the warm primed is the only other request
     expect(w.server.calls.filter((c) => !c.q.history).length).toBe(1)
-    expect(w.server.calls.filter((c) => c.q.history).length).toBeLessThanOrEqual(1)
+    // (2026-11-28, review of #2959: not weakened) exactly ONE history, the warm's, which the chart's subscribe joined
+    expect(w.server.calls.filter((c) => c.q.history).map((c) => c.q.sym)).toEqual(['TYS'])
     off()
   })
 })

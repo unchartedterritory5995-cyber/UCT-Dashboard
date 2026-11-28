@@ -69,6 +69,8 @@ export function createBarStore(o = {}) {
   // `beforeAnswer` names `persist`, created below: it is called only when an answer lands, long after both exist.
   const network = o.network ?? createNetwork({
     beforeAnswer: (key, answer) => persist?.flushJoins?.(key, answer),
+    // a device copy that is the symbol's WHOLE series needs no deep history join (zero-network PR 3.2)
+    wholeHistory: (key) => persist?.deviceWhole?.(key) === true,
     history,
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),

@@ -229,6 +229,9 @@ export function createNetwork({
   beforeAnswer = null,
   // (fn) => cancel: where a BACKGROUND deepening's window lands (idleLand: idle time, giving way to input; tests pass their own)
   idle = idleLand,
+  // (key) => true when the entry already starts at its symbol's first served bar (index.js: persist.deviceWhole, the
+  // full-depth daily device copy, zero-network PR 3.2): its deep history join is never due
+  wholeHistory = null,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -388,6 +391,10 @@ export function createNetwork({
     if (split && isDateTf(p.tf) && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
       _armEdgeFallback(r)
+    } else if (split && r.cover > 0 && wanted > bars && _whole(r.key)) {
+      // (zero-network PR 3.2) the entry already holds every older row (a whole device copy): the newest rows are all the
+      // origin is asked, and no history follows (`_whole`), so there is nothing to fall back for
+      bars = Math.min(bars, EDGE_TAIL_BARS)
     }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
@@ -430,7 +437,7 @@ export function createNetwork({
       // the depth is still due after the answer, the history is asked; its join (or its "nothing older") settles it.
       // (A tail shorter than its ask is NOT proof the listing ended: the origin may hold less than the edge's history.)
       const coverDue = r.cover > 0 && api.deepPending(r.key)
-      if (split && !r.histAsked && !joinedHere && ((wantNow > bars && wantNow > (after?.depth ?? 0)) || coverDue)) {
+      if (split && !r.histAsked && !joinedHere && !_whole(r.key) && ((wantNow > bars && wantNow > (after?.depth ?? 0)) || coverDue)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
@@ -503,6 +510,11 @@ export function createNetwork({
       _queueTail(r, r.priority)
       _drain(r)
     }, EDGE_FALLBACK_MS)
+  }
+
+  /** Does the entry already hold its symbol's whole series (`wholeHistory`)? Never throws. */
+  function _whole(key) {
+    try { return wholeHistory?.(key) === true } catch { return false }
   }
 
   /** History answers slower than EDGE_FALLBACK_MS (most likely an edge MISS), newest last: `{ key, ms }`. */
@@ -1022,6 +1034,7 @@ export function createNetwork({
       // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
       // read filled it in (a short paint, then the jump).
       if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
+      if (_whole(key)) return false                // the entry holds the whole series: nothing older to join
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)

@@ -27,7 +27,7 @@ import { createDeviceEngine } from './engine'
 import { createCrossTab } from './crossTab'
 import { createLiveOverlay } from './live'
 import { createLiveFeed } from './liveFeed'
-import { deviceServesTf } from './tfs'
+import { workerServesTf } from './tfs'
 import { MINUTE_APPLIED_CHANNEL, appliedSignal } from '../../lib/minuteFrames/applied'
 
 /**
@@ -184,7 +184,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     // ⛔ NEVER A TIMEFRAME THE DEVICE DOES NOT SERVE (review of #2549, P2-L2): W / M from the device's D window lack the
     // period in progress and the depth (tfs.SERVED_TFS). The page stopped asking, but this is the LEADER: any tab asks it,
     // a tab still on the previous client (the deploy overlap) included. Its reads answer null, its diagnostics 'tf'.
-    if (req && (req.op === 'read' || req.op === 'readMany' || req.op === 'why') && !deviceServesTf(req.tf)) {
+    if (req && (req.op === 'read' || req.op === 'readMany' || req.op === 'why') && !workerServesTf(req.tf)) {
       return req.op === 'read' ? null : req.op === 'readMany' ? (req.syms || []).map(() => null) : 'tf'
     }
     // ⭐ (2026-11-21, the cold switch) a READ waits for its own timeframe's open, never for all six (engine.openTf)

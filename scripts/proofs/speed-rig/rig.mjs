@@ -168,6 +168,14 @@ const TRACE_CATS = ['devtools.timeline', 'disabled-by-default-devtools.timeline'
   'disabled-by-default-devtools.timeline.frame', 'toplevel', 'v8.execute', 'blink.user_timing', 'latencyInfo', 'input',
   'loading', 'disabled-by-default-v8.cpu_profiler', 'blink', 'cc', 'gpu', 'scheduler', 'renderer.scheduler']
 const UPDOWN = arg('pattern', 'down') // down | downup (down N then back up N: revisits) | typed | jump
+// --pattern=tf (lane C, 2026-11-28, goal A4): on --tf-syms fresh rows in turn (the first selected at start, then the next
+// row clicked, untimed), click EVERY timeframe of --tf-seq on the chart's own toolbar (custom 45m / 2h / 4h included: the
+// board's header favourites are set to the sequence), key = the click, frames sampled by the jump probe; each flip
+// records its tf, the tf it left, the view after the dwell and whether its key was fetched before the click
+const TF_SEQ = arg('tf-seq', '1,5,15,30,45,60,120,240,D,W,M').split(',').map((s) => s.trim()).filter(Boolean)
+const TF_SYMS = Number(arg('tf-syms', '3'))
+const TF_NOLIST = arg('tf-nolist', '') === '1'   // the list on group B (unlinked), each ticker typed into the chart
+const tfButtonLabel = (c) => { if (c === 'D' || c === 'W' || c === 'M') return '1' + c; const m = Number(c); return m >= 60 && m % 60 === 0 ? `${m / 60}h` : `${m}m` }
 // --pattern=typed --typed=AAA,BBB,...: with the chart focused, TYPE each ticker (one key-down per
 // character, --type-gap ms apart, as a member types), pause --typed-pause ms, then Enter. The flip's
 // key time is the ENTER: what a member waits on after deciding. The type-to-search warm (if any)
@@ -820,12 +828,12 @@ try {
 
   // A --tfs run clicks the chart's own timeframe buttons, and the bar sheds buttons that do not
   // fit: the chart is given more of the row then, so the buttons asked for are there to click.
-  const CHART_W = arg('tfs', '') ? 19 : 16
+  const CHART_W = (arg('tfs', '') || UPDOWN === 'tf') ? 19 : 16
   const layout = {
     widgets: [
-      { id: 'flip-chart', type: 'chart', color: 'A', x: 0, y: 0, w: TF2 ? 8 : CHART_W, h: 20, opts: { tf: TF, settings: { indicatorInstances: SETS[SET], ...(EXT !== '' ? { extendedHoursShading: EXT === '1' } : {}), ...(HEADER.length ? { header: { fields: HEADER } } : {}) } } },
+      { id: 'flip-chart', type: 'chart', color: 'A', x: 0, y: 0, w: TF2 ? 8 : CHART_W, h: 20, opts: { tf: TF, settings: { indicatorInstances: SETS[SET], ...(EXT !== '' ? { extendedHoursShading: EXT === '1' } : {}), ...(HEADER.length || UPDOWN === 'tf' ? { header: { ...(HEADER.length ? { fields: HEADER } : {}), ...(UPDOWN === 'tf' ? { timeframes: TF_SEQ } : {}) } } : {}) } } },
       ...(TF2 ? [{ id: 'flip-chart-2', type: 'chart', color: 'A', x: 8, y: 0, w: 8, h: 20, opts: { tf: TF2, settings: { indicatorInstances: SETS[SET], ...(EXT !== '' ? { extendedHoursShading: EXT === '1' } : {}) } } }] : []),
-      { id: 'flip-wl', type: 'watchlist', color: 'A', x: TF2 ? 16 : CHART_W, y: 0, w: TF2 ? 8 : 24 - CHART_W, h: 20, opts: { watchKey, watchName: pick.name } },
+      { id: 'flip-wl', type: 'watchlist', color: TF_NOLIST && UPDOWN === 'tf' ? 'B' : 'A', x: TF2 ? 16 : CHART_W, y: 0, w: TF2 ? 8 : 24 - CHART_W, h: 20, opts: { watchKey, watchName: pick.name } },
     ],
     cols: 24,
     version: 1,
@@ -1403,7 +1411,65 @@ try {
       save()
     }
   }
-  const total = UPDOWN === 'typed' || UPDOWN === 'jump' || UPDOWN === 'tabs' ? 0 : (UPDOWN === 'downup' ? FLIPS * 2 : FLIPS)
+  // ---- (lane C, 2026-11-28) --pattern=tf: every toolbar timeframe on fresh rows, key = the click
+  if (UPDOWN === 'tf') {
+    const baseOf = (c) => { if (c === 'D' || c === 'W' || c === 'M') return c; const m = Number(c); if (m === 45) return '15'; if (m > 60 && m % 60 === 0) return '60'; return c }
+    let cur = TF
+    let fi = 0
+    out.tfPass = { seq: TF_SEQ, syms: [] }
+    out.tfPass.nolist = TF_NOLIST
+    const typeInto = async (tk) => {
+      const ok = await run(`(()=>{const W=document.querySelector('[data-widget-id="flip-chart"]');const all=W?[...W.querySelectorAll('[tabindex="0"]')].filter((e)=>!e.closest('[inert]')):[];const el=all.find(e=>e.querySelector('canvas'))||all[0]||W;if(el&&el.focus){el.focus({preventScroll:true});return document.activeElement===el}return false})()`)
+      if (!ok) throw new Error('could not focus the chart to type ' + tk)
+      for (const ch of tk) {
+        const vk = ch.charCodeAt(0)
+        await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, code: /[A-Z]/.test(ch) ? `Key${ch}` : '', text: ch, unmodifiedText: ch, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk })
+        await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch, code: /[A-Z]/.test(ch) ? `Key${ch}` : '', windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk })
+        await sleep(120)
+      }
+      await sleep(300)
+      await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', text: '\r', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })
+      await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 })
+      await sleep(DWELL + 2500)
+    }
+    const listSyms = TF_NOLIST ? await run(`(()=>[...(document.querySelector('[data-widget-id="flip-wl"]')||document).querySelectorAll('[data-watch-sym]')].map((e)=>e.getAttribute('data-watch-sym')))()`) : []
+    if (TF_NOLIST) { if (!listSyms.length) throw new Error('no rows to type for --tf-nolist'); await typeInto(listSyms[0]) }
+    for (let si = 0; si < TF_SYMS; si++) {
+      if (si > 0 && TF_NOLIST) { if (!listSyms[si]) throw new Error('no row ' + si + ' to type'); await typeInto(listSyms[si]) } else
+      if (si > 0) {
+        const next = await run(`(()=>{const W=document.querySelector('[data-widget-id="flip-wl"]')||document;const rows=[...W.querySelectorAll('[data-watch-sym]')];const sel=W.querySelector('[data-watch-sym][aria-selected="true"],[data-watch-sym][data-selected="true"],[data-watch-sym][class*="listRowSelected"]');const k=sel?rows.indexOf(sel):-1;const r=rows[k+1];if(!r)return null;r.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));r.click();return r.getAttribute('data-watch-sym')})()`)
+        if (!next) throw new Error('no next row for the tf pass')
+        await sleep(DWELL + 1500)
+      }
+      const sym = await run(`(()=>{const W=document.querySelector('[data-widget-id="flip-chart"]');const e=W?[...W.querySelectorAll('[data-testid="sym-label"]')].find((x)=>!x.closest('[inert]')):null;return e?e.textContent.trim().split(/\\s+/)[0]:null})()`)
+      out.tfPass.syms.push(sym)
+      const seq = TF_SEQ.filter((c) => c !== cur)
+      for (const code of seq) {
+        const i = fi++
+        const label = tfButtonLabel(code)
+        const before = await run(`(()=>{const F=window.__flip;F.arm0&&F.arm0();F.frames.length=0;F.res.length=0;F.keys.length=0;F.dom.length=0;F.long.length=0;return {sig:F.sigOf(F.chart),sig2:F.chart2?F.sigOf(F.chart2):null}})()`)
+        if (JUMP_MS > 0) { await run(`(()=>{const ids=['flip-chart','flip-chart-2'];const J=window.__jump={frames:[],on:true};const hl0=(id)=>{const W=document.querySelector('[data-widget-id="'+id+'"]');const e=W?[...W.querySelectorAll('[data-testid="sym-label"]')].find((x)=>!x.closest('[inert]')):null;return e?e.textContent.trim():null};const rowSel=()=>document.querySelector('[data-watch-sym][aria-selected="true"],[data-watch-sym][data-selected="true"],[data-watch-sym][class*="listRowSelected"]');const scroller=(el)=>{for(let n=el&&el.parentElement;n;n=n.parentElement){const s=getComputedStyle(n);if((s.overflowY==='auto'||s.overflowY==='scroll')&&n.scrollHeight>n.clientHeight)return n}return null};const rect=(id)=>{const W=document.querySelector('[data-widget-id="'+id+'"]');if(!W)return null;let best=null,area=0;for(const c of W.querySelectorAll('canvas')){if(c.closest('[inert]'))continue;const r=c.getBoundingClientRect();if(r.width*r.height>area){area=r.width*r.height;best=r}}return best?[Math.round(best.x),Math.round(best.y),Math.round(best.width),Math.round(best.height)]:null};const t0=performance.now();const tick=()=>{if(!J.on)return;const t=performance.now();const f={t:Math.round(t*10)/10,c:{}};for(const id of ids){const h=(window.__uctChartDebug||{})[id];if(!h)continue;let lr=null,nb=null,ni=null,y0=null,y1=null,vt=null;try{lr=h.visibleRange()}catch(e){}try{const v=h.visibleTimeRange();vt=v?v.from:null}catch(e){}try{nb=h.newestBar()}catch(e){}try{ni=h.newestIndex()}catch(e){}if(nb&&nb.close!=null){try{y0=h.priceToY(nb.close);y1=h.priceToY(nb.close*1.01)}catch(e){}}if(h.autoscaleSources){J.st=J.st||{};J.as=J.as||[];const st=J.st[id]||(J.st[id]={});const idk=(hl0(id)||'')+'|'+(nb?String(nb.time):'');if(st.idk!==idk&&nb&&nb.close!=null){st.idk=idk;st.ref=nb.close;try{st.cache=h.autoscaleSources()}catch(e){st.cache=null}try{st.yr=h.priceToY(st.ref);st.yr1=h.priceToY(st.ref*1.01)}catch(e){}}else if(st.ref!=null){let yr=null,yr1=null;try{yr=h.priceToY(st.ref);yr1=h.priceToY(st.ref*1.01)}catch(e){}if(yr!=null&&st.yr!=null&&(Math.abs(yr-st.yr)>0.5||Math.abs(yr1-st.yr1)>0.5)){let now=null;try{now=h.autoscaleSources()}catch(e){}if(J.as.length<60)J.as.push({t:Math.round(performance.now()*10)/10,id:id,prev:st.cache||null,now:now,y:[st.yr,st.yr1,yr,yr1]});st.cache=now;st.yr=yr;st.yr1=yr1}}}const HW=document.querySelector('[data-widget-id="'+id+'"]');const hl=HW?[...HW.querySelectorAll('[data-testid="sym-label"]')].find((e)=>!e.closest('[inert]')):null;f.c[id]={hs:hl?hl.textContent.trim().slice(0,16):null,sp:(()=>{try{const tl=h.renderedTail?h.renderedTail(8):null;if(!tl||tl.length<2)return null;const ts=tl.map((b)=>typeof b.time==='number'?b.time:(typeof b.time==='string'?Date.parse(b.time)/1000:(b.time&&b.time.year?Date.UTC(b.time.year,b.time.month-1,b.time.day)/1000:null)));let m=null;for(let q=1;q<ts.length;q++){const g=ts[q]-ts[q-1];if(g>0&&(m==null||g<m))m=g}return m}catch(e){return null}})(),lr:lr?[Math.round(lr.from*100)/100,Math.round(lr.to*100)/100]:null,nb:nb?[nb.time,nb.close]:null,ni:ni,y0:y0==null?null:Math.round(y0*10)/10,y1:y1==null?null:Math.round(y1*10)/10,vt:vt,r:rect(id)}}const sel=rowSel();const sc=sel?scroller(sel):null;f.wl=sel?{s:sel.getAttribute('data-watch-sym'),o:sel.offsetTop,top:Math.round(sel.getBoundingClientRect().top),st:sc?Math.round(sc.scrollTop):null}:null;J.frames.push(f);if(t-t0<${JUMP_MS + 3500})requestAnimationFrame(tick);else J.on=false};requestAnimationFrame(tick);return true})()`) }
+        await run(`(()=>{try{window.__uctDeviceDiag&&window.__uctDeviceDiag.clear()}catch(e){}return true})()`)
+        // (2026-11-28) the jump probe must sample a frame BEFORE the key (the pre-key chart is the grader's base): a bar click
+        // right after the probe's start had none, and the OLD timeframe's chart on screen at +15 ms read as the new one's paint
+        await sleep(80)
+        const clicked = await run(`(async()=>{const W=document.querySelector('[data-widget-id="flip-chart"]');if(!W)return null;const bs=[...W.querySelectorAll('[data-guide="chart.timeframe"] button')].filter((b)=>!b.closest('[inert]'));const b=bs.find((x)=>x.textContent.trim()===${JSON.stringify(label)});if(b){const t=performance.now();window.__flip.keys.push(t);b.click();return {t,via:'bar'}}const more=[...W.querySelectorAll('[aria-label="More timeframes"]')].find((x)=>!x.closest('[inert]'));if(!more)return {miss:bs.map((x)=>x.textContent.trim()).join(' ')};more.click();await new Promise((r)=>requestAnimationFrame(()=>requestAnimationFrame(r)));await new Promise((r)=>setTimeout(r,250));const menu=document.querySelector('[data-guide="chart.timeframeMenu"]');const it=menu?[...menu.querySelectorAll('button')].find((x)=>x.textContent.trim()===${JSON.stringify(label)}):null;if(!it){more.click();return {miss:'menu: '+(menu?[...menu.querySelectorAll('button')].map((x)=>x.textContent.trim()).filter(Boolean).join(' '):'no menu')}}await new Promise((r)=>setTimeout(r,150));const t=performance.now();window.__flip.keys.push(t);it.click();return {t,via:'menu'}})()`)
+        if (!clicked || clicked.miss != null) throw new Error(`no ${label} button on the flip chart's toolbar (front layer has: ${clicked && clicked.miss})`)
+        await sleep(DWELL)
+        const got = await run(`(()=>{const F=window.__flip;return {key:F.keys[0]||null,frames:F.frames.slice(),res:F.res.slice(),dom:F.dom.slice(),long:F.long.slice(),end:F.sigOf(F.chart),end2:F.chart2?F.sigOf(F.chart2):null,title:document.title,...(F.take?F.take():{})}})()`)
+        got.device = await run(`(()=>{try{return window.__uctDeviceDiag?window.__uctDeviceDiag.log():null}catch(e){return 'diag threw'}})()`)
+        got.view = await run(`(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;let v=null;try{v=h.visibleTimeRange()}catch(e){}let lr=null;try{lr=h.visibleRange()}catch(e){}let nb=null;try{nb=h.newestBar()}catch(e){}let ni=null;try{ni=h.newestIndex()}catch(e){}return {from:v?v.from:null,to:v?v.to:null,lr,ni,count:nb?nb.count:null}})()`)
+        // was this timeframe's (base) data asked before the click (a dwell warm, a habitual-tf warm), and had it answered?
+        got.warm = await run(`(()=>{const s=${JSON.stringify(sym || '')};const base=${JSON.stringify(baseOf(code))};const k=window.__flip.keys[0]||0;const enc=encodeURIComponent(s);const hits=performance.getEntriesByType('resource').filter((e)=>e.name.indexOf('/api/')>=0&&e.name.indexOf(enc)>=0&&(e.name.indexOf('tf='+base+'&')>=0||e.name.slice(-('tf='+base).length)==='tf='+base||e.name.indexOf('/'+base+'/')>=0));const pre=hits.filter((e)=>e.startTime<k);const done=pre.filter((e)=>e.responseEnd<=k);return {state:done.length?'warm':(pre.length?'in-flight':'cold'),before:pre.length,after:hits.length-pre.length,urls:hits.slice(-4).map((e)=>e.name.replace(location.origin,'').slice(0,90))}})()`)
+        out.flips.push({ i, dir: 'tf', sym, tf: code, fromTf: cur, via: clicked.via, before: before.sig, before2: before.sig2, ...got })
+        if (JUMP_MS > 0) { await sleep(Math.max(0, JUMP_MS + 200)); const jf = await run(`(()=>{const J=window.__jump||{frames:[]};J.on=false;const db=window.__uctDoubleBuffer;return {frames:J.frames,db:db&&Array.isArray(db.last)?db.last.slice(-4):null,dblog:db&&Array.isArray(db.log)?db.log.slice(-6):null}})()`); const fl = out.flips[out.flips.length - 1]; fl.jump = analyzeJump(jf.frames, fl.key, JUMP_MS); fl.jump.db = jf.db; fl.jump.dblog = jf.dblog; jumpRaw.push({ i: fl.i, dir: 'tf', sym: fl.sym, tf: code, fromTf: cur, key: fl.key, frames: jf.frames }); writeFileSync(OUT.replace(/\.json$/, '') + '.jump.json', JSON.stringify(jumpRaw)) }
+        console.log(`tf ${sym} ${cur} -> ${code}: warm=${got.warm && got.warm.state}`)
+        cur = code
+        save()
+      }
+    }
+  }
+  const total = UPDOWN === 'tf' || UPDOWN === 'typed' || UPDOWN === 'jump' || UPDOWN === 'tabs' ? 0 : (UPDOWN === 'downup' ? FLIPS * 2 : FLIPS)
   let cadOverhead = 8, cadSleepEnd = null
   out.cadence = CADENCE || null
   for (let i = 0; i < total; i++) {

@@ -48,8 +48,12 @@ _STARTUP_DELAY = int(os.environ.get("HISTORY_PREWARM_STARTUP_DELAY_SECS", "300")
 _CHECK_EVERY = int(os.environ.get("HISTORY_PREWARM_CHECK_SECS", "900"))
 _TIMEOUT = float(os.environ.get("HISTORY_PREWARM_TIMEOUT_SECS", "35"))
 _TFS = ("D", "W", "M")
-# Match the client's fullBarsFor(tf) so the pre-warmed URL == the URL the browser requests.
-_FULL = {"D": 12500, "W": 4000, "M": 2000}
+# The pre-warmed URL must BE the URL the browser requests (`bars=` is part of it), so the depth is the client's
+# fullBarsFor(tf), read from the ONE server copy of it (`deep_history_warm._DEEP_TARGET`, railed against
+# barsBackfill.js in tests/test_history_prewarm.py), never restated here.
+# ⚰️ It was restated as M=2000 while the client asks M=1200 (2026-11-28 cloud sweep): no monthly URL any browser
+# requests was ever warmed, and the edge answered M 23 MISS / 3 HIT.
+from api.services.deep_history_warm import _DEEP_TARGET as _FULL  # noqa: E402
 
 
 def _client():

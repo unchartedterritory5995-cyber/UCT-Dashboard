@@ -1207,7 +1207,15 @@ def _tier_app(monkeypatch):
 
 
 def _route(app, path):
-    return next(r.endpoint for r in app.routes if getattr(r, "path", None) == path)
+    """The route's endpoint as a plain call. `/api/bars-history` is an async route that reads the request's
+    Accept-Encoding (2026-11-28: its own limiter, one build per URL), so it is run to completion with an empty one."""
+    import asyncio
+    import inspect
+    import types
+    fn = next(r.endpoint for r in app.routes if getattr(r, "path", None) == path)
+    if not inspect.iscoroutinefunction(fn):
+        return fn
+    return lambda *a, **k: asyncio.run(fn(*a, request=types.SimpleNamespace(headers={}), **k))
 
 
 TIER_BARS = dict(tf="D", bars=5, since="", to="", warm=0, session="")
