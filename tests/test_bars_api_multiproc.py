@@ -40,8 +40,9 @@ def _clean(monkeypatch, tmp_path):
 
 # ── the knob ────────────────────────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("raw,want", [(None, 1), ("", 1), ("1", 1), ("8", 8), ("junk", 1), ("0", 1), ("999", 64)])
+@pytest.mark.parametrize("raw,want", [(None, 1), ("", 1), ("1", 1), ("8", 8), ("junk", 1), ("0", 1), ("999", roles.MAX_WORKERS)])
 def test_workers_is_clamped_and_unset_means_one(monkeypatch, raw, want):
+    monkeypatch.setattr(roles, "_container_memory_bytes", lambda: None)   # the box's own limit is not the rail
     if raw is None:
         monkeypatch.delenv("BARS_API_WORKERS", raising=False)
     else:

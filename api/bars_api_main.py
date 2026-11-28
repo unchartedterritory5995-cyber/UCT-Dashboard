@@ -38,7 +38,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Query, Request
 
 # ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
 # EVERY log record of this pod -- httpx logs each request URL at INFO and an
@@ -485,7 +485,9 @@ def _build_app() -> FastAPI:
             return Response(content=b'{"detail":"body must be an object"}', status_code=422,
                             media_type="application/json")
         out = await anyio.to_thread.run_sync(bars_live_store.ingest, payload)
-        bars_api_roles.publish_view()            # a no-op unless this process leads several
+        # A no-op unless this process leads several. ⛔ OFF the event loop (review of #2962, L1): it pickles the
+        # whole coverage view and replaces a file, which would stall every request this process holds.
+        await anyio.to_thread.run_sync(bars_api_roles.publish_view)
         return out
 
     @app.get("/internal/live-status")
@@ -502,6 +504,7 @@ def _build_app() -> FastAPI:
     # production outage, not a hardening.
     @app.get("/api/bars/{ticker}")
     def bars_route(
+        request: Request,
         ticker: str,
         tf: str = "D",
         bars: int = Query(default=200, ge=1, le=60000),
@@ -512,11 +515,13 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
+        return _served_here_or_by_leader(request, lambda: serve_bars_http(
+            ticker, tf, bars, since=since, to=to, warm=warm, session=session))
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")
     def bars_history_route(
+        request: Request,
         ticker: str,
         tf: str = "D",
         bars: int = Query(default=60000, ge=1, le=60000),
@@ -525,9 +530,88 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return serve_bars_history(ticker, tf, bars, v, d)
+        return _served_here_or_by_leader(request, lambda: serve_bars_history(ticker, tf, bars, v, d))
 
     return app
+
+
+#: Headers a hand-off never copies (the serving process sets its own).
+_HOP_HEADERS = frozenset({"content-length", "transfer-encoding", "connection", "date", "server", "keep-alive"})
+
+
+def _served_here_or_by_leader(request, serve):
+    """The bars answer. In a FOLLOWER (BARS_API_WORKERS > 1) it is read here, under the store swap barrier, unless
+    it needs leader-only work (a store write, a provider fetch, a capped job: `bars_api_roles.LeaderOnly`); then
+    the WHOLE request is answered by the leader, which runs it exactly as the single process does, under the one
+    set of caps (review of #2962, H1 + M1). The leader and the single process just serve."""
+    from api.services import bars_api_roles
+    if not bars_api_roles.is_follower():
+        return serve()
+    from fastapi.responses import Response
+    t0 = time.monotonic()
+    try:
+        with bars_api_roles.follower_read_scope():
+            return serve()
+    except bars_api_roles.LeaderOnly:
+        pass                                   # the scope is released BEFORE the hand-off (no barrier is held)
+    path_qs = request.url.path + (("?" + request.url.query) if request.url.query else "")
+    code, headers, body = bars_api_roles.proxy_to_leader(path_qs, time.monotonic() - t0)
+    hdrs = {k: v for k, v in headers if k.lower() not in _HOP_HEADERS}
+    hdrs["X-Bars-Served-By"] = "leader"
+    return Response(content=body, status_code=code, headers=hdrs)
+
+
+def serve_for_follower(path_qs: str, spent_s: float = 0.0):
+    """The leader's answer to a follower's handed-off bars request: (status, [(header, value)], body), produced by
+    the same functions and the same parameter rules as the public routes. `spent_s` is what the follower already
+    spent of the edge's budget, so the sum of every wait still fits the 8 s abort."""
+    import json as _json
+    from urllib.parse import parse_qs, unquote, urlsplit
+    from fastapi import HTTPException
+    from fastapi.encoders import jsonable_encoder
+    from starlette.responses import Response as _Resp
+    from api.routers.bars import serve_bars_history, serve_bars_http
+    from api.services import bars_fetch as _bf
+
+    def _json_answer(code, obj, extra=()):
+        return code, [("Content-Type", "application/json"), *extra], _json.dumps(jsonable_encoder(obj)).encode()
+
+    u = urlsplit(path_qs)
+    q = {k: v[-1] for k, v in parse_qs(u.query, keep_blank_values=True).items()}
+    parts = u.path.split("/")
+    if len(parts) != 4 or parts[1] != "api" or parts[2] not in ("bars", "bars-history") or not parts[3]:
+        return _json_answer(404, {"detail": "Not Found"})
+    ticker, history = unquote(parts[3]), parts[2] == "bars-history"
+    try:
+        bars = int(q.get("bars") or (60000 if history else 200))
+        warm = int(q.get("warm") or 0)
+    except ValueError:
+        return _json_answer(422, {"detail": "bars/warm must be integers"})
+    if not 1 <= bars <= 60000:
+        return _json_answer(422, {"detail": "bars out of range"})
+    tf = q.get("tf") or "D"
+    if _pair_is_webs(ticker):
+        out = _pair_handed_to_web(ticker)
+    else:
+        _bf._req_ctx.budget_spent = max(0.0, float(spent_s or 0.0))
+        try:
+            if history:
+                out = serve_bars_history(ticker, tf, bars, q.get("v", ""), q.get("d", ""))
+            else:
+                out = serve_bars_http(ticker, tf, bars, since=q.get("since", ""), to=q.get("to", ""), warm=warm,
+                                      session=q.get("session", ""))
+        except HTTPException as e:
+            return _json_answer(e.status_code, {"detail": e.detail}, tuple((e.headers or {}).items()))
+        except Exception as e:  # noqa: BLE001 - what the public route would answer: a 500, never a hung hand-off
+            _log.warning("[bars-api] leader hand-off %s failed: %s", u.path, e)
+            return _json_answer(500, {"detail": "Internal Server Error"})
+        finally:
+            _bf._req_ctx.budget_spent = 0.0
+    if isinstance(out, _Resp):
+        headers = [(k.decode("latin-1"), v.decode("latin-1")) for k, v in out.raw_headers
+                   if k.decode("latin-1").lower() not in _HOP_HEADERS]
+        return out.status_code, headers, bytes(out.body)
+    return _json_answer(200, out)
 
 
 def main() -> None:

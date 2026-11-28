@@ -33,6 +33,24 @@ covered" and fall to a provider fetch. So:
   * THE STORE FILE: a follower's SQLite connections re-open when the file's identity changes (the leader
     replaced it: install, adoption, legacy replace-pull), see `bars_sqlite._conn` (`file_identity_check`).
 
+  * ⛔⛔ A FOLLOWER NEVER WRITES THE STORE AND NEVER STARTS PROVIDER WORK (review of #2962, H1/M1). Every swap guard
+    (`bars_sqlite._WRITE_LOCK`, `DB_SWAP_LOCK`, write tracking) is a per-process object, so a follower's commit
+    between the leader's TRUNCATE checkpoint and its `os.replace` would leave WAL frames beside the new file
+    ("database disk image is malformed", the 2026-11-13 class) and an adoption would lose its untracked rows; and
+    every "global" cap (`_cold_fetch_sem` 3, `_deepfill_sem` 2, the `_inflight` single-flight...) would be N times
+    larger. So in a follower the store write lock, those caps, the single-flight maps and the provider fetches are
+    LEADER-ONLY (`LeaderOnlyLock` / `LeaderOnlySemaphore` / `LeaderOnlyDict` / `LeaderOnlySet` / `leader_only`):
+    the first step that would write or ask a provider raises `LeaderOnly` (a BaseException, so no
+    `except Exception` on the way can swallow it), the bars routes catch it and hand the WHOLE request to the
+    leader (`proxy_to_leader`), which answers it exactly as the single process would, under its own caps. The
+    follower's SQLite connections are `query_only` too, so a write no guard names still cannot reach the file.
+  * ⛔ THE STORE SWAP BARRIER (`store_swap_barrier`, leader; `follower_read_scope`, followers). A follower holds a
+    SHARED lock on `<DATA_DIR>/.bars-store-swap.lock` for each read and re-checks the file's identity under it; the
+    leader announces a swap (`.bars-store-swap.pending`), takes the lock EXCLUSIVE (it waits for in-flight follower
+    reads; no new one starts: a follower that sees the announcement hands its request to the leader), and only
+    then checkpoints and replaces. A replaced file's floor is persisted before the barrier opens again, so no
+    follower serves the new file at the old file's revisions.
+
 `BARS_API_WORKERS` unset or 1 = exactly the single process of before (role "solo", nothing here runs).
 """
 from __future__ import annotations
@@ -41,6 +59,7 @@ import json
 import logging
 import os
 import pickle
+import secrets
 import threading
 import time
 import urllib.error
@@ -50,7 +69,12 @@ from typing import Callable, Optional
 
 _log = logging.getLogger("uvicorn.error")
 
-MAX_WORKERS = 64
+#: ⛔ (review of #2962, L2) MEMORY, NOT vCPU, BOUNDS THE PROCESS COUNT. Each process holds its own Python heap, page
+#: caches and in-memory bar caches: the replay measured ~1.2-2 GB private per process, so 24 processes cannot live in
+#: a 32 GB container. `workers()` never exceeds the container's memory limit / `PROC_BUDGET_MB` (cgroup
+#: `memory.max` when there is one) and never `MAX_WORKERS`.
+MAX_WORKERS = 14
+PROC_BUDGET_MB = int(os.environ.get("BARS_API_PROC_BUDGET_MB", "2048") or 2048)
 #: The leader's loopback-only port for what followers hand it (pushes, repair wants, status).
 LEADER_PORT = int(os.environ.get("BARS_API_LEADER_PORT", "18999") or 18999)
 PUBLISH_EVERY_S = float(os.environ.get("BARS_API_VIEW_EVERY_S", "0.5") or 0.5)
@@ -59,19 +83,47 @@ PROMOTE_EVERY_S = float(os.environ.get("BARS_API_PROMOTE_S", "2") or 2)
 RELOAD_EVERY_S = float(os.environ.get("BARS_API_RELOAD_S", "5") or 5)
 WANT_DEDUP_S = 2.0
 FORWARD_TIMEOUT_S = 15.0
+#: A follower request handed to the leader must still answer inside the edge's 8 s abort
+#: (edge/bars-edge-router BARS_TIMEOUT_MS): the hand-off waits at most this minus what the follower already spent.
+ESCALATE_DEADLINE_S = 7.5
+#: How many handed-off requests the leader serves at once (each holds one of its hand-off threads); past it the
+#: follower answers 503 + Retry-After, the same shed the single process gives under the same load.
+ESCALATE_MAX = int(os.environ.get("BARS_API_ESCALATE_MAX", "96") or 96)
+_escalate_sem = threading.BoundedSemaphore(max(1, ESCALATE_MAX))
 
 _role = "solo"
 _lock_fh = None
 _lock_guard = threading.Lock()
 
 
+def _container_memory_bytes() -> Optional[int]:
+    """The container's memory limit (cgroup v2 `memory.max`, v1 `memory.limit_in_bytes`), or None."""
+    for p in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(p) as f:
+                raw = f.read().strip()
+        except OSError:
+            continue
+        if raw.isdigit() and int(raw) < (1 << 50):         # "max" / a huge v1 number = no limit
+            return int(raw)
+    return None
+
+
+def memory_ceiling() -> int:
+    """How many processes the container's memory carries (MAX_WORKERS when no limit is visible)."""
+    lim = _container_memory_bytes()
+    if lim is None or PROC_BUDGET_MB <= 0:
+        return MAX_WORKERS
+    return max(1, min(MAX_WORKERS, lim // (PROC_BUDGET_MB << 20)))
+
+
 def workers() -> int:
-    """`BARS_API_WORKERS`, clamped to 1..MAX_WORKERS (unset, blank or junk = 1: the single process)."""
+    """`BARS_API_WORKERS`, clamped to 1..memory_ceiling() (unset, blank or junk = 1: the single process)."""
     try:
         n = int(str(os.environ.get("BARS_API_WORKERS", "1")).strip() or 1)
     except ValueError:
         n = 1
-    return max(1, min(MAX_WORKERS, n))
+    return max(1, min(memory_ceiling(), n))
 
 
 def multiprocess() -> bool:
@@ -80,6 +132,268 @@ def multiprocess() -> bool:
 
 def role() -> str:
     return _role
+
+
+def is_follower() -> bool:
+    return _role == "follower"
+
+
+# ── leader-only work (review of #2962, H1 + M1) ─────────────────────────────────────────────────────────────
+
+class LeaderOnly(BaseException):
+    """A follower reached work only the leader may do (a store write, a provider fetch, a capped job). A
+    BaseException on purpose: the bars core is full of `except Exception` fallbacks, and swallowing this one would
+    turn "hand the request to the leader" into "skip the write and serve on", the very drift it exists to stop.
+    Caught by the bars routes (`bars_api_main`), which hand the whole request to the leader."""
+
+    def __init__(self, what: str = ""):
+        super().__init__(what)
+        self.what = what
+
+
+def leader_only(what: str) -> None:
+    """Raise `LeaderOnly` in a follower; nothing in the leader or the single process."""
+    if _role == "follower":
+        raise LeaderOnly(what)
+
+
+class LeaderOnlyLock:
+    """`threading.Lock` whose acquisition is leader-only (the store's write lock)."""
+
+    def __init__(self, what: str):
+        self._lk = threading.Lock()
+        self._what = what
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        leader_only(self._what)
+        return self._lk.acquire(blocking, timeout)
+
+    def release(self) -> None:
+        self._lk.release()
+
+    def locked(self) -> bool:
+        return self._lk.locked()
+
+    def __enter__(self):
+        self.acquire()
+        return self
+
+    def __exit__(self, *exc):
+        self._lk.release()
+        return False
+
+
+class LeaderOnlySemaphore(threading.Semaphore):
+    """A process-wide cap that, with several processes, exists ONCE: in the leader. In a follower every
+    acquisition (blocking or not) raises `LeaderOnly`, so the work it caps runs in the leader under the
+    single-process limit, never N times over (review of #2962, M1)."""
+
+    def __init__(self, value: int = 1, what: str = "capped job"):
+        super().__init__(value)
+        self._what = what
+
+    def acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+        leader_only(self._what)
+        return super().acquire(blocking, timeout)
+
+    def __enter__(self):
+        return self.acquire()
+
+
+class LeaderOnlyBoundedSemaphore(threading.BoundedSemaphore):
+    def __init__(self, value: int = 1, what: str = "capped job"):
+        super().__init__(value)
+        self._what = what
+
+    def acquire(self, blocking: bool = True, timeout: Optional[float] = None) -> bool:
+        leader_only(self._what)
+        return super().acquire(blocking, timeout)
+
+    def __enter__(self):
+        return self.acquire()
+
+
+class LeaderOnlyDict(dict):
+    """A single-flight map (`bars_fetch._inflight`): claiming a key starts work, so in a follower it is
+    leader-only. Reads, pops and membership tests are unchanged."""
+
+    def __init__(self, *a, what: str = "single-flight job", **kw):
+        super().__init__(*a, **kw)
+        self._what = what
+
+    def __setitem__(self, k, v):
+        leader_only(self._what)
+        super().__setitem__(k, v)
+
+    def setdefault(self, k, default=None):
+        if k not in self:
+            leader_only(self._what)
+        return super().setdefault(k, default)
+
+
+class LeaderOnlySet(set):
+    def __init__(self, *a, what: str = "single-flight job"):
+        super().__init__(*a)
+        self._what = what
+
+    def add(self, x):
+        leader_only(self._what)
+        super().add(x)
+
+
+# ── the store swap barrier (review of #2962, H1) ────────────────────────────────────────────────────────────
+
+SWAP_BARRIER_WAIT_S = float(os.environ.get("BARS_API_SWAP_BARRIER_S", "12") or 12)
+_tls = threading.local()
+
+
+class SwapBarrierBusy(RuntimeError):
+    """The leader could not close the barrier in time (a follower read outlived it): the swap is refused and the
+    old store kept, exactly like a busy checkpoint."""
+
+
+def _swap_lock_path() -> str:
+    return os.path.join(data_dir(), ".bars-store-swap.lock")
+
+
+def _swap_pending_path() -> str:
+    return os.path.join(data_dir(), ".bars-store-swap.pending")
+
+
+def _flock(fd: int, mode: str, block: bool) -> bool:
+    if os.name == "nt":                        # dev boxes: no shared flock (the leader fails closed, see below)
+        return True
+    import fcntl
+    op = {"sh": fcntl.LOCK_SH, "ex": fcntl.LOCK_EX, "un": fcntl.LOCK_UN}[mode]
+    if mode != "un" and not block:
+        op |= fcntl.LOCK_NB
+    try:
+        fcntl.flock(fd, op)
+        return True
+    except OSError:
+        return False
+
+
+def _thread_lock_fd() -> int:
+    """This thread's own descriptor on the barrier file (flock belongs to an open file: threads must not share
+    one, or one thread's unlock would drop another's hold)."""
+    fd = getattr(_tls, "fd", None)
+    if fd is None or getattr(_tls, "fd_dir", None) != data_dir():
+        os.makedirs(data_dir(), exist_ok=True)
+        fd = os.open(_swap_lock_path(), os.O_RDWR | os.O_CREAT, 0o600)
+        _tls.fd, _tls.fd_dir = fd, data_dir()
+    return fd
+
+
+class follower_read_scope:
+    """A follower request's hold on the store: no swap can start while it reads, and its connections follow a
+    replaced file BEFORE it reads (`bars_sqlite.follow_store_identity`). A swap announced or in progress hands
+    the request to the leader (`LeaderOnly`) instead of waiting. A no-op in the leader and the single process."""
+
+    def __enter__(self):
+        self._held = None
+        if _role != "follower":
+            return self
+        if os.path.exists(_swap_pending_path()):
+            raise LeaderOnly("store swap in progress")
+        fd = _thread_lock_fd()
+        if not _flock(fd, "sh", block=False):
+            raise LeaderOnly("store swap in progress")
+        self._held = fd
+        try:
+            if os.path.exists(_swap_pending_path()):      # announced between the check and the lock
+                raise LeaderOnly("store swap in progress")
+            from api.services import bars_sqlite
+            bars_sqlite.follow_store_identity()
+        except BaseException:
+            _flock(fd, "un", block=True)
+            self._held = None
+            raise
+        return self
+
+    def __exit__(self, *exc):
+        if self._held is not None:
+            _flock(self._held, "un", block=True)
+            self._held = None
+        return False
+
+
+class store_swap_barrier:
+    """Held by the leader around a store FILE replace (install, adoption, deferred boot swap): announce, then take
+    the barrier exclusive, so no follower is reading or opening a connection across the replace. A replaced
+    file's store floor is persisted before the barrier opens, so no follower serves the new file at the old
+    file's revisions. A no-op with one process.
+
+    ⛔ Take it BEFORE `_WRITE_LOCK` / `DB_SWAP_LOCK` (leftmost in the `with`): it may wait for follower reads, and
+    a follower request handed to the leader can be waiting on the write lock, so no lock may be held meanwhile.
+    ⛔ No shared flock on Windows: there a replace under live followers cannot be proved safe, so it is REFUSED
+    (fail closed, `SwapBarrierBusy`); production runs on Linux."""
+
+    def __init__(self, wait_s: Optional[float] = None, reason: str = "store replaced"):
+        self._wait = SWAP_BARRIER_WAIT_S if wait_s is None else wait_s
+        self._reason = reason
+        self._fd = None
+        self._ident0 = None
+
+    def _ident(self):
+        try:
+            st = os.stat(os.path.join(data_dir(), "bars.db"))
+            return (st.st_dev, st.st_ino)
+        except OSError:
+            return None
+
+    def __enter__(self):
+        if not multiprocess():
+            return self
+        if getattr(_tls, "barrier_depth", 0) > 0:        # nested in this thread's own barrier: already held
+            _tls.barrier_depth += 1
+            self._nested = True
+            return self
+        self._nested = False
+        if os.name == "nt":
+            raise SwapBarrierBusy("store replace refused: several processes and no cross-process barrier here")
+        os.makedirs(data_dir(), exist_ok=True)
+        with open(_swap_pending_path(), "w") as f:
+            f.write(str(os.getpid()))
+        fd = os.open(_swap_lock_path(), os.O_RDWR | os.O_CREAT, 0o600)
+        t_end = time.monotonic() + self._wait
+        while not _flock(fd, "ex", block=False):
+            if time.monotonic() >= t_end:
+                os.close(fd)
+                self._clear_pending()
+                raise SwapBarrierBusy("followers still reading after %.1f s; store kept" % self._wait)
+            time.sleep(0.005)
+        self._fd = fd
+        self._ident0 = self._ident()
+        _tls.barrier_depth = 1
+        return self
+
+    def _clear_pending(self) -> None:
+        try:
+            os.remove(_swap_pending_path())
+        except OSError:
+            pass
+
+    def __exit__(self, *exc):
+        if getattr(self, "_nested", False):
+            _tls.barrier_depth -= 1
+            return False
+        if self._fd is None:
+            return False
+        _tls.barrier_depth = 0
+        try:
+            if self._ident() != self._ident0:
+                try:
+                    from api.services import bars_sqlite
+                    bars_sqlite.bump_store_floor(self._reason, persist=True)
+                except Exception as e:  # noqa: BLE001
+                    _log.warning("[bars-api] floor persist at the swap barrier failed: %s", e)
+        finally:
+            self._clear_pending()
+            _flock(self._fd, "un", block=True)
+            os.close(self._fd)
+            self._fd = None
+        return False
 
 
 def data_dir() -> str:
@@ -92,6 +406,42 @@ def _lock_path() -> str:
 
 def view_path() -> str:
     return os.path.join(data_dir(), ".bars-live-view.pkl")
+
+
+def _token_path() -> str:
+    return os.path.join(data_dir(), ".bars-api-leader.token")
+
+
+_token_cache: dict = {}
+
+
+def leader_token() -> str:
+    """The per-container secret the leader writes at start (0600 on the volume): followers present it on the
+    loopback hand-off, so the hand-off never depends on PUSH_SECRET being set."""
+    p = _token_path()
+    try:
+        m = os.stat(p).st_mtime_ns
+    except OSError:
+        return ""
+    hit = _token_cache.get(p)
+    if hit and hit[0] == m:
+        return hit[1]
+    try:
+        with open(p) as f:
+            tok = f.read().strip()
+    except OSError:
+        return ""
+    _token_cache[p] = (m, tok)
+    return tok
+
+
+def _write_leader_token() -> None:
+    tok = secrets.token_hex(24)
+    tmp = "%s.%d.tmp" % (_token_path(), os.getpid())
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(tok)
+    os.replace(tmp, _token_path())
 
 
 def _try_lock() -> bool:
@@ -184,8 +534,20 @@ class _LeaderHandler(BaseHTTPRequestHandler):
         pass
 
     def _authorized(self) -> bool:
+        tok = self.headers.get("X-Bars-Leader-Token", "")
+        if tok and secrets.compare_digest(tok, leader_token() or "\0"):
+            return True
         from api.flow_admin_auth import _push_secret_ok
         return _push_secret_ok(self.headers.get("Authorization", ""))
+
+    def _reply_raw(self, code: int, headers: list, body: bytes) -> None:
+        self.send_response(code)
+        for k, v in headers:
+            if k.lower() not in ("content-length", "transfer-encoding", "connection", "date", "server"):
+                self.send_header(k, v)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _reply(self, code: int, obj) -> None:
         body = json.dumps(obj).encode()
@@ -198,7 +560,24 @@ class _LeaderHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._authorized():
             return self._reply(401, {"detail": "Not authenticated"})
-        if self.path.split("?")[0] == "/internal/live-status":
+        path = self.path.split("?")[0]
+        if path.startswith("/api/bars/") or path.startswith("/api/bars-history/"):
+            # A follower's request that needs leader-only work (`LeaderOnly`): answered here, in full, exactly as
+            # the single process answers it.
+            if not _escalate_sem.acquire(blocking=False):
+                return self._reply_raw(503, [("Content-Type", "application/json"), ("Retry-After", "2"),
+                                             ("X-Bars-Shed", "leader-busy")], b'{"detail":"bars-api busy"}')
+            try:
+                from api import bars_api_main
+                try:
+                    spent = float(self.headers.get("X-Bars-Spent-S") or 0.0)
+                except ValueError:
+                    spent = 0.0
+                code, headers, body = bars_api_main.serve_for_follower(self.path, spent)
+            finally:
+                _escalate_sem.release()
+            return self._reply_raw(code, headers, body)
+        if path == "/internal/live-status":
             from api.services import bars_live_store
             return self._reply(200, bars_live_store.status())
         return self._reply(404, {"detail": "not found"})
@@ -221,6 +600,11 @@ class _LeaderHandler(BaseHTTPRequestHandler):
         if path == "/internal/live-want":
             bars_live_store.want_from_follower(str(payload.get("sym") or ""), str(payload.get("tf") or ""))
             return self._reply(200, {"ok": True})
+        if path == "/internal/index-refresh":
+            # A follower served a stale cash-index copy (stale-while-revalidate): the refresh is the leader's.
+            from api import index_bars
+            index_bars._kick_bg_refresh(str(payload.get("sym") or ""), str(payload.get("tf") or ""))
+            return self._reply(200, {"ok": True})
         return self._reply(404, {"detail": "not found"})
 
 
@@ -233,6 +617,10 @@ def start_leader_services() -> None:
     global _server
     if _role != "leader" or _server is not None:
         return
+    try:
+        _write_leader_token()
+    except OSError as e:
+        _log.warning("[bars-api] leader token not written (followers fall back to PUSH_SECRET): %s", e)
     try:
         _server = ThreadingHTTPServer(("127.0.0.1", LEADER_PORT), _LeaderHandler)
         _server.daemon_threads = True
@@ -250,6 +638,7 @@ def forward_to_leader(method: str, path: str, body: bytes, authorization: str) -
     """(status, body) of the same request on the leader's loopback port; 503 when it cannot be reached."""
     req = urllib.request.Request("http://127.0.0.1:%d%s" % (LEADER_PORT, path), data=body if method == "POST" else None,
                                  method=method, headers={"Authorization": authorization or "",
+                                                         "X-Bars-Leader-Token": leader_token(),
                                                          "Content-Type": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=FORWARD_TIMEOUT_S) as r:
@@ -258,6 +647,24 @@ def forward_to_leader(method: str, path: str, body: bytes, authorization: str) -
         return e.code, e.read()
     except Exception as e:  # noqa: BLE001 - the leader is restarting or promoting
         return 503, json.dumps({"detail": "bars-api leader unavailable: %s" % type(e).__name__}).encode()
+
+
+def proxy_to_leader(path_qs: str, spent_s: float = 0.0) -> tuple[int, list, bytes]:
+    """A follower's bars request answered by the leader: (status, headers, body). It waits at most what is left of
+    the edge's budget; an unreachable or slow leader answers 503 + Retry-After (the client re-polls, the edge
+    never sees a hang)."""
+    left = max(0.5, ESCALATE_DEADLINE_S - max(0.0, float(spent_s)))
+    req = urllib.request.Request("http://127.0.0.1:%d%s" % (LEADER_PORT, path_qs), method="GET",
+                                 headers={"X-Bars-Leader-Token": leader_token(),
+                                          "X-Bars-Spent-S": "%.3f" % max(0.0, float(spent_s))})
+    try:
+        with urllib.request.urlopen(req, timeout=left) as r:
+            return r.status, list(r.getheaders()), r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, list(e.headers.items()), e.read()
+    except Exception as e:  # noqa: BLE001 - the leader is restarting, promoting or past the budget
+        return 503, [("Content-Type", "application/json"), ("Retry-After", "2"), ("X-Bars-Shed", "leader-unreachable")], \
+            json.dumps({"detail": "bars-api leader unavailable: %s" % type(e).__name__}).encode()
 
 
 class FollowerView:
@@ -336,19 +743,39 @@ def _want_loop() -> None:
         _want_ev.wait(1.0)
         _want_ev.clear()
         while _want_q:
-            sym, tf = _want_q.pop(0)
-            forward_to_leader("POST", "/internal/live-want", json.dumps({"sym": sym, "tf": tf}).encode(),
+            item = _want_q.pop(0)
+            path, (sym, tf) = (item[0], item[1:]) if len(item) == 3 else ("/internal/live-want", item)
+            forward_to_leader("POST", path, json.dumps({"sym": sym, "tf": tf}).encode(),
                               bars_service_headers().get("Authorization", ""))
 
 
-def _send_want_async(sym: str, tf: str) -> None:
+def _send_async(item: tuple) -> None:
     global _want_thread
     if _want_thread is None:
         _want_thread = threading.Thread(target=_want_loop, daemon=True, name="bars-api-want")
         _want_thread.start()
     if len(_want_q) < 5000:
-        _want_q.append((sym, tf))
+        _want_q.append(item)
     _want_ev.set()
+
+
+def _send_want_async(sym: str, tf: str) -> None:
+    _send_async((sym, tf))
+
+
+_index_wanted: dict = {}
+
+
+def send_index_refresh(sym: str, tf: str) -> None:
+    """A follower's stale-while-revalidate kick for a cash index (`index_bars._kick_bg_refresh`): the refresh runs
+    in the leader (one vendor caller, one writer of the shared disk copy), off this request, deduped."""
+    k, t = (sym, tf), time.monotonic()
+    if _index_wanted.get(k, -1e9) > t - WANT_DEDUP_S:
+        return
+    _index_wanted[k] = t
+    if len(_index_wanted) > 5000:
+        _index_wanted.clear()
+    _send_async(("/internal/index-refresh", sym, tf))
 
 
 def _reload_loop() -> None:
@@ -385,6 +812,11 @@ def start_follower_services(promote: Callable[[], None]) -> None:
             if _try_lock():
                 _role = "leader"
                 bars_live_store.install_view(None)
+                try:                 # every connection re-opens WITHOUT the follower's query_only
+                    from api.services import bars_sqlite
+                    bars_sqlite.bump_db_epoch()
+                except Exception:  # noqa: BLE001
+                    pass
                 _log.warning("[bars-api] the leader is gone: pid=%d PROMOTED itself to leader", os.getpid())
                 try:
                     promote()
