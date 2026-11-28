@@ -68,6 +68,12 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # the `tools` package marker: the queue verdict's follower (it holds the App token) executes it on
+      # `from tools import ...`, so it is an Agent path AND self-protected (#2850, review delta 2 X1)
+      - 'tools/__init__.py'
+      # the NYSE calendar dataset the queue verdict's freeze derives its windows from (AUDIT O1 on #2850): an Agent
+      # path AND self-protected, so a calendar edit (the yearly holiday refresh included) is AUDIT's
+      - 'app/src/lib/marketClock/market_calendar.json'
       # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
       # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
       - 'docs/agent/COMPATIBILITY-DECISIONS.md'
@@ -117,6 +123,12 @@ on:
       - 'api/routers/uct_agent*.py'
       - 'tests/test_uct_agent*.py'
       - 'tools/agent_*'
+      # the `tools` package marker: the queue verdict's follower (it holds the App token) executes it on
+      # `from tools import ...`, so it is an Agent path AND self-protected (#2850, review delta 2 X1)
+      - 'tools/__init__.py'
+      # the NYSE calendar dataset the queue verdict's freeze derives its windows from (AUDIT O1 on #2850): an Agent
+      # path AND self-protected, so a calendar edit (the yearly holiday refresh included) is AUDIT's
+      - 'app/src/lib/marketClock/market_calendar.json'
       # DOCS THE SUITES READ (11-16, AUDIT): editing one of these changes an Agent test's verdict, so it must run Agent CI
       # (tests/test_ci_agent_docs_paths.py discovers the reads and holds this list complete)
       - 'docs/agent/COMPATIBILITY-DECISIONS.md'
@@ -206,7 +218,7 @@ jobs:
   server:
     name: UCT Agent server tests (production dependency set)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
@@ -274,7 +286,7 @@ jobs:
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/12)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
     # balancing the shards by measured time (as #1064 did for pytest) is the real fix if shard 4 keeps growing.
@@ -385,7 +397,7 @@ jobs:
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -508,7 +520,7 @@ jobs:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
     if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group')
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
@@ -594,7 +606,7 @@ jobs:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master' || github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this

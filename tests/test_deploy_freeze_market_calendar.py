@@ -1,12 +1,11 @@
-"""The deploy freeze follows the real NYSE session (2026-11-26, Thanksgiving).
+"""The deploy freeze's DESCRIPTION of the NYSE session (2026-11-26), and the end of every HOLD (2026-11-27).
 
-Until this rail the session/rush hold ran 09:20-16:15 ET on EVERY weekday: on Thanksgiving (market closed)
-production sat held all day for a session that did not exist, and on the half-day after it (close 13:00 ET) a
-post-close fix waited until 16:20 ET. The hold now reads `api/services/session_calendar.py` (the repo's one
-calendar, loaded by path): no session => no session/rush hold; a half-day => the hold ends at close + 15 min.
-
-A calendar that cannot be read, or a date past its horizon, falls back to the WEEKDAY rule (hold), never to
-"no hold": a broken calendar must not ship deploys into a live session.
+⛔⛔ OWNER RULING 2026-11-27: "fuck the deploy freeze i dont ever want to hold anything back from deploying ever".
+`decide` answers NOT FROZEN at every instant (tests/test_no_deploy_freeze.py), on a regular day, a half-day, a holiday
+or with a broken calendar. What stays is `day_hold_windows` / `burst_window`: the day's market rushes read from
+`api/services/session_calendar.py`, which the merge queue's freeze (tools/agent_ci_required.py) and the app's heavy-job
+rushes (api/services/market_rush.py) are railed to. A calendar that cannot be read, or a date past its horizon, is
+DESCRIBED by the weekday rule; it holds no promotion either way.
 """
 from __future__ import annotations
 
@@ -57,12 +56,11 @@ def test_thanksgiving_whole_day_is_open(df):
 
 # -- a half-day: the hold ends at close + 15 ---------------------------------------------------------------------
 
-def test_half_day_1250_et_is_frozen_closing(df):
+def test_half_day_1250_et_is_described_as_the_closing_rush_and_is_not_frozen(df):
     now = _et(2026, 11, 27, 12, 50)
     assert df.burst_window(now) == "closing"
     code, why = df.decide(now)
-    assert code == df.EXIT_FROZEN
-    assert "12:30-13:15" in why, why
+    assert code == df.EXIT_OPEN, why           # owner ruling 2026-11-27: no hold, ever
 
 
 def test_half_day_1320_et_is_not_frozen(df):
@@ -71,38 +69,37 @@ def test_half_day_1320_et_is_not_frozen(df):
     assert df.decide(now)[0] == df.EXIT_OPEN
 
 
-def test_half_day_1315_exactly_is_open_half_open_end(df):
-    assert df.decide(_et(2026, 11, 27, 13, 15))[0] == df.EXIT_OPEN
-    assert df.decide(_et(2026, 11, 27, 13, 14))[0] == df.EXIT_FROZEN
+def test_half_day_1315_exactly_ends_the_described_rush_half_open(df):
+    assert df.burst_window(_et(2026, 11, 27, 13, 15)) is None
+    assert df.burst_window(_et(2026, 11, 27, 13, 14)) == "closing"
 
 
-def test_half_day_freeze_ends_at_1315_and_the_wait_agrees(df):
+def test_half_day_has_no_freeze_end_and_no_wait(df):
     now = _et(2026, 11, 27, 12, 50)
-    assert df.freeze_ends_at(now) == _et(2026, 11, 27, 13, 15)
-    s, why = df.wait_plan(now)
-    assert s == 25 * 60 + df.WAIT_MARGIN_S, why
+    assert df.freeze_ends_at(now) is None
+    assert df.wait_plan(now)[0] == 0
 
 
-def test_half_day_morning_is_one_hold_to_1315(df):
-    # opening rush and session are contiguous with the closing rush: one hold ending at close + 15
+def test_half_day_morning_is_described_to_1315(df):
     assert df.burst_window(_et(2026, 11, 27, 9, 30)) == "opening"
     assert df.burst_window(_et(2026, 11, 27, 11, 0)) == "session"
-    assert df.freeze_ends_at(_et(2026, 11, 27, 9, 30)) == _et(2026, 11, 27, 13, 15)
+    assert df.day_hold_windows(dt.date(2026, 11, 27))[-1][2] == (13, 15)
     assert df.burst_window(_et(2026, 11, 27, 9, 19)) is None
 
 
 def test_christmas_eve_half_day_ends_at_1315(df):
-    assert df.decide(_et(2026, 12, 24, 13, 0))[0] == df.EXIT_FROZEN
-    assert df.decide(_et(2026, 12, 24, 13, 15))[0] == df.EXIT_OPEN
+    assert df.burst_window(_et(2026, 12, 24, 13, 0)) == "closing"
+    assert df.burst_window(_et(2026, 12, 24, 13, 15)) is None
+    assert df.decide(_et(2026, 12, 24, 13, 0))[0] == df.EXIT_OPEN
 
 
 # -- a regular day: unchanged ------------------------------------------------------------------------------------
 
-def test_regular_thursday_unchanged(df):
+def test_regular_thursday_is_described_but_never_held(df):
     assert df.burst_window(_et(2026, 12, 3, 13, 0)) == "session"
-    assert df.decide(_et(2026, 12, 3, 13, 0))[0] == df.EXIT_FROZEN
+    assert df.decide(_et(2026, 12, 3, 13, 0))[0] == df.EXIT_OPEN
     assert df.decide(_et(2026, 12, 3, 16, 20))[0] == df.EXIT_OPEN
-    assert df.freeze_ends_at(_et(2026, 12, 3, 13, 0)) == _et(2026, 12, 3, 16, 15)
+    assert df.freeze_ends_at(_et(2026, 12, 3, 13, 0)) is None
     assert df.day_hold_windows(dt.date(2026, 12, 3)) == df.HOLD_WINDOWS_ET
 
 
@@ -110,21 +107,22 @@ def test_the_rush_constant_is_untouched(df):
     assert df.BURST_WINDOWS_ET == (("opening", (9, 20), (9, 45)), ("closing", (15, 30), (16, 15)))
 
 
-# -- the calendar cannot answer: the WEEKDAY rule, with a warning ------------------------------------------------
+# -- the calendar cannot answer: DESCRIBED by the WEEKDAY rule, with a warning; still no hold ------------------------
 
-def test_a_calendar_load_failure_on_a_holiday_holds_as_the_weekday_rule(df, monkeypatch, capsys):
+def test_a_calendar_load_failure_on_a_holiday_is_described_by_the_weekday_rule(df, monkeypatch, capsys):
     monkeypatch.setattr(df, "_calendar_module", _broken_calendar)
     now = _et(2026, 11, 26, 13, 0)
     assert df.burst_window(now) == "session"
-    assert df.decide(now)[0] == df.EXIT_FROZEN
-    assert df.freeze_ends_at(now) == _et(2026, 11, 26, 16, 15)
+    assert df.decide(now)[0] == df.EXIT_OPEN
+    assert df.freeze_ends_at(now) is None
     out = capsys.readouterr().out
     assert "warning" in out.lower() and "calendar" in out.lower(), out
 
 
-def test_a_calendar_load_failure_on_a_half_day_holds_to_1615(df, monkeypatch):
+def test_a_calendar_load_failure_on_a_half_day_holds_nothing(df, monkeypatch):
     monkeypatch.setattr(df, "_calendar_module", _broken_calendar)
-    assert df.decide(_et(2026, 11, 27, 13, 20))[0] == df.EXIT_FROZEN
+    assert df.burst_window(_et(2026, 11, 27, 13, 20)) == "session"
+    assert df.decide(_et(2026, 11, 27, 13, 20))[0] == df.EXIT_OPEN
 
 
 def test_a_date_past_the_horizon_uses_the_weekday_rule(df, capsys):
@@ -142,7 +140,7 @@ def test_a_date_past_the_horizon_uses_the_weekday_rule(df, capsys):
     assert not cal.covers(day), "the fixture date must be past the horizon; pick a later one"
     now = _et(2029, 11, 22, 13, 0)
     assert df.burst_window(now) == "session"
-    assert df.decide(now)[0] == df.EXIT_FROZEN
+    assert df.decide(now)[0] == df.EXIT_OPEN
     out = capsys.readouterr().out
     assert "horizon" in out.lower(), out
 
@@ -156,18 +154,17 @@ def test_the_self_check_passes(df, capsys):
     assert df.self_check() == 0, capsys.readouterr().out
 
 
-# -- the catch-up cron after a half-day close --------------------------------------------------------------------
+# -- the half-day catch-up crons are gone with the hold (owner ruling 2026-11-27) --------------------------------------
 
-def test_a_scheduled_run_follows_a_half_day_close_in_both_offsets():
+def test_the_half_day_and_wednesday_catch_up_crons_are_gone():
     wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
-    # 13:20 ET: 17:20 UTC under EDT (July 3 half-days), 18:20 UTC under EST (Black Friday, Christmas Eve)
-    for cron in ("20 17 * * 1-5", "20 18 * * 1-5"):
-        assert f"cron: '{cron}'" in wf
+    for cron in ("20 17 * * 1-5", "20 18 * * 1-5", "5 15 * * 3", "5 16 * * 3"):
+        assert f"cron: '{cron}'" not in wf, cron
 
 
 # -- the IN-JOB self-check must not depend on the dataset's facts (review #2836, point 6) ------------------------
 # `--self-check` runs in the production promote job with no continue-on-error: a failing case stops every promotion.
-# So it must pass with a broken dataset (the freeze then holds by the weekday rule, by design), with a dataset
+# So it must pass with a broken dataset (described by the weekday rule; nothing is held), with a dataset
 # extended past 2029 (Thanksgiving 2029 becomes a holiday), and with a bad edit to a 2026 fact.
 
 import json
@@ -221,9 +218,7 @@ def test_self_check_passes_with_a_bad_edit_to_a_2026_fact(tmp_path):
     assert out.returncode == 0 and "self-check: PASS" in out.stdout, out.stdout + out.stderr
 
 
-# -- the half-day crons do nothing unless today is a half-day (review #2836, LOW) --------------------------------
-# On a regular EDT day the 18:20 UTC cron is 14:20 ET: the hold ends 16:15 (115 min, inside the 125-min bound), so a
-# run with a pending SHA would sit ~2 h in the one promotion queue, ahead of any override hotfix.
+# -- the --half-day CLI still answers from the calendar (the crons that used it are gone, 2026-11-27) ----------------
 
 def _half_day(tree_or_root, now):
     out = _run(tree_or_root, "--half-day", "--now", now)
@@ -239,15 +234,17 @@ def test_half_day_cli_answers_from_the_calendar():
 
 
 def test_half_day_cli_is_unknown_when_the_calendar_is_broken(tmp_path):
-    # unknown => the cron proceeds as before (it holds or waits); it never skips on a guess
     assert _half_day(_tree(tmp_path, "{ broken"), "2026-12-03T18:20:00Z") == "unknown"
 
 
-def test_the_half_day_crons_exit_early_unless_today_is_a_half_day():
-    wf = (ROOT / ".github" / "workflows" / "promote-production.yml").read_text(encoding="utf-8")
-    cand = wf.split("      - name: Resolve the candidate", 1)[1].split("\n      - name:", 1)[0]
-    assert "SCHEDULE: ${{ github.event.schedule }}" in cand
-    for cron in ("20 17 * * 1-5", "20 18 * * 1-5"):
-        assert f'"$SCHEDULE" = "{cron}"' in cand
-    assert "tools/deploy_freeze.py --half-day" in cand
-    assert '[ "$HD" = "no" ]' in cand          # skip ONLY on a positive "no"; unknown proceeds
+
+# -- the merge queue has no freeze to agree with any more (owner ruling 2026-11-27) -----------------------------------
+# Until then tools/agent_ci_required.py derived the same rushes itself and a rail here required the two to agree every
+# covered day. The merge queue's freeze is removed, so the rail now pins that nothing there consults a clock window.
+
+def test_the_merge_queue_consults_no_market_windows():
+    spec = importlib.util.spec_from_file_location("_acr_no_freeze_mirror", ROOT / "tools" / "agent_ci_required.py")
+    acr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acr)
+    for gone in ("freeze_window", "freeze_windows_on", "freeze_day", "FREEZE_RUSHES", "FREEZE_FLOOR"):
+        assert not hasattr(acr, gone), gone

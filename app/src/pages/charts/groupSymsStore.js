@@ -26,3 +26,45 @@ export function createGroupSymsStore(initial) {
     },
   }
 }
+
+/**
+ * ⭐ ONE BOARD'S VIEW OF THE GROUPS' SYMBOLS (2026-11-27, the board keep-alive's layer mode; boardVisibility.js).
+ *
+ * A hidden layer board stays mounted, so a symbol switch on the board in front would switch its linked charts too (each
+ * a bar-store key it no longer subscribes to). Each board slot reads `source` through this view instead: while the
+ * board's handle `vis` is hidden the view holds the symbols as of the hide and tells nobody of a change; the show
+ * reads `source` again, and tells its readers only when the symbols moved meanwhile. Writes go to `source`.
+ * The view is the slot's for life (its identity never changes at a hide or a show, so neither re-renders a reader).
+ * ⛔ `scope` is the SOURCE: the identity the board's group decisions are keyed on (handoffGroups.js), so a chart reading
+ * through a view joins the same decision the board's setGroupSym makes (ChartWidget `groupScope`).
+ */
+export function createBoardGroupSymsView(source, vis) {
+  let held = null   // { snap } while the board is hidden
+  const subs = new Set()
+  const emit = () => { for (const fn of [...subs]) fn() }
+  const onVis = () => {
+    if (vis.state !== 'visible') {
+      if (!held) held = { snap: source.get() }
+    } else if (held) {
+      const was = held.snap
+      held = null
+      if (!Object.is(was, source.get())) emit()
+    }
+  }
+  if (vis?.state === 'hidden') held = { snap: source.get() }
+  if (typeof vis?.subscribe === 'function') vis.subscribe(onVis)
+  let unsource = null
+  return {
+    scope: source,
+    get: () => (held ? held.snap : source.get()),
+    subscribe: (fn) => {
+      subs.add(fn)
+      if (!unsource) unsource = source.subscribe(() => { if (!held) emit() })
+      return () => {
+        subs.delete(fn)
+        if (!subs.size && unsource) { unsource(); unsource = null }
+      }
+    },
+    set: (next) => source.set(next),
+  }
+}

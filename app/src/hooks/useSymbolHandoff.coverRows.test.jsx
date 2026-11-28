@@ -59,7 +59,7 @@ describe('intraday: the lake depth still due', () => {
     expect(flip('30').result.current).toBe('BBB')
   })
 
-  it('control: one row short of COVER_ROWS still waits for the prepare (the old one-paint rule)', async () => {
+  it('control: one row short of COVER_ROWS still waits; the prepare reporting short does NOT commit (never a short page)', async () => {
     st.rows = COVER_ROWS - 1
     const { result } = flip('30')
     expect(result.current).toBe('AAA')
@@ -67,6 +67,9 @@ describe('intraday: the lake depth still due', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
     expect(result.current).toBe('AAA')
     await act(async () => { resolvePrepare('current'); await Promise.resolve() })
+    expect(result.current).toBe('AAA')                                    // (2026-11-27) short: still held
+    st.rows = COVER_ROWS                                                   // the covering rows land
+    await act(async () => { await vi.advanceTimersByTimeAsync(30) })
     expect(result.current).toBe('BBB')
   })
 
@@ -103,12 +106,15 @@ describe('daily: the deep history still due', () => {
     expect(heldRows.mock.calls.some(([, , o]) => o && o.answered === true)).toBe(true)
   })
 
-  it('control: an answer one row short of COVER_ROWS waits for the deep join (or the bound)', async () => {
+  it('control: an answer one row short of COVER_ROWS waits for the deep join; the bound no longer paints it short', async () => {
     st.rows = COVER_ROWS - 1
     const { result } = flip('D')
     await act(async () => { await vi.advanceTimersByTimeAsync(200) })
     expect(result.current).toBe('AAA')
     await act(async () => { await vi.advanceTimersByTimeAsync(DAILY_HOLD_MAX_MS) })
-    expect(result.current).toBe('BBB')                                     // the hold's bound, as before
+    expect(result.current).toBe('AAA')                                     // (2026-11-27) never a short page at the bound
+    st.rows = COVER_ROWS                                                   // the covering rows land (the deep join)
+    await act(async () => { await vi.advanceTimersByTimeAsync(30) })
+    expect(result.current).toBe('BBB')
   })
 })

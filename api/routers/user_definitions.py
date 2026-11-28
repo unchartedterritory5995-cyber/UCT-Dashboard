@@ -509,6 +509,14 @@ _ENGINE_PARAM = Query(None, ge=1, description="the client's script engine versio
 def list_definitions(user: dict = Depends(require_paid),
                      graph: bool = _GRAPH_PARAM,
                      engine: Optional[int] = _ENGINE_PARAM):
+    # ⭐ ONE database connection for the whole list (`svc.one_connection`: the rows, every row's engine status in one
+    # query, the capability prefetch and the line identities), and the schema statements only once per file
+    # (`svc._ensure`): a busy pod made each of the ~54 round trips one more wait for the interpreter lock.
+    with svc.one_connection():
+        return _list_definitions(user, graph, engine)
+
+
+def _list_definitions(user: dict, graph: bool, engine: Optional[int]):
     # ⛔ The keyword only when asked: an old bundle's read is the call it always was.
     # (`isinstance`, not `is not None`: a direct call leaves the `Query` default in place.)
     asked = isinstance(engine, int) and not isinstance(engine, bool)

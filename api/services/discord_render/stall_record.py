@@ -193,10 +193,14 @@ def note(overshoot_ms: float, *, uptime_s: float, commit: str = "", now: float |
                    f"{uptime_s:.0f}s (tier {d['tier']}). Discord closes an interaction at 3,000 ms "
                    f"and the renderer's page load fails in the same window (C-02).")
             # ⛔ "critical" is load-bearing — anything lower is recorded and never paged.
+            # ⭐ Owner ruling 2026-11-27 (~30 emails a day): only tier 1, a block past the
+            # Discord ack budget (a CERTAIN member-visible failure), emails. Tier 2 still pages
+            # Discord and is still recorded above.
             emitted = chart_health_alerts.emit(ALERT_KEY, "critical", msg,
                                                {"ms": round(overshoot_ms, 1),
                                                 "uptime_s": round(uptime_s, 1),
-                                                "tier": d["tier"], "commit": commit})
+                                                "tier": d["tier"], "commit": commit},
+                                               email=d["tier"] == 1)
             _write_cooldown(now)
             out["paged"] = bool(emitted)
     except Exception as e:  # noqa: BLE001 — observability must never be what breaks the loop

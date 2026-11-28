@@ -10,9 +10,12 @@
  *      name the editor's fields only (noteId, title, subtitle, bodyJson, the
  *      baseline and outbox bookkeeping). None names `computed` or
  *      `propertiesJson`;
- *   2. the list rows that carry `computed` live in SWR's cache, and the app's one
+ *   2. the list rows that carry `computed` live in SWR's cache, and the app's root
  *      <SWRConfig> (App.jsx) passes no `provider`, so that cache is an in-memory
- *      Map that dies with the tab.
+ *      Map that dies with the tab. A nested <SWRConfig> inherits that cache unless it
+ *      passes a provider of its own, so none may (2026-11-27: the charts workspace's
+ *      per-board slot config, the keep-alive's layer mode, passes isVisible and a
+ *      middleware, no provider).
  * This rail keeps both true: it fails if a record literal in lib/offline/ gains
  * either key, or if a production <SWRConfig> gains a persistent provider. Each
  * check has a CONTROL proving it can fail.
@@ -99,20 +102,42 @@ function memoObjects(ast) {
   return out
 }
 
-/** For every <SWRConfig value={...}> in a module: whether it passes a provider. */
+/** Every `x.NAME = <value>` assignment in a module, by NAME (all of them: each one is a value the mount can hold). */
+function memberAssignments(ast) {
+  const out = {}
+  walk(ast, (n) => {
+    if (n.type !== 'AssignmentExpression' || n.operator !== '=' || n.left.type !== 'MemberExpression') return
+    if (n.left.computed || n.left.property.type !== 'Identifier') return
+    ;(out[n.left.property.name] ||= []).push(n.right)
+  })
+  return out
+}
+
+// the config keys that give a <SWRConfig> a cache of its own (SWR 2's `provider`; `cache` from SWR 0.x)
+const CACHE_KEYS = ['provider', 'cache']
+
+/** For every <SWRConfig value={...}> in a module: whether it passes a provider. A value the rail cannot read whole
+ *  (an opaque call, a spread) is unresolved, never a pass. */
 function swrConfigMounts(text) {
   const ast = parse(text)
   const consts = { ...memoObjects(ast), ...topLevelObjects(ast) }
+  const members = memberAssignments(ast)
   const mounts = []
   walk(ast, (n) => {
     if (n.type !== 'JSXOpeningElement' || n.name.name !== 'SWRConfig') return
     const attr = n.attributes.find((a) => a.type === 'JSXAttribute' && a.name.name === 'value')
     const expr = attr?.value?.expression
-    const obj = expr?.type === 'ObjectExpression' ? expr
-      : expr?.type === 'Identifier' ? consts[expr.name] : null
+    let objs = null
+    if (expr?.type === 'ObjectExpression') objs = [expr]
+    else if (expr?.type === 'Identifier' && consts[expr.name]) objs = [consts[expr.name]]
+    else if (expr?.type === 'MemberExpression' && !expr.computed && expr.property.type === 'Identifier') {
+      const values = members[expr.property.name] || []
+      if (values.length && values.every((v) => v.type === 'ObjectExpression')) objs = values
+    }
+    const readable = Boolean(objs) && objs.every((o) => o.properties.every((p) => p.type === 'Property'))
     mounts.push({
-      resolved: Boolean(obj),
-      provider: obj ? obj.properties.some((p) => keyName(p) === 'provider') : null,
+      resolved: readable,
+      provider: readable ? objs.some((o) => o.properties.some((p) => CACHE_KEYS.includes(keyName(p)))) : null,
     })
   })
   return mounts
@@ -156,15 +181,19 @@ describe("the list's SWR cache stays in memory", () => {
     .filter((f) => relative(SRC_ROOT, f).replace(/\\/g, '/') !== 'lab/main.jsx')
     .filter((f) => readFileSync(f, 'utf8').includes('<SWRConfig'))
 
-  // App.jsx owns the cache. ⚰️ The Screener Focus chart pane used to nest a provider-less <SWRConfig>
-  // too; 7f80af2a45 (2026-10-18) made the screener's chart the /charts Chart widget and it went.
-  const PRODUCTION_MOUNTS = ['App.jsx']
+  // App.jsx owns the cache: the root <SWRConfig>. A nested one inherits it unless it passes a provider, so every
+  // production mount is listed here and read below. ⚰️ The Screener Focus chart pane used to nest a provider-less
+  // <SWRConfig> too; 7f80af2a45 (2026-10-18) made the screener's chart the /charts Chart widget and it went.
+  // 2026-11-27: the charts workspace's per-board slot config (the keep-alive's layer mode; `rec.swr`: isVisible and
+  // a middleware) is the second, and passes no provider. 2026-11-27: the double-buffered chart widget's per-layer config
+  // (ChartWidget LayerSwrConfig: isVisible only, a useMemo object) is the third, and passes no provider.
+  const PRODUCTION_MOUNTS = ['App.jsx', 'pages/charts/ChartsWorkspace.jsx', 'pages/charts/widgets/ChartWidget.jsx']
 
-  it('App.jsx is the only production <SWRConfig>', () => {
+  it('the production <SWRConfig> mounts are App.jsx (the root), the charts slot config and the chart layer config, no other', () => {
     expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/')).sort()).toEqual(PRODUCTION_MOUNTS)
   })
 
-  it.each(PRODUCTION_MOUNTS)('%s passes no provider, so the cache is a Map that dies with the tab', (file) => {
+  it.each(PRODUCTION_MOUNTS)('%s passes no provider (nor cache), so the cache is App.jsx\'s Map that dies with the tab', (file) => {
     const mounts = swrConfigMounts(readFileSync(join(SRC_ROOT, file), 'utf8'))
     expect(mounts.length).toBeGreaterThan(0)
     for (const m of mounts) {
@@ -182,5 +211,17 @@ describe("the list's SWR cache stays in memory", () => {
     expect(swrConfigMounts(viaMemo)).toEqual([{ resolved: true, provider: true }])
     const memoNoProvider = 'export default () => { const v = useMemo(() => ({ use: [] }), []); return <SWRConfig value={v}><a/></SWRConfig> }'
     expect(swrConfigMounts(memoNoProvider)).toEqual([{ resolved: true, provider: false }])
+  })
+
+  it('CONTROL: a NESTED config read through a member (the charts slot shape) is caught when it adds a provider', () => {
+    const mount = (assign) => `function B({ rec }) { ${assign}; return <SWRConfig value={rec.swr}><a/></SWRConfig> }`
+    expect(swrConfigMounts(mount('rec.swr = { isVisible: () => true, use: [] }'))).toEqual([{ resolved: true, provider: false }])
+    expect(swrConfigMounts(mount('rec.swr = { isVisible: () => true, provider: () => new Map() }'))).toEqual([{ resolved: true, provider: true }])
+    expect(swrConfigMounts(mount('rec.swr = { cache: new Map() }'))).toEqual([{ resolved: true, provider: true }])
+    // every write counts: a provider on any path is a provider
+    expect(swrConfigMounts(mount('rec.swr = { use: [] }; if (x) rec.swr = { provider: p }'))).toEqual([{ resolved: true, provider: true }])
+    // what the rail cannot read whole is never a pass
+    expect(swrConfigMounts(mount('rec.swr = makeConfig()'))).toEqual([{ resolved: false, provider: null }])
+    expect(swrConfigMounts(mount('rec.swr = { ...base, use: [] }'))).toEqual([{ resolved: false, provider: null }])
   })
 })

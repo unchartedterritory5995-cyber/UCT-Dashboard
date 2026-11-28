@@ -69,7 +69,7 @@ import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 import { plotHiddenAt, plotLineStyleAt } from './knobBind.js'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
+import { MAIN_PRICE_SCALE_ID, PIN_SCALE_PREFIX, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
@@ -83,6 +83,7 @@ import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './defin
 import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, drawsRunObjectsOn, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
+import { startLatchedOf } from './runtime/startLatched.js'
 // ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
 import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
   joinMarkersToState } from './runtime/tradeMarkers.js'
@@ -838,7 +839,9 @@ export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput
     const pl = settled[i]
     if (!b || !pl || !b.plot || plotHiddenAt(b.plot, b.def, b.inst && b.inst.inputs)) return null
     if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
-    if (pl.paneIndex === 0) return 'price'
+    // ⛔ PINNED TO "No scale" (`placement.pinScaleOf`) the candles' map is the wrong one: such a glyph
+    // rides a sibling on the instance's own scale, found below, or keeps its own column.
+    if (pl.paneIndex === 0 && !(typeof pl.scaleId === 'string' && pl.scaleId.startsWith(PIN_SCALE_PREFIX))) return 'price'
     for (let j = 0; j < bind.length; j++) {
       const o = bind[j]
       const op = settled[j]
@@ -1740,7 +1743,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // C40) draws nothing; its reason reached only the layer's meta until now.
         const rStop = payload.status && payload.status !== 'ok' && objPayload
           ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
-        const rWhy = runtimeWithheldWhy(payload.withheld)
+        // ⭐⭐ (e103) a drawing withheld because its value latches the chart's start (`startLatched.js`): said by its code
+        const latchedNote = startLatchedOf(payload)
+        const rWhy0 = runtimeWithheldWhy(payload.withheld)
+        const rWhy = latchedNote ? { ...(rWhy0 || {}), [latchedNote.guard]: latchedNote.reason } : rWhy0
         // ⭐ the run half drew this instance's drawings on this chart: say so (`servedByRun`)
         publishDrops(inst.instanceId, rstate,
           { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null, servedByRun: true })

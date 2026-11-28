@@ -36,6 +36,12 @@ import { translatePine, Resolver, parseWholeExpression, lexPine, __v6BoolHistory
 import { TABLE } from '../../ast/parse.js'
 import { stampLibraryVersion, LIBRARY_VERSION } from '../../ast/pineLibraryVersion.js'
 import { fixtureLibraries } from '../../ast/__tests__/libraryFixture.js'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../../runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const H = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const RDDT = 'vw-v6-bool-history-bar0-rddt-1d-2026-11-19.json'

@@ -105,6 +105,8 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 // while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
 // behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** The most linked charts' keys a typed warm fetches beside its own (_fetchLinked): a board's linked group is 2-4 charts. */
+export const LINKED_TYPED_MAX = 3
 /** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
 const ASK_AGAIN = Object.freeze([])
 /** ⚰️ (2026-11-25) How long the handoff USED to wait for the tail of a copy behind the clock before it painted the copy as
@@ -510,7 +512,7 @@ export function createPrefetch(o = {}) {
    */
   async function ensure(key, {
     until = PREPARED, depth = 0, priority = 'urgent', signal = null, session: sess = session(),
-    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _trace = 0,
+    warm = false, front = false, local = true, _s0 = null, own = false, full = false, _trace = 0, cover = 0,
   } = {}) {
     const s0 = _s0 ?? await _hydrate(key)   // a caller that already hydrated passes its snapshot
     if (_satisfied(s0, until, depth) && (local || s0.restSeen)) {
@@ -527,7 +529,7 @@ export function createPrefetch(o = {}) {
     // `own`: the SWITCH's own ask (prepareForDisplay, askForDisplay). Only its answer starts the "name not printing" grace
     // of `_behindClock`; every other answer (a list's, a warm's, the tail's) cools the key and lends nothing: see there.
     if (own) a.own = true
-    let s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full })
+    let s = await S().ensure(key, { until, depth, priority, signal, session: sess, hydrated: true, warm, front, full, cover })
     // ⭐ (2026-11-25) A DELTA REFUSED FOR A NEW HISTORY IS READ IN FULL, NOW, ONCE (live session-open test: the biggest wait
     // class, 12 presses, was a FULL ask at the press on rows warmed 5 s before). The warm's own since= answer carried a
     // higher history_rev (the open's gap fills bump it), another cache_key or price basis, or voided restored seals:
@@ -535,7 +537,7 @@ export function createPrefetch(o = {}) {
     // has nobody to repair it, and this answer would start its cooldown: the press then asked in full itself. So the same
     // ask is made again here, in the same lane, without since= (`until: []`: asked whatever the entry's status says).
     if (s && !full && s.needsFull && FULL_READ_FOR.has(s.invalidatedFor) && !signal?.aborted && !s.error) {
-      s = await S().ensure(key, { until: [], depth, priority, signal, session: sess, hydrated: true, warm, front, full: true })
+      s = await S().ensure(key, { until: [], depth, priority, signal, session: sess, hydrated: true, warm, front, full: true, cover })
     }
     // Only an ANSWER starts the cooldown: an aborted request or a shed / failed one gives
     // the slot back (the lane's 503 backoff is what paces a shedding server).
@@ -965,12 +967,12 @@ export function createPrefetch(o = {}) {
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
    *  handoff asks it after its own peek, which already did. */
-  function heldRows(sym, tf, { showExtended, answered = false } = {}) {
+  function heldRows(sym, tf, { showExtended, answered = false, upTo = COVER_ROWS } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
-    return _viewRows(s, key, extOf(showExtended))
+    return _viewRows(s, key, extOf(showExtended), upTo)
   }
   /**
    * ⭐ (2026-11-26, review of #2871) THE ROWS THE VIEW DRAWS. A regular-hours view of an intraday key both sessions share
@@ -979,13 +981,13 @@ export function createPrefetch(o = {}) {
    * visible bars plus the longest average's lookback, and the later join changed visible values. Counted from the newest
    * row back and no further than COVER_ROWS (the only question asked of it: does it cover?). Any other view: every row.
    */
-  function _viewRows(s, key, ext) {
+  function _viewRows(s, key, ext, upTo = COVER_ROWS) {
     if (!s) return 0
     const p = key ? parseKey(key) : null
     const all = s.bars.length + (s.developing ? 1 : 0)
     if (ext || !p || p.session != null || p.window || !isIntradayTf(p.tf)) return all
     let n = s.developing && isRthBar(s.developing.t) ? 1 : 0
-    for (let i = s.bars.length - 1; i >= 0 && n < COVER_ROWS; i--) if (isRthBar(s.bars[i].t)) n++
+    for (let i = s.bars.length - 1; i >= 0 && n < upTo; i--) if (isRthBar(s.bars[i].t)) n++
     return n
   }
 
@@ -1038,6 +1040,10 @@ export function createPrefetch(o = {}) {
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
+    // ⭐ (review of #2935, D-1) pinned for the whole prepare (ensure's own pin ends when ITS answer settles, before this
+    // reports) and then handed to the hold that lasts until the chart subscribes (finally, below)
+    const reg = S().registry
+    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
       // ⭐ THE CACHE READ IS RACED, NOT AWAITED (2026-11-16). The IDB read can take 400-900 ms
@@ -1101,6 +1107,11 @@ export function createPrefetch(o = {}) {
       return 'error'
     } finally {
       _release(key)
+      // ⭐ (review of #2935, D-1) the target stays pinned from this report until its chart subscribes (registry
+      // holdUntilShown: bounded in time and count), so no other key's landing can drop it between prepare and commit;
+      // the hold is taken BEFORE the prepare's own pin goes, so there is no moment the target is idle
+      try { reg?.holdUntilShown?.(key) } catch { /* a hold is an optimisation */ }
+      try { reg?.release?.(key) } catch { /* no registry */ }
     }
   }
 
@@ -1157,12 +1168,13 @@ export function createPrefetch(o = {}) {
    *  display waiting (network.deepPrime beside a tail asked for the chart's full depth; the key's
    *  history job takes the primed answer). Resolves once joined, not due, or after `ms`; never
    *  rejects. The neighbor hold's next rows and a row the pointer rests on. */
-  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS } = {}) {
+  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS, cover = 0, signal = null } = {}) {
     await _hydrate(key)                           // a copy saved whole in this browser is not due
+    if (signal?.aborted) return false             // (review of #2938) a linked join the next text cancelled
     if (!S().deepPending?.(key)) return false     // already whole here (or saved whole), or the split is off
     const p = parseKey(key)
     S().deepPrime?.(key, { priority })
-    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false })
+    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false, cover, signal })
     return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
   }
 
@@ -1366,11 +1378,15 @@ export function createPrefetch(o = {}) {
     return outcome
   }
 
-  async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended } = {}) {
+  async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended, cover = 0 } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return 'error'
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
+    // (review of #2935, D2-b) pinned for the whole prepare and handed to the hold that lasts until the chart subscribes,
+    // exactly as prepareForDisplay's (below, finally)
+    const reg = S().registry
+    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
     try {
       // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
       // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
@@ -1388,18 +1404,20 @@ export function createPrefetch(o = {}) {
       _deviceNow(key)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (!S().deepPending?.(key)) {
-        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
+        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null, cover })
         return _outcome(s, { aborted: !!signal?.aborted, date: true })
       }
       S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
       const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
-      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
+      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {}, cover })
       if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
       return _outcome(S().peek(key) ?? s, { aborted: !!signal?.aborted, date: true })
     } catch {
       return 'error'
     } finally {
       _release(key)
+      try { reg?.holdUntilShown?.(key) } catch { /* a hold is an optimisation */ }
+      try { reg?.release?.(key) } catch { /* no registry */ }
     }
   }
 
@@ -2072,7 +2090,54 @@ export function createPrefetch(o = {}) {
     }
   }
 
-  function _warmTypedIntraday(sym, tf, alsoTfs) {
+  /** ⭐⭐ (2026-11-27, owner: "close to 30MS for everything always") ...AND THE LINKED CHARTS' KEYS ARE FETCHED, not only
+   *  joined when held (`_joinLinked`) or told to the column warmers (`_tellTyped`). Enter shows the typed ticker on every
+   *  chart of the linked group; a cold page takes 100-350 ms, so a linked key not asked before Enter cannot paint in the
+   *  key's task. Each linked key not already held in a painting state is asked now (its first page, at `visible` rank so
+   *  it never queues behind background work), then joined: the lake's depth for intraday, the deep sealed history for
+   *  D/W/M. At most LINKED_TYPED_MAX keys; `signal` is the typed warm's own (a newer text aborts it, Enter keeps it). */
+  let _linkedCtl = null   // the newest text's linked fetches (B2, review of #2934)
+  function _fetchLinked(T, tf, alsoTfs, warmSignal, cover = 0) {
+    // ⛔ (review of #2934, B2) EVERY TEXT'S LINKED FETCHES ARE CANCELLED BY THE NEXT TEXT'S. They run under one controller
+    // per call, aborted by the next call, and by the typed warm's own signal when it has one. A warm that asked nothing
+    // (its key already held) has no signal, and a warm that finished drops its controller, so without this a held
+    // suggestion's linked fetches outlived the text: with the 0 ms highlight warm, three highlights in a row left nine
+    // requests running. (A fetch another caller joined, the switch's own, is only detached, never aborted: network.js.)
+    if (_linkedCtl) _linkedCtl.abort()
+    const ctl = new AbortController()
+    _linkedCtl = ctl
+    if (warmSignal) {
+      if (warmSignal.aborted) ctl.abort()
+      else warmSignal.addEventListener?.('abort', () => ctl.abort(), { once: true })
+    }
+    const signal = ctl.signal
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    let n = 0
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k0 = String(t)
+      if (!t || seen.has(k0)) continue
+      seen.add(k0)
+      if (n >= LINKED_TYPED_MAX) break
+      const k = keyFor(T, t)
+      const p = k ? parseKey(k) : null
+      if (!p || p.window) continue
+      const held = S().peek(k)
+      if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !_behindClock(k, held)) continue
+      n++
+      const date = !isIntradayTf(p.tf)
+      Promise.resolve().then(async () => {
+        if (signal?.aborted) return
+        if (date) { _joinDeepDate(k, { priority: 'visible', cover, signal }).catch(() => {}); return }
+        try { S().primeLake?.(k) } catch { /* a warm only */ }
+        const s = await ensure(k, { until: DISPLAYABLE, priority: 'visible', signal, local: false, _s0: S().peek(k) || {} })
+        if (!signal?.aborted && s?.restSeen && !s.error) _joinLake(k)
+      }).catch(() => {})
+    }
+    return n
+  }
+
+  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
     const key = keyFor(T, tf)
@@ -2097,6 +2162,7 @@ export function createPrefetch(o = {}) {
     if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && (!closedBehind(held) || _justAnswered(key))) {
       if (S().lakePending?.(key)) _joinLake(key)
       _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, null, cover)
       return null
     }
     if (typed && typed.key === key) return null
@@ -2128,6 +2194,7 @@ export function createPrefetch(o = {}) {
       if (typed !== mine) return 'superseded'
       _tellTyped(T, tf, alsoTfs)
       _joinLinked(T, tf, alsoTfs)
+      _fetchLinked(T, tf, alsoTfs, ctl.signal, cover)
       const behind = closedBehind(s0)
       // ⭐ (2026-11-26, the owner's cold typed Enter) A local copy that paints answers from memory ONLY when it covers the
       // view (COVER_ROWS: the switch then paints it at once and the depth joins behind the view). The device's copy of a
@@ -2148,9 +2215,9 @@ export function createPrefetch(o = {}) {
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
-  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null } = {}) {
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0 } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
@@ -2162,6 +2229,7 @@ export function createPrefetch(o = {}) {
     const typedSym = String(sym).trim().toUpperCase()
     if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
       _tellTyped(typedSym, tf, alsoTfs)   // a known name, bars current: its companions may not be
+      _fetchLinked(typedSym, tf, alsoTfs, null, cover)
       return null
     }
     if (typed && typed.key === key) return null
@@ -2180,16 +2248,17 @@ export function createPrefetch(o = {}) {
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         _tellTyped(typedSym, tf, alsoTfs)
+        _fetchLinked(typedSym, tf, alsoTfs, ctl.signal, cover)
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
       // ⛔ A PREFIX IS NOT A TICKER: with the pack held, uncached text is a partial word.
       if (!s0?.depth && !packIngesting()) return 'unknown'
       const depth = deep ? (fullBarsFor(String(tf)) || 0) : 0
-      const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
+      const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false, cover })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
-      if (answered && !s0?.depth && typed === mine) _tellTyped(typedSym, tf, alsoTfs)   // the authority just said it is real
+      if (answered && !s0?.depth && typed === mine) { _tellTyped(typedSym, tf, alsoTfs); _fetchLinked(typedSym, tf, alsoTfs, ctl.signal, cover) }   // the authority just said it is real
       return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }

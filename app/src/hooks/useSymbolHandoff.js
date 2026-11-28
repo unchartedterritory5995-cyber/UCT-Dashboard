@@ -25,7 +25,8 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
 import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly, observeGroupSwitches } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
@@ -41,7 +42,7 @@ import { deviceStoreEnabled } from '../data/deviceStore/switch'
 import { deviceSource } from '../data/deviceStore/source'
 import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 import { inRegularSession } from '../data/deviceStore/fresh'
-import { onChartPaint } from '../components/chart/paintLog'
+import { onChartPaint, viewNeed, VIEW_LOOKBACK_ROWS } from '../components/chart/paintLog'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -88,7 +89,10 @@ setSwitchEnv({ store: DEVICE, rth: inRegularSession })
  * now, and the depth joins behind the view (it moves no right-edge geometry; the first-paint rails hold it).
  */
 export { COVER_ROWS }
-const covers = (sym, tf, opts = {}) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= COVER_ROWS
+// (the rows a member's first paint needs: chart/paintLog viewNeed, one rule for the switch and the double buffer's flip)
+export { VIEW_LOOKBACK_ROWS, viewNeed }
+// (`upTo`: heldRows counts a regular-hours view's rows from the newest back only as far as the question needs)
+const covers = (sym, tf, opts = {}, need = COVER_ROWS) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, { ...opts, upTo: need }) ?? 0) >= need
 
 // ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20). WHEN a member of a linked group shows a
 // new symbol lives in ./handoffGroups.js: the key handler's DECISION (every member can show it now: one
@@ -145,18 +149,47 @@ const DAILY_SYM = /^[A-Z0-9.^-]{1,12}$/i
  *  ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19, owner: "about 200
  *  bars instantly and then the rest shortly after, definitely in 2 phases"): a shallow held set (the pack's ~300
  *  rows) whose deep history has not joined goes through the same bounded prepare, which waits for the join. */
-function dailyHoldNeeded(sym, tf) {
-  return isNativeTf(tf) && !INTRADAY.has(String(tf)) && DAILY_SYM.test(String(sym))
-    && (!holdsDailySet(sym, tf) || (BARSTORE && storePrefetch.deepPending(sym, tf) && !devicePaints(sym, tf)))
+function dailyHoldNeeded(sym, tf, need = COVER_ROWS) {
+  if (!(isNativeTf(tf) && !INTRADAY.has(String(tf)) && DAILY_SYM.test(String(sym)))) return false
+  if (!holdsDailySet(sym, tf)) return true
+  if (!BARSTORE) return false
+  // ⭐⭐ (2026-11-27, the owner's repro: a daily chart zoomed out to ~1,000 bars, a cold ticker typed) A HELD SET PAINTS
+  // AT ONCE ONLY WHEN IT COVERS THE VIEW (`need`, viewNeed). The device's daily copy (350 rows) painted at once whatever
+  // the view (`devicePaints`), and the deep history then filled the screen in. Short of the view, the switch holds while
+  // the deep history is still due; with nothing more coming (its join settled) it paints what there is.
+  const rows = storePrefetch.heldRows?.(sym, tf, {}) ?? 0
+  const deep = !!storePrefetch.deepPending(sym, tf)
+  // (a count of zero: a source that cannot count rows, so the rule before this one decides, unchanged)
+  if (!rows) return deep && !devicePaints(sym, tf)
+  // nothing more is coming (the deep history joined or settled): what is held is the set
+  if (!deep) return false
+  // the deep history still due: shown now only on rows that cover the view and that the chart paints: this life's
+  // answer (a saved copy alone may be behind, and the chart refuses it), or the device's current copy
+  if (covers(sym, tf, { answered: true }, need)) return false
+  if (devicePaints(sym, tf) && rows >= need) return false
+  return true
 }
 
 /** ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink later"). A held
  *  key paints at once only when the lake's whole depth is not still due for it (or the device's copy, or rows
  *  that cover the view, paint it); otherwise the intraday prepare waits for that join. */
-function paintsWholeNow(sym, tf, sess) {
-  return peekDisplayable(sym, tf, sess)
-    && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(sym, fetchTf(tf), sess)
-      && !devicePaints(sym, fetchTf(tf), sess) && !covers(sym, fetchTf(tf), sess))
+function paintsWholeNow(sym, tf, sess, need = COVER_ROWS) {
+  if (!peekDisplayable(sym, tf, sess)) return false
+  if (!(BARSTORE && INTRADAY.has(String(tf)))) return true
+  const ftf = fetchTf(tf)
+  // ⭐⭐ (2026-11-27, owner: "a small portion of the candles right away and then the rest") NEVER A SHORT FIRST PAINT.
+  // A held key paints at once only when it holds the rows the member's view will draw (`need`, viewNeed). The device's
+  // copy of a never-opened ticker (~300 newest 5m rows, 600 1m) painted at once whatever the view (`devicePaints`), and
+  // the server's answer and the lake's depth then filled the screen in; it now paints at once only where it covers the
+  // view, like any other copy. A copy short of the view waits for the rows that cover it (the prepare: the answer, the
+  // lake's join, bounded by LAKE_JOIN_WAIT_MS), unless nothing more is coming: the lake settled and the server answered
+  // this life (a young listing paints what there is).
+  const rows = BARSTORE ? (storePrefetch.heldRows?.(sym, ftf, { ...sess, upTo: need }) ?? 0) : 0
+  // (a displayable key always holds rows in the store: a count of zero is a source that cannot count them, so the rule
+  // before this one decides, unchanged)
+  if (!rows) return !(storePrefetch.lakePending(sym, ftf, sess) && !devicePaints(sym, ftf, sess))
+  if (rows >= need) return true
+  return !storePrefetch.lakePending(sym, ftf, sess) && covers(sym, ftf, { ...sess, answered: true }, 1)
 }
 
 /** How a switch to `sym` can be shown, decided synchronously (pure: reads the caches, starts nothing):
@@ -165,10 +198,10 @@ function paintsWholeNow(sym, tf, sess) {
  *   'now'        displayable and whole (or a code this coordinator does not govern): shown once its panes'
  *                server columns have landed (COLUMNS_WAIT_MS)
  *   'prepare'    the intraday prepare, then shown on what it reports */
-function sameTaskRoute(sym, tf, sess) {
+function sameTaskRoute(sym, tf, sess, need = COVER_ROWS) {
   if (/^ECON:/i.test(String(sym))) return 'econ'
-  if (dailyHoldNeeded(sym, tf)) return 'daily-hold'
-  if (paintsWholeNow(sym, tf, sess)) return 'now'
+  if (dailyHoldNeeded(sym, tf, need)) return 'daily-hold'
+  if (paintsWholeNow(sym, tf, sess, need)) return 'now'
   // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. A custom code (2m, 45m...) fetches its own base, which this
   // coordinator has no view of, and passes straight through.
   if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return 'now'
@@ -216,10 +249,10 @@ function deviceRuleBeforeAnswer(sym, tf, sess) {
  *  in this task; else 'no-symbol' | 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns'. The member's canShowNow
  *  is this answer being null (the same checks in the same order as before); a tester's device diagnostics record it
  *  per switch (`gate`), so a measurement can say which member and which gate sent a group down the round. */
-function decisionGateFor(sym, tf, sess, st, settle) {
+function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS) {
   if (!sym || !tf) return 'no-symbol'
   if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return 'settle'
-  const route = sameTaskRoute(sym, tf, sess)
+  const route = sameTaskRoute(sym, tf, sess, need)
   if (route === 'econ') return null
   if (route !== 'now') return `route:${route}`
   return columnsReadyFor(sym, tf) ? null : 'columns'
@@ -290,7 +323,19 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // them takes the symbol and its sibling does not, which is the mixed frame this exists to prevent. A timeframe
   // that moved in the same event is therefore NOT a reason to refuse it (it was, and the rail caught a mixed frame):
   // that chart switches timeframe as it would on its own, with the chart's own loading state for the new one.
-  const decision = useSyncExternalStore(scoped ? subscribeDecisions : NO_SUBSCRIPTION, scoped ? () => decisionFor(scope, group) : NO_DECISION)
+  // ⭐ (2026-11-27, board keep-alive, layer mode; review of #2901, M1) a chart on a hidden layer board is no member of
+  // its group's decisions (registerMember below follows the board handle) and is not re-rendered by one: the decision
+  // feed is muted while hidden and caught up at the show, with no React state of its own.
+  const layerBoard = useLayerBoard()
+  const heldDecisionRef = useRef(null)
+  const subscribeBoardDecisions = useCallback((cb) => {
+    const f = forwardWhileShown(layerBoard, cb)
+    const off = subscribeDecisions(f.cb)
+    return () => { f.stop(); off() }
+  }, [layerBoard])
+  const decision = useSyncExternalStore(scoped ? subscribeBoardDecisions : NO_SUBSCRIPTION,
+    scoped ? () => (boardHiddenNow(layerBoard) ? heldDecisionRef.current : decisionFor(scope, group)) : NO_DECISION)
+  if (!boardHiddenNow(layerBoard)) heldDecisionRef.current = decision
   const memberId = memberIdRef.current
   if (decision && scoped && requestedSym && tf && requestedSym !== displayedSym && decision.sym === requestedSym
       && memberId in decision.tfs && !decision.applied[memberId]) {
@@ -307,12 +352,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   useLayoutEffect(() => { viewRef.current = { tf, showExtended } })
   useLayoutEffect(() => {
     if (!scoped) return undefined
-    return registerMember(scope, group, memberIdRef.current, {
+    return whileBoardShown(layerBoard, () => registerMember(scope, group, memberIdRef.current, {
       key: member,
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => {
-        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow)
+        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow, viewNeed(member))
         gateRef.current = { sym, gate }
         return gate === null
       },
@@ -320,8 +365,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
         noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null, null, null)
       },
-    })
-  }, [scoped, scope, group, member])
+    }))
+  }, [scoped, scope, group, member, layerBoard])
 
   // ⭐⭐ ONE FRAME FOR THE GROUP, WHEN THE DECISION SAID NO: join the round for the requested symbol in the LAYOUT
   // phase (see GROUP_SYNC_MS), so every sibling of this commit is a member before any of them can be ready.
@@ -452,7 +497,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
-      const route = sameTaskRoute(requestedSym, tf, sess)
+      const need = viewNeed(member)   // the rows the view this member shows will draw (read at the switch)
+      const route = sameTaskRoute(requestedSym, tf, sess, need)
       if (scoped) noteSwitchRoute(group, requestedSym, route === 'prepare' ? ROUTE_PREPARE : route === 'daily-hold' ? ROUTE_DAILY_HOLD : ROUTE_NOW)
       if (route === 'econ') { commitNow(); return leaveHold }
 
@@ -478,8 +524,17 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         }
         // Aborted on any exit: a newer symbol, or past the bound, where the chart owns the fetch.
         const ctl = new AbortController()
-        P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
-        const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
+        // ⭐⭐ (2026-11-27) NEVER A SHORT PAGE: the prepare's report and the DAILY_HOLD_MAX_MS bound commit only when the held
+        // set covers the view (`need`) or nothing more is coming (its deep join settled); otherwise the watcher below
+        // commits the moment the rows that cover it land, and HANDOFF_HANG_MS stays the hang guard (a failure still
+        // commits: the chart then shows its own honest state).
+        // (zero rows counted: a source that cannot count them, so the bound and the report commit as before)
+        const uncounted = () => BARSTORE && !(storePrefetch.heldRows?.(requestedSym, tf, {}) ?? 0)
+        const whole = () => !BARSTORE || uncounted() || covers(requestedSym, tf, {}, need) || !storePrefetch.deepPending?.(requestedSym, tf)
+        const landWhole = (outcome) => { if (outcome === 'error' || outcome === 'nodata' || whole()) land(outcome) }
+        P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal, cover: need }).then(landWhole, () => land('error'))
+        const bound = setTimeout(() => landWhole('hold-timeout'), DAILY_HOLD_MAX_MS)
+        const hang = setTimeout(() => land('hang'), HANDOFF_HANG_MS)
         // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
         // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
@@ -495,8 +550,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const ready = () => {
           if (!live) return true
           seePre()
-          if (devicePaints(requestedSym, tf)) { land('device'); return true }
-          if (covers(requestedSym, tf, { answered: true })) { land('covered'); return true }
+          if (devicePaints(requestedSym, tf) && (uncounted() || covers(requestedSym, tf, {}, need))) { land('device'); return true }
+          if (covers(requestedSym, tf, { answered: true }, need)) { land('covered'); return true }
           return false
         }
         if (DEVICE || BARSTORE) {
@@ -506,7 +561,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
             devTimer = setTimeout(devPoll, 0)
           }
         }
-        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); stopWatch(); ctl.abort(); leaveHold() }
+        return () => { live = false; clearTimeout(bound); clearTimeout(hang); if (devTimer) clearTimeout(devTimer); stopWatch(); ctl.abort(); leaveHold() }
       }
 
       // displayable and whole (paintsWholeNow), or a code this coordinator does not govern: commit now. The
@@ -538,9 +593,15 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const commitHere = () => { committed = true; commit() }
       P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
       P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
-        if (!alive || genRef.current !== gen) return   // a newer request owns the screen
+        if (!alive || genRef.current !== gen || committed) return   // a newer request owns the screen
         lastOutcomeRef.current = outcome
-        commitHere()
+        // ⭐⭐ (2026-11-27) NEVER A SHORT PAGE: a prepare that reports while the held rows are still short of the view
+        // (its lake wait ran out first) does not commit; the watcher commits the moment they cover it, and the hang guard
+        // below stays. A failure or an empty answer commits (the chart shows its own honest state).
+        const failed = outcome === 'error' || outcome === 'nodata' || outcome === 'hang'
+        // (zero rows counted: a source that cannot count them, so the report commits as before)
+        const uncounted = !(storePrefetch.heldRows?.(requestedSym, fetchTf(tf), sess) ?? 0)
+        if (failed || uncounted || !BARSTORE || !INTRADAY.has(String(tf)) || paintsWholeNow(requestedSym, tf, sess, need)) commitHere()
       }).catch(() => { if (alive && genRef.current === gen) commitHere() })
 
       // A poll alongside it, because the ±6 neighbour warmer may repair this
@@ -555,14 +616,14 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const tick = () => {
         if (!alive || genRef.current !== gen) return
         seePre()
-        if (paintsWholeNow(requestedSym, tf, sess)) { commitHere(); return }
+        if (paintsWholeNow(requestedSym, tf, sess, need)) { commitHere(); return }
         timer = setTimeout(tick, POLL_MS)
       }
       seePre()   // (the route was just decided on this entry: what the device rule said of it then)
       unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
         if (!unwatchI || !alive || genRef.current !== gen || committed) return
         seePre()
-        if (paintsWholeNow(requestedSym, tf, sess)) { stopWatchI(); commitHere() }
+        if (paintsWholeNow(requestedSym, tf, sess, need)) { stopWatchI(); commitHere() }
       })
       if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 

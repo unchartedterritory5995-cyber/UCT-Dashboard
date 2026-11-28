@@ -25,6 +25,12 @@ import {
   runHere, runHereWhenLanded, verdictOnChart, RUN, MIN_BARS, NEEDS_THE_CHART, STOPPED_HEADLINE, CHECKING_HEADLINE,
   NOT_RUN_HEADLINE, sortFindings, WAITS_FOR_THE_BAR,
 } from './runsHere'
+import { setOffListingCurtainEnabled as __e102Curtain } from '../engine/runtime/runtimeColumns.js'
+import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
+// ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
+// test its machinery, so they turn it on for this file
+__e102BeforeAll(() => { __e102Curtain(true) })
+__e102AfterAll(() => { __e102Curtain(false) })
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')

@@ -27,6 +27,24 @@
    "to": "      if (ours.paintRunStop || t.withheld) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
    "expectRed": "DRAWN in the wrong colour"
+  },
+  {
+   "id": "PS4",
+   "mutant": "a run withheld as runtime:history-start not in the one list (its unrun paint reads DIVERGE again)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/paintColours.js",
+   "from": "export const RUN_STOP_GUARDS = Object.freeze(new Set([RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,\n  RUNTIME_HISTORY_GUARD]))",
+   "to": "export const RUN_STOP_GUARDS = Object.freeze(new Set([RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD]))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
+   "expectRed": "withheld as runtime:history-start"
+  },
+  {
+   "id": "PS5",
+   "mutant": "a history-start refusal worded as a stop (the sentence says the run stopped)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/paintColours.js",
+   "from": "              reason: ours.paintRunStop.code === RUN_REFUSED_BEFORE",
+   "to": "              reason: false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.paintRunStop.test.js",
+   "expectRed": "withheld as runtime:history-start"
   }
  ]
 }

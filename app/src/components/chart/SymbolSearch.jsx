@@ -6,6 +6,7 @@ import uctMark from '../intro/assets/compass-mark.webp'
 import styles from './SymbolSearch.module.css'
 import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from './symbolSearchModel'
 import useMarketIndicators from '../../hooks/marketIndicatorRegistry'
+import { ensureTickerUniverse, isKnownTicker, uniqueCompletion, hasLongerCompletion, noteTickerUniverseVersion } from '../../lib/tickerUniverse'
 // Re-exported: `POPULAR_RESULTS` has existing importers that reach for it here.
 export { POPULAR_RESULTS }
 
@@ -20,6 +21,16 @@ export { POPULAR_RESULTS }
 // ticker (G, GO, GOO, GOOG) is not intent, and warming it is cache churn plus, when the
 // today-pack is unusable, a wasted /api/bars request.
 export const TYPED_INTENT_SETTLE_MS = 140
+// ⭐ (2026-11-27, owner: "fully instant like deepvue", then "close to 30MS for everything always") How long the HIGHLIGHTED
+// suggestion must stay highlighted before the host is told it (the same warm as the settled text: the chart fetches its
+// covering page before Enter). ZERO: a highlighted row is a real ticker from the search, never a prefix being typed through,
+// and a cold page takes 100-350 ms, so every millisecond waited here is one Enter can find. A newer highlight still cancels
+// a pending one (the timer), and the chart's typed warm keeps one warm at a time.
+export const HIGHLIGHT_INTENT_MS = 0
+// ⛔ (review of #2938, T2) How long an EXACT ticker that can still grow (A -> AM -> AMZN, GOOG -> GOOGL) waits before it is
+// told: typed through at a typist's pace it is cancelled by the next key, so single letters no longer start a warm (and
+// up to three linked fetches) each. A ticker nothing longer starts with, and a unique completion, are told at once.
+export const EXACT_PREFIX_SETTLE_MS = 80
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -85,6 +96,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
   const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
+  // the real tickers this open search has been answered with (ticker-search rows): typed text equal to one IS a ticker, so
+  // it is reported at once (the first unambiguous match), not after the typing pause
+  const knownRef = useRef(new Set())
   // The typing pause's timer. `submit` clears it: the Enter commit no longer re-renders the search (its teardown waits
   // for the frame), so a pause still running at Enter would otherwise report the entered text after the switch.
   const intentTimerRef = useRef(0)
@@ -221,7 +235,11 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=40${typeParam ? `&type=${typeParam}` : (econ ? '&type=all_economic' : '')}`
     const t = setTimeout(() => {
       fetch(url, { signal: ctl.signal })
-        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(r => {
+          // (review of #2938) every answer names the universe version: a stale browser copy is replaced now
+          try { noteTickerUniverseVersion(r.headers?.get?.('x-ticker-universe')) } catch { /* a check only */ }
+          return r.ok ? r.json() : Promise.reject(r.status)
+        })
         .then(j => {
           // ⛔ A SUPERSEDED OR ABORTED REQUEST IS NOT A RESULT (2026-11-23). A newer keystroke, Enter or the dialog
           // closing aborts it (this effect's cleanup); an answer that lands anyway must not replace the newer list.
@@ -232,6 +250,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
           // wrong category through). Typeless responses (old server) pass through.
           if (typeParam && arr.some(r => r.type)) arr = arr.filter(r => r.type === typeParam)
           const hasExact = arr.some(r => r.ticker === q.toUpperCase())
+          for (const r of arr) if (r && !r.econ && typeof r.ticker === 'string') knownRef.current.add(r.ticker.toUpperCase())
           const merged = (hasExact || typeParam) ? arr : [...arr, { ticker: q.toUpperCase(), name: null, _typed: true }]
           setResults(merged)
           setActiveIdx(0)
@@ -257,17 +276,52 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     const clean = canonicalTicker(q, breadthAll)
     if (!clean || !/^[A-Z0-9][A-Z0-9.^-]{0,11}$/i.test(clean) || clean.toUpperCase() === String(sym || '').toUpperCase()) return undefined
     const text = clean.toUpperCase()
+    // ⭐ (2026-11-27, "close to 30MS for everything always") THE FIRST UNAMBIGUOUS MATCH, told NOW, not after the pause:
+    // text that IS a ticker (the universe this browser holds, lib/tickerUniverse, or a ticker this search was answered
+    // with: typing CRBG after CRB's answer listed it), or else the ONE ticker the text can still become (NVD -> NVDA). A
+    // prefix that is itself a ticker (GOOG on the way to GOOGL) is warmed too; the chart's typed warm keeps one warm at a
+    // time and the next text cancels it. Anything else waits for the pause, as before.
+    const exact = knownRef.current.has(text) || isKnownTicker(text) === true
+    const completion = exact ? null : uniqueCompletion(text)
+    const target = completion && completion !== String(sym || '').toUpperCase() ? completion : text
+    const now = exact || target !== text
     // Once per text: a re-run for another reason (the breadth catalogue landing) is not new intent.
-    if (lastIntentRef.current === text) return undefined
+    if (lastIntentRef.current === target) return undefined
+    const delay = !now ? TYPED_INTENT_SETTLE_MS : (exact && target === text && hasLongerCompletion(text) === true ? EXACT_PREFIX_SETTLE_MS : 0)
     const t = setTimeout(() => {
-      lastIntentRef.current = text
-      try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
-    }, TYPED_INTENT_SETTLE_MS)
+      lastIntentRef.current = target
+      try { onTypedIntent(target) } catch { /* a warm never breaks search */ }
+    }, delay)
     intentTimerRef.current = t
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
+  // ⭐ (2026-11-27) ...AND THE HIGHLIGHTED SUGGESTION: the row Enter would open (the top result as the member types, or the
+  // one the arrow keys moved to), once it has stayed highlighted for HIGHLIGHT_INTENT_MS. A new highlight cancels the
+  // pending one, and the chart's typed warm itself keeps one warm at a time (a newer symbol aborts the older one), so a
+  // member arrowing down the list starts at most one fetch per pause. Once per symbol per open search, shared with the
+  // settled text (lastIntentRef): the same ticker is never told twice.
+  const hlRow = open ? results?.[activeIdx] : null
+  // ⛔ Never the instant "Go to {text}" row: it is set on EVERY keystroke and IS the typed text, so warming it here would
+  // report each prefix typed through (G, GO, GOO...). The settled-text effect above owns that text.
+  const highlightedTicker = hlRow && !hlRow.econ && !hlRow._typed && typeof hlRow.ticker === 'string' ? hlRow.ticker.toUpperCase() : null
+  useEffect(() => {
+    // (only once the member has typed: the empty search's popular list is no intent)
+    if (!open || !onTypedIntent || chip === 'economic' || chip === 'breadth' || !highlightedTicker || !query.trim()) return undefined
+    if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(highlightedTicker) || highlightedTicker === String(sym || '').toUpperCase()) return undefined
+    if (lastIntentRef.current === highlightedTicker) return undefined
+    // a row from an earlier answer (results land after the typing pause) is not the text's: it must complete what is typed
+    if (!highlightedTicker.startsWith(query.trim().toUpperCase())) return undefined
+    const t = setTimeout(() => {
+      if (!openRef.current) return   // Enter (or a close) came first: nothing is reported after it
+      lastIntentRef.current = highlightedTicker
+      try { onTypedIntent(highlightedTicker) } catch { /* a warm never breaks search */ }
+    }, HIGHLIGHT_INTENT_MS)
+    return () => clearTimeout(t)
+  }, [highlightedTicker, open, chip, onTypedIntent, sym, query])
   // A new search session may warm the same text again.
-  useEffect(() => { if (!open) lastIntentRef.current = null }, [open])
+  useEffect(() => { if (!open) { lastIntentRef.current = null; knownRef.current = new Set() } }, [open])
+  // the universe the keystroke reads (lib/tickerUniverse): fetched the first time a search that warms opens, never before
+  useEffect(() => { if (open && onTypedIntent) ensureTickerUniverse() }, [open, onTypedIntent])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {

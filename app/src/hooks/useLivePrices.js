@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { registerTickers, subscribe, getSnapshot, pollNow } from './livePriceStore'
+import { boardHiddenNow, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 
 /** True when every ticker in `key` maps to the same entry object in both snapshots. */
 export function sameSlice(prev, next, key) {
@@ -34,8 +35,15 @@ export default function useLivePrices(tickers = []) {
   // render of this component, which is the render this exists to skip.
   const allRef = useRef(all)
   allRef.current = all
+  // ⭐ (2026-11-27, board keep-alive, layer mode; boardVisibility.js) a hidden layer board polls no price (its tickers
+  // leave the shared poll) and is not re-rendered by one; in the show's task its tickers come back (a new ticker is
+  // polled at once) and it re-reads the store (a re-render only when its slice moved while hidden).
+  const layer = useLayerBoard()
+  const layerRef = useRef(layer)
+  layerRef.current = layer
   useEffect(() => {
     const unsub = subscribe(() => {
+      if (boardHiddenNow(layerRef.current)) return
       const next = getSnapshot()
       if (sameSlice(allRef.current, next, keyRef.current)) return
       allRef.current = next
@@ -50,8 +58,17 @@ export default function useLivePrices(tickers = []) {
   // Register/unregister this caller's tickers in the shared union.
   useEffect(() => {
     if (!key) return undefined
-    return registerTickers(key.split(','))
-  }, [key])
+    let first = true
+    return whileBoardShown(layer, () => {
+      const off = registerTickers(key.split(','))
+      if (!first) {
+        const next = getSnapshot()
+        if (!sameSlice(allRef.current, next, keyRef.current)) { allRef.current = next; setAll(next) }
+      }
+      first = false
+      return off
+    })
+  }, [key, layer])
 
   // Select only this caller's slice (stable ref unless its tickers' data changes).
   const prices = useMemo(() => {
