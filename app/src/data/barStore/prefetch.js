@@ -386,8 +386,22 @@ export function createPrefetch(o = {}) {
   const preparing = new Map()
   /** Deferred prefetch batch: key → {priority, depth} (flushed on a microtask). */
   let batch = null
-  /** key → AbortController of the latest urgent prefetchBars call. */
+  /** key → { c: AbortController, owners: Set } of the latest urgent prefetchBars calls that asked it. ⛔ (review of #3024)
+   *  OWNED PER CALLER: six embedded <Watchlists> (WatchlistWidget, the scanner's results, a list subscription, the period
+   *  sort, ETF holdings, a breadth drill) share this one map, so one list dropping a family (or passing a row) aborted
+   *  another list's in-flight urgent rows. A key is aborted only when the LAST owner that asked it gives it up. */
   const urgentCtl = new Map()
+  /** The owner of an urgent call that names none (the screener, the neighbour warm): they share one, as before. */
+  const URGENT_ANON = Symbol('urgent-anon')
+  /** `owner` gives up `k` (its row passed, its family dropped): aborted when nobody else still wants it. ⛔ THE ONE GUARD:
+   *  a caller that never asked `k` gives up nothing (deleting an absent owner leaves the set as it was); no pre-check
+   *  repeats it (review of #3064: two copies, and mutants O1/O2 could not tell them apart). */
+  const _giveUpUrgent = (k, e, owner) => {
+    e.owners.delete(owner)
+    if (e.owners.size) return false
+    e.c.abort(); urgentCtl.delete(k)
+    return true
+  }
   /** key → the bucket a next row was asked again in after a roll (_reaskNext: once per row per bucket). */
   const nextReasked = new Map()
   /** The opt-in scan-warm trace's urgent call counter (utils/prefetchBars scanTrace; 0: not traced). */
@@ -1511,7 +1525,7 @@ export function createPrefetch(o = {}) {
 
   // `viewWindow` (zero-network PR 1.3): the urgent next rows are warmed on the window the group's charts read at the
   // member's date; the rows further out are left to the date's own window warm (chart/useDateWindowWarm)
-  function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false, viewWindow = null } = {}) {
+  function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false, viewWindow = null, owner = URGENT_ANON } = {}) {
     const wOpts = viewWindow && Number.isFinite(viewWindow.to) ? { window: { to: viewWindow.to } } : null
     if (!tickers?.length) return
     const syms = tickers.filter(Boolean)
@@ -1528,18 +1542,19 @@ export function createPrefetch(o = {}) {
       // (review of #3020) PER KEY FAMILY: a list warms one timeframe's plain AND window rows when charts on the colour read
       // both, and one call must not abort the other's rows
       const callTo = parseKey([...keep][0] || '')?.window?.to ?? null
-      for (const [k, c] of urgentCtl) {
+      for (const [k, e] of [...urgentCtl]) {
         if (!keep.has(k) && parseKey(k)?.tf === callTf && (parseKey(k)?.window?.to ?? null) === callTo) {
-          c.abort(); urgentCtl.delete(k)
-          if (call) scanTrace({ ev: 'warm-abort', key: k, by: call })
+          if (_giveUpUrgent(k, e, owner) && call) scanTrace({ ev: 'warm-abort', key: k, by: call })
         }
       }
       for (const sym of syms.slice(0, nUrgent)) {
         const k = keyFor(sym, tf, wOpts || {})
         if (!k) continue
-        if (!urgentCtl.has(k)) urgentCtl.set(k, new AbortController())
-        const c = urgentCtl.get(k)
-        const done = () => { if (urgentCtl.get(k) === c) urgentCtl.delete(k) }
+        if (!urgentCtl.has(k)) urgentCtl.set(k, { c: new AbortController(), owners: new Set() })
+        const e = urgentCtl.get(k)
+        e.owners.add(owner)
+        const c = e.c
+        const done = () => { if (urgentCtl.get(k) === e) urgentCtl.delete(k) }
         const held = S().peek(k)
         const reask = _reaskNext(k, held)
         if (call) scanTrace({ ev: 'warm', call, key: k, path: reask ? 'reask' : 'warm', reg: _traceCopy(k, held) })
@@ -1559,16 +1574,16 @@ export function createPrefetch(o = {}) {
   /** (review of #3020, follow-up) Abort the in-flight urgent next rows of ONE key family: `tf` plain, or `tf` at the window
    *  `viewWindow`. A list whose colour stops reading that family (Latest, a date change, a chart leaving the tf) gives
    *  up those rows at once instead of letting at most URGENT_MAX_PER_CALL requests per family run on for nothing.
-   *  Returns how many it aborted. */
-  function abortUrgentFamily(tf, viewWindow = null) {
+   *  Returns how many it aborted. ⛔ (review of #3024) Only `owner`'s rows: another list's are its own to give up. */
+  function abortUrgentFamily(tf, viewWindow = null, owner = URGENT_ANON) {
     const probe = keyFor('X', tf, viewWindow && Number.isFinite(viewWindow.to) ? { window: { to: viewWindow.to } } : {})
     const pp = probe ? parseKey(probe) : null
     if (!pp) return 0
     const to = pp.window?.to ?? null
     let n = 0
-    for (const [k, c] of [...urgentCtl]) {
+    for (const [k, e] of [...urgentCtl]) {
       const p = parseKey(k)
-      if (p?.tf === pp.tf && (p.window?.to ?? null) === to) { c.abort(); urgentCtl.delete(k); n++ }
+      if (p?.tf === pp.tf && (p.window?.to ?? null) === to && _giveUpUrgent(k, e, owner)) n++
     }
     return n
   }
@@ -2632,7 +2647,7 @@ export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().pref
 export function warmTypedSymbol(sym, tf = 'D', opts = {}) { return _f().warmTypedSymbol(sym, tf, opts) }
 export function warmTypedCandidates(syms, tf = 'D', opts = {}) { return _f().warmTypedCandidates(syms, tf, opts) }
 export function createNeighborHold() { return _f().createNeighborHold() }
-export function abortUrgentFamily(tf, viewWindow) { return _f().abortUrgentFamily(tf, viewWindow) }
+export function abortUrgentFamily(tf, viewWindow, owner) { return _f().abortUrgentFamily(tf, viewWindow, owner) }
 export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
