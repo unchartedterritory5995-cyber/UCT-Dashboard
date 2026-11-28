@@ -8,7 +8,8 @@
 //      most listings have, so the daily hold waits for the deep history's join to say "nothing more is coming"; it asked
 //      that only at the prepare's report and the DAILY_HOLD_MAX_MS bound (~400 ms), and the monthly history (a cold
 //      origin build) settled later, so only the hang guard ended the wait. The watcher now asks it on every wake.
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, render } from '@testing-library/react'
+import { Activity } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('../components/chart/barStoreSwitch', () => ({ BARSTORE: true }))
@@ -39,6 +40,7 @@ import useSymbolHandoff, { COVER_ROWS, VIEW_LOOKBACK_ROWS, routeView } from './u
 import { noteMemberView } from '../components/chart/paintLog'
 import { baseBarsFor } from '../components/chart/timeframes'
 import { setFlipProbe } from '../components/chart/flipReady'
+import { BoardVisibilityContext, createBoardVisibility } from '../components/chart/boardVisibility'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -247,5 +249,72 @@ describe('(4) a run of presses that each outlive their hold never freezes the ch
     expect(h.result.current).toBe('AAA')
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     expect(h.result.current).toBe('CCC')
+  })
+})
+
+// ⭐⭐ (review of #3009, Finding 1 MEDIUM) THE CLOCK OF (4) IS NEVER CARRIED INTO A ROW THAT A BURST ONLY PASSED THROUGH. With
+// the settle rule on (/charts: debounceMs 90) a held arrow runs its first row and DEFERS every repeat (the key cadence is
+// under QUIET_MS / BURST_SETTLE_MS), each replaced before it ran. Nothing reset the clock, so a key held past the hang
+// guard released onto a row forced at 0 ms (hangIn() = 0): a loading chart, then the fill. A request left without ever
+// running ends the run; so does an <Activity> hide (the keep-alive board), whose cleanups are not a newer request.
+// (Finding 2, accepted as designed: a timeframe change of a symbol still unshown keeps the clock.)
+describe('(5) the hang guard clock and a held key, a keep-alive hide, a timeframe change', () => {
+  const SETTLE = { debounceMs: 90, isWarm: () => false }
+  const run = (tf, member = null, settle = SETTLE) => renderHook(({ s, t }) => useSymbolHandoff(s, t ?? tf, { member, settle }), { initialProps: { s: 'AAA' } })
+  const press = (h, s, t) => act(() => { h.rerender({ s, t }) })
+
+  it('a key held 5 s (a repeat every 33 ms) and released: the released row keeps its own full guard, never 0 ms', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999))
+    press(h, 'BBB')                                                  // the first row runs (quiet before it)
+    for (let i = 0; i < 150; i++) {                                  // 5 s of repeats, each deferred and replaced
+      await act(async () => { await vi.advanceTimersByTimeAsync(33) })
+      press(h, `R${i}`)
+    }
+    press(h, 'ZZZ')                                                  // released here
+    await act(async () => { await vi.advanceTimersByTimeAsync(120 + 3700) })   // the settle, then most of a guard
+    expect(h.result.current).toBe('AAA')                             // never forced at 0 ms
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(h.result.current).toBe('ZZZ')
+  })
+
+  it('control: without the settle rule the same presses still show within the guard of the first (section 4)', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999), null)
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
+    expect(h.result.current).toBe('CCC')
+  })
+
+  it('a timeframe change of a symbol still unshown keeps the clock (accepted as designed)', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999), null)
+    press(h, 'BBB', 'W')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    press(h, 'BBB', 'M')
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })   // 4.1 s after the first request
+    expect(h.result.current).toBe('BBB')
+  })
+
+  it('a keep-alive <Activity> hide ends the run: shown again, the request gets a full guard, not 0 ms', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const vis = createBoardVisibility()
+    const member = zoomedOut(3999)
+    let out = null
+    const Probe = ({ s }) => { out = useSymbolHandoff(s, 'W', { member }); return null }
+    const Host = ({ s, mode }) => <BoardVisibilityContext.Provider value={vis}><Activity mode={mode}><Probe s={s} /></Activity></BoardVisibilityContext.Provider>
+    const r = render(<Host s="AAA" mode="visible" />)
+    act(() => { r.rerender(<Host s="BBB" mode="visible" />) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    act(() => { vis.state = 'hidden'; r.rerender(<Host s="BBB" mode="hidden" />) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    act(() => { vis.state = 'visible'; r.rerender(<Host s="BBB" mode="visible" />) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    expect(out).toBe('AAA')                                          // not forced at the show
+    await act(async () => { await vi.advanceTimersByTimeAsync(4100) })
+    expect(out).toBe('BBB')
+    r.unmount()
   })
 })
