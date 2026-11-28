@@ -35,7 +35,7 @@ import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { baseBarsFor } from './timeframes'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor } from './useBarSnapshotBars'
-import { subscribeScanNeighbors } from './neighborFrames'
+import { subscribeScanNeighbors, typedNextFor } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
@@ -336,7 +336,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
     let pending = null
-    const run = () => {
+    const run = (urgent = false) => {
       if (!alive) return
       const b = bufRef.current
       const f = b.syms[b.front]
@@ -350,16 +350,19 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       reportsRef.current[s] = null
       timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
       noteRetarget()
-      startTransition(() => {
-        setBuf((x) => {
-          if (x.front !== b.front || holds(x)) return x
-          const syms = x.syms.slice()
-          const tfs = x.tfs.slice()
-          syms[s] = target.sym
-          tfs[s] = target.tf
-          return { syms, tfs, front: x.front }
-        })
+      const set = () => setBuf((x) => {
+        if (x.front !== b.front || holds(x)) return x
+        const syms = x.syms.slice()
+        const tfs = x.tfs.slice()
+        syms[s] = target.sym
+        tfs[s] = target.tf
+        return { syms, tfs, front: x.front }
       })
+      // ⭐ (lane C, typed Enter: 'shadow-other-row' was most refusals with the data already in memory) a TYPED next symbol
+      // retargets URGENTLY: not a transition the next keystroke's render abandons, not after another frame; the newest
+      // keystroke's candidate replaces a stale one (a newer publish runs this again before the old render landed)
+      if (urgent) set()
+      else startTransition(set)
     }
     const schedule = () => {
       if (!alive) return
@@ -369,7 +372,16 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     if (!firstRetargetRef.current && !reportsRef.current[bufRef.current.front]) waitFrontRef.current = schedule
     else schedule()
     firstRetargetRef.current = true
-    const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
+    const offScan = subscribeScanNeighbors((c) => {
+      if (c !== String(frontSym).toUpperCase()) return
+      // a typed next symbol (publishTypedNext, each keystroke's top candidate): at once, in this task; a list's rows:
+      // after the frame, in a transition, as before
+      if (typedNextFor(c) && firstRetargetRef.current && reportsRef.current[bufRef.current.front]) {
+        if (pending) pending()
+        pending = null
+        run(true)
+      } else schedule()
+    })
     return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
   }, [eligible, slotOk, frontSym, frontTf])
 
