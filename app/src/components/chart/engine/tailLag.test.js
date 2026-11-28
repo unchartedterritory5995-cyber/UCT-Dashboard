@@ -48,6 +48,7 @@ import { runtimeObjectsOf, RUNTIME_OBJECTS_KEY } from './runtime/runtimeObjects'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
+import { committedRunHalfEvidence } from './__tests__/committedRunHalfEvidence'
 import { OWN_DAILY_KEY } from './otherSymbols'
 import { clearSecondaryBars } from './secondaryBars'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from './runtimeErrorNotice'
@@ -424,9 +425,9 @@ async function heldWorkers() {
 
 /** Fred RS installed from the library, a real binder over a recording chart, and the held worker. */
 async function fredOnAChart() {
-  setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(RS), captures: [
-    { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
-    { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }] }])
+  // the committed record's evidence, as the server serves it: a new instance carries the owner's
+  // TradingView settings (house/houseNames.withHouseCreateInputs), admitted only by captures at moved settings
+  setRunHalfObjectEvidence([committedRunHalfEvidence(runtimeSourceHash(RS))])
   const stored = JSON.parse(JSON.stringify(memberPaneDefinition({ source: RS, name: 'Fred RS', id: 'u_tl-fred' }).definition))
   const { installed, errors } = registry.installUserDefinitions([stored])
   expect(installed.length, errors.join(' | ')).toBe(1)

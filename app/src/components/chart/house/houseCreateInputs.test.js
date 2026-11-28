@@ -12,8 +12,6 @@
 //      captures at moved settings admit every one of them (`runHalfSettingsAdmitted`), so the drawings are served;
 //   5. the script is untouched: the entry's sha256 is still the allowlist's.
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import crypto from 'node:crypto'
 import PINE from './housePineIndicators.json'
 import { buildPineCopy } from '../IndicatorHouseTab'
@@ -22,9 +20,9 @@ import { addInstance } from '../engine/instanceControls'
 import { fieldsForInstance } from '../indicatorRegistry'
 import { runHalfRunInputs } from '../engine/runHalfInputs'
 import { setRunHalfObjectEvidence, runHalfSettingsAdmitted } from '../engine/runHalfRailSeam'
+import { committedRunHalfEvidence } from '../engine/__tests__/committedRunHalfEvidence'
 import { houseCreateInputsOf, isHouseCopyMeta, HOUSE_SCRIPT_SHA256 } from './houseNames'
 
-const REPO = path.resolve(process.cwd(), '..')
 const FRED = PINE.indicators.find((i) => i.slug === 'fred-rs')
 const SHA = crypto.createHash('sha256').update(FRED.pine, 'utf8').digest('hex')
 const OWNER = { SpxValue: 7200, offset: 90, rsNewHigh: 'Historical RS New Highs', lookback: 30 }
@@ -103,13 +101,7 @@ describe("⭐ Fred RS's UCT defaults are the owner's TradingView settings", () =
     expect([...runIn.moved].sort()).toEqual(Object.keys(OWNER).sort())
     expect(runIn.needsEvidence.length, 'control: a drawing reads them').toBeGreaterThan(0)
     // the evidence the server serves (`runtime_definitions.run_half_evidence`), from the committed allowlist record
-    const allow = JSON.parse(fs.readFileSync(path.join(REPO, 'api/data/pine_runtime_allowlist.json'), 'utf8'))
-    const row = allow.scripts.find((s) => s.sha256 === SHA)
-    const entry = { sha256: SHA, admission: row.admission, substituted: row.substituted,
-      captures: row.captures.filter((c) => 'objectsV2' in c).map((c) => ({
-        capture: c.id, verdict: c.verdict, objectsV2: c.objectsV2 === 'MATCH', runtimeOn: c.runtimePane === 'on',
-        ...(c.substituted ? { substituted: c.substituted } : {}), ...(c.inputs ? { inputs: c.inputs } : {}),
-        ...(c.objectsV2 === 'MATCH_SUBSTITUTED' ? { objectsV2Substituted: c.objectsV2Substituted || [] } : {}) })) }
+    const entry = committedRunHalfEvidence(SHA)
     // CONTROL: with no evidence the moved settings are refused
     setRunHalfObjectEvidence([])
     expect(runHalfSettingsAdmitted(SHA, runIn.needsEvidence).ok).toBe(false)
