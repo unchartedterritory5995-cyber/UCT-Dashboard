@@ -129,15 +129,25 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     expect(db.doubleBufferStats().why['view-zoom']).toBe(1)
   })
 
-  it('T6 change-date mode: never a timeframe flip', async () => {
+  it('T6 change-date mode with no list: no hidden chart at a habitual timeframe (it could never flip), the normal switch', async () => {
     const c = '2006-03-16'
     const h = mount({ cutoff: c })
     report(h, 0, 'AAA', 'D', c)
     await idle()
-    report(h, 1, 'AAA', 'W', c)
+    expect(h.result.current.syms[1], 'a replay window loaded for a layer that can never flip (review of #3008, F4)').toBe(null)
     press(h, { tf: 'W', cutoff: c })
     expect(h.result.current.front).toBe(0)
-    expect(db.doubleBufferStats().why['tf-replay']).toBe(1)
+    expect(h.result.current.tfs[0]).toBe('W')
+  })
+
+  it('T12 (F5) a hidden chart at another timeframe is not given the front view lock (only the pin)', async () => {
+    const h = await ready()
+    const writes = []
+    panes[1].viewDo = (op, f) => { if (op === 'restoreView') writes.push(f) }
+    panes[0].m = { ...meta(), frame: { ...meta().frame, locked: true, lock: { anchorFrac: 0.95, width: 160, tf: 'D' } } }
+    act(() => { h.result.current.viewChanged(0) })
+    await idle()
+    expect(writes).toEqual([])
   })
 
   it('T7 with a list: the hidden layer is the row ahead at the front tf, and follows a timeframe press', async () => {

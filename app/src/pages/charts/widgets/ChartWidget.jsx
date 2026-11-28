@@ -24,9 +24,9 @@ import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './ch
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import { prefetchReplayTimeframes, prefetchAllTimeframes } from '../../../utils/barsWarm'
+import { whenFirstChartPainted } from '../../../lib/firstChartPaint'
 import { noteTfPress, habitualTfs } from '../../../components/chart/tfHabit'
 import { TF_ORDER } from '../../../components/chart/keyboardShortcuts'
-import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
@@ -389,17 +389,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // the page's first chart paint; never in replay (its own warm above); the keys' own path (device -> edge -> origin),
   // the queue's cancellation and single-flight (data/barStore/prefetch.js prefetchAllTimeframes). Owner ruling
   // 2026-11-28: full data, no caps.
-  const tfBarCodes = useMemo(() => {
+  // ONE identity per set of codes (not per press, not per settings write): it reaches both layers' charts (tfBarCodes),
+  // and a new array at every timeframe press re-rendered a hidden chart the flip must not touch
+  const tfBarKey = (() => {
     const fav = Array.isArray(activeStoredSettings?.header?.timeframes) ? activeStoredSettings.header.timeframes : []
-    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))]
-  }, [activeStoredSettings, tf])
-  const tfBarKey = tfBarCodes.join(',')
+    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))].join(',')
+  })()
+  const tfBarCodes = useMemo(() => tfBarKey.split(','), [tfBarKey])
   const dated = !!anchorKey
   useEffect(() => {
     if (!sym || replayCutoff) return undefined
     let alive = true
+    // (review of #2996, F1) leaving the symbol or timeframe aborts what the dwell has not asked yet
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null
+    let cancelPaintWait = null
     const timer = setTimeout(() => {
-      afterFirstChartPaint(() => {
+      cancelPaintWait = whenFirstChartPainted(() => {
         if (!alive) return
         const codes = tfBarKey.split(',')
         const first = habitualTfs(tf, { k: 2, available: codes })
@@ -408,11 +413,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // job, the lake-window lane): only D / W / M, whose plain keys serve a date too, are warmed here
         const bases = [...new Set(order.map((c) => fetchTf(c)))].filter((b) => b && b !== fetchTf(tf) && (!dated || ['D', 'W', 'M'].includes(b)))
         try {
-          if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current })
+          // device + edge only, never an origin warm (F1)
+          if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current, edge: true, signal: ctl?.signal })
         } catch { /* a warm never breaks the chart */ }
       })
     }, TF_DWELL_MS)
-    return () => { alive = false; clearTimeout(timer) }
+    return () => { alive = false; clearTimeout(timer); cancelPaintWait?.(); try { ctl?.abort() } catch { /* gone */ } }
   }, [sym, tf, tfBarKey, replayCutoff, dated])
   // Identity-stable write sink for the active surface. MUST be useCallback, not
   // an inline arrow at the ChartPane call site: it flows through
@@ -978,6 +984,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               ? { priceLines: paneSym === sym ? hostPriceLines : hostOverlay.priceLinesFor(paneSym) } : {}),
             onTimeRangeChange: layerIdx != null ? layerTimeRange[layerIdx] : paneTimeRange,
             onCrosshairMove: reportCrosshair,
+            tfBarCodes,   // (lane C, #2996 F2) the habitual timeframes the chart prepares are the bar's (custom codes too)
             subscribeCrosshair: paneSubscribeCrosshair,
             hotkeysActive: hotkeysIsActive,
             onBarContextMenu: handleBarContextMenu,
