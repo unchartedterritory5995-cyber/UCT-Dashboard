@@ -166,6 +166,11 @@ describe('⭐⭐ the member door worker resolves named imports to the pure modul
       'src/lib/barsStreamManager.js': 'the live bars stream',
       'src/components/chart/drawingsStore.js': 'the chart\'s drawings',
       'src/components/chart/builder/authoring/patchValidate.js': 'an import-time self-check of its own tables, no state',
+      // (2026-11-27, lib/barBudget.js) each per-symbol bar cache names itself to the page's ledger, and the adapter drops a
+      // key's slot when the page's registry evicts it: page caches, no answer the member door computes reads them
+      'src/components/chart/neighborFrames.js': "the page's derived-rows cache names itself to the bar budget ledger",
+      'src/data/barStore/adapter.js': "the chart's legacy-copy memo: the ledger, and the registry's evictions",
+      'src/utils/barsMemCache.js': 'the saved-copy cache in front of IndexedDB names itself to the bar budget ledger',
     }
     const page = graph('src/components/chart/builder/memberPane/memberPaneDefinition.js', false)
     const work = graph('src/components/chart/builder/memberPane/memberDoorWorker.js', true)

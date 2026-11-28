@@ -32,11 +32,11 @@
 // lib/chartSpeed.js) turns it off in every browser, over a local '1'. Read once per page load. Off, nothing
 // here is scheduled or kept, and every caller takes the path it always took.
 //
-// ⛔ ALMOST A LEAF: its imports are lib/chartSpeed.js and styles/breakpoints.js, which import nothing, so the
-// binder, the bar store's adapter and StockChart can all still reach it.
+// ⛔ ALMOST A LEAF: its imports are lib/chartSpeed.js and lib/barBudget.js (which imports only styles/breakpoints.js), so
+// the binder, the bar store's adapter and StockChart can all still reach it.
 
 import { chartSpeedKilled } from '../../lib/chartSpeed'
-import { MQ } from '../../styles/breakpoints'
+import { BAR_BUDGET_DESKTOP, BAR_BUDGET_TOUCH, touchTier, registerBarHolder, __setTouchTierForTests } from '../../lib/barBudget'
 
 export const NEIGHBOR_FRAMES_KEY = 'uct.neighborframes'
 
@@ -198,23 +198,23 @@ const _weak = (x) => (_WeakRef ? new _WeakRef(x) : { deref: () => x })
 // DERIVED_BARS_TOUCH = 200,000 keeps the row on screen and the next one always (held) and the farther prepared rows
 // when they fit. A derived bar is one small object (a candle, a point) or a reference: 1M is some 50-80 MB of the
 // heap at most, 200k a fifth of that.
-export const DERIVED_BARS_DESKTOP = 1_000_000
-export const DERIVED_BARS_TOUCH = 200_000
+// (2026-11-27) The two values are the page budget's derived shares (lib/barBudget.js, next to the registry's, the adapter's
+// and the mem cache's), and the tier is the one that module reads: one budget, one tier test for every cache.
+export const DERIVED_BARS_DESKTOP = BAR_BUDGET_DESKTOP.derived
+export const DERIVED_BARS_TOUCH = BAR_BUDGET_TOUCH.derived
 /** The derived bars a page keeps: the touch tier keeps fewer. */
 export function derivedBarsBudgetFor({ touch = false } = {}) { return touch ? DERIVED_BARS_TOUCH : DERIVED_BARS_DESKTOP }
 let _budget = null
-function _touchTier() {
-  try {
-    return typeof matchMedia === 'function' && (matchMedia(MQ.touchDown).matches || matchMedia(MQ.coarsePointer).matches)
-  } catch { return false }
-}
 /** This page's budget, read once (the tier a page loads on). */
 export function derivedBarsBudget() {
-  if (_budget === null) _budget = derivedBarsBudgetFor({ touch: _touchTier() })
+  if (_budget === null) _budget = derivedBarsBudgetFor({ touch: touchTier() })
   return _budget
 }
-/** Tests: set the budget (null re-reads the tier). */
-export function __setDerivedBarsBudgetForTests(n) { _budget = n === null || n === undefined ? null : n }
+/** Tests: set the budget (null re-reads the tier, from the page's media queries again). */
+export function __setDerivedBarsBudgetForTests(n) {
+  _budget = n === null || n === undefined ? null : n
+  if (_budget === null) __setTouchTierForTests(null)
+}
 
 /** owner (a chart) -> { shown, next }: weak handles on the rows it shows and will land on next. */
 const _held = new Map()
@@ -382,6 +382,11 @@ export function hasDerived(src, name, sig) {
   const m = bySrc ? bySrc.get(src) : null
   return !!m && m.has(`${name}\u0001${sig}`)
 }
+
+registerBarHolder('derived', () => {
+  const d = _derived.size(), t = _times.size()
+  return { bars: d.bars + t.bars, entries: d.rows, budget: derivedBarsBudget() }
+})
 
 /** Tests: forget every derived value and chart-time array. */
 export function __resetDerivedForTests() { _derived.clear(); _times.clear(); _held.clear() }
