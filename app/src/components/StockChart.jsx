@@ -11983,13 +11983,15 @@ function StockChartBody({
     const prev = prevAnchorRef.current
     const series = `${sym}|${resolvedTf}`
     const switched = prevAnchorSeriesRef.current !== series
-    prevAnchorSeriesRef.current = series
-    if (prev === _anchorKey) return
+    // (review of #3004, F1) the series advances only where the transition is CONSUMED: a cold switch's first run (no bars
+    // yet) returns below and must still see `switched` on the run that brings them
+    if (prev === _anchorKey) { prevAnchorSeriesRef.current = series; return }
     const chart = chartRef.current
     // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
     // that brings them (filteredBars is a dep) instead of dropping the transition.
     if (!chart || !__heavy.filteredBars || __heavy.filteredBars.length === 0) return
     prevAnchorRef.current = _anchorKey
+    prevAnchorSeriesRef.current = series
     if (anchorDate) {
       // A new anchor is a FRESH user intent (they clicked a different moment), so it
       // re-takes a view the user had panned away from — the same re-arm a symbol or

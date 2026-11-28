@@ -229,6 +229,19 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
       cleanup()
     }
   })
+  it('V9b a COLD switch (the new symbol's bars not in yet) with the date gone: still one frame once they land', async () => {
+    const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
+    await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })
+    await new Promise((r) => setTimeout(r, 200))
+    view.rerender(<Chart sym="BBB" bars={[]} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 200))
+    lw.ranges.length = 0
+    view.rerender(<Chart sym="BBB" bars={BBB} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 600))
+    const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
+    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBeLessThanOrEqual(1)
+    view.unmount()
+  })
   it('V8 (M2) while the history is still loading, a date before the held rows shows a loading cue, never the false note', async () => {
     const view = render(<Chart sym="LATE" bars={LATE} pending />)
     await waitFor(() => expect(document.querySelector('[data-view-date-loading]')).toBeTruthy())
