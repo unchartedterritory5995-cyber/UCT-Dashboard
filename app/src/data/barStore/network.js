@@ -1122,11 +1122,13 @@ export function createNetwork({
       set.add(cb)
       return () => { set.delete(cb); if (!set.size && answerSubs.get(key) === set) answerSubs.delete(key) }
     },
-    /** Requests in flight for `key` (0|1), or across all keys. */
+    /** Requests in flight for `key` (0|1, or 2 while the edge fallback's cover runs beside a stuck history: `r.side`), or
+     *  across all keys. */
     inflight(key) {
-      if (key != null) return keys.get(key)?.inflight ? 1 : 0
+      const of = (r) => (r?.inflight ? 1 : 0) + (r?.side ? 1 : 0)
+      if (key != null) return of(keys.get(key))
       let n = 0
-      for (const r of keys.values()) if (r.inflight) n++
+      for (const r of keys.values()) n += of(r)
       return n
     },
     stats() { return { keys: keys.size, requests, inflight: api.inflight() } },

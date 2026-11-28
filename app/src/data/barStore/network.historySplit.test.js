@@ -154,6 +154,38 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(w.net.inflight(w.key)).toBe(0)
   })
 
+  // (L1) while the cover runs beside the stuck history, the key has two requests out, and inflight() says so
+  it('L1 inflight() counts the fallback cover beside the stuck history (2), then neither once both settle', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    let releaseHist, releaseCover
+    const w = world({ historyGate: new Promise((r) => { releaseHist = r }), tailGate: new Promise((r) => { releaseCover = r }), tailGateFrom: 1 })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(w.net.inflight(w.key)).toBe(2)
+    releaseCover(); releaseHist()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.net.inflight(w.key)).toBe(0)
+  })
+
+  // (L3) THE EDGE FIRST, THEN THE COVER: the history joins while the fallback cover is still out; the cover's later answer
+  // (1,400 newest rows) must not shrink what the join brought, and the depth stays settled
+  it('L3 the edge answering before the fallback cover: the cover landing after the join keeps the whole depth', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    let releaseHist, releaseCover
+    const w = world({ historyGate: new Promise((r) => { releaseHist = r }), tailGate: new Promise((r) => { releaseCover = r }), tailGateFrom: 1 })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    releaseHist()
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    releaseCover()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(histCalls(w)).toHaveLength(1)
+  })
+
   // ⛔ (F1, 2026-11-28) THE EDGE FAILED: the full depth comes from the origin, and until that read settles more IS coming.
   // deepPending read false the moment the split turned off, so the daily hold painted the 30-row tail page and the full
   // read then filled it in.
