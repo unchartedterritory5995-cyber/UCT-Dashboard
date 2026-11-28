@@ -536,14 +536,15 @@ test('LK19 (board tabs) many switches over four boards with K = 2: only the fron
     for (const name of order) {
       await go(name)
       seen.unshift(name)
+      const recent = [...new Set(seen)].slice(0, 3)   // the front and the K = 2 most recently shown
       const want = new Set()
-      for (const n of [...new Set(seen)].slice(0, 3)) for (const w of BOARDS[n].layout.widgets) want.add(w.id)
+      for (const n of recent) for (const w of BOARDS[n].layout.widgets) want.add(w.id)
       const live = Object.keys(hosts.created).filter((id) => (hosts.created[id] || 0) - (hosts.cleanups[id] || 0) > 0)
       expect(new Set(live), `round ${round}, after ${name}: the mounted widgets`).toEqual(want)
       for (const id of Object.keys(hosts.created)) {
         expect((hosts.created[id] || 0) - (hosts.cleanups[id] || 0), `${id} mounted twice (a leak)`).toBeLessThanOrEqual(1)
       }
-      expect(document.querySelectorAll('[data-board-slot]').length, `round ${round}, after ${name}: board slots in the DOM`).toBe(3)
+      expect(document.querySelectorAll('[data-board-slot]').length, `round ${round}, after ${name}: board slots in the DOM`).toBe(recent.length)
     }
   }
   expect(hosts.created['chart-1'], 'NON-VACUITY: a dropped board was mounted again later').toBeGreaterThan(1)
