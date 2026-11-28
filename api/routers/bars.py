@@ -1772,7 +1772,8 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
                 "note": "index history not served by /api/bars-history",
             }))
         else:
-            rows = _bars_fetch._sqlite.get_bars(sym, tfu, bars)   # PURE read — no fetch, no write
+            # PURE read — no fetch, no write; cut at an unproven gap like /api/bars (`read_newest`)
+            rows = _bars_fetch.read_newest(sym, tfu, bars)
             all_bars = _fmt_sqlite_bars(rows, tfu, sym) if rows else []
     except Exception:
         return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": [], "sealed": False}))

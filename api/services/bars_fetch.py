@@ -24,6 +24,7 @@ import os as _os
 import threading as _threading
 import time as _time
 from datetime import datetime, timedelta
+from operator import itemgetter as _itemgetter, sub as _op_sub
 from zoneinfo import ZoneInfo as _ZI
 from fastapi import HTTPException, Request
 # ORJSONResponse serializes ~7-8x faster than the stdlib JSONResponse (measured:
@@ -375,6 +376,8 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
             _sqlite.put_bars(ticker_up, tf, missing, date_tf=False)
         _record_full_cover(ticker_up, tf, fetched, _t0)
         cache.delete_prefix(f"bars_{ticker_up}_{tf}_")  # bust stale gappy payloads
+    else:
+        _note_fetch_span(ticker_up, tf, fetched, _t0)    # all of it was already stored
     return len(missing)
 
 
@@ -844,6 +847,7 @@ def _record_full_cover(ticker_up: str, tf: str, rows, checked_at: float) -> None
             fn(ticker_up, tf, min(ts), checked_at)
     except Exception:                      # noqa: BLE001 — a cover only widens what may seal
         pass
+    _note_fetch_span(ticker_up, tf, rows, checked_at)   # the gaps inside it are the provider's
 
 
 #: A provider answer asked at instant A proves "no newer bar" at most through A - TAIL_PROOF_LAG_S (and only as far
@@ -4143,6 +4147,188 @@ def _replay_effective_symbol(ticker: str, to_str: str) -> str:
     return ticker
 
 
+# ── NO SPLICE ACROSS AN UNPROVEN GAP (2026-11-27) ─────────────────────────────────
+# ⛔ MEASURED ON PRODUCTION: MSFT 15m `to=2016-06-30` bars=1000 answered 999 rows "spanning"
+# 2008-05-13 -> 2016-06-30: 998 dense rows of June 2016 plus ONE row from an older island
+# that an earlier replay had stored. AAPL 60m bars=20000 (the newest-N read) stitched
+# 2008/2012/2016/2020 islands into one series with four 3-4-year jumps. The store holds
+# whatever windows were ever fetched; a read of "the N rows before X" walks straight through
+# a hole nobody ever fetched, and both coverage checks (`len >= 0.9 * bars`, newest row within
+# 7 days) call the result covered, so the hole is never asked for. The chart draws the two
+# eras as adjacent candles, and its scroll-back then asks from the island's date, so the
+# skipped years are never requested at all.
+# ⭐ THE RULE: an intraday read is cut at the first gap longer than `_SPLICE_GAP_S` (newest
+# side kept) UNLESS the provider was asked for a stretch that spans the whole gap: then the
+# hole is what the provider has (a halt, a thin name) and the read continues through it.
+# Proof is per (ticker, tf), in process, merged, for `_PROVEN_SPAN_TTL`; a lost proof costs
+# one re-fetch, never a wrong answer. 7 calendar days: the longest market closure on record
+# (Sep 2001) leaves a gap just under 7 days between bars.
+_SPLICE_GAP_S = int(float(_os.environ.get("BARS_SPLICE_GAP_DAYS", "7")) * 86400)
+_PROVEN_SPAN_TTL = int(_os.environ.get("BARS_PROVEN_SPAN_TTL_SECONDS", str(24 * 3600)))
+_PROVEN_SPAN_MAX = 64
+_INTRADAY_TFS_SET = frozenset(("1", "5", "15", "30", "60"))
+# ⭐ ITS OWN STORE, NOT THE SHARED LRU. The app cache holds 1,000 keys and bars payloads churn
+# it; a proof evicted there would cost a thin name a re-fetch on every read. One small list of
+# (lo, hi) pairs per (ticker, tf) that was ever fetched.
+from api.services.cache import TTLCache as _TTLCache   # noqa: E402
+_proven_cache = _TTLCache(max_size=int(_os.environ.get("BARS_PROVEN_SPAN_KEYS", "50000")))
+
+
+def _proven_key(ticker_up: str, tf: str) -> str:
+    return f"vspan_{ticker_up}_{tf}"
+
+
+def proven_spans(ticker: str, tf: str) -> list:
+    """[(lo, hi), ...] unix-second stretches the provider has answered for (merged, sorted)."""
+    got = _proven_cache.get(_proven_key(str(ticker).upper(), tf))
+    return list(got) if got else []
+
+
+def note_provider_span(ticker: str, tf: str, lo: int, hi: int) -> None:
+    """Record that the provider answered for [lo, hi] and what it had there is stored."""
+    try:
+        lo, hi = int(lo), int(hi)
+        if tf not in _INTRADAY_TFS_SET or hi <= lo:
+            return
+        spans = sorted(proven_spans(ticker, tf) + [(lo, hi)])
+        merged: list = []
+        for a, b in spans:
+            if merged and a <= merged[-1][1] + 1:          # touching day bounds join too
+                merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+            else:
+                merged.append((a, b))
+        _proven_cache.set(_proven_key(str(ticker).upper(), tf), merged[-_PROVEN_SPAN_MAX:],
+                          ttl=_PROVEN_SPAN_TTL)
+    except Exception:                      # noqa: BLE001 — a missing proof only costs a re-fetch
+        pass
+
+
+def _note_fetch_span(ticker_up: str, tf: str, rows, checked_at: float) -> None:
+    """A full / deep fetch asked at `checked_at` answered `rows` and they are stored: the
+    provider has nothing else between its oldest row and `checked_at`. ⛔ Never from a
+    FALLBACK answer (FMP RTH-only, yfinance 7 days): its holes are not the provider's."""
+    if tf not in _INTRADAY_TFS_SET or _last_intraday_fetch_was_fallback():
+        return
+    try:
+        ts = [int(b["t"]) for b in (rows or []) if isinstance(b.get("t"), (int, float))]
+        if ts:
+            note_provider_span(ticker_up, tf, min(ts), int(checked_at))
+    except Exception:                      # noqa: BLE001
+        pass
+
+
+_itemgetter0 = _itemgetter(0)
+
+
+def _contiguous_tail(ticker_up: str, tf: str, rows):
+    """The run of `rows` (oldest-first, ts first) ending at the newest row that crosses no
+    unproven gap. Non-intraday tfs and short reads pass through untouched.
+    ⚡ The warm path pays two C-level passes (itemgetter map + max over the deltas, ~1 ms
+    on 20,000 rows); the Python walk runs only on a read that HAS a long gap."""
+    if tf not in _INTRADAY_TFS_SET or not rows or len(rows) < 2:
+        return rows
+    gap = _SPLICE_GAP_S
+    try:
+        if rows[-1][0] - rows[0][0] <= gap:          # the whole read is shorter than one gap
+            return rows
+        ts = list(map(_itemgetter0, rows))
+        if max(map(_op_sub, ts[1:], ts[:-1])) <= gap:
+            return rows
+    except TypeError:                                 # a non-numeric ts: never guess, pass through
+        return rows
+    spans = proven_spans(ticker_up, tf)
+    newer = ts[-1]
+    for i in range(len(ts) - 1, 0, -1):
+        older = ts[i - 1]
+        if newer - older > gap and not any(lo <= older and newer <= hi for lo, hi in spans):
+            return rows[i:]
+        newer = older
+    return rows
+
+
+def read_newest(ticker: str, tf: str, n: int) -> list:
+    """THE chart read of a series' newest `n` rows: `bars_sqlite.get_bars` cut at the first
+    unproven gap (`_contiguous_tail`). Every path that SERVES (or seeds, or caches for serving)
+    a newest-N intraday window reads through this, never `get_bars` directly."""
+    t = str(ticker).upper()
+    return _contiguous_tail(t, tf, _sqlite.get_bars(t, tf, n))
+
+
+def _et_day_bounds(ymd: str) -> tuple[int, int]:
+    d = datetime.strptime(str(ymd), "%Y-%m-%d")
+    tz = _ZI("America/New_York")
+    return (int(datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=tz).timestamp()),
+            int(datetime(d.year, d.month, d.day, 23, 59, 59, tzinfo=tz).timestamp()))
+
+
+def _rows_per_session(rows) -> float | None:
+    """Observed rows per ET session of a read (None under two sessions: too little to say)."""
+    try:
+        tz = _ZI("America/New_York")
+        days = {datetime.fromtimestamp(int(r[0]), tz).date() for r in rows}
+        return (len(rows) / len(days)) if len(days) >= 2 else None
+    except Exception:                      # noqa: BLE001
+        return None
+
+
+def _to_window_lookback_days(tf: str, bars: int, run, density_rows=None) -> int:
+    """Calendar days to fetch before a `to=` window's oldest row (or before the cutoff when
+    nothing is stored) so the window can reach `bars`. Sized from the series' OBSERVED rows
+    per session; with no observation, from the REGULAR session (6.5 h), which over-fetches a
+    name that prints extended hours rather than under-fetching a thin one. ⛔ Never from
+    `16*60/tf`: that assumes every extended-hours slot prints, a stock prints ~31-47 of 64
+    15m slots, and the window came back SHORT (MSFT 15m: 998 of 1000)."""
+    mult = max(int(tf), 1)
+    density = (_rows_per_session(density_rows if density_rows is not None else run)
+               or max(1.0, 390.0 / mult))
+    need = int(bars) - (len(run) if run else 0)
+    need = max(1, min(need, _REPLAY_INTRADAY_COLD_BARS))
+    return min(400, max(10, int(need / max(density, 1.0) * 1.5) + 5))
+
+
+#: Rounds a `to=` window job may fetch further back while its contiguous run is short.
+_TO_FILL_MAX_ROUNDS = int(_os.environ.get("BARS_TO_FILL_MAX_ROUNDS", "4"))
+#: The provider's intraday floor (Replay Mode, `_fetch_intraday_range`).
+_INTRADAY_FLOOR_YMD = "2003-09-01"
+
+
+def _fill_to_window(fetch, ticker_up: str, tf: str, bars: int, to_key: int,
+                    from_ymd: str, to_ymd: str) -> None:
+    """Fetch [from_ymd, to_ymd], persist it, PROVE the span; while the contiguous run ending
+    at the cutoff is still short of `bars`, fetch the stretch before (window doubling) until
+    the count is reached, the provider's floor, `_TO_FILL_MAX_ROUNDS`, or two EMPTY windows
+    in a row (the provider has no more there: a listing's start; one empty window alone
+    does not stop it, a halt can outlast one). Raises on a provider or store fault, so the
+    caller leaves the window un-marked and the next ask retries. `fetch` is resolved by the
+    caller once, so every round asks the same provider."""
+    lo_ymd, hi_ymd = str(from_ymd), str(to_ymd)
+    empty_rounds = 0
+    for _round in range(max(1, _TO_FILL_MAX_ROUNDS)):
+        _t0 = _time.time()                 # this fetch's provider check instant
+        got = [b for b in fetch(ticker_up, tf, lo_ymd, hi_ymd, raise_errors=True)
+               if int(b.get("t", 0)) <= to_key]
+        if got:
+            try:
+                with _provider_write(_t0):
+                    _sqlite.put_bars(ticker_up, tf, got, date_tf=False)
+            except Exception as _we:       # noqa: BLE001
+                import logging as _log_tw
+                _log_tw.getLogger(__name__).warning(
+                    "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
+                    ticker_up, tf, hi_ymd, type(_we).__name__, _we)
+                raise
+        empty_rounds = 0 if got else empty_rounds + 1
+        note_provider_span(ticker_up, tf, _et_day_bounds(lo_ymd)[0],
+                           min(int(to_key), _et_day_bounds(hi_ymd)[1]))
+        run = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
+        if len(run) >= int(bars) or empty_rounds >= 2 or lo_ymd <= _INTRADAY_FLOOR_YMD:
+            return
+        span = (datetime.strptime(hi_ymd, "%Y-%m-%d") - datetime.strptime(lo_ymd, "%Y-%m-%d")).days
+        hi_ymd = lo_ymd
+        lo_ymd = max(_INTRADAY_FLOOR_YMD, (datetime.strptime(hi_ymd, "%Y-%m-%d")
+                                           - timedelta(days=max(10, span * 2))).strftime("%Y-%m-%d"))
+
+
 def _replay_warming_response(resp_ticker: str, tf: str) -> JSONResponse:
     """The deliberate warming 503 for a replay window still landing (edge passes it)."""
     _mark_serve("replay-warming")
@@ -4226,7 +4412,8 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     resp_ticker = ticker_up
     ticker_up = _replay_effective_symbol(ticker_up, to_str)
     try:
-        rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        # ⛔ Never an older island spliced in and counted as coverage (see `_contiguous_tail`).
+        rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
     except Exception:
         rows = []
     if not rows and date_tf:
@@ -4298,10 +4485,13 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
         # DEDUPED via _inflight so the burst from warming all intraday TFs on replay-start
         # (or a poll during the fetch) doesn't stampede the provider for the same window.
         try:
-            mult = int(tf)
-            bars_per_day = (16 * 60) // max(mult, 1)
             eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
-            lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
+            # Sized from the rows the series ACTUALLY prints per session (see
+            # `_to_window_lookback_days`); a missing window's stored rows are another era,
+            # so they count for density only, never toward the ask.
+            lookback_days = _to_window_lookback_days(
+                tf, eff_bars, rows if _intraday_window_short else [],
+                density_rows=rows)
             _to_d = datetime.strptime(_fetch_to_str, "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
             cold_key = f"replayto::{ticker_up}::{tf}::{_fetch_to_str}"
@@ -4328,25 +4518,16 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 if got_slot:
                     def _replay_job(_ev=ev, _key=cold_key):
                         try:
-                            _t0 = _time.time()    # this fetch's provider check instant
-                            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, _fetch_to_str)
-                                    if int(b.get("t", 0)) <= to_key]
-                            _stored_ok = True
-                            if deep:
-                                try:
-                                    with _provider_write(_t0):
-                                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                                except Exception as _we:   # noqa: BLE001
-                                    _stored_ok = False
-                                    import logging as _log_tw
-                                    _log_tw.getLogger(__name__).warning(
-                                        "[bars] to= window write failed %s tf=%s to=%s: %s: %s",
-                                        ticker_up, tf, _fetch_to_str, type(_we).__name__, _we)
+                            # Fetch the window, persist it, PROVE its span, and keep
+                            # reaching back while the contiguous run ending at the cutoff
+                            # is still short (`_fill_to_window`).
+                            _fill_to_window(_fetch_intraday_range, ticker_up, tf, eff_bars,
+                                            to_key, from_ymd, _fetch_to_str)
                             # The provider has answered AND the answer is stored: what is
                             # stored now is all there is. A failed fetch or a failed write
-                            # leaves the window un-marked, so the next ask retries it.
-                            if _stored_ok:
-                                cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
+                            # RAISES out of the fill, leaving the window un-marked, so the
+                            # next ask retries it.
+                            cache.set(_win_key, 1, ttl=_TO_WINDOW_TTL)
                         except Exception:     # noqa: BLE001 — background
                             pass
                         finally:
@@ -4370,7 +4551,7 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             else:
                 # another request is fetching this exact window — wait (bounded), then read
                 ev.wait(timeout=_bounded_wait(_win_wait + 0.5))
-            rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+            rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
             # ⛔ RE-CHECK COVERAGE, not just emptiness (review F1): a store holding an
             # OLDER era (2012 rows for a 2015 cutoff) is non-empty but still does not
             # cover the window — serving it as a 1 h-cacheable answer paints the wrong
@@ -4612,7 +4793,7 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
     else:
         # Degenerate since (parse failure / 0): preserve the old bounded window
         # rather than returning the entire history unbounded.
-        new_rows = _sqlite.get_bars(ticker_up, tf, bars)
+        new_rows = read_newest(ticker_up, tf, bars)
     delta = _fmt_sqlite_bars(new_rows, tf, ticker_up) if new_rows else []
 
     # Invalidate the full cache so the next non-delta request picks up fresh data
@@ -5519,7 +5700,7 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         last_ts = _sqlite.get_last_ts(ticker_up, tf)
         if last_ts is None:
             return None
-        stored_rows = _sqlite.get_bars(ticker_up, tf, bars)
+        stored_rows = read_newest(ticker_up, tf, bars)
         # Require a COMPLETE-enough set (mirror the serve path's guard) so a warm never
         # seeds the browser a truncated series that the chart would then have to refill.
         if not stored_rows or not (
@@ -5579,7 +5760,8 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     _time_ck("live_drv")
     last_ts     = _sqlite.get_last_ts(ticker_up, tf)
     _time_ck("last_ts")
-    stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+    # ⛔ Never an older island spliced in and counted as depth (see `_contiguous_tail`).
+    stored_rows = read_newest(ticker_up, tf, bars) if last_ts is not None else []
     _time_ck("get_bars")
     # 60m grid migration, serve-time half (the bounded boot sweep is the other):
     # rows in the pre-2026-11-10 clock-hour layout are never served. The ticker's
@@ -5589,7 +5771,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         try:
             rebuild_sixty_min_grid(ticker_up)
             last_ts = _sqlite.get_last_ts(ticker_up, tf)
-            stored_rows = _sqlite.get_bars(ticker_up, tf, bars) if last_ts is not None else []
+            stored_rows = read_newest(ticker_up, tf, bars) if last_ts is not None else []
         except Exception:  # noqa: BLE001 — never serve the old grid: go cold instead
             last_ts, stored_rows = None, []
 
@@ -5724,7 +5906,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         _mark_serve("deep-deadline")
                     if not _deep_tail_ok:
                         _mark_serve("delta-deadline")
-                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    fresh_rows = read_newest(ticker_up, tf, bars)
                     payload = {
                         "ticker": ticker_up, "tf": tf,
                         "bars": _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up),
@@ -5811,7 +5993,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _sd_done = _bounded_delta(ticker_up, tf, last_ts, False)
                     if not _sd_done:
                         _mark_serve("sd-deadline")
-                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars) if _sd_done else stored_rows
+                    _sd_rows = read_newest(ticker_up, tf, bars) if _sd_done else stored_rows
                     if _sd_partial:
                         # Depth is still short: hand the (now tail-repaired) rows to the
                         # stale-while-revalidate block below, which serves them and kicks
@@ -5925,7 +6107,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                         # the serve already read — this skips a redundant multi-thousand-row
                         # get_bars().fetchall() (SQLite-C holds the GIL) on every idle poll,
                         # which is the dominant bg-delta contention under a warm flood.
-                        fresh_rows = _sqlite.get_bars(_sym, _tf, _bars) if new else _stored
+                        fresh_rows = read_newest(_sym, _tf, _bars) if new else _stored
                         fresh_payload = {
                             "ticker": _sym, "tf": _tf,
                             "bars": _fmt_sqlite_bars(fresh_rows or _stored, _tf, _sym),
@@ -6059,7 +6241,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _completed = _bounded_delta(ticker_up, tf, last_ts, date_tf)
                 if _completed:
                     # Read fresh rows from SQLite (includes the new bars)
-                    fresh_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    fresh_rows = read_newest(ticker_up, tf, bars)
                     result_bars = _fmt_sqlite_bars(fresh_rows or stored_rows, tf, ticker_up)
                 else:
                     # Deadline expired or no capacity. Serve what we hold; the job

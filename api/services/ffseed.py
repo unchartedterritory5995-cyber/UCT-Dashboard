@@ -335,7 +335,7 @@ def store_read(sym: str, tf: str, count: int) -> Tuple[List[dict], int]:
     path the serve takes for that request) instead of scheduling a vendor fetch, exactly as the
     barspack builder does."""
     from api.services import bars_fetch, bars_sanitize, bars_sqlite
-    rows = bars_sqlite.get_bars(sym, tf, count)
+    rows = bars_fetch.read_newest(sym, tf, count)   # the serve path's read (no island spliced in)
     if not rows:
         return [], 0
     if tf == "60" and any(bars_sqlite.is_old_grid_60m_ts(r[0]) for r in rows):
