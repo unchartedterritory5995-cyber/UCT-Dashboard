@@ -5822,6 +5822,36 @@
     "HHH",
     "LULU"
    ]
+  },
+  {
+   "id": "cloud/46118222131-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:47:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PM",
+    "BELFA",
+    "LFST",
+    "ZIM",
+    "UUUU",
+    "KNSL",
+    "NEE",
+    "TWLO",
+    "EG",
+    "ADI",
+    "BKE",
+    "MKSI",
+    "BNTX"
+   ]
+  },
+  {
+   "id": "cloud/46118222131-1/COV-def-tabs",
+   "at": "2026-11-28T06:47:22+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SMPL",
+    "AXON",
+    "FTRE"
+   ]
   }
  ]
 }
