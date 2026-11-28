@@ -27,6 +27,7 @@ import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
+import PendingSwitchCue, { usePendingCue } from '../../../components/chart/PendingSwitchCue'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
@@ -211,6 +212,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
     member: switchMember,
   })
+  // (review of #2934, U1) a switch still held after PENDING_CUE_MS shows a small cue over the outgoing chart
+  const pendingCueSym = usePendingCue(requestedSym, sym)
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -1116,7 +1119,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     rail), so nothing about either needed header space. */}
               </>
             ),
-            overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
+            overlay: (ctxToast || pendingCueSym) ? (
+              <>
+                {ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null}
+                {pendingCueSym && (layerIdx == null || layerIdx === db.front) ? <PendingSwitchCue sym={pendingCueSym} /> : null}
+              </>
+            ) : null,
           }}
         />
   )

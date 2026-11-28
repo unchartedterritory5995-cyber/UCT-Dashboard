@@ -36,7 +36,7 @@ import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
-import { heldRows } from '../../data/barStore/prefetch'
+import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
   doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
@@ -83,6 +83,23 @@ let _storeOn = () => !!BARSTORE
 export function __setDoubleBufferStoreForTests(v) { _storeOn = v === null || v === undefined ? () => !!BARSTORE : () => !!v }
 /** Tests: what a key's bars are NOW (null restores the bar store). */
 export function __setDoubleBufferBarsSourceForTests(fn) { _barsOf = typeof fn === 'function' ? fn : _storeBars }
+
+/** ⭐ (review of #2934, L3) Is NOTHING MORE COMING for the reported key: D/W/M with no deep history due, intraday with no
+ *  lake depth due and the server's answer of this life held? The switch's exemption for a set shorter than the view
+ *  (useSymbolHandoff paintsWholeNow / dailyHoldNeeded): such a set is the whole chart. Unknown reads as false. */
+export function shadowWhole(report) {
+  try {
+    if (!report || !report.sym) return false
+    const tf = String(report.tf)
+    const sess = { showExtended: !!report.ext }
+    if (tf === 'D' || tf === 'W' || tf === 'M') return !deepPending(report.sym, tf, sess)
+    // (owner, 2026-11-27: charts at any date) an intraday chart at a past date drew the WINDOW ending there: the lake
+    // never joins a window (historyFeed lakeSeriesOfKey), so it is whole once the server answered it in this life
+    const viewWindow = reportWindow(report)
+    if (viewWindow) return (heldRows(report.sym, tf, { ...sess, viewWindow, answered: true, upTo: 1 }) || 0) > 0
+    return !lakePending(report.sym, tf, sess) && (heldRows(report.sym, tf, { ...sess, answered: true, upTo: 1 }) || 0) > 0
+  } catch { return false }
+}
 
 /** Can this widget be double-buffered at all (the page's switch, the store, a deciding board, a layer or no parent)? */
 export function doubleBufferEligible({ scope, color, parentVis }) {
@@ -204,7 +221,10 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
       const need = viewNeed(member)
       let rows = 0
       try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, viewWindow: reportWindow(report), upTo: need }) || 0 } catch { rows = 0 }
-      if (rows && rows < need) d = { flip: false, why: 'shadow-short' }
+      // ...unless nothing more is coming for it (review of #2934, L3: the switch's own exemption, paintsWholeNow /
+      // dailyHoldNeeded): a young listing's whole history is shorter than any view, and refusing it sent every press to
+      // the normal switch for no gain
+      if (rows && rows < need && !shadowWhole(report)) d = { flip: false, why: 'shadow-short' }
     }
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
