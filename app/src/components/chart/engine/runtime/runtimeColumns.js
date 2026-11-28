@@ -452,9 +452,10 @@ function runKey(def, ctx, withSupply = true) {
   const ld = ctx && Number.isInteger(ctx.listingDepthBars) ? `|ld${ctx.listingDepthBars}` : ''
   // ⭐ U-DAILY (e96, part B) — a run made with the daily-expression capability open is another run (its session, its
   // memo): unchanged while it is closed, as committed (`dailyExpressionGate.js`)
+  const dx = dailyExpressionAdmitted() ? '|dx' : ''
   // ⭐⭐ E101 INTRADAY-HTF — and with the intraday higher-timeframe capability open (`intradayHtfGate.js`)
-  const dx = (dailyExpressionAdmitted() ? '|dx' : '') + (intradayHtfAdmitted() ? '|ih' : '')
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
+  const ih = intradayHtfAdmitted() ? '|ih' : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${dx}${ih}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
 /** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
@@ -1659,8 +1660,10 @@ export function buildMemoKey(def, irOpts) {
   const { bars, symbol: _symbol, ...rest } = irOpts
   // ⭐ U-DAILY (e96, part B) — a build made with the daily-expression capability open is another build
   // (`dailyExpressionGate.js`); the key is unchanged while it is closed, as committed
-  return JSON.stringify([runtimeContentKey(def), rest, strategyBrokerGateOn() === true,
-    buildBarCountClass(Array.isArray(bars) ? bars.length : 0), ...(dailyExpressionAdmitted() ? ['dx'] : []), ...(intradayHtfAdmitted() ? ['ih'] : [])])
+  const key = JSON.stringify([runtimeContentKey(def), rest, strategyBrokerGateOn() === true,
+    buildBarCountClass(Array.isArray(bars) ? bars.length : 0), ...(dailyExpressionAdmitted() ? ['dx'] : [])])
+  // ⭐⭐ E101 INTRADAY-HTF — and one made with the intraday higher-timeframe capability open (`intradayHtfGate.js`)
+  return intradayHtfAdmitted() ? `${key}|ih` : key
 }
 /** The binding constants a build with `irOpts` reads, as the front end assembles them (`bindConstsFor`). */
 const bindConstsOfOpts = (irOpts) => bindConstsFor({ tf: irOpts.tf, inputs: irOpts.inputs || {}, symbol: irOpts.symbol })
@@ -3010,8 +3013,9 @@ export function runtimeOwnDailyQuestion(source, tf, symbol = null) {
   const sym = symbolOf({ symbol })
   // ⭐ U-DAILY (e96, part B) — whether a daily EXPRESSION is read there depends on its capability's admission too
   // (`dailyExpressionGate.js`): an answer given with it closed is never the answer with it open
-  const gate = (dailyExpressionAdmitted() ? 'dx|' : '') + (intradayHtfAdmitted() ? 'ih|' : '')
-  return { key: `${t}|${symbolKey(sym)}|${gate}${source}`, tf: t, symbol: sym || null }
+  const gate = dailyExpressionAdmitted() ? 'dx|' : ''
+  const ih = intradayHtfAdmitted() ? 'ih|' : ''   // ⭐⭐ E101 INTRADAY-HTF (`intradayHtfGate.js`)
+  return { key: `${t}|${symbolKey(sym)}|${gate}${ih}${source}`, tf: t, symbol: sym || null }
 }
 /** The memoised answer for a question's key, or undefined when it has not been answered in this tab. */
 export function runtimeOwnDailyKnown(key) {

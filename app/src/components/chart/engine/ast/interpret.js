@@ -7002,7 +7002,9 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'regular-hours bars, on New York clock hours on a chart with pre-market and after-hours bars (measured on '
     + `AMEX:SPY, \`vw-time-session-spy-60-{rth,ext}-2026-09-28\`). This ${tfSpelled(tf)} chart's bars are neither shape `
     + '(a symbol that trades around the clock, or bars outside those sessions), so what it draws from that read is '
-    + 'withheld rather than placed on a grid nobody measured.',
+    + 'withheld rather than placed on a grid nobody measured. What would settle it: a TradingView capture of this '
+    + 'read on a chart of this kind (queue row Q-IHTF-1 holds one 24-hour symbol), or a chart of regular-hours or '
+    + 'extended-hours bars.',
   // ⭐⭐ PERIOD −1 (2026-11-19) — a read of the bar, week or month before the chart's first (`historyBeforeChartMask`).
   // ⛔ Literal key: `HISTORY_BEFORE_CHART_CODE` is declared further down.
   'history:before-chart': () => HISTORY_BEFORE_CHART_SENTENCE,

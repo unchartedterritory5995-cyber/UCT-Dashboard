@@ -7872,7 +7872,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       try {
         // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
         targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true,
-          aboveDailyExpressions: dailyExpressionAdmitted(), intradayHtfReads: intradayHtfAdmitted() })
+          intradayHtfReads: intradayHtfAdmitted(),
+          aboveDailyExpressions: dailyExpressionAdmitted() })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
