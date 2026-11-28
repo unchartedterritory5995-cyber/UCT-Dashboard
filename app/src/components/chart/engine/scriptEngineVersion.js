@@ -241,10 +241,13 @@
  *  short last bucket, extended hours on clock hours), ONE rule for the host evaluator and the runtime lane's request
  *  (`requestAlignment`), with the merge's newest-bar and first-period masks and a chart on neither grid withheld whole by
  *  name (`request:htf-intraday-session`). The grid is held equal to the chart's measured `barTime.js::bucketStartUnix`
- *  (30 / 60, both views, every 15 minutes 2024-2027). ⛔ SERVED TO NO MEMBER: the door builds it only where the
- *  capability `request-intraday-htf` is admitted (`intradayHtfGate.js`), which waits for Q-IHTF-1
- *  (`vw-ihtf-grid.pine`, TradingView automation halted 2026-11-27). The Python lane refuses such a tree by name
- *  (`tests/test_ast_intraday_htf_fail_closed.py`). Mutants `ci/mutants/e101-intraday-htf.json` (8). */
+ *  (30 / 60, both views, every 15 minutes 2024-2027). ⭐ LIVE FOR EVERY CHART by the owner's ruling (2026-11-28:
+ *  "anything and everything goes live for all"): the capability `request-intraday-htf` is admitted by
+ *  `intradayHtfWitness.json::ownerLive` (`intradayHtfGate.js`), and Q-IHTF-1 (`vw-ihtf-grid.pine`) is the check that
+ *  drives the next fix (120 / 240 are unmeasured). The withholding sentences a merge can show are worded for every
+ *  period (a week, a month, a longer intraday bar), and so are the assistant's two higher-timeframe stop rules. The
+ *  Python lane refuses such a tree by name (`tests/test_ast_intraday_htf_fail_closed.py`). Mutants
+ *  `ci/mutants/e101-intraday-htf.json` (9). */
 export const SCRIPT_ENGINE_VERSION = 98
 
 // ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD.

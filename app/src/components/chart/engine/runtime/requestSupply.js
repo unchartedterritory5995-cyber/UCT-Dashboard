@@ -507,7 +507,7 @@ export function requestTargetsUnservable(targets, count) {
     if (target.live === true && (code === null || !TF_RESAMPLABLE.includes(code))) return LOOKAHEAD_UNSERVED
     if (code !== null && !TF_RESAMPLABLE.includes(code)) {
       return `a \`request.security\` reads the \`${target.code}\` timeframe; the run reads another timeframe only `
-        + 'as a weekly or monthly merge'
+        + 'as a weekly or monthly merge, or a 30, 60, 120 or 240 minute one above an intraday chart'
     }
   }
   return null
@@ -627,7 +627,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       if (!TF_RESAMPLABLE.includes(code) || !above) {
         return refuse(`a \`request.security\`${at(site)} reads the \`${target.code}\` timeframe on a \`${ctx && ctx.tf}\` `
           + 'chart; the run reads another timeframe only as a weekly or monthly merge above the chart\'s own, '
-          + 'the one the host lane draws, so nothing is drawn bar by bar')
+          + 'the one the host lane draws (or a 30, 60, 120 or 240 minute one above an intraday chart), so nothing is '
+          + 'drawn bar by bar')
       }
     }
     if (aligned) {

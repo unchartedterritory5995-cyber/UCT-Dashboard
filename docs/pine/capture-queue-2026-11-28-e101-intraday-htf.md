@@ -3,8 +3,11 @@
 Owner of the queue: FRED RS (the TradingView rig). Builder: DEEPVUE. Coordinator GO: TRADINGVIEW, 2026-11-27 23:31Z.
 
 ⛔ **NOT RUN YET.** TradingView automation was HALTED on 2026-11-27 23:24Z (automated runs signed the owner out of his
-own TradingView session). This row waits for the owner to say TradingView is free. Nothing in this unit is served
-before it grades: the capability `request-intraday-htf` is closed (`app/src/components/chart/engine/intradayHtfWitness.json`).
+own TradingView session). This row waits for the owner to say TradingView is free.
+
+⭐ **THE UNIT IS LIVE FOR EVERY CHART** by the owner's ruling of 2026-11-28 ("anything and everything goes live for
+all"; `intradayHtfWitness.json::ownerLive`). This capture is the check that drives the next fix, not a hold: a bucket
+that disagrees is fixed forward in the engine, and a code that cannot be made to agree leaves `INTRADAY_HTF_CODES`.
 
 ## What it settles
 
@@ -36,10 +39,9 @@ engine's rule is held equal to it (`intradayHtfReads.test.js`, every 15 minutes 
 Keep the chart's FIRST bars in each capture (H15's history start) and the newest bars settled. The SPY window must hold
 the 2026-11-27 half day (close 13:00) and a daylight-time change week (2026-11-02).
 
-## Ship gate
+## What grading it does
 
-Every bucket's open, high, low, close, volume, time and time_close, and H15 / H16, equal to the bar on the captures,
-with the runtime pane on; then a community script's capture (the registry's rule: two MATCH captures of two scripts,
-one a community script) before `admitted: true`. A code that does not grade stays out: the door reads the admission
-for the whole capability, so 120 / 240 that disagree are removed from `INTRADAY_HTF_CODES` before admission, never
-served on a guess.
+Every bucket's open, high, low, close, volume, time and time_close, and H15 / H16, compared to the bar on the
+captures, with the runtime pane on; with a community script's capture this meets the registry's rule (two MATCH
+captures of two scripts, one a community script) and the row's `admitted` / `status` / `evidence` are filled in. A
+DIVERGE is a defect in a live unit: fix it forward, or take the code out of `INTRADAY_HTF_CODES` until it agrees.

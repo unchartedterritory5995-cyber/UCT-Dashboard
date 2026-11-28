@@ -2,10 +2,11 @@
 //
 // ─── ⭐⭐ E101 INTRADAY-HTF (NUMBER PENDING) — THE RUNTIME LANE'S `request.security(…, "60", x)` ON A 15 MINUTE CHART ────
 //
-// CLOSED (as committed, `intradayHtfWitness.json`): the door declines it, as it always did, and the run refuses by name.
-// OPENED for a measurement (`setIntradayHtfAdmissionForMeasurement`, the vendor harness's door): the run draws each 15
-// minute bar the 60 minute bucket TradingView merges, by the host's own alignment (`requestAlignment`), with the values
-// written out by hand below. A 45 -> 60 read, another symbol, and a daily chart stay refused.
+// LIVE for every chart by the owner's ruling (2026-11-28, `intradayHtfWitness.json::ownerLive`), with no override: the
+// run draws each 15 minute bar the 60 minute bucket TradingView merges, by the host's own alignment
+// (`requestAlignment`), with the values written out by hand below. CLOSED by a measurement
+// (`setIntradayHtfAdmissionForMeasurement(false)`): the door declines it as it always did, and the run refuses by name,
+// which proves the gate still decides. A 45 -> 60 read and another symbol stay refused.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from './runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
@@ -14,7 +15,7 @@ import { clearSecondaryBars } from './secondaryBars'
 import { setOffListingCurtainEnabled } from './runtime/runtimeColumns.js'
 import {
   intradayHtfAdmitted, intradayHtfAdmissionReasons, setIntradayHtfAdmissionForMeasurement, INTRADAY_HTF_WITNESS,
-  INTRADAY_HTF_CAPABILITY,
+  INTRADAY_HTF_CAPABILITY, intradayHtfOwnerLive,
 } from './intradayHtfGate'
 
 vi.setConfig({ testTimeout: 120000 })
@@ -54,19 +55,32 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('CLOSED, as committed: nothing a member sees moves', () => {
-  it('⛔ the capability is not admitted, and its row says why', () => {
-    expect(intradayHtfAdmitted()).toBe(false)
+describe('LIVE by the owner\'s ruling, as committed', () => {
+  it('⭐ admitted for every chart by `ownerLive`, while the row still says what EVIDENCE the registry\'s rule lacks', () => {
+    expect(intradayHtfOwnerLive()).toBe(true)
+    expect(intradayHtfAdmitted()).toBe(true)
     expect(INTRADAY_HTF_WITNESS.capability).toBe(INTRADAY_HTF_CAPABILITY)
     expect(intradayHtfAdmissionReasons()).toContain('not marked admitted')
   })
-  it('⛔ a 60 minute read on a 15 minute chart is refused by name, as before', () => {
+  it('⭐ a member\'s chart draws it with no override: the bar closing 09:30-10:30 reads that bucket', () => {
+    const cols = run(MERGE)
+    expect(cols.x[3]).toBe(4)
+    expect(cols.x[25]).toBe(26)
+  })
+  it('⛔ a row without an owner record and without evidence is not live (the rule fails closed)', () => {
+    expect(intradayHtfOwnerLive({ ...INTRADAY_HTF_WITNESS, ownerLive: undefined })).toBe(false)
+    expect(intradayHtfOwnerLive({ ...INTRADAY_HTF_WITNESS, ownerLive: { date: '2026-11-28', words: '' } })).toBe(false)
+  })
+})
+
+describe('CLOSED by a measurement: the gate still decides', () => {
+  it('⛔ a 60 minute read on a 15 minute chart is refused by name, as before the unit', () => {
+    setIntradayHtfAdmissionForMeasurement(false)
     expect(() => run(MERGE)).toThrow(/60/)
   })
 })
 
-describe('OPENED for a measurement: the 60 minute merge, bar by bar', () => {
-  beforeEach(() => setIntradayHtfAdmissionForMeasurement(true))
+describe('the 60 minute merge, bar by bar', () => {
 
   it('⭐ look-ahead off: the bar closing its bucket reads it, the rest the last closed bucket (short 15:30 bucket included)', () => {
     const cols = run(MERGE)

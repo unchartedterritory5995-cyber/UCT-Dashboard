@@ -6975,13 +6975,16 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
     + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
   // ⭐⭐ ENGINE 55 (review L2) — the first period of a `tf_merge` read, off the listing.
-  'request:htf-first-period-partial': () => 'This indicator reads a weekly or monthly value with '
-    + '`request.security` (look-ahead off). This chart\'s history does not begin at the symbol\'s listing, and '
-    + 'its first bar is not certainly the first session of its week or month, so the first period\'s value '
+  // ⭐⭐ E101 INTRADAY-HTF — worded for every period a merge reads: a week, a month, or a longer intraday bar (60
+  // minutes on a 15 minute chart). The table is keyed by code and handed the chart's timeframe, not the read's, so the
+  // sentence names the period kinds rather than one of them.
+  'request:htf-first-period-partial': () => 'This indicator reads a higher-timeframe value (a week, a month, or a '
+    + 'longer intraday bar) with `request.security` (look-ahead off). This chart\'s history does not begin at the '
+    + 'symbol\'s listing, and its first bar is not certainly the first bar of its period, so the first period\'s value '
     + 'would be built from only part of that period. The bars that would show it, or a value built from it, are '
     + 'withheld rather than drawn from part of a period; every other bar is drawn, and so is a value read from the '
     + 'period\'s close alone, which is the whole period\'s. What would settle it: a chart whose history '
-    + 'begins at a period\'s first session, or at the listing.',
+    + 'begins at a period\'s first bar, or at the listing.',
   // ⭐⭐ Q-CLOSURE (2026-11-21) — a week or month whose answer is the exchange's own calendar (`htfVenueCalendarMask`).
   // ⛔ Literal key: `HTF_VENUE_CALENDAR_CODE` is declared above, the sentence is this one spelling.
   'request:htf-venue-calendar': () => 'This indicator reads a weekly or monthly value with `request.security` on a '
@@ -7009,14 +7012,14 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⛔ Literal key: `HISTORY_BEFORE_CHART_CODE` is declared further down.
   'history:before-chart': () => HISTORY_BEFORE_CHART_SENTENCE,
   // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
-  'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
-    + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
-    + 'week or month, and the still-forming period\'s value on a bar that is still forming (measured bar for '
+  'request:htf-newest-unconfirmed': () => 'This indicator reads a higher-timeframe value (a week, a month, or a '
+    + 'longer intraday bar) with `request.security` (look-ahead off). TradingView shows that value on the bar that '
+    + 'completes the period, and the still-forming period\'s value on a bar that is still forming (measured bar for '
     + 'bar on RDDT and SPY daily charts, captures `support-and-resistance-multi-time-frame-{rddt,spy}-1d-'
     + '2026-10-02`). This chart\'s newest bar is not known to be still forming, and whether it completes its '
-    + 'week or month depends on the date of the next session, which is not known yet, so this indicator\'s '
-    + 'value on that one bar is withheld rather than guessed; every earlier bar is drawn. What would settle '
-    + 'it: the next session, or a capture taken after the close of a session that does not end its week.',
+    + 'period depends on the next bar, which has not arrived yet, so this indicator\'s value on that one bar is '
+    + 'withheld rather than guessed; every earlier bar is drawn. What would settle it: the next bar, or a capture '
+    + 'taken after the close of a bar that does not end its period.',
   // ⭐⭐ C45 — `bar_index` (see `barIndexMask`).
   'bar-index:window': () => '`bar_index` counts bars from the first bar of the symbol\'s history on '
     + 'TradingView. This chart\'s loaded bars start later, so its count is lower by a number of bars it '
@@ -8725,11 +8728,12 @@ export const TF_LIVE_FIRST_CODE = 'request:htf-lookahead-first-period-partial'
 /** The sentence for `TF_LIVE_FIRST_CODE`, one spelling: the run's request names it, and since HTF-LIVE-FIRST-PERIOD
  *  the host column's `CHART_CLOCK_WITHHELD` row is this sentence (mirrored in `ast_interpret.py`), so it says what is
  *  withheld, as every row does (`vendorHarness.c36TimeFollowups`, `c49CapturedClock`). */
-export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
-  + '(look-ahead on). The history of this chart does not begin at the listing of its symbol, and its first bar is '
-  + 'not certainly the first session of its week or month, so the bar of the first period would be built from only '
+export const TF_LIVE_FIRST_SENTENCE = 'This indicator reads a higher-timeframe value (a week, a month, or a longer '
+  + 'intraday bar) with `request.security` (look-ahead on). The history of this chart does not begin at the listing '
+  + 'of its symbol, and its first bar is not certainly the first bar of its period, so the bar of the first period '
+  + 'would be built from only '
   + 'part of that period. What this indicator draws from it is withheld rather than drawn from part of a period. '
-  + 'What would settle it: a chart whose history begins at the first session of a period, or at the listing.'
+  + 'What would settle it: a chart whose history begins at the first bar of a period, or at the listing.'
 function tfLiveFirstPeriodMask(bars, code, opts) {
   const out = tfLiveFirstPeriodBars(bars, code, opts)
   if (out) {
@@ -9050,8 +9054,9 @@ function venueCalendarBars(node, bars, k) {
  *  is finished). Withheld by name (`TF_LIVE_FORMING_CODE`) where `newestBarIsForming` is not `false`;
  *  Q-REQ1 is the capture that settles it. The host's `tf_live` column is unchanged. */
 export const TF_LIVE_FORMING_CODE = 'request:htf-lookahead-forming-unmeasured'
-export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a weekly or monthly value with `request.security` '
-  + '(look-ahead on). On the bar still forming, that reads the week or month still forming, and what TradingView '
+export const TF_LIVE_FORMING_SENTENCE = 'This indicator reads a higher-timeframe value (a week, a month, or a longer '
+  + 'intraday bar) with `request.security` (look-ahead on). On the bar still forming, that reads the period still '
+  + 'forming, and what TradingView '
   + 'shows there has not been captured; that bar is withheld rather than guessed. Every finished bar is drawn.'
 function tfLiveFormingMask(bars, opts) {
   const n = bars.length

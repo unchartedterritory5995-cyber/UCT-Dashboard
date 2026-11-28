@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "E101 INTRADAY-HTF (feat/e101-intraday-htf-reads, NUMBER PENDING): a higher intraday timeframe (30 / 60 / 120 / 240) of the chart's own symbol, resampled from an intraday chart's own bars on the chart's measured grid (interpret.js::periodStamps over intradayBucketStart), read by the host evaluator's tf_merge / tf_live arms and the runtime lane's request (requestAlignment), behind the closed capability request-intraday-htf. Each mutant breaks one rule and must turn its rail red.",
+ "about": "E101 INTRADAY-HTF (feat/e101-intraday-htf-reads, NUMBER PENDING): a higher intraday timeframe (30 / 60 / 120 / 240) of the chart's own symbol, resampled from an intraday chart's own bars on the chart's measured grid (interpret.js::periodStamps over intradayBucketStart), read by the host evaluator's tf_merge / tf_live arms and the runtime lane's request (requestAlignment), behind the capability request-intraday-htf, live by the owner's ruling of 2026-11-28. Each mutant breaks one rule and must turn its rail red.",
  "mutants": [
   {
    "id": "I1",
@@ -73,6 +73,15 @@
    "to": "export const INTRADAY_HTF_GRID_BY_KIND = Object.freeze({ regular: 'clock', extended: 'clock' })",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfRuntime.test.js",
    "expectRed": "look-ahead off"
+  },
+  {
+   "id": "I9",
+   "mutant": "owner-live: the owner's ruling is not read, so the capability is closed for every member until its evidence grades",
+   "file": "app/src/components/chart/engine/intradayHtfGate.js",
+   "from": "  return intradayHtfOwnerLive(WITNESS) || intradayHtfAdmissionReasons(WITNESS).length === 0",
+   "to": "  return intradayHtfAdmissionReasons(WITNESS).length === 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/intradayHtfRuntime.test.js",
+   "expectRed": "no override"
   }
  ]
 }
