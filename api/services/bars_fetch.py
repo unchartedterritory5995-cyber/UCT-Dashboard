@@ -1559,10 +1559,12 @@ def _wm_overlay(ticker_up: str, tf: str, stored_rows: list, bars: int, d_last=_D
         if not periods or int(periods[-1]["t"].replace("-", "")) != _wm_key_of(tf, int(d_last)):
             return None
         by = {int(r[0]): tuple(r) for r in stored_rows}
-        if source == "stored" and _wm_ahead_of_daily(by.get(int(periods[-1]["t"].replace("-", ""))), periods[-1]):
+        # (review of #3023) on BOTH sources: a stored row holding trading the daily lacks is never served over or
+        # written over with the daily's partial bar
+        if _wm_ahead_of_daily(by.get(int(periods[-1]["t"].replace("-", ""))), periods[-1]):
             return None
         _held0 = by.get(int(periods[0]["t"].replace("-", "")))
-        if _held0 is not None and not _wm_same_basis(periods[0]["o"], _held0[1]):
+        if _held0 is not None and not _wm_same_basis(periods[0]["o"], _held0[1], ticker_up):
             return None                    # (follow-up to #3001) the daily is on another price basis than the W/M table
         todo = [p for p in periods if _wm_differs(by.get(int(p["t"].replace("-", ""))), p)]
         for p in periods:
@@ -2556,16 +2558,36 @@ _WM_BASIS_MIN_RATIO = 0.6
 _WM_BASIS_MAX_RATIO = 1.6
 
 
-def _wm_same_basis(a_price, b_price) -> bool:
-    """`a_price` and `b_price` are on the same price basis: their ratio is inside the split-sized band. Unknown (a
-    zero or missing price) reads as the same basis, as before."""
+#: a price ratio this close to a declared split's ratio (or its inverse) is that split, not a move
+_WM_SPLIT_MATCH_TOL = 0.05
+
+
+def _wm_same_basis(a_price, b_price, ticker: str = None) -> bool:
+    """`a_price` and `b_price` are on the same price basis: their ratio is inside the split-sized band, and (with a
+    `ticker`) not within `_WM_SPLIT_MATCH_TOL` of one of its DECLARED splits (`bars_sanitize`'s cached corporate-action
+    metadata; never fetched on the serve path: a cold miss schedules its warm and reads as "no split declared").
+    ⛔ (review of #3023) a 3:2 split is 1.5x, inside the band. Unknown (a zero or missing price) reads as the same basis."""
     try:
         a, b = float(a_price), float(b_price)
     except (TypeError, ValueError):
         return True
     if a <= 0 or b <= 0:
         return True
-    return _WM_BASIS_MIN_RATIO <= a / b <= _WM_BASIS_MAX_RATIO
+    ratio = a / b
+    if not (_WM_BASIS_MIN_RATIO <= ratio <= _WM_BASIS_MAX_RATIO):
+        return False
+    if ticker:
+        try:
+            from api.services import bars_sanitize
+            meta = bars_sanitize._meta_cached(ticker) or {}
+            for _d, r in meta.get("splits") or ():
+                r = float(r)
+                if r > 0 and abs(r - 1.0) > _WM_SPLIT_MATCH_TOL and (
+                        abs(ratio / r - 1.0) <= _WM_SPLIT_MATCH_TOL or abs(ratio * r - 1.0) <= _WM_SPLIT_MATCH_TOL):
+                    return False
+        except Exception:                  # noqa: BLE001 — the metadata unreadable: the band alone, as before
+            pass
+    return True
 
 
 def _wm_same_ohlc(a: dict, b: dict) -> bool:
@@ -2575,15 +2597,38 @@ def _wm_same_ohlc(a: dict, b: dict) -> bool:
         return False
 
 
-def _wm_listing_start(ticker_up: str, tf: str):
-    """The series' first session (YYYYMMDD) when the stored daily AND the stored W/M table both START in the same
-    period: a listing inside that period, so its earlier sessions are not expected. None otherwise (a shallow daily
-    store beside a deeper W/M table is not a listing, and its period stays incomplete)."""
+#: how long the provider's answer "nothing traded before the stored daily's first bar" (or "it did") is held
+_WM_LISTING_PROOF_TTL = 24 * 3600
+
+
+def _wm_listing_start(ticker_up: str, tf: str = None):
+    """The series' first session (YYYYMMDD) when the PROVIDER'S daily proves nothing traded before the stored daily's
+    first bar (`_daily_traded_through`, #3011's fact): a listing, so the sessions before it are not expected in its
+    first period. None when it traded before (a shallow daily store), when the provider faulted, or while the proof
+    is not in yet: the answer is cached per (ticker, first bar) for `_WM_LISTING_PROOF_TTL`, and a miss starts ONE
+    background proof (deduped, the warm share) and reads as None now, so the serve chokepoint never waits on a provider.
+    ⛔ (review of #3023) the two stores' start dates were the earlier proof: a shallow daily beside an equally shallow
+    W/M table read as a listing."""
     try:
         first_d = _sqlite.get_first_ts(ticker_up, "D")
-        first_wm = _sqlite.get_first_ts(ticker_up, tf)
-        if first_d and first_wm and _wm_key_of(tf, int(first_d)) == int(first_wm):
-            return int(first_d)
+    except Exception:                      # noqa: BLE001
+        return None
+    if not first_d:
+        return None
+    first_d = int(first_d)
+    key = f"wmlisting_{ticker_up}_{first_d}"
+    hit = cache.get(key)
+    if hit is not None:
+        return first_d if hit else None
+
+    def _prove(_t=ticker_up, _first=first_d, _key=key):
+        s0 = str(_first)
+        through = (datetime(int(s0[:4]), int(s0[4:6]), int(s0[6:])) - timedelta(days=1)).strftime("%Y-%m-%d")
+        traded = _daily_traded_through(_t, through)
+        if traded is not None:             # a fault proves nothing: no cache, a later read asks again
+            cache.set(_key, not traded, ttl=_WM_LISTING_PROOF_TTL)
+    try:
+        _bounded_job(f"wmlisting::{ticker_up}::{first_d}", _prove, 0.0, sem=_date_delta_warm_sem, slot_wait=0.0)
     except Exception:                      # noqa: BLE001
         pass
     return None
@@ -2642,13 +2687,18 @@ def _reconcile_developing_period(ticker: str, tf: str, out_rows: list[dict]) -> 
                 # daily with more volume; replacing it is a scale jump. ⛔⛔ (review) NOT "the same close": a tail
                 # written from a PARTIAL period ends on the same last session, and it must be replaced.
                 if (complete and (p.get("v") or 0) > (out[-1].get("v") or 0)
-                        and not _wm_same_ohlc(p, out[-1]) and _wm_same_basis(p.get("o"), out[-1].get("o"))):
+                        and not _wm_same_ohlc(p, out[-1]) and _wm_same_basis(p.get("o"), out[-1].get("o"), ticker)):
                     out[-1] = p
                 continue
             if k != _wm_next_key(tf, tail) or not complete:
                 break
-            if not _wm_same_basis(p.get("o"), out[-1].get("c")):
-                break                      # the next period on another price basis than the series: never appended
+            # ⛔ (review of #3023) the series' last close against the DAILY's own close before the new period, not
+            # the new period's open: a genuine >60% gap on a new month's first session (a buyout, a biotech) is the
+            # same basis by construction and appends; a daily on another basis than the table (a split) does not
+            _prev = [r for r in kept if int(r[0]) < _wm_period_start(tf, k)]
+            _ref = _prev[-1][4] if _prev else p.get("o")
+            if not _wm_same_basis(_ref, out[-1].get("c"), ticker):
+                break                      # the daily on another price basis than the series: never appended
             out.append(p)
         return out
     except Exception:                      # noqa: BLE001 — the store as it is
