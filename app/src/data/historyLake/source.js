@@ -288,10 +288,13 @@ export function createHistorySource(o = {}) {
    * decoding them: the read that follows (`loadPiece`, the same URL) is then answered from the cache.
    * Never rejects; a piece without a place is skipped.
    */
-  async function warmPieces(sym, series, entries) {
+  // `signal`: a warm given up asks no piece it has not asked yet, and stops waiting on the ones in flight (readPiece: a
+  // request it owns is aborted, one it shares goes on for its other reader)
+  async function warmPieces(sym, series, entries, { signal } = {}) {
     const symbol = lakeSymbol(sym)
     await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
-      try { await readPiece(pieceUrl(ownerOf(symbol, e), series, e)) } catch { /* a warm only */ }
+      if (signal?.aborted) return
+      try { await readPiece(pieceUrl(ownerOf(symbol, e), series, e), signal) } catch { /* a warm only */ }
     })
   }
 

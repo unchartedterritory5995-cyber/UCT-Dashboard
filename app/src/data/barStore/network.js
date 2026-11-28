@@ -50,6 +50,7 @@ import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, 
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
 import { nextTask } from '../historyLake/source'
 import { lakeCopyAddsNothing } from './reducer'
+import { _closeMismatch } from '../../utils/barsMerge'
 
 /** (review of #2947, N1) A window answered `filling` is asked again after this many seconds (the server's Retry-After),
  *  at most WINDOW_FILL_ROUNDS times (~30 s), then left to the next chart or warm of the key. */
@@ -376,6 +377,7 @@ export function createNetwork({
     // `&warm=1` (a best-effort warm the server may skip / shed under load) exactly where the
     // legacy warmers send it; never on a subscriber's own poll.
     const url = barsUrl(r.key, { bars, since: delta ? from - 1 : null, session }) + (warm ? '&warm=1' : '')
+    const viaLake = _windowFromLake(r, p) ? { fetch: (signal) => _windowRead(r, url, bars, priority, signal, { warm, front }), viaLake: true } : null
     return _send(r, 'tail', url, priority, async (json) => {
       if (json?.no_data) {
         registry.dispatch(r.key, { type: ACTION.REST_ERROR, key: r.key, gen, payload: { error: 'no_data', terminal: true } })
@@ -410,7 +412,63 @@ export function createNetwork({
       // body has no retry_after) is asked again (`_armFillRetry`, in bounded rounds) until it is complete
       const filling = json.filling === true
       return { ok: true, delta, retryAfterSec: json.retry_after ?? (filling ? WINDOW_FILL_RETRY_S : null), ...(filling ? { filling: true } : {}) }
-    }, { front })
+    }, { front, ...(viaLake || {}) })
+  }
+
+  // ⭐⭐ A CHART AT A PAST DATE READS THE LAKE (2026-11-28, zero-network plan PR 1.1). A windowed intraday key (`@to=`: the
+  // chart anchored at a date, replay) is read ONCE, whole (`_nextDelay`: Infinity), and that read went to the origin's
+  // `/api/bars?to=` (95-130 ms server-cold, a store miss a vendor replay of seconds) although the history lake at the edge
+  // holds the same bars. Its read now asks the lake first (historyFeed `windowBars`: the newest `bars` bars at or before the
+  // origin's cutoff) and lands EXACTLY as the origin's answer would (the same `{ ticker, tf, bars }` shape, the same
+  // REST_FULL, the same `answered`), so every reader of a window (the switch, the double buffer, heldRows) is unchanged and
+  // the chart draws it once. The origin answers instead when:
+  //   - the lake cannot: no index or series, the window's day past the lake's newest session (a `to` the lake has not
+  //     published yet MUST use the origin), nothing at or before the cutoff;
+  //   - the lake read fails (anything but an abort: an abort is the caller's);
+  //   - ⛔ THE SEAM: bars this page already holds for the same series disagree with the lake's on a shared bar by more than
+  //     2% (utils/historyPrepend.prependOlder's rule: a split or re-basis the lake's table has not caught up with). The held
+  //     series read are the window key's own and the plain (present) key's; a lake window that shares no bar with either is
+  //     taken (the lake's adjustment is the present basis, the origin's).
+  // `windowLakeOff`: a key whose lake read fell back asks the origin for the rest of its record's life (a later life asks
+  // the lake again: the index is held, so a refusal costs nothing).
+  const windowSources = new Map()   // window key -> 'lake' | 'origin': where its last read was answered (bounded)
+  function _noteWindowSource(key, src) {
+    windowSources.delete(key)
+    windowSources.set(key, src)
+    if (windowSources.size > 500) windowSources.delete(windowSources.keys().next().value)
+  }
+  function _windowFromLake(r, p) {
+    return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !r.windowLakeOff
+  }
+  async function _windowRead(r, url, bars, priority, signal, { warm, front }) {
+    let got = null
+    try {
+      got = await history.windowBars(r.key, { bars, signal })
+    } catch (e) {
+      if (signal?.aborted) throw e   // the caller's abort; any other failure (another caller's abort included) falls back
+      got = null
+    }
+    if (signal?.aborted) throw new DOMException('The load was aborted', 'AbortError')
+    if (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got.bars)) {
+      _noteWindowSource(r.key, 'lake')
+      const p = parseKey(r.key)
+      return { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' }
+    }
+    r.windowLakeOff = true
+    _noteWindowSource(r.key, 'origin')
+    // a chart that subscribed while the lake was read never rides a shed-able warm (`_tail`'s rule)
+    const plain = warm && r.refs > 0 ? url.replace(/&warm=1(?=&|$)/, '') : url
+    return request(plain, { priority, signal, ...(front ? { front: true } : {}) })
+  }
+  /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
+   *  last shared one, the 2% rule)? True when none are shared. */
+  function _windowSeamOk(key, rows) {
+    const at = key.indexOf('@to=')
+    for (const k of [key, at > 0 ? key.slice(0, at) : null]) {
+      const held = k ? registry.peek(k)?.bars : null
+      if (held?.length && !_seamAgrees(held, rows)) return false
+    }
+    return true
   }
 
   /** The deep history URL of a D/W/M key as its history job will ask it (calendar `d` for D, the held
@@ -528,6 +586,12 @@ export function createNetwork({
     if (!history) return false
     const p = parseKey(key)
     return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+  }
+
+  /** Is `key` a window (`@to=`) whose read asks the lake first (`_windowFromLake`)? */
+  function lakeCarriesWindow(key) {
+    const p = parseKey(key)
+    return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !keys.get(key)?.windowLakeOff
   }
 
   const _lakeCarries = (r) => {
@@ -652,12 +716,14 @@ export function createNetwork({
     }
   }
 
-  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null } = {}) {
+  function _send(r, kind, url, priority, onJson, { front = false, fetch: fetchFn = null, viaLake = false } = {}) {
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
     r.lastStart = now()
     requests++
     // Read at failure time: the lane may have rewritten a queued warm into a non-warm request.
-    const rec = { ac, kind, promise: null, url, priority, warm: /[?&]warm=1(?:&|$)/.test(url), followUp: null }
+    // (a window read from the lake first is no lane request: a joiner never promotes or follows it up, `_tail`; its origin
+    // fallback drops `&warm=1` itself once a chart holds the key, `_windowRead`)
+    const rec = { ac, kind, promise: null, url, priority, warm: !viaLake && /[?&]warm=1(?:&|$)/.test(url), followUp: null, viaLake }
     // ⛔ A SHED WARM IS NOT THE CHART'S ERROR. A best-effort `&warm=1` that failed while a chart
     // subscribes to the key says nothing about the chart's data: no REST_ERROR (the chart's own
     // non-warm request, queued behind it, owns the answer).
@@ -842,14 +908,15 @@ export function createNetwork({
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
     /** Prime the lake for `key` now (historyFeed `prime`: index + newest pieces into the HTTP cache),
      *  ahead of its open: a typed ticker or a row the pointer rests on. No-op where it does not carry. */
-    primeLake(key) {
-      if (!history?.prime || !lakeCarriesKey(key)) return
-      try { history.prime(key) } catch { /* a warm only */ }
+    // ...and a window's (a chart at a past date, PR 1.2's date warm): the pieces its lake read takes (historyFeed `prime`)
+    primeLake(key, opts) {
+      if (!history?.prime || !(lakeCarriesKey(key) || lakeCarriesWindow(key))) return
+      try { history.prime(key, opts) } catch { /* a warm only */ }
     },
     /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
      *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
     lakeEdgeWarm(key, opts) {
-      if (!history?.edgeWarm || !lakeCarriesKey(key)) return Promise.resolve(0)
+      if (!history?.edgeWarm || !(lakeCarriesKey(key) || lakeCarriesWindow(key))) return Promise.resolve(0)
       try { return Promise.resolve(history.edgeWarm(key, opts)).catch(() => 0) } catch { return Promise.resolve(0) }
     },
     /**
@@ -1010,6 +1077,10 @@ export function createNetwork({
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
     lakeCarries(key) { return lakeCarriesKey(key) },
+    /** Does a read of window `key` ask the lake first (a chart at a past date: `_windowFromLake`)? */
+    lakeCarriesWindow(key) { return lakeCarriesWindow(key) },
+    /** Where window `key`'s last read was answered on this page: 'lake' | 'origin' | null (diagnostics, the rig). */
+    windowSource(key) { return windowSources.get(key) ?? null },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)
@@ -1119,6 +1190,27 @@ export function createNetwork({
     },
   }
   return api
+}
+
+/** Index of the first bar of ascending `rows` with `t >= x` (rows.length when none). */
+function _lowerBound(rows, x) {
+  let lo = 0, hi = rows.length
+  while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m].t < x) lo = m + 1; else hi = m }
+  return lo
+}
+/** Do ascending `held` and `rows` agree (historyPrepend's 2% close rule) on their first and last shared bar? True when
+ *  they share none. */
+export function _seamAgrees(held, rows) {
+  if (!held?.length || !rows?.length) return true
+  const lo = rows[0].t, hi = rows[rows.length - 1].t
+  const i0 = _lowerBound(held, lo)
+  const i1 = _lowerBound(held, hi + 1) - 1
+  for (const i of i0 <= i1 ? [i0, i1] : []) {
+    const h = held[i]
+    const j = _lowerBound(rows, h.t)
+    if (j < rows.length && rows[j].t === h.t && _closeMismatch(h, rows[j])) return false
+  }
+  return true
 }
 
 const _RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
