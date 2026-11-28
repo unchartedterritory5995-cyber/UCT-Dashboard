@@ -184,6 +184,7 @@ jobs:
           python scripts/proofs/speed-rig/plan.py --self-check
           python scripts/proofs/speed-rig/grade.py --self-check
           python scripts/proofs/speed-rig/lane.py --self-check
+          node scripts/proofs/speed-rig/rig_dates.mjs --self-check
           python scripts/proofs/speed-rig/vite_env.py --self-check
           python scripts/proofs/speed-rig/build_candidate.py --self-check
       - name: Plan (and record the tickers in the shared ledger)
