@@ -388,11 +388,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // the page's first chart paint; never in replay (its own warm above); the keys' own path (device -> edge -> origin),
   // the queue's cancellation and single-flight (data/barStore/prefetch.js prefetchAllTimeframes). Owner ruling
   // 2026-11-28: full data, no caps.
-  const tfBarCodes = useMemo(() => {
+  // ONE identity per set of codes (not per press, not per settings write): it reaches both layers' charts (tfBarCodes),
+  // and a new array at every timeframe press re-rendered a hidden chart the flip must not touch
+  const tfBarKey = (() => {
     const fav = Array.isArray(activeStoredSettings?.header?.timeframes) ? activeStoredSettings.header.timeframes : []
-    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))]
-  }, [activeStoredSettings, tf])
-  const tfBarKey = tfBarCodes.join(',')
+    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))].join(',')
+  })()
+  const tfBarCodes = useMemo(() => tfBarKey.split(','), [tfBarKey])
   const dated = !!anchorKey
   useEffect(() => {
     if (!sym || replayCutoff) return undefined
