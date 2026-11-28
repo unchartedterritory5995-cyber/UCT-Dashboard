@@ -9008,6 +9008,17 @@
     "REX",
     "BATRA"
    ]
+  },
+  {
+   "id": "cloud/46169544941-1/COV-tf-date",
+   "at": "2026-11-28T17:33:03+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CDRO",
+    "TCBK",
+    "CUB",
+    "CGC"
+   ]
   }
  ]
 }
