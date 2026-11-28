@@ -15,6 +15,9 @@
 //                      store (the account's real prefs with this pass's board in place), each write answered after the
 //                      measured origin round trip. Bars, quotes, search, watchlists and everything else are the real
 //                      production path. Passes on one account run in parallel without touching each other.
+// --dist=<dir> [--build-label=<ref@sha>] (with either isolation): this browser runs the front end built in <dir> (the
+// workflow's build_ref) on the PRODUCTION ORIGIN: the page document and /assets/* are answered from <dir>, everything
+// else is the real site, so the member's cookies are first-party and nothing is published (the --dist block below).
 //
 // Usage: node scripts/proofs/speed-rig/rig.mjs <out.json> [--isolate=browser] [--board=<file>] [--pattern=down|typed|tabs]
 //          [--fresh-list=A,B,..] [--typed=C,D,..] [--flips=N] [--dwell=ms] [--tf=D] ... (every flag documented below)
@@ -386,6 +389,9 @@ async function labelsNow(run) {
     memGB: Math.round(os.totalmem() / 1e9),
     chrome: (await browserVersion(PORT)).product,
     isolate: ISOLATE,
+    // (2026-11-28) the FRONT END this browser runs: 'production' (the site's own build), else --build-label (the
+    // candidate's ref@commit, from the workflow's build job) or 'dist'. webBuild above stays the SITE's build.
+    build: arg('dist', '') ? (arg('build-label', '').replace(/[^\w.@/:-]/g, '').slice(0, 80) || 'dist') : 'production',
     ...page,
   }
 }
@@ -400,7 +406,7 @@ try {
   if (!HEADLESS) app.placeMainWindow(D.x, D.y, D.w, D.h)
   out.headless = HEADLESS
   out.labels = await labelsNow(run)
-  console.log(`labels: ${JSON.stringify({ runner: out.labels.runner, cpu: out.labels.cpu, cores: out.labels.cores, chrome: out.labels.chrome, colo: out.labels.colo, api: out.labels.apiCommit, web: out.labels.webBuild, isolate: ISOLATE })}`)
+  console.log(`labels: ${JSON.stringify({ runner: out.labels.runner, cpu: out.labels.cpu, cores: out.labels.cores, chrome: out.labels.chrome, colo: out.labels.colo, api: out.labels.apiCommit, web: out.labels.webBuild, build: out.labels.build, isolate: ISOLATE })}`)
   if (DRY) {
     // signed OUT: the account is never read. What a sweep needs from the runner: Chrome, the site through Cloudflare,
     // the app's own boot, and the auth door answering (401 signed out).
@@ -461,6 +467,12 @@ try {
   // whole candidate build measured on production before it is merged: nothing is published.
   // ⛔ Build it with the site's own VITE_* values or its flags read "off" in the candidate.
   const DIST = arg('dist', '')
+  // (2026-11-28, the cloud rig's build_ref) ONE Fetch interception carries both --dist and --isolate=browser: CDP's
+  // Fetch.enable REPLACES the patterns of the call before it, and every listener sees every paused request, so each
+  // handler answers only what it OWNS (distOwns / isoOwns) and the isolation's Fetch.enable re-sends distPatterns.
+  let distPatterns = []
+  let distOwns = () => false
+  const isoOwns = (path) => ISOLATE === 'browser' && (path === '/api/auth/preferences' || path === '/api/workspace/doc' || path.startsWith('/api/workspace/doc/'))
   if (DIST) {
     if (OVERRIDE || STUB > 0) throw new Error('--dist cannot be combined with --override or --stub')
     const { existsSync } = await import('node:fs')
@@ -474,8 +486,11 @@ try {
     await c.send('Network.enable')
     await c.send('Network.setCacheDisabled', { cacheDisabled: true })
     await c.send('Network.setBypassServiceWorker', { bypass: true })
-    await c.send('Fetch.enable', { patterns: [{ urlPattern: `${origin}/assets/*` }, { urlPattern: `${origin}/*`, resourceType: 'Document' },
-      ...(DELAY_BARS > 0 ? [{ urlPattern: '*/api/bars/*' }] : []), ...(replay ? replay.patterns : [])] })
+    distPatterns = [{ urlPattern: `${origin}/assets/*` }, { urlPattern: `${origin}/*`, resourceType: 'Document' }]
+    distOwns = ({ request, resourceType }) => {
+      try { const u = new URL(request.url); return u.origin === origin && (u.pathname.startsWith('/assets/') || (resourceType === 'Document' && !u.pathname.startsWith('/api/'))) } catch { return false }
+    }
+    await c.send('Fetch.enable', { patterns: [...distPatterns, ...(DELAY_BARS > 0 ? [{ urlPattern: '*/api/bars/*' }] : []), ...(replay ? replay.patterns : [])] })
     const answer = (requestId, type, buf) => c.send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: type }, { name: 'Cache-Control', value: 'no-store' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: Buffer.from(buf).toString('base64') }).catch(() => {})
     c.on((m) => {
       if (m.method !== 'Fetch.requestPaused') return
@@ -483,6 +498,7 @@ try {
       if (replay && replay.owns(m.params)) return    // the replay answers these (bars answers, the live feeds)
       const u = new URL(request.url)
       if (DELAY_BARS > 0 && u.pathname.startsWith('/api/bars/')) return    // the --delay-bars handler owns these
+      if (isoOwns(u.pathname) && !distOwns(m.params)) return    // the --isolate=browser handler owns these
       if (u.pathname.startsWith('/assets/')) {
         const f = join(DIST, decodeURIComponent(u.pathname))
         if (existsSync(f)) { out.dist.served += 1; answer(requestId, TYPES[extname(f).toLowerCase()] || 'application/octet-stream', readFileSync(f)); return }
@@ -661,7 +677,8 @@ try {
   let iso = null
   if (ISOLATE === 'browser') {
     if (LOCAL) throw new Error('--isolate=browser is for production: a sandbox has its own account')
-    if (OVERRIDE || arg('dist', '') || STUB > 0 || DELAY_BARS > 0 || REPLAY_AT) throw new Error('--isolate=browser cannot be combined with --override, --dist, --stub, --delay-bars or --replay-at (one Fetch interception per run)')
+    // --dist is combined (one Fetch.enable carries both pattern sets; each handler answers only what it owns)
+    if (OVERRIDE || STUB > 0 || DELAY_BARS > 0 || REPLAY_AT) throw new Error('--isolate=browser cannot be combined with --override, --stub, --delay-bars or --replay-at (one Fetch interception per run)')
     // the account's own board revision and the origin's round trip for a board read (three reads, the median)
     const reads = []
     for (let k = 0; k < 3; k++) reads.push(await run(`(async()=>{const t0=performance.now();const r=await fetch('/api/auth/preferences',{credentials:'include',cache:'no-store'});await r.text();return {st:r.status,ms:Math.round((performance.now()-t0)*10)/10,stamp:r.headers.get('X-Workspace-Doc')}})()`))
@@ -684,6 +701,7 @@ try {
     const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v))
     const pass = (requestId, atResponse) => c.send(atResponse ? 'Fetch.continueResponse' : 'Fetch.continueRequest', { requestId }).catch(() => {})
     await c.send('Fetch.enable', { patterns: [
+      ...distPatterns,   // (--dist) Fetch.enable replaces the patterns before it: the candidate build's stay intercepted
       { urlPattern: `${origin}/api/auth/preferences*`, requestStage: 'Request' },
       { urlPattern: `${origin}/api/auth/preferences*`, requestStage: 'Response' },
       { urlPattern: `${origin}/api/workspace/doc*`, requestStage: 'Request' },
@@ -692,6 +710,7 @@ try {
       if (m.method !== 'Fetch.requestPaused') return
       const { requestId, request, responseStatusCode, responseHeaders } = m.params
       const atResponse = responseStatusCode !== undefined
+      if (distOwns(m.params)) return   // the --dist handler answers the candidate's documents and assets
       try {
         const u = new URL(request.url)
         const path = u.pathname
@@ -972,6 +991,11 @@ try {
     const runsIt = await run(`!!document.querySelector('script[src*=${JSON.stringify(out.dist.entry)}]')`)
     console.log(`dist: ${out.dist.documents} document(s) and ${out.dist.served} asset(s) answered from ${DIST}; the page runs its entry script: ${runsIt}`)
     if (!runsIt) throw new Error('the page is not running the candidate build: this run would measure the shipped one')
+    // (2026-11-28) the candidate is loaded: the browser's HTTP cache is back in use for the measured switches, as it is
+    // in a production pass (an API answer the site lets the browser keep is kept). The candidate's own hashed chunks are
+    // not in the cache, so they still reach the interception; one with production's name and hash is the same bytes.
+    await c.send('Network.setCacheDisabled', { cacheDisabled: false })
+    out.dist.cacheAfterLoad = 'enabled'
   }
   await sleep(WARMUP) // the list's own up-front warm (and, on a new profile, the bars pack ingest)
   if (arg('lake-probe', '')) {

@@ -18,6 +18,10 @@ What changed from the PC copy, and why:
   * The summary: per pass, then per BOARD (zoom x board, arrows and typed together), p50 / p100 of the full frame,
     with every label the rig recorded (runner, CPU, Chrome, Cloudflare colo, production commit, isolation).
   * --compare <dir>: grade another sweep (the owner-PC run) with the SAME rules and print both side by side.
+  * A/B (2026-11-28, the workflow's base_ref / build_ref): a sweep whose files sit in <dir>/A and <dir>/B (lane.py
+    --side) is graded per side with ONE expectation (derived from both sides' bars, so a side is never judged
+    against a fresher day than the other), and printed as one side-by-side table (A, B, B minus A) above each
+    side's own table. Each side names its front end (labels.build: production, or the candidate's ref@commit).
 
     python scripts/proofs/speed-rig/grade.py <dir> [--compare <pc dir>] [--expect-day=YYYY-MM-DD] [--md <file>]
     python scripts/proofs/speed-rig/grade.py --self-check
@@ -273,7 +277,9 @@ def board_of(name: str) -> str:
     return name.replace('COV-', '')
 
 
-def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
+def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None) -> dict:
+    """Grade one directory of pass files. `exp` (the STALE expectation) is derived from this directory's bars unless
+    given (an A/B grades both sides against one, derived from both)."""
     names = sorted(os.path.basename(p)[:-len('.jump.json')] for p in glob.glob(os.path.join(d, '*.jump.json')))
     passes, problems = [], []
     for n in names:
@@ -285,7 +291,8 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             problems.append(f'{n}: unreadable ({e})')
             continue
         passes.append((n, rec, raw, chart_tfs(rec, root)))
-    exp = expectations(passes, opts)
+    if exp is None:
+        exp = expectations(passes, opts)
     results, by, labels = [], {}, {}
     for n, rec, raw, tfs in passes:
         for p in raw:
@@ -294,7 +301,7 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
-            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'isolate', 'os'):
+            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'build', 'isolate', 'os'):
                 if lb.get(f) is not None:
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
@@ -342,7 +349,8 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
     rows = {k: {'switches': g['n'], 'failed': g['fail'], 'flags': g['flags'], 'p50': pct(g['full'], 0.5), 'p100': pct(g['full'], 1),
                 'warm': g['warm'], 'focusFail': g['focusFail']} for k, g in by.items()}
-    return {'dir': d, 'run': run, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
+    order = sorted((h.get('position', 0), h['pass'], h.get('side')) for h in hs if h.get('side'))
+    return {'dir': d, 'run': run, 'order': order, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
             'expect': exp, 'labels': {k: sorted(v) for k, v in labels.items()}, 'rows': rows, 'problems': problems, 'results': results}
 
 
@@ -352,7 +360,8 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
            '',
            f"runner {', '.join(lb.get('runner', ['?']))} | CPU {', '.join(lb.get('cpu', ['?']))} x{', '.join(lb.get('cores', ['?']))} | "
            f"Chrome {', '.join(lb.get('chrome', ['?']))} | Cloudflare colo {', '.join(lb.get('colo', ['?']))} | "
-           f"production api {', '.join(lb.get('apiCommit', ['?']))} web {', '.join(lb.get('webBuild', ['?']))} | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
+           f"production api {', '.join(lb.get('apiCommit', ['?']))} web {', '.join(lb.get('webBuild', ['?']))} | front end {', '.join(lb.get('build', ['production']))} | "
+           f"isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
            '',
            f"STALE judged against: day {g['expect']['day']} ({g['expect']['dayHow']}), intraday {g['expect']['intradayHow']}",
            '']
@@ -373,6 +382,57 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
         out.append(line)
     if g['problems']:
         out += ['', 'Problems:'] + [f'- {p}' for p in g['problems']]
+    return '\n'.join(out)
+
+
+def ab_dirs(d: str):
+    """(<d>/A, <d>/B) when the sweep is an A/B (both hold pass files), else None."""
+    a, b = os.path.join(d, 'A'), os.path.join(d, 'B')
+    has = lambda x: os.path.isdir(x) and bool(glob.glob(os.path.join(x, 'COV-*.json')))  # noqa: E731
+    return (a, b) if has(a) and has(b) else None
+
+
+def grade_ab(d: str, opts: dict, root: str = '.') -> tuple[dict, dict]:
+    """Both sides against ONE expectation, derived from both sides' bars (or given)."""
+    loaded = []
+    for side in ab_dirs(d):
+        for n in sorted(os.path.basename(p)[:-len('.jump.json')] for p in glob.glob(os.path.join(side, '*.jump.json'))):
+            try:
+                rec, raw = load_pass(side, n)
+            except (OSError, ValueError):
+                continue
+            loaded.append((n, rec, raw, chart_tfs(rec, root)))
+    exp = expectations(loaded, opts)
+    a, b = ab_dirs(d)
+    ga, gb = grade_dir(a, opts, root, exp), grade_dir(b, opts, root, exp)
+    for g, x in ((ga, a), (gb, b)):   # the build job's record of a candidate side (vite_env.py meta), when there is one
+        try:
+            g['buildMeta'] = json.load(open(os.path.join(x, 'build-meta.json'), encoding='utf-8'))
+        except (OSError, ValueError):
+            g['buildMeta'] = None
+    return ga, gb
+
+
+def ab_table(ga: dict, gb: dict) -> str:
+    """One row per board and pass: A, B and B minus A (full-frame ms; negative = B faster)."""
+    side = lambda g: ', '.join(g['labels'].get('build', ['?']))  # noqa: E731
+    d = lambda x, y: ('-' if x is None or y is None else f'{round(y - x):+d}')  # noqa: E731
+    order = sorted(ga.get('order', []) + gb.get('order', []))
+    out = [f"### A/B: A = {side(ga)} | B = {side(gb)}", '',
+           f"same tickers on both sides; run order {' -> '.join(f'{n} {s}' for _, n, s in order) or '?'} "
+           "(the side that runs second meets server caches the first one warmed: compare passes whose order alternates)", '',
+           f"STALE judged against: day {ga['expect']['day']} ({ga['expect']['dayHow']}), intraday {ga['expect']['intradayHow']} (both sides)", '',
+           *[f"side {k} built: {m.get('label')} entry {m.get('entry')}; production-parity {(m.get('parity') or {}).get('verdict')}; "
+             f"VITE_* {len(m.get('viteEnv') or [])} set" for k, m in (('A', ga.get('buildMeta')), ('B', gb.get('buildMeta'))) if m], '',
+           '| board / pass | A switches | A FAILED | A p50 | A p100 | B switches | B FAILED | B p50 | B p100 | B-A p50 | B-A p100 |',
+           '|' + '---|' * 11]
+    keys = sorted(set(ga['rows']) | set(gb['rows']), key=lambda k: (not k.startswith('BOARD '), k))
+    for k in keys:
+        ra, rb = ga['rows'].get(k) or {}, gb['rows'].get(k) or {}
+        cell = lambda r, f: '-' if r.get(f) is None else str(r.get(f))  # noqa: E731
+        out.append(f"| {k} | {cell(ra, 'switches')} | {cell(ra, 'failed')} | {cell(ra, 'p50')} | {cell(ra, 'p100')} | "
+                   f"{cell(rb, 'switches')} | {cell(rb, 'failed')} | {cell(rb, 'p50')} | {cell(rb, 'p100')} | "
+                   f"{d(ra.get('p50'), rb.get('p50'))} | {d(ra.get('p100'), rb.get('p100'))} |")
     return '\n'.join(out)
 
 
@@ -418,7 +478,15 @@ def self_check() -> None:
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart)')
+    # A/B: the side-by-side table carries both sides' numbers and B minus A, and a missing row on one side is '-'
+    ga = {'labels': {'build': ['production']}, 'order': [(0, 'P', 'A')], 'expect': exp,
+          'rows': {'BOARD def dd': {'switches': 12, 'failed': 1, 'p50': 20, 'p100': 90}, 'P': {'switches': 12, 'failed': 1, 'p50': 20, 'p100': 90}}}
+    gb = {'labels': {'build': ['master@abc']}, 'order': [(1, 'P', 'B')], 'expect': exp,
+          'rows': {'BOARD def dd': {'switches': 12, 'failed': 0, 'p50': 17, 'p100': 95}}}
+    t = ab_table(ga, gb)
+    assert 'A = production | B = master@abc' in t and '| BOARD def dd | 12 | 1 | 20 | 90 | 12 | 0 | 17 | 95 | -3 | +5 |' in t, t
+    assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'P A -> P B' in t, t
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart; A/B table)')
 
 
 def main() -> int:
@@ -435,6 +503,16 @@ def main() -> int:
     pos = sys.argv[1:]
     cmp_dir = pos[pos.index('--compare') + 1] if '--compare' in pos else opts.get('compare')
     md = pos[pos.index('--md') + 1] if '--md' in pos else opts.get('md')
+    if ab_dirs(d):
+        ga, gb = grade_ab(d, opts)
+        text = ab_table(ga, gb) + '\n\n' + table(ga, None, 'side A') + '\n\n' + table(gb, None, 'side B')
+        print(text)
+        json.dump({'A': ga['results'], 'B': gb['results']}, open(os.path.join(d, 'grade.json'), 'w', encoding='utf-8'), indent=1, default=str)
+        json.dump({k: {kk: vv for kk, vv in g.items() if kk != 'results'} for k, g in (('A', ga), ('B', gb))},
+                  open(os.path.join(d, 'summary.json'), 'w', encoding='utf-8'), indent=1, default=str)
+        if md:
+            open(md, 'w', encoding='utf-8').write(text + '\n')
+        return 0
     g = grade_dir(d, opts)
     c = grade_dir(cmp_dir, opts) if cmp_dir else None
     text = table(g, c, 'cloud sweep' if cmp_dir else 'sweep')

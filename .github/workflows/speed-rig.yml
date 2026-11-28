@@ -14,6 +14,20 @@
 # RUN IT (repository secrets BENCH_EMAIL / BENCH_PASSWORD, the synthetic bench member; --ref <branch> runs a branch's rig):
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard                      # every pass, 8 at a time
 #   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f passes='COV-def-' -f max_parallel=12
+# A BRANCH'S FRONT END against production's data (2026-11-28): build_ref = a branch of THIS repository (or a commit on
+# master) is built (npm ci + vite build, the constants in scripts/proofs/speed-rig/vite-env.json) in its own job with
+# no secret, and every pass then runs TWICE, interleaved, on the same tickers: A = production's own front end, B = the
+# candidate. base_ref (needs build_ref) makes A a second build instead. The candidate is served in the pass's browser
+# only, ON THE PRODUCTION ORIGIN (rig.mjs --dist: the page document and /assets/* answered from the build; /api/*, the
+# edge paths and everything else from the real site), so the bench member's HttpOnly cookies stay first-party and
+# nothing is published. The summary prints A, B and B minus A side by side.
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f build_ref=my-branch -f passes='^COV-def-dd-arrows$'
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f base_ref=master -f build_ref=my-branch -f passes='^COV-def-'
+# ⛔ A BUILT REF IS NEVER UPLOADED: the dist moves from the build job to the pass jobs through the Actions CACHE (keyed
+# on this run; caches are not public, artifacts are) and lives in the runner's temp outside every uploaded folder. A
+# fork can neither dispatch this workflow (workflow_dispatch needs write access) nor name its commit (a ref must be a
+# branch of this repository or a commit on master). The build job holds no secret: it runs the candidate's own install
+# scripts and build.
 # ⛔ NO `environment:` KEY. tools/agent_ci_required.py refuses an `environment` key in any workflow but the two verdict
 # posters (AUDIT on #2501: a new workflow able to name an environment could reach the verdict App), and a tree that
 # holds one fails EVERY merge-queue entry. So the credentials are repository secrets, as RAILWAY_TOKEN is.
@@ -59,6 +73,18 @@ on:
         description: "account isolation: bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...)"
         required: false
         default: '1'
+      build_ref:
+        description: "B side: a branch of this repo (or a master commit) whose front end is built and measured on production's data; empty = production only"
+        required: false
+        default: ''
+      base_ref:
+        description: "A side (needs build_ref): a branch or master commit built as A; empty = production's own front end"
+        required: false
+        default: ''
+      build_env:
+        description: "B side only: VITE_* laid over production's (KEY=VAL,KEY=VAL), to A/B a build flag"
+        required: false
+        default: ''
   pull_request:
     paths:
       - 'scripts/proofs/speed-rig/**'
@@ -78,10 +104,108 @@ env:
   NODE_VERSION: '24'
 
 jobs:
+  # A candidate front end, built BEFORE the plan takes tickers (a build that fails spends none). No secret reaches this
+  # job: it runs the candidate's own install scripts and build, so it holds nothing but a read-only token.
+  build:
+    name: build ${{ matrix.side }}
+    if: github.event_name == 'workflow_dispatch' && inputs.build_ref != ''
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        side: [A, B]
+    env:
+      SIDE: ${{ matrix.side }}
+      REF: ${{ matrix.side == 'B' && inputs.build_ref || (matrix.side == 'A' && inputs.base_ref) || '' }}
+      EXTRA_ENV: ${{ matrix.side == 'B' && inputs.build_env || '' }}
+      NODE_BUILD_VERSION: '20.18.0'   # Dockerfile.web's frontend stage (node:20.18.0-bookworm-slim): one build, one Node
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - name: Resolve the ref (a branch of this repository, or a commit on master)
+        id: ref
+        run: |
+          set -euo pipefail
+          if [ -z "$REF" ]; then echo "side $SIDE: production's own front end, nothing to build"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git init -q "$RUNNER_TEMP/resolve" && cd "$RUNNER_TEMP/resolve"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          if [[ "$REF" =~ ^[0-9a-f]{7,40}$ ]]; then
+            # a commit: only one master holds (a fork's pull request commit is fetchable from this repo too, by sha)
+            git fetch -q --filter=tree:0 origin master
+            sha=$(git rev-parse --verify --quiet "${REF}^{commit}") || { echo "::error::$REF is no commit on master"; exit 1; }
+            git merge-base --is-ancestor "$sha" FETCH_HEAD || { echo "::error::$REF is not on master: name a branch of this repository"; exit 1; }
+          elif [[ "$REF" =~ ^[A-Za-z0-9._/-]{1,200}$ && "$REF" != *..* && "$REF" != -* ]]; then
+            sha=$(git ls-remote origin "refs/heads/$REF" | cut -f1)
+            [ -n "$sha" ] || { echo "::error::no branch '$REF' in ${GITHUB_REPOSITORY}"; exit 1; }
+          else
+            echo "::error::build_ref/base_ref '$REF': a branch name or a master commit"; exit 1
+          fi
+          echo "side $SIDE: $REF at $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.ref.outputs.skip == 'false'
+        with:
+          ref: ${{ steps.ref.outputs.sha }}
+          path: src
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            app/
+            Dockerfile.web
+      - uses: actions/setup-node@v4
+        if: steps.ref.outputs.skip == 'false'
+        with:
+          node-version: ${{ env.NODE_BUILD_VERSION }}
+      - uses: actions/cache@v4
+        if: steps.ref.outputs.skip == 'false'
+        id: nm
+        with:
+          path: src/app/node_modules
+          key: speed-rig-nm-${{ env.NODE_BUILD_VERSION }}-${{ hashFiles('src/app/package-lock.json') }}
+      - name: Install (npm ci, from the candidate's lock)
+        if: steps.ref.outputs.skip == 'false' && steps.nm.outputs.cache-hit != 'true'
+        run: cd src/app && npm ci --no-audit --no-fund
+      - name: Build (vite build with production's VITE_* constants)
+        if: steps.ref.outputs.skip == 'false'
+        env:
+          SHA: ${{ steps.ref.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python3 scripts/proofs/speed-rig/vite_env.py env --dockerfile src/Dockerfile.web --extra "$EXTRA_ENV" > "$RUNNER_TEMP/vite.env"
+          keys=$(cut -d= -f1 "$RUNNER_TEMP/vite.env" | paste -sd, -)
+          echo "VITE_* set: $keys"
+          set -a; . "$RUNNER_TEMP/vite.env"; set +a
+          dist="$RUNNER_TEMP/speed-rig-dist-$SIDE"
+          t0=$(date +%s)
+          (cd src/app && NODE_OPTIONS='--max-old-space-size=4096' npx vite build --outDir "$dist" --emptyOutDir --logLevel warn)
+          echo "built in $(( $(date +%s) - t0 )) s"
+          find "$dist" -name '*.map' -delete   # hidden maps (vite.config sourcemap: 'hidden'): no page asks for one
+          python3 scripts/proofs/speed-rig/vite_env.py meta "$dist" --side "$SIDE" --ref "$REF" --sha "$SHA" --env-keys "$keys"
+          du -sh "$dist"
+      - uses: actions/cache/save@v4
+        if: steps.ref.outputs.skip == 'false'
+        with:
+          path: ${{ runner.temp }}/speed-rig-dist-${{ matrix.side }}
+          key: speed-rig-dist-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.side }}
+
   plan:
     name: plan the sweep
-    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger. After the build (skipped without a
+    # build_ref, and on a pull request); never after a build that failed.
+    if: >-
+      !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -104,6 +228,7 @@ jobs:
           python scripts/proofs/speed-rig/plan.py --self-check
           python scripts/proofs/speed-rig/grade.py --self-check
           python scripts/proofs/speed-rig/lane.py --self-check
+          python scripts/proofs/speed-rig/vite_env.py --self-check
       - name: Plan (and record the tickers in the shared ledger)
         id: plan
         env:
@@ -113,6 +238,8 @@ jobs:
           MAX_PARALLEL: ${{ inputs.max_parallel || '8' }}
           ISOLATION: ${{ inputs.isolation || 'browser' }}
           ACCOUNTS: ${{ inputs.accounts || '1' }}
+          BUILD_REF: ${{ inputs.build_ref || '' }}
+          BASE_REF: ${{ inputs.base_ref || '' }}
           GIT_AUTHOR_NAME: speed-rig
           GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: speed-rig
@@ -120,6 +247,8 @@ jobs:
         run: |
           set -euo pipefail
           extra=()
+          if [ -n "$BASE_REF" ] && [ -z "$BUILD_REF" ]; then echo "::error::base_ref needs build_ref (A is the base, B the build)"; exit 1; fi
+          if [ -n "$BUILD_REF" ] && [ "$ISOLATION" != "browser" ]; then echo "::error::build_ref runs with isolation=browser only (an A/B on one account's real board writes it twice per pass)"; exit 1; fi
           if [ "$EVENT" = "pull_request" ]; then
             # the two passes that prove one account carries passes in parallel: arrows, and the tabs pass (it writes
             # layouts, the dock and the board); signed in when the secrets exist, else dry (and nothing recorded)
@@ -136,8 +265,8 @@ jobs:
 
   pass:
     name: pass ${{ matrix.title }}
-    needs: plan
-    if: github.event_name == 'workflow_dispatch'
+    needs: [plan, build]
+    if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && needs.plan.result == 'success' }}
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 120   # one pass ~3 min; an account lane runs its passes one after another
     strategy:
@@ -179,14 +308,44 @@ jobs:
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
           "$HOME/cft/chrome-linux64/chrome" --version
           echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      # the candidate builds (the build job's), from this run's cache entries: never an artifact
+      - uses: actions/cache/restore@v4
+        if: inputs.base_ref != ''
+        with:
+          path: ${{ runner.temp }}/speed-rig-dist-A
+          key: speed-rig-dist-${{ github.run_id }}-${{ github.run_attempt }}-A
+          fail-on-cache-miss: true
+      - uses: actions/cache/restore@v4
+        if: inputs.build_ref != ''
+        with:
+          path: ${{ runner.temp }}/speed-rig-dist-B
+          key: speed-rig-dist-${{ github.run_id }}-${{ github.run_attempt }}-B
+          fail-on-cache-miss: true
       - name: Run lane ${{ matrix.lane }}
         env:
           BENCH_EMAIL: ${{ matrix.slot == 1 && secrets.BENCH_EMAIL || secrets[format('BENCH_EMAIL_{0}', matrix.slot)] }}
           BENCH_PASSWORD: ${{ matrix.slot == 1 && secrets.BENCH_PASSWORD || secrets[format('BENCH_PASSWORD_{0}', matrix.slot)] }}
           SPEED_RIG_RUNNER: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+          BUILD_REF: ${{ inputs.build_ref }}
+          BASE_REF: ${{ inputs.base_ref }}
         run: |
           set -uo pipefail
-          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out"
+          sides=()
+          if [ -n "$BUILD_REF" ]; then
+            # A/B: A = production (or the base build), B = the candidate; each side's build record goes beside its passes
+            label() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["label"])' "$1/build-meta.json"; }
+            dB="$RUNNER_TEMP/speed-rig-dist-B"
+            mkdir -p "$RUNNER_TEMP/out/A" "$RUNNER_TEMP/out/B" && cp "$dB/build-meta.json" "$RUNNER_TEMP/out/B/"
+            sides=(--side "B=$dB" --label "B=$(label "$dB")")
+            if [ -n "$BASE_REF" ]; then
+              dA="$RUNNER_TEMP/speed-rig-dist-A"
+              cp "$dA/build-meta.json" "$RUNNER_TEMP/out/A/"
+              sides+=(--side "A=$dA" --label "A=$(label "$dA")")
+            else
+              sides+=(--side A=production)
+            fi
+          fi
+          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out" "${sides[@]}"
           rc=$?
           echo "lane exit $rc"
           exit $rc
@@ -202,7 +361,8 @@ jobs:
   check:
     name: check ${{ matrix.title }}
     needs: plan
-    if: github.event_name == 'pull_request'
+    # (status function: plan ran after a SKIPPED build, and a job whose ancestor was skipped is skipped by default)
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.result == 'success' }}
     runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
     timeout-minutes: 30
     strategy:
