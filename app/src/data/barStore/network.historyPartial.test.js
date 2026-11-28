@@ -71,11 +71,13 @@ describe('a partial deep D/W/M answer', () => {
     await vi.advanceTimersByTimeAsync(200)
     await vi.advanceTimersByTimeAsync(PARTIAL_RETRY_MS[0] + PARTIAL_RETRY_MS[1] + 200)
     expect(w.hist.length).toBe(3)
-    await vi.advanceTimersByTimeAsync(3 * 60_000 + 500)
-    expect(w.hist.length).toBe(6)
+    await vi.advanceTimersByTimeAsync(4 * 60_000)
+    // the 60 s step is jittered (+-15%): 3 to 4 more asks in 4 minutes, none sooner than 51 s apart
+    expect(w.hist.length).toBeGreaterThanOrEqual(6)
+    expect(w.hist.length).toBeLessThanOrEqual(7)
     const gaps = w.hist.slice(1).map((t, i) => t - w.hist[i])
     expect(gaps.every((g) => g >= PARTIAL_RETRY_MS[0])).toBe(true)
-    expect(gaps.slice(2).every((g) => g >= PARTIAL_RETRY_MS[2])).toBe(true)
+    expect(gaps.slice(2).every((g) => g >= 0.85 * PARTIAL_RETRY_MS[2])).toBe(true)
   })
 
   it('P3 control: a sealed, non-partial first answer is asked once', async () => {
