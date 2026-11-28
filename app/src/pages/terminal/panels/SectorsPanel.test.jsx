@@ -315,8 +315,8 @@ describe('SCTR period chips', () => {
     fireEvent.click(screen.getByTestId('terminal-sectors-period-Today'))
     expect(rerun).toHaveBeenLastCalledWith('THMS')
     cleanup()
-    // INS takes no argument: a period is not written back, and the chip still works
-    const second = renderPanel({}, { code: 'INS' })
+    // REGM takes no argument (INS has taken a window since data reach pass 1): a period is not written back, and the chip still works
+    const second = renderPanel({}, { code: 'REGM' })
     await screen.findByTestId('terminal-sectors-table')
     fireEvent.click(screen.getByTestId('terminal-sectors-period-1M'))
     expect(second.rerun).not.toHaveBeenCalled()
