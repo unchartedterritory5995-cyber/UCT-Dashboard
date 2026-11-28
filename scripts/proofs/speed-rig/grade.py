@@ -550,6 +550,7 @@ def self_check() -> None:
         assert got == want, (nm, got)
     assert close_check({'sym': 'BBB'}, cases['other-session'][0], ['flip-chart', 'flip-chart-2'], CLOSE_TOL)[1].get('skipped', '').startswith('sessions differ')
     assert _bar_session(1795784340) == 'rth' and _bar_session(1795821000) == 'ext' and _bar_session('2026-11-27') == 'rth'
+    print('grade self-check: CLOSE_MISMATCH ok (a two-week-old close, 0.6% over / 0.4% under, another symbol, another session, timeframe presses told apart)')
     g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
     assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
     assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
@@ -624,7 +625,7 @@ def self_check() -> None:
         json.dump(hb, open(os.path.join(td, 'P.health.json'), 'w'))
         tb = table(grade_dir(td, {'expect-day': '2026-11-27'}))
         assert '- P: API 93b68df463 | FRONT 271b53f2d2 -> 7ddc3190ad (assets/index-A.js -> assets/index-B.js) | A DEPLOY LANDED (front)' in tb, tb
-    print('grade self-check: ok (API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses / developing closes apart (0.6%, other symbol, other session, timeframe press) told apart)')
+    print('grade self-check: ok (API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
 
 
 def main() -> int:
