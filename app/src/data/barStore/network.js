@@ -467,7 +467,7 @@ export function createNetwork({
       // (#3034) the view's page from the origin landed (the cover, or ANY tail asked deeper than the cut: a retry's): no
       // longer a cut short, whatever it held (a 20-row listing IS its 20 rows; review 3 of #3034, a1). The settle is told
       // (a2): an answer the reducer leaves identical moves no entry, and the chart must read cutShort again.
-      if ((coverPage || bars > EDGE_TAIL_BARS) && !r.coverAnswered) { r.coverAnswered = true; _noteSettled(r.key) }
+      if (r.edgeCutAt != null && !r.coverAnswered && (coverPage || bars > EDGE_TAIL_BARS)) { r.coverAnswered = true; _noteSettled(r.key) }
       // only when more was wanted than the capped tail asked for (today's bar is the developing one,
       // never a row, so `depth` alone would read a full first-paint answer as one bar short).
       // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
