@@ -33,6 +33,16 @@ describe('the session frontier reads the ET calendar whatever the browser zone',
       expect(expectedFormingBar('5', now)).toBe(et('2026-11-25', 10, 30))
     })
 
+    it(`${tz}: the EXTENDED session of a half day ends at 17:00 (the server's rule), an ordinary day's at 20:00`, () => {
+      process.env.TZ = tz
+      const half = et('2026-11-27', 17, 30, 30) * 1000
+      expect(expectedLatestCompletedBar('1', half, { session: 'extended' })).toBe(et('2026-11-27', 16, 59))
+      expect(expectedFormingBar('1', half, { session: 'extended' })).toBe(null)
+      const day = et('2026-11-25', 17, 30, 30) * 1000
+      expect(expectedLatestCompletedBar('1', day, { session: 'extended' })).toBe(et('2026-11-25', 17, 29))
+      expect(expectedFormingBar('1', day, { session: 'extended' })).toBe(et('2026-11-25', 17, 30))
+    })
+
     it(`${tz}: Thanksgiving itself (11-26 11:00 ET) has none`, () => {
       process.env.TZ = tz
       const now = et('2026-11-26', 11, 0) * 1000
