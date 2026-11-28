@@ -9019,6 +9019,46 @@
     "CUB",
     "CGC"
    ]
+  },
+  {
+   "id": "cloud/46170414190-1/COV-zo-tc-arrows",
+   "at": "2026-11-28T18:01:09+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ODD",
+    "IRMD",
+    "OFIX",
+    "KRP",
+    "IHS",
+    "STBA",
+    "USCB",
+    "OBT",
+    "HYLN",
+    "GFR",
+    "STTK",
+    "USLM",
+    "VTS"
+   ]
+  },
+  {
+   "id": "cloud/46170414190-1/COV-zo-m1-arrows",
+   "at": "2026-11-28T18:01:09+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PROK",
+    "BVS",
+    "IMXI",
+    "XRPN",
+    "LLYVA",
+    "FSUN",
+    "AVO",
+    "ORN",
+    "GPRK",
+    "SIGA",
+    "HCM",
+    "PAYP",
+    "PLUG"
+   ]
   }
  ]
 }
