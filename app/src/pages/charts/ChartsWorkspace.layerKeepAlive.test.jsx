@@ -626,3 +626,16 @@ test('PM5 the off switch and a server under pressure pre-mount nothing', async (
     expect(hosts.created['chart-1'] || 0, 'a pre-mount while the server sheds').toBe(0)
   } finally { __resetPressureForTests() }
 }, 20000)
+
+test('PM3b (red first) a pre-mount made after a visit is evicted before the visited board', async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount('2', { premount: true })
+  await settle()
+  await go('Two Charts')   // MAIN is kept (visited)
+  // (TWO's second chart is admitted by the staggered mount's safety timer here: the mock host reports no panel ready)
+  await waitFor(() => expect(hosts.created['chart-5a'], 'NON-VACUITY: INTRA (nearest to TWO) pre-mounted into the free slot').toBe(1), { timeout: 12000, interval: 200 })
+  await go('Fourth Board')   // TWO left: three candidates for K = 2
+  expect(hosts.cleanups['watchlist-1'] || 0, 'the VISITED board (MAIN) was evicted before a pre-mount').toBe(0)
+  expect(hosts.cleanups['chart-5a'] || 0, 'the pre-mounted board (INTRA) was not the one evicted').toBe(1)
+}, 30000)
+
