@@ -389,21 +389,24 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     if (!full) return false
     st.extending = true
     // ⛔ (review of #2970, F2) NOTHING MOVES. The library numbers its indices from the window START, which an end move
-    // leaves where it is, so the view it showed is the same logical range after the re-set; the library may still move
-    // it (its shiftVisibleRangeOnNewBar compensation is skipped when the cut's last bar is visible), so it is put back.
-    let kept = null
-    try { kept = chart.timeScale().getVisibleLogicalRange() } catch { /* no view yet */ }
+    // leaves where it is, so the view is the same logical range after the re-set, unless the library shifts it: bars
+    // added right of a visible last bar are what `shiftVisibleRangeOnNewBar` scrolls the view for (a new live bar), and
+    // the cut's last bar is often visible. So that option is off for the re-set and put back after it (not a saved range
+    // put back: the library applies a range set in the same task later, so a range read here can be stale).
+    const tsr = chart.timeScale()
+    let shift = null
+    if (!st.dropping) {
+      try { shift = tsr.options().shiftVisibleRangeOnNewBar } catch { shift = null }
+      if (shift) { try { tsr.applyOptions({ shiftVisibleRangeOnNewBar: false }) } catch { shift = null } }
+    }
     try {
       if (newWe == null || newWe >= full.length) { st.we = null; st.weTime = null } else { st.we = newWe; st.weTime = full[newWe].time }
       if (primary) applyOne(primary)
       for (const w of series.keys()) if (w !== primary) applyOne(w)
-      if (kept && !st.dropping) {
-        try {
-          const now = chart.timeScale().getVisibleLogicalRange()
-          if (!now || now.from !== kept.from || now.to !== kept.to) chart.timeScale().setVisibleLogicalRange(kept)
-        } catch { /* a stub chart */ }
-      }
-    } finally { st.extending = false }
+    } finally {
+      st.extending = false
+      if (shift) { try { tsr.applyOptions({ shiftVisibleRangeOnNewBar: shift }) } catch { /* torn down */ } }
+    }
     syncCutLabels()
     fireChange()
     return true
