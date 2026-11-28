@@ -27,8 +27,9 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  panelAsOf, PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, usePanelTable,
+  panelAsOf, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'

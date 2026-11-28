@@ -15,6 +15,12 @@
 // line and does not remount the panel. A choice the registry already takes as an argument
 // writes back to the command instead (pages/terminal/panels/commandWriteBack.js).
 //
+// ⛔ TWO COPIES OF `normalizeView`, ON PURPOSE. pages/terminal/boardModel.js keeps its own (the board's
+// guard on every stored record) and this file keeps the panel kit's. One shared module would be a chunk
+// of its own, and its name would ride every preload list that reaches the board model, the Notebook's
+// first open among them (the Notebook first-open budget, 2026-11-28). boardModel.viewParity.test.js
+// holds the two equal on every shape and bound.
+//
 // ⛔ SMALL AND WELL FORMED, OR NOT AT ALL. `normalizeView` keeps only the three fields above, each
 // within the bounds below, and drops the whole slot when its JSON is over VIEW_MAX_BYTES, so a
 // stored board or a share link can never be bloated through it. An empty view is `undefined`

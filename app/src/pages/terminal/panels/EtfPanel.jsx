@@ -16,10 +16,8 @@
 import { useId, useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import {
-  PanelColumns, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-  panelAsOf, usePanelTable,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCompactTerminal, formatNumberMax, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
 

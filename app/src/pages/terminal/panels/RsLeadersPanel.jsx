@@ -9,9 +9,8 @@
 // reads "Loading, the server is preparing this" and re-polls briefly, never "no leaders". A 503
 // without that body is an outage (error with Retry); a 402 or a switched-off route has no Retry.
 import { useMemo } from 'react'
-import {
-  usePanelSort, PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'

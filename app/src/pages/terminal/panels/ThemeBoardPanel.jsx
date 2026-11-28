@@ -15,9 +15,8 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelTableHead, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelTable,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRerun } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { DEFAULT_WINDOW, IMOV_WINDOWS, POLL_MS, THEMES_URL, imovCommand, normSym, ownerSyms, themeKey, themesOf } from './imovModel'
 import { canRetry, failureText, isWarmingBody } from './marketRead'

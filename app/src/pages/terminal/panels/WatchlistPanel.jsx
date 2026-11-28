@@ -21,7 +21,10 @@ import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { usePanelSort, BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelLinkedSym } from '../../../components/terminal'
+import {
+  BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelLinkedSym,
+} from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'

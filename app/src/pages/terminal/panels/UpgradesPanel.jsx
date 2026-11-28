@@ -15,9 +15,8 @@
 // or an item's own `at`), and otherwise says the list is undated and when it is replaced.
 // ⛔ A failed read is an error with Retry, never "no analyst actions".
 import { useMemo, useState } from 'react'
-import {
-  usePanelSort, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCurrency, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'

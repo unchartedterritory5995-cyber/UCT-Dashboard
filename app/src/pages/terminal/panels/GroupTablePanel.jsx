@@ -23,9 +23,8 @@
 // WIDTH. The table scrolls sideways inside its own box (SidewaysScroll) with the name column pinned, as FA,
 // EE and FUND do; nothing folds. A column set keeps a view to a handful of columns.
 import { useMemo, useState } from 'react'
-import {
-  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSortSlot,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { usePanelSortSlot } from '../../../components/terminal/usePanelView'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
 import SidewaysScroll from '../../../components/research/fmpDepth/SidewaysScroll'

@@ -23,9 +23,8 @@
 // panel, so the table box names the 590 step: at 590px and under, three months. "All months as a list" turns the grid into one block per fund with its twelve months
 // wrapping, which fits any width.
 import { useEffect, useMemo, useState } from 'react'
-import {
-  panelAsOf, PanelCommand, PanelSkeleton, PanelState, PanelTableHead, useInTerminalPanel, usePanelFreshness, usePanelTable,
-} from '../../../components/terminal'
+import { panelAsOf, PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import Select from '../../../components/ui/Select'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'

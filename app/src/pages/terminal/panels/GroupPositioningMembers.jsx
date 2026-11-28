@@ -4,7 +4,8 @@
 // its row number works). One read: GET /api/research/group-stats?kind=&name=&part=positioning
 // (groupPositioningModel.js says what it answers). Sortable by any column; the most shorted first.
 import { useMemo } from 'react'
-import { PanelSkeleton, PanelState, PanelSymbol, usePanelSortSlot, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSortSlot } from '../../../components/terminal/usePanelView'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
 import SidewaysScroll from '../../../components/research/fmpDepth/SidewaysScroll'

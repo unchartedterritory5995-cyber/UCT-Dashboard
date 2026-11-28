@@ -12,9 +12,8 @@
 // ⛔ A failed read is an error with Retry, never "no clusters"; a list not built yet says when it
 // will be; a read that left filings unread says how many.
 import { Fragment, useMemo, useState } from 'react'
-import {
-  usePanelSort, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'

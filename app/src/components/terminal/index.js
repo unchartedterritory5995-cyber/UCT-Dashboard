@@ -5,8 +5,9 @@ export {
   PanelListContext, usePanelBoard, usePanelList, usePanelOpen, usePanelRows, usePanelRun, usePanelRerun, usePanelSymbolRows, QuietPanelFreshness,
   PanelLinkContext, usePanelLinkedSym, PanelViewContext,
 } from './terminalPanel'
-export { default as usePanelView, usePanelSort, usePanelSortSlot } from './usePanelView'
-export { PanelColumns, PanelTableHead, usePanelTable } from './PanelTable'
+// usePanelView.js and PanelTable.jsx are imported by path, never from here: PanelTable brings a
+// stylesheet, so a re-export would pull it into every chunk that imports this file, the app's
+// first open among them (the Notebook first-open budget, 2026-11-27).
 export { default as BoardFromList } from './BoardFromList'
 export { default as PanelSkeleton } from './PanelSkeleton'
 export { default as PanelState } from './PanelState'

@@ -31,9 +31,9 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import {
   formatCompactTerminal, formatCurrency, formatDateTimeEt, formatNumber, formatPercent, formatTimeEt,

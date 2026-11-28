@@ -17,9 +17,9 @@
 // the method sentence says the server recomputes about every 15 minutes.
 import { useMemo, useState } from 'react'
 import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'

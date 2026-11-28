@@ -17,9 +17,9 @@
 // says the moves are missing, not that nothing moved.
 import { useMemo, useState } from 'react'
 import {
-  usePanelSort, PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun,
-  usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { formatSessionDate } from '../../../lib/presentation/presentationDates'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'

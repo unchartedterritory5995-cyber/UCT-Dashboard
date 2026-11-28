@@ -25,16 +25,144 @@
 //
 // The sort itself is the shared DataGrid seed (`lib/presentation/dataGrid`: nextSort, sortRows,
 // ariaSortFor): blanks sink to the bottom both ways, equal values keep the list's order.
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../lib/presentation/dataGrid'
 import Checkbox from '../ui/Checkbox'
-import usePanelView from './usePanelView'
+import { PanelViewContext } from './terminalPanel'
+import { normalizeView, readView, storedView, viewKey } from './panelView'
+// One stylesheet with the panels' own (marketPanels): a stylesheet of its own would add a chunk name
+// to every first open that preloads a panel (the Notebook budget, 2026-11-28).
 import mp from '../../pages/terminal/panels/marketPanels.module.css'
-import styles from './PanelTable.module.css'
 
 const isSortable = (c) => typeof c?.sort === 'function'
 const firstDirOf = (c) => c?.firstDir || (c?.type === 'text' ? ASC : DESC)
+
+// ── usePanelView: the panel's view, kept with the board (was usePanelView.js, which re-exports it)
+// UCT Terminal — `usePanelView(defaults)`: the panel's view (sort, hidden columns, filters), kept
+// with the board (customization pass 1, 2026-11-27). The shape and its bounds: panelView.js.
+//
+//   const [view, setView] = usePanelView({ sort: null, hidden: ['volume'], filters: { minPrice: 0 } })
+//   view     { sort: {key, dir} | null, hidden: [keys], filters: {…} }  defaults filled in
+//   setView  setView({ sort })                    merge into the view (filters merge key by key)
+//            setView((cur) => ({ ...cur, … }))     or compute the whole next view
+//
+// ⭐ INSIDE THE SHELL the view lives on the panel record: a write saves it with the board through
+// the layout's own debounced save (useTerminalLayout `save`), never re-runs the command, so the
+// panel is NOT remounted and keeps its data, scroll and open rows. OUTSIDE THE SHELL (a panel
+// rendered on its own, a page) it is plain component state.
+//
+// Only what differs from `defaults` is stored (`storedView`), so a panel put back to its defaults
+// stores nothing. A view written from outside (another tab's board, a board opened over this
+// one under the same panel id) is adopted; the hook's own write echoing back is not re-read.
+export function usePanelView(defaults = {}) {
+  const ctx = useContext(PanelViewContext)
+  const defKey = JSON.stringify(defaults || {})
+  const defaultsRef = useRef(defaults || {})
+  defaultsRef.current = defaults || {}
+
+  const [stored, setStored] = useState(() => normalizeView(ctx?.view))
+  const storedRef = useRef(stored)
+  // The view key this hook last sent up (or adopted): an echo of it is not an outside change.
+  const sentRef = useRef(viewKey(stored))
+
+  const incoming = viewKey(ctx?.view)
+  const incomingView = ctx?.view
+  useEffect(() => {
+    if (incoming === sentRef.current) return
+    sentRef.current = incoming
+    storedRef.current = normalizeView(incomingView)
+    setStored(storedRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming])
+
+  const pushRef = useRef(null)
+  pushRef.current = ctx?.setView || null
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const view = useMemo(() => readView(stored, defaultsRef.current), [stored, defKey])
+
+  // The write goes up AT ONCE, not in an effect: a chip that writes the view and then re-runs
+  // the command in the same click (MOST's lens) remounts the panel, and an effect of the
+  // unmounted panel would never run, so the view would be lost.
+  const getRef = useRef(null)
+  getRef.current = ctx?.get || null
+  const setView = useCallback((patch) => {
+    // Two hooks in one panel (a table and the list it opens) each write the whole view: the base is
+    // the record as it stands now (`get`), so one never writes back over the other's change.
+    const prev = getRef.current ? normalizeView(getRef.current()) : storedRef.current
+    const cur = readView(prev, defaultsRef.current)
+    let next
+    if (typeof patch === 'function') next = patch(cur)
+    else {
+      const p = patch || {}
+      next = { ...cur, ...p, filters: p.filters ? { ...cur.filters, ...p.filters } : cur.filters }
+    }
+    const out = storedView(next, defaultsRef.current)
+    const k = viewKey(out)
+    if (k === viewKey(prev)) return
+    storedRef.current = out
+    sentRef.current = k
+    setStored(out)
+    pushRef.current?.(out)
+  }, [])
+
+  return [view, setView]
+}
+
+/**
+ * `usePanelSort(defaultSort)`: a panel's sort `{ key, dir }` kept in its view, the drop-in for
+ * `useState(defaultSort)` in a panel that already sorts (it takes a value or an updater, like the
+ * state setter it replaces). The default is not stored, so a panel left on it stores nothing.
+ * One per panel: a panel's view holds one sort.
+ */
+export function usePanelSort(defaultSort) {
+  const [view, setView] = usePanelView({ sort: defaultSort })
+  const defRef = useRef(defaultSort)
+  defRef.current = defaultSort
+  const sort = view.sort || defaultSort
+  const setSort = useCallback((next) => {
+    setView((cur) => ({ ...cur, sort: typeof next === 'function' ? next(cur.sort || defRef.current) : next }))
+  }, [setView])
+  return [sort, setSort]
+}
+
+/** The view filter a sort slot is kept under (`s.rank`, `s.members`, `s.30D`). */
+export const sortSlotKey = (slot) => `s.${String(slot || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 30)}`
+const SLOT_DIRS = ['asc', 'desc']
+/** Pure: `key|dir` back to `{ key, dir }`, or null. */
+export function readSortSlot(text) {
+  if (typeof text !== 'string' || !text) return null
+  const [key, dir] = text.split('|')
+  return key && SLOT_DIRS.includes(dir) ? { key, dir } : null
+}
+
+/**
+ * `usePanelSortSlot(slot, defaultSort)`: like `usePanelSort`, but the sort is kept under its own
+ * name in the view's filters (`s.<slot>` = `key|dir`), so one panel keeps several: one per mode of
+ * a table (GRPS rank / growth / ...), one for the stocks it opens, one per lens (LEAD 30D / 60D).
+ * Changing `slot` shows that slot's own sort (or its default); the default is never stored.
+ */
+export function usePanelSortSlot(slot, defaultSort) {
+  const name = sortSlotKey(slot)
+  const [view, setView] = usePanelView({ filters: { [name]: '' } })
+  const defRef = useRef(defaultSort)
+  defRef.current = defaultSort
+  const nameRef = useRef(name)
+  nameRef.current = name
+  const sort = readSortSlot(view.filters[name]) || defaultSort
+  const setSort = useCallback((next) => {
+    setView((cur) => {
+      const k = nameRef.current
+      const now = readSortSlot(cur.filters[k]) || defRef.current
+      const want = typeof next === 'function' ? next(now) : next
+      const d = defRef.current
+      const same = !want || (d && want.key === d.key && want.dir === d.dir)
+      return { ...cur, filters: { ...cur.filters, [k]: same ? '' : `${want.key}|${want.dir}` } }
+    })
+  }, [setView])
+  return [sort, setSort]
+}
 
 /** Pure: the sort after a click on `col`, the three-step cycle described above. */
 export function cycleSort(prev, col, defaultSort = null) {
@@ -122,11 +250,11 @@ export function PanelTableHead({ table, testId = null }) {
           const caret = sortCaretFor(table.sort, c.key)
           return (
             <th key={c.key} scope="col" className={cls} aria-sort={table.ariaSort(c.key)} title={c.title} {...(c.thProps || {})}>
-              <button type="button" className={`${styles.sortBtn} ${active ? styles.sortActive : ''}`}
+              <button type="button" className={`${mp.ptSortBtn} ${active ? mp.ptSortActive : ''}`}
                 onClick={() => table.requestSort(c.key)}
                 data-testid={testId ? `${testId}-sort-${c.key}` : undefined}>
                 {c.label}
-                <span className={styles.caret} aria-hidden="true">{caret}</span>
+                <span className={mp.ptCaret} aria-hidden="true">{caret}</span>
               </button>
             </th>
           )
@@ -181,18 +309,18 @@ export function PanelColumns({ table, testId = null, label = 'Columns' }) {
       if (btnRef.current?.contains(e.target) || menuRef.current?.contains(e.target)) return
       close(false)
     }
-    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(true) } }
     document.addEventListener('mousedown', onDown)
-    document.addEventListener('keydown', onKey, true)
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
-      document.removeEventListener('keydown', onKey, true)
       window.removeEventListener('resize', place)
       window.removeEventListener('scroll', place, true)
     }
   }, [open, place, close])
+  // Escape is the menu's own key (focus is inside it from the moment it opens), an element listener,
+  // never one on the page (TERM-063: the raw key-listener census).
+  const onMenuKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(true) } }
   const onBlur = (e) => {
     const to = e.relatedTarget
     if (to && (menuRef.current?.contains(to) || btnRef.current?.contains(to))) return
@@ -200,28 +328,28 @@ export function PanelColumns({ table, testId = null, label = 'Columns' }) {
   }
   const choosable = table.columns.filter((c) => c.label && c.available !== false)
   const menu = open ? (
-    <div ref={menuRef} className={styles.colsMenu} id={id} role="group" aria-label="Show columns" onBlur={onBlur}
+    <div ref={menuRef} className={mp.ptColsMenu} id={id} role="group" aria-label="Show columns" onBlur={onBlur} onKeyDown={onMenuKey}
       style={pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden', left: 0, top: 0 }}
       data-placement={pos ? (pos.up ? 'above' : 'below') : undefined}
       data-testid={testId ? `${testId}-menu` : undefined}>
-      <p className={styles.colsHint}>Show columns</p>
+      <p className={mp.ptColsHint}>Show columns</p>
       {choosable.map((c) => (
-        <label key={c.key} className={`${styles.colsRow} ${c.required ? styles.colsFixed : ''}`}>
-          <Checkbox className={styles.soft} checked={!table.hidden.has(c.key)} disabled={!!c.required}
+        <label key={c.key} className={`${mp.ptColsRow} ${c.required ? mp.ptColsFixed : ''}`}>
+          <Checkbox className={mp.ptSoft} checked={!table.hidden.has(c.key)} disabled={!!c.required}
             onChange={() => table.toggleColumn(c.key)}
             data-testid={testId ? `${testId}-col-${c.key}` : undefined} />
-          <span>{c.label}{c.required ? <span className={styles.colsNote}> (always shown)</span> : null}</span>
+          <span>{c.label}{c.required ? <span className={mp.ptColsNote}> (always shown)</span> : null}</span>
         </label>
       ))}
-      <button type="button" className={styles.colsReset} onClick={() => table.reset()} disabled={table.isDefault}
+      <button type="button" className={mp.ptColsReset} onClick={() => table.reset()} disabled={table.isDefault}
         data-testid={testId ? `${testId}-reset` : undefined}>
         Reset sort and columns
       </button>
     </div>
   ) : null
   return (
-    <div className={styles.colsBox}>
-      <button type="button" ref={btnRef} className={styles.colsBtn} aria-expanded={open} aria-controls={open ? id : undefined}
+    <div className={mp.ptColsBox}>
+      <button type="button" ref={btnRef} className={mp.ptColsBtn} aria-expanded={open} aria-controls={open ? id : undefined}
         onClick={() => (open ? close(false) : setOpen(true))} data-testid={testId || undefined}>
         {label}{table.isDefault ? '' : ' (changed)'}
       </button>

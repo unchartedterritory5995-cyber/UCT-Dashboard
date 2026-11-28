@@ -11,10 +11,8 @@
 // ⛔ A failed read is an error with Retry, never "no symbols"; a list no evening has built says when it will be;
 // every symbol left out is counted in words, never ranked on fewer sessions.
 import { useMemo, useState } from 'react'
-import {
-  PanelColumns, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {

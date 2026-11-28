@@ -29,7 +29,8 @@
 // table is four columns of two-line cells; the episode list is the date with its value, then one
 // short column per window (four at most). Nothing folds away; cells wrap between words.
 import { Fragment, useContext, useEffect, useId, useMemo, useState } from 'react'
-import { PanelSkeleton, PanelState, PanelSymbol, PanelViewContext, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelView } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, PanelViewContext, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import Checkbox from '../../../components/ui/Checkbox'
 import FieldError from '../../../components/ui/FieldError'
 import Input from '../../../components/ui/Input'

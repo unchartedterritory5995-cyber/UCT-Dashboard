@@ -14,9 +14,8 @@
 //   * It never reads as live: the two recorded days are named above the table, and the one
 //     sentence about the clearing house's once-a-day figure is always on screen with them.
 import { useMemo, useState } from 'react'
-import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelTable,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {

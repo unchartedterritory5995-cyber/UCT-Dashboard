@@ -23,9 +23,9 @@
 // while the app is hidden.
 import { useMemo, useState } from 'react'
 import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import {
   formatCompactTerminal, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'

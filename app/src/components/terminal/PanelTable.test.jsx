@@ -198,7 +198,9 @@ describe('PanelColumns', () => {
     const btn = screen.getByTestId('t-cols')
     fireEvent.click(btn)
     expect(btn.getAttribute('aria-expanded')).toBe('true')
-    fireEvent.keyDown(document, { key: 'Escape' })
+    // focus is in the menu once it opens; Escape there (an element listener, not a page one) closes it
+    expect(screen.getByTestId('t-cols-menu').contains(document.activeElement)).toBe(true)
+    fireEvent.keyDown(document.activeElement, { key: 'Escape' })
     expect(screen.queryByTestId('t-cols-menu')).toBeNull()
     expect(document.activeElement).toBe(btn)
   })

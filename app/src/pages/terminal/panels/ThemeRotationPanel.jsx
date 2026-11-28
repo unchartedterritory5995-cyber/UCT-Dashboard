@@ -13,9 +13,8 @@
 // The lists are never cut by the server (every theme past the threshold is sent), so nothing here
 // says "showing N of M".
 import { useMemo, useState } from 'react'
-import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelTable,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'

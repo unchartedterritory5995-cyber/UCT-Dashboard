@@ -26,7 +26,6 @@
 // `history` is that channel's entity recents (IA §14.2), bounded.
 import { BY_CODE, canonicalCode } from './functions'
 import { LIBRARY_VERSION, isGuardedStatus, parseLibraryBlob } from './boardPrefs'
-import { normalizeView } from '../../components/terminal/panelView'
 
 // The library's version, its parse and the guarded-status test live in `boardPrefs.js` (no
 // imports, so App.jsx's /calendar wrapper can read them without this module); re-exported here.
@@ -854,4 +853,42 @@ export function toggleFavorite(library, code) {
 
 export function setKeepCalendar(library, on) {
   return { ...library, keepCalendar: on === true }
+}
+
+// ── a panel's VIEW: the board's own guard (customization pass 1). The same rule as the panel kit's
+// `normalizeView` (components/terminal/panelView.js), copied ON PURPOSE: a module the two shared would be
+// a chunk of its own, and its name would ride the Notebook's first-open preload lists (the Notebook
+// budget, 2026-11-28). boardModel.viewParity.test.js holds the two equal. Change both or neither.
+const VIEW_KEY_RE = /^[A-Za-z][A-Za-z0-9_.-]{0,39}$/
+const viewKeyOk = (k) => (typeof k === 'string' && VIEW_KEY_RE.test(k) ? k : null)
+function viewValue(v) {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'number') return Number.isFinite(v) ? v : undefined
+  if (typeof v === 'string') return v.length <= 80 ? v : undefined
+  return undefined
+}
+/** A stored view cleaned to `{ sort?, cols?, filters? }` within the kit's bounds, or undefined. */
+export function normalizeView(v) {
+  if (!isObj(v)) return undefined
+  const out = {}
+  const s = v.sort
+  if (isObj(s) && viewKeyOk(s.key) && (s.dir === 'asc' || s.dir === 'desc')) out.sort = { key: s.key, dir: s.dir }
+  if (isObj(v.cols) && Array.isArray(v.cols.hidden)) out.cols = { hidden: [...new Set(v.cols.hidden.map(viewKeyOk).filter(Boolean))].slice(0, 24) }
+  if (isObj(v.filters)) {
+    const f = {}
+    let n = 0
+    for (const [k, val] of Object.entries(v.filters)) {
+      if (n >= 8) break
+      const key = viewKeyOk(k)
+      const x = viewValue(val)
+      if (!key || x === undefined) continue
+      f[key] = x
+      n += 1
+    }
+    if (n) out.filters = f
+  }
+  if (!Object.keys(out).length) return undefined
+  let size
+  try { size = new TextEncoder().encode(JSON.stringify(out)).length } catch { return undefined }
+  return size > 1024 ? undefined : out
 }

@@ -33,7 +33,8 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { BoardFromList, PanelSkeleton, PanelState, WatchMark, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym, usePanelView } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, WatchMark, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'

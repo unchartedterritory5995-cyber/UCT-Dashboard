@@ -26,7 +26,8 @@
 // ⛔ TICKERS ARE WORKED OUT BY UCT FROM THE WORDS (the server marks them provisional). The panel
 // says so, and the one-stock view says how far back it has searched.
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelView } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import Input from '../../../components/ui/Input'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { declareNeed, DELIVERY } from '../../../lib/panelContract'

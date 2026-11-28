@@ -18,9 +18,9 @@
 // re-polls briefly. An 'ok' answer with no rows says it can also mean no live prices yet.
 import { useMemo, useState } from 'react'
 import {
-  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun,
-  usePanelSortSlot, usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { usePanelSortSlot } from '../../../components/terminal/usePanelView'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,

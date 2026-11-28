@@ -30,9 +30,9 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import Input from '../../../components/ui/Input'
 import FieldError from '../../../components/ui/FieldError'
 import {
-  PanelColumns, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'

@@ -19,10 +19,8 @@
 // (measured), so the table fits the bottom of the fold ladder and names no step. On a phone the year-earlier column folds
 // (phoneHide) and stays in the opened sector's year-earlier line. No screen-reader-only text sits in a cell.
 import { Fragment, useMemo, useState } from 'react'
-import {
-  PanelColumns, PanelSkeleton, PanelState, PanelSymbol, PanelTableHead, panelAsOf, useInTerminalPanel, usePanelFreshness,
-  usePanelSymbolRows, usePanelTable,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import Select from '../../../components/ui/Select'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
