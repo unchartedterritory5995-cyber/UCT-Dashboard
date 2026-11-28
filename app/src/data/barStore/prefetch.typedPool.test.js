@@ -1,5 +1,5 @@
 // ⭐⭐ (2026-11-28, zero-network plan 1.4) THE TYPED CANDIDATE POOL (prefetch warmTypedCandidates). On every keystroke the
-// search reports the text's likeliest completions; each of the first TYPED_POOL_K is warmed from the edge (D/W/M: the
+// search reports the text's likeliest completions; each of the first CANDIDATE_POOL_K is warmed from the edge (D/W/M: the
 // deep sealed history beside a short tail; intraday: its page and lake depth), each under its own abort:
 //   * the candidates' requests are all on the wire at once (no queue behind the typed slot);
 //   * a list that drops a candidate aborts it; one it keeps is not asked again;
@@ -40,7 +40,7 @@ async function boot({ universe = UNIVERSE, lake = () => false } = {}) {
     await tu.ensureTickerUniverse({ fetchImpl: async () => ({ ok: true, json: async () => ({ v: 't1', symbols: universe }) }) })
   }
   const { createBarStore } = await import('./index')
-  const { createPrefetch, DEEP_JOIN_WAIT_MS, TYPED_POOL_K } = await import('./prefetch')
+  const { createPrefetch, DEEP_JOIN_WAIT_MS, CANDIDATE_POOL_K } = await import('./prefetch')
   const { EDGE_TAIL_BARS } = await import('./network')
   const { keyOf } = await import('./types')
   const store = createBarStore({
@@ -49,7 +49,7 @@ async function boot({ universe = UNIVERSE, lake = () => false } = {}) {
   })
   store.lakeHas = (sym) => Promise.resolve(lake(sym))
   const pf = createPrefetch({ store, tickerMeta: () => {} })
-  return { server, store, pf, tu, k: (sym, tf) => keyOf({ sym, tf }), DEEP_JOIN_WAIT_MS, EDGE_TAIL_BARS, TYPED_POOL_K }
+  return { server, store, pf, tu, k: (sym, tf) => keyOf({ sym, tf }), DEEP_JOIN_WAIT_MS, EDGE_TAIL_BARS, CANDIDATE_POOL_K }
 }
 const settle = async (w) => { await w.server.flush(60); await vi.advanceTimersByTimeAsync(1); await w.server.flush(60) }
 const day = (t) => new Date(t * 1000).toISOString().slice(0, 10)
@@ -64,7 +64,7 @@ const origin = (w) => w.server.calls.filter((c) => !c.q.history)
 describe('the pool warms the likeliest completions at once, from the device and the edge, never the origin', () => {
   it('three cold D candidates: each its edge history, all on the wire at once; no /api/bars at all', async () => {
     const w = await boot()
-    expect(w.TYPED_POOL_K).toBe(3)
+    expect(w.CANDIDATE_POOL_K).toBe(3)
     expect(w.pf.warmTypedCandidates(['CRM', 'CRWD', 'CRBG', 'CRBN'], 'D', { cover: COVER })).toBe(3)
     await turns(w)
     expect(w.server.open().map(what).sort()).toEqual(['CRBG history D d=2026-11-09', 'CRM history D d=2026-11-09', 'CRWD history D d=2026-11-09'])

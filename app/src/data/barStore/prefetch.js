@@ -110,7 +110,7 @@ export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STA
 export const LINKED_TYPED_MAX = 3
 /** (2026-11-28, zero-network plan 1.4) How many of the typed text's likeliest completions are warmed at once
  *  (warmTypedCandidates). The top one also takes the typed slot (warmTypedSymbol: linked charts, the hidden pane). */
-export const TYPED_POOL_K = 3
+export const CANDIDATE_POOL_K = 3
 /** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
 const ASK_AGAIN = Object.freeze([])
 /** ⚰️ (2026-11-25) How long the handoff USED to wait for the tail of a copy behind the clock before it painted the copy as
@@ -2310,7 +2310,7 @@ export function createPrefetch(o = {}) {
   // CRBG) had nothing in flight until the last key, and Enter ~150 ms later met a cold page still on the wire
   // (production COV typed cells: 226-568 ms). The search now reports, on EVERY keystroke and on a paste, the text's
   // likeliest completions (lib/tickerUniverse rankedCompletions: exact > this member's history > popularity > A-Z), and
-  // each of the first TYPED_POOL_K is warmed here FROM THE DEVICE AND THE EDGE ONLY: its device copy is read into memory
+  // each of the first CANDIDATE_POOL_K is warmed here FROM THE DEVICE AND THE EDGE ONLY: its device copy is read into memory
   // (_hydrate), D/W/M ask the deep sealed history from the edge (network.deepPrime, /api/bars-history), intraday the
   // lake's index and newest pieces (primeLake, the edge's R2 tier). ⛔ NEVER THE ORIGIN: a candidate sends no /api/bars
   // (cold-arch capacity rule, kept under the owner's ruling: device -> edge -> origin, and only a PRESS, or the typed
@@ -2327,7 +2327,7 @@ export function createPrefetch(o = {}) {
   function warmTypedCandidates(syms, tf = 'D', { cover = 0 } = {}) {
     const keys = []
     for (const s0 of Array.isArray(syms) ? syms : []) {
-      if (keys.length >= TYPED_POOL_K) break
+      if (keys.length >= CANDIDATE_POOL_K) break
       const T = String(s0 || '').trim().toUpperCase()
       if (!_isSym(T)) continue
       const k = keyFor(T, tf)
