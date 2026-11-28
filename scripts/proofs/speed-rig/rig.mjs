@@ -15,6 +15,9 @@
 //                      store (the account's real prefs with this pass's board in place), each write answered after the
 //                      measured origin round trip. Bars, quotes, search, watchlists and everything else are the real
 //                      production path. Passes on one account run in parallel without touching each other.
+// --dist=<dir> [--build-label=<ref@sha>] (with either isolation): this browser runs the front end built in <dir> (the
+// workflow's build_ref) on the PRODUCTION ORIGIN: the page document and /assets/* are answered from <dir>, everything
+// else is the real site, so the member's cookies are first-party and nothing is published (the --dist block below).
 //
 // Usage: node scripts/proofs/speed-rig/rig.mjs <out.json> [--isolate=browser] [--board=<file>] [--pattern=down|typed|tabs]
 //          [--fresh-list=A,B,..] [--typed=C,D,..] [--flips=N] [--dwell=ms] [--tf=D] ... (every flag documented below)
@@ -136,7 +139,7 @@ const TAB_B_NAME = TAB_SUFFIX ? `flip-tab-B-${TAB_SUFFIX}` : 'flip-tab-B'
 const DRY = arg('dry', '') === '1'
 const ZOOM_TO = arg('zoom-out-to', '')
 const TYPED_PROF = new Set(arg('typed-profile', '').split(',').filter(Boolean).map(Number))   // (cold-arch) CPU profile around these typed Enters
-const PHASE_JS = `(()=>{const P=window.__phase;if(!P)return null;const F=window.__flip;const k=(F&&F.keys&&F.keys[0])||performance.now();const req=P.req.filter((r)=>r.call>=k-3000).map((r)=>({...r,call:Math.round((r.call-k)*10)/10,hdr:r.hdr==null?null:Math.round((r.hdr-k)*10)/10,bodyS:r.bodyS==null?null:Math.round((r.bodyS-k)*10)/10,bodyE:r.bodyE==null?null:Math.round((r.bodyE-k)*10)/10,parseS:r.parseS==null?null:Math.round((r.parseS-k)*10)/10,parseE:r.parseE==null?null:Math.round((r.parseE-k)*10)/10}));const res=performance.getEntriesByType('resource').filter((e)=>e.startTime>=k-3000&&(e.name.indexOf('/api/bars')>=0||e.name.indexOf('/api/hist/')>=0)).map((e)=>({u:e.name.replace(location.origin,'').slice(0,160),s:Math.round((e.startTime-k)*10)/10,rqS:Math.round((e.requestStart-k)*10)/10,rsS:Math.round((e.responseStart-k)*10)/10,rsE:Math.round((e.responseEnd-k)*10)/10,conn:Math.round((e.connectEnd-e.connectStart)*10)/10,proto:e.nextHopProtocol,tx:e.transferSize,enc:e.encodedBodySize,dec:e.decodedBodySize,st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}));let up=null;try{const U=window.__uctPaints;const a=Array.isArray(U)?U:(U&&(U.ring||U.list||U.items||(typeof U.slice==='function'?U:null)));up=a?a.slice(-40).map((x)=>({...x,at:typeof x.at==='number'?Math.round((x.at-k)*10)/10:x.at})):(U?Object.keys(U).slice(0,10):null)}catch(e){up=String(e)}return {key:k,req,res,uctPaints:up}})()`
+const PHASE_JS = `(()=>{const P=window.__phase;if(!P)return null;const F=window.__flip;const k=(F&&F.keys&&F.keys[0])||performance.now();const req=P.req.filter((r)=>r.call>=k-3000).map((r)=>({...r,call:Math.round((r.call-k)*10)/10,hdr:r.hdr==null?null:Math.round((r.hdr-k)*10)/10,bodyS:r.bodyS==null?null:Math.round((r.bodyS-k)*10)/10,bodyE:r.bodyE==null?null:Math.round((r.bodyE-k)*10)/10,parseS:r.parseS==null?null:Math.round((r.parseS-k)*10)/10,parseE:r.parseE==null?null:Math.round((r.parseE-k)*10)/10}));const res=performance.getEntriesByType('resource').filter((e)=>e.startTime>=k-3000&&(e.name.indexOf('/api/bars')>=0||e.name.indexOf('/api/hist/')>=0)).map((e)=>({u:e.name.replace(location.origin,'').slice(0,160),s:Math.round((e.startTime-k)*10)/10,rqS:Math.round((e.requestStart-k)*10)/10,rsS:Math.round((e.responseStart-k)*10)/10,rsE:Math.round((e.responseEnd-k)*10)/10,conn:Math.round((e.connectEnd-e.connectStart)*10)/10,proto:e.nextHopProtocol,tx:e.transferSize,enc:e.encodedBodySize,dec:e.decodedBodySize,rs:e.responseStatus,st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}));let up=null;try{const U=window.__uctPaints;const a=Array.isArray(U)?U:(U&&(U.ring||U.list||U.items||(typeof U.slice==='function'?U:null)));up=a?a.slice(-40).map((x)=>({...x,at:typeof x.at==='number'?Math.round((x.at-k)*10)/10:x.at})):(U?Object.keys(U).slice(0,10):null)}catch(e){up=String(e)}return {key:k,req,res,uctPaints:up}})()`
 const GO_TO_DATE = arg('go-to-date', '')
 // --zoom-out-max=1 (owner, 2026-11-27: "it needs to be fully zoomed out"): before the pass, wheel EVERY chart of the
 // board out to its limit (until the view stops widening: D to its max, W/M to their whole history, intraday to its max)
@@ -394,6 +397,9 @@ async function labelsNow(run) {
     memGB: Math.round(os.totalmem() / 1e9),
     chrome: (await browserVersion(PORT)).product,
     isolate: ISOLATE,
+    // (2026-11-28) the FRONT END this browser runs: 'production' (the site's own build), else --build-label (the
+    // candidate's ref@commit, from the workflow's build job) or 'dist'. webBuild above stays the SITE's build.
+    build: arg('dist', '') ? (arg('build-label', '').replace(/[^\w.@/:-]/g, '').slice(0, 80) || 'dist') : 'production',
     ...page,
   }
 }
@@ -409,7 +415,7 @@ try {
   if (!HEADLESS) app.placeMainWindow(D.x, D.y, D.w, D.h)
   out.headless = HEADLESS
   out.labels = await labelsNow(run)
-  console.log(`labels: ${JSON.stringify({ runner: out.labels.runner, cpu: out.labels.cpu, cores: out.labels.cores, chrome: out.labels.chrome, colo: out.labels.colo, api: out.labels.apiCommit, web: out.labels.webBuild, isolate: ISOLATE })}`)
+  console.log(`labels: ${JSON.stringify({ runner: out.labels.runner, cpu: out.labels.cpu, cores: out.labels.cores, chrome: out.labels.chrome, colo: out.labels.colo, api: out.labels.apiCommit, web: out.labels.webBuild, build: out.labels.build, isolate: ISOLATE })}`)
   if (DRY) {
     // signed OUT: the account is never read. What a sweep needs from the runner: Chrome, the site through Cloudflare,
     // the app's own boot, and the auth door answering (401 signed out).
@@ -470,35 +476,68 @@ try {
   // whole candidate build measured on production before it is merged: nothing is published.
   // ⛔ Build it with the site's own VITE_* values or its flags read "off" in the candidate.
   const DIST = arg('dist', '')
+  // (2026-11-28, the cloud rig's build_ref) ONE Fetch interception carries both --dist and --isolate=browser: CDP's
+  // Fetch.enable REPLACES the patterns of the call before it, and every listener sees every paused request, so each
+  // handler answers only what it OWNS (distOwns / isoOwns) and the isolation's Fetch.enable re-sends distPatterns.
+  let distPatterns = []
+  let distOwns = () => false
+  const isoOwns = (path) => ISOLATE === 'browser' && (path === '/api/auth/preferences' || path === '/api/workspace/doc' || path.startsWith('/api/workspace/doc/'))
   if (DIST) {
     if (OVERRIDE || STUB > 0) throw new Error('--dist cannot be combined with --override or --stub')
-    const { existsSync } = await import('node:fs')
-    const { join, extname } = await import('node:path')
+    const { lstatSync, realpathSync, readdirSync } = await import('node:fs')
+    const { join, extname, sep } = await import('node:path')
+    // (2026-11-28 audit) the build is the CANDIDATE's output: a symlink in it (assets/x.js -> /proc/self/environ, which
+    // is THIS process's environment, BENCH_* included) would hand a file outside the build to the candidate's own page.
+    // Only regular files, really inside the build directory, are ever served.
+    const DIST_REAL = realpathSync(DIST)
+    const inBuild = (f) => { try { const st = lstatSync(f); if (!st.isFile() || st.isSymbolicLink() || st.nlink !== 1) return false; return realpathSync(f).startsWith(DIST_REAL + sep) } catch { return false } }
+    if (!inBuild(join(DIST, 'index.html'))) throw new Error('--dist: index.html is not a regular file inside the build')
     const TYPES = { '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.map': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.wasm': 'application/wasm' }
     const indexHtml = readFileSync(join(DIST, 'index.html'))
     const entry = (String(indexHtml).match(/\/assets\/index-[\w-]+\.js/) || [''])[0]
     if (!entry) throw new Error('--dist: no /assets/index-*.js in its index.html (is it a vite build?)')
     out.dist = { dir: DIST, entry, documents: 0, served: 0, passedOn: [] }
+    // (2026-11-28 audit: the A/B was biased by construction) EVERY file is read and base64-encoded ONCE, here, before
+    // the page loads: no readFileSync or encoding on the event loop while the sampler runs. Hashed assets are answered
+    // as the CDN answers them (public, max-age=31536000, immutable: the browser keeps them and V8 their code cache);
+    // the document no-store. Both sides of an A/B are builds served by this same code, so they meet identical headers.
+    const ASSETS = new Map()
+    const walk = (dir) => {
+      for (const ent of readdirSync(dir, { withFileTypes: true })) {
+        const f = join(dir, ent.name)
+        if (ent.isDirectory()) { walk(f); continue }
+        if (!inBuild(f)) throw new Error('--dist: the build holds a symlink, hardlink or special file')
+        ASSETS.set('/' + f.slice(DIST.length).replace(/^[\\/]+/, '').split(sep).join('/'), { type: TYPES[extname(f).toLowerCase()] || 'application/octet-stream', b64: readFileSync(f).toString('base64') })
+      }
+    }
+    walk(join(DIST, 'assets'))
+    out.dist.files = ASSETS.size
+    const INDEX_B64 = Buffer.from(indexHtml).toString('base64')
+    const IMMUTABLE = 'public, max-age=31536000, immutable'
     const origin = new URL(BASE).origin
     await c.send('Network.enable')
     await c.send('Network.setCacheDisabled', { cacheDisabled: true })
     await c.send('Network.setBypassServiceWorker', { bypass: true })
-    await c.send('Fetch.enable', { patterns: [{ urlPattern: `${origin}/assets/*` }, { urlPattern: `${origin}/*`, resourceType: 'Document' },
-      ...(DELAY_BARS > 0 ? [{ urlPattern: '*/api/bars/*' }] : []), ...(replay ? replay.patterns : [])] })
-    const answer = (requestId, type, buf) => c.send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: type }, { name: 'Cache-Control', value: 'no-store' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: Buffer.from(buf).toString('base64') }).catch(() => {})
+    distPatterns = [{ urlPattern: `${origin}/assets/*` }, { urlPattern: `${origin}/*`, resourceType: 'Document' }]
+    distOwns = ({ request, resourceType }) => {
+      try { const u = new URL(request.url); return u.origin === origin && (u.pathname.startsWith('/assets/') || (resourceType === 'Document' && !u.pathname.startsWith('/api/'))) } catch { return false }
+    }
+    await c.send('Fetch.enable', { patterns: [...distPatterns, ...(DELAY_BARS > 0 ? [{ urlPattern: '*/api/bars/*' }] : []), ...(replay ? replay.patterns : [])] })
+    const answer = (requestId, type, b64, cacheControl) => c.send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: type }, { name: 'Cache-Control', value: cacheControl }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: b64 }).catch(() => {})
     c.on((m) => {
       if (m.method !== 'Fetch.requestPaused') return
       const { requestId, request, resourceType } = m.params
       if (replay && replay.owns(m.params)) return    // the replay answers these (bars answers, the live feeds)
       const u = new URL(request.url)
       if (DELAY_BARS > 0 && u.pathname.startsWith('/api/bars/')) return    // the --delay-bars handler owns these
+      if (isoOwns(u.pathname) && !distOwns(m.params)) return    // the --isolate=browser handler owns these
       if (u.pathname.startsWith('/assets/')) {
-        const f = join(DIST, decodeURIComponent(u.pathname))
-        if (existsSync(f)) { out.dist.served += 1; answer(requestId, TYPES[extname(f).toLowerCase()] || 'application/octet-stream', readFileSync(f)); return }
+        const a = ASSETS.get(decodeURIComponent(u.pathname))
+        if (a) { out.dist.served += 1; answer(requestId, a.type, a.b64, IMMUTABLE); return }
         if (out.dist.passedOn.length < 40) out.dist.passedOn.push(u.pathname)
       } else if (resourceType === 'Document' && !u.pathname.startsWith('/api/')) {
         out.dist.documents += 1
-        answer(requestId, TYPES['.html'], indexHtml)
+        answer(requestId, TYPES['.html'], INDEX_B64, 'no-store')
         return
       }
       c.send('Fetch.continueRequest', { requestId }).catch(() => {})
@@ -676,7 +715,8 @@ try {
   let iso = null
   if (ISOLATE === 'browser') {
     if (LOCAL) throw new Error('--isolate=browser is for production: a sandbox has its own account')
-    if (OVERRIDE || arg('dist', '') || STUB > 0 || DELAY_BARS > 0 || REPLAY_AT) throw new Error('--isolate=browser cannot be combined with --override, --dist, --stub, --delay-bars or --replay-at (one Fetch interception per run)')
+    // --dist is combined (one Fetch.enable carries both pattern sets; each handler answers only what it owns)
+    if (OVERRIDE || STUB > 0 || DELAY_BARS > 0 || REPLAY_AT) throw new Error('--isolate=browser cannot be combined with --override, --stub, --delay-bars or --replay-at (one Fetch interception per run)')
     // the account's own board revision and the origin's round trip for a board read (three reads, the median)
     const reads = []
     for (let k = 0; k < 3; k++) reads.push(await run(`(async()=>{const t0=performance.now();const r=await fetch('/api/auth/preferences',{credentials:'include',cache:'no-store'});await r.text();return {st:r.status,ms:Math.round((performance.now()-t0)*10)/10,stamp:r.headers.get('X-Workspace-Doc')}})()`))
@@ -699,6 +739,7 @@ try {
     const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v))
     const pass = (requestId, atResponse) => c.send(atResponse ? 'Fetch.continueResponse' : 'Fetch.continueRequest', { requestId }).catch(() => {})
     await c.send('Fetch.enable', { patterns: [
+      ...distPatterns,   // (--dist) Fetch.enable replaces the patterns before it: the candidate build's stay intercepted
       { urlPattern: `${origin}/api/auth/preferences*`, requestStage: 'Request' },
       { urlPattern: `${origin}/api/auth/preferences*`, requestStage: 'Response' },
       { urlPattern: `${origin}/api/workspace/doc*`, requestStage: 'Request' },
@@ -707,6 +748,7 @@ try {
       if (m.method !== 'Fetch.requestPaused') return
       const { requestId, request, responseStatusCode, responseHeaders } = m.params
       const atResponse = responseStatusCode !== undefined
+      if (distOwns(m.params)) return   // the --dist handler answers the candidate's documents and assets
       try {
         const u = new URL(request.url)
         const path = u.pathname
@@ -987,6 +1029,11 @@ try {
     const runsIt = await run(`!!document.querySelector('script[src*=${JSON.stringify(out.dist.entry)}]')`)
     console.log(`dist: ${out.dist.documents} document(s) and ${out.dist.served} asset(s) answered from ${DIST}; the page runs its entry script: ${runsIt}`)
     if (!runsIt) throw new Error('the page is not running the candidate build: this run would measure the shipped one')
+    // (2026-11-28) the candidate is loaded: the browser's HTTP cache is back in use for the measured switches, as it is
+    // in a production pass (an API answer the site lets the browser keep is kept). The candidate's own hashed chunks are
+    // not in the cache, so they still reach the interception; one with production's name and hash is the same bytes.
+    await c.send('Network.setCacheDisabled', { cacheDisabled: false })
+    out.dist.cacheAfterLoad = 'enabled'
   }
   await sleep(WARMUP) // the list's own up-front warm (and, on a new profile, the bars pack ingest)
   if (arg('lake-probe', '')) {
@@ -1537,7 +1584,8 @@ try {
   if (MEM_PROBE) { out.memEnd = await memNow(); console.log(`memory at the end: ${JSON.stringify(out.memEnd)}`); save() }
   if (replay) { out.replay = await replay.finalReport(); save() }
   try { out.pageClockEnd = await run('({timeOrigin:performance.timeOrigin,dateNow:Date.now(),perfNow:performance.now()})') } catch (e) { /* none */ }
-  out.allRes = await run(`performance.getEntriesByType('resource').filter((e)=>e.name.indexOf('/api/')>=0).map((e)=>({u:e.name.replace(location.origin,''),s:Math.round(e.startTime),e:Math.round(e.responseEnd),ttfb:Math.round(e.responseStart-e.startTime),st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}))`)
+  // rs = the HTTP status (2026-11-28): a 429 is production's rate limiter answering THIS instrument (grade.py counts them)
+  out.allRes = await run(`performance.getEntriesByType('resource').filter((e)=>e.name.indexOf('/api/')>=0).map((e)=>({u:e.name.replace(location.origin,''),s:Math.round(e.startTime),e:Math.round(e.responseEnd),ttfb:Math.round(e.responseStart-e.startTime),rs:e.responseStatus,st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}))`)
   save()
   if (out.idbtrace) {
     out.idbTrace = await run(`(()=>{const T=window.__idbTrace;return T?{tx:T.tx,req:T.req}:null})()`)

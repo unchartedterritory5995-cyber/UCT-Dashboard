@@ -1,0 +1,21 @@
+{
+  "_what": "The VITE_* build constants production's front end is built with (Railway web-front's variables, plus Dockerfile.web's ARG defaults for the ones Railway leaves unset), so a candidate build reads its flags as production does. Non-secret flags only: vite_env.py refuses a value that is not a short flag. Read 2026-11-28. This is a COPY of Railway's values, so it can drift: whenever a built commit IS production's web commit, vite_env.py meta compares the candidate's entry script with production's (content hashed, they differ only when the constants or the install differ) and fails the build on a mismatch.",
+  "env": {
+    "VITE_BARSTORE": "1",
+    "VITE_COMING_SOON": "1",
+    "VITE_DESK_BG_AUDIO_ENABLED": "0",
+    "VITE_FLOW_DEFER_TAPE": "1",
+    "VITE_FLOW_PARTS": "1",
+    "VITE_FLOW_SERVER_SEARCH": "1",
+    "VITE_FLOW_SERVER_TOPPICKS": "1",
+    "VITE_INDICATOR_TEMPLATES_ENABLED": "1",
+    "VITE_MASSIVE_STREAM": "0",
+    "VITE_PINE_EDITOR_STATUS": "1",
+    "VITE_PINE_MEMBER_PANE_ENABLED": "1",
+    "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": "1",
+    "VITE_PINE_RUNTIME_PANE_ENABLED": "1",
+    "VITE_PINE_STRATEGY_BROKER_ENABLED": "1",
+    "VITE_REALTIME_BARS": "1",
+    "VITE_RS_SPLIT_ENABLED": "1"
+  }
+}

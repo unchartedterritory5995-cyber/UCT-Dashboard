@@ -2,6 +2,15 @@
 each bracketed by the production build it ran against, then the scrub every artifact passes before upload.
 
     python scripts/proofs/speed-rig/lane.py --plan <plan.json> --lane L01 --out <dir>
+        [--side A=production --side B=<dist dir> --label B=<ref>@<sha>]
+
+A/B (2026-11-28, the workflow's base_ref / build_ref): with --side, every pass of the lane runs in ABBA order per
+repetition (--reps, default 1: A B B A; the next repetition, and a pass at an odd plan position, B A A B), on the SAME
+tickers, so neither side holds the first (server-cold) or the last place more often than the other over a sweep. A
+side is a directory holding a `vite build` (rig.mjs --dist serves it in this browser only; the workflow builds BOTH
+sides, so both meet the same interception and headers) or `production` (the site's own front end: not for comparing
+builds, it is served another way). Each run's files go to <out>/<side>/<pass>@<k>.* (k = that side's run 1, 2, ...),
+and grade.py grades the two sides side by side.
 
 Per pass <name>: <name>.json (the rig's record) and .jump.json (its per-frame samples), <name>.log (what it printed),
 <name>.health.json (production before and after, wall seconds, exit code, RTH or OFF-HOURS). Exit 0 when every pass
@@ -119,6 +128,9 @@ def main() -> int:
     ap.add_argument("--plan")
     ap.add_argument("--lane")
     ap.add_argument("--out")
+    ap.add_argument("--side", action="append", default=[], help="A/B: NAME=production or NAME=<dist dir> (twice: A and B)")
+    ap.add_argument("--label", action="append", default=[], help="A/B: NAME=<label> for a side (its ref@commit)")
+    ap.add_argument("--reps", type=int, default=1, help="A/B: ABBA repetitions per pass (each is 4 runs)")
     ap.add_argument("--self-check", action="store_true", help="prove the scrub redacts, deletes and can fail")
     a = ap.parse_args()
     if a.self_check:
@@ -130,11 +142,16 @@ def main() -> int:
     if not lane:
         print(f"no lane {a.lane} in the plan", file=sys.stderr)
         return 1
+    try:
+        sides = parse_sides(a.side, a.label)
+    except ValueError as e:
+        print(f"refused: {e}", file=sys.stderr)
+        return 1
     os.makedirs(a.out, exist_ok=True)
     rig = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rig.mjs")
     worst, leaks = 0, 0
     try:
-        worst = run_passes(a, plan, lane, rig)
+        worst = run_passes(a, plan, lane, rig, sides, a.reps)
     finally:
         # ALWAYS, and after every pass too (run_passes): a lane that raises, or a pass that hangs until the job is
         # killed, never leaves an unscrubbed file for the upload step (which also skips a cancelled job)
@@ -145,27 +162,83 @@ def main() -> int:
     return worst
 
 
-def run_passes(a, plan, lane, rig) -> int:
-    worst = 0
+SIDE_NAME = re.compile(r"[AB]")
+
+
+def parse_sides(side_args: list[str], label_args: list[str]) -> list[dict]:
+    """--side A=production --side B=<dir> [--label B=x]: [] (no A/B), else exactly A and B, in that order."""
+    if not side_args:
+        if label_args:
+            raise ValueError("--label without --side")
+        return []
+    sides, labels = {}, {}
+    for s in side_args:
+        k, _, v = s.partition("=")
+        if not SIDE_NAME.fullmatch(k) or not v or k in sides:
+            raise ValueError(f"--side {s!r}: A=production or A=<dist dir>, B likewise, once each")
+        if v != "production" and not os.path.isfile(os.path.join(v, "index.html")):
+            raise ValueError(f"--side {k}: {v!r} holds no index.html (not a vite build)")
+        sides[k] = v
+    for s in label_args:
+        k, _, v = s.partition("=")
+        if k not in sides:
+            raise ValueError(f"--label {s!r}: no side {k}")
+        labels[k] = re.sub(r"[^\w.@/:-]", "", v)[:80]
+    if sorted(sides) != ["A", "B"]:
+        raise ValueError("an A/B run needs both sides, A and B")
+    if sides["A"] == sides["B"]:
+        raise ValueError("A and B are the same front end")
+    return [{"side": k, "dist": None if sides[k] == "production" else sides[k],
+             "label": labels.get(k) or ("production" if sides[k] == "production" else "dist")} for k in ("A", "B")]
+
+
+def runs_of(plan: dict, lane: dict, sides: list[dict], reps: int = 1) -> list:
+    """(pass, side, k) in the order they run: the lane's passes; with sides, `reps` repetitions of ABBA (BAAB when the
+    pass's plan position plus the repetition is odd), k counting that side's runs of the pass from 1."""
+    order = list(plan["passes"])
+    out = []
     for name in lane["passes"]:
+        if not sides:
+            out.append((name, None, 0))
+            continue
+        a, b = sides
+        k = {a["side"]: 0, b["side"]: 0}
+        for r in range(max(1, reps)):
+            x, y = (a, b) if (order.index(name) + r) % 2 == 0 else (b, a)
+            for s_ in (x, y, y, x):
+                k[s_["side"]] += 1
+                out.append((name, s_, k[s_["side"]]))
+    return out
+
+
+def run_passes(a, plan, lane, rig, sides=(), reps: int = 1) -> int:
+    worst = 0
+    runs = runs_of(plan, lane, list(sides), reps)
+    for position, (name, side, k) in enumerate(runs):
         spec = plan["passes"][name]
+        d = os.path.join(a.out, side["side"]) if side else a.out
+        os.makedirs(d, exist_ok=True)
+        fname = f"{name}@{k}" if side else name
+        extra = ([f"--dist={side['dist']}", f"--build-label={side['label']}"] if side and side["dist"] else [])
         h0, t0, sess = production(), time.time(), session_now()
-        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} start {name} [{sess}] production api {h0['apiCommit']} front {h0['webBuild']} ({h0.get('webBuildId')}) colo {h0['colo']}", flush=True)
-        log = open(os.path.join(a.out, f"{name}.log"), "w", encoding="utf-8")
+        tag = f"{name} [{side['side']} run {k}: {side['label']}]" if side else name
+        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} start {tag} [{sess}] production api {h0['apiCommit']} front {h0['webBuild']} ({h0.get('webBuildId')}) colo {h0['colo']}", flush=True)
+        log = open(os.path.join(d, f"{fname}.log"), "w", encoding="utf-8")
         try:
-            p = subprocess.run(["node", rig, os.path.join(a.out, f"{name}.json"), *spec["args"]], stdout=log, stderr=subprocess.STDOUT, timeout=PASS_TIMEOUT_S)
+            p = subprocess.run(["node", rig, os.path.join(d, f"{fname}.json"), *spec["args"], *extra], stdout=log, stderr=subprocess.STDOUT, timeout=PASS_TIMEOUT_S)
             rc = p.returncode
         except subprocess.TimeoutExpired:
             rc = 124
         finally:
             log.close()
         h1 = production()
-        health = {"pass": name, "lane": a.lane, "exit": rc, "seconds": round(time.time() - t0), "session": sess, "before": h0, "after": h1,
+        health = {"pass": name, "run": k if side else None, "lane": a.lane, "side": side["side"] if side else None, "build": side["label"] if side else "production",
+                  "position": position, "exit": rc, "seconds": round(time.time() - t0), "session": sess, "before": h0, "after": h1,
                   "deploys": deploys(h0, h1)}
         health["deployDuring"] = bool(health["deploys"])
-        json.dump(health, open(os.path.join(a.out, f"{name}.health.json"), "w", encoding="utf-8"), indent=1)
-        tail = open(os.path.join(a.out, f"{name}.log"), encoding="utf-8", errors="replace").read().splitlines()[-6:]
-        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} {name} exit {rc} in {health['seconds']} s"
+        json.dump(health, open(os.path.join(d, f"{fname}.health.json"), "w", encoding="utf-8"), indent=1)
+        tail = open(os.path.join(d, f"{fname}.log"), encoding="utf-8", errors="replace").read().splitlines()[-6:]
+        print(f"{datetime.now(timezone.utc):%H:%M:%SZ} {tag} exit {rc} in {health['seconds']} s"
               f"{' (A DEPLOY LANDED DURING IT: ' + ', '.join(health['deploys']) + ')' if health['deployDuring'] else ''}", flush=True)
         for line in tail:
             line = TOKENISH.sub(r"\1[redacted]", line)
@@ -219,7 +292,28 @@ def self_check() -> int:
               deploys(a, {**a, "apiUptime": 3}), deploys(a, {**a, "apiCommit": "bbb", "webBuild": "ggg"})]
         dok = dk == [[], ["front"], ["front"], ["api"], ["api", "front"]]
         print(f"self-check {'ok' if dok else 'FAILED'}: deploys {dk}")
-        return 0 if ok and dok else 1
+        if not ok:
+            return 1
+        # the A/B sides: parsed, refused when half-given or pointing at no build, interleaved by plan position
+        os.makedirs(os.path.join(d, "distB"))
+        open(os.path.join(d, "distB", "index.html"), "w").write("<html></html>")
+        sides = parse_sides(["A=production", f"B={os.path.join(d, 'distB')}"], ["B=master@abc123;rm"])
+        ab_ok = sides[0]["dist"] is None and sides[1]["label"] == "master@abc123rm" and parse_sides([], []) == []
+        for bad in (["A=production"], ["A=production", "B=production"], ["A=production", f"B={d}"], ["A=x", "C=production"]):
+            try:
+                parse_sides(bad, [])
+                ab_ok = False
+                print(f"self-check FAILED: sides {bad} were not refused")
+            except ValueError:
+                pass
+        plan = {"passes": {"P0": {}, "P1": {}}}
+        r0 = [(n, s and s["side"], k) for n, s, k in runs_of(plan, {"passes": ["P0", "P1"]}, sides)]
+        ab_ok = ab_ok and r0 == [("P0", "A", 1), ("P0", "B", 1), ("P0", "B", 2), ("P0", "A", 2),
+                                 ("P1", "B", 1), ("P1", "A", 1), ("P1", "A", 2), ("P1", "B", 2)] and runs_of(plan, {"passes": ["P1"]}, []) == [("P1", None, 0)]
+        r2 = "".join(s["side"] for _n, s, _k in runs_of(plan, {"passes": ["P0"]}, sides, 2))
+        ab_ok = ab_ok and r2 == "ABBABAAB"
+        print(f"self-check {'ok' if ab_ok else 'FAILED'}: A/B sides {r0}")
+        return 0 if ok and dok and ab_ok else 1
 
 
 if __name__ == "__main__":
