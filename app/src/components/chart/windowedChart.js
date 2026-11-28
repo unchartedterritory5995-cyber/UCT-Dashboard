@@ -39,6 +39,19 @@ export const RENDER_WINDOW_STEP = 250
 export const RENDER_WINDOW_MIN_SAVED = 1000
 /** The view's left edge must stay at least this many bars (and one screen) right of the window start. */
 export const RENDER_WINDOW_MARGIN_BARS = 150
+/**
+ * ⚡ (2026-11-28, Phase E1) A WIDE VIEW IS HANDED 1.25 SCREENS, NOT THREE. Above this many bars across, the window is
+ * `RENDER_WINDOW_WIDE_SCREENS` screens of the view (its margin a quarter screen, never under the margin above) and an
+ * extension asks one more screen, before paint (the range check below). Three screens of a zoomed-out view is 7-8k rows
+ * at the library's 0.5 px floor and 12-42k at 0.1 px: setData 29-132 ms on the switch, for bars no frame draws. A narrow
+ * view (most of them) keeps three screens, exactly as before.
+ */
+export const RENDER_WINDOW_WIDE_SPAN = 1000
+export const RENDER_WINDOW_WIDE_SCREENS = 1.25
+const wide = (s) => s > RENDER_WINDOW_WIDE_SPAN
+/** The margin (bars) kept left of a view `s` bars across, and the reach of one extension. */
+const marginFor = (s) => (wide(s) ? Math.max(Math.ceil(s / 4), RENDER_WINDOW_MARGIN_BARS) : Math.max(s, RENDER_WINDOW_MARGIN_BARS))
+const reachFor = (s) => (wide(s) ? Math.max(Math.ceil(s), RENDER_WINDOW_MIN_BARS) : Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
 
 export function renderWindowDisabled() {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(RENDER_WINDOW_OFF_KEY) === '1' } catch { return false }
@@ -49,7 +62,8 @@ export function renderWindowDisabled() {
 export function renderWindowRows(span, left) {
   const s = Number.isFinite(span) && span > 0 ? span : 0
   const l = Number.isFinite(left) && left > 0 ? left : 0
-  return Math.max(RENDER_WINDOW_MIN_BARS, Math.ceil(s * RENDER_WINDOW_SCREENS), Math.ceil(l + Math.max(s, RENDER_WINDOW_MARGIN_BARS)) + 1)
+  const screens = wide(s) ? RENDER_WINDOW_WIDE_SCREENS : RENDER_WINDOW_SCREENS
+  return Math.max(RENDER_WINDOW_MIN_BARS, Math.ceil(s * screens), Math.ceil(l + marginFor(s)) + 1)
 }
 
 /** The first full index of a window of `rows` over `n` bars: step-aligned, 0 when the saving is small. */
@@ -96,8 +110,8 @@ export function renderWindowStartFor(bars, rows) {
 export function extendedStart(ws, from, span) {
   if (!(ws > 0) || !Number.isFinite(from)) return ws
   const s = Number.isFinite(span) && span > 0 ? span : 0
-  if (from - Math.max(s, RENDER_WINDOW_MARGIN_BARS) >= ws) return ws
-  const want = Math.max(0, Math.floor(from) - Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
+  if (from - marginFor(s) >= ws) return ws
+  const want = Math.max(0, Math.floor(from) - reachFor(s))
   const next = Math.floor(want / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
   return next < ws ? next : ws
 }
