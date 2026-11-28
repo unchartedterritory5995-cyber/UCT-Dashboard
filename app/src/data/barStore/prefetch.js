@@ -1514,11 +1514,15 @@ export function createPrefetch(o = {}) {
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
-  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first
-   *  once no chart shows `sym` (registry `_evict`). */
-  function prefetchAllTimeframes(sym) {
+  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press; the chart's own dwell,
+   *  ChartWidget): its entries go first once no chart shows `sym` (registry `_evict`). `tfs`: the NATIVE timeframes to
+   *  warm (the chart's bar, a custom code already mapped to its base), first ones first; default every native one.
+   *  ⭐ (lane C, PR 1.5) the same keys and the same lane as the list's dwell: device -> edge -> origin is each key's own
+   *  load path (`_defer`); cancellation and single-flight are the queue's. */
+  function prefetchAllTimeframes(sym, { tfs = ALL_TFS, showExtended } = {}) {
     if (!sym) return
-    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf, { dwell: true })
+    const list = [...new Set((Array.isArray(tfs) && tfs.length ? tfs : ALL_TFS).map(String))]
+    for (const tf of list) prefetchBarsToIDB([sym], tf, { dwell: true, showExtended })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
@@ -2344,7 +2348,7 @@ export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepare
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }
 export function prefetchBarsToIDB(tickers, tf = 'D', opts = {}) { return _f().prefetchBarsToIDB(tickers, tf, opts) }
-export function prefetchAllTimeframes(sym) { return _f().prefetchAllTimeframes(sym) }
+export function prefetchAllTimeframes(sym, opts = {}) { return _f().prefetchAllTimeframes(sym, opts) }
 export function prefetchListAllTimeframes(tickers, opts = {}) { return _f().prefetchListAllTimeframes(tickers, opts) }
 export function prefetchGridWarm(tickers) { return _f().prefetchGridWarm(tickers) }
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) { return _f().warmMemFromIDB(tickers, tfs) }

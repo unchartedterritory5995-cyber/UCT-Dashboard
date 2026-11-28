@@ -23,7 +23,10 @@ import { normalizeDock } from './chartDock'
 import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
-import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
+import { prefetchReplayTimeframes, prefetchAllTimeframes } from '../../../utils/barsWarm'
+import { noteTfPress, habitualTfs } from '../../../components/chart/tfHabit'
+import { TF_ORDER } from '../../../components/chart/keyboardShortcuts'
+import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
@@ -55,6 +58,8 @@ import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
+/** (lane C, PR 1.5) How long a chart rests on a symbol and timeframe before its bar's other timeframes are warmed. */
+export const TF_DWELL_MS = 300
 const ADD_WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
 
@@ -327,6 +332,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
+    noteTfPress(tf, nextTf)   // (lane C, PR 1.5) the member's habits: what the dwell below and the hidden layer prepare
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })
     else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { tf: nextTf }))
   }, [opts, tf, onOptsChange, isMainTab, activeExtra])
@@ -338,6 +344,33 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // moment you change a setting it's stored on that surface's own blob in `opts`
   // and diverges. Main tab → opts.settings; extra tab → its chartTabs[i].settings.
   const activeStoredSettings = isMainTab ? (opts?.settings || null) : (activeExtra?.settings || null)
+  // ⭐ (lane C, zero-network PR 1.5, goal A4) THE CHART'S OWN TIMEFRAME DWELL: once the chart has rested TF_DWELL_MS on a
+  // symbol and timeframe, the data of every timeframe on its bar is asked for (custom codes as their native base), the
+  // member's habitual next timeframes first (tfHabit.js). A list beside the chart warms its selection's timeframes too
+  // (Watchlists SCAN_DWELL_MS); this covers a chart with no list (a typed ticker) and the bar's own codes. Never before
+  // the page's first chart paint; never in replay (its own warm above); the keys' own path (device -> edge -> origin),
+  // the queue's cancellation and single-flight (data/barStore/prefetch.js prefetchAllTimeframes). Owner ruling
+  // 2026-11-28: full data, no caps.
+  const tfBarCodes = useMemo(() => {
+    const fav = Array.isArray(activeStoredSettings?.header?.timeframes) ? activeStoredSettings.header.timeframes : []
+    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))]
+  }, [activeStoredSettings, tf])
+  const tfBarKey = tfBarCodes.join(',')
+  useEffect(() => {
+    if (!sym || replayCutoff) return undefined
+    let alive = true
+    const timer = setTimeout(() => {
+      afterFirstChartPaint(() => {
+        if (!alive) return
+        const codes = tfBarKey.split(',')
+        const first = habitualTfs(tf, { k: 2, available: codes })
+        const order = [...first, ...codes.filter((c) => c !== tf && !first.includes(c))]
+        const bases = [...new Set(order.map((c) => fetchTf(c)))].filter((b) => b && b !== fetchTf(tf))
+        if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current })
+      })
+    }, TF_DWELL_MS)
+    return () => { alive = false; clearTimeout(timer) }
+  }, [sym, tf, tfBarKey, replayCutoff])
   // Identity-stable write sink for the active surface. MUST be useCallback, not
   // an inline arrow at the ChartPane call site: it flows through
   // useChartSurfaceSettings' `write` into StockChart as onSettingsPersist, which

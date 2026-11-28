@@ -37,6 +37,8 @@ import {
   deriveFrom, hasDerived, identitySig, stableSig, chartTimesFor, nfCount, idleSupported, linkDerivedSource,
   holdRow, releaseRows,
 } from './neighborFrames'
+import { habitualTfs } from './tfHabit'
+import { TF_ORDER } from './keyboardShortcuts'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`). */
 const PAINTS = new Set([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
@@ -47,6 +49,13 @@ export const PREPARE_RANKS = 3
 export const POINTS_RANKS = 2
 /** A neighbour row whose bars change is prepared again this long after the last change. */
 export const REPREPARE_MS = 120
+/** (lane C, PR 1.5) The chart's OWN symbol at the member's habitual next timeframes (tfHabit.js): this many of them are
+ *  prepared after the neighbour rows, so a timeframe press finds its derived arrays filed. */
+export const HABIT_TF_RANKS = 2
+/** A habitual timeframe whose bars are not in the store yet (the chart's dwell warm is still asking) is looked for again
+ *  this long later, up to HABIT_RETRIES times. */
+export const HABIT_RETRY_MS = 1500
+export const HABIT_RETRIES = 4
 
 /** The empty HVC set every flag-on chart shares (a fresh `new Set()` per memo would name nothing). */
 export const EMPTY_HVC = Object.freeze(new Set())
@@ -129,23 +138,27 @@ export function neighborPlainOf({
  * @param {number} rank  0 = the next row ahead, 1 = the row behind, 2/3 = two away
  * @param {object} c     `{recipes, view, engineRef, owner}` read at run time (the chart's latest; `owner`: the chart,
  *                       which holds the row it prepares FIRST against the derived-bars budget, neighborFrames.holdRow)
+ * @param {string|null} tfAt  (lane C, PR 1.5) prepare the row at THIS timeframe, not the chart's: the chart's own symbol at
+ *                       a habitual next timeframe. Its arrays are filed under the bars they came from, so a chart that
+ *                       arrives at that timeframe finds them, and one that does not never reads them.
  */
-export function* prepareRow(sym, rank, c) {
+export function* prepareRow(sym, rank, c, tfAt = null) {
   const r = c.recipes()
   const v = c.view()
   if (!r || !v || !r.plain || !BARSTORE) return
+  const tf = tfAt || v.tf
   const store = getBarStore()
-  const key = chartKeyFor({ sym, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false })
+  const key = chartKeyFor({ sym, resolvedTf: tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false })
   if (!key || !store.registry.has(key)) { nfCount('barsSkipped'); return }
   const snap = store.getBaseSnapshot(key)
   if (!snap || !PAINTS.has(snap.status)) { nfCount('barsSkipped'); return }
   const all = legacyBars(snap)
   if (!all || !all.length) { nfCount('barsSkipped'); return }
   // the row the next press lands on: its derived values stay until then, whatever the budget (neighborFrames.holdRow)
-  if (rank === 0 && c.owner) holdRow(c.owner, 'next', all)
+  if (rank === 0 && !tfAt && c.owner) holdRow(c.owner, 'next', all)
   yield
   // a custom timeframe's bars: its base rows resampled, the very array the chart's hook asks for (customTfRows)
-  const spec = customSpecOf(v.tf, v.showExtended)
+  const spec = customSpecOf(tf, v.showExtended)
   const bars = spec ? deriveCustomTf(all, spec) : all
   if (!bars || !bars.length) { nfCount('barsSkipped'); return }
   if (spec) yield
@@ -166,6 +179,9 @@ export function* prepareRow(sym, rank, c) {
   if (r.vol.on) { deriveVol(filtered, hvc, deriveVolExtremes(filtered, r), r); yield }
   if (r.volMa.on) { deriveVolMa(filtered, r); yield }
   nfCount('barsPrepared')
+  // ⛔ (lane C) not at ANOTHER timeframe: the binder prepares the chart's indicator instances as they are on ITS
+  // timeframe (an instance can be timeframe-scoped), so the habitual timeframe's bars arrays only
+  if (tfAt) return
   const binder = c.engineRef.current ? c.engineRef.current.binder : null
   if (binder && typeof binder.prepare === 'function') {
     yield* binder.prepare({ bars: filtered, sym, newestBarIsForming: newestBarIsFormingOf(snap), points: rank < POINTS_RANKS })
@@ -200,12 +216,18 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
     let raf = 0
     let timer = null
     let watched = []
+    let habitTimer = null
+    let habitTries = 0
     const unwatch = () => { for (const off of watched) { try { off() } catch { /* gone */ } } watched = [] }
     const schedule = () => {
       if (!alive) return
       cancelIdleFor(owner)
       const order = scanNeighborsFor(symU).slice(0, PREPARE_RANKS)
       order.forEach((n, rank) => scheduleIdle(owner, rank, prepareRow(n, rank, ctx)))
+      // (lane C, PR 1.5) then this chart's own symbol at the member's habitual next timeframes
+      const v0 = viewRef.current
+      const habit = habitualTfs(v0.tf, { k: HABIT_TF_RANKS, available: [...TF_ORDER, String(v0.tf)] })
+      habit.forEach((htf, j) => scheduleIdle(owner, PREPARE_RANKS + j, prepareRow(symU, PREPARE_RANKS + j, ctx, htf)))
       // ⭐ a row whose bars change after it was prepared (its deeper history landed) is prepared again
       unwatch()
       for (const n of order) {
@@ -217,6 +239,22 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
           timer = setTimeout(() => { timer = null; schedule() }, REPREPARE_MS)
         }, { wake: 'base' }))
       }
+      // a habitual timeframe's bars: watched like a row's; not in the store yet (its warm still asking): looked for again
+      let missing = false
+      for (const htf of habit) {
+        const key = chartKeyFor({ sym: symU, resolvedTf: htf, showExtended: v0.showExtended, replayCutoff: null, hasOverride: false })
+        if (!key) continue
+        if (!store.registry.has(key)) { missing = true; continue }
+        watched.push(store.registry.subscribe(key, () => {
+          if (timer != null) clearTimeout(timer)
+          timer = setTimeout(() => { timer = null; schedule() }, REPREPARE_MS)
+        }, { wake: 'base' }))
+      }
+      if (habitTimer != null) { clearTimeout(habitTimer); habitTimer = null }
+      if (missing && habitTries < HABIT_RETRIES) {
+        habitTries += 1
+        habitTimer = setTimeout(() => { habitTimer = null; schedule() }, HABIT_RETRY_MS)
+      }
     }
     // after THIS paint: the frame the member is waiting for goes first
     raf = requestAnimationFrame(() => { raf = 0; schedule() })
@@ -225,6 +263,7 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
       alive = false
       if (raf) cancelAnimationFrame(raf)
       if (timer != null) clearTimeout(timer)
+      if (habitTimer != null) clearTimeout(habitTimer)
       offScan()
       unwatch()
       cancelIdleFor(owner)
