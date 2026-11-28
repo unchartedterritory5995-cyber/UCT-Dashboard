@@ -6,9 +6,13 @@
 // the minute of the press), which after the close no proof can: the copy read behind all evening, peekDisplayable said no,
 // and the linked group never painted. The proof must reach the VIEW's newest closed bucket: the session's close.
 // Through the real store and prefetch facade, the real NYSE calendar (early close 13:00 on 11-27).
+// ⛔ The clock is 16:49 ET (21:49Z), not the run's 20:49: before 19:00 ET the ET and UTC dates agree, so the rail reads the
+// same in any runner time zone. (utils/marketSession expectedLatestCompletedBar reads the LOCAL weekday: on a UTC runner
+// 20:49 ET is Saturday, the frontier reads null and no copy is behind at all. A separate defect, not this one's.)
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
+import { keyOf } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { memClear } from '../../utils/barsMemCache'
@@ -21,7 +25,7 @@ const bar = (t) => { const i = Math.floor(t / 60) % 997; const o = Math.round((1
 function thinRows() {
   const out = []
   for (let m = 570; m < 960; m += 3) out.push(bar(et('2026-11-25', Math.floor(m / 60), m % 60)))
-  for (let m = 570; m <= 12 * 60 + 56; m += 3) out.push(bar(et('2026-11-27', Math.floor(m / 60), m % 60)))
+  for (let m = 572; m <= 12 * 60 + 56; m += 3) out.push(bar(et('2026-11-27', Math.floor(m / 60), m % 60)))
   return out
 }
 const LAST = et('2026-11-27', 12, 56)
@@ -53,29 +57,34 @@ async function switched({ nowSec, verifiedThrough, tailStatus = 'verified' }) {
   let outcome = 'PENDING'
   pf.prepareForDisplay('ILQ', '1').then((v) => { outcome = v })
   await vi.advanceTimersByTimeAsync(600)
-  return { pf, request, outcome: () => outcome }
+  // (the answer landed whole, the tail as served: a rail whose fixture failed would read 'not painted' for the wrong reason)
+  const held = store.peek(keyOf({ sym: 'ILQ', tf: '1' }))
+  expect(held.restSeen).toBe(true)
+  expect(held.error ?? null).toBe(null)
+  expect(held.bars[held.bars.length - 1].t).toBe(LAST)
+  return { pf, store, request, outcome: () => outcome }
 }
 
 describe('B9: after the close, a thin tail the server proved paints at once', () => {
-  it('11-27 20:49 ET, tail 12:56, proof through 20:00 (the live stream): the switch may paint it', async () => {
-    const w = await switched({ nowSec: et('2026-11-27', 20, 49, 30), verifiedThrough: et('2026-11-27', 20, 0) })
+  it('11-27 16:49 ET, tail 12:56, proof through 16:00: the switch may paint it', async () => {
+    const w = await switched({ nowSec: et('2026-11-27', 16, 49, 30), verifiedThrough: et('2026-11-27', 16, 0) })
     expect(w.request).toHaveBeenCalledTimes(1)
     expect(w.outcome()).not.toBe('PENDING')
     expect(w.pf.peekDisplayable('ILQ', '1')).toBe(true)
   })
 
   it('...and a proof stamped exactly at the close (13:00) is enough', async () => {
-    const w = await switched({ nowSec: et('2026-11-27', 20, 49, 30), verifiedThrough: et('2026-11-27', 13, 0) })
+    const w = await switched({ nowSec: et('2026-11-27', 16, 49, 30), verifiedThrough: et('2026-11-27', 13, 0) })
     expect(w.pf.peekDisplayable('ILQ', '1')).toBe(true)
   })
 
   it('control: a proof short of the close (12:58) never paints the tail as current', async () => {
-    const w = await switched({ nowSec: et('2026-11-27', 20, 49, 30), verifiedThrough: et('2026-11-27', 12, 58) })
+    const w = await switched({ nowSec: et('2026-11-27', 16, 49, 30), verifiedThrough: et('2026-11-27', 12, 58) })
     expect(w.pf.peekDisplayable('ILQ', '1')).toBe(false)
   })
 
   it('control: a tail the server marked unverified never paints as current, whatever the proof', async () => {
-    const w = await switched({ nowSec: et('2026-11-27', 20, 49, 30), verifiedThrough: et('2026-11-27', 20, 0), tailStatus: 'unverified' })
+    const w = await switched({ nowSec: et('2026-11-27', 16, 49, 30), verifiedThrough: et('2026-11-27', 16, 0), tailStatus: 'unverified' })
     expect(w.pf.peekDisplayable('ILQ', '1')).toBe(false)
   })
 })

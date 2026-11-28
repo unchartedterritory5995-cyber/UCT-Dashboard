@@ -68,7 +68,7 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, expectedLatestCompletedBar, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
@@ -757,18 +757,27 @@ export function createPrefetch(o = {}) {
    * illiquid name's tail (CRAI 1m 12:56, three buckets short of the close) came back `verified` by the server's proof
    * (the live stream's watermark, 20:00 ET), and the grace asked that proof to reach 20:49, the minute the member pressed
    * Enter. It never could, so the copy read behind all evening, the switch never painted it and nothing more was asked.
-   * The earlier of the two: the clock's roll inside the session, the session frontier's end after it. Unmeasurable
-   * (no frontier: a holiday, before the open): the clock's, as before.
+   * The earlier of the two: the clock's roll inside the session, the newest session close at or before now outside it
+   * (today's once it has closed, else the previous session's; the half day's 13:00, the extended view's 20:00).
+   * ⛔ Read on the ET calendar (barTime etDateOf / etMinuteOfDay), never a local Date: on a page east of New York the
+   * evening is already the next day locally (utils/marketSession expectedLatestCompletedBar reads the local weekday).
    */
   function _proofRollMs(key, tf, showExtended) {
     const clock = _rollMs(tf)
     const p = parseKey(key)
     const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
-    let f = null
-    try { f = expectedLatestCompletedBar(tf, now(), { session: ext ? 'extended' : 'rth' }) } catch { f = null }
-    if (f == null) return clock
-    const end = bucketEndUnix(f, tf) * 1000
-    return Number.isFinite(end) && end < clock ? end : clock
+    const sec = Math.floor(now() / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    const day = !(dow === 0 || dow === 6 || isHolidayISO(iso))
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    const closeMin = ext ? 1200 : rthCloseMinuteOf(sec)
+    if (day && m >= open && m < closeMin) return clock          // in the session: the clock's roll IS the frontier's
+    const close = day && m >= closeMin
+      ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
+      : (_prevSessionCloseUnix(sec, ext) ?? NaN) * 1000
+    return Number.isFinite(close) && close < clock ? close : clock
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
   function _ownGrace(key, s, n, showExtended) {
