@@ -2394,7 +2394,7 @@ export function createPrefetch(o = {}) {
       const isTicker = await _typedIsTicker(T, () => typed !== mine)
       if (typed !== mine) return 'superseded'
       if (!isTicker) return 'unknown'
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: S().peek(key) || {} })
+      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: S().peek(key) || {}, ...(typeof showExtended === 'boolean' ? { session: session(showExtended) } : {}) })
       if (ctl.signal.aborted && !mine.kept) return false
       return s?.restSeen && !s.error && s.depth ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
