@@ -164,11 +164,12 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
         if p["kind"] == "tabs":
             extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
-        # --cpu-profile=i,j: a CPU profile of those switches (the rig's --cpuprofile: 1.5 s after a typed Enter or a tab
-        # click, 700 ms after an arrow), written beside the record as <name>.flip<i>.cpuprofile and uploaded with it
+        # --cpu-profile=i,j: a CPU profile of those switches, written beside the record as <name>.flip<i>.cpuprofile and
+        # uploaded with it. The rig names it per pattern: --cpuprofile (arrows: 700 ms after the key; a tab click: 1.5 s) and
+        # --typed-profile (a typed Enter: 1.5 s); both are passed, each pattern reads its own
         cp = getattr(args, "cpu_profile", "") or ""
         if cp:
-            extra.append(f"--cpuprofile={cp}")
+            extra += [f"--cpuprofile={cp}", f"--typed-profile={cp}"]
         if args.dry:
             extra = ["--dry=1"]
         plan["passes"][p["name"]] = {"args": [*COMMON, *p["args"], *extra], "kind": p["kind"], "board": p["board"], "zoom": p["zoom"],
@@ -195,10 +196,10 @@ def self_check() -> None:
     class C:
         sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days, cpu_profile = "cp", "^COV-def-dd-typed$", 0, "browser", 1, 8, False, None, "3,4,5"
     pc, _ = build(C, json.loads(json.dumps(led0)))
-    assert "--cpuprofile=3,4,5" in pc["passes"]["COV-def-dd-typed"]["args"], pc["passes"]
+    assert {"--cpuprofile=3,4,5", "--typed-profile=3,4,5"} <= set(pc["passes"]["COV-def-dd-typed"]["args"]), pc["passes"]
     C.cpu_profile, C.sweep_id = "", "cp2"
     pc2, _ = build(C, json.loads(json.dumps(led0)))
-    assert not any(x.startswith("--cpuprofile") for x in pc2["passes"]["COV-def-dd-typed"]["args"])
+    assert not any(x.startswith(("--cpuprofile", "--typed-profile")) for x in pc2["passes"]["COV-def-dd-typed"]["args"])
     allp = passes()
     names = [p["name"] for p in allp]
     assert len(names) == 41 and len(set(names)) == 41, len(names)
