@@ -114,6 +114,10 @@ class RemoteBroadcaster:
         # this loop, with the quotes this batch updated ({sym: {price, ts, trade_ts, volume}}), AFTER the
         # lock is released. None = nobody listens (the default; the quote stream is behind a flag).
         self.quote_sink: Optional[Callable[[dict], None]] = None
+        # ⭐ The live candle (api/services/realtime_candle_feed.py, additive 2026-11-28): the same per-batch quotes
+        # feed realtime_candle (the `tick` / `bar_close` / `bar_correction` events of /api/stream/prices), so those
+        # events no longer need the Finnhub socket. Called after quote_sink, unlocked; installed by the price stream.
+        self.candle_sink: Optional[Callable[[dict], None]] = None
         self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
                          "conflated": 0, "prices_in": 0, "mirror_resets": 0}
 
@@ -331,14 +335,20 @@ class RemoteBroadcaster:
                 self._prices[sym] = dict(p)
                 self._tick_mono[sym] = now_m
                 self.counters["prices_in"] += 1
-                if self.quote_sink is not None:
+                if self.quote_sink is not None or self.candle_sink is not None:
                     quotes[sym] = self._prices[sym]
-        if quotes:
+        if quotes and self.quote_sink is not None:
             try:
                 self.quote_sink(quotes)
             except Exception as e:  # noqa: BLE001 - the price push never drops the bars feed
                 self.counters["quote_sink_errors"] = self.counters.get("quote_sink_errors", 0) + 1
                 log.warning("[remote_broadcaster] quote sink failed: %s: %s", type(e).__name__, e)
+        if quotes and self.candle_sink is not None:
+            try:
+                self.candle_sink(quotes)
+            except Exception as e:  # noqa: BLE001 - the live candle never drops the bars feed
+                self.counters["candle_sink_errors"] = self.counters.get("candle_sink_errors", 0) + 1
+                log.warning("[remote_broadcaster] candle sink failed: %s: %s", type(e).__name__, e)
 
     @staticmethod
     def _msg(sym: str, k: str, bar: dict) -> dict:
