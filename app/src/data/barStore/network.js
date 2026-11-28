@@ -385,7 +385,14 @@ export function createNetwork({
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
       const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
-      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
+      // ⭐⭐ (2026-11-28, COV-zo-wm-typed MAT / SPGI / AMH held to the 4 s hang guard) A FULL ANSWER SHORTER THAN ITS ASK IS
+      // THE WHOLE LISTING. A monthly view zoomed out asks 1,187 rows; MAT's answer brought its 606 months at +135 ms, every
+      // row it has, but the depth stayed "due" until the edge history joined (1.7 s; SPGI's was never asked, so the hold ran
+      // to the hang guard). Fewer rows than asked (by more than the developing bar) means nothing older exists: the depth is
+      // settled now and no history is asked.
+      const ended = split && !delta && !json.filling && json.bars.length < bars - 1
+      if (ended) _settleDeep(r.key, true)
+      else if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
@@ -492,6 +499,8 @@ export function createNetwork({
       if (res?.error && keys.get(r.key) === r) {
         // the edge could not give it: the full depth from /api/bars, as before the split
         r.splitOff = true
+        // ⛔ (F1, 2026-11-28) the full read it queues is still to come: the depth stays due until it settles (deepPending)
+        r.fullDue = true
         _queueTail(r, r.priority)
         _drain(r)
       }
@@ -657,6 +666,7 @@ export function createNetwork({
       } catch (e) {
         if (_isAbort(e) || ac?.signal.aborted) return { aborted: true }
         if (!registry.has(r.key)) return { aborted: true, evicted: true }   // (E1: never an error entry for a dropped key)
+        if (kind === 'tail') r.fullDue = false   // (F1) the full read settled (failed): nothing more is coming from it
         if (quiet()) return { error: true, warmShed: true, retryAfterMs: e?.retryAfterMs ?? null }
         const gen = registry.getSnapshot(r.key).gen
         if (kind === 'tail') {
@@ -670,6 +680,8 @@ export function createNetwork({
       // new entry it would create (a `since=` delta would land on an EMPTY entry as "answered"). Dropped; the next
       // chart or warm of the key asks again, on its own life.
       if (!registry.has(r.key)) return { aborted: true, evicted: true }
+      // (F1) a split-off key's full read answered: cleared BEFORE its rows land, so the wake they cause reads it settled
+      if (kind === 'tail') r.fullDue = false
       if (json?.error && !json.no_data && quiet()) return { error: true, warmShed: true, retryAfterSec: json.retry_after ?? null }
       const out = await onJson(json)
       if (kind === 'tail') _noteAnswered(r)
@@ -880,6 +892,7 @@ export function createNetwork({
       if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
+      let failed = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
         .then((got) => {
@@ -900,9 +913,12 @@ export function createNetwork({
           if (!after || after.bars.length <= before) return false
           return after.restSeen ? 'join' : 'seed'
         })
-        .catch(() => false)
+        .catch(() => { failed = true; return false })
         .finally(() => {
           if (lakeSeeds.get(key) === p) { lakeSeeds.delete(key); lakeAwaited.delete(key) }
+          // ⛔ (F2, 2026-11-28) A LOAD THAT FAILED SETTLED NOTHING: recorded as settled at what is held, it read "nothing more
+          // is coming" (lakePending false) and woke the hold to paint the shallow rows. Still due; a later load asks again.
+          if (failed) return
           const cur = registry.peek(key)
           const held = cur?.bars.length
           if (held == null) return          // nothing to join into: still due when the key is built
@@ -947,7 +963,10 @@ export function createNetwork({
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
-      if (keys.get(key)?.splitOff) return false
+      // ⛔ (F1, 2026-11-28) the edge failed, so the full depth comes from the origin: due until that read settles. It read
+      // false at once, and the daily hold took "nothing more is coming" and painted the 30-row tail page, then the full
+      // read filled it in (a short paint, then the jump).
+      if (keys.get(key)?.splitOff) return !!keys.get(key).fullDue
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)

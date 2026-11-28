@@ -29,11 +29,13 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null } = {}) {
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null, tailGateFrom = 0, listing = 3001 } = {}) {
+  let tails = 0
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
-    if (tailGate && url.startsWith('/api/bars/')) await tailGate   // the tail answers when the test says
+    // the tail answers when the test says (from the `tailGateFrom`-th tail on: 0 gates them all)
+    if (url.startsWith('/api/bars/') && tails++ >= tailGateFrom && tailGate) await tailGate
     if (url.startsWith('/api/bars-history/')) {
       if (historyGate) await historyGate   // a slow edge: answers when the test says
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
@@ -45,7 +47,7 @@ function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-1
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
     }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
-    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), tailLast).map((t) => bar(t)) }
+    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, listing), tailLast).map((t) => bar(t)) }   // (`listing`: every row it has)
   })
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
   const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {} })
@@ -150,6 +152,58 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
     expect(w.net.deepPending(w.key)).toBe(false)
     expect(w.net.inflight(w.key)).toBe(0)
+  })
+
+  // ⛔ (F1, 2026-11-28) THE EDGE FAILED: the full depth comes from the origin, and until that read settles more IS coming.
+  // deepPending read false the moment the split turned off, so the daily hold painted the 30-row tail page and the full
+  // read then filled it in.
+  it('F1 a failed history keeps the depth due while the full read it queues is in flight; settled once it answers', async () => {
+    let open
+    const w = world({ history: 'throw', tailGate: new Promise((r) => { open = r }), tailGateFrom: 1 })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toHaveLength(1)
+    expect(tailBars(w)).toHaveLength(2)                // the full read left, and waits
+    expect(w.net.deepPending(w.key)).toBe(true)
+    open()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+  })
+
+  it('F1 ...and a full read that fails settles it too (the chart shows its own state; no hold forever)', async () => {
+    let fail
+    const w = world({ history: 'throw', tailGate: new Promise((_, rej) => { fail = rej }), tailGateFrom: 1 })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.net.deepPending(w.key)).toBe(true)
+    fail(Object.assign(new Error('origin down'), { status: 502 }))
+    await vi.advanceTimersByTimeAsync(50)
+    expect(w.net.deepPending(w.key)).toBe(false)
+  })
+
+  // ⭐⭐ (2026-11-28, COV-zo-wm-typed MAT / SPGI / AMH: the hold ran to the 4 s hang guard) A FULL ANSWER SHORTER THAN ITS ASK
+  // IS THE WHOLE LISTING. A zoomed-out view asked more rows than the name has; the answer brought every one of them, and the
+  // depth stayed "due" for a history that adds nothing (or was never asked).
+  it('a full answer shorter than its ask is the whole listing: settled at once, notified, and no history asked', async () => {
+    const w = world({ history: 'hang', listing: 300 })
+    const settled = vi.fn()
+    w.net.subscribeSettled(w.key, settled)
+    w.net.fetchOnce(w.key, { cover: 1400 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([1400])
+    expect(w.registry.getSnapshot(w.key).bars.length).toBeGreaterThanOrEqual(299)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(settled).toHaveBeenCalledTimes(1)
+    expect(histCalls(w)).toHaveLength(0)
+  })
+
+  it('CONTROL: an answer as long as its ask says nothing about older rows: the depth stays due', async () => {
+    const w = world({ history: 'hang' })
+    w.net.fetchOnce(w.key, { cover: 1400 })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([1400])
+    expect(w.net.deepPending(w.key)).toBe(true)
   })
 
   it('CONTROL: a history that lands in time asks no second tail', async () => {
