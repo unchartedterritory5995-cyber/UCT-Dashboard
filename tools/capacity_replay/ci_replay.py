@@ -46,6 +46,11 @@ def run(tmp_path) -> dict:
         raise RuntimeError("build_universe failed")
     # leave about half the cores to the load generator; at most what memory carries (~1.5 GB a process)
     top = max(1, min(cpus // 2, int(mem // 1.5) - 1, 8))
+    # ⭐ The load generator cannot run on another runner in this lane (one job; hosted runners take no inbound
+    # connection from another job), so the runner is SPLIT: bars-api pinned to the first half of the CPUs, the load
+    # generator to the second half (sched_setaffinity). The servers then never lose a core to the clients.
+    half = max(1, cpus // 2)
+    server_cpus, client_cpus = "0-%d" % (half - 1), "%d-%d" % (half, cpus - 1)
     procs = sorted({1, 2, min(4, top), top})
     results = []
     for p in procs:
@@ -53,7 +58,8 @@ def run(tmp_path) -> dict:
         outp = os.path.join(OUT, "topo_p%d.json" % p)
         r = _run([sys.executable, "run_topology.py", "--src", REPO, "--procs", str(p), "--mode", "edge",
                   "--members", members, "--duration", "30", "--ramp", "10", "--shared-socket",
-                  "--shards", str(max(2, min(6, cpus - top))), "--floor-gb", "1.5", "--out", outp], timeout=900)
+                  "--shards", str(max(2, cpus - half)), "--server-cpus", server_cpus, "--client-cpus", client_cpus,
+                  "--floor-gb", "1.5", "--out", outp], timeout=900)
         try:
             results += json.load(open(outp))
         except Exception as e:  # noqa: BLE001
@@ -63,7 +69,7 @@ def run(tmp_path) -> dict:
             break
     keep = ("case", "procs", "members", "roles", "offered_rps", "ok_rps", "p50", "p95", "p99", "sheds_503",
             "timeouts", "errors", "handed_to_leader_pct", "peak_private_mb_per_proc", "min_free_commit_gb",
-            "shared_socket", "cpus", "error", "note")
+            "shared_socket", "cpus", "server_cpus", "client_cpus", "error", "note")
     summary = {"runner": {"cpus": cpus, "mem_gb": round(mem, 1), "store": "synthetic (synth_store.py defaults)"},
                "cases": [{k: x.get(k) for k in keep if k in x} for x in results]}
     # the ceiling per process count: the best OK rate of a case with p99 <= 500 ms and no timeout (a case past the knee

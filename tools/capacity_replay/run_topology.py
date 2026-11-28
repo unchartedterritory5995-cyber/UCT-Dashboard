@@ -38,6 +38,24 @@ def proc_mem(pids):
     return out
 
 
+def _cpus(spec):
+    """'0-3' / '0,2,4' -> a set of CPU ids, or None."""
+    if not spec:
+        return None
+    out = set()
+    for part in str(spec).split(","):
+        a, _, b = part.partition("-")
+        out.update(range(int(a), int(b or a) + 1))
+    return out
+
+
+def _pin(cpus):
+    """A Popen preexec_fn pinning the child (and everything it spawns) to `cpus` (Linux), or None."""
+    if not (LINUX and cpus):
+        return None
+    return lambda: os.sched_setaffinity(0, cpus)
+
+
 def children(pid):
     """Direct child pids (Linux): uvicorn's worker processes under its supervisor."""
     try:
@@ -84,7 +102,7 @@ def start_shared(src, procs, base, data, logdir, tag):
     env["PORT"] = str(base)
     lf = open(os.path.join(logdir, "srv_%s_shared.log" % tag), "w")
     sup = subprocess.Popen([sys.executable, "-m", "api.bars_api_main"], cwd=src, env=env, stdout=lf,
-                           stderr=subprocess.STDOUT)
+                           stderr=subprocess.STDOUT, preexec_fn=_pin(_SERVER_CPUS[0]))
     if health(base, proc=sup) is None:
         raise RuntimeError("the shared-socket supervisor did not come up")
     seen, t_end = {}, time.time() + 90
@@ -95,6 +113,9 @@ def start_shared(src, procs, base, data, logdir, tag):
         except Exception:
             time.sleep(0.2)
     return [sup], [lf], sorted(seen.values())
+
+
+_SERVER_CPUS = [None]
 
 
 def _env(src, procs, base, data):
@@ -125,7 +146,7 @@ def start(src, procs, base, data, logdir, tag):
         lf = open(os.path.join(logdir, "srv_%s_%d.log" % (tag, i)), "w")
         logs.append(lf)
         srv.append(subprocess.Popen([sys.executable, "-c", code % (base + i)], cwd=src, env=env, stdout=lf,
-                                    stderr=subprocess.STDOUT))
+                                    stderr=subprocess.STDOUT, preexec_fn=_pin(_SERVER_CPUS[0])))
         if i == 0:
             time.sleep(4)                                    # the first one takes the leader lock
     roles = []
@@ -158,7 +179,7 @@ def run_case(a, members, logdir):
         cl = [subprocess.Popen([sys.executable, os.path.join(HERE, "replay_members.py"), "--targets", targets,
                                 "--members", str(members), "--duration", str(a.duration), "--ramp", str(a.ramp),
                                 "--mode", a.mode, "--shard", str(s), "--shards", str(shards), "--out", outs[s]],
-                               cwd=HERE) for s in range(shards)]
+                               cwd=HERE, preexec_fn=_pin(_cpus(a.client_cpus))) for s in range(shards)]
         t0, min_free, peak, aborted = time.time(), 99.0, {}, False
         while any(c.poll() is None for c in cl):
             time.sleep(5)
@@ -185,6 +206,7 @@ def run_case(a, members, logdir):
             lf.flush()
         res.update({"case": tag, "mode": a.mode, "members": members, "procs": a.procs, "roles": roles,
                     "shared_socket": bool(a.shared_socket), "cpus": os.cpu_count(),
+                    "server_cpus": a.server_cpus or None, "client_cpus": a.client_cpus or None,
                     "min_free_commit_gb": round(min_free, 1), "aborted_low_mem": aborted,
                     "peak_private_mb_per_proc": sorted(round(v) for v in peak.values()),
                     "wall_s": round(time.time() - t0)})
@@ -215,7 +237,10 @@ def main():
     ap.add_argument("--out", default=None)
     ap.add_argument("--shared-socket", action="store_true", help="uvicorn workers=N on one socket (Linux)")
     ap.add_argument("--shards", type=int, default=0, help="load-generator processes (default 4, 6 above 300)")
+    ap.add_argument("--server-cpus", default="", help="Linux: pin the bars-api processes to these CPUs (e.g. 0-3)")
+    ap.add_argument("--client-cpus", default="", help="Linux: pin the load generator to these CPUs (e.g. 4-7)")
     a = ap.parse_args()
+    _SERVER_CPUS[0] = _cpus(a.server_cpus)
     logdir = os.path.join(HERE, "logs")
     os.makedirs(logdir, exist_ok=True)
     print("free commit at start: %.1f GB" % free_commit_gb(), flush=True)
