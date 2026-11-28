@@ -6,6 +6,7 @@
 //   T3 the store's bars for that key moved on since the hidden chart reported: refused ('stale'), the normal switch
 //   T4 a press of another timeframe than the one held: the normal switch ('shadow-other-tf'); the front takes the tf
 //   T5 a view lock on the front (a range, a pan, Go-to-date) frames a timeframe switch by rules not proved: 'view-lock'
+//   T5c a timeframe refusal on the view logs its view detail (the pressed tf), T5d a flip logs none
 //   T6 change-date mode: never a timeframe flip ('tf-replay')
 //   T7 WITH a list: the hidden layer holds the row ahead at the front's timeframe; a timeframe press is the normal switch
 //      and the hidden row follows the new timeframe (what both layers did before PR 2.1)
@@ -127,6 +128,26 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     panes[0].m = meta(80)
     press(h, { tf: 'W' })
     expect(db.doubleBufferStats().why['view-zoom']).toBe(1)
+  })
+
+  it('T5c a timeframe press refused on the view logs what it compared, framed at the pressed timeframe (#3025 view detail)', async () => {
+    const h = await ready()
+    panes[0].m = meta(80)
+    press(h, { tf: 'W' })
+    const e = db.doubleBufferStats().log.at(-1)
+    expect(e).toMatchObject({ sym: 'AAA@W', why: 'view-zoom', press: 'tf' })
+    expect(e.view, 'the view detail of a timeframe refusal').toBeTruthy()
+    expect(e.view.tf, 'framed at the pressed timeframe').toBe('W')
+    expect(e.view.front).toBeTruthy()
+    expect(e.view.shadow).toBeTruthy()
+  })
+
+  it('T5d CONTROL: a timeframe flip logs no view detail', async () => {
+    const h = await ready()
+    press(h, { tf: 'W' })
+    const e = db.doubleBufferStats().log.at(-1)
+    expect(e).toMatchObject({ why: 'flip', press: 'tf' })
+    expect('view' in e).toBe(false)
   })
 
   it('T6 change-date mode with no list: no hidden chart at a habitual timeframe (it could never flip), the normal switch', async () => {
