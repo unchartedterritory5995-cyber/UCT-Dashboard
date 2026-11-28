@@ -1,0 +1,21 @@
+//@version=6
+indicator("vw-ihtf-grid", overlay = false)
+// E101 INTRADAY-HTF (Q-IHTF-1): a higher intraday timeframe of the chart's own symbol, read above a lower chart.
+// Bucket edges: each read's time and time_close say where its bucket starts and ends on this chart's session.
+plot(request.security(syminfo.tickerid, "60", time), "H01 60 time la-off")
+plot(request.security(syminfo.tickerid, "60", time_close), "H02 60 time_close la-off")
+plot(request.security(syminfo.tickerid, "60", open), "H03 60 open la-off")
+plot(request.security(syminfo.tickerid, "60", high), "H04 60 high la-off")
+plot(request.security(syminfo.tickerid, "60", low), "H05 60 low la-off")
+plot(request.security(syminfo.tickerid, "60", close), "H06 60 close la-off")
+plot(request.security(syminfo.tickerid, "60", volume), "H07 60 volume la-off")
+plot(request.security(syminfo.tickerid, "60", close, lookahead = barmerge.lookahead_on), "H08 60 close la-on")
+plot(request.security(syminfo.tickerid, "240", time), "H09 240 time la-off")
+plot(request.security(syminfo.tickerid, "240", time_close), "H10 240 time_close la-off")
+plot(request.security(syminfo.tickerid, "240", close), "H11 240 close la-off")
+plot(request.security(syminfo.tickerid, "120", time), "H12 120 time la-off")
+plot(request.security(syminfo.tickerid, "120", close), "H13 120 close la-off")
+plot(request.security(syminfo.tickerid, "30", close), "H14 30 close la-off")
+// the w02 value, and the stateful probe: where TradingView's 60 minute history starts (keep the chart's FIRST bars)
+plot(request.security(syminfo.tickerid, "60", ta.ema(close, 50)), "H15 60 ema50 la-off (w02)")
+plot(request.security(syminfo.tickerid, "60", ta.sma(close, 20)), "H16 60 sma20 la-off")
