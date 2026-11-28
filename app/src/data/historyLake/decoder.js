@@ -38,6 +38,12 @@ export { decodePieceColumns, decodeReply } from './decodeCore'
 export const DECODE_WORKER_OFF_KEY = 'uct.historyLake.decodeWorker'
 /** Jobs posted to the worker at once (the rest wait in the page's queue, where an aborted one is dropped). */
 export const WORKER_IN_FLIGHT = 2
+/** ⛔ A POSTED JOB'S DEADLINE. A worker can stop answering with no `onerror` at all (the browser killed it under memory
+ *  pressure, a hung module): every job posted to it, and every one queued behind them, would never settle, so the key's
+ *  lake seed never settled and its chart waited without its deeper history (a short chart). A job unanswered this long
+ *  kills the worker (`die`): it is terminated and every pending and queued job is decoded inline from the caller's bytes,
+ *  each settled exactly once. A piece decodes in 2-27 ms; the bound is generous so a busy page never trips it. */
+export const WORKER_JOB_DEADLINE_MS = 2000
 
 const abortError = (signal) => signal?.reason ?? new DOMException('The load was aborted', 'AbortError')
 
@@ -53,6 +59,8 @@ function workerOff() {
 export function createLakeDecoder({
   makeWorker = typeof Worker === 'function' ? () => new Worker(new URL('./decode.worker.js', import.meta.url), { type: 'module' }) : null,
   disabled = workerOff,
+  deadlineMs = WORKER_JOB_DEADLINE_MS,
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h),
 } = {}) {
   let worker = null
   let ready = false
@@ -60,11 +68,13 @@ export function createLakeDecoder({
   let nextId = 1
   const pending = new Map()   // id -> job, posted to the worker
   const queue = []            // jobs not yet posted (oldest first)
-  const stats = { inline: 0, worker: 0, fallback: 0, urgentInline: 0, dropped: 0 }
+  const stats = { inline: 0, worker: 0, fallback: 0, urgentInline: 0, dropped: 0, deadline: 0 }
+  const disarm = (job) => { if (job.timer != null) { try { clearTimer(job.timer) } catch { /* gone */ } job.timer = null } }
 
   const unlisten = (job) => { if (job.signal && job.onAbort) job.signal.removeEventListener('abort', job.onAbort) }
 
   const settleInline = (p) => {
+    disarm(p)
     unlisten(p)
     if (p.signal?.aborted) { stats.dropped += 1; p.reject(abortError(p.signal)); return }
     stats.fallback += 1
@@ -85,6 +95,8 @@ export function createLakeDecoder({
     const copy = job.body instanceof Uint8Array ? job.body.slice() : new Uint8Array(job.body)
     pending.set(id, job)
     stats.worker += 1
+    // (the deadline: a worker that never answers this job dies, and every job it held settles inline)
+    job.timer = setTimer(() => { job.timer = null; if (pending.get(id) === job) { stats.deadline += 1; die() } }, deadlineMs)
     try {
       worker.postMessage({ id, headerJson: job.headerJson, body: copy }, [copy.buffer])
     } catch { pending.delete(id); stats.worker -= 1; settleInline(job) }
@@ -104,8 +116,9 @@ export function createLakeDecoder({
       const m = e.data || {}
       if (m.ready) { ready = true; return }
       const p = pending.get(m.id)
-      if (!p) return
+      if (!p) return                               // (a job already settled inline: a late answer is dropped)
       pending.delete(m.id)
+      disarm(p)
       unlisten(p)
       if (m.ok) p.resolve(m.cols)
       else p.reject(m.piece ? new PieceError(m.message) : new Error(m.message))

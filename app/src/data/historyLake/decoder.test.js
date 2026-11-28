@@ -28,7 +28,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import fixture from './__fixtures__/source.json'
 import { parsePrefix, PieceError } from './piece'
 import { createHistorySource, HEADER_NAME } from './source'
-import { createLakeDecoder, decodePieceColumns, decodeReply, DECODE_WORKER_OFF_KEY, WORKER_IN_FLIGHT } from './decoder'
+import { createLakeDecoder, decodePieceColumns, decodeReply, DECODE_WORKER_OFF_KEY, WORKER_IN_FLIGHT, WORKER_JOB_DEADLINE_MS } from './decoder'
 import zlib from 'node:zlib'
 
 const bytesOf = (b64) => new Uint8Array(Buffer.from(b64, 'base64'))
@@ -321,5 +321,62 @@ describe('lake pieces decode off the main thread', () => {
     expect(made[0].url).toMatch(/decode\.worker\.js/)
     expect(made[0].opts).toEqual({ type: 'module' })
     vi.resetModules()
+  })
+})
+
+// ⛔ (review follow-up of #2954) A WORKER THAT GOES SILENT: killed under memory pressure with no `onerror`, a hung module.
+//   D1 every job posted to it and every job queued behind them settles INLINE within WORKER_JOB_DEADLINE_MS, each EXACTLY
+//      once, with the inline decode's columns; the worker is terminated and every later decode is inline
+//   D2 CONTROL: a worker that answers (slowly, within the deadline) never trips it
+describe('a worker that never answers (D1, D2)', () => {
+  afterEach(() => { vi.useRealTimers() })
+  function silentWorker() {
+    const w = { posted: 0, terminated: false, onmessage: null, onerror: null, postMessage() { w.posted += 1 }, terminate() { w.terminated = true } }
+    return w
+  }
+  it('D1 its posted and queued jobs settle inline within the deadline, each once; then every decode is inline', async () => {
+    vi.useFakeTimers()
+    const w = silentWorker()
+    const dec = createLakeDecoder({ makeWorker: () => w, disabled: () => false })
+    dec.warm()
+    w.onmessage({ data: { ready: true } })
+    const n = WORKER_IN_FLIGHT + 2
+    const settled = Array.from({ length: n }, () => ({ ok: 0, err: 0, cols: null }))
+    const jobs = Array.from({ length: n }, (_, i) => {
+      const p = pieces[i % pieces.length]
+      const r = dec.decode(p.headerJson, p.body)
+      expect(r, 'non-vacuity: a worker job (a Promise), not inline').toBeInstanceOf(Promise)
+      return r.then((cols) => { settled[i].ok += 1; settled[i].cols = cols }, () => { settled[i].err += 1 })
+    })
+    expect(w.posted, 'non-vacuity: some posted, the rest queued').toBe(WORKER_IN_FLIGHT)
+    await vi.advanceTimersByTimeAsync(WORKER_JOB_DEADLINE_MS - 10)
+    expect(settled.every((s) => s.ok + s.err === 0), 'settled before the deadline').toBe(true)
+    await vi.advanceTimersByTimeAsync(20)
+    await Promise.all(jobs)
+    for (let i = 0; i < n; i++) {
+      expect(settled[i], `job ${i}: settled exactly once, resolved`).toMatchObject({ ok: 1, err: 0 })
+      const p = pieces[i % pieces.length]
+      const want = decodePieceColumns(p.headerJson, p.body)
+      expect(Array.from(settled[i].cols.t)).toEqual(Array.from(want.t))
+    }
+    expect(w.terminated).toBe(true)
+    expect(dec.stats()).toMatchObject({ dead: true, pending: 0, queued: 0, deadline: 1 })
+    // a late answer from the dead worker is dropped (no second settle)
+    w.onmessage?.({ data: { id: 1, ok: true, cols: {} } })
+    await vi.advanceTimersByTimeAsync(10)
+    expect(settled[0].ok).toBe(1)
+    const p0 = pieces[0]
+    expect(dec.decode(p0.headerJson, p0.body), 'later decodes are inline').not.toBeInstanceOf(Promise)
+  })
+  it('D2 CONTROL: a worker answering within the deadline never trips it', async () => {
+    const made = fakeWorkerFactory({ delay: 20 })
+    const dec = createLakeDecoder({ makeWorker: made.make, disabled: () => false, deadlineMs: 500 })
+    dec.warm()
+    await new Promise((r) => setTimeout(r, 5))
+    const p = pieces[0]
+    const got = await dec.decode(p.headerJson, p.body)
+    expect(Array.from(got.t)).toEqual(Array.from(decodePieceColumns(p.headerJson, p.body).t))
+    await new Promise((r) => setTimeout(r, 600))
+    expect(dec.stats()).toMatchObject({ dead: false, deadline: 0 })
   })
 })
