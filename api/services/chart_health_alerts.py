@@ -313,7 +313,8 @@ def _email_second_transport(alert_key, message, recipients):
         pass
 
 
-def emit(alert_key: str, severity: str, message: str, metadata: Optional[dict] = None) -> bool:
+def emit(alert_key: str, severity: str, message: str, metadata: Optional[dict] = None,
+         *, email: bool = True) -> bool:
     """Emit an alert if not throttled. Returns True if emitted. A CRITICAL alert
     also pages Discord (fire-and-forget, own cooldown).
 
@@ -349,7 +350,9 @@ def emit(alert_key: str, severity: str, message: str, metadata: Optional[dict] =
         # severity rule of its own; `()` is the resolver's "no". With
         # `OPS_ALERT_EMAIL_TO` blank — everywhere, today — it is always `()` and
         # nothing below this line happens.
-        recipients = _ops_email_recipients(severity)
+        # `email=False`: the producer asked for no email on THIS alert (owner ruling 2026-11-27,
+        # `loop_stalled` tier 2). It changes nothing about the Discord page above.
+        recipients = _ops_email_recipients(severity) if email else ()
         email = _should_email_second_transport(
             alert_key, now, recipients_present=bool(recipients))
     if page:
