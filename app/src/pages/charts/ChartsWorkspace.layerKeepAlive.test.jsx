@@ -27,6 +27,16 @@
  *   LK14 (red first, F2) a layer switch to a board that is not kept marks the NEW grid (charts-switching: no item
  *        transition on its first layout passes), never the hidden one, and the mark clears; a return to a kept board
  *        marks nothing
+ * Lane G (2026-11-28, plan PR 2.3):
+ *   LK16 (red first) K = 2 (`uct.boardKeepAlive.k`): two boards are kept behind the one in front, and a return to
+ *        either is the same instance; a board past the K-th drops the LEAST RECENTLY SHOWN one, never a newer one
+ *   LK17 (red first) THE FLIP: a return to a kept board renders NEITHER board's grid (the shown one's kept element, the
+ *        hidden one's last element), and the workspace attributes move to the board in front on the DOM
+ *   LK18 (red first) the kept element's handlers are the slot's gate: a hidden board's grid writes nothing; the same
+ *        board shown again writes through the workspace's CURRENT handlers
+ *   LK19 (board tabs, 2026-11-28) NO LEAK across many switches: K = 2, three rounds over four boards; after every
+ *        switch exactly the front board and the K most recently shown boards are mounted (widget instances, board slots
+ *        in the DOM), and every board dropped ran its teardowns
  * Review of #2923:
  *   LK15 (red first, F2-a) two layer switches to new boards in one frame, then back to the first: its grid carries no
  *        mark (the second switch's mark took it off), and after the frames no grid does
@@ -37,7 +47,7 @@ import { vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 
 // every WidgetHost INSTANCE: its mount (a state initialiser), its effect runs and cleanups, and what each render read
-const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {} }))
+const hosts = vi.hoisted(() => ({ created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {}, grids: [], gridProps: {} }))
 vi.mock('./WidgetHost', async () => {
   const { useState, useEffect, useContext } = await import('react')
   const { createPortal } = await import('react-dom')
@@ -90,7 +100,13 @@ vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mo
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
 vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
 vi.mock('react-grid-layout', async () => ({
-  Responsive: ({ children, className }) => <div data-testid="rgl-responsive" className={`react-grid-layout ${className || ''}`}>{children}</div>,
+  // every grid render, by the widget ids it lays out (LK17), and each grid's latest handlers (LK18)
+  Responsive: (props) => {
+    const ids = (Array.isArray(props.children) ? props.children : [props.children]).filter(Boolean).map((c) => String(c.key)).sort().join(',')
+    hosts.grids.push(ids)
+    hosts.gridProps[ids] = props
+    return <div data-testid="rgl-responsive" className={`react-grid-layout ${props.className || ''}`}>{props.children}</div>
+  },
   WidthProvider: (C) => C,
 }))
 vi.mock('../journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -131,15 +147,18 @@ const TWO = { id: 2, name: 'Two Charts', scope: 'user', groups: null, layout: { 
 const INTRA = { id: 3, name: 'Intraday Pair', scope: 'user', groups: null, layout: { widgets: [
   { id: 'chart-5a', type: 'chart', color: 'A', x: 0, y: 0, w: 12, h: 20, opts: { tf: '5' } },
 ], cols: 24 } }
+const FOUR = { id: 4, name: 'Fourth Board', scope: 'user', groups: null, layout: { widgets: [
+  { id: 'chart-4a', type: 'chart', color: 'C', x: 0, y: 0, w: 12, h: 20, opts: { tf: '15' } },
+], cols: 24 } }
 vi.mock('../../hooks/useChartLayouts', () => ({
-  default: () => ({ global: [], mine: [MAIN, TWO, INTRA], isLoading: false, saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {} }),
+  default: () => ({ global: [], mine: [MAIN, TWO, INTRA, FOUR], isLoading: false, saveLayout: async () => ({}), deleteLayout: async () => {}, refresh: () => {} }),
 }))
 
 import ChartsWorkspace from './ChartsWorkspace'
 
 let swrSeq = 0
 beforeEach(() => {
-  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {} })
+  Object.assign(hosts, { created: {}, effects: {}, cleanups: {}, renders: [], ws: {}, swr: {}, vis: {}, swrKey: null, fetches: 0, menuFor: null, swrFor: {}, byKey: {}, grids: [], gridProps: {} })
   try { localStorage.clear() } catch { /* */ }
   globalThis.fetch = vi.fn(async (url) => {
     const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -438,4 +457,101 @@ test('LK15 (red first; review of #2923, F2-a) two layer switches to new boards i
     vi.unstubAllGlobals()
   }
   await settle()
+})
+
+test('LK16 (red first; Lane G) K = 2 keeps two boards behind the front one; past K the least recently shown goes', async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount()
+  await settle()
+  await go('Two Charts')
+  await go('Intraday Pair')
+  expect(host('watchlist-1'), 'MAIN (two boards back) was not kept with K = 2').toBeTruthy()
+  expect(hosts.cleanups['watchlist-1'] || 0).toBe(0)
+  await go('Main Trading')
+  expect(hosts.created['watchlist-1'], 'the return to MAIN mounted it again').toBe(1)
+  expect(hosts.effects['watchlist-1']).toBe(1)
+  expect(slotOf(host('watchlist-1'))?.hasAttribute('inert')).toBe(false)
+  // kept now: INTRA (just left), TWO (least recently shown). A fourth board drops TWO, never INTRA.
+  await go('Fourth Board')
+  expect(hosts.cleanups['chart-1'], 'the least recently shown board (TWO) was not dropped').toBe(1)
+  expect(hosts.cleanups['chart-5a'] || 0, 'a more recently shown board (INTRA) was dropped').toBe(0)
+  expect(hosts.cleanups['watchlist-1'] || 0, 'MAIN (just left) was dropped').toBe(0)
+  await go('Intraday Pair')
+  expect(hosts.created['chart-5a'], 'INTRA came back fresh').toBe(1)
+  // the widget attributes are on the board in front only
+  expect(document.querySelectorAll('[data-widget-id="chart-5a"]').length).toBe(1)
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length, 'a kept board carries data-widget-id').toBe(0)
+})
+
+test('LK17 (red first; Lane G) a return to a kept board renders neither grid; the attributes follow the board in front', async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  await go('Main Trading')
+  await go('Two Charts')
+  await settle()
+  hosts.grids.length = 0
+  await go('Main Trading')
+  expect(hosts.grids.filter((g) => g === 'chart-1,chart-2').length, "the hide re-rendered the leaving board's grid").toBe(0)
+  expect(hosts.grids.filter((g) => g === 'watchlist-1').length, "the show re-rendered the shown board's grid").toBe(0)
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length).toBe(1)
+  expect(document.querySelector('[data-widget-id="watchlist-1"]')?.getAttribute('data-widget-type')).toBe('watchlist')
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length, 'the kept board kept its data-widget-id').toBe(0)
+  expect(document.querySelectorAll('[data-widget-type="chart"]').length, 'the kept board kept its data-widget-type').toBe(0)
+  hosts.grids.length = 0
+  await go('Two Charts')
+  expect(hosts.grids.length, 'the second return rendered a grid').toBe(0)
+  expect(document.querySelectorAll('[data-widget-id="chart-1"]').length).toBe(1)
+  expect(document.querySelectorAll('[data-widget-id="watchlist-1"]').length).toBe(0)
+})
+
+test("LK18 (red first; Lane G) a hidden board's grid writes nothing; shown again it writes through the current handlers", async () => {
+  mount()
+  await settle()
+  await go('Two Charts')
+  const hiddenGrid = hosts.gridProps['watchlist-1']
+  expect(typeof hiddenGrid?.onLayoutChange, 'NON-VACUITY: the kept grid has a layout handler').toBe('function')
+  const moved = (x) => [{ i: 'watchlist-1', x, y: 0, w: 6, h: 8 }]
+  setPref.mockClear()
+  await act(async () => { hiddenGrid.onLayoutChange(moved(3), { lg: moved(3) }) })
+  await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+  const wrote = () => setPref.mock.calls.filter(([k, v]) => k === 'charts_workspace_layout' && String(v).includes('"x":3'))
+  expect(wrote().length, "a hidden board's grid wrote the board").toBe(0)
+  // ...not even a call that names the FRONT board's widgets (the gate, not the ids, is what stops it)
+  const movedFront = [{ i: 'chart-1', x: 9, y: 0, w: 8, h: 20 }, { i: 'chart-2', x: 0, y: 0, w: 8, h: 20 }]
+  await act(async () => { hiddenGrid.onLayoutChange(movedFront, { lg: movedFront }) })
+  await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+  expect(setPref.mock.calls.filter(([k, v]) => k === 'charts_workspace_layout' && String(v).includes('"x":9')).length,
+    "a hidden board's grid moved the board in front").toBe(0)
+  await go('Main Trading')
+  setPref.mockClear()
+  // the very handler object the grid was last rendered with (the flip renders it no more): it reaches the workspace now
+  await act(async () => { hosts.gridProps['watchlist-1'].onLayoutChange(moved(3), { lg: moved(3) }) })
+  await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+  expect(wrote().length, 'the board in front, shown again, did not write through its grid').toBeGreaterThan(0)
+})
+
+test('LK19 (board tabs) many switches over four boards with K = 2: only the front and the K most recent stay mounted', async () => {
+  localStorage.setItem('uct.boardKeepAlive.k', '2')
+  mount()
+  await settle()
+  const BOARDS = { 'Main Trading': MAIN, 'Two Charts': TWO, 'Intraday Pair': INTRA, 'Fourth Board': FOUR }
+  const order = ['Two Charts', 'Intraday Pair', 'Fourth Board', 'Main Trading']
+  const seen = ['Main Trading']
+  for (let round = 0; round < 3; round++) {
+    for (const name of order) {
+      await go(name)
+      seen.unshift(name)
+      const recent = [...new Set(seen)].slice(0, 3)   // the front and the K = 2 most recently shown
+      const want = new Set()
+      for (const n of recent) for (const w of BOARDS[n].layout.widgets) want.add(w.id)
+      const live = Object.keys(hosts.created).filter((id) => (hosts.created[id] || 0) - (hosts.cleanups[id] || 0) > 0)
+      expect(new Set(live), `round ${round}, after ${name}: the mounted widgets`).toEqual(want)
+      for (const id of Object.keys(hosts.created)) {
+        expect((hosts.created[id] || 0) - (hosts.cleanups[id] || 0), `${id} mounted twice (a leak)`).toBeLessThanOrEqual(1)
+      }
+      expect(document.querySelectorAll('[data-board-slot]').length, `round ${round}, after ${name}: board slots in the DOM`).toBe(recent.length)
+    }
+  }
+  expect(hosts.created['chart-1'], 'NON-VACUITY: a dropped board was mounted again later').toBeGreaterThan(1)
 })

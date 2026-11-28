@@ -39,8 +39,16 @@
 //     provider): a chart slot inside a board is hidden whenever ITS layer or the BOARD is not shown, and is told of
 //     both. The layer CSS primitive is `boardLayerProps` (boardLayer.js), one definition for board and slot.
 //
+// ⭐ A KEPT BOARD IS CURRENT TOO (2026-11-28, Lane G): the workspace makes its LAYER board handles `current` and `kept`, so the
+// bar store's base feed of what sits directly under a kept board stays forwarded (above), and a feed that opts in with
+// `forwardWhileShown(vis, notify, catchUp, { idle: true })` (the chart's developing bar) is caught up in an idle task
+// at most once per KEPT_IDLE_CATCHUP_MS while the board is kept (`keptCurrentNow`): a show then has (almost) nothing
+// left to catch up, and what arrived since the last idle pass is still caught up in the show's own task (never a stale
+// frame). A chart SLOT hidden in its own right (the double buffer's shadow) is not kept-current: as before.
+//
 // No provider (today, and with the flag off): the context is null and every chart behaves exactly as before.
 import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 
 export const BoardVisibilityContext = createContext(null)
 
@@ -53,7 +61,7 @@ function afterPaint(fn) {
  *  layer mode's handle (above); without it the handle is the <Activity> mode's, and nothing reads it as paused.
  *  `current`: a hidden layer whose bar BASE feed stays forwarded (forwardWhileCurrent). `parent`: the layer handle of the
  *  board a chart slot sits in: the slot's `state` is the parent's whenever the parent is not shown. */
-export function createBoardVisibility({ layer = false, current = false, parent = null } = {}) {
+export function createBoardVisibility({ layer = false, current = false, parent = null, kept = false } = {}) {
   const disposers = new Set()
   const listeners = new Set()   // feeds, gates, loops, nested handles: told in the change's own task
   const readers = new Set()     // useBoardHidden (React): told in the change's task, or after the paint of a QUIET one
@@ -79,10 +87,14 @@ export function createBoardVisibility({ layer = false, current = false, parent =
   const effective = () => (nested && parent.state !== 'visible' ? parent.state : own)
   return {
     get state() { return effective() },
+    /** This handle's own state, its parent's left out. */
+    get ownState() { return own },
     /** The <Activity> mode (and its rails) writes the state directly: no one is told. */
     set state(v) { own = v },
     layer: !!layer || nested,
     current: !!current,
+    /** (Lane G) a workspace BOARD handle (kept boards are kept current: keptCurrentNow) */
+    kept: !!kept && !nested,
     parent: nested ? parent : null,
     /** Change the state AND tell every reader (`useBoardHidden`, a parked frame loop). `{ quiet: true }`: the readers
      *  (`useBoardHidden`) are told after the next paint; everything else in this task. */
@@ -188,11 +200,14 @@ function idleTask(fn) {
 export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
   if (!vis || !vis.current) return forwardWhileShown(vis, notify, catchUp)
   let cancel = null
+  // (review of #3052, G1) on a KEPT board the hidden re-render rides the board's ONE coalesced, input-quiet catch-up task
+  const keptRun = () => { cancel = null; if (vis.state !== 'disposed' && boardHiddenNow(vis)) notify() }
   const cb = (...args) => {
     // (review of #2918, LOW 1) a disposed slot (still mounted, about to go) schedules no idle re-render
     if (vis.state === 'disposed') return
     if (!boardHiddenNow(vis)) { notify(...args); return }
     if (cancel) return
+    if (keptCurrentNow(vis)) { cancel = queueKeptCatchUp(vis, keptRun); return }
     cancel = idleTask(() => { cancel = null; if (vis.state !== 'disposed') notify() })
   }
   const unVis = vis.subscribe(() => {
@@ -203,6 +218,89 @@ export function forwardWhileCurrent(vis, notify, catchUp = () => notify()) {
     catchUp()
   })
   return { cb, stop: () => { unVis(); if (cancel) { cancel(); cancel = null } } }
+}
+
+/** The longest a kept-current board's opted-in feed waits for its idle catch-up (about once a second). */
+export const KEPT_IDLE_CATCHUP_MS = 1000
+
+/** Is this layer hidden ONLY because it is (on) a kept CURRENT board: a current board handle that is hidden, or a
+ *  nested slot shown in its own right whose board is one? */
+export function keptCurrentNow(vis) {
+  if (!vis || !vis.layer) return false
+  if (vis.parent) return vis.ownState === 'visible' && keptCurrentNow(vis.parent)
+  return !!vis.kept && !!vis.current && vis.state === 'hidden'
+}
+
+/** (review of #3052, G2) no kept board's catch-up runs within this long of a key, pointer or wheel press on the page. */
+export const KEPT_QUIET_MS = 500
+let _lastInput = -Infinity
+let _inputClock = false
+function ensureInputClock() {
+  if (_inputClock || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return
+  _inputClock = true
+  const note = () => { _lastInput = Date.now() }
+  // keys through the shortcut registry (a declared every-key observer: TERM-063 counts raw key listeners)
+  try { registerShortcuts({ 'board.keptQuietClock': note }) } catch { /* registered already: one clock per page */ }
+  const o = { capture: true, passive: true }
+  window.addEventListener('pointerdown', note, o)
+  window.addEventListener('wheel', note, o)
+}
+/** Note a press by hand (the workspace's own switch, a test). */
+export function noteBoardInput(at = Date.now()) { _lastInput = at }
+const _boardQueues = new WeakMap()
+const _stats = { batches: 0, runs: 0, deferredInput: 0 }
+/** What the kept boards' catch-up did on this page: batches (one per board per run), feed runs, deferrals for input. */
+export function keptCatchUpStats() { return { ..._stats } }
+export function __resetKeptCatchUpForTests() { _lastInput = -Infinity; _stats.batches = 0; _stats.runs = 0; _stats.deferredInput = 0 }
+function idleNoTimeout(fn) {
+  // (review of #3052, G2) NO timeout: a kept board's catch-up never forces itself into a busy frame
+  if (typeof requestIdleCallback === 'function') {
+    const id = requestIdleCallback(fn)
+    return () => { try { cancelIdleCallback(id) } catch { /* gone */ } }
+  }
+  const t = setTimeout(fn, 0)
+  return () => clearTimeout(t)
+}
+/**
+ * ⭐ (review of #3052, G1 + G2) A KEPT board's hidden catch-ups, COALESCED: every feed on the board (its handle, or a
+ * nested slot's parent) queues its run here, and the board runs them all in ONE idle task, at most once per
+ * KEPT_IDLE_CATCHUP_MS, never within KEPT_QUIET_MS of a press, in an idle callback with no timeout. The show's own
+ * synchronous catch-up is unchanged (each feed's subscribe). Returns the feed's cancel.
+ */
+export function queueKeptCatchUp(vis, fn) {
+  ensureInputClock()
+  const board = vis.parent || vis
+  let q = _boardQueues.get(board)
+  if (!q) {
+    q = { fns: new Set(), timer: null, cancelIdle: null, last: 0 }
+    _boardQueues.set(board, q)
+    board.subscribe(() => {
+      // shown or disposed: nothing is left for the idle task (the show catches up in its own task)
+      if (board.state === 'hidden') return
+      if (q.timer != null) { clearTimeout(q.timer); q.timer = null }
+      if (q.cancelIdle) { q.cancelIdle(); q.cancelIdle = null }
+      q.fns.clear()
+    })
+  }
+  q.fns.add(fn)
+  const arm = (ms) => {
+    q.timer = setTimeout(() => {
+      q.timer = null
+      q.cancelIdle = idleNoTimeout(() => {
+        q.cancelIdle = null
+        const quietLeft = _lastInput + KEPT_QUIET_MS - Date.now()
+        if (quietLeft > 0) { _stats.deferredInput++; arm(quietLeft); return }
+        const fns = [...q.fns]
+        q.fns.clear()
+        q.last = Date.now()
+        if (!fns.length) return
+        _stats.batches++
+        for (const f of fns) { _stats.runs++; try { f() } catch { /* one feed never stops the board's others */ } }
+      })
+    }, Math.max(0, ms))
+  }
+  if (q.timer == null && !q.cancelIdle) arm(Math.max(q.last + KEPT_IDLE_CATCHUP_MS - Date.now(), _lastInput + KEPT_QUIET_MS - Date.now(), 0))
+  return () => { q.fns.delete(fn) }
 }
 
 /** A chart slot's own layer handle inside the board this component sits on (nested: hidden whenever the board is),
@@ -218,19 +316,38 @@ export function useNestedBoardVisibility({ current = false } = {}) {
  *  (or disposed) the feed stays subscribed and the call is only NOTED, and the show runs `catchUp` (default: `notify`
  *  with no argument) once, synchronously in its own task, when anything was noted. No layer handle: `notify` itself.
  *  Returns { cb, stop }: subscribe the feed with `cb`, and call `stop` with the feed's own unsubscribe. */
-export function forwardWhileShown(vis, notify, catchUp = () => notify()) {
+export function forwardWhileShown(vis, notify, catchUp = () => notify(), { idle = false } = {}) {
   if (!vis) return { cb: notify, stop: () => {} }
   let missed = false
+  let cancel = null
+  // (Lane G; review of #3052, G1) `idle`: on a kept current board the catch-up rides the BOARD's one catch-up task, at
+  // most once per KEPT_IDLE_CATCHUP_MS and never within KEPT_QUIET_MS of a press (queueKeptCatchUp)
+  const run = () => {
+    cancel = null
+    if (!missed || !keptCurrentNow(vis)) return
+    missed = false
+    catchUp()
+  }
+  const idleCatchUp = () => {
+    if (cancel) return
+    cancel = queueKeptCatchUp(vis, run)
+  }
   const cb = (...args) => {
-    if (boardHiddenNow(vis)) { missed = true; return }
+    if (boardHiddenNow(vis)) {
+      missed = true
+      if (idle && keptCurrentNow(vis)) idleCatchUp()
+      return
+    }
     notify(...args)
   }
-  const stop = vis.subscribe(() => {
-    if (!missed || vis.state !== 'visible') return
+  const unVis = vis.subscribe(() => {
+    if (vis.state !== 'visible') return
+    if (cancel) { cancel(); cancel = null }
+    if (!missed) return
     missed = false
     catchUp()
   })
-  return { cb, stop }
+  return { cb, stop: () => { unVis(); if (cancel) { cancel(); cancel = null } } }
 }
 
 const NO_SUBSCRIBE = () => () => {}

@@ -440,7 +440,8 @@ export function useBarSnapshotBars({
       _storeDevRef.current = viewDevelopingOf(s, base, _devViewRef.current)
       try { _storeDevPaintRef?.current?.() } catch { /* a paint failure never breaks the feed */ }
     }
-    const f = forwardWhileShown(_layerBoard, onDev, () => { const s = store.getSnapshot(key); if (s) onDev(s) })
+    // (Lane G) a KEPT current board paints its developing bar in an idle task about once a second
+    const f = forwardWhileShown(_layerBoard, onDev, () => { const s = store.getSnapshot(key); if (s) onDev(s) }, { idle: true })
     const off = store.subscribeDeveloping(key, f.cb)
     return () => { f.stop(); off() }
   }, [key, store, _layerBoard])  // eslint-disable-line react-hooks/exhaustive-deps

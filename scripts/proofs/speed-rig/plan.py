@@ -9,7 +9,7 @@ every stocks, test using different ones each time to make sure they are cold"), 
   (d) typed D and W zoomed out to 2014 on a single chart
   (e) a past date (1/3/2006) through the Time Navigator on D and 15m, arrows and typed
   (f) memory after 50 arrows over a fresh 51-ticker list
-43 passes, 449 tickers (37 + the 4 timeframe-change passes, lane C, + the 2 re-open passes). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
+44 passes, 462 tickers (37 + the 4 timeframe-change passes, lane C, + the 2 re-open passes, + the kept-board arrows pass). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
 the sweep starts: no ticker is shared between two passes of a sweep, nor between two sweeps (or a sweep and a PC run)
 inside the REUSE WINDOW (REUSE_AFTER_DAYS, 14 by default, 2026-11-28): never-used tickers are handed out first, then
 names whose last run is older than the window. A reused name is cold on the CLIENT (every pass's browser profile is
@@ -70,6 +70,9 @@ def passes() -> list[dict]:
         add(f"COV-{zk}-tabs", [f"--board={BOARDS_DIR}/test-board.json", f"--tab-b={BOARDS_DIR}/tc2000-board.json", "--tab-b-ids=own",
                                "--pattern=tabs", "--flips=20", "--dwell=2500", "--stale-check=1", "--tab-diag=1", "--mem-probe=1", *za, *J],
             3, 0, "tabs", "tabs", zk)
+    # (review of #3052) the default arrows with a KEPT board ticking behind the board pressed on (tab B visited first)
+    add("COV-def-kept-arrows", [f"--board={BOARDS_DIR}/test-board.json", f"--tab-b={BOARDS_DIR}/tc2000-board.json", "--tab-b-ids=own",
+                                "--kept-tab=1", "--pattern=down", "--flips=12", "--dwell=1000", *J], 13, 0, "arrows", "kept", "def")
     # (2026-11-28, the busy-time attribution of #2954) RE-OPENS: 3 cold typed Enters, then the same 3 again (the PC rig's
     # typed list), so a switch back to a symbol this browser already drew is measured and, with cpu_profile=3,4,5, profiled
     for k in ("dd", "m5h1"):
@@ -169,8 +172,10 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra.append("--typed=" + ",".join(seq))
         if pk.get("reused"):
             extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
-        if p["kind"] == "tabs":
-            extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
+        if p["kind"] == "tabs" or "--kept-tab=1" in p["args"]:
+            # (review of #3052) the kept-board arrows pass makes tab layouts too: its own suffix, never the tab pass's
+            tag = "kept" if "--kept-tab=1" in p["args"] else p["zoom"]
+            extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{tag}")
         # --cpu-profile=i,j: a CPU profile of those switches, written beside the record as <name>.flip<i>.cpuprofile and
         # uploaded with it. The rig names it per pattern: --cpuprofile (arrows: 700 ms after the key; a tab click: 1.5 s) and
         # --typed-profile (a typed Enter: 1.5 s); both are passed, each pattern reads its own
@@ -217,22 +222,22 @@ def self_check() -> None:
     assert {"--cpuprofile=3,4,5", "--typed-profile=3,4,5"} <= set(ra["args"]) and "--pattern=typed" in ra["args"]
     allp = passes()
     names = [p["name"] for p in allp]
-    assert len(names) == 43 and len(set(names)) == 43, len(names)
+    assert len(names) == 44 and len(set(names)) == 44, len(names)
     need = sum(p["list"] + p["typed"] for p in allp)
-    assert need == 449, need
+    assert need == 462, need
     led = L.empty()
-    led["pool"]["tickers"] = [f"T{i:04d}" for i in range(1000)]
+    led["pool"]["tickers"] = [f"T{i:04d}" for i in range(1100)]
     led["runs"] = [{"id": "pc/x", "at": L.now(), "tickers": [f"T{i:04d}" for i in range(100)]}]
 
     class A:
         sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days = "s1", ".*", 0, "browser", 1, 8, False, None
     plan, led2 = build(A, json.loads(json.dumps(led)))
     got = [t for p in plan["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
-    assert len(got) == 449 and len(set(got)) == 449, "two passes share a ticker"
+    assert len(got) == 462 and len(set(got)) == 462, "two passes share a ticker"
     assert not set(got) & {f"T{i:04d}" for i in range(100)}, "a ticker an earlier run used was handed out"
     # browser lanes on ONE account: PER_ACCOUNT lanes, every pass once, never more lanes per account than it may carry
     flat1 = [n for ln in plan["lanes"] for n in ln["passes"]]
-    assert len(led2["runs"]) == 1 + 43 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
+    assert len(led2["runs"]) == 1 + 44 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
     assert sorted(flat1) == sorted(names) and {ln["slot"] for ln in plan["lanes"]} == {1}
     A.sweep_id, A.accounts = "s1b", 4
     planb, _ = build(A, json.loads(json.dumps(led)))
@@ -269,12 +274,12 @@ def self_check() -> None:
     allr = [t for p in planr["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
     reused = [t for p in planr["passes"].values() for t in p["tickers"]["reused"]]
     nums = lambda ts: {int(t[1:]) for t in ts}  # noqa: E731
-    assert len(allr) == 449 and len(set(allr)) == 449
+    assert len(allr) == 462 and len(set(allr)) == 462
     assert nums([t for t in allr if t not in reused]) == set(range(400, 600)), "the never-used names did not all go first"
-    assert len(reused) == 249 and nums(reused) <= set(range(0, 300)), "a reused name was not an old one"
+    assert len(reused) == 262 and nums(reused) <= set(range(0, 300)), "a reused name was not an old one"
     assert not nums(allr) & set(range(300, 400)), "a name used inside the window was handed out"
     runs = {r["id"]: r for r in ledr2["runs"]}
-    assert sum(len(r.get("reused", [])) for r in runs.values()) == 249
+    assert sum(len(r.get("reused", [])) for r in runs.values()) == 262
     for p in planr["passes"].values():
         if p["tickers"]["reused"]:
             assert any(a == "--reused=" + ",".join(p["tickers"]["reused"]) for a in p["args"]), "the rig is not told which names are reused"
@@ -291,7 +296,7 @@ def self_check() -> None:
     plan4, _ = build(A, json.loads(json.dumps(led)))
     flat = [n for ln in plan4["lanes"] for n in ln["passes"]]
     assert sorted(flat) == sorted(names) and len(plan4["lanes"]) == 3 and plan4["maxParallel"] == 3
-    print("plan self-check: ok (43 passes, 449 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window, at most 2 browsers per account)")
+    print("plan self-check: ok (44 passes, 462 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window, at most 2 browsers per account)")
 
 
 def main() -> int:

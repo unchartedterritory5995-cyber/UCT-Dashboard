@@ -5,6 +5,9 @@
 //   B2 (red first; B6) while hidden the hook returns the snapshot it held at the hide, whatever the store does
 //      meanwhile; after the show no render returns the held one
 //   B3 the <Activity> mode's handle (no `layer`) and no handle at all change nothing
+//   B5 (red first; board tabs, 2026-11-28) a KEPT current board (the layer keep-alive's LRU) is current while hidden: a
+//      store change reaches the hook in an idle catch-up within KEPT_IDLE_CATCHUP_MS, never in the change's own task,
+//      and the show returns the store's snapshot of that moment in its own task (never a stale bar on the shown board)
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useBarSnapshot } from './useBarSnapshot'
@@ -100,5 +103,29 @@ describe('useBarSnapshot on a hidden layer board', () => {
       expect(s.network.stats().keys).toBe(1)
       view.unmount()
     }
+  })
+
+  it('B5 (red first) a kept current board catches up while hidden and shows the current snapshot in the show task', async () => {
+    vi.useFakeTimers()
+    const { KEPT_IDLE_CATCHUP_MS } = await import('../../components/chart/boardVisibility')
+    const { s } = store()
+    const vis = createBoardVisibility({ layer: true, current: true, kept: true })
+    let renders = 0
+    const wrapper = ({ children }) => <BoardVisibilityContext.Provider value={vis}>{children}</BoardVisibilityContext.Provider>
+    const view = renderHook(() => { renders++; return useBarSnapshot(K, { store: s }) }, { wrapper })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    act(() => { s.applyLive(K, LIVE(1762786800, 1)) })
+    act(() => { vis.set('hidden') })
+    const before = renders
+    act(() => { s.applyLive(K, LIVE(1762787100, 2)) })
+    expect(renders - before, "a kept board re-rendered in the store change's own task").toBe(0)
+    await act(async () => { await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS + 100) })
+    expect(view.result.current, 'a kept current board did not catch up while hidden').toBe(s.getSnapshot(K))
+    // a change after the last idle pass: the show reads it in its own task
+    act(() => { s.applyLive(K, LIVE(1762787400, 3)) })
+    act(() => { vis.set('visible') })
+    expect(view.result.current, 'the show of a kept board returned a stale snapshot').toBe(s.getSnapshot(K))
+    expect(view.result.current?.developing?.c ?? view.result.current?.bars?.at(-1)?.c, 'NON-VACUITY: the newest bar').toBe(3)
+    view.unmount()
   })
 })

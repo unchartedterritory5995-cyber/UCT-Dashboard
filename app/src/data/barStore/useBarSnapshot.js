@@ -7,7 +7,7 @@
 
 import { useCallback, useRef, useSyncExternalStore } from 'react'
 import { getBarStore } from './index'
-import { boardHiddenNow, forwardWhileCurrent, forwardWhileShown, useLayerBoard } from '../../components/chart/boardVisibility'
+import { boardHiddenNow, forwardWhileCurrent, forwardWhileShown, keptCurrentNow, useLayerBoard } from '../../components/chart/boardVisibility'
 
 /**
  * @param {string|null} key   a barStore key (types.keyOf) or null (nothing subscribed)
@@ -29,17 +29,18 @@ export function useBarSnapshot(key, { depth = 0, session = 'rth', priority = 'vi
   const sub = useCallback((cb) => {
     if (!key) return () => {}
     // a CURRENT layer (the double-buffered row) keeps its BASE feed: re-rendered in an idle task while hidden
-    const f = base && layer?.current ? forwardWhileCurrent(layer, cb) : forwardWhileShown(layer, cb)
+    // (Lane G) on a KEPT current board every other feed is caught up in an idle task about once a second
+    const f = base && layer?.current ? forwardWhileCurrent(layer, cb) : forwardWhileShown(layer, cb, undefined, { idle: true })
     const off = s.subscribe(key, f.cb, { depth, session, priority, wake: base ? 'base' : 'all' })
     return () => { f.stop(); off() }
   }, [s, key, depth, session, priority, base, layer])
   const get = useCallback(() => {
     if (!key) return null
     const held = heldRef.current
-    if (layer && held && held.key === key && boardHiddenNow(layer) && !(base && layer.current)) return held.snap
+    if (layer && held && held.key === key && boardHiddenNow(layer) && !(base && layer.current) && !keptCurrentNow(layer)) return held.snap
     return base ? s.getBaseSnapshot(key) : s.getSnapshot(key)
   }, [s, key, base, layer])
   const snap = useSyncExternalStore(sub, get, get)
-  if (!layer || !boardHiddenNow(layer)) heldRef.current = { key, snap }
+  if (!layer || !boardHiddenNow(layer) || keptCurrentNow(layer)) heldRef.current = { key, snap }
   return snap
 }

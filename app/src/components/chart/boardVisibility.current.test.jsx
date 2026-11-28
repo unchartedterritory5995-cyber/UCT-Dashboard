@@ -218,3 +218,100 @@ describe('the double-buffered row handle API, disposal (review of #2918)', () =>
     expect(onParent, 'a late subscribe made the disposed slot follow its board again').toBe(0)
   })
 })
+
+// ⭐ (2026-11-28, Lane G) a KEPT board is current: its opted-in feeds catch up in idle time
+//   KC1 (red first) forwardWhileShown(..., { idle: true }) on a hidden KEPT current board handle: the catch-up runs in an
+//       idle task (never in the feed's own task), at most once per KEPT_IDLE_CATCHUP_MS; a nested slot shown in its own
+//       right under it likewise; a slot hidden in its own right (the double buffer's shadow), a plain current layer (no
+//       `kept`) and a feed that did not opt in stay held to the show; the show catches up what arrived since, in its task
+describe('a kept board is current (Lane G)', () => {
+  it('KC1 (red first) opted-in feeds on a kept current board catch up in idle time, about once a second', async () => {
+    vi.useFakeTimers()
+    const { KEPT_IDLE_CATCHUP_MS, keptCurrentNow } = await import('./boardVisibility')
+    const board = createBoardVisibility({ layer: true, current: true, kept: true })
+    const front = createBoardVisibility({ layer: true, current: true, parent: board })
+    const shadow = createBoardVisibility({ layer: true, current: true, parent: board })
+    shadow.state = 'hidden'
+    const plain = createBoardVisibility({ layer: true, current: true })
+    const n = { board: 0, front: 0, shadow: 0, plain: 0, optOut: 0 }
+    const feed = (vis, k, idle = true) => forwardWhileShown(vis, () => { n[k]++ }, undefined, { idle })
+    const f = { board: feed(board, 'board'), front: feed(front, 'front'), shadow: feed(shadow, 'shadow'), plain: feed(plain, 'plain'), optOut: feed(board, 'optOut', false) }
+    board.set('hidden'); plain.set('hidden')
+    expect(keptCurrentNow(board)).toBe(true)
+    expect(keptCurrentNow(front)).toBe(true)
+    expect(keptCurrentNow(shadow), 'a slot hidden in its own right is kept-current').toBe(false)
+    expect(keptCurrentNow(plain), 'a plain current layer (no kept) is kept-current').toBe(false)
+    for (const k of Object.keys(f)) f[k].cb()
+    expect(n, 'a hidden board was caught up in the feed\'s own task').toEqual({ board: 0, front: 0, shadow: 0, plain: 0, optOut: 0 })
+    await vi.advanceTimersByTimeAsync(600)
+    expect(n).toEqual({ board: 1, front: 1, shadow: 0, plain: 0, optOut: 0 })
+    // a burst right after: the next idle catch-up waits out the second since the last one (600 ms ago)
+    for (let i = 0; i < 5; i++) f.board.cb()
+    await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS / 4)
+    expect(n.board, 'the idle catch-up ran more than once a second').toBe(1)
+    await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS)
+    expect(n.board, 'one catch-up for the whole burst').toBe(2)
+    // what arrived since the last idle pass is caught up by the show, in its own task
+    f.board.cb(); f.front.cb()
+    board.set('visible')
+    expect(n.board, 'the show did not catch up the board\'s pending call').toBe(3)
+    expect(n.front).toBe(2)
+    expect(n.optOut, 'a feed that did not opt in was not caught up at the show').toBe(1)
+    await vi.advanceTimersByTimeAsync(3 * KEPT_IDLE_CATCHUP_MS)
+    expect(n.board, 'a cancelled idle catch-up ran after the show').toBe(3)
+    for (const k of Object.keys(f)) f[k].stop()
+  })
+})
+
+// ⭐ (review of #3052, G1-G3) THE KEPT BOARDS' CATCH-UP STAYS OUT OF A PRESS
+//   KC2 (red first) K = 2 kept boards ticking (three feeds each, both forwarders): a key press on the page means no
+//       kept-board catch-up runs for KEPT_QUIET_MS after it; then each board catches up in ONE task (all its feeds in
+//       the same batch), at most once per KEPT_IDLE_CATCHUP_MS
+describe('kept boards stay out of a press (review of #3052)', () => {
+  it('KC2 (red first) no kept-board catch-up between a key and the quiet; one task per board', async () => {
+    vi.useFakeTimers()
+    const M = await import('./boardVisibility')
+    M.__resetKeptCatchUpForTests()
+    const boards = [0, 1].map(() => M.createBoardVisibility({ layer: true, current: true, kept: true }))
+    const runs = []   // [board, feed, batch]
+    const feeds = []
+    boards.forEach((b, bi) => {
+      const slot = M.createBoardVisibility({ layer: true, current: true, parent: b })
+      const rec = (fi) => () => { runs.push([bi, fi, M.keptCatchUpStats().batches]) }
+      feeds.push(M.forwardWhileShown(b, rec(0), undefined, { idle: true }))
+      feeds.push(M.forwardWhileShown(slot, rec(1), undefined, { idle: true }))
+      feeds.push(M.forwardWhileCurrent(b, rec(2)))
+      b.set('hidden')
+    })
+    const tick = () => { for (const f of feeds) f.cb() }
+    // quiet page: the ticks catch up (non-vacuity)
+    tick()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(runs.length, 'NON-VACUITY: a quiet page caught the kept boards up').toBe(6)
+    runs.length = 0
+    // a key press, the boards ticking every 100 ms through it
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
+    const pressAt = Date.now()
+    for (let t = 0; t < M.KEPT_QUIET_MS; t += 100) { tick(); await vi.advanceTimersByTimeAsync(100) }
+    expect(runs.filter(() => Date.now() - pressAt <= M.KEPT_QUIET_MS).length, 'a kept board caught up within the quiet after a press').toBe(0)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(runs.length, 'the boards did not catch up after the quiet').toBe(6)
+    for (const bi of [0, 1]) {
+      const batches = new Set(runs.filter((r) => r[0] === bi).map((r) => r[2]))
+      expect(batches.size, `board ${bi} caught up in more than one task`).toBe(1)
+    }
+    // shown WHILE a catch-up is pending, then hidden again: the board's feeds go on catching up (a show leaves no feed
+    // blocked behind the catch-up it cancelled)
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS)
+    tick()
+    boards[0].set('visible'); boards[0].set('hidden')
+    runs.length = 0
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS)
+    tick()
+    await vi.advanceTimersByTimeAsync(M.KEPT_IDLE_CATCHUP_MS + 50)
+    expect(runs.filter((r) => r[0] === 0).length, 'after a show and a hide, the board no longer catches up').toBe(3)
+    for (const f of feeds) f.stop()
+  })
+})
+
