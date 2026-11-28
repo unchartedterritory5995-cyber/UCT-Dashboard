@@ -280,6 +280,20 @@ def http_counts(rec: dict) -> dict:
             out['known'] += 1
             if rs in (429, 503):
                 out[str(rs)] += 1
+    if out['known']:
+        return out
+    # a record made before allRes kept the status: the per-switch fetch hooks' own status (phase.req[].st), which see
+    # only the requests in each switch's window (deduplicated across the overlapping windows), so a lower bound
+    seen = {}
+    for f in rec.get('flips') or []:
+        ph = (f or {}).get('phase') or {}
+        for r in ph.get('req') or []:
+            if isinstance(r, dict) and isinstance(r.get('st'), int):
+                seen[(r.get('u'), round((ph.get('key') or 0) + (r.get('call') or 0)))] = r['st']
+    for st in seen.values():
+        out['known'] += 1
+        if st in (429, 503):
+            out[str(st)] += 1
     return out
 
 
@@ -516,6 +530,9 @@ def self_check() -> None:
     assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'P A -> P B' in t, t
     hc = http_counts({'allRes': [{'rs': 200}, {'rs': 429}, {'rs': 429}, {'rs': 503}, {'rs': 0}, {}]})
     assert hc == {'429': 2, '503': 1, 'known': 4}, hc
+    ph = {'flips': [{'phase': {'key': 1000, 'req': [{'u': '/a', 'call': -5, 'st': 429}, {'u': '/b', 'call': 1, 'st': 503}]}},
+                    {'phase': {'key': 2000, 'req': [{'u': '/a', 'call': -1005, 'st': 429}, {'u': '/c', 'call': 1, 'st': 200}]}}]}
+    assert http_counts(ph) == {'429': 1, '503': 1, 'known': 3}, http_counts(ph)   # the same /a request seen by two windows: once
     print('grade self-check: ok (http 429/503 counted; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart; A/B table)')
 
 
