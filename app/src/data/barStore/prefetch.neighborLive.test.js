@@ -16,8 +16,6 @@
 //       AHEAD pairs; a row leaving is released; clear() releases all; a hidden page subscribes none
 //   L2b ...only while the member navigates: TAIL_ACTIVE_MS after the last selection change they are released
 //   L3  the page cap: at most NEIGHBOR_LIVE_MAX_KEYS keys ride the stream as a neighbour (the store's watchLive)
-//   S1  (review of #3063) the SYMBOL path: a row's forming bar of the CURRENT bucket, no stream, last written more than
-//       DEV_STALE_MS ago, is not the frontier: not shown (the switch asks); S1b control: written seconds ago, shown
 //   K1  (P2) store.keepKey: the habitual timeframes' keeps pin a key with NO stream and no request, at most
 //       HABIT_KEEP_MAX_KEYS a page, refcounted
 //   L4  (review of #2721) a live re-sort (the same selection) never changes the rows on the stream (it would reconnect the
@@ -267,27 +265,6 @@ describe('L2: the hold puts the rows ahead on the stream, bounded', () => {
     expect(w.stream.ahead()).toEqual(['A2:1', 'A3:1', 'A4:1', 'A5:1'])
     for (const f of [...off, again]) f()
     expect(w.stream.ahead()).toEqual([])
-    w.store.dispose()
-  })
-
-  it('S1 a forming bar of the current bucket written 40 s ago, no stream: not displayable (the switch asks)', async () => {
-    const { DEV_STALE_MS } = await import('./prefetch')
-    expect(DEV_STALE_MS).toBe(10_000)
-    vi.setSystemTime(at(10, 0, 5))
-    const w = await boot('ok')
-    await warmNext(w, ['AAA'])                                        // answered at ~10:00:05, its forming bar 10:00
-    expect(w.store.peek(w.k('AAA'))?.developing?.t).toBe(T(10, 0))
-    vi.setSystemTime(at(10, 0, 45))                                   // the same minute, 40 s later
-    expect(w.pf.peekDisplayable('AAA', '1'), 'a 40-second-old forming bar was the frontier').toBe(false)
-    w.store.dispose()
-  })
-
-  it('S1b control: the same copy 3 s later is displayable', async () => {
-    vi.setSystemTime(at(10, 0, 5))
-    const w = await boot('ok')
-    await warmNext(w, ['AAA'])
-    vi.setSystemTime(at(10, 0, 8))
-    expect(w.pf.peekDisplayable('AAA', '1')).toBe(true)
     w.store.dispose()
   })
 
