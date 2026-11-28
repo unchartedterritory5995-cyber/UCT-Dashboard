@@ -86,6 +86,29 @@ test('a prefix re-typed after a timeframe change, told only as candidates, warms
   expect(poolWarm.mock.calls.map((c) => c[1])).toEqual(['D', '5'])
 })
 
+// (2026-11-28, after #2947: charts at any date) a chart the date box sent to a past date reads, on intraday, the window
+// ending there: the pane gives the pool THAT window (chart/viewWindow viewWindowOfMemberDate of the member's date), so
+// the candidates are warmed at the key the press will read; at the present, or on D/W/M, no window
+test('at a date, the pool is given the window the chart reads there (intraday); none at the present or on D', async () => {
+  const { PaintMemberContext } = await import('../paintLog')
+  const { noteMemberDate } = await import('../viewDate')
+  const member = {}
+  const pane = (tf) => (
+    <PaintMemberContext.Provider value={member}><ChartPane sym="NVDA" tf={tf} onTfChange={() => {}} onSymbolChange={vi.fn()} /></PaintMemberContext.Provider>
+  )
+  const view = render(pane('5'))
+  chartSearch().onTypedCandidates(['AMZN', 'AMD'])
+  expect(poolWarm.mock.calls.at(-1)[2]?.viewWindow ?? null).toBe(null)          // at the present: the plain key
+  noteMemberDate(member, { rightMs: Date.UTC(2026, 9, 15, 12), width: 120, offset: 0, tf: '5' })
+  chartSearch().onTypedCandidates(['AMZN', 'AMD', 'AMAT'])
+  const vw = poolWarm.mock.calls.at(-1)[2]?.viewWindow
+  expect(vw && new Date(vw.to * 1000).toISOString().slice(0, 10)).toBe('2026-10-15')
+  view.rerender(pane('D'))
+  chartSearch().onTypedCandidates(['AMZN'])
+  expect(poolWarm.mock.calls.at(-1)[2]?.viewWindow ?? null).toBe(null)          // D at a date reads the plain key
+  noteMemberDate(member, null)
+})
+
 test('CONTROL: other text told through onTypedIntent still takes the typed slot', () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   chartSearch().onTypedCandidates(['AMZN'])

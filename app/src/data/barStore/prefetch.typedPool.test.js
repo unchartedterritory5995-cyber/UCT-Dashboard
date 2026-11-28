@@ -165,6 +165,33 @@ describe('the pool warms the likeliest completions at once, from the device and 
     expect(primed.sort()).toEqual([w.k('CRM', '5'), w.k('CRWD', '5')])
     expect(origin(w)).toEqual([])
   })
+
+  // (2026-11-28, after #2947: charts at any date) A chart the date box sent to a past date reads, on intraday, the WINDOW
+  // ending there (chart/viewWindow, the `@to=` key), never the plain key: the pool warms THAT key for each candidate, as
+  // the date's list warm does (prefetchViewWindow), or the press at the date meets a cold window
+  it('intraday at a date: each candidate is warmed at the window key the chart reads there, never the plain key', async () => {
+    const w = await boot()
+    const primed = []
+    w.store.primeLake = (k) => { primed.push(k) }
+    const to = Date.UTC(2026, 9, 15, 12) / 1000   // noon UTC: ET 2026-10-15 (chart/viewWindow viewWindowOfDate)
+    w.pf.warmTypedCandidates(['CRM', 'CRWD'], '5', { viewWindow: { to } })
+    await turns(w)
+    expect(origin(w).map((c) => `${c.q.sym} ${c.q.tf} to=${c.q.to}`).sort()).toEqual(['CRM 5 to=2026-10-15', 'CRWD 5 to=2026-10-15'])
+    expect(primed).toEqual([])                     // the plain keys' lake is not what the chart reads at the date
+    expect(w.pf.peek(w.pf.keyFor('CRM', '5', { window: { to } }))?.restSeen).toBe(true)
+    const n = w.server.calls.length
+    w.pf.warmTypedCandidates(['CRM', 'CRWD'], '5', { viewWindow: { to } })   // the list kept: nothing asked again
+    await turns(w)
+    expect(w.server.calls.length).toBe(n)
+  })
+
+  it('CONTROL: D/W/M at a date read the plain key, so a window given there changes nothing (the edge history, no tail)', async () => {
+    const w = await boot()
+    w.pf.warmTypedCandidates(['CRBG'], 'D', { viewWindow: { to: Date.UTC(2026, 9, 15, 12) / 1000 } })
+    await turns(w)
+    expect(hist(w).map(what)).toEqual(['CRBG history D d=2026-11-09'])
+    expect(origin(w)).toEqual([])
+  })
 })
 
 // (review of #2979) THE POOL, THE TYPED SLOT AND ITS LINKED CHARTS NEVER EVICT EACH OTHER'S PRIMES: network.deepPrime keeps
