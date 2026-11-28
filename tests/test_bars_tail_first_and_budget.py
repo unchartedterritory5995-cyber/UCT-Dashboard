@@ -443,10 +443,12 @@ def test_F1_replay_older_era_in_store_sheds_while_the_window_is_landing(monkeypa
 
 
 def test_F1_CONTROL_a_finished_fetch_that_never_reached_the_window_is_not_pinned(monkeypatch):
+    # (review of #3011, F2) two small empty rounds prove nothing (a vendor gap, not the series' start), so the window
+    # stays unproven: never the other era's rows, and never a 1 h pin; the warming 503 says re-poll
     _replay_env(monkeypatch, _era_rows(), lambda *a, **k: [])
     resp = bars_fetch._get_bars_to_response("ZZERA2", "5", 500, "2015-03-02")
-    assert resp.status_code == 200
-    assert resp.headers.get("Cache-Control") == "public, max-age=30"
+    assert resp.status_code == 503 and resp.headers.get("X-Bars-Shed") == "warming"
+    assert "max-age=3600" not in (resp.headers.get("Cache-Control") or "")
 
 
 def test_F3_interactive_daily_waits_briefly_for_a_slot_instead_of_shedding(monkeypatch):

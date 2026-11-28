@@ -38,7 +38,7 @@ def store(tmp_path, monkeypatch):
                         lambda *a, **k: pytest.fail("a past-date window fell to the RECENT bars"))
     bars_fetch.start_request_budget()
     yield
-    for p in ("towin_", "replayto"):
+    for p in ("towin_", "towinfail_", "replayto"):
         cache.delete_prefix(p)
     bars_sqlite.bump_db_epoch()
 
@@ -78,7 +78,8 @@ def _assert_flagged_short(r, n):
     assert body.get("filling") is True and body.get("short") is True, {k: body.get(k) for k in ("filling", "short")}
     assert len(body["bars"]) == n
     assert r.headers.get("retry-after") == "3"
-    assert r.headers.get("cache-control") == "public, max-age=5", r.headers.get("cache-control")
+    # (review of #3011, F3) never cached: a cached copy would answer the 3 s re-ask from the browser's HTTP cache
+    assert r.headers.get("cache-control") == "no-store", r.headers.get("cache-control")
 
 
 def _saturate(sem):
@@ -186,10 +187,126 @@ def test_an_empty_window_the_provider_answered_empty_is_no_data(store, monkeypat
     assert r.status_code == 200 and body.get("no_data") is True and body["bars"] == []
 
 
+def _later_rows(tf):
+    """A series that starts AFTER the cutoff (listed 2017): the provider answers, nothing is before the cutoff."""
+    if tf == "D":
+        days = [d for d in _sessions(_dt.date(2017, 3, 31), 40)]
+        return [{"t": d.isoformat(), "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1} for d in days]
+    if tf == "W":
+        return [{"t": f"2017-03-{d:02d}", "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1} for d in (3, 10, 17, 24, 31)]
+    return [{"t": f"2017-{m:02d}-01", "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1} for m in (1, 2, 3)]
+
+
 @pytest.mark.parametrize("tf", ["D", "W", "M"])
 def test_a_daily_window_with_nothing_before_the_cutoff_is_no_data(store, monkeypatch, tf):
     for name in ("_fetch_daily", "_fetch_weekly", "_fetch_monthly"):
-        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: [])
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: _later_rows(tf))
     r = bars_fetch._get_bars_to_response("NODAILY", tf, 300, TO)
     body = _body(r)
     assert r.status_code == 200 and body.get("no_data") is True and body["bars"] == []
+
+
+# ── review of #3011, F1: D/W/M "proven" only when the deep fetch ANSWERED (rows returned and stored) ─────────────────
+
+def _boom(*a, **k):
+    raise RuntimeError("provider 500")
+
+
+@pytest.mark.parametrize("tf", ["D", "W", "M"])
+@pytest.mark.parametrize("how", ["fetch_raises", "fetch_empty", "write_fails"])
+def test_a_daily_window_whose_deep_fetch_did_not_answer_is_warming_never_no_data(store, monkeypatch, tf, how):
+    for name in ("_fetch_daily", "_fetch_weekly", "_fetch_monthly"):
+        monkeypatch.setattr(bars_fetch, name, _boom if how == "fetch_raises"
+                            else (lambda *a, **k: []) if how == "fetch_empty" else (lambda *a, **k: _later_rows(tf)))
+    if how == "write_fails":
+        monkeypatch.setattr(bars_fetch._sqlite, "put_bars", _boom)
+    r = bars_fetch._get_bars_to_response("DFAIL", tf, 300, TO)
+    assert r.status_code == 503 and r.headers.get("x-bars-shed") == "warming", (r.status_code, _body(r))
+    assert not _body(r).get("no_data")
+
+
+def test_a_daily_deep_fetch_that_just_failed_is_not_rerun_per_repoll(store, monkeypatch):
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_fetch_daily", lambda *a, **k: calls.append(1) or [])
+    for _ in range(3):
+        assert bars_fetch._get_bars_to_response("DLOAD", "D", 300, TO).status_code == 503
+    assert len(calls) == 1, calls
+
+
+# ── review of #3011, F2: the window marker proves the window only for a final stop or a held count ──────────────────
+
+def test_two_small_empty_rounds_are_a_gap_not_a_listing_start(store, monkeypatch):
+    # 20 sessions stored, the provider has nothing in the next ~3 months before them (a vendor gap): not final
+    _put("GAP", _sessions(END, 20))
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range",
+                        lambda t, tf, f, to, raise_errors=False: calls.append((f, to)) or [])
+    r = bars_fetch._get_bars_to_response("GAP", "15", ASK, TO)
+    assert len(calls) == 2, calls
+    _assert_flagged_short(r, 520)
+    assert not bars_fetch._to_window_proven(cache.get(f"towin_GAP_15_{TO}_{bars_fetch._depth_tier(ASK)}"), ASK)
+
+
+def test_two_empty_rounds_spanning_the_listing_threshold_prove_the_start(store, monkeypatch):
+    _put("LISTED", _sessions(END, 20))
+    monkeypatch.setattr(bars_fetch, "_TO_LISTING_EMPTY_DAYS", 30)      # the two empty rounds here span more than this
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+    r = bars_fetch._get_bars_to_response("LISTED", "15", ASK, TO)
+    body = _body(r)
+    assert not body.get("filling") and not body.get("short") and len(body["bars"]) == 520
+    assert r.headers.get("cache-control") == "public, max-age=3600"
+
+
+def test_the_providers_floor_proves_the_window(store, monkeypatch):
+    days = _sessions(END, 20)
+    _put("FLOOR", days)
+    monkeypatch.setattr(bars_fetch, "_INTRADAY_FLOOR_YMD", (days[0] - _dt.timedelta(days=3)).isoformat())
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+    body = _body(bars_fetch._get_bars_to_response("FLOOR", "15", ASK, TO))
+    assert not body.get("filling") and len(body["bars"]) == 520
+
+
+def test_rounds_used_up_while_short_prove_nothing(store, monkeypatch):
+    # every round answers ONE far-off bar (never empty, never reaching the ask): the rounds run out
+    _put("ROUNDS", _sessions(END, 20))
+    calls = []
+
+    def one_bar(t, tf, f, to, raise_errors=False):
+        calls.append((f, to))
+        d = _dt.date.fromisoformat(f)
+        return [{"t": _et(d, 10, 0), "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1}]
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", one_bar)
+    r = bars_fetch._get_bars_to_response("ROUNDS", "15", ASK, TO)
+    assert len(calls) == bars_fetch._TO_FILL_MAX_ROUNDS, calls
+    _assert_flagged_short(r, 520)
+
+
+def test_a_window_proven_for_a_smaller_ask_does_not_prove_a_larger_one_in_the_same_tier(store, monkeypatch):
+    days = _sessions(END, 80)
+    _put("TIER", days[-40:])                                    # 1,040 rows: holds an ask of 1,000
+    calls = []
+
+    def provider(t, tf, f, to, raise_errors=False):
+        calls.append((f, to))
+        return [b for d in days if f <= d.isoformat() <= to for b in _rth(d)]
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", provider)
+    cache.set(f"towin_TIER_15_{TO}_{bars_fetch._depth_tier(1100)}", {"n": 1000, "final": False}, ttl=600)
+    r = bars_fetch._get_bars_to_response("TIER", "15", 1100, TO)   # same depth tier (1,200)
+    body = _body(r)
+    assert calls, "a marker proven for 1,000 rows was read as proof for 1,100"
+    assert len(body["bars"]) == 1100 and not body.get("filling")
+
+
+# ── review of #3011, LOAD: a window fetch that just failed is not re-run per re-poll ────────────────────────────────
+
+def test_re_polls_inside_the_failure_window_answer_from_the_store_without_a_fetch(store, monkeypatch):
+    _put("RELOAD", _sessions(END, 20))
+    calls = []
+
+    def boom(*a, **k):
+        calls.append(1)
+        raise RuntimeError("provider 500")
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", boom)
+    for _ in range(3):
+        _assert_flagged_short(bars_fetch._get_bars_to_response("RELOAD", "15", ASK, TO), 520)
+    assert len(calls) == 1, calls
