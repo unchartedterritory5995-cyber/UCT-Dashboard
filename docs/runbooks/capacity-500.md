@@ -259,8 +259,13 @@ puts 12 processes at ~2,400-3,000 req/s IF the 32-vCPU container scales the same
 processes carry it on the optimistic reading and only just on the conservative one; 2 x the peak needs edge tails or a
 second service either way (section 3.1 stands). `BARS_API_WORKERS` stays unset until a Railway-side measurement.
 
-The dev-box replay (`run_topology.py` on the real store copy) is still queued under `heavy_lock run --solo` as the
-fallback: it adds the real store's shapes and the 16-core box.
+**The dev-box run (real store copy, Windows, one port per process) ran 2026-11-28 and is NOT usable as a ceiling.**
+Every case was overloaded from its first sweep point (1 process at 100 members already offered 306 req/s), and the
+failures were the CLIENT's: 17,307 of 18,418 requests in the 1-process case were `ClientConnectorError` (the Windows
+load generator could not connect), so it measured the box's sockets, not bars-api. One real-store fact it did give:
+with a real store (holes, unheld series) the leader answered **0.03-0.22%** of requests for the followers (2 and 4
+processes), against 0.0% on the synthetic store. Per-process private memory there: 1.5-1.9 GB under load, which
+supports the 2 GB-a-process budget.
 
 **What the harness has shown (a smoke, not a measurement):** 2 processes, `edge` mode, 20 members, 10 s: roles `leader` + `follower`, 67.8 req/s offered, 65.3 OK, **6.8% of requests answered by the leader for the follower** (a cold start: every series is new to the follower's memory cache), 13 sheds (503 `warming`), private memory 1.0 / 1.3 GB per process.
 
