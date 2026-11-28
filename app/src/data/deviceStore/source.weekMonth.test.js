@@ -31,12 +31,24 @@ function dailyCols(first, last, { whole = true } = {}) {
 const et = (iso, hh, mm = 0) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10), hh + 5, mm)
 
 describe('WS1 the lists', () => {
-  it('the page asks W / M of the device; the worker answers the stored timeframes only', () => {
-    expect(DEVICE_WM_FROM_FULL_D).toBe(true)
-    expect([...SERVED_TFS].sort()).toEqual([...STORED_TFS, 'W', 'M'].sort())
+  it('OFF on the parity evidence (tfs.js): the page asks no W / M of the device; the worker answers the stored only', async () => {
+    expect(DEVICE_WM_FROM_FULL_D).toBe(false)
+    expect([...SERVED_TFS].sort()).toEqual([...STORED_TFS].sort())
     expect([...WORKER_SERVED_TFS].sort()).toEqual([...STORED_TFS].sort())
+    // and the app's source (the default `tfs`) answers W / M with null, asking nothing (the H1 behaviour)
+    const client = { peekBars: vi.fn(() => dailyCols('2026-08-03', '2026-11-20')), getBars: vi.fn(async () => null), why: vi.fn(async () => 'ok') }
+    const src = createDeviceSource({ load: async () => client, current: () => client })
+    for (const tf of ['W', 'M']) {
+      expect(src.peek('AAA', tf)).toBeNull()
+      expect(await src.read('AAA', tf)).toBeNull()
+      expect(await src.why('AAA', tf)).toBe('tf')
+    }
+    expect(client.peekBars).not.toHaveBeenCalled()
+    expect(client.getBars).not.toHaveBeenCalled()
   })
 })
+// the lift itself, as a source built with W / M in its list (what DEVICE_WM_FROM_FULL_D = true makes the app's)
+const WM_ON = new Set([...STORED_TFS, 'W', 'M'])
 
 describe('WS2 the source derives W / M from the D copy, and only from a whole one', () => {
   it('asks the client for D; a whole copy answers W / M with wholeFrom; a shallow one answers null (why: wm-shallow)', async () => {
@@ -44,7 +56,7 @@ describe('WS2 the source derives W / M from the D copy, and only from a whole on
     for (const [whole, wantRows] of [[true, true], [false, false]]) {
       const d = Object.freeze(dailyCols('2026-08-03', '2026-11-20', { whole }))
       const client = { peekBars: vi.fn(() => d), getBars: vi.fn(async () => d), why: vi.fn(async () => 'seed-only:no-overlay') }
-      const src = createDeviceSource({ load: async () => client, current: () => client, now })
+      const src = createDeviceSource({ load: async () => client, current: () => client, now, tfs: WM_ON })
       for (const tf of ['W', 'M']) {
         const p = src.peek('AAA', tf)
         const r = await src.read('AAA', tf, { urgent: true })

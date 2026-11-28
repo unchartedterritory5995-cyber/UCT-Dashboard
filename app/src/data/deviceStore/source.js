@@ -94,7 +94,7 @@ const _hit = (cols) => {
 
 /** A source over any client-shaped object ({peekBars, getBars}); `load` resolves it. `now`: W / M's clock (the period in
  *  progress, resample.periodKnown). */
-export function createDeviceSource({ load = _load, current = () => _client, now = () => Date.now() } = {}) {
+export function createDeviceSource({ load = _load, current = () => _client, now = () => Date.now(), tfs = _TFS } = {}) {
   // ⭐ ONE DERIVATION PER D COPY AND MINUTE: the store peeks a held key on every warm and press, and a full-depth D copy
   // is up to ~12,600 rows (a resample of it ~1-3 ms). The client's copies are frozen objects, so the D copy itself is
   // the key; the answer is kept for the minute it was made in (the period rules move at most at a minute's edge).
@@ -117,14 +117,14 @@ export function createDeviceSource({ load = _load, current = () => _client, now 
   const _ask = (tf) => DERIVED_TFS[tf] ?? tf
   return {
     peek(sym, tf) {
-      if (!sym || !_TFS.has(String(tf))) return null
+      if (!sym || !tfs.has(String(tf))) return null
       const c = current()
       if (!c) { load(); return null }
       try { return _hit(_served(c.peekBars(sym, _ask(String(tf))), String(tf))) } catch { return null }
     },
     // `newerThan`: a copy no newer than this `through` is not the answer (client.getBars; review of #2558, P4-L2)
     read(sym, tf, { urgent = false, newerThan = null } = {}) {
-      if (!sym || !_TFS.has(String(tf))) return Promise.resolve(null)
+      if (!sym || !tfs.has(String(tf))) return Promise.resolve(null)
       const newer = Number.isFinite(newerThan)
       const opts = urgent === true ? (newer ? { urgent: true, newerThan } : { urgent: true }) : (newer ? { newerThan } : null)
       const T = String(tf)
@@ -140,7 +140,7 @@ export function createDeviceSource({ load = _load, current = () => _client, now 
     /** Diagnostics: the worker's rule for (sym, tf) (client.why); 'no-client' when the store never loaded; 'tf' for a
      *  timeframe the device does not serve (W / M: asked nothing, loads nothing). */
     why(sym, tf) {
-      if (!_TFS.has(String(tf))) return Promise.resolve('tf')
+      if (!tfs.has(String(tf))) return Promise.resolve('tf')
       const T = String(tf)
       return Promise.resolve(current() || load())
         .then(async (c) => {

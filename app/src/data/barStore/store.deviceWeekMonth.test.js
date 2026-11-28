@@ -20,6 +20,7 @@ import { keyOf } from './types'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'
 import { memClear } from '../../utils/barsMemCache'
+import { DEVICE_WM_FROM_FULL_D } from '../deviceStore/tfs'
 
 vi.mock('../../hooks/useTickerMeta', () => ({ prefetchTickerMeta: () => {} }))
 
@@ -92,6 +93,8 @@ describe('H1 W and M never come from the device', () => {
       await store.persist.refreshDevice(key, { urgent: true })
       pf.peekBars('NEWB', tf)
       await vi.advanceTimersByTimeAsync(20)
+      // with W / M off (tfs.DEVICE_WM_FROM_FULL_D, the parity evidence) the device is not even asked
+      if (!DEVICE_WM_FROM_FULL_D) expect(askedFor(dev, ['W', 'M'])).toEqual([])
       expect(pf.deviceVerdict('NEWB', tf).paints).toBe(false)
       expect(pf.devicePaints('NEWB', tf)).toBe(false)
       expect(store.peek(key)?.source ?? null).not.toBe('device')
@@ -139,7 +142,7 @@ describe('H1 W and M never come from the device', () => {
     store.dispose()
   })
 
-  it('WM6 a WHOLE W / M copy (wholeFrom) is the device copy: applied, and the device rule paints it (a Saturday)', async () => {
+  it.skipIf(!DEVICE_WM_FROM_FULL_D)('WM6 a WHOLE W / M copy (wholeFrom) is the device copy: applied, and the device rule paints it (a Saturday)', async () => {
     vi.setSystemTime(SAT)
     for (const tf of ['W', 'M']) {
       const dev = fakeDevice(dayUnix('2026-11-21'), { whole: true })
