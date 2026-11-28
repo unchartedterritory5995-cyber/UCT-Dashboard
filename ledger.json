@@ -8307,6 +8307,36 @@
     "TWFG",
     "BSRR"
    ]
+  },
+  {
+   "id": "cloud/46137977185-1/COV-def-dd-arrows",
+   "at": "2026-11-28T11:02:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ORC",
+    "PRME",
+    "UROY",
+    "BUR",
+    "EDIT",
+    "TIGR",
+    "BF-A",
+    "LPL",
+    "BBCQ",
+    "ZURA",
+    "INN",
+    "UMH",
+    "HPK"
+   ]
+  },
+  {
+   "id": "cloud/46137977185-1/COV-def-tabs",
+   "at": "2026-11-28T11:02:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PLYX",
+    "GETY",
+    "INMD"
+   ]
   }
  ]
 }
