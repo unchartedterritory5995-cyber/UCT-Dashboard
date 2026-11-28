@@ -271,20 +271,25 @@ def test_a_window_whose_write_failed_is_not_marked_covered_and_is_retried(store,
     assert len(calls) == 1 and "to= window write failed" in caplog.text
     assert cache.get(f"towin_WFAIL_15_{to}_{bars_fetch._depth_tier(1000)}") is None
     monkeypatch.setattr(bars_fetch._sqlite, "put_bars", real_put)
+    cache.delete_prefix("towinfail_WFAIL_")      # the failure marker's 20 s have passed (review of #3011, LOAD)
     body = _body(bars_fetch._get_bars_to_response("WFAIL", "15", 1000, to))
     assert len(calls) == 2 and len(body["bars"]) > 3 * 26                 # retried, and now stored
-    assert cache.get(f"towin_WFAIL_15_{to}_{bars_fetch._depth_tier(1000)}") == 1
+    assert bars_fetch._to_window_proven(cache.get(f"towin_WFAIL_15_{to}_{bars_fetch._depth_tier(1000)}"), 1000)
     cache.delete_prefix("towin_WFAIL_")
 
 
 def test_a_short_window_still_landing_serves_what_is_stored_never_empty(store, monkeypatch):
+    # a SHORT history (30 sessions, 780 rows of a 1,000 ask): the landed fill proves the window by the series' first
+    # DAILY bar (review of #3011, F2 round 2: the provider answers by date range and has nothing before the listing)
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])
     days = _days(_dt.date(2026, 6, 1), 30)
     bars_sqlite.put_bars("FILL", "15", [b for d in days[-2:] for b in _rth_day(d.year, d.month, d.day)])
     gate = threading.Event()
 
     def slow_range(t, tf, f, to, raise_errors=False):
         gate.wait(5)
-        return [b for d in days[:-2] for b in _rth_day(d.year, d.month, d.day)]
+        return [b for d in days[:-2] if f <= d.isoformat() <= to for b in _rth_day(d.year, d.month, d.day)]
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", slow_range)
     monkeypatch.setattr(bars_fetch, "_TO_SHORT_WAIT_SECONDS", 0.1)
     cache.delete_prefix("towin_FILL_")
