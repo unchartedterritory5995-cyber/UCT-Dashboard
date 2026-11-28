@@ -124,8 +124,10 @@ function migrateWidthControlMax(def) {
 /** ⭐⭐ THE DOOR'S OUTPUT VERSION, stamped as `meta.doorVersion` on every document
  *  the Pine doors write (`memberPaneDefinition`, the Builder's Pine import).
  *  MONOTONIC: bump it whenever what a door writes for the same script changes, and
- *  teach `doorFillOpacityAt` what the older version wrote. 1 = #526's door. */
-export const DOOR_VERSION = 1
+ *  teach `doorFillOpacityAt` what the older version wrote. 1 = #526's door.
+ *  2 = engine e100 (NUMBER PENDING): a static band's `color.new` / `color.rgb` transparency is a STYLE
+ *  transparency, (100 − t) / 100 (`stampedFillOpacity`); door 1 wrote the floating 1 − t/100. */
+export const DOOR_VERSION = 2
 
 /** v1–v4 (and an unversioned script, which TradingView compiles as v1) take the
  *  legacy defaults — `pine.js::isLegacyPineVersion`, the same predicate. */
@@ -166,25 +168,32 @@ export function stampedPineVersion(def) {
   return (Number.isInteger(v) && v >= 1) ? v : undefined
 }
 
-/** ⭐ THE ONE RULE (today's door, `DOOR_VERSION`): a static band's opacity from
+/** ⭐ THE ONE RULE (today's door, `DOOR_VERSION` 2): a static band's opacity from
  *  what its script wrote. Bit-identical to what `pine.js` computes, which a rail
  *  holds over the corpus:
- *   • `color.new(c, t)` / `color.rgb(…, t)` — the exact float `1 − t/100`;
- *   • `transp = t` — `(100 − t) / 100` (TradingView's half-up byte, F2);
+ *   • `color.new(c, t)` / `color.rgb(…, t)` and `transp = t` alike — `(100 − t) / 100`,
+ *     TradingView's decimal alpha (F2 for `transp`; FRED's 2026-11-27 probe for a static
+ *     `color.new`, t = 90 → byte 26, where door 1's `1 − t/100` painted 25);
  *   • nothing — opaque on v5/v6, transparency 90 on v1–v4 (F1, F2). */
 export function stampedFillOpacity(stamp, pineVersion) {
   if (stamp.via === 'none') {
     return isLegacyPine(pineVersion) ? (100 - LEGACY_FILL_DEFAULT_TRANSP) / 100 : 1
   }
-  if (stamp.via === 'transp') return (100 - Math.max(0, Math.min(100, stamp.value))) / 100
-  return Math.max(0, Math.min(1, 1 - stamp.value / 100))
+  return (100 - Math.max(0, Math.min(100, stamp.value))) / 100
+}
+
+/** What DOOR 1 (#526) wrote, kept so a saved document's stored value is recognised as
+ *  that door's own: a `color.new` / `color.rgb` band at the exact float `1 − t/100`. */
+export function doorOneFillOpacity(stamp, pineVersion) {
+  if (stamp.via === 'color') return Math.max(0, Math.min(1, 1 - stamp.value / 100))
+  return stampedFillOpacity(stamp, pineVersion)
 }
 
 /** ⭐ WHAT EACH DOOR VERSION WROTE as a static band's `fillOpacity`, from its stamp.
  *  The highest key is today's door and must equal `DOOR_VERSION` (railed). A door
  *  that changes the rule adds its version here; the older entries stay, because they
  *  are how a saved document's stored value is recognised as the door's own. */
-export const DOOR_FILL_RULES = Object.freeze({ 1: stampedFillOpacity })
+export const DOOR_FILL_RULES = Object.freeze({ 1: doorOneFillOpacity, 2: stampedFillOpacity })
 
 /** A document's door stamps → today's band opacities. Exported with its rule table
  *  as a parameter so the "older door" half of the seam is exercised before any

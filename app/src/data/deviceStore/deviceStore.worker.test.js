@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 
 const h = vi.hoisted(() => ({ args: null }))
-vi.mock('./workerCore', () => ({ createWorkerCore: (a) => { h.args = a; return { onMessage() {} } } }))
+vi.mock('./workerCore', async (importOriginal) => ({ ...(await importOriginal()), createWorkerCore: (a) => { h.args = a; return { onMessage() {} } } }))
 vi.mock('./io', () => ({ opfsIO: () => null }))
 
 const hadSelf = Object.getOwnPropertyDescriptor(globalThis, 'self')
@@ -35,5 +35,14 @@ describe('deviceStore.worker.js gives the engine its code id', () => {
     expect((await loadEntry()).engineOpts).toEqual({ codeId: '' })
     setSelf({ get location() { throw new Error('no') }, postMessage() {} })
     expect((await loadEntry()).engineOpts).toEqual({ codeId: '' })
+  })
+})
+
+describe('deviceStore.worker.js jitters the start of every download (owner ruling 2026-11-28)', () => {
+  it('passes DOWNLOAD_JITTER_MS, ten minutes, to the core (a core made without it waits nothing)', async () => {
+    setSelf({ postMessage() {} })
+    const { DOWNLOAD_JITTER_MS } = await vi.importActual('./workerCore')
+    expect(DOWNLOAD_JITTER_MS).toBe(10 * 60_000)
+    expect((await loadEntry()).jitterMs).toBe(DOWNLOAD_JITTER_MS)
   })
 })

@@ -222,6 +222,11 @@ describe('the chart\'s half: one writer for the menu and the Agent, and the read
     expect(s).toMatch(/priceAuto[,:]/)
     const pane = src('../components/chart/pane/ChartPane.jsx')
     expect(pane).toMatch(/\['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'\]/)      // drawing extras: + the Position Calculator (drawing.positionCalculator)
-    expect(src('../pages/charts/widgets/ChartDateNav.jsx')).toMatch(/paneRef\?\.current\?\.stepBar\?\.\(-1\)/)
+    // (owner, 2026-11-27: the date-carrying switch) the buttons reach the pane's stepBar, directly or through the /charts
+    // widget's date box (its host `nav`, pages/charts/widgets/dateBoxNav.js: the pane steps, then the date follows)
+    const nav = src('../pages/charts/widgets/ChartDateNav.jsx')
+    expect(nav).toMatch(/const jump = \(\) => nav \|\| paneRef\?\.current/)
+    expect(nav).toMatch(/jump\(\)\?\.stepBar\?\.\(-1\)/)
+    expect(src('../pages/charts/widgets/ChartWidget.jsx')).toMatch(/stepPane: \(dir\) => \{ paneRef\.current\?\.stepBar\?\.\(dir\) \}/)
   })
 })

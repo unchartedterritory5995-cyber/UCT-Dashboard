@@ -43,6 +43,9 @@ import { deviceSource } from '../data/deviceStore/source'
 import { noteDeviceSwitch, exposeDeviceDiag, deviceDiagOn } from '../data/deviceStore/diag'
 import { inRegularSession } from '../data/deviceStore/fresh'
 import { onChartPaint, viewNeed, VIEW_LOOKBACK_ROWS } from '../components/chart/paintLog'
+import { memberViewDate } from '../components/chart/viewDate'
+import { viewWindowOfMemberDate } from '../components/chart/viewWindow'
+import { flipReadyFor } from '../components/chart/flipReady'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
@@ -125,19 +128,24 @@ function seriesDisplayable(bars, tf) {
 // `showExtended`: the PANE's extended-hours setting (the chart key of 60m depends on it). Under
 // BARSTORE it selects the key through the facade's ONE view-key function (the chart's own);
 // omitted → the view-global fallback (the legacy source keeps that rule).
-export function peekDisplayable(sym, tf, { showExtended } = {}) {
+export function peekDisplayable(sym, tf, { showExtended, viewWindow = null } = {}) {
   if (!sym || !tf) return false
   // Anything the handoff does not govern is displayable by definition.
   if (!isNativeTf(tf) || !INTRADAY.has(String(tf))) return true
-  if (BARSTORE) return storePrefetch.peekDisplayable(sym, tf, { showExtended })   // the store's status: context | current
+  if (BARSTORE) return storePrefetch.peekDisplayable(sym, tf, { showExtended, viewWindow })   // the store's status: context | current
   // The key the chart in this view reads ('60e' = 60m on the extended clock grid).
   return seriesDisplayable(memPeek(sym, viewCacheTf(tf)), tf)
 }
 
-/** The pane's session option for (showExtended): a boolean, or a ref read now (see the hook's param). */
-function sessOf(showExtended) {
+/** The pane's session option for (showExtended): a boolean, or a ref read now (see the hook's param).
+ *  ⭐ (review of #2947, H2: charts at any date) ...and the KEY the chart reads: a member whose chart the date box sent to a
+ *  past date (chart/viewDate memberViewDate) reads the window ending there on intraday (chart/viewWindow), so every
+ *  readiness check, the prepare and the hold of its switch name THAT key (`viewWindow`), never the plain one: the plain
+ *  key's newest rows are another set (held and covering, they showed a chart whose window was still cold). */
+function sessOf(showExtended, member = null, tf = null) {
   const ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
-  return { showExtended: typeof ext === 'boolean' ? ext : undefined }
+  const viewWindow = member && tf ? viewWindowOfMemberDate(memberViewDate(member), tf) : null
+  return viewWindow ? { showExtended: typeof ext === 'boolean' ? ext : undefined, viewWindow } : { showExtended: typeof ext === 'boolean' ? ext : undefined }
 }
 
 const DAILY_SYM = /^[A-Z0-9.^-]{1,12}$/i
@@ -215,8 +223,12 @@ export function routeView(tf, need) {
  *   'now'        displayable and whole (or a code this coordinator does not govern): shown once its panes'
  *                server columns have landed (COLUMNS_WAIT_MS)
  *   'prepare'    the intraday prepare, then shown on what it reports */
-function sameTaskRoute(sym, viewTf, sess, viewNeedRows = COVER_ROWS) {
+function sameTaskRoute(sym, viewTf, sess, viewNeedRows = COVER_ROWS, member = null) {
   if (/^ECON:/i.test(String(sym))) return 'econ'
+  // ⭐⭐ (2026-11-28, COV-def-wm-arrows: the W+M board never moved on 5 of 12 presses) A ROW THE DOUBLE BUFFER'S SHADOW
+  // CAN FLIP TO IS SHOWN AT ONCE: the flip shows it whole (its own decision, asked early: chart/flipReady.js). The daily
+  // hold below held it instead, and a hold longer than the gap between presses was left for the next one.
+  if (member && flipReadyFor(member, sym)) return 'now'
   const { tf, need } = routeView(viewTf, viewNeedRows)   // (a custom intraday code: its native base's rows)
   if (dailyHoldNeeded(sym, tf, need)) return 'daily-hold'
   if (paintsWholeNow(sym, tf, sess, need)) return 'now'
@@ -267,10 +279,10 @@ function deviceRuleBeforeAnswer(sym, tf, sess) {
  *  in this task; else 'no-symbol' | 'settle' | 'route:daily-hold' | 'route:prepare' | 'columns'. The member's canShowNow
  *  is this answer being null (the same checks in the same order as before); a tester's device diagnostics record it
  *  per switch (`gate`), so a measurement can say which member and which gate sent a group down the round. */
-function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS) {
+function decisionGateFor(sym, tf, sess, st, settle, need = COVER_ROWS, member = null) {
   if (!sym || !tf) return 'no-symbol'
   if (st && st.debounceMs > 0 && settleAction({ now: settle.now, lastRequestAt: settle.lastRequestAt, lastAppliedAt: settle.lastAppliedAt, warm: !!st.isWarm?.(sym) }) !== 'apply') return 'settle'
-  const route = sameTaskRoute(sym, tf, sess, need)
+  const route = sameTaskRoute(sym, tf, sess, need, member)
   if (route === 'econ') return null
   if (route !== 'now') return `route:${route}`
   return columnsReadyFor(sym, tf) ? null : 'columns'
@@ -375,13 +387,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       tf: () => viewRef.current.tf,
       prime: (sym) => primeRef.current(sym),
       canShowNow: (sym, settleNow) => {
-        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), settleRef.current, settleNow, viewNeed(member))
+        const gate = decisionGateFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended, member, viewRef.current.tf), settleRef.current, settleNow, viewNeed(member), member)
         gateRef.current = { sym, gate }
         return gate === null
       },
       showDecided: (sym) => {
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
-        noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null, null, null)
+        noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended, member, viewRef.current.tf), null, null, null)
       },
     }))
   }, [scoped, scope, group, member, layerBoard])
@@ -445,7 +457,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     function run() {
       const gen = ++genRef.current
       const startedAt = Date.now()
-      const sess = sessOf(showExtended)
+      const sess = sessOf(showExtended, member, tf)
       // the chart is ready: it is SHOWN with its group (groupReady), or alone when it has none
       let shown = false
       const show = () => { if (genRef.current === gen) { shown = true; stopHold(); setDisplayedSym(requestedSym) } }
@@ -516,7 +528,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // or prefetch through the bars lane (it would 404) — the chart loads it from
       // /api/econ itself, so the request commits straight through.
       const need = viewNeed(member)   // the rows the view this member shows will draw (read at the switch)
-      const route = sameTaskRoute(requestedSym, tf, sess, need)
+      const route = sameTaskRoute(requestedSym, tf, sess, need, member)
       const rv = routeView(tf, need)   // the key and rows the intraday prepare below waits on (a custom code: its base)
       if (scoped) noteSwitchRoute(group, requestedSym, route === 'prepare' ? ROUTE_PREPARE : route === 'daily-hold' ? ROUTE_DAILY_HOLD : ROUTE_NOW)
       if (route === 'econ') { commitNow(); return leaveHold }
@@ -618,7 +630,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       let committed = false
       const commitHere = () => { committed = true; commit() }
       P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
-      P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
+      // (B9) `need`: the rows this view draws, in the prepared key's rows (routeView): a local copy short of it is asked for
+      P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess, need: rv.need }).then((outcome) => {
         if (!alive || genRef.current !== gen || committed) return   // a newer request owns the screen
         lastOutcomeRef.current = outcome
         // ⭐⭐ (2026-11-27) NEVER A SHORT PAGE: a prepare that reports while the held rows are still short of the view

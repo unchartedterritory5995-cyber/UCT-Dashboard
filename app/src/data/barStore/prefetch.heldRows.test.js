@@ -7,10 +7,11 @@ import { createPrefetch } from './prefetch'
 function stubStore() {
   const held = new Map()
   const answered = new Set()
+  const filling = new Set()
   return {
-    held, answered,
+    held, answered, filling,
     peek: (key) => held.get(key) ?? null,
-    network: { answered: (key) => answered.has(key) },
+    network: { answered: (key) => answered.has(key), filling: (key) => filling.has(key) },
   }
 }
 const rows = (n) => Array.from({ length: n }, (_, i) => ({ t: 1_700_000_000 + i * 1800 }))
@@ -42,6 +43,52 @@ describe('prefetch.heldRows', () => {
     store.held.set(key, { bars: many, developing: null, restSeen: true })
     expect(pf.heldRows('AAA', '30', { showExtended: false })).toBe(COVER_ROWS)   // counted no further than COVER_ROWS
     expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(6000)
+  })
+
+  // (owner, 2026-11-27: charts at any date) an intraday chart at a past date (the date box's anchor, a replay cutoff)
+  // reads the window ending there (useBarSnapshotBars chartKeyFor): its rows are counted, never the plain key's
+  it('with viewWindow: counts the window an intraday chart reads at a past date (chartKeyFor), not the plain key', async () => {
+    const { chartKeyFor, viewWindowOfDate } = await import('../../components/chart/useBarSnapshotBars')
+    const store = stubStore()
+    const pf = createPrefetch({ store })
+    const w = viewWindowOfDate('2025-03-14', '30')
+    const windowed = chartKeyFor({ sym: 'AAA', resolvedTf: '30', showExtended: true, replayCutoff: null, hasOverride: false, viewWindow: w })
+    const plain = pf.keyFor('AAA', '30', { showExtended: true })
+    expect(windowed).not.toBe(plain)
+    store.held.set(plain, { bars: rows(150), developing: null, restSeen: true })
+    store.held.set(windowed, { bars: rows(900), developing: null, restSeen: true })
+    expect(pf.heldRows('AAA', '30', { showExtended: true, viewWindow: w })).toBe(900)
+    expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(150)      // at the present: the plain key, as before
+    store.held.delete(windowed)
+    expect(pf.heldRows('AAA', '30', { showExtended: true, viewWindow: w })).toBe(0)   // the window not held: nothing
+  })
+
+  // (review of #2947, M1) a window the server is still fetching answers 200 + `filling: true` with the rows it holds
+  it('with answered: 0 while the answer is `filling` (a window still landing); its count once a complete answer came', () => {
+    const store = stubStore()
+    const pf = createPrefetch({ store })
+    const key = pf.keyFor('AAA', '15', { showExtended: true, window: { to: Date.UTC(2025, 2, 14, 12) / 1000 } })
+    store.held.set(key, { bars: rows(40), developing: null, restSeen: true })
+    store.answered.add(key)
+    store.filling.add(key)
+    const w = { to: Date.UTC(2025, 2, 14, 12) / 1000 }
+    expect(pf.heldRows('AAA', '15', { showExtended: true, viewWindow: w, answered: true })).toBe(0)
+    store.filling.delete(key)
+    expect(pf.heldRows('AAA', '15', { showExtended: true, viewWindow: w, answered: true })).toBe(40)
+  })
+
+  // (review of #2947, H2) the switch's own look (peekDisplayable) at a date names the window the chart reads there
+  it('peekDisplayable with viewWindow: the window at the date decides, not the plain key', async () => {
+    const { STATUS } = await import('./types')
+    const store = { ...stubStore(), persist: { hydrateMem: () => {}, refreshDevice: () => {} } }
+    const pf = createPrefetch({ store })
+    const w = { to: Date.UTC(2025, 2, 14, 12) / 1000 }
+    const plain = pf.keyFor('AAA', '15', { showExtended: true })
+    const windowed = pf.keyFor('AAA', '15', { showExtended: true, window: w })
+    store.held.set(plain, { status: STATUS.EMPTY, bars: [], developing: null, restSeen: true, depth: 0 })
+    store.held.set(windowed, { status: STATUS.CURRENT, bars: rows(900), developing: null, restSeen: true, depth: 900 })
+    expect(pf.peekDisplayable('AAA', '15', { showExtended: true, viewWindow: w })).toBe(true)
+    expect(pf.peekDisplayable('AAA', '15', { showExtended: true })).toBe(false)
   })
 
   it('with answered: 0 for a saved copy alone, the count once the server answered in this life', () => {

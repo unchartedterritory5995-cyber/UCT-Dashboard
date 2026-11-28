@@ -1,6 +1,6 @@
 // ⛔⛔ AN EDITED BAND LOSES ITS DOOR STAMP; AN UNEDITED BAND KEEPS IT.
 //
-// `plots[].fillTransparency` is what lets a later door (`DOOR_VERSION` 2+) upgrade a
+// `plots[].fillTransparency` is what lets a later door (`DOOR_VERSION` 3+) upgrade a
 // band's `fillOpacity` (`memberDocumentMigration.upgradeFromDoorStamps`). The editors
 // never put the stamp in a ROW (`doorStamps.test.js` pins that), but both of them
 // CARRY it back from the stored document onto the one they rebuilt — the manual
@@ -34,8 +34,8 @@ function rebuilt(prior, edit = () => {}) {
 /** A hypothetical next door that states a v6 stated-nothing band differently, and a
  *  colour band's `t` differently — the case the stamp exists for. */
 const NEXT_DOOR = Object.freeze({
-  1: stampedFillOpacity,
-  2: (stamp, pv) => (stamp.via === 'none' ? 0.42 : stampedFillOpacity(stamp, pv) / 2),
+  2: stampedFillOpacity,
+  3: (stamp, pv) => (stamp.via === 'none' ? 0.42 : stampedFillOpacity(stamp, pv) / 2),
 })
 
 const env = (ops) => ({ contract: 'uct.authoring.patch/1', baseRevision: 0, ops, assumptions: [] })
@@ -77,13 +77,13 @@ describe('the manual Builder (preservePresentation)', () => {
 
   it('⭐ the point: a future door upgrades the unedited band and never the edited one', () => {
     // Save 1: the member moves out3 to 0.5. Save 2: they move it back to 0.125 —
-    // byte-equal to what door 1 derives from out3's stamp, so a surviving stamp
-    // would make door 2 read the member's choice as "the old door's own" and
+    // byte-equal to what door 2 derives from out3's stamp, so a surviving stamp
+    // would make door 3 read the member's choice as "the old door's own" and
     // replace it. value's band is never edited and must still be upgraded.
     const v0 = docOf()
     const s1 = preservePresentation(rebuilt(v0, (d) => { plot(d, 'out3').fillOpacity = 0.5 }), v0).doc
     const s2 = preservePresentation(rebuilt(s1, (d) => { plot(d, 'out3').fillOpacity = 0.125 }), s1).doc
-    expect(s2.meta.doorVersion).toBe(1)
+    expect(s2.meta.doorVersion).toBe(2)
     const up = upgradeFromDoorStamps(s2, NEXT_DOOR)
     expect(plot(up, 'value').fillOpacity).toBe(0.42)       // unedited, stamped: upgraded
     expect(plot(up, 'out3').fillOpacity).toBe(0.125)       // edited: the member's value stays

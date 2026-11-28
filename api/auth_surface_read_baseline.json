@@ -604,6 +604,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/ticker-universe",
+   "kind": "public",
+   "reason": "The sorted list of listed ticker symbols that /api/ticker-search already ranks anonymously (services.cap_universe: public listed symbols, no names, no UCT breadth rows, nothing member-specific), plus a version id. Held in process memory, no vendor or database read per call, and sent with Cache-Control public max-age=3600 so the edge and the browser answer repeats. The chart symbol search reads it so a typed ticker is known on its last key (app/src/lib/tickerUniverse.js; added in 916358481b)."
+  },
+  {
+   "method": "GET",
    "path": "/api/wire-feedback/recent-internal",
    "kind": "inline",
    "marker": "PUSH_SECRET",
