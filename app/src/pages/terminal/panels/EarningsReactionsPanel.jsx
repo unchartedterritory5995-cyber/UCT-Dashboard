@@ -17,9 +17,9 @@
 // says the moves are missing, not that nothing moved.
 import { useMemo, useState } from 'react'
 import {
-  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun,
-  usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { formatSessionDate } from '../../../lib/presentation/presentationDates'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -96,7 +96,9 @@ function Scoreboard({ date, today, live }) {
     [weekErr, week.body, date])
   const base = useMemo(() => reactionRows(cal.reporters, movesErr ? {} : reactionMap(moves.body)),
     [cal.reporters, movesErr, moves.body])
-  const [sort, setSort] = useState(BY_SIZE)
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort(BY_SIZE)
   const rows = useMemo(() => sortRows(base, sort, { valueOf, isNumeric, tiebreak: byOrder }), [base, sort])
   const tally = useMemo(() => reactionTally(base), [base])
   const label = dayLabel(date)

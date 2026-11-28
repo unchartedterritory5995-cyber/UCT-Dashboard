@@ -19,9 +19,8 @@
 // (measured), so the table fits the bottom of the fold ladder and names no step. On a phone the year-earlier column folds
 // (phoneHide) and stays in the opened sector's year-earlier line. No screen-reader-only text sits in a cell.
 import { Fragment, useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import Select from '../../../components/ui/Select'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
@@ -41,29 +40,48 @@ const pollMs = (latest) => (latest?.body?.status === 'computing' ? SECTOR_EARNIN
 const toneClass = (tone) => (tone === 'up' ? styles.up : tone === 'down' ? styles.down : '')
 const measureOf = (f, metric) => (metric === 'revenue' ? f.revenue : f.eps)
 
-function FigureCells({ f, metric, min, withAgo, testKey }) {
+/** Customization pass 1: the sector table's columns (components/terminal/PanelTable). The beat share
+ *  (highest first, the metric picked) is the default order; a header click sorts the sectors by that
+ *  column, a figure with too few reporters ("too few") sorting last. The "All tracked stocks" row stays
+ *  on top. A year earlier is offered only for the current season. */
+export function ernscColumns(metric, withAgo) {
+  const what = ERNSC_METRICS[metric].what
+  return [
+    { key: 'sector', label: 'Sector', type: 'text', sort: (s) => s.name, required: true, title: 'Open a sector to see every reporter' },
+    { key: 'beat', label: 'Beat / in line / miss', sort: (s) => measureOf(s, metric).beatPct, thClass: `${styles.phoneWrap} ${styles.snugWrap}`,
+      title: `The share that beat, met and missed the ${what} consensus, of the reporters with one (sorts by the share that beat)` },
+    { key: 'surprise', label: 'Median surprise', sort: (s) => measureOf(s, metric).median, thClass: `${styles.phoneWrap} ${styles.snugWrap}`,
+      title: `The median ${what} surprise, of the reporters with a percent surprise` },
+    { key: 'reaction', label: 'Reaction', sort: (s) => s.move.median, thClass: `${styles.phoneWrap} ${styles.snugWrap}`,
+      title: 'The median move from the close before the report to the close after, and the share that rose' },
+    { key: 'ago', label: 'A year earlier', available: withAgo, sort: (s) => (s.yearAgo ? measureOf(s.yearAgo, metric).beatPct : null),
+      phoneHide: true, thClass: `${styles.phoneWrap} ${styles.snugWrap}` },
+  ]
+}
+
+function FigureCells({ f, metric, min, withAgo, testKey, shows = () => true }) {
   const m = measureOf(f, metric)
   const tri = triText(m)
   const ago = f.yearAgo ? measureOf(f.yearAgo, metric) : null
   const agoTri = ago ? triText(ago) : null
   return (
     <>
-      <td title={triWords(m, metric, min)} data-testid={`terminal-ernsc-beat-${testKey}`}>
+      {shows('beat') && <td title={triWords(m, metric, min)} data-testid={`terminal-ernsc-beat-${testKey}`}>
         {tri === null ? <span className={styles.muted}>too few</span> : <span>{tri}</span>}
         <br />
         <span className={styles.muted}>{ofText(m.n)}</span>
-      </td>
-      <td title={medianWords(m, metric, min)}>
+      </td>}
+      {shows('surprise') && <td title={medianWords(m, metric, min)}>
         {m.median === null ? <span className={styles.muted}>too few</span> : <span className={toneClass(toneOf(m.median))}>{pctText(m.median)}</span>}
         <br />
         <span className={styles.muted}>{ofText(m.medianN)}</span>
-      </td>
-      <td className={`${styles.phoneWrap} ${styles.snugWrap}`} title={moveWords(f.move, min)}>
+      </td>}
+      {shows('reaction') && <td className={`${styles.phoneWrap} ${styles.snugWrap}`} title={moveWords(f.move, min)}>
         {f.move.median === null ? <span className={styles.muted}>too few</span> : <span className={toneClass(toneOf(f.move.median))}>{pctText(f.move.median)}</span>}
         <br />
         <span className={styles.muted}>{roseText(f.move)}</span>
-      </td>
-      {withAgo ? (
+      </td>}
+      {withAgo && shows('ago') ? (
         <td className={styles.phoneHide} title={ago ? triWords(ago, metric, min) : 'No report in this sector is held for the same season a year earlier'}>
           {ago === null ? <span className={styles.muted}>none held</span> : agoTri === null ? <span className={styles.muted}>too few</span> : <span>{agoTri}</span>}
           <br />
@@ -147,27 +165,18 @@ function SectorDetail({ read, name, season, metric, id, agoLabel, min }) {
   ))
 }
 
-function SectorTable({ view, season, metric, open, onToggle, detailRead }) {
+function SectorTable({ view, season, metric, open, onToggle, detailRead, table }) {
   const withAgo = season === 'current'
-  const cols = withAgo ? 5 : 4
-  const rows = sortSectors(view.sectors, metric)
+  const cols = table.visible.length
+  const rows = table.apply(sortSectors(view.sectors, metric))
   const what = ERNSC_METRICS[metric].what
-  const label = `Every sector in the ${view.seasons[season]?.label || ''} season, the ${what} beat share highest first`
+  const label = `Every sector in the ${view.seasons[season]?.label || ''} season, ${table.sort ? 'sorted by the column header' : `the ${what} beat share highest first`}`
   const min = view.minReporters
   return (
     <div className={styles.tableBox}>
       <table className={styles.table} data-testid="terminal-ernsc-table" aria-label={label}>
-        <thead>
-          <tr>
-            <th scope="col" title="Open a sector to see every reporter">Sector</th>
-            <th scope="col" className={`${styles.phoneWrap} ${styles.snugWrap}`} title={`The share that beat, met and missed the ${what} consensus, of the reporters with one`}>Beat / in line / miss</th>
-            <th scope="col" className={`${styles.phoneWrap} ${styles.snugWrap}`} title={`The median ${what} surprise, of the reporters with a percent surprise`}>Median surprise</th>
-            <th scope="col" className={`${styles.phoneWrap} ${styles.snugWrap}`} title="The median move from the close before the report to the close after, and the share that rose">Reaction</th>
-            {withAgo ? (
-              <th scope="col" className={`${styles.phoneHide} ${styles.phoneWrap} ${styles.snugWrap}`} title={`The same season a year earlier (${view.seasons.year_ago?.label || ''})`}>A year earlier</th>
-            ) : null}
-          </tr>
-        </thead>
+        <PanelTableHead testId="terminal-ernsc"
+          table={{ ...table, visible: table.visible.map((c) => (c.key === 'ago' ? { ...c, title: `The same season a year earlier (${view.seasons.year_ago?.label || ''})` } : c)) }} />
         <tbody>
           <tr className={local.totalRow} data-testid="terminal-ernsc-total">
             <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`} title={reportedWords(view.total)}>
@@ -175,7 +184,7 @@ function SectorTable({ view, season, metric, open, onToggle, detailRead }) {
               <br />
               <span className={styles.muted}>{reportedText(view.total)}</span>
             </td>
-            <FigureCells f={view.total} metric={metric} min={min} withAgo={withAgo} testKey="total" />
+            <FigureCells f={view.total} metric={metric} min={min} withAgo={withAgo} testKey="total" shows={table.shows} />
           </tr>
           {rows.map((s, i) => {
             const shown = open === s.name
@@ -192,7 +201,7 @@ function SectorTable({ view, season, metric, open, onToggle, detailRead }) {
                     <br />
                     <span className={styles.muted}>{reportedText(s)}</span>
                   </td>
-                  <FigureCells f={s} metric={metric} min={min} withAgo={withAgo} testKey={s.name} />
+                  <FigureCells f={s} metric={metric} min={min} withAgo={withAgo} testKey={s.name} shows={table.shows} />
                 </tr>
                 {shown ? (
                   <tr data-testid={`terminal-ernsc-open-row-${s.name}`}>
@@ -218,6 +227,8 @@ export default function SectorEarningsPanel({ season: seasonProp = null, metric:
   const [season, setSeason] = useState(() => normErnscSeason(seasonProp))
   const [metric, setMetric] = useState(() => normErnscMetric(metricProp))
   const [open, setOpen] = useState(null)
+  const columns = useMemo(() => ernscColumns(metric, season === 'current'), [metric, season])
+  const table = usePanelTable({ columns })
   const read = useMarketRead(sectorEarningsUrl({ season }), { refreshInterval: pollMs })
   const view = useMemo(() => readSectorEarnings(read.body), [read.body])
   const held = view.state === 'ok' || view.state === 'none_yet' || view.state === 'empty'
@@ -245,6 +256,7 @@ export default function SectorEarningsPanel({ season: seasonProp = null, metric:
         <Select value={metric} onChange={(e) => pickMetric(e.target.value)} options={METRIC_OPTIONS} className={styles.chip}
           data-testid="terminal-ernsc-metric" />
       </label>
+      <PanelColumns table={table} testId="terminal-ernsc-columns" />
     </div>
   )
   const wrap = (state, body) => (
@@ -333,7 +345,7 @@ export default function SectorEarningsPanel({ season: seasonProp = null, metric:
       {lede}
       {check}
       <p className={styles.muted} data-testid="terminal-ernsc-counts">{countsLine(view.total)}</p>
-      <SectorTable view={view} season={season} metric={metric} open={open} onToggle={toggle} detailRead={detailRead} />
+      <SectorTable view={view} season={season} metric={metric} open={open} onToggle={toggle} detailRead={detailRead} table={table} />
       {method}
     </>
   ))

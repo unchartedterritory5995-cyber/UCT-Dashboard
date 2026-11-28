@@ -21,7 +21,10 @@ import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelLinkedSym } from '../../../components/terminal'
+import {
+  BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelLinkedSym,
+} from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -159,7 +162,9 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
   const perfKey = syms.length ? [PERF_URL, syms.slice(0, PERF_CAP).join(',')] : null
   const perf = useSWR(perfKey, perfFetcher, { refreshInterval: 5 * 60 * 1000, dedupingInterval: 60 * 1000 })
 
-  const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => {
     const base = syms.map((s, i) => {
       const p = prices[s] || {}

@@ -1549,6 +1549,23 @@ export function createPrefetch(o = {}) {
     if (!wOpts) _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
   }
 
+  /** (review of #3020, follow-up) Abort the in-flight urgent next rows of ONE key family: `tf` plain, or `tf` at the window
+   *  `viewWindow`. A list whose colour stops reading that family (Latest, a date change, a chart leaving the tf) gives
+   *  up those rows at once instead of letting at most URGENT_MAX_PER_CALL requests per family run on for nothing.
+   *  Returns how many it aborted. */
+  function abortUrgentFamily(tf, viewWindow = null) {
+    const probe = keyFor('X', tf, viewWindow && Number.isFinite(viewWindow.to) ? { window: { to: viewWindow.to } } : {})
+    const pp = probe ? parseKey(probe) : null
+    if (!pp) return 0
+    const to = pp.window?.to ?? null
+    let n = 0
+    for (const [k, c] of [...urgentCtl]) {
+      const p = parseKey(k)
+      if (p?.tf === pp.tf && (p.window?.to ?? null) === to) { c.abort(); urgentCtl.delete(k); n++ }
+    }
+    return n
+  }
+
   /**
    * ⭐ A NEXT ROW READ BEFORE THE ROLL IS ASKED AGAIN AFTER IT (live session 2026-11-24). The urgent next-row warm answers a
    * row ~5 s before the member reaches it, and its answer cools the row for a bucket; a press right after a minute roll then
@@ -2563,7 +2580,7 @@ export function createPrefetch(o = {}) {
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
-    prefetchBarOnIntent, warmTypedSymbol, warmTypedCandidates, createNeighborHold, edgeWarmList,
+    prefetchBarOnIntent, warmTypedSymbol, warmTypedCandidates, createNeighborHold, abortUrgentFamily, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -2607,6 +2624,7 @@ export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().pref
 export function warmTypedSymbol(sym, tf = 'D', opts = {}) { return _f().warmTypedSymbol(sym, tf, opts) }
 export function warmTypedCandidates(syms, tf = 'D', opts = {}) { return _f().warmTypedCandidates(syms, tf, opts) }
 export function createNeighborHold() { return _f().createNeighborHold() }
+export function abortUrgentFamily(tf, viewWindow) { return _f().abortUrgentFamily(tf, viewWindow) }
 export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
@@ -2619,5 +2637,6 @@ export const STORE_WARMERS = Object.freeze({
   prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
   prefetchBarOnIntent,
   createNeighborHold,   // store only: the legacy caches have no LRU to pin against
+  abortUrgentFamily,    // store only: the legacy warm has no key families
 })
 if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS

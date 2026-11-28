@@ -15,7 +15,8 @@ import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshnes
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText } from './useCloses'
 import WarmingState from './WarmingState'
-import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
+import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, windowTokens, withArgsKey } from './relativeMath'
+import { usePanelWriteBack } from './commandWriteBack'
 import styles from './comparePanels.module.css'
 
 export const CORR_MAX = 10
@@ -93,6 +94,14 @@ export default function CorrPanel({ sym, lookback, ...props }) {
   const syms = useMemo(() => corrSymbols(sym, props), [sym, withKey])
   const [win, setWin] = useState(CORR_WINDOWS.includes(lookback) ? lookback : '3M')
   useEffect(() => { if (CORR_WINDOWS.includes(lookback)) setWin(lookback) }, [lookback])
+  // Customization pass 1: the window chip writes itself into the command (`CORR ... 6M`, the
+  // registered `lookback` argument), so a reload, a saved board and a share link keep it. Outside
+  // the shell it is component state.
+  const writeBack = usePanelWriteBack()
+  const pickWin = (w) => {
+    if (w === win) return
+    if (!writeBack(windowTokens(props, w), sym || null)) setWin(w)
+  }
   // A typed window this panel cannot draw is SAID, never silently replaced.
   const unapplied = lookback && !CORR_WINDOWS.includes(lookback) ? lookback : null
   const state = useCloses(syms.length >= 2 ? syms : [], 'D')
@@ -134,7 +143,7 @@ export default function CorrPanel({ sym, lookback, ...props }) {
     <div className={styles.wrap} data-testid="terminal-corr">
       <div className={styles.toolbar} role="group" aria-label="Window">
         {CORR_WINDOWS.map((w) => (
-          <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}>{w}</button>
+          <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => pickWin(w)}>{w}</button>
         ))}
         <BoardFromList syms={shownSyms} label={`CORR ${win}`} testId="terminal-corr-board" />
       </div>

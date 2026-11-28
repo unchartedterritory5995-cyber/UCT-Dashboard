@@ -410,12 +410,35 @@ FREE = {"id": "38c023cf-0e81-4187-aa43-ac51a751a003", "plan": "free", "role": "u
 
 
 def test_dark_free_is_402_paid_member_is_403_admin_passes(make_client, monkeypatch):
+    monkeypatch.delenv("UCT_AGENT_MEMBERS_ENABLED", raising=False)      # the member door closed (the default)
     monkeypatch.setattr(rx, "is_paid_user", lambda u: u.get("plan") != "free")
     monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(env("answer", reply="hi"))))
     assert make_client(FREE).post("/api/agent/turn", json={"message": "hi"}).status_code == 402
     assert make_client(MEMBER).post("/api/agent/turn", json={"message": "hi"}).status_code == 403
     r = make_client(ADMIN).post("/api/agent/turn", json={"message": "hi", "context": CTX})
     assert r.status_code == 200 and r.json()["envelope"]["reply"] == "hi"
+
+
+def test_member_door_open_free_is_402_paid_member_passes_owns_its_chats_budget_stays_admin(make_client, monkeypatch):
+    """UCT_AGENT_MEMBERS_ENABLED=1 (decided 2026-11-24 by the integrator under the owner's delegation of 2026-11-24):
+    a PAID member is let in; an unpaid account is still refused by the plan gate; a member reaches only their own chats;
+    the budget page stays admin-only; and setting the switch to anything else closes the door on the next request."""
+    monkeypatch.setenv("UCT_AGENT_MEMBERS_ENABLED", "1")
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: u.get("plan") != "free")
+    monkeypatch.setattr(turn, "_default_caller", caller_of(_resp(env("answer", reply="hi"))))
+    assert make_client(FREE).post("/api/agent/turn", json={"message": "hi"}).status_code == 402
+    m = make_client(MEMBER)
+    r = m.post("/api/agent/turn", json={"message": "hi", "context": CTX})
+    assert r.status_code == 200 and r.json()["envelope"]["reply"] == "hi"
+    cid = r.json()["conversationId"]
+    assert m.get(f"/api/agent/conversations/{cid}").status_code == 200
+    other = make_client({"id": "38c023cf-0e81-4187-aa43-ac51a751a005", "plan": "pro", "role": "user"})
+    assert other.get(f"/api/agent/conversations/{cid}").status_code == 404
+    assert other.delete(f"/api/agent/conversations/{cid}").status_code == 404
+    assert m.get("/api/agent/budget").status_code == 403
+    assert make_client(ADMIN).get("/api/agent/budget").status_code == 200
+    monkeypatch.setenv("UCT_AGENT_MEMBERS_ENABLED", "0")              # the emergency off
+    assert m.post("/api/agent/turn", json={"message": "hi"}).status_code == 403
 
 
 def test_metered_and_a_failure_gives_the_charge_back(make_client, monkeypatch):
@@ -738,7 +761,8 @@ def test_HISTORY_rename_pin_delete_and_search_are_the_members_own(make_client, m
     assert other.patch(f"/api/agent/conversations/{c1}", json={"pinned": True}).status_code == 404
     assert other.delete(f"/api/agent/conversations/{c1}").status_code == 404
     assert other.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
-    # a member who is not admin is refused outright (admin-dark like every Agent route)
+    # a member who is not admin is refused outright while the member door is closed (like every Agent route)
+    monkeypatch.delenv("UCT_AGENT_MEMBERS_ENABLED", raising=False)
     m = make_client(MEMBER)
     assert m.get("/api/agent/search", params={"q": "aapl"}).status_code == 403
     assert m.delete(f"/api/agent/conversations/{c1}").status_code == 403

@@ -26,6 +26,7 @@ import { useId, useMemo, useState } from 'react'
 import {
   PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCurrency, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -206,7 +207,9 @@ function UpgradesDay({ date, kind, onPick }) {
   const read = useMarketRead(upgradesUrl(date), { refreshInterval: date ? 0 : POLL_MS })
   const base = useMemo(() => analystActions(read.body), [read.body])
   const meta = useMemo(() => dayMeta(read.body), [read.body])
-  const [sort, setSort] = useState(LIST_ORDER)
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort(LIST_ORDER)
   const rows = useMemo(() => sortRows(rowsOfKind(base.rows, kind), sort, { valueOf, isNumeric, tiebreak: byOrder }), [base.rows, kind, sort])
   const asOf = date ? (meta.date || date) : base.builtOn
   const report = panelAsOf(meta.full ? SOURCE_FULL : SOURCE, asOf)

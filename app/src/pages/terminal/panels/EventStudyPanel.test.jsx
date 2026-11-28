@@ -23,7 +23,8 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import EventStudyPanel, { EVST_CODE, EVST_SERIES_URL, EVST_STORE_KEY } from './EventStudyPanel'
-import { DEFAULT_SPEC, loadStoredSpec, studyUrl } from './eventStudyModel'
+import { DEFAULT_SPEC, loadStoredSpec, normSpec, specFromView, specToView, studyUrl } from './eventStudyModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { menuAnswer, noEpisodesAnswer, studyAnswer, tooShortAnswer } from './__fixtures__/eventStudyFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -43,8 +44,9 @@ function serve({ menu = menuAnswer(), study = studyAnswer() } = {}) {
 }
 const studiesAsked = () => [...new Set(jsonFetcher.mock.calls.map(([u]) => u).filter(isStudy))]
 
-function renderPanel({ setFreshness = vi.fn(), code = null, sym } = {}) {
-  const body = <EventStudyPanel sym={sym} />
+function renderPanel({ setFreshness = vi.fn(), code = null, sym, saved = null } = {}) {
+  const panel = <EventStudyPanel sym={sym} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   const view = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -348,5 +350,63 @@ describe('EVST rails', () => {
     expect(src).toMatch(/usePanelFreshness\(ok \? panelAsOf\(view\.source, view\.coverage\.priceLast\) : null\)/)
     expect(src).not.toMatch(/setInterval|setTimeout|fetch\(/)
     expect(process.env.NODE_ENV).not.toBe('production')
+  })
+})
+
+describe('EVST keeps its study with the board (customization pass 1)', () => {
+  const TECH = { kind: 'technical', series: 'ZZQA', indicator: 'rsi', period: '14', op: 'below', threshold: '30', symbol: 'ZZQA',
+    horizons: ['1w'], episodes: 'all', entry: 'next_close' }
+  it('the view packing round-trips every kind of study', () => {
+    for (const spec of [DEFAULT_SPEC, TECH, { kind: 'cot', market: 'gc', group: 'large_spec', op: 'cross_below', threshold: '0', symbol: 'GLD', horizons: ['1mo', '3mo'] }]) {
+      expect(specFromView(specToView(spec))).toEqual(normSpec(spec))
+    }
+    expect(specFromView({ k: 'econ' })).toBeNull()
+    expect(specFromView(null)).toBeNull()
+  })
+  it('a study run on the board is saved with the panel (not this browser) and survives a remount', async () => {
+    serve()
+    const saved = savedView()
+    renderPanel({ saved })
+    const form = await screen.findByTestId('terminal-evst-form')
+    await screen.findByTestId('terminal-evst-windows-table')
+    fireEvent.change(within(form).getByLabelText('Threshold'), { target: { value: '20' } })
+    fireEvent.click(screen.getByTestId('terminal-evst-run'))
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(specFromView(saved.view.filters)).toMatchObject({ threshold: '20', kind: 'breadth' })
+    expect(window.localStorage.getItem(EVST_STORE_KEY)).toBeNull()
+    cleanup()
+    jsonFetcher.mockClear()
+    serve()
+    renderPanel({ saved })
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(studiesAsked()).toEqual([studyUrl({ ...normSpec(DEFAULT_SPEC), threshold: '20' })])
+    expect(screen.queryByTestId('terminal-evst-form')).toBeNull()
+  })
+  it('two panels keep two studies', async () => {
+    serve()
+    const a = savedView({ filters: specToView(TECH) })
+    const b = savedView()
+    renderPanel({ saved: a })
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(studiesAsked()).toEqual([studyUrl(normSpec(TECH))])
+    cleanup(); jsonFetcher.mockClear(); serve()
+    renderPanel({ saved: b })
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(studiesAsked()).toEqual([DEFAULT_URL])
+  })
+  it('a study this browser kept before the move is adopted once into the panel', async () => {
+    window.localStorage.setItem(EVST_STORE_KEY, JSON.stringify(TECH))
+    serve()
+    const saved = savedView()
+    renderPanel({ saved })
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(studiesAsked()).toEqual([studyUrl(normSpec(TECH))])
+    expect(specFromView(saved.view.filters)).toEqual(normSpec(TECH))
+    // the panel's own study wins over the browser copy from then on
+    window.localStorage.setItem(EVST_STORE_KEY, JSON.stringify(DEFAULT_SPEC))
+    cleanup(); jsonFetcher.mockClear(); serve()
+    renderPanel({ saved })
+    await screen.findByTestId('terminal-evst-windows-table')
+    expect(studiesAsked()).toEqual([studyUrl(normSpec(TECH))])
   })
 })

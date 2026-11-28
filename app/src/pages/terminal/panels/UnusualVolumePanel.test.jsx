@@ -30,6 +30,7 @@ import UnusualVolumePanel, {
   IDLE_POLL_MS, LIVE_POLL_MS, UNUSUAL_VOLUME_CODE, UNVOL_SCAN_URL, picksWords, readingStamp, unvolScanBody, unvolView,
 } from './UnusualVolumePanel'
 import * as model from './unusualVolumeModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -76,12 +77,13 @@ function serve(by = {}) {
 const calls = () => jsonFetcher.mock.calls.map(([, init]) => JSON.parse(init.body))
 const callsOf = (kind) => calls().filter((b) => kindOf(b) === kind)
 
-function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><UnusualVolumePanel {...props} /></ViewHost> : <UnusualVolumePanel {...props} />
   const tree = (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open, run, rerun: vi.fn(), publish: vi.fn(), publishRows }}>
-          <UnusualVolumePanel {...props} />
+          {body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -443,4 +445,27 @@ describe('UNVOL accessibility', () => {
     await screen.findByTestId('terminal-unvol-error')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 30_000)
+})
+
+describe('UNVOL sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('a header sorts the rows shown and the row numbers follow; sort and hidden columns survive a remount', async () => {
+    serve({ now: answer(NOW_ROWS()) })
+    const saved = savedView()
+    const { publishRows } = renderPanel({}, { saved })
+    await screen.findByTestId('terminal-unvol-table')
+    expect(symsInTable()).toEqual(['ZZA', 'ZZB', 'ZZC'])   // the server's order
+    fireEvent.click(screen.getByTestId('terminal-unvol-sort-multiple'))
+    expect(symsInTable()).toEqual(['ZZC', 'ZZA', 'ZZB'])
+    expect(publishRows).toHaveBeenLastCalledWith(['$ZZC', '$ZZA', '$ZZB'])
+    fireEvent.click(screen.getByTestId('terminal-unvol-columns'))
+    fireEvent.click(screen.getByTestId('terminal-unvol-columns-col-industry'))
+    expect(headers()).not.toContain('Industry')
+    cleanup()
+    serve({ now: answer(NOW_ROWS()) })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-unvol-table')
+    expect(symsInTable()).toEqual(['ZZC', 'ZZA', 'ZZB'])
+    expect(headers()).not.toContain('Industry')
+    expect(headers()).toContain('Vol vs usual▼')   // the caret marks the column it is sorted by
+  })
 })

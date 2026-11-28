@@ -888,6 +888,9 @@
   "range": {
    "data": 0.5
   },
+  "rotating": {"marketAnswers": 1},
+  "rotating in": {"marketAnswers": 1},
+  "rotating out": {"marketAnswers": 1},
   "theme*": {
    "data": 0.6,
    "charts": 0.4

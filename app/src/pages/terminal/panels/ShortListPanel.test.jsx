@@ -26,6 +26,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import ShortListPanel, { PAGE_ROWS, SHORT_LIST_CODE, emptyRankWords, rankSentence, reportSentence, shortListUrl } from './ShortListPanel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const SOURCE = 'FINRA, through Massive'
@@ -62,8 +63,9 @@ function serve(routes) {
 }
 const asked = () => [...new Set(jsonFetcher.mock.calls.map(([u]) => u))]
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <ShortListPanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <ShortListPanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   const view = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -453,4 +455,34 @@ describe('SHRTS accessibility', () => {
     await screen.findByTestId('terminal-shorts-unavailable')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('SHRTS sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('a header sorts the ranked stocks and says so; sort and hidden columns survive a remount', async () => {
+    serve({ [url('dtc')]: answer() })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-shorts-table')
+    expect(syms()).toEqual(['ZZA', 'ZZB', 'ZZC', 'ZZD', 'ZZE'])
+    fireEvent.click(screen.getByTestId('terminal-shorts-sort-change'))
+    expect(syms()).toEqual(['ZZA', 'ZZD', 'ZZB', 'ZZC', 'ZZE'])   // no earlier report sinks
+    fireEvent.click(screen.getByTestId('terminal-shorts-sort-change'))
+    expect(syms()).toEqual(['ZZB', 'ZZD', 'ZZA', 'ZZC', 'ZZE'])
+    expect(screen.getByTestId('terminal-shorts-ranked').textContent).toContain('Sorted here by percent change, lowest first.')
+    fireEvent.click(screen.getByTestId('terminal-shorts-columns'))
+    fireEvent.click(screen.getByTestId('terminal-shorts-columns-col-adv'))
+    cleanup()
+    serve({ [url('dtc')]: answer() })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-shorts-table')
+    expect(syms()).toEqual(['ZZB', 'ZZD', 'ZZA', 'ZZC', 'ZZE'])
+    expect(screen.queryByRole('columnheader', { name: /Avg daily volume/ })).toBeNull()
+  })
+  it('the sort runs over every stock sent, so the first page is the sorted top, not a re-ordered page', async () => {
+    serve({ [url('dtc')]: answer({ rows: many(PAGE_ROWS + 10), cut: false, ranked: PAGE_ROWS + 10 }) })
+    renderPanel({}, { saved: savedView({ sort: { key: 'dtc', dir: 'asc' } }) })
+    await screen.findByTestId('terminal-shorts-table')
+    expect(rows()).toHaveLength(PAGE_ROWS)
+    expect(rows()[0].textContent).toContain(String(90 - (PAGE_ROWS + 9)))
+  })
 })

@@ -85,3 +85,21 @@ describe('one timeframe, both key families (a dated and a present chart on the c
     expect(calls.some((c) => c.q.to === '2025-03-14'), 'and the window row').toBe(true)
   })
 })
+
+describe('a key family the colour stops reading (review of #3020, follow-up)', () => {
+  it('abortUrgentFamily gives up that family\'s in-flight urgent rows only', async () => {
+    const w = await boot()
+    const vw = w.viewWindowOfDate('2025-03-14', '5')
+    w.pf.prefetchBars(['AAA', 'BBB'], '5', { urgent: true })
+    w.pf.prefetchBars(['AAA', 'BBB'], '5', { urgent: true, viewWindow: vw })
+    expect(w.pf._stats().urgent, 'non-vacuity: both families in flight').toBe(4)
+    expect(w.pf.abortUrgentFamily('5', vw)).toBe(2)
+    expect(w.pf._stats().urgent, 'the plain family keeps its rows').toBe(2)
+    expect(w.pf.abortUrgentFamily('5', null)).toBe(2)
+    expect(w.pf._stats().urgent).toBe(0)
+  })
+  it('the wiring: Watchlists aborts the family of every variant that dropped out', () => {
+    const wl = readFileSync(resolve(globalThis.process.cwd(), 'src/pages/Watchlists.jsx'), 'utf8')
+    expect(wl).toMatch(/for \(const \[vid, v\] of _variantsRef\.current\) if \(!ids\.has\(vid\)\) \{ try \{ abortUrgentFamily\(v\.tf, v\.viewWindow\) \}/)
+  })
+})
