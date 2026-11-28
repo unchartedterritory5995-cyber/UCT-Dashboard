@@ -67,9 +67,9 @@ def store(monkeypatch, tmp_path):
     from api.services import massive as _m
     monkeypatch.setattr(_m, "get_agg_bars", lambda *a, **k: [{"t": 0, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
     yield
-    # this test's background hole repair finishes under ITS stubs and store, never a later test's
+    # this test's background jobs (a hole repair, a listing proof) finish under ITS stubs, never a later test's
     _deadline = time.monotonic() + 5
-    while time.monotonic() < _deadline and any(k.startswith("dhole::") for k in list(bars_fetch._inflight)):
+    while time.monotonic() < _deadline and any(k.startswith(("dhole::", "wmlisting::")) for k in list(bars_fetch._inflight)):
         time.sleep(0.02)
     bars_fetch.cache.delete_prefix("dhole_")
     bars_fetch.cache.delete_prefix("wmlisting_")
@@ -675,6 +675,11 @@ def test_a_poll_that_succeeded_after_the_close_lets_the_stored_path_derive(store
 from api.services import massive as _massive
 
 
+def _hole_calls(aggs):
+    """The provider daily calls a hole repair made: its span is the hole's own (the listing proof asks for an older one)."""
+    return [a for a in aggs if a[0] >= "2026-11-01"]
+
+
 def _agg_raw(b):
     """A provider daily aggregate (`t` = the session's 00:00 ET in unix ms) for one stored-daily dict."""
     d = date.fromisoformat(b["t"])
@@ -701,14 +706,14 @@ def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store,
     while time.monotonic() < deadline and not _hole_filled():
         time.sleep(0.05)
     assert _hole_filled(), "the interior hole was never repaired"
-    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+    assert _hole_calls(aggs) == [("2026-11-10", "2026-11-10")], aggs
     # after the repair the reads answer from the store (the background revalidation may still call the provider's
     # delta; what must not happen again is the SYNCHRONOUS provider path before the first answer)
     for _ in range(2):
         bars_fetch.cache.delete_prefix("bars_AAA_")
         bars_fetch._get_bars_inner("AAA", "M", len(stored))
         assert bars_fetch.get_serve_layer() not in ("fetch", "delta-deadline"), bars_fetch.get_serve_layer()
-    assert len(aggs) == 1, "the repair ran more than once"
+    assert len(_hole_calls(aggs)) == 1, "the repair ran more than once"
 
 
 def test_a_vendor_correction_with_less_volume_is_kept(store, monkeypatch):
@@ -801,7 +806,7 @@ def test_a_hole_the_provider_cleanly_has_no_bar_for_is_asked_once(store, monkeyp
         bars_fetch.cache.delete_prefix("bars_AAA_")
         bars_fetch._get_bars_inner("AAA", "M", len(stored))
         _wait_jobs()
-    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+    assert _hole_calls(aggs) == [("2026-11-10", "2026-11-10")], aggs
 
 
 def test_a_hole_repair_the_provider_faulted_on_is_asked_again(store, monkeypatch, clock):
@@ -818,7 +823,7 @@ def test_a_hole_repair_the_provider_faulted_on_is_asked_again(store, monkeypatch
         bars_fetch.cache.delete_prefix("bars_AAA_")
         bars_fetch._get_bars_inner("AAA", "M", len(stored))
         _wait_jobs()
-    assert len(aggs) == 2, "a faulted repair was marked done and never retried"
+    assert len(_hole_calls(aggs)) == 2, "a faulted repair was marked done and never retried"
 
 
 # ── review of #3023: a tail written from a PARTIAL period is replaced; a listing's first month; the warm share ───────
@@ -935,7 +940,7 @@ def test_the_hole_repair_runs_while_the_interactive_delta_pool_is_full(store, mo
     finally:
         for _ in range(held):
             bars_fetch._date_delta_sem.release()
-    assert aggs == [("2026-11-10", "2026-11-10")], "the repair took (and lacked) a slot of the interactive pool"
+    assert _hole_calls(aggs) == [("2026-11-10", "2026-11-10")], "the repair took (and lacked) a slot of the interactive pool"
 
 
 # ── review of #3023, round 2: the live overlay's ahead check; a genuine gap on a new month; a declared 3:2 split ─────
