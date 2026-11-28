@@ -684,7 +684,7 @@ def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store,
     missing = [b for b in full if b["t"] == hole.isoformat()]
     monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [_agg_raw(b) for b in missing])
     bars_fetch._get_bars_inner("AAA", "M", len(stored))
-    assert len(deltas) == 1, "the first answer did not take the provider path"
+    assert len(deltas) == 1 and bars_fetch.get_serve_layer() == "fetch", "the first answer did not take the provider path"
     def _hole_filled():
         r = bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)
         return bool(r) and int(r[-1][0]) == 20261110
@@ -693,10 +693,12 @@ def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store,
         time.sleep(0.05)
     assert _hole_filled(), "the interior hole was never repaired"
     assert aggs == [("2026-11-10", "2026-11-10")], aggs
+    # after the repair the reads answer from the store (the background revalidation may still call the provider's
+    # delta; what must not happen again is the SYNCHRONOUS provider path before the first answer)
     for _ in range(2):
         bars_fetch.cache.delete_prefix("bars_AAA_")
         bars_fetch._get_bars_inner("AAA", "M", len(stored))
-    assert len(deltas) == 1, "a read after the repair paid the synchronous provider delta again"
+        assert bars_fetch.get_serve_layer() not in ("fetch", "delta-deadline"), bars_fetch.get_serve_layer()
     assert len(aggs) == 1, "the repair ran more than once"
 
 
