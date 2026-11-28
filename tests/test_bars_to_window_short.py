@@ -111,9 +111,11 @@ def test_a_window_at_96_percent_of_the_ask_is_fetched_and_served_flagged_while_i
 
 
 def test_a_short_window_proven_by_a_finished_fetch_is_final(store, monkeypatch):
-    # control: the provider answered and has nothing older (a listing's start) -> the short window is final
+    # control: the provider answered and has nothing older across the listing threshold (a listing's start; review of
+    # #3011, F2: the two empty rounds here span ~3 months, so the threshold is set below that) -> the window is final
     days = _sessions(END, 37)
     _put("LIST", days)
+    monkeypatch.setattr(bars_fetch, "_TO_LISTING_EMPTY_DAYS", 30)
     calls = []
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda t, tf, f, to, raise_errors=False: calls.append(f) or [])
     r = bars_fetch._get_bars_to_response("LIST", "15", ASK, TO)
@@ -181,10 +183,19 @@ def test_an_empty_window_whose_fetch_got_no_slot_is_warming(store, monkeypatch):
 
 
 def test_an_empty_window_the_provider_answered_empty_is_no_data(store, monkeypatch):
+    # proven empty: the provider answered nothing across the listing threshold (review of #3011, F2)
+    monkeypatch.setattr(bars_fetch, "_TO_LISTING_EMPTY_DAYS", 30)
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
     r = bars_fetch._get_bars_to_response("NOTHING", "15", ASK, TO)
     body = _body(r)
     assert r.status_code == 200 and body.get("no_data") is True and body["bars"] == []
+
+
+def test_an_empty_window_whose_empty_rounds_span_less_than_the_threshold_is_warming(store, monkeypatch):
+    # (review of #3011, F2) two small empty rounds are a vendor gap, not proof the window is empty
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+    r = bars_fetch._get_bars_to_response("NOTHING2", "15", ASK, TO)
+    assert r.status_code == 503 and r.headers.get("x-bars-shed") == "warming" and not _body(r).get("no_data")
 
 
 def _later_rows(tf):
@@ -278,7 +289,7 @@ def test_rounds_used_up_while_short_prove_nothing(store, monkeypatch):
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", one_bar)
     r = bars_fetch._get_bars_to_response("ROUNDS", "15", ASK, TO)
     assert len(calls) == bars_fetch._TO_FILL_MAX_ROUNDS, calls
-    _assert_flagged_short(r, 520)
+    _assert_flagged_short(r, 520 + len(calls))      # the proven spans keep each round's one bar in the run
 
 
 def test_a_window_proven_for_a_smaller_ask_does_not_prove_a_larger_one_in_the_same_tier(store, monkeypatch):
