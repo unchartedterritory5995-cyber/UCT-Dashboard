@@ -34,7 +34,7 @@ export function barDayOf(ms, tf) {
 /** The first trading session after `iso` ('YYYY-MM-DD'): a weekend or an exchange holiday is skipped (review of #2947,
  *  LOW 2: Fri -> Sat -> Sun were dead presses, each re-keying a new `@to=` read). Past two weeks of closed days (never
  *  seen): the next calendar day. */
-export function nextSessionDay(iso) {
+export function nextTradingDayAfter(iso) {
   let ms = Date.parse(`${iso}T00:00:00Z`)
   if (!Number.isFinite(ms)) return null
   for (let i = 0; i < 14; i++) {
@@ -107,7 +107,7 @@ export function createDateBoxNav({ meta, stepPane, setDate, getDate, tf, present
       if (!Number.isFinite(m?.rightMs)) return
       const cur = getDate()
       if (dir > 0 && cur && !isDatedTf(tf) && Number.isFinite(before?.rightMs) && m.rightMs <= before.rightMs) {
-        anchorAt(nextSessionDay(barDayOf(before.rightMs, tf) || cur.date), spanOf(m))
+        anchorAt(nextTradingDayAfter(barDayOf(before.rightMs, tf) || cur.date), spanOf(m))
         return
       }
       anchorAt(barDayOf(m.rightMs, tf), spanOf(m))

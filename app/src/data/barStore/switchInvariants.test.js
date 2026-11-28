@@ -131,7 +131,7 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
       const fire = async (ms) => { const i = timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = timers.splice(i, 1); t.fn(); await flush(); return true }
       return { registry, network, timers, fire }
     }
-    it('the chart's own ask (no loop, no manual fetchOnce) is repeated ~3 s later; the complete answer clears it and wakes the watchers', async () => {
+    it("the chart's own ask (no loop, no manual fetchOnce) is repeated ~3 s later; the complete answer clears it and wakes the watchers", async () => {
       const { WINDOW_FILL_RETRY_S } = await import('./network')
       let filling = true
       const request = vi.fn(async () => ({ ...ok(), ...(filling ? { filling: true } : {}) }))

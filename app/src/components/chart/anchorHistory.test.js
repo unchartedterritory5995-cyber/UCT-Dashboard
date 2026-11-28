@@ -1,6 +1,7 @@
 // "No bars at the date" waits for the whole history (review of #2947, M2; LOW 1: the store D/W/M branch had no rail).
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { anchorHistoryDone } from './anchorHistory'
 
 const base = { anchorEarliest: true, hasOverride: false, overridePending: false, intraday: false, validating: false, fetchDepth: 12500, fullTarget: 12500, store: true, deepPending: () => false }
@@ -27,7 +28,7 @@ describe('anchorHistoryDone', () => {
     expect(anchorHistoryDone({ ...base, store: false, fetchDepth: 2000 })).toBe(false)
   })
   it('StockChart decides its note with this function, passing the store\'s deepPending', () => {
-    const src = readFileSync(new URL('../StockChart.jsx', import.meta.url), 'utf8')
+    const src = readFileSync(resolve(globalThis.process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
     expect(src).toMatch(/const _anchorHistoryDone = anchorHistoryDone\(\{/)
     expect(src).toMatch(/deepPending: \(\) => storeDeepPending\(sym, resolvedTf\)/)
   })

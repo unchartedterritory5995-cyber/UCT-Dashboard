@@ -2,7 +2,7 @@
 // present is noted from every unanchored view the date box sees, so a halted name never reads as the present.
 import { describe, it, expect, vi } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
-import { createDateBoxNav, nextSessionDay } from './dateBoxNav'
+import { createDateBoxNav, nextTradingDayAfter } from './dateBoxNav'
 import ChartDateNav from './ChartDateNav'
 
 // an intraday chart anchored at `day` whose forward step cannot move (the window ends at the date)
@@ -14,13 +14,13 @@ function rig(day, presentDay = '2026-11-25') {
   return { nav, set }
 }
 
-describe('nextSessionDay', () => {
+describe('nextTradingDayAfter', () => {
   it('skips weekends and exchange holidays', () => {
-    expect(nextSessionDay('2025-03-14')).toBe('2025-03-17')   // Fri -> Mon
-    expect(nextSessionDay('2025-03-15')).toBe('2025-03-17')   // Sat -> Mon
-    expect(nextSessionDay('2025-11-26')).toBe('2025-11-28')   // Wed -> Fri (Thanksgiving)
-    expect(nextSessionDay('2025-12-24')).toBe('2025-12-26')   // Christmas
-    expect(nextSessionDay('2025-03-12')).toBe('2025-03-13')
+    expect(nextTradingDayAfter('2025-03-14')).toBe('2025-03-17')   // Fri -> Mon
+    expect(nextTradingDayAfter('2025-03-15')).toBe('2025-03-17')   // Sat -> Mon
+    expect(nextTradingDayAfter('2025-11-26')).toBe('2025-11-28')   // Wed -> Fri (Thanksgiving)
+    expect(nextTradingDayAfter('2025-12-24')).toBe('2025-12-26')   // Christmas
+    expect(nextTradingDayAfter('2025-03-12')).toBe('2025-03-13')
   })
 })
 
