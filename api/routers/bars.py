@@ -1314,6 +1314,10 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
     return out_resp
 
 
+# An answer whose server time passes this many ms is logged with its phases (`[bars-slow]`, _serve_bars_impl).
+SLOW_BARS_LOG_MS = 500
+
+
 def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0, session=""):
     """`serve_bars` for an HTTP request behind the edge: runs it under ONE wait budget
     (bars_fetch._bounded_wait) so the sum of every request-path wait stays under the
@@ -1637,6 +1641,11 @@ def _serve_bars_impl(
             except Exception:
                 pass
             response.headers["Server-Timing"] = _st
+            # ⭐ (2026-11-27) A SLOW ANSWER NAMES ITSELF. A cold D2000 took 5.1 s on production and nothing on the pod
+            # recorded why (only uvicorn's access line, aged out of `railway logs` within the hour). Any answer whose
+            # server time passes SLOW_BARS_LOG_MS is logged with its key and every phase, so the next one can be read.
+            if _dur_ms > SLOW_BARS_LOG_MS:
+                _log.warning(f"[bars-slow] {str(ticker)[:16]} tf={tf} bars={bars} since={bool(since)} to={bool(to)} {_st}")
         except Exception:
             pass
         return response

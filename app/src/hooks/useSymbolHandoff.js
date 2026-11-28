@@ -532,7 +532,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const uncounted = () => BARSTORE && !(storePrefetch.heldRows?.(requestedSym, tf, {}) ?? 0)
         const whole = () => !BARSTORE || uncounted() || covers(requestedSym, tf, {}, need) || !storePrefetch.deepPending?.(requestedSym, tf)
         const landWhole = (outcome) => { if (outcome === 'error' || outcome === 'nodata' || whole()) land(outcome) }
-        P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(landWhole, () => land('error'))
+        P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal, cover: need }).then(landWhole, () => land('error'))
         const bound = setTimeout(() => landWhole('hold-timeout'), DAILY_HOLD_MAX_MS)
         const hang = setTimeout(() => land('hang'), HANDOFF_HANG_MS)
         // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's

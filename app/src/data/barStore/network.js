@@ -44,7 +44,7 @@ import {
   tailRetriesExhausted,
 } from '../../utils/intradayTailPoll'
 import { classifyIntradayTail } from '../../utils/marketSession'
-import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS, dateFirstPageFor } from '../../utils/barsBackfill'
+import { firstPaintBarsFor, fullBarsFor, FIRST_PAINT_BARS, dateCoverMaxFor, dateCoverFor } from '../../utils/barsBackfill'
 import { barsSessionQuery } from '../../components/chart/barTime'
 import { ACTION, parseKey, isIntradayTf, isDateTf, PERIOD_SEC, unixToDateLabel, dateLabelToUnix } from './types'
 import { barsHistorySplitEnabled, historySealedDate } from '../../utils/barsHistorySplit'
@@ -102,18 +102,24 @@ export const PRIORITIES = Object.freeze(['visible', 'urgent', 'grid', 'backgroun
  *  history job to take, and at most this many at once (each ~1-2 MB parsed). */
 export const DEEP_PRIME_TTL_MS = 120_000
 export const DEEP_PRIME_MAX = 4
+/** The newest rows the origin answers for a daily view's cover whose deep history the edge brings (`_tailJob`). */
+export const EDGE_TAIL_BARS = 30
+/** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */
+export const EDGE_FALLBACK_MS = 600
+
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
 export const DEEP_WANT_MS = 5_000
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
-/** Bars to ask for: the chart's first-paint count, or the depth a caller ensured. */
-export function barsCountFor(key, { depth = 0, session = 'rth' } = {}) {
+/** Bars to ask for: the chart's first-paint count, or the depth a caller ensured. `cover` (D/W/M): the rows a view will
+ *  draw (review of #2934, B1: barsBackfill dateCoverFor; 0, a warm, asks the default page). */
+export function barsCountFor(key, { depth = 0, session = 'rth', cover = 0 } = {}) {
   const p = parseKey(key)
   if (!p) return FIRST_PAINT_BARS
   const eth = p.session ? p.session === 'eth' : session === 'eth'
-  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : dateFirstPageFor(p.tf)   // (D/W/M: a covering first page)
+  const base = isIntradayTf(p.tf) ? firstPaintBarsFor(p.tf, eth) : dateCoverFor(p.tf, cover)
   const want = Math.max(base, Math.floor(Number(depth) || 0))
   return Math.min(want, fullBarsFor(p.tf) || want)
 }
@@ -281,6 +287,7 @@ export function createNetwork({
     if (!r) {
       r = {
         key, refs: 0, sessions: new Map(), priority: 'background', depth: 0,
+        cover: 0,                 // D/W/M: the rows a view of this key will draw (barsCountFor `cover`)
         inflight: null,           // { ac, kind, promise }
         queue: [],                // pending scroll-back jobs
         timer: null, paused: false, lastStart: -Infinity, errors: 0,
@@ -313,9 +320,25 @@ export function createNetwork({
     const p = parseKey(r.key)
     const gen = s.gen
     const session = _session(r)
-    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session })
+    const wanted = barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover })
     const split = _splitFor(r, p)
-    const bars = split ? Math.min(wanted, dateFirstPageFor(p.tf)) : wanted
+    let bars = split ? Math.min(wanted, dateCoverFor(p.tf, r.cover)) : wanted
+    // ⭐⭐ (2026-11-27, approved: the server-tail numbers) THE COVERING DAILY PAGE COMES FROM THE EDGE. A view's cover asked
+    // of the origin is a 2,000-row sqlite read and JSON build: 18-275 ms of server work on a cold name (bars-api
+    // Server-Timing, production), behind a 76-96 ms network floor. The deep sealed history is edge-cached (br, HIT in
+    // 95-152 ms, the floor) and is fetched BESIDE the tail (deepPrime) whenever its join is due. So where a view's cover
+    // is asked, the history is due and will be joined (more is wanted than the tail page), the origin answers only the
+    // newest EDGE_TAIL_BARS rows: a few ms of server work. The display waits for the join (the daily hold), which brings
+    // every covering row in the same frame. A history that fails turns the split off: the full depth from /api/bars.
+    // ⛔ (review of #2938, T1) ...BUT NEVER A HOLD ON A COLD EDGE. The history URL carries the sealed date, so a name's
+    // first view per POP per trading day is an edge MISS the origin builds (seconds); a 30-row tail then left the hold to
+    // the hang guard, which painted 30 bars and filled: the two-phase paint again. So the ask arms a fallback: still
+    // unlanded EDGE_FALLBACK_MS later, the origin is asked the view's cover as well, and whichever covers the view first
+    // is what the hold commits on (the join then lands behind the left edge).
+    if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
+      bars = Math.min(bars, EDGE_TAIL_BARS)
+      _armEdgeFallback(r)
+    }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
     lastDelta.delete(r.key)
@@ -343,13 +366,13 @@ export function createNetwork({
       // ⭐ WANTED AT ANSWER TIME (2026-11-19): a caller that JOINED this request asking for more
       // depth (the daily handoff joining the typed warm's tail) raised `r.depth` after the request
       // left; read at the start only, its history was never asked.
-      const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session }))
+      const wantNow = Math.max(wanted, barsCountFor(r.key, { depth: Math.max(r.depth, s.depthFloor || 0), session, cover: r.cover }))
       // ⭐ ONCE PER PAGE WHILE HELD (2026-11-27): `wantNow` is the full 12,500 for D, deeper than almost any name's
       // history, so after a join the depth stays under it and only `histAsked` (this record's) stopped a repeat; the
       // record goes when the last chart leaves the key, and every return re-asked the history to join nothing older.
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
-      const joinedHere = heldNow > dateFirstPageFor(p.tf) && _deepJoinedAt(r.key, heldNow)
+      const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
       if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
@@ -404,7 +427,23 @@ export function createNetwork({
   }
 
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
+  /** (review of #2938, T1) The cover's fallback: the origin is asked the view's cover when the edge history has not landed. */
+  function _armEdgeFallback(r) {
+    if (r.edgeTimer != null) return
+    r.edgeTimer = setTimer(() => {
+      r.edgeTimer = null
+      if (keys.get(r.key) !== r || !api.deepPending(r.key)) return   // gone, or the history joined in time
+      r.edgeFallback = true
+      _queueTail(r, r.priority)
+      _drain(r)
+    }, EDGE_FALLBACK_MS)
+  }
+
+  /** History answers slower than EDGE_FALLBACK_MS (most likely an edge MISS), newest last: `{ key, ms }`. */
+  const slowHistory = []
+
   function _historyJob(r) {
+    const askedAt = now()
     const s = registry.getSnapshot(r.key)
     const p = parseKey(r.key)
     const gen = s.gen
@@ -441,6 +480,13 @@ export function createNetwork({
       // A waiting display stops waiting on any outcome but an abort (a failure's full read comes
       // through the tail, as before).
       if (!res?.aborted) _settleDeep(r.key, !!res?.ok)
+      // (review of #2938, T1) a slow history names itself: the edge MISS rate is what the fallback above pays for
+      const ms = now() - askedAt
+      if (ms > EDGE_FALLBACK_MS && !res?.aborted) {
+        slowHistory.push({ key: r.key, ms: Math.round(ms) })
+        if (slowHistory.length > 50) slowHistory.shift()
+        try { console.info(`[bars-history] slow ${r.key} ${Math.round(ms)} ms`) } catch { /* diagnostics only */ }
+      }
       return res
     })
   }
@@ -714,6 +760,8 @@ export function createNetwork({
   const _gc = (r) => { if (r.refs <= 0 && !r.inflight && !r.queue.length && keys.get(r.key) === r) keys.delete(r.key) }
 
   const api = {
+    /** (review of #2938, T1) the slow history answers of this page (diagnostics; the rig reads it). */
+    slowHistory: () => slowHistory.slice(),
     /** Start (refcount) the loop for `key`. First start requests immediately. */
     start(key, { session = 'rth', priority = 'visible', depth = 0 } = {}) {
       const r = _rec(key)
@@ -871,7 +919,7 @@ export function createNetwork({
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
       if (keys.get(key)?.splitOff) return false
       const held = registry.peek(key)?.bars.length ?? 0
-      if (held > dateFirstPageFor(p.tf)) return false
+      if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
     },
     /**
@@ -934,10 +982,11 @@ export function createNetwork({
      * flight is aborted only when the last one-shot waiter has left AND no subscriber holds
      * the key — a prefetch or a mounted chart riding the same request never loses it.
      */
-    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false, full = false } = {}) {
+    fetchOnce(key, { priority = 'urgent', depth = 0, session = 'rth', signal = null, warm = false, front = false, full = false, cover = 0 } = {}) {
       if (signal?.aborted) return Promise.resolve({ aborted: true })
       const r = _rec(key)
       r.depth = Math.max(r.depth, depth || 0)
+      r.cover = Math.max(r.cover || 0, Number.isFinite(cover) ? cover : 0)
       if (!r.sessions.size) r.sessions.set(session, 0)
       // A key a chart is subscribed to is LIVE: a one-shot ask of it rides the chart's rank and
       // never goes out as a shed-able `&warm=1` warm.
