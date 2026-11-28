@@ -179,7 +179,7 @@ test('warms the next 2 rows with the urgent option, and 4 ahead / 1 behind in th
   const { result } = renderHook(() => useFocusSelection({ rows: rows(20), tf: '5' }))
   act(() => result.current.select(5))
   expect(prefetchBars).toHaveBeenLastCalledWith(['T6', 'T7'], '5', { urgent: true })
-  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], '5', { priority: true })
+  expect(prefetchBarsToIDB).toHaveBeenLastCalledWith(['T6', 'T7', 'T8', 'T9', 'T4'], '5', { priority: true, edge: true })   // (plan 1.7) device + edge only
   // ±6 into mem from IDB (watchlist parity); the network window stays 4 ahead / 1 behind
   expect(warmMemFromIDB).toHaveBeenLastCalledWith(
     ['T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T0', 'T1', 'T2', 'T3', 'T4'], ['5'])
