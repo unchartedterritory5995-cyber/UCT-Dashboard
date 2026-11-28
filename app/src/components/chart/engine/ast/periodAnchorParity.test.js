@@ -402,6 +402,9 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         // ⭐⭐ Q-CLOSURE (2026-11-21) — a week the exchange's own calendar decides is a `request.security` read too;
         // `htfSessionWeek.test.js` / `tests/test_pine_htf_session_week.py` rail it
         && k !== 'request:htf-venue-calendar'
+        // ⭐⭐ E101 INTRADAY-HTF — a higher intraday timeframe read on a chart on neither grid is a `request.security` read;
+        // `intradayHtfReads.test.js` rails it (the Python lane refuses the tree: `tests/test_ast_intraday_htf_fail_closed.py`)
+        && k !== 'request:htf-intraday-session'
         // ⭐⭐ e95 unit 2 (2026-11-22) — an anchored VWAP before the first anchor inside the loaded history reads no
         // clock of its own; `vwapAnchored.test.js` / `tests/test_vwap_anchor_parity.py` rail it on both lanes
         && !k.startsWith('vwap:')

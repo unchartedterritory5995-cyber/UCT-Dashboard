@@ -61,7 +61,9 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
     // member rests here (`deep`, createNeighborHold), so a flip paints it deep.
     holdRef.current.set(neighbors, onTf, { deep: neighbors.slice(0, 2) })
     warmMemFromIDB(neighbors, [onTf])                      // durable → sync mem (no network)
-    prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
+    // (2026-11-28, plan 1.7) from the device and the edge only (the store's `edge` warm: no /api/bars for the ±radius rows;
+    // the legacy module, before a chart registers the store's warmers, ignores the flag and warms as before)
+    prefetchBarsToIDB(neighbors, onTf, { priority: true, edge: true })
     // ⭐ The row on either side, URGENT (2026-11-17): the line above is held while the daily
     // pack ingests (a first visit: 90 s+), so a flip to either one waited on its own request.
     // `neighbors` starts with the +1 / -1 rows (the loop above adds them first). Only the

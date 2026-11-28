@@ -72,5 +72,9 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     // the door must not be offered inside an embed. Enumerated here, like the
     // breadth drill's own host (drillWorkspace.js), not left to undefined.
     canOpenCompare: false,
+    // "Widgets match the chart" (11-27) is a /charts layout switch; no layout here, so the
+    // door is absent (null ⇒ no "Match the chart" controls offered).
+    matchChart: null,
+    setMatchChart: null,
   }
 }

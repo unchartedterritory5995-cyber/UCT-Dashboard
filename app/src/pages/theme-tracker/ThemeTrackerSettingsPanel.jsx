@@ -13,7 +13,7 @@ import ColorPanel from '../../components/chart/ColorPanel'
 import ChoiceMenu from '../../components/chart/ChoiceMenu'
 import { rowToggleClick } from '../charts/widgets/widgetMenuRowToggle'
 import Switch from '../../components/ui/Switch'
-import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
+import WidgetThemeSection, { MatchChartRows } from '../charts/widgets/WidgetThemeSection'
 import { THEME_TRACKER_FONT_SIZES } from './themeTrackerSettings'
 import styles from './ThemeTrackerSettingsPanel.module.css'
 import useWidgetMenuPlacement from '../charts/widgets/useWidgetMenuPlacement'
@@ -129,6 +129,7 @@ export default function ThemeTrackerSettingsPanel({ settings: s, onChange, onRes
           <Row label="UCT theme" hint="whole-widget look">
             <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
+          <MatchChartRows Row={Row} styles={styles} />
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">

@@ -90,7 +90,7 @@ concurrency:
 jobs:
   gate:
     name: deploy-correctness checks + Agent server tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 60   # 40 -> 60 (2026-11-04, owner-approved): release train 2 ran the gate 35.2 of 40 min on 3d3d444d4f (Agent vitest 23.7 min, serial); 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest); 25 -> 40 (2026-11-02): Sprint 1 grew the Agent vitest step to 16.2 min and the gate ran 23.5 of 25 min on c3ba71c343
     steps:
       # Two commits so the secret scan has a range to look at; without this
@@ -465,7 +465,7 @@ jobs:
   # is failure if ANY job fails; `verdict` additionally names the result in one place.
   agent-browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/10)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -531,7 +531,7 @@ jobs:
   agent-browser-union:
     name: Agent shards cover every Agent test file (equivalence rail)
     needs: agent-browser
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -591,7 +591,7 @@ jobs:
   # the live service. The image is not built here: section 8 does not ask for it.
   pine-runtime:
     name: Pine runtime service rails (section 8)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -686,7 +686,7 @@ jobs:
   # licence-held stores, the no-network wrapper). tests/test_ci_whole_app_rails.py rails it.
   whole-app-engine-rails:
     name: Engine whole-app rails (tools/whole_app_engine_rails.txt)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
@@ -723,7 +723,7 @@ jobs:
   # of this, and the list includes it.
   bars-rails:
     name: Bars rails (the critical path)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -762,7 +762,7 @@ jobs:
     name: master deploy gate verdict
     needs: [gate, agent-browser, agent-browser-union, pine-runtime, whole-app-engine-rails, bars-rails]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded

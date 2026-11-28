@@ -74,10 +74,26 @@ export function lastSealedDate(dates, tf, nowMs = Date.now()) {
  * answers the same question the same way, and the worker's pre-warm sweep stamps every daily URL
  * with it. Read from held bars instead, `d` could not be known before the chart's own answer landed
  * (so the deep history was asked only after it, a second visible step), and it named a different URL
- * for a ticker that did not trade yesterday (a URL nothing pre-warmed). '' for W/M (their sealed
- * period stays the held-bars rule) and outside the calendar's coverage (the caller falls back).
+ * for a ticker that did not trade yesterday (a URL nothing pre-warmed). '' outside the calendar's
+ * coverage (the caller falls back).
+ * ⭐ W AND M TOO (2026-11-28, cold-arch report 3.3 item 1: "W from sealed W history"). Their sealed label
+ * is fixed by the calendar as well: the server dates a week by its calendar FRIDAY and a month by its 1st
+ * (api/services/bars_fetch.py `_week_key_yyyymmdd`, `_wm_key_of`) and seals a period once the current one
+ * has started (api/routers/bars.py `_period_start_iso`: this week's Monday, this month's 1st, ET). So the
+ * newest sealed W is the previous week's Friday and the newest sealed M the previous month's 1st: the
+ * `d` the pre-warm sweep reads from SPY. Known before any bar is held, the W/M history now leaves beside
+ * the tail (network.deepPrime) instead of after it. A name that did not trade in that period gets the
+ * server's short public cache for this URL (its content is the same: `d` only decides the caching).
  */
 export function calendarSealedDate(tf, nowMs = Date.now()) {
+  if (tf === 'W' || tf === 'M') {
+    const start = etPeriodStartISO(tf, nowMs)   // this week's Monday / this month's 1st (ET)
+    if (!start) return ''
+    const d = new Date(`${start}T12:00:00Z`)
+    if (tf === 'W') d.setUTCDate(d.getUTCDate() - 3)   // the previous week's Friday
+    else d.setUTCMonth(d.getUTCMonth() - 1)            // the previous month's 1st (from a 1st: never overflows)
+    return d.toISOString().slice(0, 10)
+  }
   if (tf !== 'D') return ''
   const today = etPeriodStartISO('D', nowMs)
   if (!today) return ''

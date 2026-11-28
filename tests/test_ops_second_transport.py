@@ -616,3 +616,20 @@ def test_no_test_in_this_file_COULD_send_a_real_email():
     for address in RECIPIENTS:
         assert email_service.is_unroutable(address), address
     assert not email_service.is_unroutable("someone@uctintelligence.com")
+
+
+def test_a_producer_can_keep_ONE_alert_off_the_email_leg_and_still_page_discord(
+        monkeypatch, sent, paged):
+    """Owner ruling 2026-11-27 (`loop_stalled` tier 2, ~30 emails a day): `emit(..., email=False)`
+    sends no email for that alert and changes nothing else -- it still queues and still pages
+    Discord. ⭐ The CONTROL is the same alert with the default, which does email."""
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "https://discord.invalid/api/webhooks/1/x")
+    monkeypatch.setenv(ar.OPS_EMAIL_ENV, FIRST)
+
+    assert cha.emit("quiet_key", ar.SEVERITY_CRITICAL, "short stall", email=False) is True
+    assert sent == [], "email=False still sent an email"
+    assert paged, "email=False must not silence the Discord page"
+    assert cha.list_recent()[0]["alert_key"] == "quiet_key"
+
+    assert cha.emit("loud_key", ar.SEVERITY_CRITICAL, "long stall") is True
+    assert [c["to"] for c in sent] == [FIRST], "the default must still email"

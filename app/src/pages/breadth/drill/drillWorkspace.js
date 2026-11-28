@@ -86,6 +86,10 @@ function inertWorkspaceMembers() {
     // layout to write, so the door is absent (null ⇒ ChartWidget offers no control).
     countOtherCharts: null,
     applyAppearanceToOtherCharts: null,
+    // "Widgets match the chart" (11-27) is a /charts layout switch; no layout here, so the
+    // door is absent (null ⇒ no "Match the chart" controls offered).
+    matchChart: null,
+    setMatchChart: null,
   }
 }
 
