@@ -36,8 +36,10 @@ import { HIST_PREFIX, handleHistory } from "./history.js";
 import { LIVE1M_PREFIX, handleLive1m } from "./live1m.js";
 import { SEED_PREFIX_PATH, handleSeed } from "./seed.js";
 import { isStreamPath, handleStream } from "./stream.js";
+import { BARS_TIER_ORIGIN, readTail } from "./tail.js";
 
-const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
+// One authority for the tier's address: the shared-tail entrypoint (tail.js) asks the same one.
+const BARS_ORIGIN = BARS_TIER_ORIGIN;
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
 const BARS_TIMEOUT_MS = 8000;
 
@@ -444,8 +446,10 @@ export default {
     // — a bad secret binding, a malformed header, a runtime quirk — the request
     // must still be served exactly as before. An observability feature that can
     // break traffic is worse than no observability.
+    let entitled = false;
     try {
       const cls = await classifyRequest(request, env && env.CHART_EDGE_SECRET);
+      entitled = cls === VALID || cls === SERVICE_VALID;
       // ⚠️ SAFE FIELDS ONLY: a classification and a route family. No token, no
       // cookie, no secret, no session id, no user id, no email. The ticker is
       // already in the URL these logs accompany, so `family` is all that is
@@ -470,6 +474,16 @@ export default {
     const opts = { method: request.method, headers, redirect: "manual" };
 
     if (isBreadth) return fetch(target(WEB_ORIGIN), opts);
+
+    // ⭐ THE SHARED TAIL (tail.js, 2026-11-28): an ENTITLED chart read is answered from a copy at most a few
+    // seconds old when one exists, else fills it from the tier. Unentitled reads never reach it and take the
+    // path below unchanged; any failure of the copy is also the path below.
+    if (entitled && request.method === "GET") {
+      try {
+        const shared = await readTail(url, { env, ctx, entitled, breakerOpen: TIER_BREAKER.isOpen() });
+        if (shared) return shared;
+      } catch (_e) { /* the copy failing is the old path */ }
+    }
 
     return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts,
                        hedgeFor(url.pathname));
