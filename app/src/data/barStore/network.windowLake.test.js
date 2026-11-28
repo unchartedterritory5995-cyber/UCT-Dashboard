@@ -865,6 +865,30 @@ describe('W14 — review of #2986 round 4: a chart joining a warm (F-E), an unkn
     await h.flush()
     expect(h.registry.peek(K)?.bars?.length ?? 0, "the old life's lake rows never land in the new one").not.toBe(asked)
   })
+  // (the X14 survivor, after #2986) the case the reset rail could not see: the NEW life has rows of its own before the
+  // scroll. The kept lake rows belong to the old life and must land nothing in it (the gen check, not the empty guard).
+  it('(F-H) a new life holding its own rows before the scroll: the old life\'s kept lake rows land nothing', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS, WINDOW_LAKE_MAX_WAIT_MS } = await import('./network')
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    await fire(h, WINDOW_LAKE_HEAD_START_MS)
+    o.pend[0].go((b) => b.slice(-738))
+    await h.flush()
+    await fire(h, WINDOW_LAKE_MAX_WAIT_MS)
+    open()
+    await h.flush()                                           // the whole lake window is kept for the old life
+    h.registry.invalidate(K, 'adj_basis')                     // a new life...
+    const fresh = originTo(M.ABC[5], '2006-02-15', 300)
+    h.registry.dispatch(K, { type: 'rest-full', key: K, gen: h.registry.getSnapshot(K).gen, payload: { ticker: 'ABC', tf: '5', bars: fresh } })
+    expect(h.registry.peek(K).bars.length, 'non-vacuity: the new life holds rows').toBe(300)
+    h.network.scrollBack(K)                                   // ...and the member scrolls
+    await h.flush()
+    expect(h.registry.peek(K).bars.length, "the old life's lake rows never join the new life").toBe(300)
+  })
   it('(F-G) the newest-session read FAILS (an R2 error), the present key held after a split: the origin', async () => {
     const src = fakeSource(M, { through: LAKE_THROUGH })
     const inner = src.loadBars
