@@ -41,8 +41,8 @@
    "id": "GS5",
    "mutant": "the fold drops the chart's session on its way to the grid",
    "file": "app/src/components/chart/engine/otherSymbols.js",
-   "from": "      extended: !!(also && also.extended) })",
-   "to": "      extended: false })",
+   "from": "      extended: !!(also && also.extended), from: also && typeof also.from === 'number' ? also.from : null })",
+   "to": "      extended: false, from: also && typeof also.from === 'number' ? also.from : null })",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/rsFourHourWitness.test.js",
    "expectRed": "(a) EXTENDED 240"
   },

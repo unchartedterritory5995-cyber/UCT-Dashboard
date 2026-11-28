@@ -8,7 +8,7 @@ import ChoiceMenu from '../../../components/chart/ChoiceMenu'
 import { rowToggleClick } from './widgetMenuRowToggle'
 import useSavedColors from '../../../hooks/useSavedColors'
 import Switch from '../../../components/ui/Switch'
-import WidgetThemeSection from './WidgetThemeSection'
+import WidgetThemeSection, { MatchChartRows } from './WidgetThemeSection'
 import styles from './NewsSettingsPanel.module.css'
 import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
@@ -126,6 +126,7 @@ export default function NewsSettingsPanel({ settings: s, onChange, onReset, onCl
           <Row label="UCT theme" hint="whole-widget look">
             <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
+          <MatchChartRows Row={Row} styles={styles} />
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
