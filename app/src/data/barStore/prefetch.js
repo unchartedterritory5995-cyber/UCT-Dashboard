@@ -393,7 +393,9 @@ export function createPrefetch(o = {}) {
   const urgentCtl = new Map()
   /** The owner of an urgent call that names none (the screener, the neighbour warm): they share one, as before. */
   const URGENT_ANON = Symbol('urgent-anon')
-  /** `owner` gives up `k` (its row passed, its family dropped): aborted when nobody else still wants it. */
+  /** `owner` gives up `k` (its row passed, its family dropped): aborted when nobody else still wants it. ⛔ THE ONE GUARD:
+   *  a caller that never asked `k` gives up nothing (deleting an absent owner leaves the set as it was); no pre-check
+   *  repeats it (review of #3064: two copies, and mutants O1/O2 could not tell them apart). */
   const _giveUpUrgent = (k, e, owner) => {
     e.owners.delete(owner)
     if (e.owners.size) return false
@@ -1541,7 +1543,7 @@ export function createPrefetch(o = {}) {
       // both, and one call must not abort the other's rows
       const callTo = parseKey([...keep][0] || '')?.window?.to ?? null
       for (const [k, e] of [...urgentCtl]) {
-        if (!keep.has(k) && e.owners.has(owner) && parseKey(k)?.tf === callTf && (parseKey(k)?.window?.to ?? null) === callTo) {
+        if (!keep.has(k) && parseKey(k)?.tf === callTf && (parseKey(k)?.window?.to ?? null) === callTo) {
           if (_giveUpUrgent(k, e, owner) && call) scanTrace({ ev: 'warm-abort', key: k, by: call })
         }
       }
@@ -1581,7 +1583,7 @@ export function createPrefetch(o = {}) {
     let n = 0
     for (const [k, e] of [...urgentCtl]) {
       const p = parseKey(k)
-      if (e.owners.has(owner) && p?.tf === pp.tf && (p.window?.to ?? null) === to && _giveUpUrgent(k, e, owner)) n++
+      if (p?.tf === pp.tf && (p.window?.to ?? null) === to && _giveUpUrgent(k, e, owner)) n++
     }
     return n
   }
