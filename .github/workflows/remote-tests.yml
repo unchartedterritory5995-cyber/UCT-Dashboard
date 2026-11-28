@@ -67,7 +67,7 @@ concurrency:
 jobs:
   plan:
     name: validate the request
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     outputs:
       has_pytest: ${{ steps.v.outputs.has_pytest }}
@@ -95,7 +95,7 @@ jobs:
     name: pytest
     needs: plan
     if: needs.plan.outputs.has_pytest == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     steps:
       # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
@@ -188,7 +188,7 @@ jobs:
     name: vitest (shard ${{ matrix.shard }}/${{ needs.plan.outputs.shard_count }})
     needs: plan
     if: needs.plan.outputs.has_vitest == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
     strategy:
       fail-fast: false

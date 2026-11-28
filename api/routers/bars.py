@@ -24,6 +24,7 @@ from fastapi.responses import ORJSONResponse as JSONResponse
 # payload DICT along (`payload_of`, never `orjson.loads(response.body)`), and `_serve_bars_impl`
 # renders the finished answer once (`render_once`, Server-Timing `ser`). api/services/bars_payload.py.
 from api.services.bars_payload import PayloadResponse, payload_of as _payload_of, render_once as _render_once
+from api.services.bars_payload import dumps as _bars_payload_dumps
 
 from api.services.bars_fetch import (
     # Core fetch/cache functions (used by routes below)
@@ -1255,17 +1256,83 @@ def _carry_headers(new, old):
 _render_state = _threading.local()
 
 
-def _render_answer(resp, append_timing: bool = True):
-    """Serialize a finished answer (once; no-op when already rendered or deferred) and,
-    with `append_timing`, add `ser;dur=<ms>` to its Server-Timing. Returns the ms or None."""
+def _unencodable_fields(payload) -> list:
+    """The top-level keys of `payload` orjson cannot encode (never raises)."""
+    if not isinstance(payload, dict):
+        return []
+    bad = []
+    for k, v in payload.items():
+        try:
+            _bars_payload_dumps(v)
+        except Exception:                  # noqa: BLE001
+            bad.append(k)
+    return bad
+
+
+def _step_that_added(stages, key, upto: int) -> str:
+    """Label of the first stage (<= `upto`) whose payload carries `key` unencodable."""
+    for label, resp in stages[:upto + 1]:
+        p = getattr(resp, "payload", None)
+        if isinstance(p, dict) and key in _unencodable_fields({key: p.get(key)}) and key in p:
+            return label
+    return stages[upto][0]
+
+
+def _render_finished(stages, ticker: str, tf: str, append_timing: bool = True):
+    """Serialize a finished answer ONCE and return `(response, ms)`.
+
+    `stages` = [(label, response), ...]: the serve branch's answer, then the answer after
+    each augment step that changed it. ⛔ A FIELD ORJSON CANNOT ENCODE MUST NOT COST THE
+    ANSWER (review of #2949). With one serialization at the end, a bad value an augment
+    added surfaced here, inside the outer try, and turned the whole chart into the
+    OUTER-CRASH 503; under the old render-per-step path the step that added it failed in
+    its own `try` and the answer went out without it. So when the answer cannot be encoded:
+      * a bad top-level FIELD (`newest_bar_is_forming`, a contract field...) is dropped from
+        the answer, named in the log with the step that added it; the rest is served;
+      * bad `bars` (a step appended an unencodable bar) drops that STEP: the stage before
+        it is rendered instead (and so on back);
+      * nothing renderable at all (the serve branch's own payload is bad) answers what the
+        serve core's crash path answers: the transient 503.
+    A deferred render (`_serve_eth_hourly`'s 15m input) returns the last stage untouched."""
     if getattr(_render_state, "defer", False):
-        return None
-    ms = _render_once(resp)
-    if ms is not None and append_timing:
-        entry = f"ser;dur={ms:.1f}"
-        st = resp.headers.get("server-timing")
-        resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
-    return ms
+        return stages[-1][1], None
+    for i in range(len(stages) - 1, -1, -1):
+        label, resp = stages[i]
+        for attempt in (0, 1):
+            try:
+                ms = _render_once(resp)
+            except Exception as e:         # noqa: BLE001
+                payload = getattr(resp, "payload", None)
+                bad = _unencodable_fields(payload)
+                if attempt == 0 and bad and "bars" not in bad:
+                    _bars_log.error(
+                        "[bars] answer not encodable %s tf=%s (%s: %s): dropping field(s) %s",
+                        ticker, tf, type(e).__name__, e,
+                        ", ".join(f"{k!r} (added by {_step_that_added(stages, k, i)!r})" for k in bad))
+                    keep = {k: v for k, v in payload.items() if k not in bad}
+                    resp = _carry_headers_all(
+                        PayloadResponse(content=keep, status_code=resp.status_code), resp)
+                    continue
+                nxt = f"falling back to step {stages[i - 1][0]!r}" if i else "answering transient"
+                _bars_log.error(
+                    "[bars] answer not encodable %s tf=%s: step %r (%s: %s; fields %s); %s",
+                    ticker, tf, label, type(e).__name__, e, bad or "<payload>", nxt)
+                resp = None
+                break
+            if ms is not None and append_timing:
+                entry = f"ser;dur={ms:.1f}"
+                st = resp.headers.get("server-timing")
+                resp.headers["server-timing"] = f"{st}, {entry}" if st else entry
+            return resp, ms
+    return _fault_response(ticker, tf, "transient"), None
+
+
+def _carry_headers_all(new, old):
+    """Every header of `old` onto `new`, except the body's own (length, type)."""
+    for k, v in old.headers.items():
+        if k not in ("content-length", "content-type"):
+            new.headers[k] = v
+    return new
 
 
 def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
@@ -1292,11 +1359,9 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
     try:
         payload = _payload_of(resp)
     except Exception:
-        _render_answer(resp)
-        return resp
+        return _render_finished([("eth-15m", resp)], ticker, "60")[0]
     if not isinstance(payload, dict):
-        _render_answer(resp)
-        return resp
+        return _render_finished([("eth-15m", resp)], ticker, "60")[0]
     payload["tf"] = "60"
     payload["session"] = "eth"
     # A cash index's 15m hole-repair record (`index_bars._repair_fields`) names 15m buckets and
@@ -1337,13 +1402,15 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
                 payload[k] = None
     out_resp = _carry_headers(
         PayloadResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
+    stages = [("eth-60", out_resp)]
     if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
         try:
             out_resp = _carry_headers(_augment_with_bar_close_state(out_resp, "60"), out_resp)
+            if out_resp is not stages[-1][1]:
+                stages.append(("bar_close_state", out_resp))
         except Exception:                  # noqa: BLE001
             pass
-    _render_answer(out_resp)
-    return out_resp
+    return _render_finished(stages, ticker, "60")[0]
 
 
 # An answer whose server time passes this many ms is logged with its phases (`[bars-slow]`, _serve_bars_impl).
@@ -1593,6 +1660,15 @@ def _serve_bars_impl(
                       "200 no_data instead of another warming 503", ticker, tf)
             response = _no_data_response(ticker, tf, reason="no_provider_data")
 
+        # Each augment below that changes the answer adds a stage: a field one of them adds
+        # that cannot be encoded drops THAT step at render time (`_render_finished`).
+        _stages = [("serve", response)]
+
+        def _stage(label, resp):
+            if resp is not _stages[-1][1]:
+                _stages.append((label, resp))
+            return resp
+
         # ── SERVER-INCLUDE TODAY'S DEVELOPING DAILY BAR (equity/ETF only) ────
         # The sealed daily history from the fetch/cache paths ends at the last
         # CLOSED session; today's forming daily bar is otherwise a SEPARATE
@@ -1610,7 +1686,7 @@ def _serve_bars_impl(
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
-                response = _augment_daily_with_today(response, ticker)
+                response = _stage("daily_today", _augment_daily_with_today(response, ticker))
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1620,7 +1696,7 @@ def _serve_bars_impl(
         if (tf == "D" and not to and is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
-                response = _augment_index_daily_with_today(response, ticker)
+                response = _stage("index_today", _augment_index_daily_with_today(response, ticker))
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1629,7 +1705,7 @@ def _serve_bars_impl(
         # actually see last. Additive: a field appears, nothing changes shape.
         if getattr(response, "status_code", 200) == 200:
             try:
-                response = _augment_with_bar_close_state(response, tf)
+                response = _stage("bar_close_state", _augment_with_bar_close_state(response, tf))
             except Exception:
                 pass  # a decorative field must never break a chart serve
 
@@ -1644,23 +1720,24 @@ def _serve_bars_impl(
             _live_equity = (not _is_breadth and not _is_mkt_ind and not _is_seed
                             and _drec is None and not is_index(ticker))
             try:
-                response = _augment_with_contract(
+                response = _stage("contract", _augment_with_contract(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
                     tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
-                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker)))
             except Exception:
                 pass
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching
         # would re-introduce phantom OHLC bars after a corruption fix ships.
-        response.headers["Cache-Control"] = "no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
         # ⭐ THE ONE SERIALIZATION of this answer (bars_payload): every step above passed the
         # dict along. Before `bars;dur` is read, so `dur` still covers the whole serve, and
-        # reported on its own as `ser`. An ETH 60m read defers it (`_serve_eth_hourly`).
-        _ser_ms = _render_answer(response, append_timing=False)
+        # reported on its own as `ser`. An ETH 60m read defers it (`_serve_eth_hourly`). An
+        # unencodable field drops the step that added it (`_render_finished`).
+        response, _ser_ms = _render_finished(_stages, ticker, tf, append_timing=False)
+        response.headers["Cache-Control"] = "no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
         # Server-Timing: expose server-compute ms + which cache tier served, so
         # cold vs warm (and cold-fetch vs inflight-wait vs disk) is observable in
         # prod devtools / curl — the cold path was previously unmeasured. Cheap:

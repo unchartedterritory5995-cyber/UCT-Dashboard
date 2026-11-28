@@ -3828,7 +3828,7 @@ def _add_only_periods(daily: list[dict], periods: list[dict], tf: str) -> list[d
     out = []
     for p in periods:
         try:
-            d = datetime.strptime(str(p["t"])[:10], "%Y-%m-%d")
+            d = _iso_day_dt(str(p["t"])[:10])
             start = (d - timedelta(days=d.weekday())) if tf == "W" else d.replace(day=1)
             late = first is not None and start.strftime("%Y-%m-%d") >= first
         except (KeyError, TypeError, ValueError):
@@ -3942,6 +3942,18 @@ def _bar_volume(bar: dict) -> float:
     return 0 if v is None else v
 
 
+def _iso_day_dt(t) -> datetime:
+    """`datetime.strptime(t, "%Y-%m-%d")`, ~15x cheaper for the canonical `YYYY-MM-DD` key every stored daily row
+    carries (capacity-500, 2026-11-28: a cold W/M serve resamples the whole daily history, ~8k rows, and strptime was
+    ~40% of its 170-300 ms of GIL time). Anything else (unpadded, junk, a non-string) goes to strptime itself, so the
+    result and the exception types are strptime's for every input."""
+    if type(t) is str and len(t) == 10 and t[4] == "-" and t[7] == "-" and t.isascii():
+        y, m, d = t[0:4], t[5:7], t[8:10]
+        if y.isdigit() and m.isdigit() and d.isdigit():
+            return datetime(int(y), int(m), int(d))
+    return datetime.strptime(t, "%Y-%m-%d")
+
+
 def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None,
                          sessions_only: bool = True) -> list[dict]:
     """Resample our normalized daily bars (t = ISO date string) to weekly.
@@ -3954,7 +3966,7 @@ def _resample_weekly_iso(daily_bars: list[dict], ticker: str | None = None,
     # which withholds by name a week holding a day without a session rather than leaving the row out of one lane)
     for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
-            dt = datetime.strptime(bar["t"], "%Y-%m-%d")
+            dt = _iso_day_dt(bar["t"])
         except (ValueError, TypeError):
             continue
         key = dt.isocalendar()[:2]
@@ -3995,7 +4007,7 @@ def _resample_monthly_iso(daily_bars: list[dict], ticker: str | None = None,
     months = {}
     for bar in (session_daily(daily_bars, ticker) if sessions_only else daily_bars):
         try:
-            dt = datetime.strptime(bar["t"], "%Y-%m-%d")
+            dt = _iso_day_dt(bar["t"])
         except (ValueError, TypeError):
             continue
         key = (dt.year, dt.month)

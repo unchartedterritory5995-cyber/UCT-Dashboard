@@ -1,0 +1,316 @@
+# promotion-gate: no — a MEASUREMENT of production chart speed from GitHub's runners. It never holds, refuses or deploys.
+#
+# THE CLOUD SPEED RIG (2026-11-28). The owner-PC coverage sweep (37 passes: arrows, typed Enters, board tabs, zoomed
+# out, dated, memory; ~50 min serial under the PC's one machine-wide lock) as a MATRIX on the larger runner: each pass
+# is its own job with its own pinned Chrome and fresh profile, so a sweep takes ~10-15 min and the PC is free.
+#   scripts/proofs/speed-rig/   rig.mjs (the PC cold rig, ported), plan.py (passes + tickers + lanes),
+#                               ledger.py (the shared never-reuse ticker ledger, refs/speed-rig/ledger), lane.py (one
+#                               job's passes + the scrub), grade.py (the PC grader's rules + per-board p50/p100)
+#
+# CLOUD NUMBERS ARE NOT PC NUMBERS: another CPU (8-core Linux VM, software GL), GitHub's datacenter network, another
+# Cloudflare colo. Every result is labelled with its runner, CPU, Chrome build and colo (the cf-ray suffix). The PC rig
+# stays the reference for what the owner FEELS; this rig is breadth, parallelism and regression detection.
+#
+# RUN IT (repository secrets BENCH_EMAIL / BENCH_PASSWORD, the synthetic bench member; --ref <branch> runs a branch's rig):
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard                      # every pass, 8 at a time
+#   gh workflow run speed-rig.yml -R northstar-quarry/UCT-Dashboard -f passes='COV-def-' -f max_parallel=12
+# ⛔ NO `environment:` KEY. tools/agent_ci_required.py refuses an `environment` key in any workflow but the two verdict
+# posters (AUDIT on #2501: a new workflow able to name an environment could reach the verdict App), and a tree that
+# holds one fails EVERY merge-queue entry. So the credentials are repository secrets, as RAILWAY_TOKEN is.
+# A pull request that touches the rig runs its CHECK half: the arrows pass and the board-tabs pass AT ONCE on the one
+# bench account (isolation=browser), signed in when the secrets exist, else DRY (signed out: Chrome pinned, the site
+# through Cloudflare, the planner against the real ledger without writing it).
+#
+# ISOLATION. One bench account, many browsers: two passes that write that account's Charts board overwrite each
+# other's board, refuse each other's writes (409) and restore over each other. isolation=browser (default) holds each
+# pass's board in its own browser (rig.mjs header): the account is never written, so passes run in parallel on it.
+# isolation=account writes the real board as the PC rig does: one pass at a time per account (BENCH_EMAIL[_n]).
+#
+# LOAD. A sweep is 37 signed-in page sessions over ~12 min, max_parallel (default 8, at most 12) at once: a few
+# members' worth. It never sends anything a member does not.
+#
+# ⛔ PUBLIC REPO, PUBLIC LOGS: the credentials reach ONE step's environment; the rig never prints or writes them, a
+# cookie or a token; lane.py scrubs every artifact file after EVERY pass and in a finally, and deletes (and fails on)
+# any that still holds a secret; an artifact is uploaded only by a job that was not cancelled (a killed pass is never
+# scrubbed, so its files are never uploaded). Session cookies are HttpOnly (never in page script, a trace or a heap
+# sample) and the browser profile lives in the runner's temp, outside every uploaded folder.
+# ⛔ NO FORK REACHES A SECRET: `pull_request` (never `pull_request_target`) gives a fork's run no secrets and a read-only
+# token, and the plan job (so every job after it) runs for a pull request only when its head is THIS repository.
+name: speed rig
+
+on:
+  workflow_dispatch:
+    inputs:
+      passes:
+        description: "regex over pass names (COV-def-dd-arrows ...); default every pass"
+        required: false
+        default: '.*'
+      max_parallel:
+        description: "passes at once (browser isolation: at most 12)"
+        required: false
+        default: '8'
+      isolation:
+        description: "browser = board state in each pass's own browser, parallel on one account; account = real board writes, one pass at a time per account"
+        required: false
+        type: choice
+        options: [browser, account]
+        default: browser
+      accounts:
+        description: "account isolation: bench accounts available (BENCH_EMAIL, BENCH_EMAIL_2, ...)"
+        required: false
+        default: '1'
+  pull_request:
+    paths:
+      - 'scripts/proofs/speed-rig/**'
+      - '.github/workflows/speed-rig.yml'
+
+# A pull request's superseded dry runs are cancelled; sweeps QUEUE (two sweeps planning at once would still never share
+# a ticker, the ledger is compare-and-swap, but two sweeps at once would double the load on production).
+concurrency:
+  group: speed-rig-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'sweep' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CHROME_VERSION: '158.0.8127.36'   # Chrome for Testing; the owner PC runs 158.0.8127.37 (stable), the nearest CfT build
+  NODE_VERSION: '24'
+
+jobs:
+  plan:
+    name: plan the sweep
+    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write   # refs/speed-rig/ledger: the tickers this sweep takes, recorded BEFORE it runs (not on a pull request)
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      max_parallel: ${{ steps.plan.outputs.max_parallel }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Self-checks (the planner, the ledger and the grader can each fail)
+        run: |
+          python scripts/proofs/speed-rig/plan.py --self-check
+          python scripts/proofs/speed-rig/grade.py --self-check
+          python scripts/proofs/speed-rig/lane.py --self-check
+      - name: Plan (and record the tickers in the shared ledger)
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          HAVE_BENCH: ${{ secrets.BENCH_EMAIL != '' && secrets.BENCH_PASSWORD != '' }}
+          PASSES: ${{ inputs.passes || '.*' }}
+          MAX_PARALLEL: ${{ inputs.max_parallel || '8' }}
+          ISOLATION: ${{ inputs.isolation || 'browser' }}
+          ACCOUNTS: ${{ inputs.accounts || '1' }}
+          GIT_AUTHOR_NAME: speed-rig
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: speed-rig
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          extra=()
+          if [ "$EVENT" = "pull_request" ]; then
+            # the two passes that prove one account carries passes in parallel: arrows, and the tabs pass (it writes
+            # layouts, the dock and the board); signed in when the secrets exist, else dry (and nothing recorded)
+            PASSES='^COV-def-(dd-arrows|tabs)$'; ISOLATION=browser; MAX_PARALLEL=2
+            [ "$HAVE_BENCH" = "true" ] || extra=(--dry)
+          fi
+          python scripts/proofs/speed-rig/plan.py --sweep-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" --out "$RUNNER_TEMP/plan" \
+            --select "$PASSES" --isolate "$ISOLATION" --accounts "$ACCOUNTS" --max-parallel "$MAX_PARALLEL" "${extra[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: speed-rig-plan
+          path: ${{ runner.temp }}/plan/
+          retention-days: 30
+
+  pass:
+    name: pass ${{ matrix.title }}
+    needs: plan
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 120   # one pass ~3 min; an account lane runs its passes one after another
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ fromJSON(needs.plan.outputs.max_parallel) }}
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - uses: actions/download-artifact@v4
+        with:
+          name: speed-rig-plan
+          path: ${{ runner.temp }}/plan
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: The image this browser job is measured on
+        run: |
+          set -euo pipefail
+          . /etc/os-release; echo "image: $PRETTY_NAME; $(nproc) cores; $(free -g | awk '/Mem:/{print $2}') GB"
+          # the measurement is pinned to its image (tests/test_ci_browser_runner_images.py's reason): fail, never drift
+          [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
+      - uses: actions/cache@v4
+        with:
+          path: ~/cft
+          key: cft-${{ env.CHROME_VERSION }}-linux64
+      - name: Chrome for Testing (pinned)
+        run: |
+          set -euo pipefail
+          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
+            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          fi
+          # Chrome's own sandbox (user namespaces), as on a member's machine: Ubuntu 24.04 restricts them by default
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
+          "$HOME/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      - name: Run lane ${{ matrix.lane }}
+        env:
+          BENCH_EMAIL: ${{ matrix.slot == 1 && secrets.BENCH_EMAIL || secrets[format('BENCH_EMAIL_{0}', matrix.slot)] }}
+          BENCH_PASSWORD: ${{ matrix.slot == 1 && secrets.BENCH_PASSWORD || secrets[format('BENCH_PASSWORD_{0}', matrix.slot)] }}
+          SPEED_RIG_RUNNER: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+        run: |
+          set -uo pipefail
+          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out"
+          rc=$?
+          echo "lane exit $rc"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}   # never a killed lane's unscrubbed files
+        with:
+          name: speed-rig-pass-${{ matrix.lane }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: warn
+          retention-days: 30
+
+  # the pull request's half: the same runner, image, Chrome and lane runner; signed in only when the plan says so
+  check:
+    name: check ${{ matrix.title }}
+    needs: plan
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - uses: actions/download-artifact@v4
+        with:
+          name: speed-rig-plan
+          path: ${{ runner.temp }}/plan
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: The image this browser job is measured on
+        run: |
+          set -euo pipefail
+          . /etc/os-release; echo "image: $PRETTY_NAME; $(nproc) cores; $(free -g | awk '/Mem:/{print $2}') GB"
+          [ "$VERSION_ID" = "24.04" ] || { echo "::error::expected Ubuntu 24.04, got $VERSION_ID"; exit 1; }
+      - uses: actions/cache@v4
+        with:
+          path: ~/cft
+          key: cft-${{ env.CHROME_VERSION }}-linux64
+      - name: Chrome for Testing (pinned)
+        run: |
+          set -euo pipefail
+          if [ ! -x "$HOME/cft/chrome-linux64/chrome" ]; then
+            curl -fsSL --retry 3 -o "$RUNNER_TEMP/chrome.zip" "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux64/chrome-linux64.zip"
+            mkdir -p "$HOME/cft" && unzip -q "$RUNNER_TEMP/chrome.zip" -d "$HOME/cft"
+          fi
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 >/dev/null 2>&1 || true
+          "$HOME/cft/chrome-linux64/chrome" --version
+          echo "UCT_CHROME=$HOME/cft/chrome-linux64/chrome" >> "$GITHUB_ENV"
+      - name: Check lane ${{ matrix.lane }}
+        env:
+          BENCH_EMAIL: ${{ secrets.BENCH_EMAIL }}
+          BENCH_PASSWORD: ${{ secrets.BENCH_PASSWORD }}
+          SPEED_RIG_RUNNER: ${{ vars.FAST_RUNNER || 'ubuntu-24.04' }}
+        run: |
+          set -uo pipefail
+          python3 scripts/proofs/speed-rig/lane.py --plan "$RUNNER_TEMP/plan/plan.json" --lane "${{ matrix.lane }}" --out "$RUNNER_TEMP/out"
+          rc=$?
+          python3 - "$RUNNER_TEMP/out" <<'EOF'
+          import glob, json, sys
+          for p in sorted(glob.glob(sys.argv[1] + '/COV-*.json')):
+              if p.endswith(('.health.json', '.jump.json')):
+                  continue
+              d = json.load(open(p))
+              lb = d.get('labels') or {}
+              iso = d.get('isolation') or {}
+              print(p.rsplit('/', 1)[-1], json.dumps({k: lb.get(k) for k in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'dpr')}),
+                    json.dumps(d.get('dry')), json.dumps({k: iso.get(k) for k in ('mode', 'rttMs', 'accountVersionStart', 'accountVersionEnd', 'accountUntouched', 'answered', 'errors')}),
+                    'switches', len(d.get('flips') or []), 'INCONCLUSIVE' if d.get('inconclusive') else 'ok')
+          EOF
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}   # never a killed lane's unscrubbed files
+        with:
+          name: speed-rig-pass-${{ matrix.lane }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: warn
+          retention-days: 7
+
+  summary:
+    name: grade the sweep
+    needs: [plan, pass, check]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/proofs/speed-rig/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: speed-rig-pass-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/sweep
+      - uses: actions/download-artifact@v4
+        with:
+          name: speed-rig-plan
+          path: ${{ runner.temp }}/sweep/plan
+      - name: Grade
+        run: |
+          set -uo pipefail
+          python scripts/proofs/speed-rig/grade.py "$RUNNER_TEMP/sweep" --md "$RUNNER_TEMP/sweep/summary.md"
+          rc=$?
+          cat "$RUNNER_TEMP/sweep/summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: speed-rig-summary
+          path: |
+            ${{ runner.temp }}/sweep/summary.md
+            ${{ runner.temp }}/sweep/summary.json
+            ${{ runner.temp }}/sweep/grade.json
+            ${{ runner.temp }}/sweep/plan/plan.json
+          if-no-files-found: warn
+          retention-days: 90
