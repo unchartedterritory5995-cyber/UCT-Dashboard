@@ -29,7 +29,9 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null, tailGateFrom = 0, listing = 3001, tailHook = null } = {}) {
+// `pin` (review of #3012, F-D): the prepare's own pin on the key (prefetch prepareDailyForDisplay acquires it for the whole
+// prepare): what makes the cover fallback worth sending. pin:false is a key nothing holds any more.
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null, tailGateFrom = 0, listing = 3001, tailHook = null, pin = true } = {}) {
   let tails = 0
   const calls = []
   const request = vi.fn(async (url) => {
@@ -54,6 +56,7 @@ function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-1
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
   const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {} })
   const key = keyOf({ sym: 'SIM', tf: 'D' })
+  if (pin) registry.acquire(key)
   return { calls, registry, net, key, depth }
 }
 const histCalls = (w) => w.calls.filter((u) => u.startsWith('/api/bars-history/'))
@@ -156,12 +159,39 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
   })
   it('CONTROL: a deep prime nobody waits on (no display) arms no cover fallback', async () => {
     const { EDGE_FALLBACK_MS } = await import('./network')
-    const w = world({ history: 'hang' })
+    const w = world({ history: 'hang', pin: false })
     w.net.fetchOnce(w.key, { depth: w.depth })
     await vi.advanceTimersByTimeAsync(50)
     w.net.deepPrime(w.key, { want: false })
     await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
     expect(tailBars(w)).toEqual([FIRST_PAINT_BARS])
+  })
+
+  // ⛔ (review of #3012, F-D) a held arrow through a W/M list during an edge miss: the prepares are aborted as the next
+  // row takes over, the stuck history keeps each record alive, and each one sent a 2,000-row origin tail
+  it('F-D the prepare aborted before EDGE_FALLBACK_MS (nothing shows or holds the key): no fallback tail, either arm', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
+    for (const cover of [0, 1400]) {
+      const w = world({ history: 'hang', pin: false })
+      const ac = new AbortController()
+      w.net.deepPrime(w.key, { want: true, wantSignal: ac.signal })
+      w.net.fetchOnce(w.key, { depth: w.depth, cover })
+      await vi.advanceTimersByTimeAsync(50)
+      const first = tailBars(w)
+      expect(first, `cover ${cover}`).toEqual([cover ? EDGE_TAIL_BARS : FIRST_PAINT_BARS])
+      ac.abort()                                             // the next row's press
+      await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+      expect(tailBars(w), `cover ${cover}: no origin tail for a row passed`).toEqual(first)
+    }
+  })
+  it('F-D CONTROL: the same prepare still waiting (not aborted) gets its fallback', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    const ac = new AbortController()
+    w.net.deepPrime(w.key, { want: true, wantSignal: ac.signal })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(tailBars(w)).toEqual([FIRST_PAINT_BARS, dateCoverMaxFor('D')])
   })
 
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it
