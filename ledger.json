@@ -8174,6 +8174,66 @@
     "ARLP",
     "TMQ"
    ]
+  },
+  {
+   "id": "cloud/46134085829-1/COV-zo-tc-arrows",
+   "at": "2026-11-28T10:27:38+00:00",
+   "source": "cloud",
+   "tickers": [
+    "KMDA",
+    "SMR",
+    "CRMD",
+    "NYAX",
+    "FERA",
+    "LND",
+    "KLC",
+    "TLNC",
+    "ASIC",
+    "BLND",
+    "NMAX",
+    "BFS",
+    "SJW"
+   ]
+  },
+  {
+   "id": "cloud/46134085829-1/COV-zo-m1-arrows",
+   "at": "2026-11-28T10:27:38+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FVAV",
+    "FUFU",
+    "CFFN",
+    "PHAT",
+    "LFAC",
+    "IHRT",
+    "BNT",
+    "NRDS",
+    "NRIM",
+    "ABUS",
+    "FTW",
+    "FMC",
+    "YEXT"
+   ]
+  },
+  {
+   "id": "cloud/46134085829-1/COV-zo-h4h2-arrows",
+   "at": "2026-11-28T10:27:38+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FCRS",
+    "HBNC",
+    "IBTA",
+    "CNNE",
+    "ALOY",
+    "BBD",
+    "NBTB",
+    "CSTL",
+    "HIPO",
+    "ABTC",
+    "SHEN",
+    "MSBI",
+    "PSEC"
+   ]
   }
  ]
 }
