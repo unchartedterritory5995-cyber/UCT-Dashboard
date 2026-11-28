@@ -95,6 +95,8 @@ export { COVER_ROWS }
 // (the rows a member's first paint needs: chart/paintLog viewNeed, one rule for the switch and the double buffer's flip)
 export { VIEW_LOOKBACK_ROWS, viewNeed }
 // (`upTo`: heldRows counts a regular-hours view's rows from the newest back only as far as the question needs)
+// (#3034) the hang guard's last look (prefetch.coverIfCut); never throws (a source without it: false)
+const coverIfCut = (sym, tf, opts) => { if (!BARSTORE) return false; try { return !!storePrefetch.coverIfCut?.(sym, tf, opts) } catch { return false } }
 const covers = (sym, tf, opts = {}, need = COVER_ROWS) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, { ...opts, upTo: need }) ?? 0) >= need
 
 // ⭐⭐ ONE FRAME FOR THE WHOLE GROUP (owner, hard rule, 2026-11-20). WHEN a member of a linked group shows a
@@ -585,7 +587,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // ⛔ (2026-11-28, #3034) NEVER A 30-ROW CUT AS THE CHART: at the guard, a cut tail whose cover never went out asks
         // it now and the hold waits for it (the watcher lands it), bounded by HANG_COVER_GRACE_MS
         let hang = setTimeout(function onHang() {
-          hang = BARSTORE && storePrefetch.coverIfCut?.(requestedSym, tf, {}) ? setTimeout(() => land('hang'), HANG_COVER_GRACE_MS) : null
+          hang = coverIfCut(requestedSym, tf, {}) ? setTimeout(() => land('hang'), HANG_COVER_GRACE_MS) : null
           if (!hang) land('hang')
         }, hangIn())
         // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
@@ -696,7 +698,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       let deadline = setTimeout(function onDeadline(late) {
         if (!alive || genRef.current !== gen || forced) return
         // (#3034) a cut D/W/M tail whose cover never went out: asked now, and the guard waits for it once more
-        if (late !== true && BARSTORE && storePrefetch.coverIfCut?.(requestedSym, fetchTf(tf), sess)) { deadline = setTimeout(() => onDeadline(true), HANG_COVER_GRACE_MS); return }
+        if (late !== true && coverIfCut(requestedSym, fetchTf(tf), sess)) { deadline = setTimeout(() => onDeadline(true), HANG_COVER_GRACE_MS); return }
         lastOutcomeRef.current = 'hang'
         forced = true      // (a hold's own guard fires at the same bound: never a second hold after it)
         stopHold()
