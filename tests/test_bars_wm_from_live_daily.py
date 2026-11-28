@@ -49,12 +49,14 @@ def store(monkeypatch, tmp_path):
     bls._reset_for_tests()
 
 
-def _seed(tf, stale=False, live=True, monkeypatch=None, sym="AAA"):
+def _seed(tf, stale=False, live=True, monkeypatch=None, sym="AAA", daily_ends_back=0):
     """The live daily, and the W/M table built from it. `stale`: the CURRENT period as a days-old table holds it, a VALID
     bar with old values (close at the period's low, a smaller volume): one the impossible-bar gate takes, so the store
     really holds a present-but-stale row (review of #2742: a close outside the bar's own range was refused by the gate,
     and the rails then tested an ABSENT period instead)."""
-    days = _sessions(130)
+    days = _sessions(130 + daily_ends_back)
+    if daily_ends_back:
+        days = days[:-daily_ends_back]   # the stored daily ends `daily_ends_back` sessions before the latest one
     daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
              for i, d in enumerate(days)]
     bars_sqlite.put_bars(sym, "D", daily, date_tf=True)
@@ -90,11 +92,41 @@ def test_a_period_holding_the_derivation_is_fresh(store, monkeypatch, tf):
     assert bars_fetch._needs_fresh(last, tf, "AAA") is False
 
 
-def test_control_without_a_live_daily_nothing_changes(store, monkeypatch):
-    daily, periods = _seed("W", stale=True, live=False, monkeypatch=monkeypatch)
+# ⛔⛔ (2026-11-28, the cold-coverage sweep; production: 16 of 19 rarely viewed names) OFF-HOURS, OR A NAME OUTSIDE THE
+# SNAPSHOT: the live store does not cover the daily (its snapshot is not flowing), yet the STORED daily runs into the
+# present. The first W/M answer served the days-old W/M table (a developing month two weeks behind its own daily).
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_off_hours_a_stored_daily_that_runs_into_the_present_derives_the_first_answer(store, monkeypatch, tf):
+    daily, periods = _seed(tf, stale=True, live=False, monkeypatch=monkeypatch)
+    resp = bars_fetch._get_bars_inner("AAA", tf, len(periods))
+    body = json.loads(resp.body)
+    assert body["bars"][-1]["c"] == daily[-1]["c"], "the first answer kept the stored table's old close"
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_off_hours_a_period_holding_the_derivation_is_fresh(store, monkeypatch, tf):
+    daily, periods = _seed(tf, live=False, monkeypatch=monkeypatch)
     last = int(periods[-1]["t"].replace("-", ""))
+    assert bars_fetch._needs_fresh(last, tf, "AAA") is False
+
+
+def test_control_without_a_live_daily_and_a_stored_daily_behind_nothing_changes(store, monkeypatch):
+    # the stored daily ends a week before the latest session: it is stale itself, so nothing is derived from it
+    daily, periods = _seed("W", stale=True, live=False, monkeypatch=monkeypatch, daily_ends_back=5)
+    last = int(periods[-1]["t"].replace("-", ""))
+    assert bars_fetch._wm_stored_daily_current("AAA") is False
     assert bars_fetch._needs_fresh(last, "W", "AAA") is True
     assert bars_fetch._needs_fresh(last, "W") is True            # no ticker: the old rule, unchanged
+
+
+def test_the_stored_daily_is_current_through_the_previous_session(store, monkeypatch):
+    # the boundary: newest daily bar = the previous session (before today's is written) is current; one more back is not
+    from datetime import datetime as _dt
+    prev = bls._prev_session_ymd(_dt.now(bls._ET))
+    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda t, tf: prev)
+    assert bars_fetch._wm_stored_daily_current("AAA") is True
+    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda t, tf: prev - 1 if prev % 100 > 1 else prev - 100)
+    assert bars_fetch._wm_stored_daily_current("AAA") is False
 
 
 # ⛔ (review of #2742, MEDIUM-1) THE ANSWER NEVER WAITS FOR THE WRITE. In session the developing daily moves every few

@@ -1351,10 +1351,33 @@ _WM_WRITE_SEM = _threading.BoundedSemaphore(WM_WRITE_SLOTS)
 
 
 def _wm_live_daily(ticker_up: str) -> bool:
+    """May W/M be derived from the STORED daily on read? When the live store covers the daily (in session: alive, seen,
+    contiguous), OR when the stored daily itself runs into the present (`_wm_stored_daily_current`).
+    ⛔⛔ (2026-11-28, the cold-coverage sweep; reproduced on production for 16 of 19 rarely viewed names) `covered(t, "D")`
+    needs the live daily snapshot FLOWING, so after the close, on a weekend, and in session for a name outside the
+    snapshot it read False, the derive never ran, and the FIRST W/M answer was the stored W/M table: a developing month
+    whose close was two weeks old (ACIW 61.26 against its 52.24 daily, NHC 210.78 against 193.37) until the background
+    revalidation fixed the next ask. The answer the member sees first must never carry a W/M close older than the daily's."""
     try:
         from api.services import bars_live_store as _bls
-        return bool(_bls.covered(ticker_up, "D"))
+        if _bls.covered(ticker_up, "D"):
+            return True
     except Exception:                      # noqa: BLE001
+        pass
+    return _wm_stored_daily_current(ticker_up)
+
+
+def _wm_stored_daily_current(ticker_up: str) -> bool:
+    """The stored daily's newest bar is the previous NYSE session's or later (today's, once written): it runs into the
+    present, so W/M derived from it are as current as the daily the same store answers. A daily that ends before the
+    previous session is stale itself: no derive (its own revalidation runs, as before)."""
+    try:
+        from api.services import bars_live_store as _bls
+        d_last = _sqlite.get_last_ts(ticker_up, "D")
+        if not d_last:
+            return False
+        return int(d_last) >= int(_bls._prev_session_ymd(datetime.now(_bls._ET)))
+    except Exception:                      # noqa: BLE001 — unknown: the store as it is, as before
         return False
 
 
