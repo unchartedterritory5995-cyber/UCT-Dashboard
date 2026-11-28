@@ -660,3 +660,103 @@ def test_a_poll_that_succeeded_after_the_close_lets_the_stored_path_derive(store
     monkeypatch.setitem(bls._state, "daily_last_ok_wall", at.replace(hour=16, minute=1).timestamp())
     assert bars_fetch._wm_live_daily("AAA") is True
     assert _overlay(tf) is not None
+
+
+# ── follow-up to #3001: the interior daily hole is repaired; "more volume = newer" needs the same close and basis ────
+from api.services import massive as _massive
+
+
+def _agg_raw(b):
+    """A provider daily aggregate (`t` = the session's 00:00 ET in unix ms) for one stored-daily dict."""
+    d = date.fromisoformat(b["t"])
+    return {"t": int(_real_dt(d.year, d.month, d.day, tzinfo=_ET).timestamp() * 1000),
+            "o": b["o"], "h": b["h"], "l": b["l"], "c": b["c"], "v": b["v"]}
+
+
+def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    hole = date(2026, 11, 10)
+    full, stored = _seed_old_tail("M", WED, monkeypatch, hole=hole)
+    provider = dict(bars_fetch._resample_monthly_iso(full)[-1])
+    provider["c"] = provider["h"]
+    deltas, aggs = [], []
+    monkeypatch.setattr(bars_fetch, "_delta_monthly", lambda t, last: deltas.append(last) or [provider])
+    missing = [b for b in full if b["t"] == hole.isoformat()]
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [_agg_raw(b) for b in missing])
+    bars_fetch._get_bars_inner("AAA", "M", len(stored))
+    assert len(deltas) == 1, "the first answer did not take the provider path"
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and not bars_sqlite.get_bars_before("AAA", "D", 1, 20261110) [-1:] == [] and \
+            int(bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)[-1][0]) != 20261110:
+        time.sleep(0.05)
+    assert int(bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)[-1][0]) == 20261110, "the hole was never repaired"
+    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+    for _ in range(2):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+    assert len(deltas) == 1, "a read after the repair paid the synchronous provider delta again"
+    assert len(aggs) == 1, "the repair ran more than once"
+
+
+def test_a_vendor_correction_with_less_volume_is_kept(store, monkeypatch):
+    # the stored week is the provider's CORRECTED bar: the same OHLC, less volume than the uncorrected daily sums to
+    days = _sessions_through(date(2026, 11, 20))
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    weeks = [dict(w) for w in bars_fetch._resample_weekly_iso(daily)]
+    weeks[-1]["v"] = int(weeks[-1]["v"]) - 500
+    bars_sqlite.put_bars("AAA", "W", weeks, date_tf=True)
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert out[-1]["v"] == weeks[-1]["v"], "a corrected bar was replaced by the uncorrected daily (more volume)"
+
+
+def _seed_split(tf, last, drop, factor=10):
+    """An UNADJUSTED stored daily through `last`, and a W/M table on the ADJUSTED basis of a 1:`factor` reverse split
+    (prices x factor, volume / factor), built from the daily without its last `drop` sessions."""
+    days = _sessions_through(last)
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 10000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    adj = [{**p, "o": p["o"] * factor, "h": p["h"] * factor, "l": p["l"] * factor, "c": p["c"] * factor,
+            "v": int(p["v"]) // factor} for p in rs(daily[:-drop] if drop else daily)]
+    bars_sqlite.put_bars("AAA", tf, adj, date_tf=True)
+    return daily, adj
+
+
+def _no_scale_jump(out):
+    return all(0.5 <= float(b["o"]) / float(a["c"]) <= 2.0 for a, b in zip(out, out[1:]))
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_reverse_split_never_replaces_the_adjusted_tail_with_the_unadjusted_daily(store, monkeypatch, tf):
+    daily, adj = _seed_split(tf, date(2026, 11, 18), drop=2)        # the tail lacks Mon/Tue's later sessions
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", tf, 400), tf, "AAA")
+    assert out[-1]["o"] == adj[-1]["o"] and _no_scale_jump(out), "the unadjusted daily replaced the adjusted tail"
+
+
+def test_a_reverse_split_never_appends_an_unadjusted_next_week(store, monkeypatch):
+    daily, adj = _seed_split("W", date(2026, 11, 16), drop=1)       # the table ends last week; the daily runs into Monday
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert len(out) == len(adj) and _no_scale_jump(out), "an unadjusted week was appended to the adjusted table"
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_the_overlay_never_derives_over_a_table_on_another_basis(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)                                      # Saturday: the stored path qualifies
+    _seed_split(tf, date(2026, 11, 20), drop=2)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    assert _overlay(tf) is None, "W/M were derived from a daily on another price basis"
+
+
+def test_control_an_ordinary_further_along_daily_still_wins(store, monkeypatch):
+    # the same basis, a later session in the daily (another close, more volume): the reconcile still rebuilds it
+    days = _sessions_through(date(2026, 11, 18))
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+             for i, d in enumerate(days)]
+    bars_sqlite.put_bars("AAA", "D", daily, date_tf=True)
+    weeks = bars_fetch._resample_weekly_iso(daily[:-1])
+    bars_sqlite.put_bars("AAA", "W", weeks, date_tf=True)
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
+    assert out[-1]["c"] == daily[-1]["c"]
