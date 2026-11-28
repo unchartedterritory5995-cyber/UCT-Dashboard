@@ -245,9 +245,9 @@ describe('a kept board is current (Lane G)', () => {
     expect(n, 'a hidden board was caught up in the feed\'s own task').toEqual({ board: 0, front: 0, shadow: 0, plain: 0, optOut: 0 })
     await vi.advanceTimersByTimeAsync(600)
     expect(n).toEqual({ board: 1, front: 1, shadow: 0, plain: 0, optOut: 0 })
-    // a burst right after: the next idle catch-up waits out the second
+    // a burst right after: the next idle catch-up waits out the second since the last one (600 ms ago)
     for (let i = 0; i < 5; i++) f.board.cb()
-    await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS / 2)
+    await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS / 4)
     expect(n.board, 'the idle catch-up ran more than once a second').toBe(1)
     await vi.advanceTimersByTimeAsync(KEPT_IDLE_CATCHUP_MS)
     expect(n.board, 'one catch-up for the whole burst').toBe(2)

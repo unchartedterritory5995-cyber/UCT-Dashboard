@@ -1082,10 +1082,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // (boardKeepAlive.js keptBoardLimit), one in the <Activity> mode. Read once per workspace.
   const keepLimit = useMemo(() => (keepAliveMode === 'layer' ? keptBoardLimit() : 1), [keepAliveMode])
   const keepLimitRef = useRef(keepLimit)
-  // the layer flip: the workspace's grid handlers as of its last render (a slot's gate calls them), and the slot a
-  // switch is showing (its kept grid element is reused in the switch's commit)
+  // the layer flip: the workspace's grid handlers as of its last render (a slot's gate calls them)
   const mainGridHandlersRef = useRef(null)
-  const flipShowSlotRef = useRef(null)
   // what a layer hide resets that lives further down this component (set there: the active chart / watchlist refs)
   const onLayerHideRef = useRef(null)
   const boardSlotSeqRef = useRef(0)
@@ -1141,10 +1139,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           const { layout: shownLayout, ...slotRec } = kept   // its grid element, gate and views come with it
           currentBoardRef.current = { ...slotRec, key }
           shown = shownLayout
-          if (kept.vis.layer) {
-            flipShowSlotRef.current = kept.slot
-            setSlotWidgetAttrs(bodyRef.current?.querySelector?.(`[data-board-slot="${kept.slot}"]`), true)
-          }
+          if (kept.vis.layer) setSlotWidgetAttrs(bodyRef.current?.querySelector?.(`[data-board-slot="${kept.slot}"]`), true)
         } else {
           if (kept) kept.vis.dispose()   // its charts' teardowns run (a hidden board runs no cleanup when deleted)
           markShownGridRef.current = !!leaving.vis.layer
@@ -1166,7 +1161,6 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     setLayout(shown)
   }, [])
   useLayoutEffect(() => {
-    flipShowSlotRef.current = null   // the show's commit is done: the board in front renders afresh from here on
     if (markShownGridRef.current) {
       markShownGridRef.current = false
       const grid = bodyRef.current?.querySelector?.('[data-board-current] .react-grid-layout')
@@ -4568,14 +4562,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           rec.swrFetchedAt = new Map()
           rec.swr = { isVisible: () => !boardHiddenNow(vis) && isAppVisible(), use: [slotSwrMiddleware(rec.swrHooks, rec.swrFetchedAt)] }
         }
-        // ⭐ THE FLIP (Lane G): the slot's grid element is kept while nothing it reads changed (`sig`). Hidden, a later
-        // render of the workspace re-renders nothing of it, and a hide re-renders nothing at all (the element the board
-        // had in front, its attributes taken off the DOM by the hide). In front it is made afresh at every render, as
-        // ever, except in the commit of the switch that SHOWS it: that commit hands React the element it kept.
+        // ⭐ THE FLIP (Lane G): the slot's grid element is kept while nothing it reads changed (`sig`), in front and
+        // hidden alike: a hide and a show re-render nothing under the slot (its attributes move on the DOM), and neither
+        // does a later render of the workspace (the effects a switch sets off). Everything else the element holds is the
+        // slot's for life (its gate, its panel release) or read through a ref when it fires.
         const slotLayout = isFront ? layout : rec.layout
         const slotWidgets = (slotLayout?.widgets || []).filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
         const sig = `${layoutIdentity(slotLayout)}|${poppedWidgetIds.join(',')}|${floatingWidgetIds.join(',')}|${merged ? 1 : 0}|${rowHeight}|${gridGap}|${resizingId ?? ''}|${slotWidgets.map(w => (mainBoardMountedIds.has(w.id) ? 1 : 0)).join('')}`
-        const reuse = !!rec.gridEl && rec.gridSig === sig && (!isFront || flipShowSlotRef.current === rec.slot)
+        const reuse = !!rec.gridEl && rec.gridSig === sig
         if (!reuse) {
           rec.gridEl = renderGrid(slotWidgets, rec.gridSlot.gate, undefined, undefined, { hidden: !isFront, slot: rec.gridSlot })
           rec.gridSig = sig
