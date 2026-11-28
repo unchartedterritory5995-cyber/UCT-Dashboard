@@ -166,6 +166,22 @@ describe('A1 — network.answered: the server spoke in THIS life of the key', ()
       expect(network.filling(KW)).toBe(false)
       expect(timers.filter((t) => Number.isFinite(t.ms) && t.ms > 0).length, 'a window is not polled').toBe(0)
     })
+    it('(LOW) a key no chart shows any more is not asked again: stop() clears its repeat; an unpinned one-shot is left', async () => {
+      const request = vi.fn(async () => ({ ...ok(), filling: true }))
+      const { registry, network, timers, fire } = netT(request)
+      const stop = network.start(KW)
+      await fire(0)
+      expect(timers.filter((t) => t.ms === 3000).length).toBe(1)
+      stop?.call ? stop() : network.stop(KW)
+      expect(timers.filter((t) => t.ms === 3000).length, 'the repeat went with the last chart').toBe(0)
+      // a one-shot ask of an entry nothing pins: the repeat fires and asks nothing
+      registry.peek(KW) || registry.acquire(KW)
+      const n = request.mock.calls.length
+      await network.fetchOnce(KW, { priority: 'visible' })
+      while (registry.refs(KW) > 0) registry.release(KW)
+      await fire(3000)
+      expect(request.mock.calls.length, 'no ask for a key nothing holds').toBe(n + 1)
+    })
     it('bounded: a window that never completes is asked WINDOW_FILL_ROUNDS more times, then left; a warm alone is not repeated', async () => {
       const { WINDOW_FILL_ROUNDS } = await import('./network')
       const request = vi.fn(async () => ({ ...ok(), filling: true }))

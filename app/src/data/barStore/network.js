@@ -297,6 +297,10 @@ export function createNetwork({
       f.timer = null
       // (an entry here = the key's last answer was filling: a complete one deletes it, `_send`)
       if (!registry.has(key) || fillRounds.get(key) !== f) { if (fillRounds.get(key) === f) fillRounds.delete(key); return }
+      // (review of #2947, LOW) only while something still asks for the key: a chart on it, a one-shot ask in flight, or the
+      // entry pinned (the handoff's prepare); a key no chart shows any more is not asked again
+      const r = keys.get(key)
+      if (!(r?.refs > 0 || r?.once > 0 || (registry.refs?.(key) ?? 0) > 0)) { fillRounds.delete(key); return }
       api.fetchOnce(key, { priority: 'visible', full: true }).catch(() => {})
     }, WINDOW_FILL_RETRY_S * 1000)
   }
@@ -892,6 +896,9 @@ export function createNetwork({
       if (r.inflight) { r.inflight.ac?.abort(); r.inflight = null }
       if (r.side) { r.side.ac?.abort(); r.side = null }
       for (const j of r.queue.splice(0)) j.resolve({ aborted: true })
+      // (review of #2947, LOW) the last chart left: a window's filling repeat goes with it unless the entry is still pinned
+      const f = fillRounds.get(key)
+      if (f && !((registry.refs?.(key) ?? 0) > 0)) { if (f.timer != null) clearTimer(f.timer); fillRounds.delete(key) }
       const spent = _exhausted(r)
       keys.delete(key)
       _noteBudget(key, spent, false)

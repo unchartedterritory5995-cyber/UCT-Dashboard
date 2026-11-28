@@ -1211,7 +1211,7 @@ function ChartPane({
     let cover = 0
     try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
     const warm = BARSTORE
-      ? storeWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current, cover })
+      ? storeWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current, cover, viewWindow: _typedViewWindow(paintMemberRef.current, effectiveTf), showExtended: extOnRef.current })
       : legacyWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
     if (!BARSTORE) return
@@ -1808,6 +1808,12 @@ function ChartPane({
         data-studio-dock={studioDocked ? 'dock' : (studioOpen ? 'overlay' : 'closed')} />
     </div>
   )
+}
+
+/** (review of #2947, speed follow-up) The window a typed ticker's chart will read at the member's date (chart/viewWindow),
+ *  null at the present or on D/W/M: the typed warm then warms THAT key, never the plain one. */
+function _typedViewWindow(member, tf) {
+  try { return viewWindowOfMemberDate(memberViewDate(member), tf) } catch { return null }
 }
 
 export default forwardRef(ChartPane)
