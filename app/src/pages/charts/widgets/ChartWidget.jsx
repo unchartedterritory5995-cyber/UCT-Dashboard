@@ -366,7 +366,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         const first = habitualTfs(tf, { k: 2, available: codes })
         const order = [...first, ...codes.filter((c) => c !== tf && !first.includes(c))]
         const bases = [...new Set(order.map((c) => fetchTf(c)))].filter((b) => b && b !== fetchTf(tf))
-        if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current })
+        try {
+          if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current })
+        } catch { /* a warm never breaks the chart */ }
       })
     }, TF_DWELL_MS)
     return () => { alive = false; clearTimeout(timer) }
