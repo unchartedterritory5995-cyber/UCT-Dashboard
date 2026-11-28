@@ -363,7 +363,7 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
-            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'isolate', 'os'):
+            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'webBuildId', 'isolate', 'os'):
                 if lb.get(f) is not None:
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
@@ -406,7 +406,12 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
         wall = (datetime.fromisoformat(t1) - datetime.fromisoformat(t0)).total_seconds()
         run = {'from': t0, 'to': t1, 'wallSeconds': round(wall), 'passSeconds': sorted(h.get('seconds') for h in hs),
                'exits': {str(k): sum(1 for h in hs if h.get('exit') == k) for k in sorted({h.get('exit') for h in hs}, key=str)},
-               'sessions': sorted({h.get('session') for h in hs}), 'deployDuring': sorted(h['pass'] for h in hs if h.get('deployDuring'))}
+               'sessions': sorted({h.get('session') for h in hs}), 'deployDuring': sorted(h['pass'] for h in hs if h.get('deployDuring')),
+               # per pass: the API pod's commit and the FRONT's (web-front: commit + build_id) at its start and end
+               'builds': {h['pass']: {'api': [(h.get('before') or {}).get('apiCommit'), (h.get('after') or {}).get('apiCommit')],
+                                      'front': [(h.get('before') or {}).get('webBuild'), (h.get('after') or {}).get('webBuild')],
+                                      'frontBuildId': [(h.get('before') or {}).get('webBuildId'), (h.get('after') or {}).get('webBuildId')],
+                                      'deploys': h.get('deploys') or (['api'] if h.get('deployDuring') else [])} for h in hs}}
         for h in hs:
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
@@ -422,7 +427,8 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
            '',
            f"runner {', '.join(lb.get('runner', ['?']))} | CPU {', '.join(lb.get('cpu', ['?']))} x{', '.join(lb.get('cores', ['?']))} | "
            f"Chrome {', '.join(lb.get('chrome', ['?']))} | Cloudflare colo {', '.join(lb.get('colo', ['?']))} | "
-           f"production api {', '.join(lb.get('apiCommit', ['?']))} web {', '.join(lb.get('webBuild', ['?']))} | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
+           f"production API {', '.join(lb.get('apiCommit', ['?']))} | FRONT {', '.join(lb.get('webBuild', ['?']))} "
+           f"({', '.join(lb.get('webBuildId', ['?']))}; they deploy apart) | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
            '',
            f"STALE judged against: day {g['expect']['day']} ({g['expect']['dayHow']}), intraday {g['expect']['intradayHow']}",
            '']
@@ -430,7 +436,11 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
         r = g['run']
         out[2:2] = [f"wall {r['wallSeconds']} s ({r['from']} to {r['to']}), {len(r['passSeconds'])} passes of {r['passSeconds'][0]}-{r['passSeconds'][-1]} s; "
                     f"exits {r['exits']}; session {', '.join(map(str, r['sessions']))}"
-                    + (f"; A DEPLOY LANDED DURING {', '.join(r['deployDuring'])}" if r['deployDuring'] else ''), '']
+                    + (f"; A DEPLOY LANDED DURING {', '.join(r['deployDuring'])}" if r['deployDuring'] else ''), '',
+                    'Builds per pass (API commit, FRONT commit and build_id; start -> end):', '',
+                    *[f"- {n}: API {' -> '.join(dict.fromkeys(str(x) for x in b['api']))} | FRONT {' -> '.join(dict.fromkeys(str(x) for x in b['front']))} "
+                      f"({' -> '.join(dict.fromkeys(str(x) for x in b['frontBuildId']))})"
+                      + (f" | A DEPLOY LANDED ({', '.join(b['deploys'])})" if b['deploys'] else '') for n, b in sorted(r.get('builds', {}).items())], '']
     head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
     out += [head, '|' + '---|' * (len(ORDER) + 5 + (3 if cmp else 0))]
     keys = sorted(g['rows'], key=lambda k: (0 if k.startswith('TICKERS ') else 1 if k.startswith('BOARD ') else 2, k))
@@ -534,7 +544,15 @@ def self_check() -> None:
         ru, nu, rv = (gd['rows'].get('TICKERS ' + k) for k in ('reused', 'never-used', 'revisit/fixed'))
         assert ru and nu and rv and ru['switches'] == 1 and ru['p100'] == 12 and nu['switches'] == 1 and rv['switches'] == 2, gd['rows']
         assert table(gd).index('TICKERS never-used') < table(gd).index('BOARD def dd'), 'the ticker split is not at the top of the table'
-    print('grade self-check: ok (reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
+    # both builds per pass, and a FRONT-only deploy is flagged (the API's commit alone would have hidden it)
+    with tempfile.TemporaryDirectory() as td:
+        hb = {"pass": "P", "exit": 0, "seconds": 80, "session": "x", "deploys": ["front"], "deployDuring": True,
+              "before": {"at": "2026-11-28T08:00:00+00:00", "apiCommit": "93b68df463", "webBuild": "271b53f2d2", "webBuildId": "assets/index-A.js"},
+              "after": {"at": "2026-11-28T08:01:20+00:00", "apiCommit": "93b68df463", "webBuild": "7ddc3190ad", "webBuildId": "assets/index-B.js"}}
+        json.dump(hb, open(os.path.join(td, 'P.health.json'), 'w'))
+        tb = table(grade_dir(td, {'expect-day': '2026-11-27'}))
+        assert '- P: API 93b68df463 | FRONT 271b53f2d2 -> 7ddc3190ad (assets/index-A.js -> assets/index-B.js) | A DEPLOY LANDED (front)' in tb, tb
+    print('grade self-check: ok (API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
 
 
 def main() -> int:

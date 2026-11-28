@@ -381,7 +381,7 @@ const launchArgs = HEADLESS
 async function labelsNow(run) {
   let page = null
   try {
-    page = await run(`(async()=>{const o={};try{const r=await fetch('/api/health',{cache:'no-store'});o.healthStatus=r.status;const ray=r.headers.get('cf-ray');o.cfRay=ray;o.colo=ray&&ray.indexOf('-')>0?ray.slice(ray.lastIndexOf('-')+1):null;try{const j=await r.json();o.apiCommit=String(j.commit||j.git_sha||'').slice(0,12)||null;o.apiUptime=j.uptime_seconds==null?null:j.uptime_seconds}catch(e){}}catch(e){o.healthErr=String(e).slice(0,120)}try{const b=await fetch('/build.json',{cache:'no-store'});const j=await b.json();o.webBuild=String(j.commit||'').slice(0,12)||null}catch(e){}o.dpr=devicePixelRatio;o.ua=navigator.userAgent;o.hardwareConcurrency=navigator.hardwareConcurrency;o.deviceMemory=navigator.deviceMemory||null;o.viewport=[innerWidth,innerHeight];return o})()`)
+    page = await run(`(async()=>{const o={};try{const r=await fetch('/api/health',{cache:'no-store'});o.healthStatus=r.status;const ray=r.headers.get('cf-ray');o.cfRay=ray;o.colo=ray&&ray.indexOf('-')>0?ray.slice(ray.lastIndexOf('-')+1):null;try{const j=await r.json();o.apiCommit=String(j.commit||j.git_sha||'').slice(0,12)||null;o.apiUptime=j.uptime_seconds==null?null:j.uptime_seconds}catch(e){}}catch(e){o.healthErr=String(e).slice(0,120)}try{const b=await fetch('/build.json',{cache:'no-store'});const j=await b.json();o.webBuild=String(j.commit||'').slice(0,12)||null;o.webBuildId=j.build_id||null}catch(e){}o.dpr=devicePixelRatio;o.ua=navigator.userAgent;o.hardwareConcurrency=navigator.hardwareConcurrency;o.deviceMemory=navigator.deviceMemory||null;o.viewport=[innerWidth,innerHeight];return o})()`)
   } catch (e) { page = { error: String(e).slice(0, 160) } }
   const cpus = os.cpus()
   return {
@@ -397,6 +397,7 @@ async function labelsNow(run) {
     ...page,
   }
 }
+const BUILDS_JS = `(async()=>{const o={at:new Date().toISOString()};try{const j=await (await fetch('/api/health',{cache:'no-store'})).json();o.api={commit:String(j.commit||j.git_sha||'').slice(0,12)||null,uptime:j.uptime_seconds==null?null:j.uptime_seconds}}catch(e){o.api={error:String(e).slice(0,80)}}try{const j=await (await fetch('/build.json',{cache:'no-store'})).json();o.front={commit:String(j.commit||'').slice(0,12)||null,buildId:j.build_id||null}}catch(e){o.front={error:String(e).slice(0,80)}}o.commit=o.api&&o.api.commit||null;o.uptime=o.api&&o.api.uptime;return o})()`
 class DryDone extends Error {}
 const app = await startApp('chrome', PORT, launchArgs, { ...(PROFILE ? { profile: PROFILE } : {}), signIn: !DRY })
 let board = null
@@ -563,7 +564,10 @@ try {
       }, STUB)
     })
   }
-  out.build = await run(`fetch('/api/health').then(r=>r.json()).then(j=>({uptime:j.uptime_seconds,commit:j.commit||j.git_sha||null})).catch(()=>null)`)
+  // (2026-11-28) TWO builds serve a page: the API pod's commit (/api/health) and the FRONT the browser runs
+  // (/build.json: web-front's commit and build_id). They deploy apart (sweep 3: api 93b68df463 while the front served
+  // 271b53f2d2), so both are recorded, at the start (out.build) and the end (out.buildEnd); `commit` stays the API's.
+  out.build = await run(BUILDS_JS).catch(() => null)
   const serverDefs = await run(`fetch('/api/signature/definitions',{credentials:'include'}).then(r=>r.json()).then(j=>(j.definitions||[]).map(d=>d.id)).catch(()=>[])`)
   out.serverDefs = serverDefs
   let pick, watchKey
@@ -1618,6 +1622,7 @@ try {
   }
 } finally {
   if (!DRY && out.labels) { try { out.labelsEnd = await labelsNow(app.run) } catch { /* the label never breaks a run */ } }
+  if (out.build) { try { out.buildEnd = await app.run(BUILDS_JS) } catch { /* a label never breaks a run */ } }
   if (tabsCleanup) {
     try { out.tabsCleanup = await tabsCleanup(); console.log(`tab layouts cleaned up: ${JSON.stringify(out.tabsCleanup)}`) } catch (e) { out.tabsCleanup = `FAILED: ${String(e.message).slice(0, 120)}`; console.log(`TAB LAYOUTS NOT CLEANED UP: ${out.tabsCleanup}`) }
   }
