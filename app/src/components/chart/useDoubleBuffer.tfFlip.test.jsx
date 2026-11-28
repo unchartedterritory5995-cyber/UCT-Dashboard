@@ -11,6 +11,7 @@
 //      and the hidden row follows the new timeframe (what both layers did before PR 2.1)
 //   T8 a symbol and a timeframe change in one render: the normal switch of both ('sym-and-tf')
 //   T9 after a timeframe flip the old front (the timeframe left) is retargeted to the new front's habitual next one
+//   T11 (after #2947) at the date the member went to, the timeframe press carries the anchor and flips; another date refuses
 //   T10 PARITY: the flipped-to chart is exactly the chart a fresh render of (sym, tf) shows: the same symbol, timeframe,
 //      session, settings and the very bars array the store gives that key now
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -178,6 +179,34 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     press(h, { tf: 'D' })
     expect(h.result.current.front).toBe(0)
     expect(db.doubleBufferStats().flips).toBe(2)
+  })
+})
+
+describe('useDoubleBuffer: the timeframe flip AT A DATE (after #2947)', () => {
+  const A = '2016-06-14|165'
+  const at = () => ({ frame: { fromRight: 4700, toRight: 4535, locked: false }, activeRange: null, priceAuto: true, replay: { mode: false },
+    rows: 6000, anchor: { date: '2016-06-14', width: 165 }, anchorFrame: { fromRight: 4700, toRight: 4535 }, anchorEarliest: false })
+  const reportAt = (h, i, sym, tf, anchor) => act(() => { h.result.current.reporters[i]({ sym, tf, ext: false, bars: bars.get(keyOf(sym, tf)), cutoff: null, anchor }) })
+  it('T11 both layers at the date the member went to: a timeframe press flips, the want carrying the anchor', async () => {
+    panes.forEach((p) => { p.m = at() })
+    const h = mount({ anchor: A })
+    reportAt(h, 0, 'AAA', 'D', A)
+    await idle()
+    expect(h.result.current.tfs).toEqual(['D', 'W'])
+    reportAt(h, 1, 'AAA', 'W', A)
+    press(h, { tf: 'W', anchor: A })
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
+  })
+  it('T11b CONTROL: the hidden chart drew at another date: refused (anchor)', async () => {
+    panes.forEach((p) => { p.m = at() })
+    const h = mount({ anchor: A })
+    reportAt(h, 0, 'AAA', 'D', A)
+    await idle()
+    reportAt(h, 1, 'AAA', 'W', '2012-01-03|165')
+    press(h, { tf: 'W', anchor: A })
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why.anchor).toBe(1)
   })
 })
 
