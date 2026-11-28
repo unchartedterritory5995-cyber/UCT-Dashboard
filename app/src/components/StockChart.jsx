@@ -11978,8 +11978,12 @@ function StockChartBody({
   // (owner, 2026-11-27) keyed on the date AND the date box's span: a new span at the same date is a new frame too
   const _anchorKey = anchorDate ? `${anchorDate}|${_anchorBox ? anchorWidth : ''}` : null
   const prevAnchorRef = useRef(_anchorKey)
+  const prevAnchorSeriesRef = useRef(`${sym}|${resolvedTf}`)
   useEffect(() => {
     const prev = prevAnchorRef.current
+    const series = `${sym}|${resolvedTf}`
+    const switched = prevAnchorSeriesRef.current !== series
+    prevAnchorSeriesRef.current = series
     if (prev === _anchorKey) return
     const chart = chartRef.current
     // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
@@ -12002,6 +12006,10 @@ function StockChartBody({
       return
     }
     if (!prev) return   // never anchored → nothing to restore
+    // ⛔ (2026-11-28, the correctness builder: a 6-bar time shift one frame after a switch) THE DATE WENT WITH A SWITCH:
+    // the switch's own framing (updateChart's zoomKey branch: the carried zoom, newest at its margin) already framed
+    // the new series in the frame it painted; a default re-frame here moved it again a frame later (margin and width)
+    if (switched) return
     // "Back to today": re-frame to the canonical present-day default (the same helper
     // first load and right-click "Reset view" use) and re-arm the pinned-right net.
     userViewMovedRef.current = false
