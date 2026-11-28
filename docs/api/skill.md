@@ -161,7 +161,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/alerts/webhooks` | paid | member-workspace |  |
 | GET | `/api/alerts/webhooks/{webhook_id}/deliveries` | paid | member-workspace | {webhook_id} |
 | GET | `/api/analogs` | paid | market-analytics | setup_type (required), regime=ALL, sector, limit=5, symbol |
-| GET | `/api/analyst-actions` | paid | research |  |
+| GET | `/api/analyst-actions` | paid | research | date, full=0, limit |
 | GET | `/api/analyst/{sym}` | paid | research | {sym}, debug=0 |
 | GET | `/api/artifact-versions/status` | member | member-workspace |  |
 | GET | `/api/artifact-versions/{kind}/deleted` | member | member-workspace | {kind} |

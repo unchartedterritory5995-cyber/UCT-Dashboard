@@ -251,7 +251,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "",
+      "params": "date, full=0, limit",
       "path": "/api/analyst-actions",
       "rate_limit_family": "research",
       "tier": "paid"
