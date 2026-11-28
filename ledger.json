@@ -4982,6 +4982,26 @@
     "GS",
     "WRBY"
    ]
+  },
+  {
+   "id": "cloud/46113879557-1/COV-def-tabs",
+   "at": "2026-11-28T06:00:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "XLI",
+    "BST",
+    "PEB"
+   ]
+  },
+  {
+   "id": "cloud/46113879557-1/COV-zo-tabs",
+   "at": "2026-11-28T06:00:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "RYN",
+    "DLR",
+    "ZM"
+   ]
   }
  ]
 }
