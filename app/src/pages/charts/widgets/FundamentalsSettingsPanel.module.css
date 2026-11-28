@@ -177,3 +177,19 @@
 .panel .row { background: var(--sig-card); border-bottom-color: var(--sig-divider); }
 .panel .rowLabel { color: var(--sig-text); }
 .panel .hint { color: var(--sig-faint); }
+
+/* "Match the chart" rows (owner 11-27): the same on/off square the News / NH-NL panels use. */
+/* on/off: the soft square, LEFT of the label; other controls on the row stay on the right */
+.panel .row:has(> .rowControl > .toggle) { position: relative; padding-left: 42px; cursor: pointer; }
+.panel .rowControl > .toggle {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 5px; cursor: pointer;
+  background: none; box-shadow: inset 0 0 0 1.5px rgb(var(--sig-ink) / 0.22); transition: none; /* the ✓ appears / disappears at once, centered (owner 11-16) */
+}
+.panel .rowControl > .toggle .knob { display: none; }
+.panel .row:hover > .rowControl > .toggle { box-shadow: inset 0 0 0 1.5px rgb(var(--sig-ink) / 0.5); }
+.panel .rowControl > .toggleOn, .panel .row:hover > .rowControl > .toggleOn {
+  background: var(--sig-selected) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(var(--sig-ink) / 0.28);
+}
+.panel .rowControl > .toggle:focus-visible { outline: 2px solid rgb(var(--sig-ink) / 0.4); outline-offset: 2px; }

@@ -1167,6 +1167,27 @@ export default function ChartSettingsModal({
               )}
             </div>
           )}
+          {/* "Widgets match this chart" (owner 11-27): a LIVE link — every widget on the board wears this
+              chart's background, gradient and up/down colours and keeps following it. Same door object as
+              "Apply to all charts"; absent off the workspace. */}
+          {applyToAllCharts?.matchWidgets && (() => {
+            const mw = applyToAllCharts.matchWidgets
+            const on = mw.isOn()
+            return (
+              <div className={styles.applyAll} data-match-widgets="">
+                <button
+                  type="button"
+                  className={styles.tplBtn}
+                  aria-pressed={on}
+                  data-guide="chartSettings.matchWidgets"
+                  title={on
+                    ? 'Widgets follow this chart’s background and colours. Click to stop.'
+                    : 'Make every widget on this board wear this chart’s background, gradient and colours, and follow it when you change it.'}
+                  onClick={() => mw.set(!on)}
+                ><UIcon name={on ? 'check' : 'link'} size={14} gold={false} aria-hidden="true" /><span>{on ? 'Widgets match this chart' : 'Match widgets to this chart'}</span></button>
+              </div>
+            )
+          })()}
           <div className={styles.tplMenuWrap}>
             <button
               data-guide="chartSettings.templates"
