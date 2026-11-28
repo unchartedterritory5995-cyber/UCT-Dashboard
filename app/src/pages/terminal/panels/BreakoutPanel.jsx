@@ -19,11 +19,11 @@
 //
 // ⛔ A FAILED READ IS NEVER "NOTHING TODAY". An empty answer says the scan found nothing in that
 // snapshot; a failure says it could not be read, with Retry.
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelCommand, PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  usePanelSort, PanelCommand, PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -173,7 +173,9 @@ export default function BreakoutPanel() {
   // The pattern catalog only names and directs ids; a failed read leaves the words unfiltered.
   const cat = useSWR(CATALOG_KEY, ([url]) => jsonFetcher(url), { revalidateOnFocus: false, dedupingInterval: 3600000 })
   const board = useMemo(() => breakoutRows(r.data?.body, cat.data?.patterns || null), [r.data, cat.data])
-  const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
   usePanelFreshness(r.data ? panelAsOf('UCT screener snapshot (nightly build)', board.asOf) : null)
   usePanelSymbolRows(rows.map((x) => x.sym), 'Breakout-ready', { total: board.total })

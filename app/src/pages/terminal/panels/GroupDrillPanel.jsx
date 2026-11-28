@@ -21,7 +21,7 @@
 // while the app is hidden.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  usePanelSort, PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
@@ -426,7 +426,9 @@ export default function GroupDrillPanel({ group: groupProp = null, range: rangeP
   // words only ever seed the state.
   const [query, setQuery] = useState(() => parseGroupQuery(groupProp))
   const [range, setRange] = useState(() => normGroupRange(rangeProp))
-  const [sort, setSort] = useState(DEFAULT_GROUP_SORT)
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort(DEFAULT_GROUP_SORT)
   const req = useMemo(() => periodRequest({ range, today }), [range, today])
   const resolvedRef = useRef(null)
   const onResolved = useCallback((g) => { resolvedRef.current = g }, [])

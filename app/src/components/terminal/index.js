@@ -3,8 +3,10 @@
 export {
   TerminalPanelContext, useInTerminalPanel, PanelFreshnessContext, usePanelFreshness, panelAsOf,
   PanelListContext, usePanelBoard, usePanelList, usePanelOpen, usePanelRows, usePanelRun, usePanelRerun, usePanelSymbolRows, QuietPanelFreshness,
-  PanelLinkContext, usePanelLinkedSym,
+  PanelLinkContext, usePanelLinkedSym, PanelViewContext,
 } from './terminalPanel'
+export { default as usePanelView, usePanelSort } from './usePanelView'
+export { PanelColumns, PanelTableHead, usePanelTable } from './PanelTable'
 export { default as BoardFromList } from './BoardFromList'
 export { default as PanelSkeleton } from './PanelSkeleton'
 export { default as PanelState } from './PanelState'
