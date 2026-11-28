@@ -8916,6 +8916,38 @@
     "GDOT",
     "DQ"
    ]
+  },
+  {
+   "id": "cloud/46156650194-1/COV-def-dd-typed",
+   "at": "2026-11-28T17:00:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NFGC",
+    "USNA",
+    "LTBR",
+    "NSSC",
+    "MCS",
+    "RCKY",
+    "RDAG",
+    "BHB",
+    "TBN"
+   ]
+  },
+  {
+   "id": "cloud/46156650194-1/COV-date-D-typed",
+   "at": "2026-11-28T17:00:16+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MEC",
+    "CCD",
+    "GPAT",
+    "SBGI",
+    "SHIP",
+    "LZM",
+    "WASH",
+    "BWAY",
+    "ALRS"
+   ]
   }
  ]
 }
