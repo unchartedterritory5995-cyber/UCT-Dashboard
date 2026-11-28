@@ -5792,6 +5792,36 @@
     "AES",
     "UMAC"
    ]
+  },
+  {
+   "id": "cloud/46117893603-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:43:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SE",
+    "CRI",
+    "RMD",
+    "PHIN",
+    "ETN",
+    "BLLN",
+    "HSBC",
+    "CHRD",
+    "MDT",
+    "ITRI",
+    "ALGM",
+    "PSA",
+    "RDY"
+   ]
+  },
+  {
+   "id": "cloud/46117893603-1/COV-def-tabs",
+   "at": "2026-11-28T06:43:15+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VCYT",
+    "HHH",
+    "LULU"
+   ]
   }
  ]
 }
