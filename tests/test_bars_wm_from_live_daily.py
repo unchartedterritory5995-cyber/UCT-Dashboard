@@ -119,10 +119,11 @@ def test_control_without_a_live_daily_and_a_stored_daily_behind_nothing_changes(
     assert bars_fetch._needs_fresh(last, "W") is True            # no ticker: the old rule, unchanged
 
 
-def test_the_stored_daily_is_current_through_the_previous_session(store, monkeypatch):
-    # the boundary: newest daily bar = the previous session (before today's is written) is current; one more back is not
-    from datetime import datetime as _dt
-    prev = bls._prev_session_ymd(_dt.now(bls._ET))
+def test_the_stored_daily_is_current_through_the_previous_session(store, monkeypatch, clock):
+    # the boundary, before the open (review of #3001: from the open on a session day it is today's bar, rails below):
+    # newest daily bar = the previous session is current; one more back is not
+    clock(2026, 11, 18, 8, 0)
+    prev = 20261117
     monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda t, tf: prev)
     assert bars_fetch._wm_stored_daily_current("AAA") is True
     monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda t, tf: prev - 1 if prev % 100 > 1 else prev - 100)
@@ -235,3 +236,191 @@ def test_many_concurrent_reads_start_at_most_the_capped_writes_and_every_answer_
     assert all(out.get(sym) == want[sym][0] for sym in syms), "an answer lacked the derived bar"
     assert started <= bars_fetch.WM_WRITE_SLOTS, f"{started} W/M writes ran at once"
     assert bars_fetch.WM_WRITE_SLOTS <= 2
+
+
+# ── review of #3001, F1: THE BAR THE STORED DAILY MUST REACH ──────────────────────────────────────────────────────────
+# ⛔⛔ On a SESSION DAY once the open has passed (half days included), a stored daily that ends YESTERDAY is not current:
+# today's session is missing from it. Deriving W/M from it served a period WITHOUT today, turned revalidation off
+# (`_fresh_needed = False`), and its background write put that older close OVER a stored W/M row `_delta_weekly`/
+# `_delta_monthly` had already brought through today (they write W/M, never D, so the W/M row can be ahead of the D).
+# The bar it must reach is today's ET date then, the previous session otherwise (pre-market, overnight, weekend,
+# holiday). ET, never `_last_weekday_yyyymmdd` (utcnow runs a day ahead after 19:00/20:00 ET). All clocks pinned.
+from datetime import datetime as _real_dt, timezone as _tz
+from zoneinfo import ZoneInfo as _ZoneInfo
+
+_ET = _ZoneInfo("America/New_York")
+
+
+@pytest.fixture
+def clock(monkeypatch):
+    """Pin bars_fetch's clock (ET `now`, and `utcnow` for the old D/W/M rule) to one ET wall time."""
+    def pin(y, m, d, hh, mm=0):
+        at = _real_dt(y, m, d, hh, mm, tzinfo=_ET)
+
+        class _Frozen(_real_dt):
+            @classmethod
+            def now(cls, tz=None):
+                return at.astimezone(tz) if tz is not None else at.replace(tzinfo=None)
+
+            @classmethod
+            def utcnow(cls):
+                return at.astimezone(_tz.utc).replace(tzinfo=None)
+        monkeypatch.setattr(bars_fetch, "datetime", _Frozen)
+        return at
+    return pin
+
+
+def _sessions_through(last, n=130):
+    out, d = [], last
+    while len(out) < n:
+        if bars_fetch._is_trading_day_ymd(d):
+            out.append(d)
+        d -= timedelta(days=1)
+    return out[::-1]
+
+
+def _seed_through(tf, last, monkeypatch, stored_extra=None, sym="AAA"):
+    """A stored daily ending `last` (uncovered: the live store does not cover it) and a STALE stored W/M tail (close at
+    the low, a smaller volume). `stored_extra`: one more daily bar the W/M table holds and the D does not (the W/M row
+    `_delta_weekly`/`_delta_monthly` brought further than the stored D)."""
+    daily = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+             for i, d in enumerate(_sessions_through(last))]
+    bars_sqlite.put_bars(sym, "D", daily, date_tf=True)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    if stored_extra is not None:
+        stored = [dict(p) for p in rs(daily + [stored_extra])]
+    else:
+        stored = [dict(p) for p in rs(daily)]
+        stored[-1]["c"] = stored[-1]["l"]
+        stored[-1]["v"] = int(stored[-1]["v"]) - 1
+    bars_sqlite.put_bars(sym, tf, stored, date_tf=True)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: [])   # the old path's revalidation: quiet, no provider
+    return daily, rs(daily), stored
+
+
+def _overlay(tf, sym="AAA"):
+    return bars_fetch._wm_overlay(sym, tf, bars_sqlite.get_bars(sym, tf, 400), 400)
+
+
+WED, TUE = date(2026, 11, 18), date(2026, 11, 17)
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("hh,mm", [(16, 30), (21, 0)])   # after the RTH close; 21:00 ET is already Thursday in UTC
+def test_after_the_close_a_stored_daily_ending_yesterday_derives_nothing(store, monkeypatch, clock, tf, hh, mm):
+    clock(2026, 11, 18, hh, mm)
+    _seed_through(tf, TUE, monkeypatch)
+    assert bars_fetch._wm_live_daily("AAA") is False, "a stored daily missing today's session read as current"
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("hh,mm", [(9, 30), (11, 0), (15, 59)])
+def test_in_rth_an_uncovered_stored_daily_ending_yesterday_derives_nothing(store, monkeypatch, clock, tf, hh, mm):
+    clock(2026, 11, 18, hh, mm)
+    _seed_through(tf, TUE, monkeypatch)
+    assert bars_fetch._wm_live_daily("AAA") is False
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("hh,mm", [(16, 30), (21, 0), (23, 59)])
+def test_after_the_close_a_stored_daily_holding_today_derives(store, monkeypatch, clock, tf, hh, mm):
+    clock(2026, 11, 18, hh, mm)
+    daily, periods, _ = _seed_through(tf, WED, monkeypatch)
+    body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(periods)).body)
+    assert body["bars"][-1]["c"] == daily[-1]["c"], "a stored daily holding today's session derived nothing"
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("at,last", [
+    ((2026, 11, 18, 8, 0), TUE),                   # pre-market: the previous session is the newest there is
+    ((2026, 11, 18, 2, 0), TUE),                   # overnight
+    ((2026, 11, 18, 9, 29), TUE),                  # one minute before the open
+    ((2026, 11, 21, 12, 0), date(2026, 11, 20)),   # Saturday
+    ((2026, 11, 22, 20, 0), date(2026, 11, 20)),   # Sunday evening (Monday in UTC)
+    ((2026, 11, 26, 12, 0), date(2026, 11, 25)),   # Thanksgiving: not a session, the open never comes
+])
+def test_off_hours_a_stored_daily_through_the_previous_session_still_derives(store, monkeypatch, clock, tf, at, last):
+    clock(*at)
+    daily, periods, _ = _seed_through(tf, last, monkeypatch)
+    assert bars_fetch._wm_live_daily("AAA") is True
+    body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(periods)).body)
+    assert body["bars"][-1]["c"] == daily[-1]["c"]
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("hh", [10, 14])   # the half day after Thanksgiving: in its short session, and after its 13:00 close
+def test_a_half_day_is_a_session_once_open(store, monkeypatch, clock, tf, hh):
+    clock(2026, 11, 27, hh)
+    _seed_through(tf, date(2026, 11, 25), monkeypatch)
+    assert bars_fetch._wm_live_daily("AAA") is False
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_stored_wm_row_ahead_of_the_stored_daily_is_never_overwritten(store, monkeypatch, clock, tf):
+    # the stored W/M row already holds Wednesday (written by `_delta_weekly`/`_delta_monthly`), the stored D ends Tuesday
+    clock(2026, 11, 18, 8, 0)   # a clock at which a daily ending Tuesday passes the gate: only the ahead-guard can stop it
+    extra = {"t": WED.isoformat(), "o": 300.0, "h": 320.0, "l": 290.0, "c": 310.0, "v": 9999}
+    daily, periods, stored = _seed_through(tf, TUE, monkeypatch, stored_extra=extra)
+    key = int(stored[-1]["t"].replace("-", ""))
+    assert int(periods[-1]["t"].replace("-", "")) == key, "the seed's stored tail is not the D tail's period"
+    writes = []
+    real = bars_sqlite.put_bars
+
+    def spy(t, k, b, *a, **kw):
+        if k in ("W", "M"):
+            writes.append(k)
+        return real(t, k, b, *a, **kw)
+    monkeypatch.setattr(bars_sqlite, "put_bars", spy)
+    assert _overlay(tf) is None, "the overlay derived over a stored W/M row newer than its daily"
+    body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(periods)).body)
+    assert body["bars"][-1]["c"] == 310.0, "the answer served the older D-derived close"
+    time.sleep(0.3)
+    held = {int(r[0]): r for r in bars_sqlite.get_bars("AAA", tf, 3)}
+    assert float(held[key][4]) == 310.0 and int(held[key][5]) == int(stored[-1]["v"]), "the newer row was overwritten"
+    assert writes == [], writes
+
+
+# ── review of #3001, LOW: off-hours W/M keep the normal TTL; one stored-daily read per request ──────────────────────
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_an_uncovered_derived_answer_keeps_the_normal_ttl(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)   # Saturday: nothing moves, 500 members must not re-derive every 10 s
+    daily, periods, _ = _seed_through(tf, date(2026, 11, 20), monkeypatch)
+    ttls = []
+    real_set = bars_fetch.cache.set
+
+    def spy(k, v, ttl=None, **kw):
+        ttls.append(ttl)
+        return real_set(k, v, ttl=ttl, **kw)
+    monkeypatch.setattr(bars_fetch.cache, "set", spy)
+    resp = bars_fetch._get_bars_inner("AAA", tf, len(periods))
+    assert json.loads(resp.body)["bars"][-1]["c"] == daily[-1]["c"]
+    assert ttls and min(ttls) > bls.covered_cache_ttl(tf, 0), ttls
+    assert f"max-age={bars_fetch._CACHE_TTL[tf]}" in resp.headers["cache-control"], resp.headers["cache-control"]
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_covered_derived_answer_keeps_the_short_ttl(store, monkeypatch, tf):
+    daily, periods = _seed(tf, stale=True, monkeypatch=monkeypatch)
+    resp = bars_fetch._get_bars_inner("AAA", tf, len(periods))
+    assert f"max-age={bls.covered_cache_ttl(tf, 0)}" in resp.headers["cache-control"], resp.headers["cache-control"]
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_derived_answer_reads_the_stored_daily_tail_once(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)
+    daily, periods, _ = _seed_through(tf, date(2026, 11, 20), monkeypatch)
+    calls = []
+    real = bars_sqlite.get_last_ts
+
+    def spy(t, k):
+        calls.append(k)
+        return real(t, k)
+    monkeypatch.setattr(bars_sqlite, "get_last_ts", spy)
+    body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(periods)).body)
+    assert body["bars"][-1]["c"] == daily[-1]["c"]
+    assert calls.count("D") == 1, calls
