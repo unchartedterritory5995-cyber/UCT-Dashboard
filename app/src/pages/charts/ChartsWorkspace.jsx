@@ -1609,8 +1609,18 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
+  // (Lane G) the workspace's ref-delegating doors, made ONCE: a recompute of the value below keeps their identity, so a
+  // kept board's slot value compares equal at its show (sameSlotValue) and its widgets are not re-rendered by it
+  const stableWorkspaceDoors = useMemo(() => ({
+    floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at),
+    applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme),
+    applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme),
+    countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source),
+    applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0,
+    setMatchChart: (on, chartId) => setMatchChartRef.current?.(on, chartId),
+  }), [])   // eslint-disable-line react-hooks/exhaustive-deps
   const workspaceValue = useMemo(
-    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile, matchChart: layout.matchChart || null, setMatchChart: (on, chartId) => setMatchChartRef.current?.(on, chartId) }),
+    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, ...stableWorkspaceDoors, canOpenCompare: !isMobile, matchChart: layout.matchChart || null }),
     [layout.matchChart, groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
