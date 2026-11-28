@@ -279,9 +279,11 @@ def test_a_window_whose_write_failed_is_not_marked_covered_and_is_retried(store,
 
 
 def test_a_short_window_still_landing_serves_what_is_stored_never_empty(store, monkeypatch):
-    # 45 sessions: enough for the 1,000-row ask, so the landed fill PROVES the window by its count (review of #3011,
-    # F2: a fill that ends short on a vendor gap proves nothing, so the provider here answers by its date range)
-    days = _days(_dt.date(2026, 6, 1), 45)
+    # a SHORT history (30 sessions, 780 rows of a 1,000 ask): the landed fill proves the window by the series' first
+    # DAILY bar (review of #3011, F2 round 2: the provider answers by date range and has nothing before the listing)
+    from api.services import massive
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])
+    days = _days(_dt.date(2026, 6, 1), 30)
     bars_sqlite.put_bars("FILL", "15", [b for d in days[-2:] for b in _rth_day(d.year, d.month, d.day)])
     gate = threading.Event()
 
@@ -301,7 +303,7 @@ def test_a_short_window_still_landing_serves_what_is_stored_never_empty(store, m
         if cache.get(f"towin_FILL_15_{days[-1].isoformat()}_{bars_fetch._depth_tier(1000)}"):
             break
     body2 = _body(bars_fetch._get_bars_to_response("FILL", "15", 1000, days[-1].isoformat()))
-    assert not body2.get("filling") and len(body2["bars"]) == 1000
+    assert not body2.get("filling") and len(body2["bars"]) == 30 * 26
     cache.delete_prefix("towin_FILL_")
 
 

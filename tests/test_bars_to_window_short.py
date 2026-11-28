@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 import orjson
 import pytest
 
-from api.services import bars_fetch, bars_sqlite
+from api.services import bars_fetch, bars_sqlite, massive, provider_fault_scope
 from api.services.cache import cache
 
 ET = ZoneInfo("America/New_York")
@@ -36,6 +36,8 @@ def store(tmp_path, monkeypatch):
     bars_sqlite.init_db()
     monkeypatch.setattr(bars_fetch, "_get_bars_inner",
                         lambda *a, **k: pytest.fail("a past-date window fell to the RECENT bars"))
+    # the provider's DAILY: by default the series traded long before every window here (a listing rail says otherwise)
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
     bars_fetch.start_request_budget()
     yield
     for p in ("towin_", "towinfail_", "replayto"):
@@ -321,3 +323,55 @@ def test_re_polls_inside_the_failure_window_answer_from_the_store_without_a_fetc
     for _ in range(3):
         _assert_flagged_short(bars_fetch._get_bars_to_response("RELOAD", "15", ASK, TO), 520)
     assert len(calls) == 1, calls
+
+
+# ── review of #3011, F2 round 2: a RECENT listing is proven by its DAILY series' first bar ────────────────────────────
+# ⛔⛔ The empty rounds grow only x2 from density, so a recent listing's two empty rounds span ~60 days, never 400:
+# without the daily fact the window answered `filling` forever (the client re-asks every 3 s, the symbol handoff waits
+# its 4 s hang on every switch, and the provider is asked again every 20 s), and a scroll-back past the listing's
+# start answered the warming 503 forever.
+def test_a_30_session_listing_at_a_date_ends_proven(store, monkeypatch):
+    _put("IPO30", _sessions(END, 30))                        # 780 of 1,000: the series starts 30 sessions back
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range",
+                        lambda t, tf, f, to, raise_errors=False: calls.append(f) or [])
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])      # no daily bar before the listing
+    r = bars_fetch._get_bars_to_response("IPO30", "15", ASK, TO)
+    body = _body(r)
+    assert not body.get("filling") and not body.get("short") and len(body["bars"]) == 780, body.get("filling")
+    assert r.headers.get("cache-control") == "public, max-age=3600"
+    n = len(calls)
+    assert not _body(bars_fetch._get_bars_to_response("IPO30", "15", ASK, TO)).get("filling")
+    assert len(calls) == n, "a proven listing asked the provider again"
+
+
+def test_a_scroll_back_before_the_listing_answers_no_data(store, monkeypatch):
+    # the series lists AFTER the cutoff: nothing intraday at or before it, and no daily bar either
+    bars_sqlite.put_bars("IPOB", "15", [b for d in _sessions(_dt.date(2016, 8, 31), 20) for b in _rth(d)])
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])
+    r = bars_fetch._get_bars_to_response("IPOB", "15", ASK, TO)
+    body = _body(r)
+    assert r.status_code == 200 and body.get("no_data") is True and body["bars"] == [], (r.status_code, body)
+
+
+def test_a_daily_that_traded_before_the_window_keeps_it_unproven(store, monkeypatch):
+    # control: the stored DAILY holds a session before the intraday run, so the empty rounds are a gap
+    days = _sessions(END, 20)
+    _put("DTRADED", days)
+    bars_sqlite.put_bars("DTRADED", "D", [{"t": (days[0] - _dt.timedelta(days=30)).isoformat(),
+                                           "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1}], date_tf=True)
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])
+    _assert_flagged_short(bars_fetch._get_bars_to_response("DTRADED", "15", ASK, TO), 520)
+
+
+def test_a_provider_fault_on_the_daily_proves_nothing(store, monkeypatch):
+    _put("DFAULT", _sessions(END, 20))
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", lambda *a, **k: [])
+
+    def faulted(*a, **k):
+        provider_fault_scope.note(RuntimeError("daily agg 503"))
+        return []
+    monkeypatch.setattr(massive, "get_agg_bars", faulted)
+    _assert_flagged_short(bars_fetch._get_bars_to_response("DFAULT", "15", ASK, TO), 520)
