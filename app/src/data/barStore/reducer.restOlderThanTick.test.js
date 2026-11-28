@@ -52,6 +52,21 @@ describe('a REST answer older than the last tick never moves the close back (F2)
   })
 })
 
+describe('a REST merge never stamps its as-of estimate as the bar trade time (review of #2967)', () => {
+  // `_asOfMs` is serverNow() at the send: an ESTIMATE of the server clock, not a trade. If it runs ahead by e and the
+  // merge kept it as the bar's tradeTs, a real tick traded in (send, send + e) was judged older and its close dropped:
+  // a stale close for minutes on a thin name. The as-of orders the answer; the bar keeps its last REAL trade time.
+  it('serverNow 3 s ahead: a fresh answer merges, then a real tick 1 s later still moves the close', () => {
+    const s2 = ticked()
+    const fresh = answer({ ...bar(T(610), 100, 101.3, 99.7, 100.6, 60), rev: 1002 }, { _asOfMs: NOW + 3000 })
+    const s3 = reduce(s2, { type: 'rest-full', payload: fresh }, ctx)
+    expect(s3.developing.c).toBe(100.6)
+    expect(s3.developing.tradeTs).toBe(NOW)
+    const s4 = reduce(s3, { type: 'push-bar', event: { t: T(610), o: 100, h: 101.3, l: 99.7, c: 100.9, v: 61, rev: 1003, trade_ts: NOW + 1000 } }, ctx)
+    expect(s4.developing.c).toBe(100.9)
+  })
+})
+
 describe('the answer says when its data is as of (_chartLaneFetch)', () => {
   const fake = (headers) => vi.fn(async () => ({ ok: true, status: 200, headers: { get: (h) => headers[h.toLowerCase()] ?? null }, json: async () => ({ bars: [] }) }))
   it('an edge tail-cache hit is as of its age before now; an origin answer is as of the send', async () => {
