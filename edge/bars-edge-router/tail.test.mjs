@@ -8,9 +8,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import worker, { TIER_BREAKER } from "./worker.js";
+import worker, { TIER_BREAKER, BARS_HISTORY_REV_HEDGE_MS, isDeliberateTierShed as workerShed } from "./worker.js";
 import {
   serveTail, readTail, tailCachePlan, tailAnswerCacheable, TAIL_ENTRY, TAIL_TTL_S, BARS_TIER_ORIGIN,
+  TAIL_TIER_TIMEOUT_MS, TIER_FAILED, isDeliberateTierShed,
 } from "./tail.js";
 import { cachedEntry } from "./__fixtures__/workers_cache.mjs";
 
@@ -130,17 +131,59 @@ test("⭐ 500 members on one symbol: about one tier read per key per max-age, an
   assert.ok(Math.max(...ages) <= TAIL_TTL_S.D * 1000, `oldest copy served: ${Math.max(...ages)} ms`);
 });
 
-test("⛔ a 401/403/404/5xx from the tier is never kept: each read asks again and goes the old way", async () => {
+test("⛔ a 401/403/404/5xx from the tier is never kept: each read asks again", async () => {
   for (const status of [401, 403, 404, 500, 503]) {
     const r = rig({ answer: () => ({ status, body: { error: "x" } }) });
     for (let i = 0; i < 2; i++) {
+      TIER_BREAKER.reset();
       const { res, origins } = await ask("/api/bars/KLIC?tf=D&bars=2000", r);
-      assert.equal(origins.length, 1, `${status}: the old path answered`);
       assert.notEqual(res.headers.get("x-bars-edge"), "tail-cache");
+      if (status < 500) {
+        // the tier ANSWERED: handed over exactly as the old path would, without asking it a second time
+        assert.equal(res.status, status);
+        assert.deepEqual(origins, [], `${status}: asked again`);
+      } else {
+        // a tier FAILURE: breaker open, web asked, the tier never asked twice for one read
+        assert.equal(origins.length, 1);
+        assert.ok(origins[0].startsWith("https://web-production"), origins[0]);
+      }
     }
     assert.equal(r.tail.store.size, 0, `${status} was kept`);
     assert.equal(r.tier.calls.length, 2, `${status}: the copy's tier ask ran every time`);
   }
+});
+
+test("⭐ a tier the copy could not read is a tier FAILURE: the breaker opens and web answers, never a second tier wait", async () => {
+  const r = rig({ answer: () => new Error("aborted after the hedge") });
+  const { res, origins } = await ask("/api/bars/KLIC?tf=D&bars=2000", r);
+  assert.equal(res.status, 200);
+  assert.equal(origins.length, 1, "exactly one more ask");
+  assert.ok(origins[0].startsWith("https://web-production"), `went to ${origins[0]}`);
+  assert.equal(res.headers.get("x-bars-edge"), "web-breaker");
+  assert.ok(TIER_BREAKER.isOpen(true), "the breaker is open for the reads behind it");
+  assert.equal(TAIL_TIER_TIMEOUT_MS, BARS_HISTORY_REV_HEDGE_MS, "the copy waits exactly the old path's hedge");
+});
+
+test("a deliberate tier shed (503 warming + Retry-After) is the tier's answer, handed over, never kept", async () => {
+  const r = rig({ answer: () => ({ status: 503, body: { error: "warming", warming: true },
+    headers: { "retry-after": "3", "x-bars-shed": "warming" } }) });
+  const { res, origins } = await ask("/api/bars/KLIC?tf=1&bars=1152", r);
+  assert.equal(res.status, 503);
+  assert.equal(res.headers.get("retry-after"), "3");
+  assert.equal(res.headers.get("x-bars-shed"), "warming");
+  assert.deepEqual(origins, []);
+  assert.equal(TIER_BREAKER.isOpen(), false, "an answer is not a failure");
+  assert.equal(r.tail.store.size, 0);
+  assert.equal(workerShed, isDeliberateTierShed, "one rule, re-exported by worker.js");
+});
+
+test("⛔ a tier answer can never carry the copy's own markers past the gateway", async () => {
+  const r = rig({ answer: () => ({ status: 200, body: GOOD,
+    headers: { "x-tail-pass": "1", "x-tail-filled": "1", "x-tail-tier-failed": "1", "x-tail-age-ms": "0" } }) });
+  const { res } = await ask("/api/bars/KLIC?tf=D&bars=2000", r);
+  assert.equal(res.headers.get("x-bars-edge"), "tail-fill", "a spoofed x-tail-pass would have skipped the TTL check");
+  assert.equal(res.headers.get("x-tail-tier-failed"), null);
+  assert.ok(Number(res.headers.get("x-tail-filled")) > 1);
 });
 
 test("⛔ no_data, an unverified tail, an empty series, Retry-After or Set-Cookie are never kept (served as the tier's answer)", async () => {
@@ -226,10 +269,10 @@ test("a non-GET, a breaker that is open, TAIL_CACHE=0 or no ctx.exports all take
   assert.equal(await readTail(new URL("https://x/api/bars/A?tf=D"), { env: {}, ctx: r.ctx, entitled: false }), null);
 });
 
-test("the copy failing (throws, times out, 5xx) is the old path, never an error", async () => {
+test("the copy failing (throws, an unmarked answer) is the old path, never an error", async () => {
   for (const entry of [
     { fetch: async () => { throw new Error("loopback down"); } },
-    { fetch: async () => new Response("x", { status: 502, headers: { "x-tail-pass": "1" } }) },
+    { fetch: async () => new Response("x", { status: 502 }) },
     { fetch: async () => new Response("{}", { status: 200 }) },                    // no fill time: refused
   ]) {
     const r = rig({ entry });
@@ -241,6 +284,8 @@ test("the copy failing (throws, times out, 5xx) is the old path, never an error"
   const res = await serveTail(new Request("https://bars-tail.internal/api/bars/KLIC?tf=D"), {}, { fetchImpl: slow.impl });
   assert.equal(res.status, 504);
   assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("x-tail-tier-failed"), "1");
+  assert.equal(TIER_FAILED.toString(), "Symbol(tier-failed)");
 });
 
 test("tailAnswerCacheable is the whole rule", () => {
