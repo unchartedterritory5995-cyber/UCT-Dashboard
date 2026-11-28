@@ -543,3 +543,144 @@ describe('W10 — a split the lake has not caught up with shows on the DAILY bar
     })
   }
 })
+
+describe('W11 — only a WHOLE answer wins the race (review of #2986, F1 blocker)', () => {
+  const HS = async () => (await import('./network')).WINDOW_LAKE_HEAD_START_MS
+  const fire = async (h, ms) => { const i = h.timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = h.timers.splice(i, 1); t.fn(); await h.flush(); return true }
+  function gatedLake(market, opts) {
+    const source = fakeSource(market, opts)
+    let open
+    const gate = new Promise((r) => { open = r })
+    const inner = source.loadIndex
+    source.loadIndex = vi.fn(async (sym) => { await gate; return inner(sym) })
+    return { source, open }
+  }
+  function gatedOrigin(market) {
+    const pend = []
+    const request = vi.fn((url, opts) => new Promise((resolve, reject) => {
+      opts?.signal?.addEventListener?.('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e) })
+      const q = parseUrl(url)
+      pend.push({ url, opts, q, go: (shape = (b) => b, extra = {}) => resolve({ ticker: q.sym, tf: q.tf, bars: shape(originTo(market[q.sym][q.tf], q.to, q.bars)), ...extra }) })
+    }))
+    return { request, pend }
+  }
+  const draws = (h, K) => { const seen = []; h.registry.subscribe(K, () => { const b = h.registry.peek(K)?.bars; if (b?.length && seen.at(-1) !== b) seen.push(b) }); return seen }
+
+  for (const [name, shape] of [['a short UNFLAGGED origin (738 of the asked)', (b) => b.slice(-738)], ['an EMPTY origin window', () => []]]) {
+    it(`${name} does not land over the lake: the lake's whole window lands, once`, async () => {
+      const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+      const o = gatedOrigin(M)
+      const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+      const K = winKey('ABC', '5', '2006-02-15')
+      const seen = draws(h, K)
+      h.network.start(K)
+      await h.run()
+      await fire(h, await HS())
+      expect(o.pend.length).toBe(1)
+      const asked = o.pend[0].q.bars
+      o.pend[0].go(shape)
+      await h.flush()
+      expect(h.registry.peek(K)?.restSeen ?? false, 'the short origin answer did not land').toBe(false)
+      open()
+      await h.flush()
+      expect(h.network.windowSource(K)).toBe('lake')
+      expect(h.registry.peek(K).bars.length).toBe(asked)
+      expect(ohlcv(h.registry.peek(K).bars)).toEqual(originTo(M.ABC[5], '2006-02-15', asked))
+      expect(seen.length, 'one draw').toBe(1)
+    })
+  }
+
+  it('the mirror: a SHORT lake (it starts later than the origin) does not win outright; the whole origin lands', async () => {
+    const late = { ABC: { 5: M.ABC[5].filter((b) => b.t >= etMidnightEpoch('2006-02-10')) } }
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: fakeSource(late, { through: LAKE_THROUGH }) }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    expect(o.pend.length, 'the short lake asked the origin at once').toBe(1)
+    const asked = o.pend[0].q.bars
+    o.pend[0].go()
+    await h.flush()
+    expect(h.network.windowSource(K)).toBe('origin')
+    expect(h.registry.peek(K).bars.length).toBe(asked)
+  })
+
+  it('both short: the LONGER lands (the lake here)', async () => {
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-01-05')   // 3 sessions: shorter than any first paint
+    h.network.start(K)
+    await h.run()
+    await fire(h, await HS())
+    o.pend[0].go((b) => b.slice(-50))
+    open()
+    await h.flush()
+    expect(h.network.windowSource(K)).toBe('lake')
+    expect(h.registry.peek(K).bars.length).toBeGreaterThan(50)
+  })
+
+  it('(F3) the caller\'s abort settles at once, even while the lake\'s index read hangs', async () => {
+    const { source } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    const ac = new AbortController()
+    let settled = null
+    h.network.fetchOnce(K, { priority: 'visible', signal: ac.signal }).then((v) => { settled = v })
+    await h.flush()
+    ac.abort()
+    await h.flush()
+    expect(settled?.aborted, 'settled without the lake or the head-start timer').toBe(true)
+  })
+
+  it('(F2) a throw in the lake\'s checks falls back to the origin, never errors the chart', async () => {
+    const o = originOf(M)
+    const feed = createHistoryFeed({ source: fakeSource(M, { through: LAKE_THROUGH }) })
+    const history = { ...feed, windowBars: async (...a) => { const got = await feed.windowBars(...a); return got && { ...got, get newest() { throw new Error('a broken check') } } } }
+    const h = net({ request: o.request, history })
+    const P = keyOf({ sym: 'ABC', tf: '5' })
+    h.registry.dispatch(P, { type: 'rest-full', key: P, gen: h.registry.getSnapshot(P).gen, payload: { ticker: 'ABC', tf: '5', bars: M.ABC[5].slice(-200) } })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    expect(o.urls.length).toBe(1)
+    expect(h.registry.peek(K).error ?? null).toBe(null)
+    expect(h.network.windowSource(K)).toBe('origin')
+  })
+})
+
+describe('W12 — a split newer than the lake\'s publish (review of #2986, residual)', () => {
+  const P = keyOf({ sym: 'ABC', tf: '5' })
+  const holdPlain = (h, scale) => h.registry.dispatch(P, { type: 'rest-full', key: P, gen: h.registry.getSnapshot(P).gen,
+    payload: { ticker: 'ABC', tf: '5', bars: M.ABC[5].slice(-300).map((b) => ({ ...b, o: b.o * scale, h: b.h * scale, l: b.l * scale, c: b.c * scale })) } })
+  for (const [name, scale, via] of [['the held present key on the lake\'s basis: the lake', 1, 'lake'], ['the held present key after a 2-for-1 the lake has not applied: the origin', 0.5, 'origin']]) {
+    it(name, async () => {
+      const o = originOf(M)
+      const h = net({ request: o.request, history: createHistoryFeed({ source: fakeSource(M, { through: LAKE_THROUGH }) }) })
+      holdPlain(h, scale)
+      const K = winKey('ABC', '5', '2006-02-15')   // shares no bar with the present key: only the lake's newest session can tell
+      h.network.start(K)
+      await h.run()
+      expect(h.network.windowSource(K)).toBe(via)
+    })
+  }
+  it('a stale split table (splits_as_of more than LAKE_SPLITS_STALE_DAYS behind the lake\'s newest bar): the origin', async () => {
+    const o = originOf(M)
+    const src = fakeSource(M, { through: LAKE_THROUGH })
+    const inner = src.loadIndex
+    src.loadIndex = vi.fn(async (sym) => ({ ...(await inner(sym)), splits_as_of: '2006-03-01' }))
+    const h = net({ request: o.request, history: createHistoryFeed({ source: src }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    expect(h.network.windowSource(K)).toBe('origin')
+    const src2 = fakeSource(M, { through: LAKE_THROUGH })
+    const inner2 = src2.loadIndex
+    src2.loadIndex = vi.fn(async (sym) => ({ ...(await inner2(sym)), splits_as_of: '2006-03-29' }))
+    const h2 = net({ request: originOf(M).request, history: createHistoryFeed({ source: src2 }) })
+    h2.network.start(K)
+    await h2.run()
+    expect(h2.network.windowSource(K), 'a fresh table: the lake').toBe('lake')
+  })
+})

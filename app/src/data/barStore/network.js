@@ -476,12 +476,24 @@ export function createNetwork({
   async function _windowRead(r, url, bars, priority, signal, { warm, front, rec = null }) {
     const p = parseKey(r.key)
     const abortErr = () => new DOMException('The load was aborted', 'AbortError')
+    // (review of #2986, F3) the caller's abort settles every wait below at once: the lake's index read is shared and never
+    // takes the signal, so waiting for it after an abort could outlast the abort by a cold index read
+    const aborted = signal ? new Promise((_, rej) => {
+      if (signal.aborted) rej(abortErr())
+      else signal.addEventListener?.('abort', () => rej(abortErr()), { once: true })
+    }) : null
+    aborted?.catch(() => {})
+    const orAbort = (pr) => (aborted ? Promise.race([pr, aborted]) : pr)
+    // the plain key held on this page: the lake's NEWEST session is compared with it (the split check, `_windowSeamOk`)
+    const at = r.key.indexOf('@to=')
+    const plainHeld = at > 0 ? (registry.peek(r.key.slice(0, at))?.bars?.length ?? 0) > 0 : false
     // the lake's answer: the payload, or null when the origin must answer (a refusal, a failure, a seam that disagrees)
-    const lake = Promise.resolve().then(() => history.windowBars(r.key, { bars, signal })).then(
-      (got) => (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got.bars)
+    // (review of #2986, F2) `.then(ok).catch(...)`: a throw in the seam or daily check falls back too, never errors the chart
+    const lake = Promise.resolve().then(() => history.windowBars(r.key, { bars, signal, newest: plainHeld })).then(
+      (got) => (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got)
         ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null),
-      (e) => { if (signal?.aborted) throw e; return null },   // the caller's abort; any other failure falls back
-    )
+    ).catch((e) => { if (signal?.aborted) throw e; return null })   // the caller's abort; any other failure falls back
+    lake.catch(() => {})
     // a chart that subscribed, or a non-warm ask that joined, while the lake was read never rides a shed-able warm (`_tail`)
     const plainUrl = () => (warm && (r.refs > 0 || rec?.wantPlain) ? url.replace(/&warm=1(?=&|$)/, '') : url)
     // ⭐ (review of #2986, F1) THE ORIGIN FALLBACK IS A LANE REQUEST: its record says so (url, and `warm` when it really
@@ -493,13 +505,20 @@ export function createNetwork({
     }
     const refused = () => { r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
     const won = (src) => { _noteWindowSource(r.key, src) }
+    // ⛔ (review of #2986, F1 blocker) A WINDOW IS WHOLE ONLY WHEN IT HOLDS THE BARS ASKED. The origin serves short windows
+    // UNFLAGGED (a read >= 0.9 x asked counts as covered and is cached an hour; a cold fetch with no slot, or a failed
+    // fetch thread, re-reads what is stored; nothing stored serves recent bars, an EMPTY window after the cutoff), and the
+    // lake can be short too (its 2003-09 floor, the deficit passes' cap). Only a whole answer wins outright.
+    const lakeWhole = (x) => !!x && x.bars.length >= bars
+    const originWhole = (o) => !!o && o.filling !== true && Array.isArray(o.bars) && o.bars.length >= bars
     // ⭐ (measured 2026-11-28, 12 cold tickers at random dates, production) A COLD LAKE IS SLOWER THAN THE ORIGIN: the
     // index and a piece from R2 took 380-650 ms, the origin's `to=` 138-214 ms. A WARM lake (the date warm, a neighbour's
     // warm, the edge's copy) answers in tens of ms. So the chart's own read gives the lake WINDOW_LAKE_HEAD_START_MS, then
-    // asks the origin beside it; the first COMPLETE answer lands (a `filling` origin answer waits for the lake), the other
-    // is given up (the origin's request aborted; the lake's pieces still land in the page's cache). A warm never races.
+    // asks the origin beside it; the first WHOLE answer lands, else the LONGER of the two once both are in (a tie: the
+    // lake's); the other is given up (the origin's request aborted; the lake's pieces still land in the page's cache).
+    // A warm never races.
     if (warm && !(r.refs > 0)) {
-      const v = await lake
+      const v = await orAbort(lake)
       if (signal?.aborted) throw abortErr()
       if (v) { won('lake'); return v }
       refused()
@@ -507,31 +526,39 @@ export function createNetwork({
     }
     let timer = null
     const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
-    const first = await Promise.race([lake, head]).finally(() => { if (timer != null) { clearTimer(timer); timer = null } })
+    const first = await orAbort(Promise.race([lake, head])).finally(() => { if (timer != null) { clearTimer(timer); timer = null } })
     if (signal?.aborted) throw abortErr()
-    if (first && first !== HEAD_START) { won('lake'); return first }
+    if (first !== HEAD_START && lakeWhole(first)) { won('lake'); return first }
     if (first === null) {
       refused()
       return ask(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
     }
-    // the lake is slow: the origin beside it
+    // the lake is slow, or short: the origin beside it
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
-    const onAbort = () => { try { ac?.abort() } catch { /* aborted */ } }
-    signal?.addEventListener?.('abort', onAbort, { once: true })
+    const giveUp = () => { try { ac?.abort() } catch { /* aborted */ } }
+    signal?.addEventListener?.('abort', giveUp, { once: true })
     const origin = ask(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
       .then((o) => ({ o }), (e) => ({ e }))
     try {
-      const v = await Promise.race([
-        lake.then((x) => (x ? { lake: x } : origin)),
-        origin.then((res) => (res.e || res.o?.filling === true ? lake.then((x) => (x ? { lake: x } : res)) : res)),
-      ])
+      const v = await orAbort(new Promise((resolve) => {
+        let done = false
+        const fin = (x) => { if (!done) { done = true; resolve(x) } }
+        lake.then((x) => { if (lakeWhole(x)) fin({ lake: x }) }, () => {})
+        origin.then((res) => { if (res.o && originWhole(res.o)) fin(res) })
+        Promise.allSettled([lake, origin]).then(([lx, ox]) => {
+          const x = lx.status === 'fulfilled' ? lx.value : null
+          const res = ox.value
+          const on = res.o && Array.isArray(res.o.bars) ? res.o.bars.length : -1
+          fin(x && x.bars.length >= on ? { lake: x } : res)
+        })
+      }))
       if (signal?.aborted) throw abortErr()
-      if (v.lake) { onAbort(); won('lake'); return v.lake }
+      if (v.lake) { giveUp(); won('lake'); return v.lake }
       won('origin')
       if (v.e) throw v.e
       return v.o
     } finally {
-      signal?.removeEventListener?.('abort', onAbort)
+      signal?.removeEventListener?.('abort', giveUp)
     }
   }
   /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
@@ -541,12 +568,22 @@ export function createNetwork({
   // intraday seam. The symbol's held DAILY bars (the origin's, on the present basis; a D chart at a date reads the plain
   // key) span the window's days: each shared day's last regular-session close must sit inside that day's daily range
   // (2% slack). A split moves every lake price by its ratio, far outside it: the origin answers.
-  function _windowSeamOk(key, rows) {
+  // ⛔ (review of #2986, residual) ...AND THE LAKE'S NEWEST SESSION AGAINST THE HELD PLAIN KEY. A split newer than the lake's
+  // last publish moves the lake's WHOLE series off the origin's basis, its newest bars included; the plain (present) key is
+  // almost always held before a go-to-date, so the lake's newest rows (`got.newest`, historyFeed windowBars `newest`) are
+  // checked against it on the 2% rule. And a lake whose split table is stale (`splitsStale`: `splits_as_of` more than
+  // LAKE_SPLITS_STALE_DAYS behind its newest bar) is the origin's.
+  function _windowSeamOk(key, got) {
+    const rows = Array.isArray(got) ? got : got?.bars
+    if (!Array.isArray(got) && got?.splitsStale) return false
     const at = key.indexOf('@to=')
-    for (const k of [key, at > 0 ? key.slice(0, at) : null]) {
+    const plain = at > 0 ? key.slice(0, at) : null
+    for (const k of [key, plain]) {
       const held = k ? registry.peek(k)?.bars : null
       if (held?.length && !_seamAgrees(held, rows)) return false
     }
+    const plainBars = plain ? registry.peek(plain)?.bars : null
+    if (plainBars?.length && got?.newest?.length && !_seamAgrees(plainBars, got.newest)) return false
     const p = parseKey(key)
     const daily = p ? registry.peek(`${p.sym}_D`)?.bars : null
     return !daily?.length || _dailyAgrees(daily, rows)
