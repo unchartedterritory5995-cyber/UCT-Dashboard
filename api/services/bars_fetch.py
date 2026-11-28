@@ -4436,6 +4436,17 @@ def _bounded_job(key: str, fn, deadline: float, sem=None, slot_wait: float = 0.0
     return ev.wait(timeout=_bounded_wait(deadline))
 
 
+def _to_window_filling_response(resp_ticker: str, tf: str, bars_out: list) -> JSONResponse:
+    """A `to=` window answer holding FEWER bars than asked that nothing has proven final: the stored part, flagged
+    `filling` (the client re-asks it: `useBarSnapshotBars`) and `short` (not final), with Retry-After, never cached
+    for longer than the retry."""
+    _mark_serve("to-filling")
+    r = JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": bars_out, "filling": True, "short": True},
+                     headers={"Cache-Control": "public, max-age=5"})
+    r.headers["Retry-After"] = "3"
+    return r
+
+
 def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
@@ -4467,6 +4478,7 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
         rows = _contiguous_tail(ticker_up, tf, _sqlite.get_bars_before(ticker_up, tf, bars, to_key))
     except Exception:
         rows = []
+    _date_done = False      # D/W/M: the deep job ran to the end (what the store holds now is all there is)
     if not rows and date_tf:
         # SQLite has nothing at/before the cutoff (e.g. a 2008 replay on a name whose deep
         # history never reached this pod — the sort read it from grouped-daily, not bars.db).
@@ -4491,6 +4503,7 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             _done = _bounded_job(f"replayto-deep::{ticker_up}::{tf}", _replay_deep_job,
                                  _DEEP_DEADLINE_SECONDS, sem=_replay_cold_sem,
                                  slot_wait=0.0 if warm else 1.0)
+            _date_done = bool(_done)
             rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
             if not rows and not _done:
                 return _replay_warming_response(resp_ticker, tf)
@@ -4516,7 +4529,9 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
             _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
         except Exception:
             _intraday_window_missing = not rows
-        if (not _intraday_window_missing and rows and len(rows) < int(bars) * 0.9
+        # ⛔ (2026-11-28) SHORT = FEWER THAN ASKED, not fewer than 0.9 x: 1,086 of 1,152 was served as complete
+        # with max-age=3600 (a short chart at a past date, pinned for an hour at the edge too).
+        if (not _intraday_window_missing and rows and len(rows) < int(bars)
                 and cache.get(_win_key) is None):
             _intraday_window_short = True
             try:
@@ -4621,17 +4636,29 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                 # ⛔ NEVER EMPTY-HANDED WHEN OLDER DATA EXISTS. The stored part of the
                 # window is real and in order: serve it now, flagged `filling`, and tell
                 # the client when the rest should be there.
-                _mark_serve("to-filling")
-                r = JSONResponse(
-                    content={"ticker": resp_ticker, "tf": tf,
-                             "bars": _fmt_sqlite_bars(rows, tf, ticker_up), "filling": True},
-                    headers={"Cache-Control": "public, max-age=5"})
-                r.headers["Retry-After"] = "3"
-                return r
+                return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
         except Exception:
             rows = rows or []
+    # ⛔⛔ (2026-11-28) A WINDOW ANSWER IS COMPLETE ONLY WHEN IT HOLDS WHAT WAS ASKED OR THE STORE IS PROVEN TO HOLD ALL
+    # THERE IS (`_win_key`: set only after a cold fetch answered AND its rows were stored; D/W/M: the deep job ran).
+    # Members saw short charts at past dates (738-1,086 of 1,152 on cold windows): a cold fetch that got no slot
+    # (`_replay_cold_sem`) or whose thread failed re-read with `_replay_running` False and served the short rows as
+    # static history for an hour, and a window with NO stored rows fell to `_get_bars_inner`, the RECENT bars, which
+    # the client's cutoff turns into an EMPTY window.
+    _proven = _date_done if date_tf else cache.get(_win_key) is not None
     if not rows:
-        return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
+        if _proven:
+            # the fetch answered and nothing exists before the cutoff: an honest, settled empty answer
+            _mark_serve("to-no-data")
+            return JSONResponse(content={"ticker": resp_ticker, "tf": tf, "bars": [],
+                                         "no_data": True, "reason": "no_provider_data"},
+                                headers={"Cache-Control": "public, max-age=300"})
+        return _replay_warming_response(resp_ticker, tf)       # never the recent bars: re-poll the window
+    if not date_tf and not _proven and (_intraday_window_missing or len(rows) < int(bars)):
+        if _intraday_window_missing:
+            # only another era is stored and nothing has proven the window empty: warming, never the wrong era
+            return _replay_warming_response(resp_ticker, tf)
+        return _to_window_filling_response(resp_ticker, tf, _fmt_sqlite_bars(rows, tf, ticker_up))
     _mark_serve("sqlite")
     payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     # A window that is STILL not covered (the fetch finished without reaching it) is
