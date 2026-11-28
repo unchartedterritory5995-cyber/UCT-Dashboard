@@ -30,7 +30,12 @@ export const HIGHLIGHT_INTENT_MS = 0
 // ⛔ (review of #2938, T2) How long an EXACT ticker that can still grow (A -> AM -> AMZN, GOOG -> GOOGL) waits before it is
 // told: typed through at a typist's pace it is cancelled by the next key, so single letters no longer start a warm (and
 // up to three linked fetches) each. A ticker nothing longer starts with, and a unique completion, are told at once.
-export const EXACT_PREFIX_SETTLE_MS = 80
+// ⭐ (2026-11-28, cold-arch 3.3 item 2: "prefetch every keystroke that spells a known ticker") ZERO. At a typist's pace
+// (150-250 ms a key) the 80 ms settle fired A and AM anyway; it only held back the ticker the member stops on, by 80 ms.
+// What bounds the fetches is the warm, not this pause: the chart's typed warm keeps ONE text live (a newer text aborts the
+// older one's tail and its linked fetches, data/barStore/prefetch `typed` / `_linkedCtl`), and a cold daily key asks the
+// edge's sealed history and only the newest rows of the origin.
+export const EXACT_PREFIX_SETTLE_MS = 0
 
 function highlighted(text, query, styles) {
   if (!text) return null
@@ -311,13 +316,18 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (lastIntentRef.current === highlightedTicker) return undefined
     // a row from an earlier answer (results land after the typing pause) is not the text's: it must complete what is typed
     if (!highlightedTicker.startsWith(query.trim().toUpperCase())) return undefined
+    // ⛔ (2026-11-28) ONLY THE ROW ENTER WOULD OPEN: one the arrow keys moved to (handleInputKey: a keyboard-selected row
+    // below the top beats the typed text). The top result as the member types is NOT what Enter opens (Enter opens the
+    // typed text), so warming it was an origin fetch per search answer for a chart Enter never shows, and it aborted the
+    // typed text's own warm (one typed slot). The typed text's warm (above) covers the ticker being typed.
+    if (!navByKbdRef.current || !(activeIdx > 0)) return undefined
     const t = setTimeout(() => {
       if (!openRef.current) return   // Enter (or a close) came first: nothing is reported after it
       lastIntentRef.current = highlightedTicker
       try { onTypedIntent(highlightedTicker) } catch { /* a warm never breaks search */ }
     }, HIGHLIGHT_INTENT_MS)
     return () => clearTimeout(t)
-  }, [highlightedTicker, open, chip, onTypedIntent, sym, query])
+  }, [highlightedTicker, open, chip, onTypedIntent, sym, query, activeIdx])
   // A new search session may warm the same text again.
   useEffect(() => { if (!open) { lastIntentRef.current = null; knownRef.current = new Set() } }, [open])
   // the universe the keystroke reads (lib/tickerUniverse): fetched the first time a search that warms opens, never before

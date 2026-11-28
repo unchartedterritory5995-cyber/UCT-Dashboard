@@ -154,6 +154,34 @@ describe('useDoubleBuffer', () => {
     } finally { held.deep = true }
   })
 
+  // ⭐⭐ (2026-11-28, the cold-coverage run, 4h + 2h) A CUSTOM TIMEFRAME'S SHADOW IS COUNTED IN ITS BASE KEY'S ROWS: heldRows
+  // reads the 60m key a 4h chart resamples, so COVER_ROWS 60m rows (~150 4h bars) are short of a 4h view of COVER_ROWS
+  // bars; the flip compared the two as if alike and flipped to a short page
+  it('H12d a 4h shadow holding COVER_ROWS 60m rows is short of a 4h view (base rows): the normal switch', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    __setDoubleBufferBarsSourceForTests((k, r) => bars[r.sym] ?? null)
+    const rep = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: '240', ext: false, bars: bars[sym], cutoff: null }) })
+    held.rows = COVER_ROWS
+    const h = mount()
+    rep(h.result, 0, 'AAA'); await idle(); rep(h.result, 1, 'BBB')
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().flips).toBe(0)
+  })
+
+  it('H12e control: a 4h shadow whose base rows cover the 4h view (four 60m rows a bar) flips', async () => {
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    const { baseBarsFor } = await import('./timeframes')
+    __setDoubleBufferBarsSourceForTests((k, r) => bars[r.sym] ?? null)
+    const rep = (result, i, sym) => act(() => { result.current.reporters[i]({ sym, tf: '240', ext: false, bars: bars[sym], cutoff: null }) })
+    held.rows = baseBarsFor('240', COVER_ROWS)
+    const h = mount()
+    rep(h.result, 0, 'AAA'); await idle(); rep(h.result, 1, 'BBB')
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
+  })
+
   it('H12b control: a shadow whose rows cover the view flips', async () => {
     const { COVER_ROWS } = await import('../../data/barStore/coverRows')
     held.rows = COVER_ROWS
@@ -201,6 +229,29 @@ describe('useDoubleBuffer', () => {
     report(h.result, 1, 'BBB')                           // the shadow's chart re-rendered on its current feed
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
+  })
+
+  // ⭐⭐ (2026-11-28, COV-def-wm-arrows) THE HANDOFF ASKS THIS DECISION EARLY (chart/flipReady.js): it releases a row the
+  // shadow can flip to instead of holding it. The probe's answer IS the press's decision: yes exactly where the press flips
+  it('H18 flipReadyFor answers the decision the press makes: yes for the reported shadow row; no for another row, the front, a short shadow', async () => {
+    const { flipReadyFor } = await import('./flipReady')
+    const h = await ready()
+    expect(flipReadyFor(member, 'BBB')).toBe(true)          // the shadow's reported row: the press would flip
+    expect(flipReadyFor(member, 'CCC')).toBe(false)         // another row: the normal switch
+    expect(flipReadyFor(member, 'AAA')).toBe(false)         // the front's own symbol: no press at all
+    const { COVER_ROWS } = await import('../../data/barStore/coverRows')
+    held.rows = COVER_ROWS - 1
+    expect(flipReadyFor(member, 'BBB')).toBe(false)         // short of the view (H12): the press would not flip either
+    held.rows = COVER_ROWS + 1000
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)                  // ...and where it said yes, the press flipped
+  })
+
+  it('H18b unmounted, the widget answers nothing (its probe is taken away)', async () => {
+    const { flipReadyFor } = await import('./flipReady')
+    const h = await ready()
+    h.unmount()
+    expect(flipReadyFor(member, 'BBB')).toBe(false)
   })
 
   it('H4 a press to another row is the normal switch of the front', async () => {

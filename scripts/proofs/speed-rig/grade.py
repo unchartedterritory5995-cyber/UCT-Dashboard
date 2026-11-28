@@ -114,6 +114,37 @@ def stale(nb_time, tf, exp) -> bool:
     return d < exp['day']
 
 
+def _first_word(h) -> str:
+    """The symbol a sampled header names: its first word, exactly (a prefix pair, old AAPL / target AA, is two symbols)."""
+    w = str(h or '').upper().split()
+    return w[0] if w else ''
+
+
+def _names_other(h, sym) -> bool:
+    """A sampled header naming a symbol, not `sym`."""
+    return bool(_first_word(h)) and bool(sym) and _first_word(h) != str(sym).upper()
+
+
+def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
+    """The first post-key frame that is not the previous symbol's own price tick (see grade_switch), or None."""
+    if k0 is None or not base or not base.get('hs') or not base.get('nb'):
+        return k0
+    tgt = str(p.get('sym') or '').upper()
+    names = lambda h, sym: bool(sym) and _first_word(h) == sym  # noqa: E731
+    if names(base['hs'], tgt):
+        return k0
+    hdr = next((f['c'][cid] for f in post if names(f['c'][cid].get('hs'), tgt) and f['c'][cid].get('nb')), None)
+    for k in range(k0, len(post)):
+        x = post[k]['c'][cid]
+        if not x.get('nb') or json.dumps(x['nb']) == json.dumps(base['nb']):
+            continue
+        tick = (x.get('hs') == base['hs'] and json.dumps(x['nb'][0]) == json.dumps(base['nb'][0]) and x.get('ni') == base.get('ni')
+                and x.get('lr') == base.get('lr') and not (hdr and x['nb'][1] == hdr['nb'][1]))
+        if not tick:
+            return k
+    return None
+
+
 def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     """One switch, by the PC grader's rules (verbatim but for STALE's expectation)."""
     key = p['key']
@@ -122,9 +153,22 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     flags, detail, shown = set(), {}, {}
     for cid in ids:
         pre = [f['c'][cid] for f in frames if f['t'] < key and f['c'].get(cid) and f['c'][cid].get('nb')]
-        base = json.dumps(pre[-1]['nb']) if pre else None
         post = [f for f in frames if f['t'] >= key and f['c'].get(cid)]
+        # (2026-11-28, COV-zo-wm-typed presses 0 and 3, COV-zo-m1-typed 0, COV-date-D-typed 1) NO FRAME BEFORE THE KEY: the
+        # sampler's first frame (+8-17 ms) still showed the PREVIOUS symbol (OSIS, BOKF, FSLY, NOW), and with no base it was
+        # read as the new chart's first paint: "a short paint at 17 ms" (OSIS's 349 months) that was the old chart, "a stale
+        # 1m paint" that was FSLY's. A first frame whose sampled header names another symbol than the target is the base.
+        if not pre and post and post[0]['c'][cid].get('nb') and _names_other(post[0]['c'][cid].get('hs'), p.get('sym')):
+            pre = [post[0]['c'][cid]]
+        base = json.dumps(pre[-1]['nb']) if pre else None
         k0 = next((k for k, f in enumerate(post) if f['c'][cid].get('nb') and json.dumps(f['c'][cid]['nb']) != base), None)
+        # (2026-11-28, COV-def-wm-typed press 3) A TICK ON THE OLD CHART IS NOT THE NEW PAINT. `nb` is [time, close], so the
+        # previous symbol's live price moving its developing bar (HELE's month 34.57 -> 37.71 at 199 ms, header still HELE,
+        # the same 601 rows and view) read as the new chart shown, then as "old header over new candles" and LONE_CHART,
+        # while both charts switched together at 4035 ms. A frame is that tick when the header still names the old symbol
+        # and the newest bar's time, the row count and the view are the pre-key frame's, and its close is not the close the
+        # chart shows once the header names the target (that would be the new bars under a late header: WRONG_CHART stands).
+        k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
         if k0 is None:
             detail[cid] = {'shown': None}
             continue
@@ -170,7 +214,7 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
             flags.add('VISIBLE_CHANGE')
         hs_pre = next((f['c'][cid].get('hs') for f in reversed([f for f in frames if f['t'] < key and f['c'].get(cid)]) if f['c'][cid].get('hs')), None)
         tgt = str(p.get('sym') or '').upper()
-        same = lambda h, sym: bool(h) and bool(sym) and str(h).upper().split()[0].startswith(sym)  # noqa: E731
+        same = lambda h, sym: bool(sym) and _first_word(h) == str(sym).upper()  # noqa: E731  (exact: AA is not AAPL)
         wrong = []
         if any(f['c'][cid].get('hs') for f in post):
             for j2, f in enumerate(post[:k0]):
@@ -343,14 +387,38 @@ def self_check() -> None:
     late = {'i': 1, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1080, 'BBB', 20)]}
     jumpy = {'i': 2, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'BBB', 20), fr(1029, 'BBB', 20, y0=150.0)]}
     old = {'i': 3, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), {'t': 1012, 'c': {'flip-chart': {**fr(1012, 'BBB', 20)['c']['flip-chart'], 'nb': ['2026-11-20', 20]}}}]}
-    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old)]
+    # the old chart's own price ticking before the late switch (a tick, not a paint), and the mirror the rule must keep: the
+    # new bars under the late header (same rows and view, but the close is the target's): WRONG_CHART
+    tick = {'i': 4, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 11), fr(1080, 'BBB', 20, ni=500, lr=(400, 500))]}
+    lag = {'i': 5, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 20), fr(1029, 'BBB', 20)]}
+    # ...and a frame whose view moved is never a tick, whatever its close (the new bars framed under the late header)
+    moved = {'i': 6, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 15, lr=(500, 999)), fr(1029, 'BBB', 20, lr=(500, 999))]}
+    # no frame before the key: the first sampled frame still shows the old symbol (the base), the new one paints late
+    nopre = {'i': 7, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(1012, 'AAA', 10, ni=349, lr=(-438, 352)), fr(1080, 'BBB', 20)]}
+    # a prefix pair (old AAPL, target AA): both rules still apply (the header's first word is compared exactly)
+    pnopre = {'i': 8, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(1012, 'AAPL', 10, ni=349, lr=(-438, 352)), fr(1080, 'AA', 20)]}
+    ptick = {'i': 9, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 11), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
+    assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
+    assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
+    # (review of #2990) the WRONG_CHART rule names symbols exactly too, in both directions: the new AA header over the old
+    # AAPL candles, and the old AAPL header over the new AA candles
+    newhdr = {'i': 12, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AA', 10), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    oldhdr = {'i': 13, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 20), fr(1029, 'AA', 20)]}
+    gn, go = (grade_switch(x, {'flips': []}, tfs, exp) for x in (newhdr, oldhdr))
+    assert 'WRONG_CHART' in gn['flags'] and gn['charts']['flip-chart']['wrong'][0]['kind'] == 'new-header-over-old-candles', gn
+    assert 'WRONG_CHART' in go['flags'] and go['charts']['flip-chart']['wrong'][0]['kind'] == 'old-header-over-new-candles', go
+    assert g[7]['flags'] == ['OVER_30MS'] and g[7]['full'] == 80, g[7]
+    assert 'WRONG_CHART' in g[6]['flags'] and g[6]['charts']['flip-chart']['shown'] == 12, g[6]
+    assert g[4]['flags'] == ['OVER_30MS'] and g[4]['full'] == 80 and not g[4]['charts']['flip-chart']['wrong'], g[4]
+    assert 'WRONG_CHART' in g[5]['flags'] and g[5]['full'] == 12, g[5]
     assert g[0]['flags'] == [] and g[0]['full'] == 12, g[0]
     assert g[1]['flags'] == ['OVER_30MS'] and g[1]['full'] == 80, g[1]
     assert 'VISIBLE_CHANGE' in g[2]['flags'] and g[2]['full'] == 29, g[2]
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale told apart)')
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart)')
 
 
 def main() -> int:
