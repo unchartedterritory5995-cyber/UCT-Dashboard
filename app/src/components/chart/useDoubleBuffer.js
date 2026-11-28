@@ -51,10 +51,17 @@ export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
   // (owner, 2026-11-27) under the cutoff the chart drew at: an intraday replay reads its own window (chartKeyFor)
   // (owner, 2026-11-27) and under the date box's anchor (`date|width`): an intraday chart's window at that date
-  const viewWindow = report.anchor && !report.cutoff ? viewWindowOfDate(String(report.anchor).split('|')[0], report.tf) : null
-  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false, viewWindow })
+  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false, viewWindow: reportWindow(report) })
   if (!key) return null
   return _barsOf(key, report)
+}
+/** The window the reported chart read ({to}): an INTRADAY chart under a replay cutoff, or anchored at a date by the date
+ *  box, reads the window ending at that date (chartKeyFor, the replay's own first); null on D/W/M, a custom timeframe, or
+ *  at the present. */
+export function reportWindow(report) {
+  if (!report) return null
+  if (report.cutoff) return viewWindowOfDate(report.cutoff, report.tf)
+  return report.anchor ? viewWindowOfDate(String(report.anchor).split('|')[0], report.tf) : null
 }
 const _storeBars = (key, report) => {
   const store = getBarStore()
@@ -190,10 +197,13 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, anchor
     // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
     // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
     // press takes the normal switch, which holds for a covering page.
+    // (owner, 2026-11-27: charts at any date) counted on the key the hidden chart DREW (reportWindow): an intraday chart
+    // at a past date (the date box, a replay cutoff) reads the window ending there, and the plain key's newest rows are
+    // another set (short of the view, a flip refused that was ready; covering, a short window let through)
     if (d.flip && BARSTORE && report) {
       const need = viewNeed(member)
       let rows = 0
-      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, upTo: need }) || 0 } catch { rows = 0 }
+      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, viewWindow: reportWindow(report), upTo: need }) || 0 } catch { rows = 0 }
       if (rows && rows < need) d = { flip: false, why: 'shadow-short' }
     }
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the

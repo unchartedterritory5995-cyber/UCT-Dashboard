@@ -966,9 +966,11 @@ export function createPrefetch(o = {}) {
   /** SYNCHRONOUS: how many rows (closed + the developing one) the store holds for the chart `sym` / `tf`
    *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
    *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
-   *  handoff asks it after its own peek, which already did. */
-  function heldRows(sym, tf, { showExtended, answered = false, upTo = COVER_ROWS } = {}) {
-    const key = keyFor(sym, tf, { showExtended })
+   *  handoff asks it after its own peek, which already did. `viewWindow` ({to}): the window an INTRADAY chart reads at a
+   *  past date (a replay cutoff, the date box's anchor: chart/useBarSnapshotBars chartKeyFor), so the rows counted are
+   *  the ones that chart draws, never the plain key's newest rows (owner, 2026-11-27: charts at any date). */
+  function heldRows(sym, tf, { showExtended, viewWindow = null, answered = false, upTo = COVER_ROWS } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     const s = key ? S().peek(key) : null
     if (!s) return 0
     if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0

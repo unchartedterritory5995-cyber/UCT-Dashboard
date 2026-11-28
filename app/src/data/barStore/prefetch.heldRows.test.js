@@ -44,6 +44,24 @@ describe('prefetch.heldRows', () => {
     expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(6000)
   })
 
+  // (owner, 2026-11-27: charts at any date) an intraday chart at a past date (the date box's anchor, a replay cutoff)
+  // reads the window ending there (useBarSnapshotBars chartKeyFor): its rows are counted, never the plain key's
+  it('with viewWindow: counts the window an intraday chart reads at a past date (chartKeyFor), not the plain key', async () => {
+    const { chartKeyFor, viewWindowOfDate } = await import('../../components/chart/useBarSnapshotBars')
+    const store = stubStore()
+    const pf = createPrefetch({ store })
+    const w = viewWindowOfDate('2025-03-14', '30')
+    const windowed = chartKeyFor({ sym: 'AAA', resolvedTf: '30', showExtended: true, replayCutoff: null, hasOverride: false, viewWindow: w })
+    const plain = pf.keyFor('AAA', '30', { showExtended: true })
+    expect(windowed).not.toBe(plain)
+    store.held.set(plain, { bars: rows(150), developing: null, restSeen: true })
+    store.held.set(windowed, { bars: rows(900), developing: null, restSeen: true })
+    expect(pf.heldRows('AAA', '30', { showExtended: true, viewWindow: w })).toBe(900)
+    expect(pf.heldRows('AAA', '30', { showExtended: true })).toBe(150)      // at the present: the plain key, as before
+    store.held.delete(windowed)
+    expect(pf.heldRows('AAA', '30', { showExtended: true, viewWindow: w })).toBe(0)   // the window not held: nothing
+  })
+
   it('with answered: 0 for a saved copy alone, the count once the server answered in this life', () => {
     const store = stubStore()
     const pf = createPrefetch({ store })
