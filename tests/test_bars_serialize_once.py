@@ -224,7 +224,8 @@ def counted(monkeypatch):
         n["loads"] += 1
         return real_loads(b)
     monkeypatch.setattr(bars_payload.PayloadResponse, "render", render)
-    monkeypatch.setattr(bars_payload.orjson, "loads", loads)
+    # bars_payload imports orjson where it is used (see its header), so patch the module itself
+    monkeypatch.setattr(orjson, "loads", loads)
     return n
 
 
