@@ -3,6 +3,15 @@
 Owner rule (2026-11-27): "The 50 test tickers need to change each test and have to be different for every test", so
 every pass measures COLD names (never opened by an earlier run, so no edge, origin or device copy is warm for it).
 Parallel passes of one sweep must not share a ticker either.
+THE REUSE WINDOW (the lead, 2026-11-28, when 199 runs had used 2,268 of the 2,269-ticker pool in ten hours and every
+sweep was refused): plan.py hands out every never-used ticker first, then a ticker whose last run is older than
+plan.REUSE_AFTER_DAYS (14). The browser side of a reused name is cold (every pass's profile is fresh); the server side
+may be warm, so the run records its reused names (`reused`) and grade.py grades them apart.
+THE POOL (`repool`, 2026-11-28): the app's whole listed universe (/api/ticker-universe = api/data/cap_universe.json,
+~3.6k $300M+ symbols), most liquid first (its `pop` rank), WITHOUT the ETFs and indexes (production's classifier,
+/api/ticker-types/etf-index-symbols, signed in as the bench member, plus api/data/prebuilt_etfs.json: a fund's chart
+is not a stock's), the delisted names (api/data/delisted_tickers*.json) and the rig's own fixed tickers (RIG_FIXED:
+the board's start symbol). It was the liquid subset of that universe ($5 and $5M a day: 2,269).
 
 WHERE IT LIVES: one commit on the ref `refs/speed-rig/ledger` of this repository (NOT a branch: no workflow runs on
 it, nothing deploys, branch rules do not apply), holding `ledger.json`:
@@ -20,6 +29,9 @@ sweeps can never hand out the same ticker. A ticker is recorded BEFORE it is use
         # union of the PC ledger and the shared one, written to BOTH (run it before and after a PC run)
     python scripts/proofs/speed-rig/ledger.py seed --local <used_tickers.json> --pool <liquid_pool.json>
         # first creation of the ref (refuses when it exists)
+    python scripts/proofs/speed-rig/ledger.py repool [--dry] [--etf-file F]
+        # a new pool (THE POOL above); the runs are kept as they are. Signs in as BENCH_EMAIL / BENCH_PASSWORD for the
+        # ETF list (or --etf-file: a JSON list), never prints either.
     python scripts/proofs/speed-rig/ledger.py --self-check
 
 Standard library only. Exit 0 ok, 1 refused, 2 could not reach git.
@@ -27,15 +39,25 @@ Standard library only. Exit 0 ok, 1 refused, 2 could not reach git.
 from __future__ import annotations
 
 import argparse
+import glob
+import http.cookiejar
 import json
 import os
+import re
 import subprocess
+import urllib.request
 import sys
 import tempfile
 from datetime import datetime, timezone
 
 REF = "refs/speed-rig/ledger"
 FILE = "ledger.json"
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36"
+#: tickers the rig itself opens on every pass (rig.mjs: the board's colour group A starts on SPY), never handed out
+RIG_FIXED = {"SPY"}
+SYMBOL = re.compile(r"[A-Z][A-Z0-9.\-]{0,9}")
 
 
 class Conflict(Exception):
@@ -174,6 +196,80 @@ def _pool_from_file(path: str) -> dict:
     return {"built": p.get("built") or now(), "rule": p.get("rule"), "tickers": syms}
 
 
+def build_pool(universe: list[str], pop: list[int], etf_index: set[str], delisted: set[str], fixed: set[str]) -> tuple[list[str], dict]:
+    """(the pool, most liquid first: pop rank 1 first, unranked (0) last, then A-Z; the count each rule excluded)."""
+    rank = {str(s).upper(): (pop[i] if i < len(pop) and isinstance(pop[i], int) and pop[i] > 0 else 10 ** 9) for i, s in enumerate(universe)}
+    out, dropped = [], {"etfOrIndex": 0, "delisted": 0, "rigFixed": 0, "notASymbol": 0}
+    for sym in sorted(rank, key=lambda s: (rank[s], s)):
+        if not SYMBOL.fullmatch(sym):
+            dropped["notASymbol"] += 1
+        elif sym in fixed:
+            dropped["rigFixed"] += 1
+        elif sym in etf_index:
+            dropped["etfOrIndex"] += 1
+        elif sym in delisted:
+            dropped["delisted"] += 1
+        else:
+            out.append(sym)
+    return out, dropped
+
+
+def _http(opener, base: str, path: str, body: dict | None = None, timeout: float = 60):
+    req = urllib.request.Request(base + path, data=None if body is None else json.dumps(body).encode(), method="GET" if body is None else "POST",
+                                 headers={"User-Agent": UA, "Accept": "application/json", **({} if body is None else {"Content-Type": "application/json"})})
+    with opener.open(req, timeout=timeout) as r:
+        return r.status, json.loads(r.read().decode("utf-8") or "null")
+
+
+def repo_excluded() -> tuple[set[str], set[str], set[str]]:
+    """(the repo's prebuilt ETFs, its delisted names, the symbols the bench boards name)."""
+    def load(rel):
+        try:
+            return json.load(open(os.path.join(ROOT, rel), encoding="utf-8"))
+        except (OSError, ValueError):
+            raise SystemExit(f"repool needs {rel} (a sparse checkout must include api/data/)")
+    etfs = {str(x).upper() for x in load("api/data/prebuilt_etfs.json")}
+    dl = {str(r.get("ticker") or "").upper() for f in ("api/data/delisted_tickers.json", "api/data/delisted_tickers_bulk.json") for r in load(f)}
+    boards = set()
+    for f in glob.glob(os.path.join(HERE, "boards", "*.json")):
+        boards |= set(re.findall(r'"(?:sym|symbol|ticker)"\s*:\s*"([A-Z][A-Z0-9.\-]{0,9})"', open(f, encoding="utf-8").read()))
+    return etfs, dl - {""}, boards
+
+
+def fetch_pool(base: str, etf_file: str | None) -> dict:
+    """The new pool from production's own lists (THE POOL above); credentials from the environment, never printed."""
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    st, uni = _http(opener, base, "/api/ticker-universe")
+    if st != 200 or not isinstance(uni, dict) or not uni.get("symbols"):
+        raise SystemExit(f"/api/ticker-universe answered {st}")
+    if etf_file:
+        etf = {str(x).upper() for x in json.load(open(etf_file, encoding="utf-8"))}
+        etf_src = f"file {os.path.basename(etf_file)}"
+    else:
+        email, pw = os.environ.get("BENCH_EMAIL"), os.environ.get("BENCH_PASSWORD")
+        if not (email and pw):
+            raise SystemExit("repool needs BENCH_EMAIL / BENCH_PASSWORD (the ETF list is signed-in) or --etf-file")
+        st, _ = _http(opener, base, "/api/auth/login", {"email": email, "password": pw})
+        if st != 200:
+            raise SystemExit(f"sign-in refused ({st})")
+        try:
+            st, j = _http(opener, base, "/api/ticker-types/etf-index-symbols", timeout=240)   # a bulk read: slow on a cold pod
+        finally:
+            try:
+                _http(opener, base, "/api/auth/logout", {})
+            except Exception:  # noqa: BLE001 -- the session expires on its own
+                pass
+        if st != 200 or not isinstance(j, dict) or not j.get("symbols"):
+            raise SystemExit(f"/api/ticker-types/etf-index-symbols answered {st}: refusing a pool that cannot leave the funds out")
+        etf = {str(x).upper() for x in j["symbols"]}
+        etf_src = f"/api/ticker-types/etf-index-symbols ({len(etf)})"
+    prebuilt, delisted, boards = repo_excluded()
+    tickers, dropped = build_pool(uni["symbols"], uni.get("pop") or [], etf | prebuilt, delisted, RIG_FIXED | boards)
+    return {"built": now(), "tickers": tickers, "universe": {"v": uni.get("v"), "symbols": len(uni["symbols"])}, "excluded": dropped,
+            "rule": f"/api/ticker-universe (cap_universe, $300M+) by liquidity rank, without ETFs and indexes ({etf_src} + "
+                    f"prebuilt_etfs.json), delisted names (delisted_tickers*.json) and the rig's fixed tickers"}
+
+
 def self_check() -> None:
     a = {"runs": [{"id": "x", "at": "2026-11-01T00:00:00+00:00", "tickers": ["aa", "BB"]}]}
     b = {"pool": {"built": "2026-11-02", "tickers": ["AA", "BB", "CC"]}, "runs": [{"id": "y", "at": "2026-11-20T00:00:00+00:00", "tickers": ["CC"]}, {"id": "x", "tickers": ["ZZ"]}]}
@@ -185,12 +281,18 @@ def self_check() -> None:
     at = datetime(2026, 11, 28, tzinfo=timezone.utc)
     assert used(m, None, at) == {"AA", "BB", "CC"}
     assert used(m, 10, at) == {"CC"}, used(m, 10, at)
+    # the pool: liquid first, unranked last, and each exclusion counted (a rule that removes nothing is visible)
+    pool, dropped = build_pool(["ZZ", "AA", "SPY", "QQQ", "DEAD", "BB", "bad sym"], [0, 2, 1, 3, 9, 1, 0], {"QQQ"}, {"DEAD"}, {"SPY"})
+    assert pool == ["BB", "AA", "ZZ"], pool
+    assert dropped == {"etfOrIndex": 1, "delisted": 1, "rigFixed": 1, "notASymbol": 1}, dropped
     print("ledger self-check: ok")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("cmd", nargs="?", choices=["show", "sync", "seed"])
+    ap.add_argument("cmd", nargs="?", choices=["show", "sync", "seed", "repool"])
+    ap.add_argument("--dry", action="store_true", help="repool: print the new pool's counts, write nothing")
+    ap.add_argument("--etf-file", default=None, help="repool: the ETF/index symbols as a JSON list (instead of signing in)")
     ap.add_argument("--git-dir", default=None)
     ap.add_argument("--remote", default="origin")
     ap.add_argument("--local", default=None, help="the PC rig's used_tickers.json")
@@ -207,6 +309,23 @@ def main() -> int:
             pool = led.get("pool", {}).get("tickers", [])
             print(json.dumps({"ref": REF, "commit": sha, "runs": len(led.get("runs", [])), "used": len(u), "pool": len(pool),
                               "free": len([t for t in pool if t.upper() not in u]), "poolBuilt": led.get("pool", {}).get("built")}))
+            return 0
+        if a.cmd == "repool":
+            pool = fetch_pool(os.environ.get("UCT_PROOF_BASE", "https://uctintelligence.com"), a.etf_file)
+            sha, led = read(a.git_dir, a.remote)
+            u = used(led)
+            summary = {"pool": len(pool["tickers"]), "excluded": pool["excluded"], "neverUsed": len([t for t in pool["tickers"] if t not in u]),
+                       "previousPool": len((led.get("pool") or {}).get("tickers", [])), "runs": len(led.get("runs", []))}
+            print(json.dumps(summary))
+            if a.dry:
+                return 0
+
+            def swap(led):
+                new = json.loads(json.dumps(led))
+                new["pool"] = pool
+                return new, None
+            commit, _, _ = update(swap, f"speed-rig ledger: repool ({len(pool['tickers'])} tickers, {summary['neverUsed']} never used)", a.git_dir, a.remote)
+            print(f"repooled {REF} at {commit[:12]}")
             return 0
         if a.cmd == "seed":
             if not (a.local and a.pool):

@@ -596,7 +596,10 @@ try {
     // the cloud rig: the plan job drew these from the shared ledger (and recorded them there BEFORE this run)
     if (FRESH_N > 0 || TYPED_FRESH > 0) throw new Error('--fresh-list replaces --fresh-tickers / --typed-fresh: give one or the other')
     listPicks = FRESH_LIST
-    out.freshTickers = { source: 'plan', runId: arg('run-id', '') || null, list: listPicks, typed: TYPED.slice() }
+    // --reused=A,B (2026-11-28): the planned tickers the ledger had handed out before (past its reuse window): cold in
+    // this fresh browser, maybe warm on the server; grade.py grades their switches apart from the never-used ones
+    out.freshTickers = { source: 'plan', runId: arg('run-id', '') || null, list: listPicks, typed: TYPED.slice(),
+      reused: arg('reused', '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean) }
     console.log(`planned tickers: list ${listPicks.join(',')}; typed ${TYPED.join(',')}`)
   } else if (FRESH_N > 0 || TYPED_FRESH > 0) {
     // the liquid pool, built once (one /api/live-prices batch per 200 symbols; it reads quotes, it loads no bars)
