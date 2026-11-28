@@ -1534,14 +1534,21 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   const applyThemeAllWidgetsRef = useRef(null)
   const applyAppearanceAllRef = useRef(null)
   const setMatchChartRef = useRef(null)
+  // The link as the controls read it: on (default) / off, and which chart leads right now.
+  const matchChartOnNow = matchChartOn(layout)
+  const matchChartLeadId = matchChartOnNow ? (leadChartWidget(layout.widgets, layout.matchChart?.chartId)?.id ?? null) : null
+  const matchChartState = useMemo(
+    () => ({ on: matchChartOnNow, chartId: matchChartLeadId != null ? String(matchChartLeadId) : null }),
+    [matchChartOnNow, matchChartLeadId],
+  )
   // ⭐ `canOpenCompare` (UCT RS 3-09): this workspace mounts the Compare Symbols
   // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
   const workspaceValue = useMemo(
-    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile, matchChart: layout.matchChart || null, setMatchChart: (on, chartId) => setMatchChartRef.current?.(on, chartId) }),
-    [layout.matchChart, groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
+    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile, matchChart: matchChartState, setMatchChart: (on, chartId) => setMatchChartRef.current?.(on, chartId) }),
+    [matchChartState, groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
@@ -2055,10 +2062,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       // No chart named (the switch was flipped from a widget's ⚙): keep the one already followed,
       // else pin today's top-left chart so the board doesn't change leads when charts move.
       const pinned = chartId != null ? String(chartId) : (cur?.chartId ?? (leadChartWidget(prev.widgets, null)?.id ?? null))
-      const nextMc = on ? { on: true, chartId: pinned != null ? String(pinned) : null } : null
+      // Off is RECORDED ({ on: false }): with the link on by default, a missing record means on.
+      const nextMc = on ? { on: true, chartId: pinned != null ? String(pinned) : null } : { on: false }
       if (JSON.stringify(cur) === JSON.stringify(nextMc)) return prev
-      const next = { ...prev }
-      if (nextMc) next.matchChart = nextMc; else delete next.matchChart
+      const next = { ...prev, matchChart: nextMc }
       scheduleSave(next)
       return next
     })
@@ -2073,6 +2080,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // change, onto the freshest stored blob, so the widget's other settings (columns, fonts,
   // periods) can never be lost to a stale snapshot. One literal key per call site.
   const writeMatchedPref = (key, blob) => {
+    if (typeof setPrefMerged !== 'function') return
     const look = (cur) => ({ ...(cur && typeof cur === 'object' ? cur : {}), ...pickLook(blob) })
     if (key === 'theme_tracker_settings') setPrefMerged('theme_tracker_settings', look)
     else if (key === 'fundamentals_settings') setPrefMerged('fundamentals_settings', look)
