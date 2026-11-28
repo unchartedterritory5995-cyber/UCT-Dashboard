@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { Suspense, lazy, useId, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
@@ -10,7 +10,8 @@ import { formatNumber, formatPercent } from '../../../lib/presentation/presentat
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import { num } from '../../optionsAnalytics/optionsFormat'
-import IvRankPanel from '../../terminal/panels/IvRankPanel'
+// lazy: the IV rank list (OSCR RICH / CHEAP) and the Terminal's table kit stay off every page that only opens the screener
+const IvRankPanel = lazy(() => import('../../terminal/panels/IvRankPanel'))
 import { normOscrView } from '../../terminal/panels/ivRankModel'
 
 // COV-02 (screen the OPTION, not the stock) + COV-03 (market-wide unusual option volume and
@@ -269,7 +270,7 @@ export default function OptionsScreener({ view: ivView } = {}) {
   // `OSCR RICH` / `OSCR CHEAP`: the IV rank list. Outside the shell its chip back here switches in this state.
   const [rankView, setRankView] = useState(() => normOscrView(ivView))
   return rankView
-    ? <IvRankPanel side={rankView === 'cheap' ? 'low' : 'high'} onView={setRankView} />
+    ? <Suspense fallback={null}><IvRankPanel side={rankView === 'cheap' ? 'low' : 'high'} onView={setRankView} /></Suspense>
     : <ScreenerTabs />
 }
 
