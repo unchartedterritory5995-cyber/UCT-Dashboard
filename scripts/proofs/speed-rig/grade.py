@@ -32,7 +32,11 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 
-ORDER = ['WRONG_CHART', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'OVER_30MS']
+ORDER = ['WRONG_CHART', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 'CLOSE_MISMATCH', 'OVER_30MS']
+#: (2026-11-28) CLOSE_MISMATCH: the board's charts that end on the symbol disagree on its developing close by more than
+#: this fraction. Every developing bar (D, W, M, intraday) closes at the symbol's last price, so they must agree; on the
+#: 11-28 sweep the W+M board's M closed two weeks behind its W on every press (NTRS 169.35 vs 177.67) and nothing flagged it.
+CLOSE_TOL = 0.005
 INTRA_MIN = {'1': 1, '5': 5, '15': 15, '30': 30, '45': 45, '60': 60, '120': 120, '240': 240}
 
 
@@ -244,6 +248,20 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         ids = []
     if sw_full is None or (never and p.get('dir') != 'tab') or (sw_full is not None and sw_full > 30):
         flags.add('OVER_30MS')
+    # the developing closes the board ends on, for the charts that end on the target (a single chart has nothing to agree with)
+    tgt_up = str(p.get('sym') or '').upper()
+    ends = {}
+    for cid in ids:
+        last = next((f['c'][cid] for f in reversed(frames) if f['c'].get(cid) and f['c'][cid].get('nb')), None)
+        if last and _first_word(last.get('hs')) == tgt_up and isinstance(last['nb'][1], (int, float)):
+            ends[cid] = float(last['nb'][1])
+    if len(ends) >= 2:
+        hi, lo = max(ends.values()), min(ends.values())
+        if hi > 0 and (hi - lo) / hi > float(exp.get('closeTol', CLOSE_TOL)):
+            flags.add('CLOSE_MISMATCH')
+        for cid, c in ends.items():
+            if cid in detail:
+                detail[cid]['endClose'] = c
     if len(ids) == 2:
         a, b = shown.get(ids[0]), shown.get(ids[1])
         if a is None or b is None or abs(a - b) > 34:
@@ -398,6 +416,18 @@ def self_check() -> None:
     # a prefix pair (old AAPL, target AA): both rules still apply (the header's first word is compared exactly)
     pnopre = {'i': 8, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(1012, 'AAPL', 10, ni=349, lr=(-438, 352)), fr(1080, 'AA', 20)]}
     ptick = {'i': 9, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 11), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    # two charts of the symbol ending on different developing closes (the W+M board's two-week-old monthly close), and the
+    # control: the same closes within tolerance
+    def fr2(t, sym, c1, c2):
+        a = fr(t, sym, c1)['c']['flip-chart']
+        return {'t': t, 'c': {'flip-chart': a, 'flip-chart-2': {**a, 'nb': ['2026-11-01', c2]}}}
+    tfs2 = {'flip-chart': 'W', 'flip-chart-2': 'M'}
+    mism = {'i': 10, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 177.67)]}
+    agree = {'i': 11, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr2(990, 'AAA', 10, 10), fr2(1012, 'BBB', 169.35, 169.36)]}
+    gm = grade_switch(mism, {'flips': []}, tfs2, exp)
+    ga = grade_switch(agree, {'flips': []}, tfs2, exp)
+    assert 'CLOSE_MISMATCH' in gm['flags'], gm
+    assert 'CLOSE_MISMATCH' not in ga['flags'], ga
     g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
     assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
     assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
@@ -418,7 +448,7 @@ def self_check() -> None:
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart)')
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / developing closes apart told apart)')
 
 
 def main() -> int:
