@@ -114,9 +114,15 @@ def stale(nb_time, tf, exp) -> bool:
     return d < exp['day']
 
 
+def _first_word(h) -> str:
+    """The symbol a sampled header names: its first word, exactly (a prefix pair, old AAPL / target AA, is two symbols)."""
+    w = str(h or '').upper().split()
+    return w[0] if w else ''
+
+
 def _names_other(h, sym) -> bool:
     """A sampled header naming a symbol, not `sym`."""
-    return bool(h) and bool(sym) and not str(h).upper().split()[0].startswith(str(sym).upper())
+    return bool(_first_word(h)) and bool(sym) and _first_word(h) != str(sym).upper()
 
 
 def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
@@ -124,7 +130,7 @@ def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
     if k0 is None or not base or not base.get('hs') or not base.get('nb'):
         return k0
     tgt = str(p.get('sym') or '').upper()
-    names = lambda h, sym: bool(h) and bool(sym) and str(h).upper().split()[0].startswith(sym)  # noqa: E731
+    names = lambda h, sym: bool(sym) and _first_word(h) == sym  # noqa: E731
     if names(base['hs'], tgt):
         return k0
     hdr = next((f['c'][cid] for f in post if names(f['c'][cid].get('hs'), tgt) and f['c'][cid].get('nb')), None)
@@ -208,7 +214,7 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
             flags.add('VISIBLE_CHANGE')
         hs_pre = next((f['c'][cid].get('hs') for f in reversed([f for f in frames if f['t'] < key and f['c'].get(cid)]) if f['c'][cid].get('hs')), None)
         tgt = str(p.get('sym') or '').upper()
-        same = lambda h, sym: bool(h) and bool(sym) and str(h).upper().split()[0].startswith(sym)  # noqa: E731
+        same = lambda h, sym: bool(sym) and _first_word(h) == str(sym).upper()  # noqa: E731  (exact: AA is not AAPL)
         wrong = []
         if any(f['c'][cid].get('hs') for f in post):
             for j2, f in enumerate(post[:k0]):
@@ -389,7 +395,19 @@ def self_check() -> None:
     moved = {'i': 6, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 15, lr=(500, 999)), fr(1029, 'BBB', 20, lr=(500, 999))]}
     # no frame before the key: the first sampled frame still shows the old symbol (the base), the new one paints late
     nopre = {'i': 7, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(1012, 'AAA', 10, ni=349, lr=(-438, 352)), fr(1080, 'BBB', 20)]}
-    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre)]
+    # a prefix pair (old AAPL, target AA): both rules still apply (the header's first word is compared exactly)
+    pnopre = {'i': 8, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(1012, 'AAPL', 10, ni=349, lr=(-438, 352)), fr(1080, 'AA', 20)]}
+    ptick = {'i': 9, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 11), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre, pnopre, ptick)]
+    assert 'SHORT_PAINT' not in g[8]['flags'] and g[8]['full'] == 80, g[8]
+    assert g[9]['full'] == 80 and not g[9]['charts']['flip-chart']['wrong'], g[9]
+    # (review of #2990) the WRONG_CHART rule names symbols exactly too, in both directions: the new AA header over the old
+    # AAPL candles, and the old AAPL header over the new AA candles
+    newhdr = {'i': 12, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AA', 10), fr(1080, 'AA', 20, ni=500, lr=(400, 500))]}
+    oldhdr = {'i': 13, 'dir': 'ArrowDown', 'sym': 'AA', 'key': 1000, 'frames': [fr(990, 'AAPL', 10), fr(1012, 'AAPL', 20), fr(1029, 'AA', 20)]}
+    gn, go = (grade_switch(x, {'flips': []}, tfs, exp) for x in (newhdr, oldhdr))
+    assert 'WRONG_CHART' in gn['flags'] and gn['charts']['flip-chart']['wrong'][0]['kind'] == 'new-header-over-old-candles', gn
+    assert 'WRONG_CHART' in go['flags'] and go['charts']['flip-chart']['wrong'][0]['kind'] == 'old-header-over-new-candles', go
     assert g[7]['flags'] == ['OVER_30MS'] and g[7]['full'] == 80, g[7]
     assert 'WRONG_CHART' in g[6]['flags'] and g[6]['charts']['flip-chart']['shown'] == 12, g[6]
     assert g[4]['flags'] == ['OVER_30MS'] and g[4]['full'] == 80 and not g[4]['charts']['flip-chart']['wrong'], g[4]
@@ -400,7 +418,7 @@ def self_check() -> None:
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame told apart)')
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart)')
 
 
 def main() -> int:

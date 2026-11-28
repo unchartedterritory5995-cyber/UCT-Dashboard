@@ -41,6 +41,11 @@ from pathlib import Path
 from typing import Callable, Iterable, List, Optional, Sequence
 
 HERE = Path(__file__).resolve().parent
+if __package__ in (None, ""):  # script mode (the scheduled task runs this file directly)
+    sys.path.insert(0, str(HERE))
+    import lake_state  # type: ignore[no-redef]
+else:
+    from . import lake_state
 HEAVY_LOCK = Path(r"C:\Users\Patrick\uct-clips\tools\heavy_lock.py")
 SERIES_PERIOD = {"1": "month", "5": "quarter", "15": "year", "30": "year", "60": "year", "60e": "year"}
 BACKUP_KEEP_DAYS = 7
@@ -165,7 +170,10 @@ def _bucket_index(bucket: str, prefix: str, symbol: str) -> Optional[dict]:
 
 def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = False,
         runner: Callable = _run, read_index: Callable = _bucket_index, today: Optional[_dt.date] = None,
-        log: Callable[[str], None] = print, now: Callable[[], float] = time.time) -> int:
+        log: Callable[[str], None] = print, now: Callable[[], float] = time.time, state=None,
+        holder: str = "pc") -> int:
+    """`state` (lake_state.LakeState, main() passes one): the R2 lease both writers take around build and
+    publish, the shared references and the shared ledger. None: no coordination (the rails, --no-lease)."""
     root = Path(root)
     tree_dir = root / tree
     today = today or _dt.date.today()
@@ -211,15 +219,64 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
             return finish(EXIT_BEHIND, step="nothing-new", reason=f"lake ends {lake_last}, {behind} trading days behind")
         return finish(EXIT_OK, step="current", ok=True, reason=f"lake ends {lake_last}")
 
+    if state is not None and not dry_run:
+        try:
+            state.take(holder, LEASE_TTL_S)
+        except lake_state.LeaseBusy as e:
+            return finish(EXIT_OK, step="lease", ok=True, reason=f"another writer holds the lake ({e})")
+        try:
+            return _work(root, tree, bucket, prefix, tree_dir, days, lake_last, status, finish, state=state,
+                         holder=holder, runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
+        finally:
+            try:
+                state.release()
+            except Exception as e:  # noqa: BLE001 - it expires on its own
+                log(f"[lake-daily] lease not released ({type(e).__name__}); it expires on its own")
+    return _work(root, tree, bucket, prefix, tree_dir, days, lake_last, status, finish, state=None,
+                 holder=holder, runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
+
+
+#: How long the PC may hold the lake: a build and a publish can each take hours on its disk.
+LEASE_TTL_S = 8 * 3600
+
+
+def _sync_refs(root: Path, state, holder: str, splits_fresh: bool, log) -> Optional[str]:
+    """ONE source for the references (lake_state): the PC's fresh split table and its hand-kept ticker events
+    go up; the split table every publish uses comes back down, hash-checked. Returns a refusal or None."""
+    ref = root / "ref"
+    try:
+        if splits_fresh and (ref / "splits.json").exists():
+            state.put_ref("splits.json", (ref / "splits.json").read_bytes(), holder)
+        if (ref / "ticker_events.jsonl").exists():
+            state.put_ref("ticker_events.jsonl", (ref / "ticker_events.jsonl").read_bytes(), holder)
+        data = state.get_ref("splits.json")
+    except lake_state.RefMismatch as e:
+        return f"reference refused: {e}"
+    ref.mkdir(parents=True, exist_ok=True)
+    tmp = ref / "splits.json.tmp"
+    tmp.write_bytes(data)
+    os.replace(tmp, ref / "splits.json")
+    return None
+
+
+def _work(root, tree, bucket, prefix, tree_dir, days, lake_last, status, finish, *, state, holder, runner,
+          read_index, log, now, dry_run) -> int:
     status["step"] = "splits"
+    splits_fresh = True
     if not dry_run and runner([sys.executable, str(root / "tools" / "fetch_splits.py")], log) != 0:
+        splits_fresh = False
         log("[lake-daily] split reference not refreshed; publishing with the last one")
+    if state is not None:
+        refused = _sync_refs(root, state, holder, splits_fresh, log)
+        if refused:
+            return finish(EXIT_FAILED, reason=refused)
 
     if not days:
         # Nothing to build, but the bucket was never proven to hold what the tree has: publish again
         # (packs already there at their size are skipped; indexes are rewritten).
         return _publish_and_verify(root, tree, bucket, prefix, lake_last, None, status, finish,
-                                   runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
+                                   runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run,
+                                   state=state)
 
     status["step"] = "backup"
     backup = root / f"backup-{_dt.datetime.fromtimestamp(now()).strftime('%Y%m%d-%H%M')}"
@@ -248,14 +305,28 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
     except (OSError, ValueError):
         ledger_last = days[-1]
     return _publish_and_verify(root, tree, bucket, prefix, max(ledger_last, days[-1]), t0, status, finish,
-                               runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
+                               runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run,
+                               state=state)
 
 
 def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through: str, built_at: Optional[float],
                         status: dict, finish: Callable, *, runner: Callable, read_index: Callable,
-                        log: Callable, now: Callable, dry_run: bool) -> int:
+                        log: Callable, now: Callable, dry_run: bool, state=None) -> int:
     """Publish every tree, read the reference index back, and only then record what the bucket holds."""
     status["step"] = "publish"
+    local_ledger = json.loads((root / tree / "ledger.json").read_text(encoding="utf-8"))
+    if state is not None and not dry_run:
+        # ⛔ NEVER PUBLISH OVER A NEWER LAKE. The cloud runner may have folded days this PC lacks (a failed
+        # download here): publishing these packs would take them out of R2 while its ledger says they are in.
+        remote = (state.get_json(lake_state.LEDGER) or {}).get("days") or {}
+        ahead = sorted(set(remote) - set(local_ledger.get("days") or {}))
+        if ahead:
+            return finish(EXIT_OK, ok=True, step="publish-skipped",
+                          reason=f"the bucket holds days this PC lacks ({ahead[:5]}); not publishing over them")
+        try:
+            state.renew(LEASE_TTL_S)
+        except lake_state.LeaseBusy as e:
+            return finish(EXIT_FAILED, reason=f"lease lost before the publish: {e}")
     trees = sorted(p for p in root.glob("packs-*") if (p / "packs").is_dir())
     pub = [sys.executable, str(HERE / "publish.py")]
     for t in trees:
@@ -270,6 +341,10 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
     events = root / "ref" / "ticker_events.jsonl"
     if events.exists():                 # reused tickers cut, renamed companies stitched (identity.py)
         pub += ["--ticker-events", str(events)]
+    if state is not None:
+        # publish.py renews the lease right before the packs and again before the indexes (fail closed): the
+        # publish heavy lock can wait hours, and nothing here may write the lake on a lease that lapsed.
+        pub += ["--lease-holder", state.holder, "--lease-ttl", str(LEASE_TTL_S)]
     if not dry_run and runner(_locked("lake-daily-publish", pub, 4 * 3600), log, low_priority=True) != 0:
         return finish(EXIT_FAILED, reason="publish failed (the next run publishes again: packs already sent are skipped)")
 
@@ -283,6 +358,12 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
     status["reference_last_1m"] = last
     if not reaches_day(last, through):
         return finish(EXIT_FAILED, reason=f"{REFERENCE_SYMBOL}'s live index does not reach {through}")
+    if state is not None:
+        try:
+            state.renew(LEASE_TTL_S)                              # never record on a lease that lapsed
+        except lake_state.LeaseBusy as e:
+            return finish(EXIT_FAILED, reason=f"lease lost before the ledger: {e}")
+        state.put_json(lake_state.LEDGER, local_ledger)          # the shared ledger: what the bucket now holds
     tmp = root / "daily-state.json.tmp"
     tmp.write_text(json.dumps({"published_through": through, "at": now()}), encoding="utf-8")
     os.replace(tmp, root / "daily-state.json")
@@ -296,8 +377,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--bucket", default="uct-bars-snapshots")
     ap.add_argument("--prefix", default="hist/")
     ap.add_argument("--dry-run", action="store_true", help="decide and print, change nothing")
+    ap.add_argument("--no-lease", action="store_true",
+                    help="do not coordinate with the cloud runner (never while both are scheduled)")
     a = ap.parse_args(argv)
-    return run(a.root, a.tree, a.bucket, a.prefix, dry_run=a.dry_run)
+    state = None
+    if not a.no_lease and not a.dry_run:
+        import publish
+        state = lake_state.LakeState(publish.s3_client_from_env(), a.bucket, a.prefix)
+    return run(a.root, a.tree, a.bucket, a.prefix, dry_run=a.dry_run, state=state,
+               holder=lake_state.holder_name("pc"))
 
 
 if __name__ == "__main__":

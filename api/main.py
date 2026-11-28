@@ -6792,6 +6792,7 @@ async def lifespan(app: FastAPI):
         def _memory_prewarm_background():
             try:
                 from api.services import bars_sqlite as _pbs
+                from api.services.bars_fetch import read_newest as _bf_read_newest
                 from api.services.cache import cache as _pcache
                 from api.routers.bars import _fmt_sqlite_bars, _CACHE_TTL
                 from api.services.bars_seeder import _TIER1_BASE
@@ -6813,7 +6814,8 @@ async def lifespan(app: FastAPI):
                         _lt = _pbs.get_last_ts(sym, tf)
                         if _lt is None:
                             return
-                        _rows = _pbs.get_bars(sym, tf, _bc)
+                        # The SAME read the serve path caches (never an island spliced in).
+                        _rows = _bf_read_newest(sym, tf, _bc)
                         if not _rows:
                             return
                         _pl = {"ticker": sym, "tf": tf, "bars": _fmt_sqlite_bars(_rows, tf, sym)}
