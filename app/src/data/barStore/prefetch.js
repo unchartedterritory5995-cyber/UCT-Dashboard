@@ -1497,6 +1497,12 @@ export function createPrefetch(o = {}) {
     return !!key && !!S().deepPending?.(key)
   }
 
+  /** (#3034) The hang guard's last look: true when a cut D/W/M tail's cover was asked just now (network.coverNow). */
+  function coverIfCut(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
+    try { return !!key && !!S().coverNow?.(key) } catch { return false }
+  }
+
   // ── the legacy warmers, as store prefetches ────────────────────────────────
   function _many(tickers, tf, priority, opts = {}, showExtended = undefined) {
     for (const sym of tickers) { _defer(keyFor(sym, tf, { showExtended }), priority, opts); tickerMeta(sym) }
@@ -2559,7 +2565,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, coverIfCut, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
@@ -2585,6 +2591,7 @@ export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDi
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
+export function coverIfCut(sym, tf, opts = {}) { return _f().coverIfCut(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }

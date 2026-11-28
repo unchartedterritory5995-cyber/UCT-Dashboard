@@ -128,9 +128,8 @@ export const DEEP_PRIME_MAX = 16
 export const EDGE_TAIL_BARS = 30
 /** (review of #2938, T1) A cover's edge history not landed this long after the ask: the origin is asked the cover too. */
 export const EDGE_FALLBACK_MS = 600
-/** (2026-11-28) Unheld at EDGE_FALLBACK_MS, the cover fallback looks again this often, at most this many times. */
-export const EDGE_FALLBACK_RECHECK_MS = 150
-export const EDGE_FALLBACK_RECHECKS = 40
+/** (2026-11-28, #3034) a cut key gaining a hold is looked at this long after the hold, at the soonest (_onHold). */
+export const EDGE_HOLD_LOOK_MS = 150
 
 /** A display waiting on a key's deep join (`deepPrime({ want: true })`) sends its history job at
  *  `visible` rank (never queued) for this long. */
@@ -435,6 +434,7 @@ export function createNetwork({
     // work on production (sqlite get_bars of 2,000 weeks 32-71 ms cold, the W-from-D overlay, the JSON build).
     if (split && isDateTf(p.tf) && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
+      r.edgeCutAt = now()
       _armEdgeFallback(r)
     } else if (split && r.cover > 0 && wanted > bars && _whole(r.key)) {
       // (zero-network PR 3.2) the entry already holds every older row (a whole device copy): the newest rows are all the
@@ -741,25 +741,38 @@ export function createNetwork({
       // prepare's acquire) or a waiting display whose ask was not given up (deepWanted) is what makes the cover worth it.
       // ⛔⛔ (2026-11-28, cloud COV-date-D-typed: 5 of 6 cold typed D switches committed the 30-row cut at the 4 s hang
       // guard) ...AND NOTHING HOLDING IT YET IS NOT "NEVER": the typed warm cuts the tail while the member is still
-      // typing, so the first look finds nothing holding the key and simply returned, and the display that then waited
-      // (its pin, the shadow pane's chart) never got the cover. Unheld, it looks again every EDGE_FALLBACK_RECHECK_MS while
-      // the depth is still due, at most EDGE_FALLBACK_RECHECKS times (the held arrow through a list stays free: a row
-      // passed is released, nothing holds it, and it asks nothing).
-      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) {
-        r.edgeRechecks = (r.edgeRechecks || 0) + 1
-        if (r.edgeRechecks <= EDGE_FALLBACK_RECHECKS) _armEdgeFallback(r, EDGE_FALLBACK_RECHECK_MS)
-        return
-      }
-      r.edgeFallback = true
-      r.coverPage = true
-      // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits
-      // on IS that request: a cover tail queued behind it ran only once the edge answered, which is the wait this exists
-      // to end. With the slot busy, the cover is asked BESIDE it (`r.side`, the only second request a key ever sends).
-      if (r.inflight?.kind === 'scroll' && !r.side) { _tailJob(r, r.priority, { side: true }); return }
-      _queueTail(r, r.priority)
-      _drain(r)
+      // typing, so this look finds nothing holding the key. The hold that comes later (the Enter prepare's pin, the
+      // handoff's holdUntilShown, a chart's start; seconds later, or a re-typed symbol whose history is still due) arms
+      // the look again THEN (_onHold), so a cut tail whose cover never went out gets it the moment it is held.
+      if (!(r.refs > 0 || (registry.refs?.(r.key) ?? 0) > 0 || _wantedNow(r.key))) return
+      _fireEdgeFallback(r)
     }, ms)
   }
+
+  /** The cover fallback's ask: the view's whole page from the origin, beside the stuck edge request. */
+  function _fireEdgeFallback(r) {
+    if (r.edgeTimer != null) { clearTimer(r.edgeTimer); r.edgeTimer = null }
+    r.edgeFallback = true
+    r.coverPage = true
+    // ⛔ NEVER QUEUED BEHIND THE STUCK EDGE. A key sends one request at a time (`r.inflight`), and the history it waits
+    // on IS that request: a cover tail queued behind it ran only once the edge answered, which is the wait this exists
+    // to end. With the slot busy, the cover is asked BESIDE it (`r.side`, the only second request a key ever sends).
+    if (r.inflight?.kind === 'scroll' && !r.side) { _tailJob(r, r.priority, { side: true }); return }
+    _queueTail(r, r.priority)
+    _drain(r)
+  }
+
+  /**
+   * ⭐ (2026-11-28, review of #3034) EVENT-DRIVEN: a key whose tail was cut (`edgeCutAt`) and whose cover never went out
+   * gains a hold (a registry pin, a chart's start): its look is armed now, never earlier than EDGE_HOLD_LOOK_MS (a row a
+   * held arrow passes is released by then and asks nothing) nor earlier than EDGE_FALLBACK_MS after the cut.
+   */
+  function _onHold(key) {
+    const r = keys.get(key)
+    if (!r || r.edgeCutAt == null || r.edgeFallback || r.edgeTimer != null || !api.deepPending(key)) return
+    _armEdgeFallback(r, Math.max(EDGE_HOLD_LOOK_MS, r.edgeCutAt + EDGE_FALLBACK_MS - now()))
+  }
+  const offAcquire = registry.onAcquire?.(_onHold)
 
   /** Does the entry already hold its symbol's whole series (`wholeHistory`)? Never throws. */
   function _whole(key) {
@@ -1164,6 +1177,7 @@ export function createNetwork({
       r.priority = _best(r.priority, priority)
       r.depth = Math.max(r.depth, depth || 0)
       if (r.refs === 1) {
+        _onHold(key)
         _schedule(r, 0)
         // the lake's first window, fetched IN PARALLEL with this first request (historyFeed `prime`)
         if (history?.prime && _lakeCarries(r)) { try { history.prime(key) } catch { /* a warm only */ } }
@@ -1325,6 +1339,18 @@ export function createNetwork({
      * entry holds no more than one tail answer's rows (a deeper copy, here or saved in this browser,
      * had its history joined), and its join has not settled on this page at the depth it holds now.
      */
+    /**
+     * ⛔ (2026-11-28, #3034; the owner: a short chart must be impossible) THE HANG GUARD'S LAST LOOK. A D/W/M key whose tail
+     * was cut to EDGE_TAIL_BARS, still holding no more rows than that, its deep history still due and its cover never
+     * asked: the cover is asked NOW and this answers true (the guard then waits for it, bounded); otherwise false.
+     */
+    coverNow(key) {
+      const r = keys.get(key)
+      if (!r || r.edgeCutAt == null || r.edgeFallback || !api.deepPending(key)) return false
+      if ((registry.peek?.(key)?.bars?.length ?? 0) > EDGE_TAIL_BARS) return false
+      _fireEdgeFallback(r)
+      return true
+    },
     deepPending(key) {
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
@@ -1537,6 +1563,7 @@ export function createNetwork({
     stats() { return { keys: keys.size, requests, inflight: api.inflight() } },
     dispose() {
       offVisible?.()
+      offAcquire?.()
       offEvict?.()
       for (const k of [...keys.keys()]) { const r = keys.get(k); r.refs = 1; api.stop(k) }
     },

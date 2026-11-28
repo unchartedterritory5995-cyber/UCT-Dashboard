@@ -102,6 +102,8 @@ export function createRegistry({
 } = {}) {
   /** @type {Map<string, {state:object, base:object, refs:number, subs:Set<{cb:Function, wake:string, pending?:boolean}>, used:number}>} */
   const entries = new Map()
+  /** onAcquire's listeners (a key gaining its first pin). */
+  const acquireFns = new Set()
   let clock = 0
   let totalBars = 0
   /** The keys this registry evicted (a re-created entry's life gets a page-unique generation), oldest first. */
@@ -238,7 +240,14 @@ export function createRegistry({
     peek(key) { return entries.get(key)?.state ?? null },
     has(key) { return entries.has(key) },
     /** Pin an entry (refcount +1). */
-    acquire(key) { const e = _entry(key); e.refs++; e.used = ++clock; e.dwell = false; return e.state },
+    acquire(key) {
+      const e = _entry(key); e.refs++; e.used = ++clock; e.dwell = false
+      // (2026-11-28, #3034) a key that was held by nothing is held now: the network's cover fallback listens (onAcquire)
+      if (e.refs === 1) for (const fn of [...acquireFns]) { try { fn(key) } catch { /* a listener never breaks a pin */ } }
+      return e.state
+    },
+    /** Called with `key` whenever a pin makes a key held that was held by nothing (refs 0 -> 1). Returns the unsubscribe. */
+    onAcquire(fn) { acquireFns.add(fn); return () => { acquireFns.delete(fn) } },
     release(key) {
       const e = entries.get(key)
       if (e && e.refs > 0) e.refs--

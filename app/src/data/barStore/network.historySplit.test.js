@@ -51,7 +51,8 @@ function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-1
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
     }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
-    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, listing), tailLast).map((t) => bar(t)) }   // (`listing`: every row it has)
+    const sym = /^\/api\/bars\/([^?]+)/.exec(url)?.[1] || 'SIM'   // (each key's own symbol: the held-arrow rail)
+    return { ticker: sym, tf: 'D', bars: weekdays(Math.min(n, listing), tailLast).map((t) => bar(t)) }   // (`listing`: every row it has)
   })
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
   const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {} })
@@ -249,28 +250,75 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(tailBars(w), 'the cover page for the display that waits').toContain(dateCoverMaxFor('D'))
   })
 
-  // ⛔⛔ (2026-11-28, cloud COV-date-D-typed, production) the typed warm's cut tail, the member still typing (nothing holds
-  // the key at EDGE_FALLBACK_MS); then the display pins it (the handoff's hold, the shadow pane's chart): the cover page
-  // must still go out, so the hang guard never commits a 30-row EDGE_TAIL cut as the D chart
-  it('a key pinned only AFTER the first fallback look still gets the cover page soon after the pin', async () => {
-    const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS, EDGE_FALLBACK_RECHECK_MS } = await import('./network')
+  // ⛔⛔ (2026-11-28, cloud COV-date-D-typed, production; review of #3034) the typed warm's cut tail, the member still
+  // typing (nothing holds the key at EDGE_FALLBACK_MS); then the display holds it, at once or SECONDS later (a pause before
+  // Enter, a re-typed symbol): the cover page goes out right after the hold, so the hang guard never meets a 30-row cut
+  const coverTails = (w) => w.calls.filter((u) => u.startsWith('/api/bars/') && Number(/[?&]bars=(\d+)/.exec(u)[1]) === dateCoverMaxFor('D'))
+  for (const [label, pause] of [['right after the first look', 1], ['after a pause beyond any horizon', 30]]) {
+    it(`a cut key first pinned ${label} (no deepPrime want) gets the cover page EDGE_HOLD_LOOK_MS after the pin`, async () => {
+      const { EDGE_TAIL_BARS, EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
+      const w = world({ history: 'hang', pin: false })
+      w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+      await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * pause + EDGE_FALLBACK_MS)   // nothing holds the key
+      expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+      w.registry.acquire(w.key)                                        // Enter: the prepare's / the handoff's pin
+      await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS - 20)
+      expect(tailBars(w), 'not before the look (a row an arrow passes is released by then)').toEqual([EDGE_TAIL_BARS])
+      await vi.advanceTimersByTimeAsync(40)
+      expect(tailBars(w), 'the cover page for the display').toEqual([EDGE_TAIL_BARS, dateCoverMaxFor('D')])
+    })
+  }
+  it('a chart starting on a cut key (refs 0 -> 1, no pin) is a hold too', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS } = await import('./network')
     const w = world({ history: 'hang', pin: false })
     w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
-    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)          // typing: nothing holds the key
-    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
-    w.registry.acquire(w.key)                                        // the display holds it (no deepPrime want)
-    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_RECHECK_MS + 20)
-    expect(tailBars(w), 'the cover page for the display').toEqual([EDGE_TAIL_BARS, dateCoverMaxFor('D')])
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 10)
+    expect(coverTails(w)).toEqual([])
+    w.net.start(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 20)
+    expect(coverTails(w)).toHaveLength(1)
   })
-  it('CONTROL: never held (a row passed in a held arrow): the rechecks end and nothing is asked', async () => {
-    const { EDGE_FALLBACK_MS, EDGE_FALLBACK_RECHECK_MS, EDGE_FALLBACK_RECHECKS, EDGE_TAIL_BARS } = await import('./network')
+  it('CONTROL: a cut key never held asks no cover, however long', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
     const w = world({ history: 'hang', pin: false })
     w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
-    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + EDGE_FALLBACK_RECHECK_MS * (EDGE_FALLBACK_RECHECKS + 5))
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 50)
     expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
-    w.registry.acquire(w.key)                                        // held long after: the rechecks are spent
-    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS)
-    expect(tailBars(w)).toEqual([EDGE_TAIL_BARS])
+  })
+  // ⛔ (review of #3034) BOUNDED: a held arrow through a list of cut D rows (each pinned by its prepare and released as the
+  // next row is pressed) asks a cover only for the row it stops on and the neighbours that row keeps, never one per row passed
+  it('a held arrow through cut D rows: covers only for the rows still held when it stops', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    const ks = Array.from({ length: 10 }, (_, i) => keyOf({ sym: `R${i}`, tf: 'D' }))
+    for (const k of ks) w.net.fetchOnce(k, { depth: w.depth, cover: 1400, warm: true })   // the list's ahead warms
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    expect(coverTails(w)).toEqual([])
+    for (const k of ks.slice(0, 7)) { w.registry.acquire(k); await vi.advanceTimersByTimeAsync(40); w.registry.release(k) }   // the arrow passes
+    for (const k of ks.slice(7)) w.registry.acquire(k)               // it stops on R7; R8, R9 are its kept neighbours
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 3)
+    expect(coverTails(w).map((u) => /\/api\/bars\/(\w+)/.exec(u)[1]).sort()).toEqual(['R7', 'R8', 'R9'])
+  })
+  // ⛔ (review of #3034; the owner: a short chart must be impossible) THE HANG GUARD'S LAST LOOK
+  it('coverNow: a cut D key still at EDGE_TAIL_BARS whose cover never went out asks it at once, and only once', async () => {
+    const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
+    const w = world({ history: 'hang', pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
+    expect(w.registry.peek(w.key)?.bars?.length).toBeLessThanOrEqual(EDGE_TAIL_BARS)
+    expect(w.net.coverNow(w.key)).toBe(true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(coverTails(w)).toHaveLength(1)
+    expect(w.net.coverNow(w.key), 'asked already: the guard may commit').toBe(false)
+  })
+  it('CONTROL coverNow: an uncut key (the depth came whole) answers false and asks nothing', async () => {
+    const w = world({ pin: false })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(50)
+    const n = w.calls.length
+    expect(w.net.coverNow(w.key)).toBe(false)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(w.calls.length).toBe(n)
   })
 
   // ...and the edge answering after the cover landed still joins, once: the cover was asked beside it, never instead of it

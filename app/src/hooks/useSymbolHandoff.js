@@ -582,7 +582,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         const landWhole = (outcome) => { if (outcome === 'error' || outcome === 'nodata' || whole()) land(outcome) }
         P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal, cover: need }).then(landWhole, () => land('error'))
         const bound = setTimeout(() => landWhole('hold-timeout'), DAILY_HOLD_MAX_MS)
-        const hang = setTimeout(() => land('hang'), hangIn())
+        // ⛔ (2026-11-28, #3034) NEVER A 30-ROW CUT AS THE CHART: at the guard, a cut tail whose cover never went out asks
+        // it now and the hold waits for it (the watcher lands it), bounded by HANG_COVER_GRACE_MS
+        let hang = setTimeout(function onHang() {
+          hang = BARSTORE && storePrefetch.coverIfCut?.(requestedSym, tf, {}) ? setTimeout(() => land('hang'), HANG_COVER_GRACE_MS) : null
+          if (!hang) land('hang')
+        }, hangIn())
         // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
         // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
@@ -688,8 +693,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // never settles at all. Committing is still the least-bad answer — a member
       // staring at the previous symbol forever is worse than a chart that says it
       // is loading — but it is recorded as degraded, exactly like 'error'.
-      const deadline = setTimeout(() => {
+      let deadline = setTimeout(function onDeadline(late) {
         if (!alive || genRef.current !== gen || forced) return
+        // (#3034) a cut D/W/M tail whose cover never went out: asked now, and the guard waits for it once more
+        if (late !== true && BARSTORE && storePrefetch.coverIfCut?.(requestedSym, fetchTf(tf), sess)) { deadline = setTimeout(() => onDeadline(true), HANG_COVER_GRACE_MS); return }
         lastOutcomeRef.current = 'hang'
         forced = true      // (a hold's own guard fires at the same bound: never a second hold after it)
         stopHold()
@@ -724,3 +731,5 @@ export const DAILY_HOLD_MAX_MS = 400
 // Deliberately generous: firing it early would race a slow-but-healthy prepare
 // and reintroduce the blind commit it exists to prevent.
 const HANDOFF_HANG_MS = 4000
+// (#3034) past the guard, how long a cover asked at the guard's last look (coverIfCut) may still hold the previous chart
+export const HANG_COVER_GRACE_MS = 1500
