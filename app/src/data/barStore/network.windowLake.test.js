@@ -348,3 +348,111 @@ describe('W6 — a window\'s prime warms exactly the pieces its read takes', () 
     expect(source.warmPieces).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('W7 — a piece whose bars sit late in its span still yields the whole window', () => {
+  it('the share estimate over-counts the cut piece; the deficit is read from the older piece (exact, oldest first)', async () => {
+    // February trades on the 1st and from the 21st only: its share before 02-21 is estimated ~70% of its bars, but holds 2 days
+    const jan = makeSeries(71, 1, '2006-01-03', '2006-01-31')
+    const feb = [...makeSeries(72, 1, '2006-02-01', '2006-02-01'), ...makeSeries(73, 1, '2006-02-21', '2006-02-28')]
+    const market = { GAP: { 1: [...jan, ...feb] } }
+    const source = fakeSource(market)
+    const feed = createHistoryFeed({ source })
+    const K = winKey('GAP', '1', '2006-02-21')
+    const got = await feed.windowBars(K, { bars: 3000 })
+    expect(ohlcv(got.bars)).toEqual(originTo(market.GAP[1], '2006-02-21', 3000))
+    expect(got.bars.length).toBe(3000)
+    expect(source.reads, 'the first read came up short: one more for the deficit').toBe(2)
+  })
+})
+
+describe('W8 — a slow (cold) lake races the origin after a head start; a warm lake answers alone', () => {
+  const fire = async (h, ms) => { const i = h.timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = h.timers.splice(i, 1); t.fn(); await h.flush(); return true }
+  function gatedLake(market, opts) {
+    const source = fakeSource(market, opts)
+    let open
+    const gate = new Promise((r) => { open = r })
+    const inner = source.loadIndex
+    source.loadIndex = vi.fn(async (sym) => { await gate; return inner(sym) })
+    return { source, open }
+  }
+  function gatedOrigin(market) {
+    const o = originOf(market)
+    const pend = []
+    const request = vi.fn((url, opts) => new Promise((resolve, reject) => {
+      o.urls.push(url)
+      opts?.signal?.addEventListener?.('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e) })
+      pend.push({ url, opts, go: (extra = {}) => { const q = parseUrl(url); resolve({ ticker: q.sym, tf: q.tf, bars: originTo(market[q.sym][q.tf], q.to, q.bars), ...extra }) } })
+    }))
+    return { request, urls: o.urls, pend }
+  }
+
+  it('the lake silent past the head start: the origin is asked beside it; the origin first lands ONCE, the lake later changes nothing', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS } = await import('./network')
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    const seen = []
+    h.registry.subscribe(K, () => { const b = h.registry.peek(K).bars; if (b.length && seen.at(-1) !== b) seen.push(b) })
+    h.network.start(K)
+    await h.run()
+    expect(o.urls, 'the lake has its head start').toEqual([])
+    expect(await fire(h, WINDOW_LAKE_HEAD_START_MS)).toBe(true)
+    expect(o.urls.length).toBe(1)
+    expect(o.urls[0]).toMatch(/[?&]to=2006-02-15(?:&|$)/)
+    o.pend[0].go()
+    await h.flush()
+    expect(h.network.answered(K)).toBe(true)
+    expect(h.network.windowSource(K)).toBe('origin')
+    open()
+    await h.flush()
+    expect(seen.length, 'one draw: the lake answering later lands nothing').toBe(1)
+    expect(WINDOW_LAKE_HEAD_START_MS).toBeLessThanOrEqual(100)
+  })
+
+  it('the lake answers after the head start but before the origin: the lake lands and the origin request is aborted', async () => {
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    await fire(h, (await import('./network')).WINDOW_LAKE_HEAD_START_MS)
+    expect(o.pend.length).toBe(1)
+    open()
+    await h.flush()
+    expect(h.network.windowSource(K)).toBe('lake')
+    expect(o.pend[0].opts.signal.aborted, 'the origin request given up').toBe(true)
+    expect(ohlcv(h.registry.peek(K).bars)).toEqual(originTo(M.ABC[5], '2006-02-15', h.registry.peek(K).bars.length))
+  })
+
+  it('an origin answer that is `filling` (short) waits for the lake\'s complete one', async () => {
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    await fire(h, (await import('./network')).WINDOW_LAKE_HEAD_START_MS)
+    o.pend[0].go({ filling: true, bars: [] })
+    await h.flush()
+    expect(h.registry.peek(K)?.restSeen ?? false, 'the short answer does not land').toBe(false)
+    open()
+    await h.flush()
+    expect(h.network.windowSource(K)).toBe('lake')
+    expect(h.registry.peek(K).bars.length).toBeGreaterThan(100)
+  })
+
+  it('a warm (no chart) never races: a slow lake is waited for, the origin never asked', async () => {
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    const res = h.network.fetchOnce(K, { priority: 'background', warm: true })
+    await h.flush()
+    expect(h.timers.some((t) => t.ms === (0, (await import('./network')).WINDOW_LAKE_HEAD_START_MS))).toBe(false)
+    open()
+    expect((await res).ok).toBe(true)
+    expect(o.urls).toEqual([])
+  })
+})

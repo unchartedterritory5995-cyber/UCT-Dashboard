@@ -57,6 +57,11 @@ import { _closeMismatch } from '../../utils/barsMerge'
 export const WINDOW_FILL_RETRY_S = 3
 export const WINDOW_FILL_ROUNDS = 10
 
+/** (PR 1.1) How long the chart's own read of a window gives the history lake before it asks the origin beside it (a
+ *  warm lake answers in tens of ms; a cold one, from R2, in 380-650 ms against the origin's 140-210: measured 2026-11-28). */
+export const WINDOW_LAKE_HEAD_START_MS = 80
+const HEAD_START = Symbol('head start')
+
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
 /** Error backoff: first retry, cap. */
@@ -441,24 +446,58 @@ export function createNetwork({
     return !!history?.windowBars && !!p?.window && isIntradayTf(p.tf) && !r.windowLakeOff
   }
   async function _windowRead(r, url, bars, priority, signal, { warm, front }) {
-    let got = null
-    try {
-      got = await history.windowBars(r.key, { bars, signal })
-    } catch (e) {
-      if (signal?.aborted) throw e   // the caller's abort; any other failure (another caller's abort included) falls back
-      got = null
-    }
-    if (signal?.aborted) throw new DOMException('The load was aborted', 'AbortError')
-    if (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got.bars)) {
-      _noteWindowSource(r.key, 'lake')
-      const p = parseKey(r.key)
-      return { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' }
-    }
-    r.windowLakeOff = true
-    _noteWindowSource(r.key, 'origin')
+    const p = parseKey(r.key)
+    const abortErr = () => new DOMException('The load was aborted', 'AbortError')
+    // the lake's answer: the payload, or null when the origin must answer (a refusal, a failure, a seam that disagrees)
+    const lake = Promise.resolve().then(() => history.windowBars(r.key, { bars, signal })).then(
+      (got) => (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got.bars)
+        ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null),
+      (e) => { if (signal?.aborted) throw e; return null },   // the caller's abort; any other failure falls back
+    )
     // a chart that subscribed while the lake was read never rides a shed-able warm (`_tail`'s rule)
-    const plain = warm && r.refs > 0 ? url.replace(/&warm=1(?=&|$)/, '') : url
-    return request(plain, { priority, signal, ...(front ? { front: true } : {}) })
+    const plainUrl = () => (warm && r.refs > 0 ? url.replace(/&warm=1(?=&|$)/, '') : url)
+    const refused = () => { r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
+    const won = (src) => { _noteWindowSource(r.key, src) }
+    // ⭐ (measured 2026-11-28, 12 cold tickers at random dates, production) A COLD LAKE IS SLOWER THAN THE ORIGIN: the
+    // index and a piece from R2 took 380-650 ms, the origin's `to=` 138-214 ms. A WARM lake (the date warm, a neighbour's
+    // warm, the edge's copy) answers in tens of ms. So the chart's own read gives the lake WINDOW_LAKE_HEAD_START_MS, then
+    // asks the origin beside it; the first COMPLETE answer lands (a `filling` origin answer waits for the lake), the other
+    // is given up (the origin's request aborted; the lake's pieces still land in the page's cache). A warm never races.
+    if (warm && !(r.refs > 0)) {
+      const v = await lake
+      if (signal?.aborted) throw abortErr()
+      if (v) { won('lake'); return v }
+      refused()
+      return request(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+    }
+    let timer = null
+    const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
+    const first = await Promise.race([lake, head]).finally(() => { if (timer != null) { clearTimer(timer); timer = null } })
+    if (signal?.aborted) throw abortErr()
+    if (first && first !== HEAD_START) { won('lake'); return first }
+    if (first === null) {
+      refused()
+      return request(plainUrl(), { priority, signal, ...(front ? { front: true } : {}) })
+    }
+    // the lake is slow: the origin beside it
+    const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+    const onAbort = () => { try { ac?.abort() } catch { /* aborted */ } }
+    signal?.addEventListener?.('abort', onAbort, { once: true })
+    const origin = request(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
+      .then((o) => ({ o }), (e) => ({ e }))
+    try {
+      const v = await Promise.race([
+        lake.then((x) => (x ? { lake: x } : origin)),
+        origin.then((res) => (res.e || res.o?.filling === true ? lake.then((x) => (x ? { lake: x } : res)) : res)),
+      ])
+      if (signal?.aborted) throw abortErr()
+      if (v.lake) { onAbort(); won('lake'); return v.lake }
+      won('origin')
+      if (v.e) throw v.e
+      return v.o
+    } finally {
+      signal?.removeEventListener?.('abort', onAbort)
+    }
   }
   /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
    *  last shared one, the 2% rule)? True when none are shared. */
@@ -911,7 +950,7 @@ export function createNetwork({
     // ...and a window's (a chart at a past date, PR 1.2's date warm): the pieces its lake read takes (historyFeed `prime`)
     primeLake(key, opts) {
       if (!history?.prime || !(lakeCarriesKey(key) || lakeCarriesWindow(key))) return
-      try { history.prime(key, opts) } catch { /* a warm only */ }
+      try { if (opts) history.prime(key, opts); else history.prime(key) } catch { /* a warm only */ }
     },
     /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
      *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
