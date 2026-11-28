@@ -36,7 +36,7 @@ import { HIST_PREFIX, handleHistory } from "./history.js";
 import { LIVE1M_PREFIX, handleLive1m } from "./live1m.js";
 import { SEED_PREFIX_PATH, handleSeed } from "./seed.js";
 import { isStreamPath, handleStream } from "./stream.js";
-import { BARS_TIER_ORIGIN, readTail } from "./tail.js";
+import { BARS_TIER_ORIGIN, readTail, TIER_FAILED, TIER_SHED_HEADER, isDeliberateTierShed } from "./tail.js";
 
 // One authority for the tier's address: the shared-tail entrypoint (tail.js) asks the same one.
 const BARS_ORIGIN = BARS_TIER_ORIGIN;
@@ -208,22 +208,8 @@ const MARKET_INDICATOR_SYMBOLS = new Set([
 // re-poll, and the tier's shed protection was defeated by doubling the load.
 // ⭐ Only a real tier failure falls back: network error / timeout / 502 / 504, or
 // a 5xx that does NOT identify itself as a deliberate shed (crash, fault 503s).
-export const TIER_SHED_HEADER = "X-Bars-Shed";
-const DELIBERATE_SHED_REASONS = new Set(["warming", "warm-shed"]);
-
-export async function isDeliberateTierShed(r) {
-  if (!r || r.status !== 503) return false;
-  if (!r.headers.get("Retry-After")) return false;
-  const tag = (r.headers.get(TIER_SHED_HEADER) || "").trim().toLowerCase();
-  if (tag) return DELIBERATE_SHED_REASONS.has(tag);
-  // A tier that predates the header: recognise the warming body by name (tiny JSON).
-  try {
-    const body = await r.clone().json();
-    return !!body && (body.warming === true || body.error === "warming");
-  } catch (_e) {
-    return false;
-  }
-}
+// The rule itself lives in tail.js (the shared-tail entrypoint classifies the same answers); re-exported here.
+export { TIER_SHED_HEADER, isDeliberateTierShed };
 
 // ── chart edge entitlement (shadow) ─────────────────────────────────────────
 // Mirrors api/chart_edge_token.py. The two are proven equal by
@@ -498,7 +484,11 @@ export default {
     if (request.method === "GET") {
       try {
         const shared = await readTail(url, { env, ctx, entitled, breakerOpen: TIER_BREAKER.isOpen() });
-        if (shared) return shared;
+        // The copy's own tier read FAILED (no answer within the history_rev hedge, or a non-deliberate 5xx):
+        // that IS a tier failure. Asking the tier again below would wait the same hedge twice and double the
+        // load on a struggling bars-api; open the breaker, and the path below goes to web first.
+        if (shared === TIER_FAILED) TIER_BREAKER.open("web-fallback");
+        else if (shared) return shared;
       } catch (_e) { /* the copy failing is the old path */ }
     }
 

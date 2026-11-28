@@ -45,15 +45,43 @@ export const TAIL_TTL_S = { D: 5, W: 5, M: 5, "1": 3, "5": 3, "15": 3, "30": 3, 
  *  that is what keeps 500 members on one symbol at about one tier read per key per (TTL - SWR) seconds, with no
  *  herd at expiry: nobody waits on the refresh, and nobody is handed a copy older than the TTL. */
 export const TAIL_SWR_S = { D: 2, W: 2, M: 2, "1": 1, "5": 1, "15": 1, "30": 1, "60": 1 };
-/** How long the cached entrypoint waits for the tier before giving up (the old path then runs). */
-export const TAIL_TIER_TIMEOUT_MS = 1200;
+/** How long the cached entrypoint waits for the tier: the SAME as the old path's history_rev hedge
+ *  (worker.js BARS_HISTORY_REV_HEDGE_MS, pinned equal by a rail), so a slow read is never waited twice.
+ *  Past it the read is a tier failure (TIER_FAILED): the gateway opens the breaker and asks web. */
+export const TAIL_TIER_TIMEOUT_MS = 2500;
+/** readTail's answer when the copy's tier read failed: not "no copy", a FAILED tier. */
+export const TIER_FAILED = Symbol("tier-failed");
+
+// ── tier 5xx classification (2026-11-10; moved here from worker.js 2026-11-28, one authority) ─────────
+// ⛔⛔ A DELIBERATE 503 IS AN ANSWER, NOT A FAILURE. bars-api answers 503 + Retry-After on purpose when it has
+// STARTED a bounded cold fetch (`warming`) or shed a best-effort `warm=1` prefetch under load (`warm-shed`):
+// "re-poll in ~3s, the rows are landing HERE". Only a real failure (network error, timeout, a 5xx that does
+// not identify itself as a deliberate shed) is a failure.
+export const TIER_SHED_HEADER = "X-Bars-Shed";
+const DELIBERATE_SHED_REASONS = new Set(["warming", "warm-shed"]);
+
+export async function isDeliberateTierShed(r) {
+  if (!r || r.status !== 503) return false;
+  if (!r.headers.get("Retry-After")) return false;
+  const tag = (r.headers.get(TIER_SHED_HEADER) || "").trim().toLowerCase();
+  if (tag) return DELIBERATE_SHED_REASONS.has(tag);
+  // A tier that predates the header: recognise the warming body by name (tiny JSON).
+  try {
+    const body = await r.clone().json();
+    return !!body && (body.warming === true || body.error === "warming");
+  } catch (_e) {
+    return false;
+  }
+}
 
 const ALLOWED_PARAMS = new Set(["tf", "bars", "since", "to", "session"]);
 const PATH_RE = /^\/api\/bars\/([^\/?#]+)$/;
 const PARAM_VALUE_RE = /^[A-Za-z0-9._:-]{0,40}$/;
 // Headers of the tier's answer the copy must not carry: per-request, per-connection or encoding facts.
+// ...and the copy's own markers, so an origin answer can never carry (spoof) them past the gateway's checks.
 const DROP_HEADERS = ["set-cookie", "cache-control", "pragma", "content-length", "content-encoding",
-  "transfer-encoding", "connection", "x-railway-request-id", "x-railway-edge", "x-hikari-trace", "vary"];
+  "transfer-encoding", "connection", "x-railway-request-id", "x-railway-edge", "x-hikari-trace", "vary",
+  "x-tail-pass", "x-tail-filled", "x-tail-ttl", "x-tail-tier-failed", "x-tail-age-ms"];
 
 /** The copy's TTL and canonical path for a request, or null when the request is not cacheable. */
 export function tailCachePlan(url, method = "GET") {
@@ -91,6 +119,13 @@ export function tailAnswerCacheable(status, headers, body) {
   return true;
 }
 
+/** The tier failed this read: never kept, and the gateway treats it as a tier failure. */
+function failed(status, error) {
+  return new Response(JSON.stringify({ error }), {
+    status, headers: { "content-type": "application/json", "cache-control": "no-store", "x-tail-tier-failed": "1" },
+  });
+}
+
 function pass(status, headers, body) {
   const h = new Headers(headers);
   for (const k of DROP_HEADERS) h.delete(k);
@@ -115,13 +150,16 @@ export async function serveTail(request, _env, { fetchImpl = fetch, now = () => 
       method: "GET", headers: { accept: "application/json" }, redirect: "manual", signal: ac.signal,
     });
   } catch (_e) {
-    return pass(504, { "content-type": "application/json" }, '{"error":"tier_unanswered"}');
+    return failed(504, "tier_unanswered");
   } finally {
     clearTimeout(timer);
   }
   if (r.status !== 200) {
+    // < 500 or a deliberate shed: the tier ANSWERED, and that answer goes to the member exactly as the old path
+    // would hand it over (never kept). Any other 5xx: a tier failure (the gateway opens the breaker).
+    if (r.status < 500 || await isDeliberateTierShed(r)) return pass(r.status, r.headers, await r.arrayBuffer());
     try { await r.body?.cancel(); } catch (_e) { /* nothing to release */ }
-    return pass(r.status === 504 ? 502 : r.status, { "content-type": "application/json" }, '{"error":"tier_status"}');
+    return failed(502, "tier_status");
   }
   const text = await r.text();
   let body = null;
@@ -157,9 +195,10 @@ export async function readTail(url, { env, ctx, entitled, breakerOpen = false, n
   } catch (_e) {
     return null;
   }
-  const drop = async () => { try { await r.body?.cancel(); } catch (_e) { /* nothing to release */ } return null; };
-  if (r.status !== 200) return drop();
+  const drop = async (out = null) => { try { await r.body?.cancel(); } catch (_e) { /* nothing to release */ } return out; };
+  if (r.headers.get("x-tail-tier-failed") === "1") return drop(TIER_FAILED);
   const passed = r.headers.get("x-tail-pass") === "1";
+  if (r.status !== 200 && !passed) return drop();
   const filled = Number(r.headers.get("x-tail-filled"));
   if (!passed) {
     if (!Number.isFinite(filled) || filled <= 0) return drop();
@@ -175,5 +214,5 @@ export async function readTail(url, { env, ctx, entitled, breakerOpen = false, n
     h.set("x-bars-edge", filled < t0 ? "tail-cache" : "tail-fill");
     h.set("x-tail-age-ms", String(Math.max(0, t0 - filled)));
   }
-  return new Response(r.body, { status: 200, headers: h });
+  return new Response(r.body, { status: r.status, headers: h });
 }

@@ -168,6 +168,13 @@ npx wrangler@4.166.0 deploy                   # uses the owner's wrangler login 
 previous one -> Rollback. Turning ONE feature off needs no rollback: set the plain variable `LAKE_TIER=0` or
 `TAIL_CACHE=0` (Settings -> Variables), which the code reads on every request.
 
+⛔ **The Worker also answers on `bars-edge-router.<account>.workers.dev`** (`workers_dev: true` in
+`wrangler.json`, kept as it was). That hostname is an **anonymous alternate entrance**: `/api/hist`,
+`/api/seed` and the live-minute paths refuse it (401: the edge cookie is scoped to `uctintelligence.com`,
+so a browser never sends it there), but `/api/bars/*` is still SHADOW-only, so through workers.dev it
+forwards to the tier exactly as the zone route does. Turning `workers_dev` off is a separate, deliberate
+change (nothing in the app calls that hostname); enforcement closes it by construction.
+
 If you edit the Worker in the dashboard, copy it back here in the same change (the dashboard editor
 cannot see `entry.js`'s cached entrypoints, so a dashboard paste of `worker.js` alone REMOVES them).
 

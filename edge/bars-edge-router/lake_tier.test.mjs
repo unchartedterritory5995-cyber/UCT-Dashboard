@@ -12,7 +12,7 @@ import { readFileSync } from "node:fs";
 import worker from "./worker.js";
 import {
   serveLakePiece, lakePiecePath, lakeCacheKey, parseLakePiecePath, lakeTier, readObject, splitPiece, LAKE_ENTRY,
-  LAKE_PIECE_ORIGIN, HIST_PREFIX, encodeSymbol,
+  LAKE_PIECE_ORIGIN, HIST_PREFIX, encodeSymbol, LAKE_KEY_VERSION,
 } from "./history.js";
 import { cachedEntry } from "./__fixtures__/workers_cache.mjs";
 
@@ -169,13 +169,29 @@ test("a 409 from the copy's path is never kept: the next read asks R2 again", as
   assert.equal(lake.log.runs, 2);
 });
 
-test("whatever the copy hands back, the gateway validates it: another piece's bytes are a 409, never served", async () => {
+test("whatever the copy hands back, the gateway validates it: bytes that are not this piece are never served, R2 answers", async () => {
   const [a, b] = CASES.filter((c) => c.series === "1" && c.period === "2026-11");
   const pa = PLACE.get(a.name);
   const lying = { fetch: async () => new Response(bytesOf(b.b64).subarray(0, pa.n), { status: 200 }) };
   const { env, ctx } = rig({ entry: lying });
-  const res = await ask(pathOf(a), { env, ctx });
-  assert.equal(res.status, 409);
+  const res = await ask(pathOf(a), { env, ctx, headers: { "accept-encoding": "gzip" } });
+  assert.equal(res.status, 200, "the network's copy is never the authority for a 409");
+  assert.equal(res.headers.get("x-bars-edge"), "history");
+  assert.deepEqual(new Uint8Array(await res.arrayBuffer()), bytesOf(a.b64), "A's own bytes, read from R2");
+  assert.equal(env.HISTORY.asked.length, 1);
+  // and when R2 itself does not hold this piece there either, THEN it is a 409 (the index moved)
+  const both = rig({ entry: lying });
+  const moved = await ask(pathOf(a, { crc: a.header.crc + 1 }), { env: both.env, ctx: both.ctx });
+  assert.equal(moved.status, 409);
+});
+
+test("the copy's path and key carry a format version (pieces outlive Worker versions by a year)", () => {
+  const c = CASES[1];
+  const key = PLACE.get(c.name).key;
+  assert.ok(lakePiecePath(key, rangeOf(c)).startsWith(`/p/${LAKE_KEY_VERSION}/`));
+  assert.ok(lakeCacheKey(key, rangeOf(c)).startsWith(`/p/${LAKE_KEY_VERSION}/`));
+  assert.equal(parseLakePiecePath(lakePiecePath(key, rangeOf(c)).replace(`/p/${LAKE_KEY_VERSION}/`, "/p/")), null,
+    "an unversioned path is refused");
 });
 
 test("the copy failing (throws, 503, 404) is a plain R2 read, never an error", async () => {
