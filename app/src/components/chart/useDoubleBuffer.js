@@ -40,8 +40,9 @@ import { recordPaint, viewNeed } from './paintLog'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, nextShadowSym, flipDecision, viewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, shadowTargetFor, flipDecision, viewParity, tfViewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
+import { habitualTfs } from './tfHabit'
 
 /** The bars array a chart of the reported symbol, timeframe and session hands the library NOW, by the chart's own
  *  path (useBarSnapshotBars): the base snapshot's rows (`adapter.legacyBars`, memoised per snapshot); for a CUSTOM
@@ -103,6 +104,9 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {object} o
  * @param {boolean} o.eligible        doubleBufferEligible(...) for this widget (stable for its life)
  * @param {string} o.sym              the symbol the widget shows now (useSymbolHandoff's)
+ * @param {string|null} o.tf          (lane C, PR 2.1) the widget's timeframe now: a change of it alone is a TIMEFRAME press,
+ *                                    which flips when the hidden layer holds this symbol at that timeframe
+ * @param {string[]|null} o.tfBar     the codes on the chart's timeframe bar (the habitual timeframe is one of them)
  * @param {object|null} o.settings    the pane's stored settings (identity)
  * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
  *                                    drew under the same one
@@ -111,9 +115,9 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {object|null} o.parentVis   the board's layer handle, or null
  * @param {() => object[]} o.panes    each layer's pane instance (ChartPane's imperative handle: getDateMeta, viewDo, focus)
  * @param {() => Element[]} o.layerEls each layer's wrapper element
- * @returns {{on: boolean, syms: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
+ * @returns {{on: boolean, syms: (string|null)[], tfs: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settings, cutoff = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
@@ -124,7 +128,9 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     return [a, b]
   })
   useEffect(() => () => { handles[0].dispose(); handles[1].dispose() }, [handles])
-  const [buf, setBuf] = useState(() => ({ syms: [sym || null, null], front: 0 }))
+  // (lane C, PR 2.1) each layer's own timeframe: the front's is the widget's; the hidden one's is the front's when it holds
+  // the row ahead, or the habitual next timeframe when it holds the front's own symbol (doubleBuffer.shadowTargetFor)
+  const [buf, setBuf] = useState(() => ({ syms: [sym || null, null], tfs: [tf, null], front: 0 }))
   const bufRef = useRef(buf)
   bufRef.current = buf
   const settingsRef = useRef(settings)
@@ -178,7 +184,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
       startTransition(() => setBuf((x) => {
         if (x.syms[1 - x.front] == null) return x
         const syms = x.syms.slice(); syms[1 - x.front] = null
-        return { syms, front: x.front }
+        return { syms, tfs: x.tfs, front: x.front }
       }))
     })
     return () => _cic(idle)
@@ -186,17 +192,25 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
   // effects (stats, the paint record, the focus) wait for the commit ──
-  if (eligible && sym && sym !== buf.syms[buf.front]) {
+  const symPress = !!(eligible && sym && sym !== buf.syms[buf.front])
+  // (lane C, PR 2.1) a TIMEFRAME press: the same symbol, another timeframe
+  const tfMoved = tf != null && buf.tfs[buf.front] != null && String(tf) !== String(buf.tfs[buf.front])
+  const tfPress = !!(eligible && sym && !symPress && tfMoved)
+  if (symPress || tfPress) {
     const f = buf.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    const want = fr ? { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null } : null
-    const report = slotOk && buf.syms[s] === sym ? reportsRef.current[s] : null
+    // a symbol press is asked at the front chart's resolved timeframe; a timeframe press at the code pressed
+    const want = !fr ? null : tfPress ? { press: 'tf', sym, tf: String(tf), ext: fr.ext, settings, cutoff: cutoff || null }
+      : { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null }
+    const report = slotOk && buf.syms[s] === sym && (!tfPress || String(buf.tfs[s]) === String(tf)) ? reportsRef.current[s] : null
     const view = () => {
       const p = panes ? panes() : []
-      return viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
+      return tfPress ? tfViewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: String(tf) })
+        : viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
-    let d = flipDecision(want, report, barsNowFor, view)
+    // a symbol AND a timeframe change in one render (a template, the agent): the normal switch of both
+    let d = symPress && tfMoved ? { flip: false, why: 'sym-and-tf' } : flipDecision(want, report, barsNowFor, view)
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
     // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
     // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
@@ -215,21 +229,27 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {
-      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row' : 'shadow-unreported' }
+      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row'
+        : tfPress && String(buf.tfs[s]) !== String(tf) ? 'shadow-other-tf' : 'shadow-unreported' }
     }
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {
-      d, sym, from: f, tf: report?.tf, bars: report?.bars?.length || 1,
+      d, sym, from: f, tf: report?.tf ?? (tfPress ? String(tf) : undefined), bars: report?.bars?.length || 1, press: tfPress ? 'tf' : 'sym',
       sinceSet: t.set[s] != null ? Math.round(now - t.set[s]) : null, sinceReport: t.report[s] != null ? Math.round(now - t.report[s]) : null,
     }
     if (d.flip) {
-      setBuf({ syms: buf.syms, front: s })
+      setBuf({ syms: buf.syms, tfs: buf.tfs, front: s })
     } else {
       const syms = buf.syms.slice()
+      const tfs = buf.tfs.slice()
       syms[f] = sym
-      reportsRef.current[f] = null   // the front's next pass reports the new symbol
-      setBuf({ syms, front: f })
+      tfs[f] = tf
+      reportsRef.current[f] = null   // the front's next pass reports the new symbol / timeframe
+      // a hidden layer on the row ahead follows the front's timeframe (both layers did before PR 2.1); one holding the
+      // front's own symbol at another timeframe stays until the retarget
+      if (tfs[s] != null && syms[s] !== sym && String(tfs[s]) !== String(tf)) { tfs[s] = tf; reportsRef.current[s] = null }
+      setBuf({ syms, tfs, front: f })
     }
   }
 
@@ -242,7 +262,7 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     const p = pendingRef.current
     if (!p) return
     pendingRef.current = null
-    noteDecision(p.d, p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport })
+    noteDecision(p.d, p.press === 'tf' ? `${p.sym}@${p.tf ?? '?'}` : p.sym, { sinceSet: p.sinceSet, sinceReport: p.sinceReport, press: p.press })
     if (!p.d.flip) return
     recordPaint(p.sym, p.tf, p.bars, 'flip', member)
     try {
@@ -309,6 +329,9 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
   // showed the press (utils/afterPaint); at mount after the FRONT chart's first pass (review of #2930, LOW-2), so the
   // FIRST press finds it too. ONE pending schedule at a time (LOW-1): a live-sorted list republishes its neighbours often.
   const frontSym = buf.syms[buf.front]
+  const frontTf = buf.tfs[buf.front]
+  const tfBarRef = useRef(tfBar)
+  tfBarRef.current = tfBar
   useEffect(() => {
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
@@ -317,18 +340,24 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
       if (!alive) return
       const b = bufRef.current
       const f = b.syms[b.front]
-      const next = nextShadowSym(f)
+      const ftf = b.tfs[b.front]
+      // (lane C, PR 2.1) the row ahead at the front's timeframe, or (no list) the front's symbol at its habitual next one
+      const habit = ftf != null ? habitualTfs(String(ftf), { k: 1, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null })[0] : null
+      const target = shadowTargetFor(f, ftf, habit)
       const s = 1 - b.front
-      if (!next || next === f || b.syms[s] === next) return
+      const holds = (x) => x.syms[s] === target.sym && String(x.tfs[s]) === String(target.tf)
+      if (!target || holds(b)) return
       reportsRef.current[s] = null
       timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
       noteRetarget()
       startTransition(() => {
         setBuf((x) => {
-          if (x.front !== b.front || x.syms[s] === next) return x
+          if (x.front !== b.front || holds(x)) return x
           const syms = x.syms.slice()
-          syms[s] = next
-          return { syms, front: x.front }
+          const tfs = x.tfs.slice()
+          syms[s] = target.sym
+          tfs[s] = target.tf
+          return { syms, tfs, front: x.front }
         })
       })
     }
@@ -342,19 +371,22 @@ export function useDoubleBuffer({ eligible, sym, settings, cutoff = null, scope,
     firstRetargetRef.current = true
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
     return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
-  }, [eligible, slotOk, frontSym])
+  }, [eligible, slotOk, frontSym, frontTf])
 
   // (review of #2930, LOW-4) a layer's `set` time is when its new row COMMITS (the retarget's transition), not when the
   // retarget asked for it
   const prevSymsRef = useRef(buf.syms)
+  const prevTfsRef = useRef(buf.tfs)
   useLayoutEffect(() => {
     const was = prevSymsRef.current
     prevSymsRef.current = buf.syms
+    const wasTfs = prevTfsRef.current
+    prevTfsRef.current = buf.tfs
     for (const i of [0, 1]) {
-      if (i !== buf.front && buf.syms[i] != null && buf.syms[i] !== was[i]) timesRef.current.set[i] = _now()
+      if (i !== buf.front && buf.syms[i] != null && (buf.syms[i] !== was[i] || buf.tfs[i] !== wasTfs[i])) timesRef.current.set[i] = _now()
     }
   }, [buf])
 
-  return useMemo(() => ({ on: eligible, syms: buf.syms, front: buf.front, handles, reporters, viewChanged, focusFront }),
+  return useMemo(() => ({ on: eligible, syms: buf.syms, tfs: buf.tfs, front: buf.front, handles, reporters, viewChanged, focusFront }),
     [eligible, buf, handles, reporters, viewChanged, focusFront])
 }
