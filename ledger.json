@@ -7169,6 +7169,736 @@
     "GYRE",
     "LMB"
    ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-dd-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DRVN",
+    "PALI",
+    "ARI",
+    "RCAT",
+    "AKO-A",
+    "HLMN",
+    "ITGR",
+    "SPRY",
+    "GSBD",
+    "MLKN",
+    "FRMI",
+    "KODK",
+    "GLRE"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-dd-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AZ",
+    "SID",
+    "RBBN",
+    "VINP",
+    "WTBA",
+    "VTMX",
+    "NNI",
+    "TALK",
+    "KRO"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-tc-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TLX",
+    "KRAQ",
+    "RZLT",
+    "CCSI",
+    "ALUB",
+    "IQ",
+    "UHT",
+    "ABX",
+    "CVEO",
+    "ODC",
+    "LAC",
+    "PGEN",
+    "EVOX"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-tc-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NMG",
+    "GERN",
+    "KRNT",
+    "TITN",
+    "AKBA",
+    "RSVR",
+    "NQP",
+    "AAPG",
+    "CMCL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-m1-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AEAQ",
+    "IMOS",
+    "FMAO",
+    "ACIU",
+    "ECX",
+    "ICL",
+    "BNED",
+    "MMI",
+    "SSTK",
+    "RDVT",
+    "HACQ",
+    "WABC",
+    "UTZ"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-m1-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PRTC",
+    "MOMO",
+    "CZNC",
+    "AGBK",
+    "KELYA",
+    "HSTM",
+    "LXFR",
+    "PRE",
+    "CLFD"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-m5h1-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CLMB",
+    "AMBP",
+    "MTC",
+    "UA",
+    "BSVN",
+    "CCOI",
+    "RGNX",
+    "MFIC",
+    "CSV",
+    "NAUT",
+    "WRN",
+    "RPAY",
+    "FBK"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-m5h1-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MTRX",
+    "OLP",
+    "FOA",
+    "CCEC",
+    "PRAA",
+    "DBI",
+    "RMIX",
+    "MPT",
+    "MANU"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-d30-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SUPV",
+    "NCDL",
+    "PLOW",
+    "SCL",
+    "CPS",
+    "TMCR",
+    "PLTK",
+    "LPAA",
+    "TBLA",
+    "ENVX",
+    "AB",
+    "HIFS",
+    "NWAX"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-d30-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BSBR",
+    "RAMP",
+    "LWAY",
+    "HTZ",
+    "INV",
+    "NEWP",
+    "GEL",
+    "POLE",
+    "UTL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-h4h2-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VHCP",
+    "KFII",
+    "CV",
+    "PHOE",
+    "UWMC",
+    "LBRDA",
+    "OEC",
+    "EOLS",
+    "TMC",
+    "HIVE",
+    "MPLT",
+    "AURA",
+    "NNNN"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-h4h2-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ISSC",
+    "CMII",
+    "GABC",
+    "TSHA",
+    "WLKP",
+    "HCIC",
+    "WSBF",
+    "SAC",
+    "IMRX"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-wm-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TFIN",
+    "MNKD",
+    "PSBD",
+    "PMTR",
+    "LAR",
+    "BWMN",
+    "NAGE",
+    "ALOV",
+    "ANNX",
+    "PHI",
+    "DAO",
+    "STRT",
+    "NPB"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-wm-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VEL",
+    "CLOV",
+    "XZO",
+    "NP",
+    "WTI",
+    "BIOA",
+    "SB",
+    "CADL",
+    "KDK"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-def-tabs",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TTAM",
+    "AEBI",
+    "CTO"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-dd-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TV",
+    "AKO-B",
+    "GSBC",
+    "TRTX",
+    "XXI",
+    "STAA",
+    "HAFC",
+    "AHG",
+    "IBCP",
+    "SIDU",
+    "TRX",
+    "AUTL",
+    "WVE"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-dd-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NIO",
+    "KRSP",
+    "GRNT",
+    "ANGX",
+    "ALTI",
+    "TCI",
+    "FLGT",
+    "TRST",
+    "ABAT"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-tc-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CARE",
+    "ELVA",
+    "HFWA",
+    "ENGN",
+    "CRON",
+    "GLIBK",
+    "IMSR",
+    "LXP",
+    "BKTI",
+    "UXIN",
+    "LINC",
+    "ALLT",
+    "CCO"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-tc-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NATH",
+    "FBRX",
+    "SGP",
+    "ANSC",
+    "EVGO",
+    "CTEV",
+    "JOUT",
+    "ASPI",
+    "GBLI"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-m1-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PHR",
+    "PBT",
+    "TY",
+    "MATW",
+    "CMCO",
+    "CRAQ",
+    "SD",
+    "STLA",
+    "FSSL",
+    "BTE",
+    "LXU",
+    "NEGG",
+    "JKS"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-m1-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CCNE",
+    "BBCP",
+    "PCT",
+    "SKIN",
+    "AXG",
+    "ARKO",
+    "MOV",
+    "SOHU",
+    "ZNTL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-m5h1-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BRSP",
+    "FVRR",
+    "ASTE",
+    "BSM",
+    "FINV",
+    "GOOD",
+    "EVLV",
+    "MRLN",
+    "PRTA",
+    "OBE",
+    "CMDB",
+    "MAKO",
+    "MSDL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-m5h1-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NCMI",
+    "ATII",
+    "CCAP",
+    "ANGO",
+    "ARVN",
+    "ARTNA",
+    "BFC",
+    "XNDU",
+    "BTBT"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-d30-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "KVUE",
+    "RYAM",
+    "IIIV",
+    "OIS",
+    "OPEN",
+    "RLMD",
+    "EVAC",
+    "BNTC",
+    "RERE",
+    "CBZ",
+    "VISN",
+    "PLBL",
+    "OI"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-d30-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CINT",
+    "AVIR",
+    "INR",
+    "LEG",
+    "FSBC",
+    "SGU",
+    "EQBK",
+    "HSLV",
+    "SIFY"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-h4h2-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FULC",
+    "GSL",
+    "DNN",
+    "PBYI",
+    "BAK",
+    "SVC",
+    "MCBS",
+    "CWH",
+    "CLB",
+    "RMR",
+    "ALLO",
+    "PXED",
+    "HKD"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-h4h2-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ADUR",
+    "AII",
+    "DGICA",
+    "DRUG",
+    "SPIR",
+    "WOOF",
+    "AMTB",
+    "HCICU",
+    "PICS"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-wm-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LWLG",
+    "CTBI",
+    "LYEL",
+    "PAYO",
+    "OIM",
+    "FRST",
+    "BBBY",
+    "PFLT",
+    "GBFH",
+    "SOBO",
+    "CAAP",
+    "FRBA",
+    "BULL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-wm-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BRAI",
+    "LBRDK",
+    "DAKT",
+    "WFG",
+    "HBT",
+    "BFST",
+    "SATL",
+    "CLDT",
+    "NWAX-U"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zo-tabs",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ARDX",
+    "LMRI",
+    "DDD"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zoom-D",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DCBO",
+    "SCZM",
+    "OCS",
+    "GRAB",
+    "LMAT",
+    "SAFE",
+    "ULH",
+    "BW",
+    "NPWR"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-zoom-W",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ONIT",
+    "SERV",
+    "RXRX",
+    "IEAG",
+    "FG",
+    "CBL",
+    "SABR",
+    "SLDP",
+    "ALIT"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-date-D-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SBC",
+    "DMRA",
+    "GTEN",
+    "SPFI",
+    "LYTS",
+    "ITRN",
+    "SAFT",
+    "DKL",
+    "CTOS",
+    "KBON",
+    "MNTN",
+    "KYTX",
+    "AGMB"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-date-D-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "KOP",
+    "RAPP",
+    "ACNB",
+    "HBNB",
+    "BBUC",
+    "CYD",
+    "PKOH",
+    "PSTL",
+    "SIMA"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-date-15-arrows",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FWDI",
+    "CLPT",
+    "COSO",
+    "IONR",
+    "ACRS",
+    "SFST",
+    "VOXR",
+    "FWRD",
+    "SNDL",
+    "EMAT",
+    "ERII",
+    "AD",
+    "DMII"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-date-15-typed",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CIG",
+    "CBIO",
+    "DEA",
+    "MAGN",
+    "PNTG",
+    "CUK",
+    "BDCI",
+    "ASIX",
+    "WMK"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-tf-def",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PERI",
+    "MSGS",
+    "ALF",
+    "CNL"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-tf-zo",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "LOB",
+    "AVBC",
+    "GMTL",
+    "KROS"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-tf-date",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ARX",
+    "UVSP",
+    "NOAH",
+    "NPKI"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-tf-nolist",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BHRB",
+    "IRS",
+    "BBSI",
+    "ZUMZ"
+   ]
+  },
+  {
+   "id": "cloud/46123088210-1/COV-MEM50",
+   "at": "2026-11-28T07:51:27+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VGZ",
+    "DSGN",
+    "CAL",
+    "UHAL",
+    "NVEC",
+    "GCBC",
+    "EVO",
+    "NAK",
+    "GAIN",
+    "CYRX",
+    "CPF",
+    "AHCO",
+    "BCAL",
+    "TCPC",
+    "AHRT",
+    "RJET",
+    "NUVB",
+    "NEWT",
+    "ADSE",
+    "ALTO",
+    "TIPT",
+    "AIV",
+    "TVA",
+    "JBI",
+    "SAR",
+    "ZVRA",
+    "NXJ",
+    "ACHR",
+    "PANL",
+    "KRNY",
+    "FOXF",
+    "IGIC",
+    "TDAY",
+    "RXT",
+    "ADV",
+    "BTG",
+    "MSIF",
+    "SYBT",
+    "CDZI",
+    "OYSE",
+    "SCHL",
+    "WLFC",
+    "CARS",
+    "VZLA",
+    "CSQ",
+    "MSC",
+    "DOO",
+    "FVR",
+    "QUBT",
+    "MTUS",
+    "BIPC"
+   ]
   }
  ]
 }
