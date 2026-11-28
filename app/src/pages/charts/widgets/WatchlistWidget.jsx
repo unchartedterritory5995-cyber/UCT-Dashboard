@@ -128,6 +128,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     setSym,
     tf: groupTfs?.[color],
     tfs: groupTfSets?.[color],
+    group: color,   // (PR 1.3) the colour, for the date its charts are at (groupViewDate)
   }), [groupSyms, groupTfs, groupTfSets, color, setSym])
 
   const watchKey = opts?.watchKey || null

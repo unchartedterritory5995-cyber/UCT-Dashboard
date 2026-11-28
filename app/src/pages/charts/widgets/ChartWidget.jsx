@@ -34,6 +34,7 @@ import PendingSwitchCue, { usePendingCue } from '../../../components/chart/Pendi
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
+import { groupChartEntry, noteGroupChartWhileShown } from '../../../components/chart/groupViewDate'
 import { createDateBoxNav } from './dateBoxNav'
 import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
 import { createDateWarm } from '../../../components/chart/dateWarm'
@@ -291,6 +292,17 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     const tfs = [c.tf, ...Array.from(c.tfs || [])]
     dateWarm.draft(Number.isFinite(ms) ? ms : null, { sym: c.sym, neighbors: scanNeighborsFor(c.sym), tfs, showExtended: !!paneExtRef.current })
   }, [dateWarm])
+  // ⭐ (PR 1.3) the lists on this colour warm their next rows on the window this chart reads at the date (groupViewDate)
+  // (review of #3020) per timeframe: the key family THIS chart reads (its fetch tf; the date only when that read is a
+  // window), noted only while its board is shown (R1: a board kept alive in the background drives no list)
+  const groupDateOwner = useId()
+  const groupDateDay = anchorKey ? viewDate.date : null
+  const groupEntryTf = groupChartEntry(tf, groupDateDay)?.tf ?? null
+  const groupEntryDay = groupChartEntry(tf, groupDateDay)?.day ?? null
+  useEffect(() => {
+    if (!groupEntryTf) return undefined
+    return noteGroupChartWhileShown(layerBoard, activeColor, groupDateOwner, { tf: groupEntryTf, day: groupEntryDay })
+  }, [layerBoard, activeColor, groupDateOwner, groupEntryTf, groupEntryDay])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
