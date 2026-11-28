@@ -572,17 +572,18 @@ export function createPrefetch(o = {}) {
   // `dwell`: the dwell's all-timeframes warm (registry `_evict`): an entry this warm MAKES is marked once it has its
   // answer, so it goes first out of the registry once no chart shows its symbol; any other warm of the key makes it
   // ordinary.
-  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0 } = {}) {
+  // `session` ('rth' | 'eth'; default: the global session): the warm's own, where a pane's differs (review of #3004, LOW)
+  function prefetch(keys, { priority = 'background', depth = 0, signal = null, warm = false, front = false, dwell = false, _trace = 0, session: sessOpt = undefined } = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const R = S().registry
       const made = !!dwell && !R?.has?.(key)
       if (!dwell) R?.setDwell?.(key, false)
-      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace })
+      const s = await _warmOne(key, { priority, depth, signal, warm, front, _trace, session: sessOpt })
       if (made) R?.setDwell?.(key, true)
       return s
     }))
   }
-  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0 }) {
+  async function _warmOne(key, { priority, depth, signal, warm, front, _trace = 0, session: sessOpt = undefined }) {
     const s0 = await _hydrate(key)
     const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
     const flip = _flipPaints(key, s0)
@@ -597,13 +598,13 @@ export function createPrefetch(o = {}) {
     decide?.('ensure')
     // A local copy the flip would refuse never satisfies the warm: only a server answer does
     // (`local: false`, exactly as prepareForDisplay asks).
-    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace })
+    return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0, _trace, ...(sessOpt ? { session: sessOpt } : {}) })
   }
 
   /** Queue warms for the next microtask: one ensure per key; the best priority / depth, front
    *  if any asker wanted it, warm only if every asker sent warm (a non-warm ask is not shed). */
   const RANK = { visible: 0, urgent: 1, grid: 2, background: 3 }
-  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false } = {}) {
+  function _defer(key, priority, { depth = 0, warm = false, front = false, dwell = false, session: sessOpt = undefined } = {}) {
     if (!key) return
     if (!batch) {
       batch = new Map()
@@ -614,7 +615,8 @@ export function createPrefetch(o = {}) {
       })
     }
     const have = batch.get(key)
-    if (!have) { batch.set(key, { priority, depth, warm, front, dwell }); return }
+    if (!have) { batch.set(key, { priority, depth, warm, front, dwell, ...(sessOpt ? { session: sessOpt } : {}) }); return }
+    if (sessOpt === 'eth') have.session = 'eth'   // (an extended asker's rows include the regular session's)
     if (RANK[priority] < RANK[have.priority]) have.priority = priority
     have.depth = Math.max(have.depth, depth)
     have.warm = have.warm && warm
@@ -2153,7 +2155,7 @@ export function createPrefetch(o = {}) {
     if (!viewWindow || !Number.isFinite(viewWindow.to) || !tf) return
     for (const sym of [...new Set((syms || []).filter(Boolean))].slice(0, VIEW_WINDOW_WARM_MAX)) {
       const key = keyFor(sym, tf, { showExtended, window: { to: viewWindow.to } })
-      if (key && parseKey(key)?.window) _defer(key, 'background', { depth: bars, warm: true })
+      if (key && parseKey(key)?.window) _defer(key, 'background', { depth: bars, warm: true, ...(typeof showExtended === 'boolean' ? { session: session(showExtended) } : {}) })
     }
   }
 
