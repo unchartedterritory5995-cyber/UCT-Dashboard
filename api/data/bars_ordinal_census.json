@@ -281,6 +281,9 @@
           "function": "get_bars_before"
         },
         {
+          "function": "get_bars_before"
+        },
+        {
           "function": "get_bars_since"
         }
       ],
