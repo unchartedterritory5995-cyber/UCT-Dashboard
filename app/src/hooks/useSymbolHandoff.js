@@ -25,8 +25,8 @@
 // legend) by being applied at the ChartWidget boundary — above every consumer —
 // rather than inside the chart where half of them live outside its tree.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { boardHiddenNow, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { BoardVisibilityContext, boardHiddenNow, boardIsHiding, forwardWhileShown, useLayerBoard, whileBoardShown } from '../components/chart/boardVisibility'
 import { settleAction, BURST_SETTLE_MS } from './useSymbolSettle'
 import { groupJoin, groupLeave, groupReady, registerMember, settleClock, createSettleClock, decisionFor, subscribeDecisions, latestOnly, observeGroupSwitches } from './handoffGroups'
 import { memPeek } from '../utils/barsMemCache'
@@ -428,6 +428,12 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   // request: zoomed out, a W/M hold waits for an edge history that answered in 5-22 s, every arrow press (3.23 s apart)
   // superseded the hold before its 4 s guard, and the board showed the previous symbol for all 12 presses.
   const unshownSinceRef = useRef(null)
+  // (review of #3009, F1) a keep-alive <Activity> hide runs this chart's cleanups without a newer request: it ends the run
+  // too, so the show's request gets a full guard (the clock never counts the time the board was hidden)
+  const boardVis = useContext(BoardVisibilityContext)
+  const boardVisRef = useRef(boardVis)
+  boardVisRef.current = boardVis
+  useEffect(() => () => { if (boardIsHiding(boardVisRef.current)) unshownSinceRef.current = null }, [])
 
   useEffect(() => {
     // Disabled / nothing requested: pass straight through, same tick. The
@@ -453,7 +459,9 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         if (scoped) noteSwitchRoute(group, requestedSym, ROUTE_DEFERRED)   // (the switch-speed instrument: how it was shown)
         let inner
         const t = setTimeout(() => { clock.applied(Date.now()); inner = run() }, BURST_SETTLE_MS)
-        return () => { clearTimeout(t); if (typeof inner === 'function') inner() }
+        // (review of #3009, F1) a request LEFT before it ever ran (a held key's repeat) ends the run of unshown requests:
+        // the row the key is released on gets its own full hang guard, never one carried from the first row of the burst
+        return () => { clearTimeout(t); if (typeof inner === 'function') inner(); else unshownSinceRef.current = null }
       }
       clock.applied(now)
     }
