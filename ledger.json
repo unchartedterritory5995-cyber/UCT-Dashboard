@@ -8570,6 +8570,36 @@
     "NEXA",
     "LILA"
    ]
+  },
+  {
+   "id": "cloud/46155204174-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:32:55+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ATNI",
+    "SSII",
+    "SMBC",
+    "HSHP",
+    "ALCO",
+    "FSTR",
+    "NEXN",
+    "RNGT",
+    "NINE",
+    "NABL",
+    "KEN",
+    "RCKT",
+    "NXRT"
+   ]
+  },
+  {
+   "id": "cloud/46155204174-1/COV-def-tabs",
+   "at": "2026-11-28T14:32:55+00:00",
+   "source": "cloud",
+   "tickers": [
+    "UNTY",
+    "MCHB",
+    "AMCX"
+   ]
   }
  ]
 }
