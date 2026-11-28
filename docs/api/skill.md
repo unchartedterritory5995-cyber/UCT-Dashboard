@@ -359,7 +359,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/gex/compare` | member | options-flow | ticker (required), dte=all |
 | GET | `/api/gex/data` | member | options-flow | ticker (required), dte=all, adjusted=False |
 | GET | `/api/groups` | paid | market-analytics |  |
-| GET | `/api/groups/peers` | paid | market-analytics | sym (required), n=8 |
+| GET | `/api/groups/peers` | paid | market-analytics | sym (required), n=8, prefer |
 | GET | `/api/groups/{group_id}/top` | paid | market-analytics | {group_id}, n=9, by=today |
 | GET | `/api/hub/planned-trades` | member | member-workspace | limit=200 |
 | GET | `/api/inbound-alerts/receiver` | member | inbound-alerts |  |
