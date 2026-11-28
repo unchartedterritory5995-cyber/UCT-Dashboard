@@ -6,6 +6,8 @@
 //   C1 D painted, press 1m on a cold key (slow answer): no empty candle set and no blank frame before the 1m rows land;
 //      the 1m rows then paint
 //   C2 bounded: a 1m key that never answers shows the chart's loading skeleton after the bound (TF_SWITCH_EMPTY_HOLD_MS)
+//   C3 (re-review of #3033) the 1m key first answers 503 `warming`, then rows: still no empty set and no blank frame
+//      and the held frame is not dropped for the cold-load skeleton (red under the early-answer release, measured)
 // Runs with the bar store on (the hold lives in its hook, and production builds run it). All prices are synthetic.
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, cleanup, act, screen } from '@testing-library/react'
@@ -162,7 +164,8 @@ function days(n = 300) {
 }
 const wait = (ms) => act(() => new Promise((r) => setTimeout(r, ms)))
 // the server: daily answers at once; the 1m key answers after `minuteLatency` (Infinity = never)
-function serve({ minuteLatency }) {
+function serve({ minuteLatency, warmingFirst = false }) {
+  let warm = warmingFirst ? 1 : 0
   vi.stubGlobal('fetch', vi.fn((url) => {
     const u = String(url)
     const ok = (body) => { const r = { ok: true, status: 200, headers: { get: () => null }, json: async () => body }; r.clone = () => r; return r }
@@ -171,6 +174,12 @@ function serve({ minuteLatency }) {
     const m = u.match(/\/api\/bars\/([^?]+)\?tf=([^&]+)/)
     if (!m) return Promise.resolve(ok({}))
     if (m[2] !== '1') return Promise.resolve(ok({ ticker: 'SYN', tf: m[2], bars: days() }))
+    if (warm > 0) {
+      warm--
+      const r = { ok: false, status: 503, headers: { get: () => '1' }, json: async () => ({ ticker: 'SYN', tf: '1', bars: [], error: 'warming' }) }
+      r.clone = () => r
+      return new Promise((res) => setTimeout(() => res(r), 60))
+    }
     if (!Number.isFinite(minuteLatency)) return new Promise(() => {})
     return new Promise((res) => setTimeout(() => res(ok({ ticker: 'SYN', tf: '1', bars: minutes() })), minuteLatency))
   }))
@@ -191,17 +200,23 @@ beforeEach(async () => {
   try { localStorage.setItem('barspack.version', '2026-11-10') } catch { /* */ }
 })
 
-async function dailyThenPress1m({ minuteLatency }) {
-  serve({ minuteLatency })
+async function dailyThenPress1m({ minuteLatency, warmingFirst = false }) {
+  serve({ minuteLatency, warmingFirst })
   const view = render(<StockChart sym="SYN" tf="D" backgroundWarm={false} forceExtendedHours={false} />)
   await wait(500)
   expect(BARSTORE_ON).toBe(true)
   expect(realCandles().length, 'the daily chart painted').toBeGreaterThan(0)
   T.empties.length = 0
   const blanks = []
-  const id = setInterval(() => { if (!realCandles().length) blanks.push(Date.now()) }, 2)
+  const covers = []   // an overlay over the chart before the rows: the loading skeleton or the failed-load card
+  const t0 = Date.now()
+  const id = setInterval(() => {
+    if (!realCandles().length) blanks.push(Date.now())
+    const c = document.querySelector('[aria-busy="true"]') ? 'skeleton' : /Failed to load/.test(document.body.textContent || '') ? 'failed' : null
+    if (c) covers.push({ c, at: Date.now() - t0 })
+  }, 2)
   view.rerender(<StockChart sym="SYN" tf="1" backgroundWarm={false} forceExtendedHours={false} />)
-  return { view, blanks, stop: () => clearInterval(id) }
+  return { view, blanks, covers, t0, stop: () => clearInterval(id) }
 }
 
 describe('a timeframe press from a daily chart never empties the chart (real StockChart)', () => {
@@ -217,6 +232,27 @@ describe('a timeframe press from a daily chart never empties the chart (real Sto
     expect(T.empties).toEqual([])
     expect(blanks).toEqual([])
   })
+
+  it('C3 the 1m key answers 503 warming first, then rows: no empty set and no blank frame before the rows land', async () => {
+    const { blanks, covers, t0, stop } = await dailyThenPress1m({ minuteLatency: 50, warmingFirst: true })
+    let landed = null
+    for (let i = 0; i < 400 && landed == null; i++) {
+      await wait(10)
+      if (realCandles().at(-1)?.time === toChartTime(minutes().at(-1).t)) landed = Date.now() - t0
+    }
+    stop()
+    // the held frame is not dropped for the cold-load skeleton (150 ms): only the timeframe hold's own late skeleton
+    // (StockChart TF_SWITCH_HOLD_SKELETON_MS, 1200 ms) may cover it. Measured under the early-answer release this rail
+    // replaces: the skeleton at ~270 ms, the frame dropped; with the hold: the first cover at ~1220 ms.
+    expect(landed, 'the 1m rows landed').not.toBeNull()
+    expect(covers.filter((x) => x.c === 'failed'), 'the failed-load card over the held frame').toEqual([])
+    expect(covers.length ? covers[0].at : Infinity, 'the held frame dropped for the cold-load skeleton').toBeGreaterThanOrEqual(1000)
+    const asks = fetch.mock.calls.map(([u]) => String(u)).filter((u) => /\/api\/bars\/SYN\?tf=1(&|$)/.test(u))
+    expect(asks.length, 'the 1m key was asked again after the warming answer').toBeGreaterThanOrEqual(2)
+    expect(realCandles().at(-1)?.time, 'the 1m rows painted').toBe(toChartTime(minutes().at(-1).t))
+    expect(T.empties, 'an empty candle set before the 1m rows landed').toEqual([])
+    expect(blanks, 'a blank frame before the 1m rows landed').toEqual([])
+  }, 15_000)
 
   it('C2 bounded: a 1m key that never answers shows the loading skeleton after TF_SWITCH_EMPTY_HOLD_MS', async () => {
     const { stop } = await dailyThenPress1m({ minuteLatency: Infinity })

@@ -327,10 +327,12 @@ export function useBarSnapshotBars({
     // eslint-disable-next-line react-hooks/purity
     _emptySwitchRef.current = { key, t0: Date.now(), done: false }
   }
-  // A SETTLED empty answer (the server said no data, the key is unavailable, or it answered with no rows) releases the
-  // hold at once: the chart shows that answer, never the old timeframe's candles over it for the whole bound.
+  // A TERMINAL empty answer (the server said no data: the key is UNAVAILABLE) releases the hold at once: the chart shows
+  // that answer, never the old timeframe's candles over it for the whole bound. ⛔ ONLY a terminal one (re-review of
+  // #3033): an EARLY empty answer that fills later is not settled. A 503 `warming` (REST_ERROR, answered, no rows), a
+  // window answered `filling` with no rows, a transient network error the loop retries: each would drop the held frame
+  // for an empty canvas (the 150 ms skeleton timer, then rows). Those hold, inside the bound.
   const _settledEmpty = snap?.error === 'no_data' || status === STATUS.UNAVAILABLE
-    || (_answered && !(snap?.bars?.length) && !snap?.developing)
   // ⛔ ONE bound: the timer below sets `done` at TF_SWITCH_EMPTY_HOLD_MS (no second age check beside it, review of #3033).
   const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
     && !(Array.isArray(chosen) && chosen.length > 0) && !_settledEmpty

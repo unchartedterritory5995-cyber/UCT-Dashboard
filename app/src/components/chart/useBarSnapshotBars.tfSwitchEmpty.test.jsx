@@ -8,7 +8,9 @@
 //      session, so the session of the outgoing frame is not compared), the hold is on
 //   B5 CONTROL: another symbol on screen is not a timeframe switch
 //   B6 bounded: the daily-to-intraday hold ends after TF_SWITCH_EMPTY_HOLD_MS (the symbol hand-off's HANDOFF_HANG_MS)
-//   B7 a SETTLED empty answer (no data) releases the hold at once, well inside the bound
+//   B7 a TERMINAL empty answer (no_data: the key is UNAVAILABLE) releases the hold at once, well inside the bound
+//   B8 (red at 9e0c8514ca) an EARLY empty answer that fills later never releases it: a 503 `warming`, then rows
+//   B9 (red at 9e0c8514ca) the same for an answer `filling: true` with no rows
 // (the harness below is the lake-hold test's: the real hook over a real store, fake server)
 // ---- original harness header follows ----
 // A TIMEFRAME SWITCH'S LAKE HOLD WAITS ON A LOAD THAT NEVER YIELDS (review of #2786, smoothness 2b).
@@ -78,9 +80,21 @@ const NO_IO = {
   memPutMonotonic: () => {}, idbPutMonotonic: async () => {}, idbPutHistory: async () => {},
 }
 
-function world({ lakeDelayMs = 200, lake = true, restDelayMs = 80, emptyTf = null } = {}) {
-  const request = vi.fn((url) => new Promise((resolve) => {
+function world({ lakeDelayMs = 200, lake = true, restDelayMs = 80, emptyTf = null, earlyTf = null, early = null } = {}) {
+  let earlyLeft = early ? 1 : 0
+  const request = vi.fn((url) => new Promise((resolve, reject) => {
     const tf = Number(/[?&]tf=(\w+)/.exec(url)?.[1])
+    // an EARLY empty answer that fills later: the first ask of `earlyTf` answers `early`, every later one rows
+    if (tf === earlyTf && earlyLeft > 0) {
+      earlyLeft--
+      if (early === 'warming') {
+        const e = Object.assign(new Error('warming'), { status: 503, warming: true, retryAfterMs: 400 })
+        setTimeout(() => reject(e), restDelayMs)
+      } else {
+        setTimeout(() => resolve({ ...answer(tf, Date.now()), bars: [], developing: null, filling: true }), restDelayMs)
+      }
+      return
+    }
     const body = tf === emptyTf
       ? { bars: [], no_data: true, contract: 1, grid: 'session', session: 'rth', series_rev: Date.now(), history_rev: 7, developing: null }
       : answer(tf, Date.now())
@@ -196,7 +210,7 @@ describe('a timeframe press never paints an empty chart', () => {
     expect(h.result.current._tfSwitchHold).toBe(false)
   })
 
-  it('B7 a SETTLED empty answer releases the daily-to-intraday hold at once (no old candles over a no-data answer)', async () => {
+  it('B7 a TERMINAL empty answer (no_data) releases the daily-to-intraday hold at once (no old candles over a no-data answer)', async () => {
     const { TF_SWITCH_EMPTY_HOLD_MS } = await import('./useBarSnapshotBars')
     world({ lake: false, restDelayMs: 100, emptyTf: 1 })
     const p = params({ showExtended: true })
@@ -212,8 +226,30 @@ describe('a timeframe press never paints an empty chart', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(300) })
     h.rerender(q)
     expect(TF_SWITCH_EMPTY_HOLD_MS).toBeGreaterThan(1000)
-    expect(h.result.current._tfSwitchHold, 'released by the settled empty answer, not by the bound').toBe(false)
+    expect(h.result.current._tfSwitchHold, 'released by the terminal no_data answer, not by the bound').toBe(false)
   })
+
+  for (const [early, label] of [['warming', 'B8 a 503 warming'], ['filling', 'B9 an answer filling with no rows']]) {
+    it(`${label}, then rows: the daily-to-intraday hold stays until the rows land (never empty and unheld)`, async () => {
+      const { request } = world({ lake: false, restDelayMs: 60, earlyTf: 1, early })
+      const p = params({ showExtended: true })
+      const h = renderHook((pp) => useBarSnapshotBars(pp), { initialProps: p })
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+      const q = { ...p, resolvedTf: '1', _barsTf: '1' }
+      q._onScreenSrcRef.current = null
+      q._shownTfRef.current = { sym: SYM, tf: 'D' }
+      h.rerender(q)
+      for (let i = 0; i < 150; i++) {
+        await act(async () => { await vi.advanceTimersByTimeAsync(25) })
+        h.rerender(q)
+        const b = h.result.current.bars
+        expect(h.result.current._tfSwitchHold || (Array.isArray(b) && b.length > 0), `empty and unheld at +${(i + 1) * 25} ms`).toBe(true)
+      }
+      // the early answer came first, then the rows: the case is the one it claims
+      expect(request.mock.calls.filter(([u]) => /[?&]tf=1(&|$)/.test(String(u))).length, 'the 1m key asked again').toBeGreaterThanOrEqual(2)
+      expect(h.result.current.bars?.length, 'the rows landed').toBeGreaterThan(0)
+    })
+  }
 
   it('B5 CONTROL: a symbol change (another symbol on screen) is not a timeframe switch: no hold here', async () => {
     world({ lake: false, restDelayMs: 300 })
