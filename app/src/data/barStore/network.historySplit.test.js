@@ -29,13 +29,15 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null, tailGateFrom = 0, listing = 3001 } = {}) {
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null, historyGate = null, tailGateFrom = 0, listing = 3001, tailHook = null } = {}) {
   let tails = 0
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
     // the tail answers when the test says (from the `tailGateFrom`-th tail on: 0 gates them all)
-    if (url.startsWith('/api/bars/') && tails++ >= tailGateFrom && tailGate) await tailGate
+    const ti = url.startsWith('/api/bars/') ? tails++ : -1   // (the tail's index, taken before any wait)
+    if (ti >= 0 && tailHook) await tailHook(ti, url)        // (each tail by its index: the test holds it)
+    if (ti >= tailGateFrom && tailGate) await tailGate
     if (url.startsWith('/api/bars-history/')) {
       if (historyGate) await historyGate   // a slow edge: answers when the test says
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
@@ -201,6 +203,29 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(50)
     expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
     expect(w.net.deepPending(w.key)).toBe(false)
+  })
+
+  // ⛔ (review of #2989) ONLY THE FULL READ ENDS IT: the history errors while the edge fallback's side cover is still out; the
+  // side's shallow answer (the view's 1,400 rows) landing first read the depth done, before the full depth came
+  it('F1 the history erroring while the side cover is out: the side answering first leaves the depth due until the full read', async () => {
+    const { EDGE_FALLBACK_MS } = await import('./network')
+    const held = {}
+    const hold = (i) => new Promise((r) => { held[i] = r })
+    let releaseHist
+    const w = world({ history: 'throw', historyGate: new Promise((r) => { releaseHist = r }), tailHook: (i) => (i >= 1 ? hold(i) : null) })
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })
+    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS + 50)
+    expect(held[1]).toBeTypeOf('function')             // the side cover is out
+    releaseHist()                                       // the edge errors: the split turns off, the full read is queued
+    await vi.advanceTimersByTimeAsync(20)
+    expect(held[2]).toBeTypeOf('function')             // ...and out
+    held[1]()                                           // the side's 1,400 rows land first
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.net.deepPending(w.key)).toBe(true)
+    held[2]()                                           // the full read lands
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    expect(w.registry.getSnapshot(w.key).depth).toBeGreaterThan(1400)
   })
 
   it('F1 ...and a full read that fails settles it too (the chart shows its own state; no hold forever)', async () => {
