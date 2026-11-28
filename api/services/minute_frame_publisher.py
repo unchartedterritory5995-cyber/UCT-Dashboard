@@ -42,14 +42,21 @@ day's `today.bin` (read back from R2 at start) and links its first frame to the 
 there through `prev_seq`; minutes it was not alive for are simply missing, and every reader
 sees the hole the same way.
 
-THE DAY'S DAILY BAR AFTER THE CLOSE (MINUTE_FRAMES_WITH_DAILY=1, default off). From the regular
-close (16:00 ET, 13:00 on a half day) to 20:00, every frame carries a DAILY section (minute_frames
+THE DAY'S DAILY BAR, ALL SESSION (MINUTE_FRAMES_WITH_DAILY, default ON since 2026-11-28). From the regular
+OPEN (09:30 ET) to 20:00, every frame carries a DAILY section (minute_frames
 FLAG_DAILY): each symbol's daily bar for the day exactly as the server holds it, i.e. the row bars-api
 writes from the whole-market snapshot's `day` object (`bars_live_store.daily_rows_from_snapshot`, the
 one parser, so the same symbols, prices and whole-share volume) and /api/bars?tf=D serves: the
 official close (closing auction) and the consolidated day volume, which no sum of minute bars gives.
-The first frame of an epoch after the close carries every symbol, later frames only the symbols whose
-row changed. The snapshot is read in a CHILD process every `MINUTE_FRAMES_DAILY_POLL_S` (default 30)
+The first frame of an epoch from the open carries every symbol, later frames only the symbols whose
+row changed. ⭐ FROM THE OPEN, NOT THE CLOSE (zero-network PR 3.4, 2026-11-28): the server's D bar IS the
+snapshot's `day` object all session (bars_live_store writes it from 09:30), and a D bar built from minute
+bars cannot equal it. Measured offline over 7 sessions x the cap universe (24,776 symbol-days, vendor
+daily rows vs the history lake's vendor minutes at 4 dp): the open always equals the first regular
+minute's, but the day high / low differ in 216 (0.87%): 146 are prints NO minute bar carries (the
+vendor's day range includes trades its minute aggregates exclude), 70 the 16:00 closing cross. So the
+device's developing D bar is this row (deviceStore/forming.js DEVICE_DAILY_SERVER_ROW), never a rollup.
+The snapshot is read in a CHILD process every `MINUTE_FRAMES_DAILY_POLL_S` (default 30)
 during that window only: parsing ~13k tickers holds the GIL 150-230 ms (measured on bars-api), which
 the reader's loop must never pay.
 
@@ -82,12 +89,26 @@ def enabled() -> bool:
     return os.environ.get("MINUTE_FRAMES_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
+# ⭐ BOTH ON BY DEFAULT (2026-11-28, owner decision, zero-network switch PR 3.4: "the developing D bar on, with `av`, plus
+# MINUTE_FRAMES_WITH_DAILY=1"). The DAILY section is the server's own day row from the open: the device's developing D
+# bar (deviceStore/forming.js DEVICE_DAILY_SERVER_ROW), exact by construction. `av` (the vendor's accumulated day
+# volume, +75% frame bytes; already set to 1 on stream-ingest) stays on for the minute rollups. Either is switched off by
+# setting its variable to "0" on stream-ingest (a `--set` restarts it: after hours only).
+def _flag(name: str, default: str) -> bool:
+    return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
 def _with_av() -> bool:
-    return os.environ.get("MINUTE_FRAMES_WITH_AV", "0").strip().lower() in ("1", "true", "yes", "on")
+    return _flag("MINUTE_FRAMES_WITH_AV", "1")
 
 
 def _with_daily() -> bool:
-    return os.environ.get("MINUTE_FRAMES_WITH_DAILY", "0").strip().lower() in ("1", "true", "yes", "on")
+    return _flag("MINUTE_FRAMES_WITH_DAILY", "1")
+
+
+def regular_open_seq(day: int) -> int:
+    """The seq of `day`'s regular open minute (09:30 ET; a half day opens at 09:30 too): the DAILY section's start."""
+    return 9 * 60 + 30 - mf.SESSION_START_MIN
 
 
 def regular_close_seq(day: int) -> int:
@@ -369,11 +390,11 @@ class Publisher:
         return frame
 
     def _daily_rows(self, day: int, seq: int) -> Optional[dict]:
-        """The DAILY section for this frame: from the regular close on, the server's daily rows that
+        """The DAILY section for this frame: from the regular open on, the server's daily rows that
         changed since this epoch last carried them (all of them the first time). None before the
-        close, when off, or when there is nothing new. Runs in `encode_pending` (a worker thread):
+        open, when off, or when there is nothing new. Runs in `encode_pending` (a worker thread):
         comparing ~15k rows is a few ms the reader's loop never pays."""
-        if self.daily is None or seq < regular_close_seq(day):
+        if self.daily is None or seq < regular_open_seq(day):
             return None
         try:
             rows = self.daily(day)
@@ -514,7 +535,7 @@ def _socket_live() -> bool:
     return bool(bar_stream._running)
 
 
-# ── the server's daily rows, read in a child process after the close ─────────────
+# ── the server's daily rows, read in a child process from the open ─────────────
 
 SNAPSHOT_PATH = "/v2/snapshot/locale/us/markets/stocks/tickers"
 
@@ -531,12 +552,12 @@ def snapshot_daily_rows(snapshot: dict, day: int) -> dict:
 
 
 def poll_daily_once(now_s: Optional[float] = None) -> Optional[tuple]:
-    """One snapshot read -> (day, {sym: row}) for TODAY (ET), or None outside [close, 20:00) or
+    """One snapshot read -> (day, {sym: row}) for TODAY (ET), or None outside [open, 20:00) or
     when today's regular session has not opened. ⛔ A holiday's (or a pre-open) snapshot `day` is
     the PRIOR session: dated today it would draw yesterday's candle twice (2026-09-04, 2026-09-11).
     The one rule is bars-api's (`massive._regular_session_has_opened_today`), asked, not restated."""
     day, seq = mf.seq_of_minute(int(time.time() if now_s is None else now_s) // 60)
-    if seq < regular_close_seq(day):                # before the close, or outside 04:00-20:00 (seq -1)
+    if seq < regular_open_seq(day):                 # before the open, or outside 04:00-20:00 (seq -1)
         return None
     from api.services import massive
     if not massive._regular_session_has_opened_today():

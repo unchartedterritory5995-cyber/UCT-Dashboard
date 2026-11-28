@@ -189,6 +189,27 @@ describe('today\'s D bar from the server\'s own row', () => {
     feed.stop()
   })
 
+  // ⭐ ZERO-NETWORK PR 3.4: THE DEVELOPING D BAR MID-SESSION IS THE SERVER'S OWN ROW. The publisher carries the
+  // DAILY section from the regular OPEN (minute_frame_publisher.regular_open_seq), because the server's D bar is the
+  // snapshot's day row all session and a bar built from minutes misses it on 0.87% of symbol-days (forming.js).
+  it('mid-session the server row is the FORMING D bar, exactly; untrusted rows fall back to the rollup path', () => {
+    const o = createLiveOverlay()
+    o.sink.reset({ day: D.day })
+    const m11 = Date.UTC(2026, 10, 19, 16, 0) / 60000                 // 11:00 ET on the fixture day
+    const row = { sym: 'AAA', o: 10, h: 11.5, l: 9.25, c: 10.75, v: 123456 }
+    o.sink.daily({ day: D.day, full: true, rows: [row] })
+    o.sink.frameDone({ day: D.day, seq: 420, minute: m11, dailyOk: true })
+    const got = o.read('AAA', 'D', PREV)
+    expect(got.forming).toBe('D')
+    expect(got.through).toBe((m11 + 1) * 60)
+    expect(rowOf(got.cols)).toEqual([DAY_T, 10, 11.5, 9.25, 10.75, 123456])
+    expect(o.why('AAA', 'D', PREV)).toBe('ok')
+    // a gap mid-session: the consumer no longer vouches, and the answer is the rollup path's (no D bar from minutes)
+    o.sink.frameDone({ day: D.day, seq: 421, minute: m11 + 1, dailyOk: false })
+    expect(o.read('AAA', 'D', PREV)?.forming).toBeUndefined()
+    expect(o.read('AAA', 'D', PREV)?.cols ?? null).toBeNull()
+  })
+
   it('a re-sync (clear) forgets the rows and the trust until the frames say so again', () => {
     const o = replay({ upto: FIRST_FULL + 5 })
     o.clear()

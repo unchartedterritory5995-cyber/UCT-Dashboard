@@ -183,7 +183,8 @@ def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), 
         feed = None if daily is None else (lambda d: daily(d, clock["ms"] // 1000))
         return mfp.Publisher(put=r2.put, get=r2.get, live=is_live, grace_s=grace_s,
                              roll_every=roll_every, epoch=epoch, now_ms=lambda: clock["ms"],
-                             prefix="live1m/", daily=feed)
+                             prefix="live1m/", daily=feed,
+                             with_av=False)   # the committed day fixtures carry no av (the default is on since 2026-11-28)
 
     pub = None
     late_set = set(late)
@@ -313,8 +314,8 @@ def daily_feed(day: int, now_s: int):
     """A synthetic server daily feed (what bars-api's snapshot `day` rows would be) as of `now_s`: the
     official close differs from the last regular minute's, the volume is the consolidated day's and keeps
     growing after hours, BRK-B has no minute bar at all, LATECOMER's row first appears at 16:30."""
-    if day != int(DAILY_DAY.replace("-", "")):
-        return None
+    if day != int(DAILY_DAY.replace("-", "")) or now_s < _unix(DAILY_DAY, 16, 1):
+        return None    # this fixture day models the post-close rows only (the 16:00 frame is encoded at 16:01:05)
     after = max(0, now_s - _unix(DAILY_DAY, 16, 0))
     steps = min(after // 300, 24)                    # a new after-hours print every 5 minutes, until 18:00
     rows = {

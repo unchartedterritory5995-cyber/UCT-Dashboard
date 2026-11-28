@@ -28,7 +28,7 @@
 // refused frame was asked for every 2 s, and in a catch-up the whole day file downloaded again each time.
 // A frame that fails its CRC or is cut short (the bytes were damaged on the way) is still asked for again.
 //
-// THE SERVER'S DAILY ROWS (codec FLAG_DAILY). After the close a frame can carry the server's own day row per
+// THE SERVER'S DAILY ROWS (codec FLAG_DAILY). From the regular open (zero-network PR 3.4; was the close) a frame can carry the server's own day row per
 // symbol. A publisher epoch's FIRST such frame carries every row, later ones only the rows that changed, so this
 // device holds the server's rows exactly only when it applied that first frame and every frame after it. It
 // knows a frame is its epoch's first only when it has every frame published before it: the first frame of a new

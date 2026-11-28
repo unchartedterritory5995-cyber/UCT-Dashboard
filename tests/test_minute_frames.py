@@ -146,6 +146,7 @@ DAY = "2026-11-18"
 
 
 def _pub(r2, clock, live=lambda: True, **kw):
+    kw.setdefault("with_av", False)          # these rails pin the layout without av (its own rails pass with_av=True)
     return mfp.Publisher(put=r2.put, get=r2.get, live=live, grace_s=5, roll_every=5, epoch=42,
                          now_ms=lambda: clock["ms"], prefix="live1m/", **kw)
 
@@ -261,7 +262,7 @@ def test_a_restart_resumes_today_links_prev_seq_and_never_republishes_a_seq():
     published_1205 = r2.objects[f"live1m/{DAY}/1205.bin"]
     # a deploy: a new process, a new epoch, 12:06-12:08 never seen; it also hears 12:05 again
     b = mfp.Publisher(put=r2.put, get=r2.get, live=lambda: True, grace_s=5, roll_every=5, epoch=43,
-                      now_ms=lambda: clock["ms"], prefix="live1m/")
+                      now_ms=lambda: clock["ms"], prefix="live1m/", with_av=False)
     clock["ms"] = (m0 + 9) * 60000 + 1000
     b.on_am("AAPL", _am(m0 + 8))
     _run_to(b, clock, (m0 + 9) * 60 + 5)
@@ -363,7 +364,8 @@ def test_day_fixture_frames_carry_the_late_bar_and_the_exact_correction():
 
 def test_daily_day_fixture_each_epochs_first_post_close_frame_carries_every_row():
     """What the device's trust rule (app/src/lib/minuteFrames/consumer.js, DAILY) stands on, read from frames the
-    real Publisher wrote: no section before the close; an epoch's FIRST section holds every row the feed has; every
+    real Publisher wrote (its feed models the post-close rows only): no section before the feed has rows; an epoch's
+    FIRST section holds every row the feed has; every
     later one only rows that changed; the restart is a new epoch whose first frame links to the last published one
     (a hole the publisher has, which loses no row) and carries every row again."""
     t = mf.decode_today((fx.FIXTURE_DIR / "day_daily.today.bin").read_bytes())
@@ -450,24 +452,26 @@ class _Daily:
         return dict(self.rows) if self.day in (None, day) else None
 
 
-def test_frames_carry_the_server_daily_rows_from_the_close_all_first_then_changes():
+def test_frames_carry_the_server_daily_rows_from_the_open_all_first_then_changes():
+    """Zero-network PR 3.4: the server's D bar is the snapshot's `day` row ALL SESSION (bars_live_store writes it from
+    the open), so the frames carry it from 09:30, not 16:00: the device's developing D bar is that row, exactly."""
     r2, clock = R2(), {"ms": 0}
     feed = _Daily({"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)})
     pub = _pub(r2, clock, daily=feed)
-    m0 = fx._unix(DAY, 15, 58) // 60
+    m0 = fx._unix(DAY, 9, 28) // 60
     clock["ms"] = (m0 + 1) * 60000
     pub.on_am("AAPL", _am(m0))
-    _run_to(pub, clock, (m0 + 2) * 60 + 5)                         # 15:58 and 15:59: before the close
-    _run_to(pub, clock, (m0 + 3) * 60 + 5)                         # 16:00: every symbol
-    _run_to(pub, clock, (m0 + 4) * 60 + 5)                         # 16:01: nothing changed
+    _run_to(pub, clock, (m0 + 2) * 60 + 5)                         # 09:28 and 09:29: before the open
+    _run_to(pub, clock, (m0 + 3) * 60 + 5)                         # 09:30: every symbol
+    _run_to(pub, clock, (m0 + 4) * 60 + 5)                         # 09:31: nothing changed
     feed.rows["MSFT"] = (3.0, 4.5, 2.5, 4.25, 260.0)
-    _run_to(pub, clock, (m0 + 5) * 60 + 5)                         # 16:02: only MSFT
+    _run_to(pub, clock, (m0 + 5) * 60 + 5)                         # 09:32: only MSFT
     got = {k[-8:-4]: mf.decode_frame(v).get("daily") for k, v in r2.objects.items()
            if k.endswith(".bin") and "today" not in k}
-    assert got["1558"] is None and got["1559"] is None
-    assert got["1600"] == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)}
-    assert got["1601"] is None
-    assert got["1602"] == {"MSFT": (3.0, 4.5, 2.5, 4.25, 260.0)}
+    assert got["0928"] is None and got["0929"] is None
+    assert got["0930"] == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)}
+    assert got["0931"] is None
+    assert got["0932"] == {"MSFT": (3.0, 4.5, 2.5, 4.25, 260.0)}
     # replaying today.bin in order gives the newest row per symbol
     today = mf.decode_today(pub.today.snapshot())                   # every frame of the day so far
     newest = {}
@@ -485,7 +489,7 @@ def test_a_half_day_closes_at_1300_and_a_restart_sends_every_row_again():
     clock["ms"] = (m0 + 1) * 60000
     pub.on_am("AAPL", _am(m0))
     built = _run_to(pub, clock, (m0 + 2) * 60 + 5)
-    assert [f["daily"] for f in built] == [None, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}]   # 12:59, 13:00
+    assert [f["daily"] for f in built] == [{"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}, None]   # 12:59 (from the open), 13:00
     assert pub.status()["daily_feed"] is None and pub.status()["with_daily"] is True
     pub.start_day(pub.load_day(20261127))                           # a new epoch's start forgets what was sent
     assert pub._daily_rows(20261127, mfp.regular_close_seq(20261127) + 5) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}
@@ -541,16 +545,17 @@ def test_the_daily_feed_starts_only_with_its_flag(monkeypatch):
         def __call__(self, day):
             return None
     monkeypatch.setattr(mfp, "DailyFeed", _Fake)
-    monkeypatch.delenv("MINUTE_FRAMES_WITH_DAILY", raising=False)
+    monkeypatch.setenv("MINUTE_FRAMES_WITH_DAILY", "0")
     mfp._reset_for_tests()
     assert mfp.publisher().daily is None and started == []
-    monkeypatch.setenv("MINUTE_FRAMES_WITH_DAILY", "1")
+    # ON by default since 2026-11-28 (zero-network PR 3.4): unset is armed
+    monkeypatch.delenv("MINUTE_FRAMES_WITH_DAILY", raising=False)
     mfp._reset_for_tests()
     assert isinstance(mfp.publisher().daily, _Fake) and started == [1]
     mfp._reset_for_tests()
 
 
-def test_the_poll_reads_today_only_after_the_close_and_only_once_the_session_opened(monkeypatch):
+def test_the_poll_reads_today_only_from_the_open_and_only_once_the_session_opened(monkeypatch):
     from api.services import massive, massive_adapter
     calls, opened = [], {"v": True}
     snap = {"tickers": [{"ticker": "AAPL", "day": {"o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 100}}]}
@@ -560,15 +565,18 @@ def test_the_poll_reads_today_only_after_the_close_and_only_once_the_session_ope
     monkeypatch.setattr(massive_adapter, "get", lambda path, **k: calls.append(path) or _R())
     monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: opened["v"])
     at = lambda h, m: fx._unix("2026-11-20", h, m)                          # noqa: E731
-    assert mfp.poll_daily_once(at(15, 59)) is None and calls == []          # before the close: no read
+    assert mfp.poll_daily_once(at(9, 29)) is None and calls == []           # before the open: no read
+    assert mfp.poll_daily_once(at(9, 30)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100)})
     assert mfp.poll_daily_once(at(16, 0)) == (20261120, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100)})
+    calls.pop()
     assert mfp.poll_daily_once(at(20, 0)) is None and len(calls) == 1       # 20:00 is outside the session
     opened["v"] = False                                                     # a holiday: the snapshot is the prior session
     assert mfp.poll_daily_once(at(17, 0)) is None and len(calls) == 1
     assert mfp.poll_daily_once(fx._unix("2026-11-27", 13, 0)) is None       # half day, but not opened (stub)
     opened["v"] = True
     assert mfp.poll_daily_once(fx._unix("2026-11-27", 13, 0))[0] == 20261127
-    assert mfp.poll_daily_once(fx._unix("2026-11-27", 12, 59)) is None
+    assert mfp.poll_daily_once(fx._unix("2026-11-27", 12, 59))[0] == 20261127      # mid-session: the developing row
+    assert mfp.poll_daily_once(fx._unix("2026-11-27", 9, 29)) is None
 
 
 def test_the_browser_decoder_knows_every_flag_the_encoder_can_set():
@@ -610,3 +618,18 @@ def test_the_daily_rows_are_read_on_the_encode_thread_never_in_tick():
     assert len(pub.tick()) == 1 and feed.asked == []                 # the loop thread built the frame alone
     pub.encode_pending()
     assert feed.asked == [20261118]
+
+
+def test_av_and_the_daily_section_are_on_by_default_and_off_only_by_name(monkeypatch):
+    """Zero-network PR 3.4 (2026-11-28): frames carry `av` and, from the open, the server's day row (the device's
+    developing D bar), unless stream-ingest sets the variable to "0"."""
+    for name, fn in (("MINUTE_FRAMES_WITH_AV", mfp._with_av), ("MINUTE_FRAMES_WITH_DAILY", mfp._with_daily)):
+        monkeypatch.delenv(name, raising=False)
+        assert fn() is True, name
+        for off in ("0", "false", "off", "no"):
+            monkeypatch.setenv(name, off)
+            assert fn() is False, (name, off)
+        monkeypatch.setenv(name, "1")
+        assert fn() is True
+    monkeypatch.delenv("MINUTE_FRAMES_WITH_AV", raising=False)
+    assert mfp.Publisher(put=lambda *a: True).with_av is True
