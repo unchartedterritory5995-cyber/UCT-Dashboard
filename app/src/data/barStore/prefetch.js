@@ -1092,7 +1092,7 @@ export function createPrefetch(o = {}) {
     // ⭐ (review of #2935, D-1) pinned for the whole prepare (ensure's own pin ends when ITS answer settles, before this
     // reports) and then handed to the hold that lasts until the chart subscribes (finally, below)
     const reg = S().registry
-    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
+    try { reg?.acquire?.(key, { display: true }) } catch { /* no registry: nothing to pin */ }
     try {
       const date = isDateTf(normTf(tf) ?? fetchTf(String(tf)))
       // ⭐ THE CACHE READ IS RACED, NOT AWAITED (2026-11-16). The IDB read can take 400-900 ms
@@ -1455,7 +1455,7 @@ export function createPrefetch(o = {}) {
     // (review of #2935, D2-b) pinned for the whole prepare and handed to the hold that lasts until the chart subscribes,
     // exactly as prepareForDisplay's (below, finally)
     const reg = S().registry
-    try { reg?.acquire?.(key) } catch { /* no registry: nothing to pin */ }
+    try { reg?.acquire?.(key, { display: true }) } catch { /* no registry: nothing to pin */ }
     try {
       // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
       // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
@@ -1502,6 +1502,12 @@ export function createPrefetch(o = {}) {
   function deepPending(sym, tf, { showExtended, viewWindow = null } = {}) {
     const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     return !!key && !!S().deepPending?.(key)
+  }
+
+  /** (#3034) The hang guard's last look: true when a cut D/W/M tail's cover was asked just now (network.coverNow). */
+  function coverIfCut(sym, tf, { showExtended, viewWindow = null } = {}) {
+    const key = keyFor(sym, tf, { showExtended, window: viewWindow })
+    try { return !!key && !!S().coverNow?.(key) } catch { return false }
   }
 
   // ── the legacy warmers, as store prefetches ────────────────────────────────
@@ -2583,7 +2589,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, historyComplete, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, coverIfCut, historyComplete, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
@@ -2609,6 +2615,7 @@ export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDi
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
+export function coverIfCut(sym, tf, opts = {}) { return _f().coverIfCut(sym, tf, opts) }
 export function historyComplete(sym, tf, opts = {}) { return _f().historyComplete(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
