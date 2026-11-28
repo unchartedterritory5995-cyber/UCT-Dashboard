@@ -2347,7 +2347,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         holds.get(tf).set(around, tf, { deep: next, tail: [...next, ...scanNeighbors(flat, idx, dir, { ahead: 0, behind: 1 })], live: next, selected: selectedSym, keep })
       }
       warmMemFromIDB(around, tfs)
-      for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true })
+      // (2026-11-28, plan 1.7) the rows around: device + edge only (data/barStore/prefetch `edge`), never /api/bars
+      for (const tf of tfs) prefetchBarsToIDB(ahead, tf, { priority: true, edge: true })
       // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
       // daily pack ingests (`_holdBackgroundWarm`: a first visit is 90 s+, and a profile whose pack
       // never stamped holds it for good). Measured in the flip proof with the pack unstamped: the

@@ -34,9 +34,10 @@ import { keyOf } from '../../data/barStore/types'
 import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { baseBarsFor } from './timeframes'
 import { BARSTORE } from './barStoreSwitch'
-import { chartKeyFor } from './useBarSnapshotBars'
+import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
+import { setFlipProbe } from './flipReady'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
@@ -52,9 +53,18 @@ import { habitualTfs } from './tfHabit'
 export function barsNowFor(report) {
   if (!report || !report.sym || !_storeOn()) return null
   // (owner, 2026-11-27) under the cutoff the chart drew at: an intraday replay reads its own window (chartKeyFor)
-  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false })
+  // (owner, 2026-11-27) and under the date box's anchor (`date|width`): an intraday chart's window at that date
+  const key = chartKeyFor({ sym: report.sym, resolvedTf: report.tf, showExtended: !!report.ext, replayCutoff: report.cutoff || null, hasOverride: false, viewWindow: reportWindow(report) })
   if (!key) return null
   return _barsOf(key, report)
+}
+/** The window the reported chart read ({to}): an INTRADAY chart under a replay cutoff, or anchored at a date by the date
+ *  box, reads the window ending at that date (chartKeyFor, the replay's own first); null on D/W/M, a custom timeframe, or
+ *  at the present. */
+export function reportWindow(report) {
+  if (!report) return null
+  if (report.cutoff) return viewWindowOfDate(report.cutoff, report.tf)
+  return report.anchor ? viewWindowOfDate(String(report.anchor).split('|')[0], report.tf) : null
 }
 const _storeBars = (key, report) => {
   const store = getBarStore()
@@ -86,6 +96,10 @@ export function shadowWhole(report) {
     const tf = String(report.tf)
     const sess = { showExtended: !!report.ext }
     if (tf === 'D' || tf === 'W' || tf === 'M') return !deepPending(report.sym, tf, sess)
+    // (owner, 2026-11-27: charts at any date) an intraday chart at a past date drew the WINDOW ending there: the lake
+    // never joins a window (historyFeed lakeSeriesOfKey), so it is whole once the server answered it in this life
+    const viewWindow = reportWindow(report)
+    if (viewWindow) return (heldRows(report.sym, tf, { ...sess, viewWindow, answered: true, upTo: 1 }) || 0) > 0
     return !lakePending(report.sym, tf, sess) && (heldRows(report.sym, tf, { ...sess, answered: true, upTo: 1 }) || 0) > 0
   } catch { return false }
 }
@@ -110,6 +124,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {object|null} o.settings    the pane's stored settings (identity)
  * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
  *                                    drew under the same one
+ * @param {string|null} o.anchor     the date the member went to (the date box, `date|width`), or null: likewise
  * @param {object} o.scope            the board's group store (the shadow budget's scope when there is no board handle)
  * @param {object|null} o.member      the identity the widget's chart paints under (PaintMemberContext)
  * @param {object|null} o.parentVis   the board's layer handle, or null
@@ -117,7 +132,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {() => Element[]} o.layerEls each layer's wrapper element
  * @returns {{on: boolean, syms: (string|null)[], tfs: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settings, cutoff = null, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settings, cutoff = null, anchor = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
@@ -192,35 +207,41 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
   // effects (stats, the paint record, the focus) wait for the commit ──
-  const symPress = !!(eligible && sym && sym !== buf.syms[buf.front])
-  // (lane C, PR 2.1) a TIMEFRAME press: the same symbol, another timeframe
-  const tfMoved = tf != null && buf.tfs[buf.front] != null && String(tf) !== String(buf.tfs[buf.front])
-  const tfPress = !!(eligible && sym && !symPress && tfMoved)
-  if (symPress || tfPress) {
-    const f = buf.front
+  // ONE DECISION, ASKED TWICE: here at the press, and EARLIER by the handoff (flipReady.js), which shows at once a row the
+  // shadow can flip to instead of holding it (the two can never disagree: the same function, the same refs)
+  // (the panes accessor through a ref of its own, declared here: `decide` also runs from the probe, after this render)
+  const panesNowRef = useRef(panes)
+  panesNowRef.current = panes
+  // (lane C, PR 2.1) `wantTf`: a TIMEFRAME press (the same symbol at the code pressed); null: a symbol press, asked at the
+  // front chart's resolved timeframe. Both carry the date the member went to (#2947's anchor).
+  const decide = (want_sym, b, okSlot, set, cut, anch, wantTf = null) => {
+    const f = b.front
     const s = 1 - f
     const fr = reportsRef.current[f]
-    // a symbol press is asked at the front chart's resolved timeframe; a timeframe press at the code pressed
-    const want = !fr ? null : tfPress ? { press: 'tf', sym, tf: String(tf), ext: fr.ext, settings, cutoff: cutoff || null }
-      : { sym, tf: fr.tf, ext: fr.ext, settings, cutoff: cutoff || null }
-    const report = slotOk && buf.syms[s] === sym && (!tfPress || String(buf.tfs[s]) === String(tf)) ? reportsRef.current[s] : null
+    const tfPress = wantTf != null
+    const want = !fr ? null : tfPress ? { press: 'tf', sym: want_sym, tf: String(wantTf), ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null }
+      : { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null }
+    const holds = b.syms[s] === want_sym && (!tfPress || String(b.tfs[s]) === String(wantTf))
+    const report = okSlot && holds ? reportsRef.current[s] : null
     const view = () => {
-      const p = panes ? panes() : []
-      return tfPress ? tfViewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: String(tf) })
+      const p = panesNowRef.current ? panesNowRef.current() : []
+      return tfPress ? tfViewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: String(wantTf) })
         : viewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: fr?.tf })
     }
-    // a symbol AND a timeframe change in one render (a template, the agent): the normal switch of both
-    let d = symPress && tfMoved ? { flip: false, why: 'sym-and-tf' } : flipDecision(want, report, barsNowFor, view)
+    let d = flipDecision(want, report, barsNowFor, view)
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
     // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
     // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the
     // press takes the normal switch, which holds for a covering page.
+    // (owner, 2026-11-27: charts at any date) counted on the key the hidden chart DREW (reportWindow): an intraday chart
+    // at a past date (the date box, a replay cutoff) reads the window ending there, and the plain key's newest rows are
+    // another set (short of the view, a flip refused that was ready; covering, a short window let through)
     if (d.flip && BARSTORE && report) {
       // (2026-11-28) counted in the rows of the KEY the store holds: a custom timeframe's (4h, 2h) are its native base's
       // (heldRows reads that key), so the view's need is asked in base rows too (timeframes.baseBarsFor; native: unchanged)
       const need = baseBarsFor(String(report.tf), viewNeed(member))
       let rows = 0
-      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, upTo: need }) || 0 } catch { rows = 0 }
+      try { rows = heldRows(report.sym, report.tf, { showExtended: !!report.ext, viewWindow: reportWindow(report), upTo: need }) || 0 } catch { rows = 0 }
       // ...unless nothing more is coming for it (review of #2934, L3: the switch's own exemption, paintsWholeNow /
       // dailyHoldNeeded): a young listing's whole history is shorter than any view, and refusing it sent every press to
       // the normal switch for no gain
@@ -229,9 +250,41 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {
-      d = { flip: false, why: !slotOk ? 'no-slot' : buf.syms[s] == null ? 'no-shadow' : buf.syms[s] !== sym ? 'shadow-other-row'
-        : tfPress && String(buf.tfs[s]) !== String(tf) ? 'shadow-other-tf' : 'shadow-unreported' }
+      d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row'
+        : tfPress && String(b.tfs[s]) !== String(wantTf) ? 'shadow-other-tf' : 'shadow-unreported' }
     }
+    return { d, report }
+  }
+  const slotOkRef = useRef(slotOk)
+  slotOkRef.current = slotOk
+  const cutoffRef = useRef(cutoff)
+  cutoffRef.current = cutoff
+  const anchorRef = useRef(anchor)
+  anchorRef.current = anchor
+  const eligibleRef = useRef(eligible)
+  eligibleRef.current = eligible
+  const decideRef = useRef(decide)
+  decideRef.current = decide   // the probe asks THIS render's decision (its `member` and refs; never a stale closure)
+  // the handoff's early question (flipReady.js): would a press to `s` flip now? (read off the refs of the last render)
+  useLayoutEffect(() => {
+    if (!member) return undefined
+    setFlipProbe(member, (s) => {
+      const b = bufRef.current
+      if (!eligibleRef.current || !s || s === b.syms[b.front]) return false
+      try { return decideRef.current(s, b, slotOkRef.current, settingsRef.current, cutoffRef.current, anchorRef.current).d.flip === true } catch { return false }
+    })
+    return () => setFlipProbe(member, null)
+  }, [member])   // eslint-disable-line react-hooks/exhaustive-deps -- decide reads refs only
+  const symPress = !!(eligible && sym && sym !== buf.syms[buf.front])
+  // (lane C, PR 2.1) a TIMEFRAME press: the same symbol, another timeframe
+  const tfMoved = tf != null && buf.tfs[buf.front] != null && String(tf) !== String(buf.tfs[buf.front])
+  const tfPress = !!(eligible && sym && !symPress && tfMoved)
+  if (symPress || tfPress) {
+    const f = buf.front
+    const s = 1 - f
+    // a symbol AND a timeframe change in one render (a template, the agent): the normal switch of both
+    const { d, report } = symPress && tfMoved ? { d: { flip: false, why: 'sym-and-tf' }, report: null }
+      : decide(sym, buf, slotOk, settings, cutoff, anchor, tfPress ? String(tf) : null)
     const now = _now()
     const t = timesRef.current
     pendingRef.current = {
@@ -246,9 +299,8 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       syms[f] = sym
       tfs[f] = tf
       reportsRef.current[f] = null   // the front's next pass reports the new symbol / timeframe
-      // a hidden layer on the row ahead follows the front's timeframe (both layers did before PR 2.1); one holding the
-      // front's own symbol at another timeframe stays until the retarget
-      if (tfs[s] != null && syms[s] !== sym && String(tfs[s]) !== String(tf)) { tfs[s] = tf; reportsRef.current[s] = null }
+      // (the hidden layer follows in the retarget the front's new timeframe schedules; its chart's report names its own
+      // timeframe, so it cannot be flipped to at the old one meanwhile)
       setBuf({ syms, tfs, front: f })
     }
   }
@@ -305,7 +357,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
 
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
   const [reporters] = useState(() => [0, 1].map((i) => (r) => {
-    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, settings: settingsRef.current }
+    reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, anchor: r.anchor || null, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
     // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
     // the board's first paint, and is still set long before the first press
