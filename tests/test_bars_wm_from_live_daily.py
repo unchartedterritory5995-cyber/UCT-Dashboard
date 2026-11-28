@@ -746,9 +746,11 @@ def test_a_reverse_split_never_appends_an_unadjusted_next_week(store, monkeypatc
 
 @pytest.mark.parametrize("tf", ["W", "M"])
 def test_the_overlay_never_derives_over_a_table_on_another_basis(store, monkeypatch, clock, tf):
-    clock(2026, 11, 21, 12, 0)                                      # Saturday: the stored path qualifies
-    _seed_split(tf, date(2026, 11, 20), drop=2)
-    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    # the LIVE path (a covered daily): on the stored path the ahead guard already refuses a split table (the adjusted
+    # side has a higher high, or more volume), so only the basis check stands between a live daily and a scale jump
+    clock(2026, 11, 18, 11, 0)
+    _seed_split(tf, date(2026, 11, 18), drop=2)
+    monkeypatch.setattr(bls, "covered", lambda t, k: k == "D")
     assert _overlay(tf) is None, "W/M were derived from a daily on another price basis"
 
 
