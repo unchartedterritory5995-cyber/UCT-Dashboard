@@ -5076,6 +5076,692 @@
     "CX",
     "OPCH"
    ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-dd-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "APP",
+    "BXMT",
+    "SGI",
+    "SRPT",
+    "BKD",
+    "GEV",
+    "NMZ",
+    "HAS",
+    "MOD",
+    "ABM",
+    "SG",
+    "WING",
+    "RCI"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-dd-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FSV",
+    "DK",
+    "PTRN",
+    "PRG",
+    "STM",
+    "OCUL",
+    "AZZ",
+    "PRGO",
+    "CBSH"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-tc-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CRWV",
+    "RKLB",
+    "COP",
+    "CNR",
+    "NWL",
+    "IT",
+    "SRZN",
+    "HEI",
+    "BLX",
+    "BIIB",
+    "GE",
+    "DEI",
+    "ANDG"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-tc-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "WFC",
+    "SXI",
+    "IE",
+    "ZYME",
+    "LAUR",
+    "NEOG",
+    "BG",
+    "BCC",
+    "EXPO"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-m1-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BCAX",
+    "NAVN",
+    "UNP",
+    "EEFT",
+    "SNAP",
+    "RH",
+    "DNOW",
+    "AIR",
+    "PANW",
+    "CTSH",
+    "MPC",
+    "MUFG",
+    "HBM"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-m1-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "HCA",
+    "SYM",
+    "WBI",
+    "RACE",
+    "AN",
+    "RYZ",
+    "WDFC",
+    "TREE",
+    "BNL"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-m5h1-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BVN",
+    "MUC",
+    "SU",
+    "ESLT",
+    "CVI",
+    "BMI",
+    "MAA",
+    "MGM",
+    "AMZN",
+    "PATK",
+    "OBDC",
+    "AMGN",
+    "BR"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-m5h1-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PBF",
+    "UBER",
+    "FBNC",
+    "SAIL",
+    "AIT",
+    "CF",
+    "QCOM",
+    "AMPH",
+    "CNX"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-d30-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "BCE",
+    "RRR",
+    "DECK",
+    "ERIC",
+    "RHI",
+    "ETSY",
+    "ORCL",
+    "ESI",
+    "MS",
+    "NATL",
+    "BRBR",
+    "PCG",
+    "PBR-A"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-d30-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SGRY",
+    "HACK",
+    "AAOI",
+    "TWST",
+    "AVTR",
+    "BLBD",
+    "FLY",
+    "FLUT",
+    "TTMI"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-h4h2-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CORZ",
+    "VRSK",
+    "LYB",
+    "TLK",
+    "FCFS",
+    "GPOR",
+    "MLI",
+    "DTM",
+    "DASH",
+    "EMBJ",
+    "PSMT",
+    "ARIS",
+    "BRSL"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-h4h2-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MAR",
+    "AAMI",
+    "CTRE",
+    "RNG",
+    "MGRC",
+    "LBTYA",
+    "TRU",
+    "NVMI",
+    "TH"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-wm-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "FCN",
+    "CMI",
+    "VTR",
+    "ALKT",
+    "TRNO",
+    "NNE",
+    "EPAC",
+    "AEE",
+    "SCSC",
+    "SYRE",
+    "NOV",
+    "AWR",
+    "WAB"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-wm-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CRC",
+    "ALLE",
+    "JBL",
+    "TPG",
+    "SW",
+    "LI",
+    "SONY",
+    "PWR",
+    "QXO"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-def-tabs",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "MIR",
+    "PRLB",
+    "KAI"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-dd-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AKAM",
+    "HE",
+    "EQNR",
+    "PB",
+    "BTSG",
+    "ABT",
+    "PVLA",
+    "PAY",
+    "VEON",
+    "BOH",
+    "FLEX",
+    "SSL",
+    "CBRL"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-dd-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ABSI",
+    "ORIC",
+    "HY",
+    "ETR",
+    "CRGY",
+    "SBRA",
+    "MCY",
+    "KMX",
+    "CALX"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-tc-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DNLI",
+    "INBX",
+    "SHG",
+    "DLO",
+    "CRVS",
+    "ZTO",
+    "FLS",
+    "ANRO",
+    "TNL",
+    "BALL",
+    "RGA",
+    "PAYX",
+    "KLAC"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-tc-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ING",
+    "INVA",
+    "AS",
+    "TEVA",
+    "CSX",
+    "FTI",
+    "FSM",
+    "SSB",
+    "LH"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-m1-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AER",
+    "ICLR",
+    "INSP",
+    "LPTH",
+    "ATEC",
+    "VIRT",
+    "HG",
+    "HOOD",
+    "NU",
+    "SKY",
+    "T",
+    "MCRI",
+    "AX"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-m1-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PYPL",
+    "WTM",
+    "CAI",
+    "DINO",
+    "PGY",
+    "XOM",
+    "BNS",
+    "WHD",
+    "JBS"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-m5h1-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ILMN",
+    "AMT",
+    "PPL",
+    "MEOH",
+    "CHKP",
+    "NKTR",
+    "CNI",
+    "CCB",
+    "GSK",
+    "JBTM",
+    "ALB",
+    "ULS",
+    "UPWK"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-m5h1-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "RHLD",
+    "LUV",
+    "SMFG",
+    "NE",
+    "LPX",
+    "BANC",
+    "ARCB",
+    "KLIC",
+    "CHRW"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-d30-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "VECO",
+    "BBNX",
+    "LIT",
+    "INVX",
+    "NEU",
+    "IEX",
+    "CBT",
+    "XPEV",
+    "TER",
+    "PAYC",
+    "FIS",
+    "COKE",
+    "AQN"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-d30-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CHCO",
+    "AUB",
+    "RVTY",
+    "YETI",
+    "PNR",
+    "XEL",
+    "CFG",
+    "DOV",
+    "CDNS"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-h4h2-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AMD",
+    "CNP",
+    "WYFI",
+    "BLDR",
+    "DLX",
+    "HTH",
+    "CELH",
+    "BC",
+    "VRT",
+    "VRTX",
+    "PLAY",
+    "AMCR",
+    "CW"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-h4h2-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "HOPE",
+    "STZ",
+    "BWIN",
+    "WAY",
+    "TT",
+    "RDWR",
+    "FOUR",
+    "NJR",
+    "GFL"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-wm-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PNW",
+    "ERO",
+    "COF",
+    "BIDU",
+    "VNO",
+    "BNAI",
+    "ASML",
+    "VOD",
+    "NTSK",
+    "APO",
+    "IMKTA",
+    "RBRK",
+    "OGE"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-wm-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DELL",
+    "GWW",
+    "SNPS",
+    "MRP",
+    "FOXA",
+    "HLNE",
+    "CBOE",
+    "GKOS",
+    "IP"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zo-tabs",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DOCU",
+    "TM",
+    "LINE"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zoom-D",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "NIC",
+    "PDS",
+    "APAM",
+    "CERT",
+    "CM",
+    "BY",
+    "UTI",
+    "GILD",
+    "BRO"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-zoom-W",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "DXC",
+    "FUN",
+    "AGIO",
+    "XP",
+    "CRCL",
+    "IRON",
+    "MU",
+    "APPN",
+    "NDAQ"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-date-D-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SNN",
+    "SUNC",
+    "MOS",
+    "LIN",
+    "HSAI",
+    "DAVE",
+    "BEP",
+    "CNM",
+    "WEN",
+    "WELL",
+    "TKO",
+    "VIST",
+    "VRDN"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-date-D-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "OII",
+    "BAH",
+    "KDP",
+    "HIW",
+    "MMYT",
+    "AMLX",
+    "BYD",
+    "EC",
+    "TU"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-date-15-arrows",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "GWRE",
+    "CXT",
+    "FE",
+    "ITIC",
+    "MMS",
+    "CVLT",
+    "ALC",
+    "BX",
+    "AXP",
+    "CSTM",
+    "KNSA",
+    "PAYS",
+    "APA"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-date-15-typed",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "IPGP",
+    "RYAAY",
+    "UVV",
+    "IONQ",
+    "SBSW",
+    "SLVM",
+    "GENI",
+    "RBA",
+    "ADUS"
+   ]
+  },
+  {
+   "id": "cloud/46117038319-1/COV-MEM50",
+   "at": "2026-11-28T06:32:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "IMVT",
+    "RHP",
+    "RELX",
+    "LAD",
+    "FIVN",
+    "EVR",
+    "NOG",
+    "NRIX",
+    "CVE",
+    "POST",
+    "LPG",
+    "SCHW",
+    "RMBS",
+    "NAD",
+    "ZBRA",
+    "SHAK",
+    "CMBT",
+    "CURB",
+    "TMUS",
+    "MWA",
+    "MANH",
+    "LRCX",
+    "BWLP",
+    "WLY",
+    "CZR",
+    "BOOT",
+    "LYFT",
+    "IMAX",
+    "MNSO",
+    "GTN",
+    "SOLV",
+    "HWKN",
+    "FHN",
+    "BAC",
+    "F",
+    "KRYS",
+    "STT",
+    "SBH",
+    "W",
+    "EL",
+    "VOR",
+    "NWBI",
+    "SHOO",
+    "CTRI",
+    "KRUS",
+    "NBIX",
+    "CMS",
+    "NFLX",
+    "CAR",
+    "KR",
+    "PGR"
+   ]
   }
  ]
 }
