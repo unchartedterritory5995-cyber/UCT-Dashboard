@@ -47,6 +47,7 @@ import { memberViewDate } from '../components/chart/viewDate'
 import { viewWindowOfMemberDate } from '../components/chart/viewWindow'
 import { flipReadyFor } from '../components/chart/flipReady'
 import { switchObserver, chartPainted, noteSwitchRoute, setSwitchEnv, ROUTE_NOW, ROUTE_DEFERRED, ROUTE_DAILY_HOLD, ROUTE_PREPARE } from '../lib/switchSpeed'
+import { HANDOFF_HANG_MS } from './handoffBudget'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -719,8 +720,5 @@ export function lastHandoffOutcome(ref) { return ref?.current ?? null }
 const POLL_MS = 25
 // How long a daily symbol not yet in memory may hold the previous chart.
 export const DAILY_HOLD_MAX_MS = 400
-// ⚠️ A HANG GUARD, NOT A LATENCY BUDGET. `prepareForDisplay` settles on success
-// and on failure, so this only fires when a request never settles at all.
-// Deliberately generous: firing it early would race a slow-but-healthy prepare
-// and reintroduce the blind commit it exists to prevent.
-const HANDOFF_HANG_MS = 4000
+// The hang guard's number lives in a leaf module (handoffBudget.js), shared with the timeframe hold.
+export { HANDOFF_HANG_MS }

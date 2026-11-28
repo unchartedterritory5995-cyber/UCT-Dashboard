@@ -1851,7 +1851,7 @@ import { makeLiveSane } from './chart/liveTickBaseline'
 import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
 import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
-import { parseTf } from './chart/timeframes'
+import { parseTf, tfLabel } from './chart/timeframes'
 import { bucketEventDate, barLookupFor } from './chart/eventBarLookup'
 import { _hollowFill, installNetChangePaint } from './chart/netChangePaint'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -6289,6 +6289,7 @@ function StockChartBody({
   const tfSwitchHoldRef = useRef(false)  // render → updateChart: a tf-switch hold is active (keep the old series)
   const liveBarSeriesRef = useRef(null) // `${sym}|${tf}` the held liveBarRef was seeded for (see the updateChart seed)
   const _onScreenSrcRef = useRef(null)   // { sym, tf, ext, bars } — the intraday series last on screen
+  const _shownTfRef = useRef(null)       // { sym, tf } — what the chart last painted, ANY timeframe (the empty-switch hold)
   const _switchSrcRef = useRef(null)     // the outgoing tf's series captured at a tf switch (see _switchSourceFor)
   const lastServerCloseRef = useRef(null)  // Last close from CLEAN server bars — poison-proof live-tick baseline
   const lastServerCloseSymRef = useRef(null)  // the symbol lastServerCloseRef belongs to
@@ -9570,7 +9571,7 @@ function StockChartBody({
     _gridQ, instFetcher, fetchDepth, _fpBars, _fullTarget, _pinnedFull, _deepFirstPaint,
     _overlayActive, barCount, _depthKey, _fpDwellReady, _setFpDwellReady, _intradayDeepArmed,
     _setIntradayDeepArmed, axisWidthRatchetRef, _sinceBaseRef, _loadSeqRef, barsMutateRef,
-    _timingIdRef, activeTfRef, _onScreenSrcRef, _switchSrcRef, lastBarRef, lastBarSymRef,
+    _timingIdRef, activeTfRef, _onScreenSrcRef, _shownTfRef, _switchSrcRef, lastBarRef, lastBarSymRef,
     tfSwitchHoldRef, provisionalStaleRef,
     _IDB_TAIL_WAIT_MS, _barsHistorySplitEnabled, _correctFirstPaintEnabled, _developingBarISO,
     _effLivePrice, _etPeriodStartISO, _firstPaintEdgeEnabled, _historyLoader,
@@ -10142,6 +10143,8 @@ function StockChartBody({
     onHeaderCustomStats(res)
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `data` is read only for its newest-bar tri-state
   }, [headerCustomStats, onHeaderCustomStats, filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, userDefsGeneration])
+  // What the chart shows (any timeframe, with bars): a press from D / W / M onto an empty intraday key holds it
+  if (Array.isArray(filteredBars) && filteredBars.length) _shownTfRef.current = { sym, tf: resolvedTf }
   // What THIS timeframe shows, for the next timeframe switch to complete its right edge from.
   if (isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !replayMode && Array.isArray(filteredBars) && filteredBars.length
       && typeof filteredBars[filteredBars.length - 1]?.t === 'number') {
@@ -15384,6 +15387,23 @@ function StockChartBody({
     if (_layoutRanRef.current === updateChart) return
     updateChart()
   }, [updateChart])
+
+  // ⭐ (B3, 2026-11-28) A TIMEFRAME HOLD THAT ENDS WITH NOTHING TO PAINT CLEARS THE OLD FRAME. While a switch holds, the
+  // hook hands the chart no bars and updateChart keeps the previous timeframe's series; at the bound (or a terminal
+  // no-data answer) the hold ends with still no bars, so nothing above changes and nothing re-ran updateChart: the OLD
+  // timeframe stayed on screen under the skeleton past the bound (StockChart.tfSwitchFromDaily C7). The release runs it
+  // once, so the empty arm shows the chart's honest loading / no-data state instead.
+  // ⛔ (StockChart.closureChains STRICT) the release's first form captured `filteredBars` in a closure that outlived
+  // the symbol switch, and kept the outgoing symbol's bars alive. A release caused by the key change itself is the layout
+  // pass's (`_appliedSymTfRef` already ran updateChart for the new key): skipped here, so the empty frame counts once.
+  // (the bars are read through `__heavy.committed`, never captured: the closure-chain rule at the top of this component)
+  // (sym and tf compared as two fields: no new cache-key string, chart/rails/oneKey.census)
+  const _holdWasRef = useRef({ on: false, sym: null, tf: null })
+  useEffect(() => {
+    const was = _holdWasRef.current
+    _holdWasRef.current = { on: !!_tfSwitchHold, sym, tf: resolvedTf }
+    if (was.on && !_tfSwitchHold && was.sym === sym && was.tf === resolvedTf && !__heavy.committed.filteredBars?.length) updateChart()
+  }, [_tfSwitchHold, sym, resolvedTf, updateChart])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⭐ THE STORE'S DEVELOPING-BAR PAINT (P3-S2) — under BARSTORE the ONLY candle / volume update()
   // (the legacy writers are not mounted: chart/legacyLiveWriters.js; railed by
@@ -21208,7 +21228,11 @@ function StockChartBody({
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No chart data available for {sym}.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-            {data?.reason === 'timeframe_not_carried' ? (
+            {data?.reason === 'empty_window' ? (
+              // (#3033) a timeframe press answered with no rows at this date (a window before the listing, a quiet
+              // session): the symbol IS carried, so the provider sentence below would be untrue
+              <span data-testid="chart-empty-window">No {tfLabel(resolvedTf)} bars for {sym} at this date. Pick a later date or another timeframe.</span>
+            ) : data?.reason === 'timeframe_not_carried' ? (
               // A currency pair (BTCUSD): the server answers this for a timeframe it does not
               // serve. The symbol IS carried, so the sentence below would be untrue.
               <span data-testid="chart-tf-not-carried">
