@@ -423,16 +423,18 @@ def _fold_and_publish(work, bucket, prefix, r2, vend, state, holder, ledger, siz
     def put_bytes(key, data, ctype):
         r2.put_object(Bucket=bucket, Key=key, Body=data, ContentType=ctype)
 
-    state.assert_held()               # never publish on a lease that expired or changed hands
+    state.renew(LEASE_TTL_S)          # fail closed: never publish on a lease that expired or changed hands
     # ⛔ ONLY the packs this run rebuilt are in `local`: a pack read by its trailer is never sent.
     force = {f"{prefix}{pack.pack_relpath(s, p)}" for (s, p) in local}
-    publish.upload(local, indexes, put_file, put_bytes, prefix=prefix, jobs=16, force=force, log=log)
+    publish.upload(local, indexes, put_file, put_bytes, prefix=prefix, jobs=16, force=force, log=log,
+                   before_indexes=lambda: state.renew(LEASE_TTL_S))
 
     # 7. verify, 8. only then record
     doc = get_json(r2, bucket, f"{prefix}v1/index/s-{daily.REFERENCE_SYMBOL}.json")
     if not daily.reaches_day(daily.newest_1m_bar(doc or {}), through):
         log(f"[lake-cloud] {daily.REFERENCE_SYMBOL}'s live index does not reach {through}")
         return EXIT_FAILED
+    state.renew(LEASE_TTL_S)          # never record on a lease that lapsed
     state.put_json(lake_state.LEDGER, new_ledger)
     state.put_json("runner.json", {"published_through": through, "at": time.time(), "runner": holder,
                                    "days": days, "built_at": built_at})

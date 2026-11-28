@@ -323,7 +323,10 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
         if ahead:
             return finish(EXIT_OK, ok=True, step="publish-skipped",
                           reason=f"the bucket holds days this PC lacks ({ahead[:5]}); not publishing over them")
-        state.assert_held()
+        try:
+            state.renew(LEASE_TTL_S)
+        except lake_state.LeaseBusy as e:
+            return finish(EXIT_FAILED, reason=f"lease lost before the publish: {e}")
     trees = sorted(p for p in root.glob("packs-*") if (p / "packs").is_dir())
     pub = [sys.executable, str(HERE / "publish.py")]
     for t in trees:
@@ -338,6 +341,10 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
     events = root / "ref" / "ticker_events.jsonl"
     if events.exists():                 # reused tickers cut, renamed companies stitched (identity.py)
         pub += ["--ticker-events", str(events)]
+    if state is not None:
+        # publish.py renews the lease right before the packs and again before the indexes (fail closed): the
+        # publish heavy lock can wait hours, and nothing here may write the lake on a lease that lapsed.
+        pub += ["--lease-holder", state.holder, "--lease-ttl", str(LEASE_TTL_S)]
     if not dry_run and runner(_locked("lake-daily-publish", pub, 4 * 3600), log, low_priority=True) != 0:
         return finish(EXIT_FAILED, reason="publish failed (the next run publishes again: packs already sent are skipped)")
 
@@ -352,6 +359,10 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
     if not reaches_day(last, through):
         return finish(EXIT_FAILED, reason=f"{REFERENCE_SYMBOL}'s live index does not reach {through}")
     if state is not None:
+        try:
+            state.renew(LEASE_TTL_S)                              # never record on a lease that lapsed
+        except lake_state.LeaseBusy as e:
+            return finish(EXIT_FAILED, reason=f"lease lost before the ledger: {e}")
         state.put_json(lake_state.LEDGER, local_ledger)          # the shared ledger: what the bucket now holds
     tmp = root / "daily-state.json.tmp"
     tmp.write_text(json.dumps({"published_through": through, "at": now()}), encoding="utf-8")

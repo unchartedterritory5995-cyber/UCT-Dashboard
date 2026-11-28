@@ -177,8 +177,9 @@ import lake_state as LS  # noqa: E402
 class FakeState:
     """lake_state.LakeState's surface over dicts: the lease, the shared ledger and the references."""
 
-    def __init__(self, *, busy=False, remote_days=None, splits=b'{"rows": [1]}'):
-        self.busy, self.log = busy, []
+    def __init__(self, *, busy=False, remote_days=None, splits=b'{"rows": [1]}', lose_on_renew=None):
+        self.busy, self.log, self.lose_on_renew, self.renews = busy, [], lose_on_renew, 0
+        self.holder = "pc:test"
         self.docs = {"ledger.json": {"v": 1, "days": {d: {"size": 1} for d in (remote_days or [])}}}
         self.refs = {"splits.json": splits}
 
@@ -193,6 +194,12 @@ class FakeState:
 
     def assert_held(self):
         self.log.append("assert_held")
+
+    def renew(self, ttl):
+        self.renews += 1
+        self.log.append(f"renew{self.renews}")
+        if self.lose_on_renew == self.renews:
+            raise LS.LeaseBusy("the lease is no longer ours (held by cloud)")
 
     def get_json(self, name):
         return self.docs.get(name)
@@ -243,8 +250,10 @@ def test_under_the_lease_the_pc_shares_its_references_and_records_the_ledger_aft
     calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13"])
     assert _go(root, st, calls) == D.EXIT_OK
     assert st.log[0] == "take" and st.log[-1] == "release"
-    assert {"put_ref:splits.json", "put_ref:ticker_events.jsonl", "assert_held", "put_json:ledger.json"} <= set(st.log)
-    assert st.log.index("assert_held") < st.log.index("put_json:ledger.json")
+    assert {"put_ref:splits.json", "put_ref:ticker_events.jsonl", "renew1", "renew2", "put_json:ledger.json"} <= set(st.log)
+    assert st.log.index("renew2") < st.log.index("put_json:ledger.json")
+    pub = next(c for c in calls if any(x.endswith("publish.py") for x in c))
+    assert pub[pub.index("--lease-holder") + 1] == "pc:test", "publish.py renews before packs and indexes"
     assert (root / "ref" / "splits.json").read_bytes() == st.refs["splits.json"], "publishes the R2 copy"
     assert st.docs["ledger.json"] == json.loads((root / "packs-7" / "ledger.json").read_text())
 
@@ -260,3 +269,19 @@ def test_a_reference_refused_by_its_hash_stops_the_pc_before_any_publish(tmp_pat
     assert _go(root, st, calls) == D.EXIT_FAILED
     assert not any(x.endswith(("build.py", "publish.py")) for c in calls for x in c)
     assert st.log[-1] == "release"
+
+
+def test_a_lease_lost_while_waiting_for_the_publish_lock_means_no_publish(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13"], lose_on_renew=1)
+    assert _go(root, st, calls) == D.EXIT_FAILED
+    assert not any(x.endswith("publish.py") for c in calls for x in c)
+    assert "put_json:ledger.json" not in st.log
+
+
+def test_a_lease_lost_during_the_publish_means_no_ledger_is_recorded(tmp_path):
+    root = _world(tmp_path, ["2026-11-12", "2026-11-13"], ["2026-11-13", "2026-11-16"])
+    calls, st = [], FakeState(remote_days=["2026-11-12", "2026-11-13"], lose_on_renew=2)
+    assert _go(root, st, calls) == D.EXIT_FAILED
+    assert "put_json:ledger.json" not in st.log, "recorded the ledger on a lapsed lease"
+    assert not (root / "daily-state.json").exists() or "2026-11-16" not in (root / "daily-state.json").read_text()

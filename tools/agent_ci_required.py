@@ -407,6 +407,11 @@ WORKFLOW_DIR = ".github/workflows"
 VERDICT_ENVIRONMENT = "agent-ci-verdict"
 #: the two workflow files that post agent-ci-required, and in each the ONE job that may name the environment
 POSTER_JOBS = {FOLLOWER_WORKFLOW.as_posix(): "verdict", f"{WORKFLOW_DIR}/agent-ci-required.yml": "status"}
+#: OTHER environments a named job may declare, each as ONE LITERAL value (owner-approved 2026-11-28, #2957): the
+#: history lake's refresh job reads its R2 and vendor keys from `history-lake` (master only). Never the verdict
+#: environment, never an expression, never another job or another value: anything else is still a finding.
+OTHER_ENVIRONMENT_JOBS = {f"{WORKFLOW_DIR}/history-lake-daily.yml": ("refresh", "history-lake")}
+assert all(env != VERDICT_ENVIRONMENT for _job, env in OTHER_ENVIRONMENT_JOBS.values())
 #: where a job may take a reusable workflow from: this repository's own tree, which this same scan reads
 LOCAL_REUSABLE = "./" + WORKFLOW_DIR + "/"
 #: (c) the backstop's two needles, compared case-insensitively (GitHub reads vars / secrets names that way)
@@ -508,10 +513,14 @@ def workflow_problems(files: dict) -> list[str]:
             bad.append(f"{name}: does not parse as YAML ({type(e).__name__})")
             continue
         poster_job = POSTER_JOBS.get(path)
+        other = OTHER_ENVIRONMENT_JOBS.get(path)
         for where, key, value in _walk(doc):
             if _is(key, "environment"):                                                        # (a)
                 job = where[1] if len(where) >= 2 and where[0] == "jobs" else None
-                if poster_job is None:
+                if poster_job is None and other is not None and where == ("jobs", other[0]):
+                    if key != "environment" or not isinstance(value, str) or value != other[1]:
+                        bad.append(f"{name}: job {other[0]}'s environment is not the literal {other[1]}")
+                elif poster_job is None:
                     bad.append(f"{name}: job {job} declares an environment" if len(where) == 2 and job is not None
                                else f"{name}: an `environment` key at {'.'.join(map(str, where)) or 'the top'}")
                 elif where != ("jobs", poster_job):

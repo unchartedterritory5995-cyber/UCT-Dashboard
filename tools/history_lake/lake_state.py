@@ -52,6 +52,11 @@ def _missing(exc) -> bool:
     return _code(exc) in ("NoSuchKey", "404", "NotFound") or type(exc).__name__ == "NoSuchKey"
 
 
+def holder_kind(holder) -> str:
+    """What may be LOGGED of a holder: its kind (`pc` / `cloud`), never the PC's host name."""
+    return str(holder or "?").split(":")[0]
+
+
 def holder_name(kind: str) -> str:
     return f"{kind}:{socket.gethostname()}:{uuid.uuid4().hex[:8]}"
 
@@ -79,7 +84,7 @@ class LakeState:
             cur = self.s3.get_object(Bucket=self.bucket, Key=self.key(LEASE))
             held = json.loads(cur["Body"].read() or b"{}")
             if float(held.get("expires_at") or 0) > self.now():
-                raise LeaseBusy(f"held by {held.get('holder')} until {held.get('expires_at'):.0f}") from None
+                raise LeaseBusy(f"held by {holder_kind(held.get('holder'))} until {held.get('expires_at'):.0f}") from None
             try:                                     # expired: replace it, but only the copy we read
                 r = self.s3.put_object(Bucket=self.bucket, Key=self.key(LEASE), Body=body,
                                        ContentType="application/json", IfMatch=cur["ETag"])
@@ -110,11 +115,38 @@ class LakeState:
         return True
 
     def assert_held(self) -> None:
-        """Raise LeaseBusy unless the lease in R2 is still ours and unexpired (checked before a publish)."""
+        """Raise LeaseBusy unless the lease in R2 is still ours and unexpired."""
         cur = self.s3.get_object(Bucket=self.bucket, Key=self.key(LEASE))
         held = json.loads(cur["Body"].read() or b"{}")
         if held.get("holder") != self.holder or float(held.get("expires_at") or 0) <= self.now():
-            raise LeaseBusy(f"the lease is no longer ours (holder {held.get('holder')})")
+            raise LeaseBusy(f"the lease is no longer ours (held by {holder_kind(held.get('holder'))})")
+
+    def renew(self, ttl_s: float) -> dict:
+        """FAIL CLOSED before every step that writes the lake: extend OUR unexpired lease to now + ttl_s, or raise
+        LeaseBusy. The PUT carries If-Match on the ETag just read, so a writer that took the lease over in between
+        makes it fail (412). Works from another process of the same writer (publish.py): only the holder name is
+        needed, never the ETag of the original take."""
+        if not self.holder:
+            raise LeaseBusy("no lease held")
+        try:
+            cur = self.s3.get_object(Bucket=self.bucket, Key=self.key(LEASE))
+        except Exception as e:                       # noqa: BLE001
+            if _missing(e):
+                raise LeaseBusy("the lease is gone") from None
+            raise
+        held = json.loads(cur["Body"].read() or b"{}")
+        if held.get("holder") != self.holder or float(held.get("expires_at") or 0) <= self.now():
+            raise LeaseBusy(f"the lease is no longer ours (held by {holder_kind(held.get('holder'))})")
+        doc = dict(held, expires_at=self.now() + ttl_s, renewed_at=self.now())
+        try:
+            r = self.s3.put_object(Bucket=self.bucket, Key=self.key(LEASE), Body=json.dumps(doc).encode(),
+                                   ContentType="application/json", IfMatch=cur["ETag"])
+        except Exception as e:                       # noqa: BLE001
+            if _code(e) in ("PreconditionFailed", "412", "ConditionalRequestConflict", "409"):
+                raise LeaseBusy("the lease changed hands while renewing") from None
+            raise
+        self.lease_etag = r.get("ETag")
+        return doc
 
     # ── state documents ────────────────────────────────────────────────────────────────────────
     def get_json(self, name: str) -> Optional[dict]:

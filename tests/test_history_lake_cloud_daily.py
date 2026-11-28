@@ -308,6 +308,63 @@ def test_an_expired_lease_is_taken_over_and_a_live_one_is_not():
     assert _lease_doc(r2)["holder"] == "cloud"
     with pytest.raises(CD.lake_state.LeaseBusy):
         a.assert_held()
+    with pytest.raises(CD.lake_state.LeaseBusy):
+        a.renew(60)                                        # a lost lease is never renewed back
+
+
+def test_renew_extends_our_lease_and_fails_closed_on_expiry_or_takeover():
+    r2 = FakeS3()
+    clock = {"t": 1000.0}
+    a = CD.lake_state.LakeState(r2, "bkt", PREFIX, now=lambda: clock["t"])
+    a.take("cloud:x:1", 60)
+    clock["t"] += 50
+    assert a.renew(60)["expires_at"] == clock["t"] + 60
+    other = CD.lake_state.LakeState(r2, "bkt", PREFIX, now=lambda: clock["t"])
+    other.holder = "cloud:x:1"                             # the same writer from another process (publish.py)
+    other.renew(60)
+    clock["t"] += 61
+    with pytest.raises(CD.lake_state.LeaseBusy):
+        a.renew(60)                                        # expired: never resurrected
+    b = CD.lake_state.LakeState(r2, "bkt", PREFIX, now=lambda: clock["t"])
+    b.take("pc:secret-host:2", 60)
+    with pytest.raises(CD.lake_state.LeaseBusy) as e:
+        a.renew(60)
+    assert "secret-host" not in str(e.value) and "pc" in str(e.value), "only the holder's kind is ever logged"
+
+
+class _LoseLeaseAt(FakeS3):
+    """R2 where another writer takes the lake over at one moment of the publish."""
+
+    def __init__(self, objects, when):
+        super().__init__(objects)
+        self.when = when
+
+    def _steal(self):
+        self.objects[f"{PREFIX}state/lease.json"] = json.dumps({"holder": "pc:h", "expires_at": 9e12}).encode()
+        self._etag(f"{PREFIX}state/lease.json")
+
+    def upload_file(self, path, bucket, key, ExtraArgs=None):
+        super().upload_file(path, bucket, key, ExtraArgs)
+        if self.when == "after-packs" and key.endswith(".pack"):
+            self._steal()
+
+    def put_object(self, Bucket, Key, Body, ContentType=None, IfNoneMatch=None, IfMatch=None):
+        out = super().put_object(Bucket, Key, Body, ContentType, IfNoneMatch, IfMatch)
+        if self.when == "after-indexes" and "/v1/index/" in Key:
+            self._steal()
+        return out
+
+
+@pytest.mark.parametrize("when", ["after-packs", "after-indexes"])
+def test_a_lease_lost_mid_publish_stops_the_next_write(world, when):
+    tmp_path, raw, _r2, vend = world
+    r2 = _LoseLeaseAt(_r2.objects, when)
+    led_before = r2.objects[f"{PREFIX}state/ledger.json"]
+    assert _run(tmp_path, r2, vend) == CD.EXIT_FAILED
+    if when == "after-packs":
+        assert not any("/v1/index/" in k for k in r2.puts), "indexes written on a lost lease"
+    assert r2.objects[f"{PREFIX}state/ledger.json"] == led_before, "ledger recorded on a lost lease"
+    assert f"{PREFIX}state/runner.json" not in r2.objects
 
 
 def test_a_publish_is_refused_when_the_lease_changed_hands_mid_run(world, monkeypatch):
