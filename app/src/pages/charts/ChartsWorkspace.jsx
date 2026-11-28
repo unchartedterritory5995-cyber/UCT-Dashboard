@@ -1083,6 +1083,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // (boardKeepAlive.js keptBoardLimit), one in the <Activity> mode. Read once per workspace.
   const keepLimit = useMemo(() => (keepAliveMode === 'layer' ? keptBoardLimit() : 1), [keepAliveMode])
   const keepLimitRef = useRef(keepLimit)
+  keepLimitRef.current = keepLimit
   // the layer flip: the workspace's grid handlers as of its last render (a slot's gate calls them)
   const mainGridHandlersRef = useRef(null)
   // what a layer hide resets that lives further down this component (set there: the active chart / watchlist refs)

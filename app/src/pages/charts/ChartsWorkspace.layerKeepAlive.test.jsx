@@ -517,6 +517,12 @@ test("LK18 (red first; Lane G) a hidden board's grid writes nothing; shown again
   await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
   const wrote = () => setPref.mock.calls.filter(([k, v]) => k === 'charts_workspace_layout' && String(v).includes('"x":3'))
   expect(wrote().length, "a hidden board's grid wrote the board").toBe(0)
+  // ...not even a call that names the FRONT board's widgets (the gate, not the ids, is what stops it)
+  const movedFront = [{ i: 'chart-1', x: 9, y: 0, w: 8, h: 20 }, { i: 'chart-2', x: 0, y: 0, w: 8, h: 20 }]
+  await act(async () => { hiddenGrid.onLayoutChange(movedFront, { lg: movedFront }) })
+  await act(async () => { await new Promise((r) => setTimeout(r, 700)) })
+  expect(setPref.mock.calls.filter(([k, v]) => k === 'charts_workspace_layout' && String(v).includes('"x":9')).length,
+    "a hidden board's grid moved the board in front").toBe(0)
   await go('Main Trading')
   setPref.mockClear()
   // the very handler object the grid was last rendered with (the flip renders it no more): it reaches the workspace now
