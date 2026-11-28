@@ -310,6 +310,27 @@ def test_a_followers_connection_follows_a_replaced_store_file(monkeypatch, tmp_p
     assert _read_in_thread(request_thread) == ["old", "new"]
 
 
+def test_a_followers_connection_reopens_when_the_store_files_identity_changes(monkeypatch, tmp_path):
+    """The same rule on every OS: the identity the connection was opened against moves -> a NEW connection."""
+    from api.services import bars_sqlite
+    db = tmp_path / "bars.db"
+    _mkdb(db, "x")
+    monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(db))
+    monkeypatch.setenv("BARS_API_WORKERS", "4")
+    monkeypatch.setattr(bars_sqlite, "FILE_IDENTITY_CHECK_S", 0.0)
+    ident = [(1, 100)]
+    monkeypatch.setattr(bars_sqlite, "_file_identity", lambda: ident[0])
+
+    def request_thread():
+        a = bars_sqlite._conn()
+        same = bars_sqlite._conn()
+        ident[0] = (1, 200)                           # the leader swapped the file
+        b = bars_sqlite._conn()
+        c = bars_sqlite._conn()
+        return a is same, a is b, b is c
+    assert _read_in_thread(request_thread) == (True, False, True)
+
+
 def test_the_single_process_never_stats_the_store_per_connection(monkeypatch, tmp_path):
     from api.services import bars_sqlite
     db = tmp_path / "bars.db"
