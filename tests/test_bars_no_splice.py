@@ -414,6 +414,23 @@ def test_no_fill_round_asks_for_more_than_its_rows_need(store, monkeypatch):
     assert max(span(c) for c in calls) <= bars_fetch._TO_FILL_ROUND_MAX_DAYS, [span(c) for c in calls]
 
 
+def test_a_round_after_an_empty_window_grows_but_never_past_the_cap(store, monkeypatch):
+    """review #2951 L2, the empty-window branch: a thin 1m name's first window is already the
+    400-day cap and comes back EMPTY (a halt). The next round may grow, never past the cap."""
+    thin = lambda d: [_bar(_et(d, 10, 0) + k * 3600) for k in range(5)]   # noqa: E731
+    stored = _days(_dt.date(2016, 6, 27), _dt.date(2016, 6, 30))[-3:]
+    bars_sqlite.put_bars("HALT1", "1", [b for d in stored for b in thin(d)])
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_fetch_intraday_range", _provider({}, thin, calls))
+    cache.delete_prefix("towin_HALT1_")
+    bars_fetch._get_bars_to_response("HALT1", "1", 4000, "2016-06-30")
+    cache.delete_prefix("towin_HALT1_")
+    span = lambda c: (_dt.date.fromisoformat(c[1]) - _dt.date.fromisoformat(c[0])).days   # noqa: E731
+    assert len(calls) == 2, calls
+    assert span(calls[0]) == bars_fetch._TO_FILL_ROUND_MAX_DAYS            # fixture: round 1 at the cap
+    assert span(calls[1]) <= bars_fetch._TO_FILL_ROUND_MAX_DAYS, [span(c) for c in calls]
+
+
 def test_lookback_is_sized_from_observed_density():
     d = _dt.date(2016, 6, 1)
     two = [(b["t"],) for b in _ext15_day(d)] + [(b["t"],) for b in _ext15_day(d + _dt.timedelta(days=1))]
