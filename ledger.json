@@ -8752,6 +8752,36 @@
     "STRO",
     "SOPH"
    ]
+  },
+  {
+   "id": "cloud/46156432903-1/COV-def-dd-arrows",
+   "at": "2026-11-28T14:47:21+00:00",
+   "source": "cloud",
+   "tickers": [
+    "PACB",
+    "CRML",
+    "RBB",
+    "WENN",
+    "HRTG",
+    "SSYS",
+    "TEO",
+    "TECX",
+    "FDUS",
+    "LDI",
+    "MAAS",
+    "SOC",
+    "SWIM"
+   ]
+  },
+  {
+   "id": "cloud/46156432903-1/COV-def-tabs",
+   "at": "2026-11-28T14:47:21+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CHT",
+    "WOR",
+    "UAN"
+   ]
   }
  ]
 }
