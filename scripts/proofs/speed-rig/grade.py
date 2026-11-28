@@ -114,6 +114,11 @@ def stale(nb_time, tf, exp) -> bool:
     return d < exp['day']
 
 
+def _names_other(h, sym) -> bool:
+    """A sampled header naming a symbol, not `sym`."""
+    return bool(h) and bool(sym) and not str(h).upper().split()[0].startswith(str(sym).upper())
+
+
 def _skip_old_ticks(post: list, cid: str, k0, base: dict | None, p: dict):
     """The first post-key frame that is not the previous symbol's own price tick (see grade_switch), or None."""
     if k0 is None or not base or not base.get('hs') or not base.get('nb'):
@@ -142,8 +147,14 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
     flags, detail, shown = set(), {}, {}
     for cid in ids:
         pre = [f['c'][cid] for f in frames if f['t'] < key and f['c'].get(cid) and f['c'][cid].get('nb')]
-        base = json.dumps(pre[-1]['nb']) if pre else None
         post = [f for f in frames if f['t'] >= key and f['c'].get(cid)]
+        # (2026-11-28, COV-zo-wm-typed presses 0 and 3, COV-zo-m1-typed 0, COV-date-D-typed 1) NO FRAME BEFORE THE KEY: the
+        # sampler's first frame (+8-17 ms) still showed the PREVIOUS symbol (OSIS, BOKF, FSLY, NOW), and with no base it was
+        # read as the new chart's first paint: "a short paint at 17 ms" (OSIS's 349 months) that was the old chart, "a stale
+        # 1m paint" that was FSLY's. A first frame whose sampled header names another symbol than the target is the base.
+        if not pre and post and post[0]['c'][cid].get('nb') and _names_other(post[0]['c'][cid].get('hs'), p.get('sym')):
+            pre = [post[0]['c'][cid]]
+        base = json.dumps(pre[-1]['nb']) if pre else None
         k0 = next((k for k, f in enumerate(post) if f['c'][cid].get('nb') and json.dumps(f['c'][cid]['nb']) != base), None)
         # (2026-11-28, COV-def-wm-typed press 3) A TICK ON THE OLD CHART IS NOT THE NEW PAINT. `nb` is [time, close], so the
         # previous symbol's live price moving its developing bar (HELE's month 34.57 -> 37.71 at 199 ms, header still HELE,
@@ -376,7 +387,10 @@ def self_check() -> None:
     lag = {'i': 5, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 20), fr(1029, 'BBB', 20)]}
     # ...and a frame whose view moved is never a tick, whatever its close (the new bars framed under the late header)
     moved = {'i': 6, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(990, 'AAA', 10), fr(1012, 'AAA', 15, lr=(500, 999)), fr(1029, 'BBB', 20, lr=(500, 999))]}
-    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved)]
+    # no frame before the key: the first sampled frame still shows the old symbol (the base), the new one paints late
+    nopre = {'i': 7, 'dir': 'ArrowDown', 'sym': 'BBB', 'key': 1000, 'frames': [fr(1012, 'AAA', 10, ni=349, lr=(-438, 352)), fr(1080, 'BBB', 20)]}
+    g = [grade_switch(p, {'flips': []}, tfs, exp) for p in (clean, late, jumpy, old, tick, lag, moved, nopre)]
+    assert g[7]['flags'] == ['OVER_30MS'] and g[7]['full'] == 80, g[7]
     assert 'WRONG_CHART' in g[6]['flags'] and g[6]['charts']['flip-chart']['shown'] == 12, g[6]
     assert g[4]['flags'] == ['OVER_30MS'] and g[4]['full'] == 80 and not g[4]['charts']['flip-chart']['wrong'], g[4]
     assert 'WRONG_CHART' in g[5]['flags'] and g[5]['full'] == 12, g[5]
@@ -386,7 +400,7 @@ def self_check() -> None:
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header told apart)')
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame told apart)')
 
 
 def main() -> int:
