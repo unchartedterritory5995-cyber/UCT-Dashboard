@@ -10,7 +10,11 @@ every stocks, test using different ones each time to make sure they are cold"), 
   (e) a past date (1/3/2006) through the Time Navigator on D and 15m, arrows and typed
   (f) memory after 50 arrows over a fresh 51-ticker list
 41 passes, 443 tickers (37 + the 4 timeframe-change passes, lane C). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
-the sweep starts: no ticker is shared between two passes, two sweeps, or a sweep and any earlier PC run.
+the sweep starts: no ticker is shared between two passes of a sweep, nor between two sweeps (or a sweep and a PC run)
+inside the REUSE WINDOW (REUSE_AFTER_DAYS, 14 by default, 2026-11-28): never-used tickers are handed out first, then
+names whose last run is older than the window. A reused name is cold on the CLIENT (every pass's browser profile is
+fresh) but maybe not on the server, so each pass names its reused tickers (--reused, the ledger run's `reused`) and
+grade.py grades them apart from the never-used ones.
 
 LANES. isolate=browser (default): one pass per lane, every lane in parallel on the ONE bench account (each pass's
 board state lives in its own browser; rig.mjs header). isolate=account: N lanes for N bench accounts, a lane's passes
@@ -73,25 +77,42 @@ def passes() -> list[dict]:
     return out
 
 
-def allocate(sel: list[dict], led: dict, sweep: str, reuse_after_days=None) -> tuple[dict, dict]:
+#: (the lead, 2026-11-28) a ticker is eligible again this many days after its last run: every pass's browser profile is
+#: fresh, so the CLIENT side (IndexedDB, the HTTP cache, the bars pack) is cold again; the server-side stores (the
+#: origin's bars, the edge, R2) may still be warm, so a reused ticker is recorded per pass and graded apart (grade.py
+#: "TICKERS reused"), and never-used names are always handed out first. --reuse-after-days -1 = never reuse.
+REUSE_AFTER_DAYS = 14.0
+
+
+def allocate(sel: list[dict], led: dict, sweep: str, reuse_after_days=REUSE_AFTER_DAYS) -> tuple[dict, dict]:
     """(tickers per pass, the ledger with this sweep's runs appended). Seeded by the sweep id, so a re-plan of the
-    same sweep against the same ledger draws the same names; refuses rather than reuse a ticker."""
-    taken = L.used(led, reuse_after_days)
-    pool = [t.upper() for t in (led.get("pool") or {}).get("tickers", [])]
-    free = [t for t in dict.fromkeys(pool) if t not in taken]
+    same sweep against the same ledger draws the same names. NEVER-USED tickers first; then (reuse_after_days not
+    None) tickers whose every run is older than that; refuses rather than reuse a recent one. Each pass's pick names
+    its reused tickers (`reused`), and so does its ledger run."""
+    ever = L.used(led, None)
+    recent = ever if reuse_after_days is None else L.used(led, reuse_after_days)
+    pool = [t.upper() for t in dict.fromkeys((led.get("pool") or {}).get("tickers", []))]
+    never = [t for t in pool if t not in ever]
+    again = [t for t in pool if t in ever and t not in recent]
     need = sum(p["list"] + p["typed"] for p in sel)
-    if len(free) < need:
-        raise SystemExit(f"REFUSED: only {len(free)} never-used tickers left in a {len(pool)}-ticker pool for {need}: rebuild the pool "
-                         "from a fresh quote read, or (owner decision) retire old runs with --reuse-after-days")
+    if len(never) + len(again) < need:
+        raise SystemExit(f"REFUSED: {len(never)} never-used and {len(again)} reusable (last used over {reuse_after_days} days ago) tickers "
+                         f"in a {len(pool)}-ticker pool, for {need}: rebuild the pool (ledger.py repool) or wait for the reuse window")
     rnd = random.Random(f"speed-rig:{sweep}")
-    rnd.shuffle(free)
+    rnd.shuffle(never)
+    rnd.shuffle(again)
+    free = never + again
     picks, k = {}, 0
     at = L.now()
     for p in sel:
         lst, typed = free[k:k + p["list"]], free[k + p["list"]:k + p["list"] + p["typed"]]
         k += p["list"] + p["typed"]
-        picks[p["name"]] = {"list": lst, "typed": typed}
-        led.setdefault("runs", []).append({"id": f"cloud/{sweep}/{p['name']}", "at": at, "source": "cloud", "tickers": lst + typed})
+        reused = [t for t in lst + typed if t in ever]
+        picks[p["name"]] = {"list": lst, "typed": typed, "reused": reused}
+        run = {"id": f"cloud/{sweep}/{p['name']}", "at": at, "source": "cloud", "tickers": lst + typed}
+        if reused:
+            run["reused"] = reused
+        led.setdefault("runs", []).append(run)
     return picks, led
 
 
@@ -114,7 +135,8 @@ def build(args, led: dict) -> tuple[dict, dict]:
         sel = sel[:args.limit]
     if not sel:
         raise SystemExit(f"REFUSED: --select {args.select!r} matches no pass")
-    picks, led = allocate(sel, led, args.sweep_id, args.reuse_after_days)
+    rad = getattr(args, "reuse_after_days", REUSE_AFTER_DAYS)
+    picks, led = allocate(sel, led, args.sweep_id, None if rad is None or rad < 0 else rad)
     plan = {"sweep": args.sweep_id, "created": L.now(), "isolate": args.isolate, "dry": bool(args.dry), "common": COMMON,
             "passes": {}, "lanes": lanes(sel, args.isolate, args.accounts)}
     for p in sel:
@@ -124,6 +146,8 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra.append("--fresh-list=" + ",".join(pk["list"]))
         if pk["typed"]:
             extra.append("--typed=" + ",".join(pk["typed"]))
+        if pk.get("reused"):
+            extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
         if p["kind"] == "tabs":
             extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
         if args.dry:
@@ -166,12 +190,42 @@ def self_check() -> None:
         raise AssertionError("an exhausted pool was not refused")
     except SystemExit as e:
         assert "REFUSED" in str(e)
+    # THE REUSE RULE: never-used names first; then names whose every run is older than the window, each pass naming
+    # the ones it reuses (and its ledger run too); a name used inside the window is never handed out
+    old = "2026-01-01T00:00:00+00:00"
+    ledr = L.empty()
+    ledr["pool"]["tickers"] = [f"R{i:04d}" for i in range(600)]
+    ledr["runs"] = [{"id": "pc/old", "at": old, "tickers": [f"R{i:04d}" for i in range(0, 300)]},
+                    {"id": "pc/recent", "at": L.now(), "tickers": [f"R{i:04d}" for i in range(300, 400)]},
+                    {"id": "pc/both", "at": old, "tickers": ["R0350"]}]
+    A.sweep_id, A.reuse_after_days = "r1", 14.0
+    planr, ledr2 = build(A, json.loads(json.dumps(ledr)))
+    allr = [t for p in planr["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
+    reused = [t for p in planr["passes"].values() for t in p["tickers"]["reused"]]
+    nums = lambda ts: {int(t[1:]) for t in ts}  # noqa: E731
+    assert len(allr) == 443 and len(set(allr)) == 443
+    assert nums([t for t in allr if t not in reused]) == set(range(400, 600)), "the never-used names did not all go first"
+    assert len(reused) == 243 and nums(reused) <= set(range(0, 300)), "a reused name was not an old one"
+    assert not nums(allr) & set(range(300, 400)), "a name used inside the window was handed out"
+    runs = {r["id"]: r for r in ledr2["runs"]}
+    assert sum(len(r.get("reused", [])) for r in runs.values()) == 243
+    for p in planr["passes"].values():
+        if p["tickers"]["reused"]:
+            assert any(a == "--reused=" + ",".join(p["tickers"]["reused"]) for a in p["args"]), "the rig is not told which names are reused"
+    # with reuse off (-1 / None) the same ledger is refused
+    A.sweep_id, A.reuse_after_days = "r2", None
+    try:
+        build(A, json.loads(json.dumps(ledr)))
+        raise AssertionError("reuse off still reused")
+    except SystemExit as e:
+        assert "REFUSED" in str(e)
+    A.reuse_after_days = None
     # account lanes: every pass once, spread over the accounts, one at a time per account
     A.sweep_id, A.isolate, A.accounts = "s4", "account", 3
     plan4, _ = build(A, json.loads(json.dumps(led)))
     flat = [n for ln in plan4["lanes"] for n in ln["passes"]]
     assert sorted(flat) == sorted(names) and len(plan4["lanes"]) == 3 and plan4["maxParallel"] == 3
-    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused)")
+    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window)")
 
 
 def main() -> int:
@@ -185,7 +239,8 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--ledger-file", default=None, help="plan against a ledger FILE (offline; nothing is pushed)")
-    ap.add_argument("--reuse-after-days", type=float, default=None, help="OWNER decision: tickers of runs older than this are free again")
+    ap.add_argument("--reuse-after-days", type=float, default=REUSE_AFTER_DAYS,
+                    help="a ticker last used more than this many days ago is eligible again, after every never-used one (-1 = never)")
     ap.add_argument("--git-dir", default=None)
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args()
