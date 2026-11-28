@@ -16,6 +16,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelListContext } from '../../../components/terminal'
 import ThemeBoardPanel, { themeBoard, themeReturn } from './ThemeBoardPanel'
 import { THEMES_URL } from './imovModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -165,5 +166,37 @@ describe('THMS in the registry', () => {
     expect(applyArgs(variant, ['1W']).props).toEqual({ win: '1W' })
     expect(parseCommand('THMS 1W').code).toBe('THMS')
     expect((await PANEL_IMPORTERS.ThemeBoard()).default).toBe(ThemeBoardPanel)
+  })
+})
+
+describe('THMS sorts and picks columns, kept with the board (customization pass 1)', () => {
+  const MORE = { ...PAYLOAD, themes: [...PAYLOAD.themes,
+    { name: 'Cloud', ticker: 'SKYY', theme_id: 'cloud', group_return: { '1d': 4.0 }, holdings: [{ sym: 'NET', returns: { '1d': 4 } }] },
+    { name: 'Airlines', ticker: 'JETS', theme_id: 'air', group_return: { '1d': 1.0 }, holdings: [{ sym: 'DAL', returns: { '1d': 1 } }] }] }
+  const renderIn = (saved) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <PanelListContext.Provider value={{ open: vi.fn(), rerun: vi.fn(), run: vi.fn() }}>
+        <ViewHost saved={saved}><ThemeBoardPanel /></ViewHost>
+      </PanelListContext.Provider>
+    </SWRConfig>,
+  )
+  it('sorts inside each list (who leads stays the return); sort and hidden columns survive a remount', async () => {
+    jsonFetcher.mockResolvedValue(MORE)
+    const saved = savedView()
+    renderIn(saved)
+    await screen.findByTestId('terminal-thms-leaders')
+    expect(keys('terminal-thms-leaders')).toEqual(['cloud', 'semis', 'air'])
+    fireEvent.click(screen.getByTestId('terminal-thms-leaders-sort-name'))
+    expect(keys('terminal-thms-leaders')).toEqual(['air', 'cloud', 'semis'])
+    expect(keys('terminal-thms-laggards')).toEqual(['gold'])
+    fireEvent.click(screen.getByTestId('terminal-thms-columns'))
+    fireEvent.click(screen.getByTestId('terminal-thms-columns-col-etf'))
+    cleanup()
+    jsonFetcher.mockResolvedValue(MORE)
+    renderIn(saved)
+    await screen.findByTestId('terminal-thms-leaders')
+    expect(keys('terminal-thms-leaders')).toEqual(['air', 'cloud', 'semis'])
+    expect(screen.queryByRole('columnheader', { name: 'ETF' })).toBeNull()
+    expect(screen.getByTestId('terminal-thms-method').textContent).toContain('sorted here by the column header you picked')
   })
 })

@@ -15,6 +15,7 @@ vi.mock('../../../hooks/useLivePrices', () => ({
 }))
 
 import PeerPanel, { PERF_URL, peerSyms, peersUrl } from './PeerPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -68,7 +69,22 @@ describe('PeerPanel', () => {
     expect(screen.getByTestId('terminal-peer-group').textContent).toBe('AI / GPU Chips')
     expect(screen.getByTestId('terminal-peer-source').textContent).toBe('UCT theme')
     expect(screen.getByTestId('terminal-peer-also').textContent).toContain('Semiconductors')
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/groups/peers?sym=NVDA&n=12', undefined)
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/groups/peers?sym=NVDA&n=12&prefer=licensed', undefined)
+  })
+
+  it('licensed peers (held Massive related companies) say where they come from', async () => {
+    serve({
+      [peersUrl('NVDA')]: { seed: 'NVDA', group_id: null, group_name: 'Related companies', source: 'licensed',
+        source_name: 'Massive related companies', as_of: '2026-11-27T02:15:00Z', peers: ['AMD', 'AVGO', 'INTC'] },
+      [PERF_URL]: {},
+    })
+    renderPanel()
+    const table = await screen.findByTestId('terminal-peer-table')
+    expect(within(table).getAllByRole('row').slice(1).map((r) => r.getAttribute('data-testid'))).toEqual(
+      ['terminal-peer-row-NVDA', 'terminal-peer-row-AMD', 'terminal-peer-row-AVGO', 'terminal-peer-row-INTC'])
+    expect(screen.getByTestId('terminal-peer-group').textContent).toBe('Related companies')
+    expect(screen.getByTestId('terminal-peer-source').textContent).toBe('Licensed data from Massive')
+    expect(screen.queryByTestId('terminal-peer-also')).toBeNull()
   })
 
   it('a failed peer read is an error with Retry, never "no peers"', async () => {
@@ -125,5 +141,36 @@ describe('PEER in the registry', () => {
     const cmd = parseCommand('NVDA PEER')
     expect(cmd).toMatchObject({ ok: true, type: 'function', code: 'PEER', sym: 'NVDA' })
     expect((await PANEL_IMPORTERS.Peer()).default).toBe(PeerPanel)
+  })
+})
+
+describe('PEER sorts its peers and picks columns, kept with the board (customization pass 1)', () => {
+  const order = () => within(screen.getByTestId('terminal-peer-table')).getAllByRole('row').slice(1)
+    .map((r) => r.getAttribute('data-testid').replace('terminal-peer-row-', ''))
+  const renderIn = (saved) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <ViewHost saved={saved}><PeerPanel sym="NVDA" /></ViewHost>
+    </SWRConfig>,
+  )
+  it('the stock stays row 1; the peers under it sort; sort and hidden columns survive a remount', async () => {
+    live.prices = { NVDA: { price: 182.4, change_pct: 3.1 }, AMD: { price: 150.25, change_pct: -1.25 }, AVGO: { price: 300, change_pct: 2 } }
+    serve({ [peersUrl('NVDA')]: PEERS, [PERF_URL]: {} })
+    const saved = savedView()
+    renderIn(saved)
+    await screen.findByTestId('terminal-peer-table')
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])
+    fireEvent.click(screen.getByTestId('terminal-peer-sort-pct'))
+    expect(order()).toEqual(['NVDA', 'AVGO', 'AMD'])
+    fireEvent.click(screen.getByTestId('terminal-peer-sort-pct'))
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])   // lowest first, and the stock (+3.10%) still row 1
+    fireEvent.click(screen.getByTestId('terminal-peer-columns'))
+    fireEvent.click(screen.getByTestId('terminal-peer-columns-col-ytd'))
+    cleanup()
+    serve({ [peersUrl('NVDA')]: PEERS, [PERF_URL]: {} })
+    renderIn(saved)
+    await screen.findByTestId('terminal-peer-table')
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])
+    expect(screen.queryByRole('columnheader', { name: 'YTD' })).toBeNull()
+    expect(screen.getByTestId('terminal-peer-method').textContent).toContain('the peers under it are sorted')
   })
 })

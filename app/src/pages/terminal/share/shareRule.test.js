@@ -102,6 +102,24 @@ describe('the policy today', () => {
     expect(shareDecision(BY_CODE.RATES, BY_CODE.RATES.market)).toMatchObject({ offered: true, image: true, file: true, cls: 'public' })
   })
 
+  it('the CFTC, the Treasury\'s auctions and the econ service\'s agency series are public (register T-82, T-105, T-95; econ registry GREEN)', () => {
+    for (const code of ['COT', 'AUCT', 'ECON', 'LIQ', 'OIL']) {
+      const fn = BY_CODE[code]
+      expect(shareClassOf(code), code).toBe('public')
+      expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: true, image: true, file: true, cls: 'public' })
+    }
+  })
+
+  it('⛔ panels that mix a public source with a licensed, unknown or third-party one stay unreviewed', () => {
+    // PUBR: USAspending is U (T-100) and ClinicalTrials.gov LA (T-101). FUND: valuation rows use
+    // licensed closes. FED: Fed headlines from the licensed news wire beside the Board's own pages.
+    for (const code of ['PUBR', 'FUND', 'FED', 'OIC', 'MKTS', 'UNEWS']) {
+      const fn = BY_CODE[code]
+      expect(shareClassOf(code), code).toBe('unreviewed')
+      expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: false })
+    }
+  })
+
   it('licensed and third-party data, and analytics worked out from it, are not offered', () => {
     for (const code of ['MOST', 'MON', 'TOPF', 'FLWL', 'UPDG', 'TSRC', 'TWT', 'SENT', 'INS', 'CONG', 'ALRT', 'RSL', 'THMS', 'PCHG', 'H52', 'UNVOL', 'ERNS', 'CEOS', 'SHINT', 'SHRTS']) {
       const fn = BY_CODE[code]

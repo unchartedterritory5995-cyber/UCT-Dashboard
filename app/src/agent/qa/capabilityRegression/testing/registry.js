@@ -1,8 +1,9 @@
 // CAPABILITY REGRESSION (Mission 2) — the canonical registry, as production builds it.
 //
 // Two configurations, both read from the REAL register functions (builtins.js), never from a hand list:
-//   • PROD_KINDS — production's data kinds (web, 2026-11-03; pinned by agentProdKinds.test.js): what an admin's
-//     Agent registers today. The corpus and the golden workflows run under this one.
+//   • PROD_KINDS — production's data kinds (web; armed 2026-11-24 by the integrator under the owner's delegation;
+//     pinned by agentProdKinds.test.js): what the Agent registers in production. The corpus and the golden
+//     workflows run under this one.
 //   • ALL_KINDS  — every server-gated kind switched on: the WHOLE catalog, dark capabilities included. The
 //     inventory and the "a new capability needs a regression entry" rail read this one, so a capability that
 //     ships dark is caught the day it ships, not the day its flag flips.
@@ -13,9 +14,21 @@ import { allCapabilityNames } from '../../../capabilities'
 import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
 
 // ⚠ keep equal to agentProdKinds.test.js PROD_KINDS (inventory.test.js pins the two by reading that file's text)
-export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
-  'screen.run', 'screen.count', 'screen.saved']
-export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
+export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings',
+  'news.company', 'themes', 'screen.run', 'screen.count', 'screen.saved', 'cot.positioning', 'history.eventStudy',
+  'breadth.current', 'ratings', 'rs.leadership', 'analyst.actions', 'highsLows.session', 'levels.darkpool',
+  'highsLows.yearly', 'themes.rotation', 'confluence.board', 'earnings.expectedMove', 'levels.gamma',
+  'flow.topPicks', 'flow.record', 'earnings.reactions', 'earnings.season', 'group.drill', 'short.interest',
+  'short.list', 'seasonality.stock', 'seasonality.board', 'options.tideHistory', 'options.oiChange',
+  'rates.treasury', 'market.regime', 'stock.setups', 'stock.eventsTimeline', 'uct20.list', 'options.ivHistory',
+  'dilution.watch', 'stock.corporateActions', 'calendar.ipos', 'calendar.dividends', 'rates.auctions',
+  'rates.realYields', 'stock.stats', 'stock.volumeFootprint', 'stock.factorExposure', 'stock.setupHistory',
+  'company.publicRecords', 'ownership.funds', 'groups.rank', 'groups.crowding', 'earnings.seasonBySector',
+  'estimates.revisionBreadth', 'options.ivRankLeaders', 'ipo.lockups', 'cot.byTrader', 'estimates.history',
+  'analyst.ratings', 'company.segments', 'stock.failsToDeliver', 'company.deals', 'insider.market', 'market.history',
+  'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs']
+// every kind once (since 2026-11-24 most of the dark kinds below are in PROD_KINDS too)
+export const ALL_KINDS = [...new Set([...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
   'index.quote', 'commodity.quote', 'crypto.quote', 'cot.positioning', 'rs.leadership', 'catalysts.board',
   // terminal data wave 1 (#1584, dark): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels
   'analyst.actions', 'highsLows.session', 'sectors.performance', 'leaders.longRun', 'levels.darkpool',
@@ -42,11 +55,11 @@ export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company
   // terminal data wave 12 (dark): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC
   'ratings', 'estimates.history', 'analyst.ratings', 'company.segments', 'stock.failsToDeliver', 'company.deals',
   // terminal data wave 13 (dark): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG
-  'insider.market', 'market.history', 'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs']
+  'insider.market', 'market.history', 'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs'])]
 
-/** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
- *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry
- *  runs under PROD_KINDS. */
+/** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks an entry run only by corpus.dark.test.jsx with every
+ *  gated kind on (written while its kind was not in production's list: the asset quotes, and before 2026-11-24
+ *  history.eventStudy and the terminal data waves); every other entry runs under PROD_KINDS. */
 export const kindsFor = (entry) => (entry?.kinds === 'ALL' ? ALL_KINDS : PROD_KINDS)
 export const isDark = (entry) => entry?.kinds === 'ALL'
 

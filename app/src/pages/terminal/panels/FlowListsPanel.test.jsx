@@ -27,6 +27,8 @@ import FlowListsPanel, {
   BOARD_DAYS, BOARD_LIMIT, CREAM_URL, FLOW_BOARD_URL, FLOW_LISTS, FLOW_LISTS_CODE, MAX_ROWS, boardRead, contractText, creamRead,
   directionWords, flowListsCommandArgs, isoDay, normFlowList, optionSide, parseFlowList,
 } from './FlowListsPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
+import { gradeRank } from './FlowListsPanel'
 import { stampedKey } from './marketRead'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -82,8 +84,9 @@ function serve(routes) {
 }
 const asked = () => jsonFetcher.mock.calls.map(([url]) => url)
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <FlowListsPanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <FlowListsPanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -555,4 +558,37 @@ describe('FLWL accessibility', () => {
     await screen.findByTestId('terminal-flwl-open')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('FLWL sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('gradeRank: A+ above A above A- above B+; not a grade is no value', () => {
+    expect(['B', 'A-', 'A+', 'C+', 'A'].sort((a, b) => gradeRank(b) - gradeRank(a))).toEqual(['A+', 'A', 'A-', 'B', 'C+'])
+    expect(gradeRank('Z')).toBeNull()
+    expect(gradeRank(null)).toBeNull()
+  })
+  it('Cream sorts by grade as a grade, not as text; sort and hidden columns survive a remount', async () => {
+    serve({ [CREAM_URL]: CREAM })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-flwl-cream')
+    fireEvent.click(screen.getByTestId('terminal-flwl-cream-sort-c.grade'))
+    expect(symsIn('terminal-flwl-cream')).toEqual(['CCC', 'AAA', 'BBB'])
+    fireEvent.click(screen.getByTestId('terminal-flwl-cream-columns'))
+    fireEvent.click(screen.getByTestId('terminal-flwl-cream-columns-col-c.contracts'))
+    expect(saved.view).toEqual({ sort: { key: 'c.grade', dir: 'desc' }, cols: { hidden: ['c.contracts'] } })
+    cleanup()
+    serve({ [CREAM_URL]: CREAM })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-flwl-cream')
+    expect(symsIn('terminal-flwl-cream')).toEqual(['CCC', 'AAA', 'BBB'])
+    expect(screen.queryByRole('columnheader', { name: /^Contracts/ })).toBeNull()
+  })
+  it('the open board keeps its own columns; a Cream sort does not apply to it', async () => {
+    serve({ [FLOW_BOARD_URL]: BOARD })
+    renderPanel({ list: 'open' }, { saved: savedView({ sort: { key: 'c.grade', dir: 'desc' }, cols: { hidden: ['c.contracts'] } }) })
+    await screen.findByTestId('terminal-flwl-open')
+    expect(symsIn('terminal-flwl-open')).toEqual(['CCC', 'AAA', 'BBB'])   // the server's order
+    fireEvent.click(screen.getByTestId('terminal-flwl-open-sort-o.since'))
+    expect(symsIn('terminal-flwl-open')).toEqual(['AAA', 'CCC', 'BBB'])   // no move on file sinks
+  })
 })

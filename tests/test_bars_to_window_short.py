@@ -40,6 +40,7 @@ def store(tmp_path, monkeypatch):
     monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [{"t": 1, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
     bars_fetch.start_request_budget()
     yield
+    bars_fetch.end_request_budget()      # the budget is THREAD-local: left open, every later test on this thread inherits it
     for p in ("towin_", "towinfail_", "replayto"):
         cache.delete_prefix(p)
     bars_sqlite.bump_db_epoch()

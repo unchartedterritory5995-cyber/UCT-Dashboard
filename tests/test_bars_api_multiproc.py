@@ -367,3 +367,13 @@ def test_main_starts_n_processes_through_the_factory(monkeypatch, tmp_path):
     got.clear()
     bam.main()
     assert not isinstance(got["app"], str) and "workers" not in got       # the single process, as before
+
+
+def test_the_listen_host_is_all_interfaces_unless_the_replay_pins_loopback(monkeypatch):
+    import api.bars_api_main as bam
+    monkeypatch.delenv("BARS_API_LISTEN_HOST", raising=False)
+    assert bam._listen_host() == "0.0.0.0"                       # production: Railway routes to every interface
+    monkeypatch.setenv("BARS_API_LISTEN_HOST", "127.0.0.1")
+    assert bam._listen_host() == "127.0.0.1"
+    src = open(os.path.join(REPO, "tools", "capacity_replay", "run_topology.py"), encoding="utf-8").read()
+    assert '"BARS_API_LISTEN_HOST": "127.0.0.1"' in src         # the sandboxed replay never listens on the LAN

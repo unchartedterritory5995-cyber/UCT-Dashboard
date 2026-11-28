@@ -22,6 +22,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import OiChangePanel, { COMPUTING_POLL_MS, HELD_POLL_MS, OI_CHANGE_CODE, OI_CHANGE_SOURCE, OI_ROWS_SHOWN, oiChangeUrl } from './OiChangePanel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const URL = '/api/options-screener/oi-change/ZZA'
@@ -64,14 +65,15 @@ function Revalidator() {
   return null
 }
 
-function renderPanel(props = { sym: 'zza' }, { rerun = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = { sym: 'zza' }, { rerun = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const host = (el) => (saved ? <ViewHost saved={saved}>{el}</ViewHost> : el)
   const tree = (p) => (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <Revalidator />
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open: vi.fn(), run: vi.fn(), rerun, publish: vi.fn(), publishRows: vi.fn() }}>
-          {code ? <TerminalPanelContext.Provider value={{ code, density: 'comfortable', inset: true }}><OiChangePanel {...p} /></TerminalPanelContext.Provider>
-            : <OiChangePanel {...p} />}
+          {code ? <TerminalPanelContext.Provider value={{ code, density: 'comfortable', inset: true }}>{host(<OiChangePanel {...p} />)}</TerminalPanelContext.Provider>
+            : host(<OiChangePanel {...p} />)}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -490,5 +492,48 @@ describe('OIC accessibility', () => {
     renderPanel()
     await screen.findByTestId('terminal-oic-unknown')
     await expectNoAxeViolations(document.body.firstElementChild)
+  })
+})
+
+describe('OIC sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('sorts the contracts listed (a new one counts its whole open interest); the cut still names the biggest; kept on remount', async () => {
+    serve({ [URL]: answer({ rows: [row(), PUT, NEW], matched: 3 }) })
+    const saved = savedView()
+    renderPanel(undefined, { saved })
+    await screen.findByTestId('terminal-oic-table')
+    const order = () => rows().map((r) => r.getAttribute('data-contract'))
+    expect(order()).toEqual([row().contract, PUT.contract, NEW.contract])
+    fireEvent.click(screen.getByTestId('terminal-oic-sort-change'))
+    expect(order()).toEqual([NEW.contract, row().contract, PUT.contract])
+    fireEvent.click(screen.getByTestId('terminal-oic-sort-contract'))
+    expect(order()).toEqual([row().contract, PUT.contract, NEW.contract])   // nearest expiration first
+    fireEvent.click(screen.getByTestId('terminal-oic-sort-oi'))
+    expect(order()).toEqual([row().contract, PUT.contract, NEW.contract])
+    expect(screen.getByTestId('terminal-oic-table').getAttribute('aria-label')).toContain('sorted by open interest, highest first')
+    fireEvent.click(screen.getByTestId('terminal-oic-columns'))
+    fireEvent.click(screen.getByTestId('terminal-oic-columns-col-volume'))
+    cleanup()
+    serve({ [URL]: answer({ rows: [row(), PUT, NEW], matched: 3 }) })
+    renderPanel(undefined, { saved })
+    await screen.findByTestId('terminal-oic-table')
+    expect(screen.queryByRole('columnheader', { name: /Volume/ })).toBeNull()
+    expect(screen.getByTestId('terminal-oic-sort-oi').closest('th').getAttribute('aria-sort')).toBe('descending')
+  })
+  it('a day with no volume offers no Volume column in the Columns menu', async () => {
+    serve({ [URL]: answer({ volume_present: false, rows: [row({ volume: null })], matched: 1 }) })
+    renderPanel()
+    await screen.findByTestId('terminal-oic-table')
+    expect(screen.queryByRole('columnheader', { name: /Volume/ })).toBeNull()
+    fireEvent.click(screen.getByTestId('terminal-oic-columns'))
+    expect(screen.queryByTestId('terminal-oic-columns-col-volume')).toBeNull()
+    expect(screen.getByTestId('terminal-oic-columns-col-oi')).toBeTruthy()
+  })
+  it('a sort never changes which contracts are listed', async () => {
+    serve({ [URL]: many(40) })
+    renderPanel(undefined, { saved: savedView({ sort: { key: 'change', dir: 'asc' } }) })
+    await screen.findByTestId('terminal-oic-table')
+    expect(rows()).toHaveLength(OI_ROWS_SHOWN)
+    expect(rows()[0].getAttribute('data-contract')).toBe(`O:ZZA261120C${String(100 + OI_ROWS_SHOWN - 1).padStart(8, '0')}`)
+    expect(screen.getByTestId('terminal-oic-cut').textContent).toContain('Showing the 15 biggest of 40')
   })
 })

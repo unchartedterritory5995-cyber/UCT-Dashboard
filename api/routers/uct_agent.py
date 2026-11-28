@@ -1,11 +1,12 @@
-"""UCT Agent -- /api/agent/*  (ADMIN-ONLY while dark, 2026-10-07)
+"""UCT Agent -- /api/agent/*  (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1; dark for members since 2026-10-07)
 
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach, members}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
-                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+                                           (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2; are paid
+                                           members let in (UCT_AGENT_MEMBERS_ENABLED)
   GET  /api/agent/coach/concepts           Wave 3 coach (UCT_AGENT_COACH, default off): the concept knowledge base
   POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
   POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
@@ -22,12 +23,14 @@
   POST /api/agent/breadth                  a historical breadth lookup, answered LOCALLY (read-only, no model)
   POST /api/agent/breadth/history          a historical breadth SEARCH (MI breadth_events), answered LOCALLY
   GET  /api/agent/breadth/dates            today (ET) + latest finalized session per universe (dates only)
-  GET  /api/agent/budget                   today's Agent AI spend vs its $ cap and the shared $15 cap (aggregates)
+  GET  /api/agent/budget                   today's Agent AI spend vs its $ cap and the shared $15 cap (aggregates;
+                                           admin-only ALWAYS, whatever UCT_AGENT_MEMBERS_ENABLED says)
 
 Nothing here mutates a workspace: the browser executes the deterministic
-actions and reports the outcome back through /record. Paid (402) AND admin (403)
-while UCT Agent is dark -- lifting dark is deleting `require_admin_dark` below,
-the same lever /api/user-definitions/converse uses. Metered per member per ET
+actions and reports the outcome back through /record. Paid (402) ALWAYS, and admin
+(403) unless UCT_AGENT_MEMBERS_ENABLED=1 -- `require_admin_dark` below is the one door
+(the member switch, read per request; unset or anything but `1` is admin-only). The
+budget page stays admin-only (`require_admin_always`). Metered per member per ET
 day (durable) and per population. Plain `def` routes: the model call blocks, so
 FastAPI runs it in the threadpool, bounded by the client timeout, zero retries.
 """
@@ -89,8 +92,29 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+#: THE MEMBER DOOR (decided 2026-11-24 by the integrator under the owner's delegation of 2026-11-24: "you decide it
+#: all and get it all done"; docs/feature_flags.json flags.UCT_AGENT_MEMBERS_ENABLED). `1` lets every PAID account in;
+#: unset or ANY other value (`0`, `true`, `admin`, ...) is the admin-only Agent exactly as before -- the emergency off.
+#: Read PER REQUEST (never cached), so a Railway change reaches the next request after the redeploy.
+MEMBERS_ENV = "UCT_AGENT_MEMBERS_ENABLED"
+
+
+def members_enabled() -> bool:
+    """True only while UCT_AGENT_MEMBERS_ENABLED is exactly `1` (surrounding spaces ignored)."""
+    return str(os.environ.get(MEMBERS_ENV) or "").strip() == "1"
+
+
 def require_admin_dark(user: dict = Depends(require_paid)) -> dict:
-    """DARK ROLLOUT: admins only. Delete this dependency to open to paid members."""
+    """The Agent's door. The paid-plan check (require_paid, 402) ALWAYS holds; then admin-only (403) unless
+    UCT_AGENT_MEMBERS_ENABLED=1, which lets every paid member in. The name is kept: tests and the knowledge kinds
+    pin this dependency by identity."""
+    if members_enabled():
+        return user
+    return auth_middleware.require_admin(user)
+
+
+def require_admin_always(user: dict = Depends(require_paid)) -> dict:
+    """Admin-only whatever UCT_AGENT_MEMBERS_ENABLED says (the budget page: population-wide spend aggregates)."""
     return auth_middleware.require_admin(user)
 
 
@@ -150,7 +174,8 @@ class TurnIn(BaseModel):
     # the member's message is already stored, so it is not stored again.
     reroute: bool = False
     # NL-1 (model-first interpretation): "nl1" asks for it; turn.run_turn honours it ONLY when the
-    # server's UCT_AGENT_NL1 flag is on. Admin-only like every other field here (require_admin_dark).
+    # server's UCT_AGENT_NL1 flag is on. Behind the same door as every other field here (require_admin_dark: admin-only
+    # unless UCT_AGENT_MEMBERS_ENABLED=1).
     interpreter: Optional[str] = None
     # NL-1's ONE repair: UCT's planner refused the previous plan for this same message. Only as a reroute
     # (it continues the request, inside its 2-call ceiling — never a new, separately budgeted request).
@@ -196,7 +221,7 @@ ROUTING_V2_ENV = "UCT_AGENT_ROUTING_V2"
 
 
 def routing_v2_enabled() -> bool:
-    """NLM-1 (owner policy 11-04: ON by default for admins; the Agent is admin-only). UCT_AGENT_ROUTING_V2=0 / false /
+    """NLM-1 (owner policy 11-04: ON by default; the Agent is admin-only unless UCT_AGENT_MEMBERS_ENABLED=1). UCT_AGENT_ROUTING_V2=0 / false /
     off / no is the server KILL SWITCH (the browser has its own: localStorage uct.agent.routingV2 = '0'). Routing only
     changes which capabilities the model SEES; the server validates every op against the manifest it was sent, as before."""
     return str(os.environ.get(ROUTING_V2_ENV) or "").strip().lower() not in ("0", "false", "off", "no")
@@ -205,7 +230,9 @@ def routing_v2_enabled() -> bool:
 @router.get("/api/agent/config")
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
-    NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
+    NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on. `members`:
+    whether paid members are let in (UCT_AGENT_MEMBERS_ENABLED=1); the browser closes its Agent door when this says
+    false (app/src/agent/agentFlag.js). A member who is not let in never reaches this line (403 above)."""
     from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
     from api.services.uct_agent import coach
@@ -215,12 +242,15 @@ def agent_config(user: dict = Depends(require_admin_dark)):
             # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
             "coach": coach.enabled(),
             # NLM-1 D1: registry-derived routing v2, UCT_AGENT_ROUTING_V2 (default ON; 0 = kill switch) -- the browser has its own kill switch
-            "routing_v2": routing_v2_enabled()}
+            "routing_v2": routing_v2_enabled(),
+            # the member door (UCT_AGENT_MEMBERS_ENABLED=1): paid members are let in
+            "members": members_enabled()}
 
 
 # ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──
 # docs/agent/coach/concepts/*.md, parsed by services/uct_agent/coach/concepts.py. Read-only, no model call, no
-# member data. 404 while the flag is off (the route does not exist for a dark server), admin-dark like every route.
+# member data. 404 while the flag is off (the route does not exist for a dark server), behind the Agent's door like every
+# route (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1).
 @router.get("/api/agent/coach/concepts")
 def agent_coach_concepts(user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import coach
@@ -758,8 +788,9 @@ def _name_unnamed(uid: int, cid: str, request_id: int | None = None, clock=None)
 
 
 @router.get("/api/agent/budget")
-def agent_budget(user: dict = Depends(require_admin_dark)):
-    """Today's Agent AI spend against its cap and the shared $15 cap (not site-wide): aggregates only."""
+def agent_budget(user: dict = Depends(require_admin_always)):
+    """Today's Agent AI spend against its cap and the shared $15 cap (not site-wide): aggregates only. Admin-only
+    whatever UCT_AGENT_MEMBERS_ENABLED says (population-wide spend is not a member's page)."""
     from api.services.uct_agent import budget
     return budget.state()
 
@@ -910,8 +941,8 @@ class DataReadIn(BaseModel):
 @router.post("/api/agent/data")
 def agent_data(body: DataReadIn, user: dict = Depends(require_admin_dark)):
     """One MD-1 market-data read (services/uct_agent/marketdata/gateway.py) -> a DataEnvelope. Read-only, no
-    model call; research.company may run one metered web lookup. Dark twice: admin-dark like every route here, and
-    refused unless UCT_AGENT_DATA=1."""
+    model call; research.company may run one metered web lookup. Gated twice: the Agent's door like every route here
+    (admin-only unless UCT_AGENT_MEMBERS_ENABLED=1), and refused unless UCT_AGENT_DATA=1 with the kind listed."""
     from api.services.uct_agent.marketdata import gateway
     return gateway.read(body.kind, body.params, user_id=user.get("id"), turn_id=body.turn_id, purpose=body.purpose)
 

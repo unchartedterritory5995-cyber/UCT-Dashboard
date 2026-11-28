@@ -28,6 +28,7 @@ import { useMarketRead } from './marketRead'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import SeasonalityBoardPanel, { SEASB_CODE, SEASB_POLL_MS, SEASB_SETTLED_POLL_MS, SEASB_SOURCE, SEASB_URL } from './SeasonalityBoardPanel'
 import { colourLiteralsIn } from '../__tests__/themeScope'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const URL = '/api/research/seasonality-board'
@@ -574,5 +575,35 @@ describe('SEASB accessibility', () => {
     expect(table.querySelectorAll('thead th[scope="col"]')).toHaveLength(13)
     expect(table.querySelectorAll('tbody th[scope="row"]')).toHaveLength(4)
     expect(screen.getByRole('toolbar', { name: 'Seasonality board controls' })).toBeTruthy()
+  })
+})
+
+describe('SEASB sorts its funds by a month, kept with the board (customization pass 1)', () => {
+  const syms = () => rows().map((r) => r.getAttribute('data-symbol'))
+  const renderIn = (saved) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <PanelListContext.Provider value={{ open: vi.fn(), run: vi.fn(), rerun: vi.fn(), publish: vi.fn(), publishRows: vi.fn() }}>
+        <ViewHost saved={saved}><SeasonalityBoardPanel /></ViewHost>
+      </PanelListContext.Provider>
+    </SWRConfig>,
+  )
+  it('a month sorts the funds by its figure, a thin record sinks; the month headers keep their marks; kept on remount', async () => {
+    serve({ [URL]: FULL })
+    const saved = savedView()
+    renderIn(saved)
+    await screen.findByTestId('terminal-seasb-table')
+    expect(syms()).toEqual(['SPY', 'XLK', 'XLE', 'XLC'])
+    fireEvent.click(screen.getByTestId('terminal-seasb-sort-m11'))
+    expect(syms()).toEqual(['XLK', 'SPY', 'XLE', 'XLC'])   // XLC's +6.5% has 3 years behind it: it sorts last
+    const nov = screen.getAllByTestId('terminal-seasb-month').find((th) => th.getAttribute('data-month') === '11')
+    expect(nov.getAttribute('data-mark')).toBe('now')
+    expect(nov.getAttribute('aria-sort')).toBe('descending')
+    expect(screen.queryByTestId('terminal-seasb-columns')).toBeNull()   // sort only: the months are the board
+    cleanup()
+    serve({ [URL]: FULL })
+    renderIn(saved)
+    await screen.findByTestId('terminal-seasb-table')
+    expect(syms()).toEqual(['XLK', 'SPY', 'XLE', 'XLC'])
+    expect(screen.getByTestId('terminal-seasb-method').textContent).toContain('a dimmed or missing figure sorts last')
   })
 })

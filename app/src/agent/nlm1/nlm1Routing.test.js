@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest'
 import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
 import { routedNames } from '../qa/capabilityRegression/testing/route'
 import { GROUPS, groupOfAction, selectGroups, routeManifest, wordsSelect } from '../routing'
-import { MANIFEST_CONTRACT, manifestFor } from '../capabilities'
+import { MANIFEST_CONTRACT, manifestFor, allCapabilityNames } from '../capabilities'
 import { correctTypos, lexiconFor } from '../nl/lexicon'
 import vocabulary from './vocabulary.json'
 import dev from './dev/paraphrases.json'
@@ -192,11 +192,16 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     ['marketRates', 'agentTerminalDataWave9.test.js'], ['stockStudies', 'agentTerminalDataWave10.test.js'],
     ['marketTables', 'agentTerminalDataWave11.test.js'], ['stockResearch', 'agentTerminalDataWave12.test.js'],
     ['marketMacro', 'agentTerminalDataWave13.test.js']])
-  it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
+  // Since the production arming (2026-11-24) most of these kinds are served under PROD_KINDS: a server-armed group has words
+  // exactly when one of its capabilities is registered (catalysts.board stays dark, so `catalysts` stays empty). That the
+  // words are taken back when the kind is not served is pinned in each group's own file, named here.
+  it.each([...SERVER_ARMED])('server-armed words-only group %s: words only while its capability is registered, and %s pins its own words / fill', (id, file) => {
     const g = GROUPS.find(x => x.id === id)
     expect(g, `${id} is not a routing group`).toBeTruthy()
     expect(g.wordsOnly, `${id} must be words-only`).toBe(true)
-    expect(g.words, `${id}: words must be empty until its capability registers`).toEqual([])
+    const registered = new Set(allCapabilityNames())
+    const served = [...registered].some(a => groupOfAction(a) === id)
+    expect((g.words || []).length > 0, `${id}: words ${served ? 'missing although' : 'present although no'} capability is registered`).toBe(served)
     expect(fs.existsSync(path.join(__dirname, '..', file)), `${id}: its own test file ${file} is missing`).toBe(true)
   })
   it('no OTHER words-only group has empty words', () => {
@@ -205,6 +210,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   })
   const wordsOnly = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id))
   const OWN_WORDS = {
+    // marketAnswers (production arming, 2026-11-24): the event study's words, which `data` keeps too
+    marketAnswers: ['how has NVDA done after 5%+ gaps', 'what happens to AMD after 20-day breakouts', 'how did TSLA trade after it gapped up'],
     // calc-TF (indicatorStyle.setCalcTimeframe): which bars compute an indicator — calculate / compute on, use the weekly bars, a weekly RSI
     indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
     // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab

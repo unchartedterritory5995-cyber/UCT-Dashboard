@@ -8,6 +8,9 @@ recorded 2026-10-02 from the live sources this code reads:
                          (AAPL, period=quarter, limit=12). API key never recorded.
   * feed_*.atom       -- EDGAR browse-edgar?action=getcurrent, one per form, read
                          through fundamentals_pit/sec_client (CRLF -> LF only).
+                         EXCEPT the share-offering forms added 2026-11-27 (feed_S-3*,
+                         feed_424B*, feed_S-8.atom): SYNTHETIC, invented companies in the
+                         same shape, each file says so (tests/test_filings_feed_dilution.py).
   * submissions_AAPL_trimmed.json -- data.sec.gov submissions, newest 80 filings.
   * company_tickers_subset.json   -- sec.gov/files/company_tickers.json, only the
                          CIKs the feeds above name, plus AAPL.

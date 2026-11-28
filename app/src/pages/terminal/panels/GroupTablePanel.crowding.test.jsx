@@ -25,6 +25,7 @@ import {
   MEMBERS_NOT_FOUND, SECTOR_POSITIONING, SECTOR_POSITIONING_PARTS_DOWN, SECTOR_POSITIONING_PENDING, TECH_MEMBERS,
 } from './__fixtures__/groupPositioningFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const SECTORS = groupStatsUrl('sector')
@@ -43,14 +44,15 @@ function serve(routes) {
 }
 const asked = () => [...new Set(jsonFetcher.mock.calls.map(([url]) => url))]
 
-function renderPanel(props = {}) {
+function renderPanel(props = {}, saved = null) {
+  const body = saved ? <ViewHost saved={saved}><GroupTablePanel {...props} /></ViewHost> : <GroupTablePanel {...props} />
   const ctl = { rerun: vi.fn(), open: vi.fn(), run: vi.fn(), publishRows: vi.fn(), publish: vi.fn() }
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={vi.fn()}>
         <PanelListContext.Provider value={ctl}>
           <TerminalPanelContext.Provider value={{ code: 'GRPS', density: 'comfortable', inset: true }}>
-            <GroupTablePanel {...props} />
+            {body}
           </TerminalPanelContext.Provider>
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
@@ -232,4 +234,34 @@ describe('GRPS CROWDING follows the member\'s theme and passes axe', () => {
     await screen.findByTestId('terminal-grps-members-table')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('GRPS keeps a sort per view and the sort of its stocks, with the board (customization pass 1)', () => {
+  const memberSyms = () => within(screen.getByTestId('terminal-grps-members-table')).getAllByRole('row').slice(1)
+    .map((r) => r.getAttribute('data-testid').replace('terminal-grps-member-', ''))
+  it('the table sort and the stocks sort are two slots; neither replaces the other; both survive a remount', async () => {
+    serve({ [POS]: SECTOR_POSITIONING, [TECH]: TECH_MEMBERS })
+    const saved = savedView()
+    renderPanel({ view: 'crowding' }, saved)
+    await screen.findByTestId('terminal-grps-table')
+    fireEvent.click(screen.getByTestId('terminal-grps-sort-name'))
+    const tableSort = screen.getByTestId('terminal-grps-table').getAttribute('data-sort')
+    fireEvent.click(screen.getByTestId('terminal-grps-members-Technology'))
+    await screen.findByTestId('terminal-grps-members-table')
+    fireEvent.click(screen.getByTestId('terminal-grps-members-sort-buy_value'))
+    expect(memberSyms()[0]).toBe('QTKD')
+    const kept = { ...saved.view.filters }
+    expect(Object.keys(kept).sort()).toEqual(['s.crowding', 's.members'])
+    fireEvent.click(screen.getByTestId('terminal-grps-members-back'))
+    await screen.findByTestId('terminal-grps-table')
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe(tableSort)
+    cleanup()
+    serve({ [POS]: SECTOR_POSITIONING, [TECH]: TECH_MEMBERS })
+    renderPanel({ view: 'crowding' }, saved)
+    await screen.findByTestId('terminal-grps-table')
+    expect(screen.getByTestId('terminal-grps-table').getAttribute('data-sort')).toBe(tableSort)
+    fireEvent.click(screen.getByTestId('terminal-grps-members-Technology'))
+    await screen.findByTestId('terminal-grps-members-table')
+    expect(memberSyms()[0]).toBe('QTKD')
+  })
 })

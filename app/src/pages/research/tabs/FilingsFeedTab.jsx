@@ -10,19 +10,24 @@ import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinc
 import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
 import PanelSymbol from '../../../components/terminal/PanelSymbol'
 import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
+import { usePanelWriteBack } from '../../terminal/panels/commandWriteBack'
+import {
+  FEED_FORMS, dilutionWords, feedCommandArgs, feedFormNoun, feedFormQuery, normFeedForm,
+} from '../../terminal/panels/filingsFeedModel'
 
 /** The seen key of one filing: its accepted / filed date + its accession number. */
 const filingKey = (r) => seenKey(String(r.accepted || r.filed || ''), r.accession)
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
-// market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
-// DARK behind FILINGS_FEED_ENABLED.
+// market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1, and the
+// share-offering forms (S-3, S-3ASR, 424B prospectuses, S-8) as the Dilution chip.
+// DARK behind FILINGS_FEED_ENABLED. In the Terminal: `FEED` (no ticker) opens on the market,
+// and the form chips write their pick back into the command (`FEED 8-K`; filingsFeedModel.js).
 //
 // ⛔ Every row cites its accession number and links to the SEC index page.
 // ⛔ A feed not read yet is "pending", a failed one "unavailable" with the reason —
 //    never an empty list that reads as "nothing was filed".
 
-const FORMS = ['All', '8-K', '10-Q', '10-K', '4', 'SCHEDULE 13D', 'SCHEDULE 13G', 'S-1']
 const when = (r) => (r.accepted ? String(r.accepted).replace('T', ' ').slice(0, 16) : r.filed || 'unavailable')
 
 // An empty answer, said in words. A missing `reason` is never printed (it once
@@ -42,7 +47,7 @@ export function emptyText(data, form, label) {
   const why = data.reason ? `: ${memberText(data.reason)}` : ''
   if (data.state === 'pending') return `Pending${why}.${src}`
   if ((data.state === 'ok' || data.state === 'stale') && Array.isArray(data.rows)) {
-    const what = form && form !== 'All' ? `${form === '4' ? 'Form 4' : form} filing` : 'filing in the forms this feed covers'
+    const what = feedFormNoun(form)
     const stale = data.state === 'stale' && data.reason ? ` Note: ${memberText(data.reason)}.` : ''
     return `None: no ${what} for ${label} among the most recent filings we fetched.${stale}${src}`
   }
@@ -68,7 +73,7 @@ function Row({ r, showCompany, since }) {
           ? (r.items.length
               ? <div className={styles.items}>{r.items.map((it) => <span key={it.code}>{it.code} {it.label}</span>)}</div>
               : <span className={styles.gap}>{r.items_note}</span>)
-          : <span className={styles.muted}>—</span>}
+          : dilutionWords(r.form) ? <span>{dilutionWords(r.form)}</span> : <span className={styles.muted}>—</span>}
         {r.subject_note && <div className={styles.gap}>{r.subject_note}</div>}
       </td>
       <td>{when(r)}</td>
@@ -80,19 +85,28 @@ function Row({ r, showCompany, since }) {
 
 // `mine` (terminal `NVDA FEED MINE`, wave 3 lane 13): a third scope, the market feed narrowed to the
 // member's own names (hooks/useMyTickers). Terminal-only: outside a panel the toggle has two scopes.
-export default function FilingsFeedTab({ sym, mine = false }) {
+// `market` (terminal bare `FEED`): open on the whole market. `form` (`FEED 8-K`): the form to open on.
+export default function FilingsFeedTab({ sym, mine = false, market = false, form: formProp = null }) {
   const s = (sym || '').toUpperCase().trim()
   const inPanel = useInTerminalPanel()
   const rerun = usePanelRerun()
-  const [scope, setScopeState] = useState(inPanel && mine ? 'mine' : 'ticker')
+  const writeBack = usePanelWriteBack()
+  const [scope, setScopeState] = useState(inPanel && mine ? 'mine' : (market || !s) ? 'market' : 'ticker')
   const myNames = useMyTickers({ enabled: scope === 'mine' })
   // Entering or leaving "Mine" is written into the command (`NVDA FEED MINE`) so a reload keeps it.
   const setScope = (next) => {
-    if (rerun && (next === 'mine') !== (scope === 'mine')) rerun(`${s ? `${s} ` : ''}FEED${next === 'mine' ? ' MINE' : ''}`)
-    else setScopeState(next)
+    if (rerun && (next === 'mine') !== (scope === 'mine')) {
+      rerun([...(s ? [s] : []), 'FEED', ...feedCommandArgs({ form, mine: next === 'mine' })].join(' '))
+    } else setScopeState(next)
   }
-  const [form, setForm] = useState('All')
-  const q = form === 'All' ? '' : `?form=${encodeURIComponent(form)}`
+  const [form, setForm] = useState(() => normFeedForm(formProp))
+  // A form chip writes its pick into the command (`FEED 8-K`, `NVDA FEED 10-K MINE`), so a reload, a board and
+  // a share link keep it. The market scope a ticker panel toggles to is not in the command: it stays local there.
+  const pickForm = (next) => {
+    if (!(scope === 'market' && s) && writeBack(feedCommandArgs({ form: next, mine: scope === 'mine' }), s || null)) return
+    setForm(next)
+  }
+  const q = feedFormQuery(form)
   const url = scope === 'ticker'
     ? (s ? `/api/research/filings-feed/${encodeURIComponent(s)}${q}` : null)
     : `/api/research/filings-feed${q}`
@@ -157,15 +171,15 @@ export default function FilingsFeedTab({ sym, mine = false }) {
     <section className={styles.section} data-testid="filings-feed">
       {/* Wave 3 (FEED P2 #24): two unlabelled rows of toggle chips; each is a named group now. */}
       <div className={styles.toggle} role="group" aria-label="Whose filings">
-        {[['ticker', s || 'Ticker'], ...(inPanel ? [['mine', 'Mine']] : []), ['market', 'All market']].map(([k, l]) => (
+        {[...(s || !inPanel ? [['ticker', s || 'Ticker']] : []), ...(inPanel ? [['mine', 'Mine']] : []), ['market', 'All market']].map(([k, l]) => (
           <button key={k} type="button" className={`${styles.toggleBtn} ${scope === k ? styles.toggleOn : ''}`}
             aria-pressed={scope === k} onClick={() => setScope(k)}>{l}</button>
         ))}
       </div>
       <div className={styles.toggle} role="group" aria-label="Form type">
-        {FORMS.map((f) => (
-          <button key={f} type="button" className={`${styles.toggleBtn} ${form === f ? styles.toggleOn : ''}`}
-            aria-pressed={form === f} onClick={() => setForm(f)}>{f === '4' ? 'Form 4' : f}</button>
+        {FEED_FORMS.map((f) => (
+          <button key={f.label} type="button" className={`${styles.toggleBtn} ${form === f.value ? styles.toggleOn : ''}`}
+            aria-pressed={form === f.value} title={f.title} onClick={() => pickForm(f.value)}>{f.label}</button>
         ))}
       </div>
       {body}
