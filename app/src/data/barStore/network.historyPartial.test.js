@@ -147,4 +147,37 @@ describe('a partial deep D/W/M answer', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(joined).toBe(true)                                      // at once, not after DEEP_WANT_MS
   })
+
+  // (review of #3050, HIGH) a dropped retry forgets the partial answer: the key's next life asks its deep history again
+  it('P9 partial, the retry dropped (nothing held it), then a chart opens the key: the history is asked again and joins', async () => {
+    const w = world([partial, sealed], { pin: false })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    await vi.advanceTimersByTimeAsync(PARTIAL_RETRY_MS[0] + 100)      // the retry finds nothing holding the key: dropped
+    expect(w.hist.length).toBe(1)
+    w.registry.acquire(w.key)
+    w.net.start(w.key, { depth: fullBarsFor('D') })                   // a chart opens it
+    await vi.advanceTimersByTimeAsync(500)
+    expect(w.hist.length).toBe(2)                                      // asked again
+    expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(2900)   // the sealed answer joined
+    expect(w.net.deepPending(w.key)).toBe(false)
+  })
+
+  it('P10 partial, then evicted, then rebuilt by a tail answer: the deep history is due and asked again', async () => {
+    const w = world([partial, sealed], { maxKeys: 1 })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    w.registry.release(w.key)
+    const other = keyOf({ sym: 'OTH', tf: 'D' })
+    w.registry.acquire(other)
+    w.net.fetchOnce(other, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.registry.has(w.key)).toBe(false)
+    w.registry.release(other)
+    w.registry.acquire(w.key)
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })               // rebuilt by a tail answer
+    await vi.advanceTimersByTimeAsync(500)
+    expect(w.hist.length).toBe(2)                                      // the deep history asked again
+    expect(w.registry.peek(w.key).bars.length).toBeGreaterThan(2900)
+  })
 })

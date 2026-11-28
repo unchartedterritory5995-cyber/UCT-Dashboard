@@ -837,13 +837,24 @@ export function createNetwork({
     const ms = last ? Math.round(base * (0.85 + Math.random() * 0.3)) : base
     r.partialTimer = setTimer(() => {
       r.partialTimer = null
-      if (keys.get(r.key) !== r || !_heldNow(r)) return
+      if (keys.get(r.key) !== r) return
+      if (!_heldNow(r)) { _forgetPartial(r); return }
       if (isHidden()) { r.partialPaused = true; return }
       r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       _drain(r)
     }, ms)
   }
-  const _dropPartial = (r) => { if (r?.partialTimer != null) { clearTimer(r.partialTimer); r.partialTimer = null } if (r) r.partialPaused = false }
+  /** (review of #3050) The retry is dropped: the record forgets the partial answer too, so the key's next life (a chart
+   *  opening it, a tail answer rebuilding an evicted entry) asks its deep history again instead of reading it as "done"
+   *  (`histAsked` kept and `partialSettled` true left a D/W/M chart short for the record's life). */
+  const _forgetPartial = (r) => {
+    if (!r) return
+    if (r.partialTimer != null) { clearTimer(r.partialTimer); r.partialTimer = null }
+    r.partialPaused = false
+    if (r.partialSettled) { r.partialSettled = false; r.histAsked = false }
+    r.partialTries = 0
+  }
+  const _dropPartial = _forgetPartial
 
   /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
   function lakeCarriesKey(key) {
