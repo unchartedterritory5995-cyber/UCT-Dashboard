@@ -1681,9 +1681,9 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
  * price (`placement.pinScaleOf` reads it).
  *
  * ⛔⛔ EVERY PICK IS WRITTEN, INCLUDING ONE EQUAL TO THE DEFAULT. Unlike the optional keys whose
- * default deletes, the stored value here IS the record that the member chose: Fred RS defaults to
- * "No scale" by READING (`placement.defaultPinScaleOf`), so a Fred copy with no key gets it and a
- * member who picked "Same as price" must keep that pick even if the default moves again.
+ * default deletes, the stored value here IS the record that the member chose: the default is READ
+ * (`placement.defaultPinScaleOf`; Fred RS's moved from "No scale" back to "Same as price" on
+ * 2026-11-27), so a member's pick must hold whatever the default does next.
  * Refused by identity (unknown choice, unknown instance, the value already stored).
  *
  * @param {'price'|'none'} mode

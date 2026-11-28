@@ -10,8 +10,9 @@
 // What is pinned here:
 //   1. placement: "No scale" resolves to `pin:<instanceId>`, invisible, autoscaled, in the candles'
 //      band; "Same as price" and every non-Fred default are byte-identical to before;
-//   2. the Fred default: an unedited Fred RS copy with nothing stored is "No scale"; a stored
-//      "Same as price" wins; an EDITED copy is an ordinary script;
+//   2. the Fred default: ⚰️ "No scale" until 2026-11-27; MEASURED on the owner's live TradingView chart
+//      (FLYW 1D) Fred sits on the MAIN price scale, so an unedited Fred RS copy with nothing stored is
+//      "Same as price" like every definition; a stored "No scale" pick wins;
 //   3. the series options carry the scale, the own-autoscale provider and no axis tag;
 //   4. on a REAL lightweight-charts chart: the candles' range is untouched, the line fills the band,
 //      and it re-frames to the VISIBLE window when the window moves;
@@ -46,6 +47,8 @@ const OWN = { ...ATR, placement: { target: 'price', ownScale: true } }
 
 const inst = (defId, extra = {}) => ({ instanceId: `${defId}:1`, defId, inputs: {}, hidden: false, ...extra })
 const MARGINS = { top: 0.3, bottom: 0.05 }
+/** A Fred copy the member pinned to "No scale" (since 2026-11-27 its default is the candles' scale). */
+const FRED_PINNED = inst('u_fred1', { placement: { pinScale: 'none' } })
 
 const EXPECTED = (key, margins = MARGINS) => ({
   paneIndex: 0,
@@ -122,29 +125,36 @@ describe('placement', () => {
   })
 })
 
-describe('the Fred RS default', () => {
-  it('an unedited Fred RS copy with nothing stored is "No scale" (no migration write)', () => {
-    expect(defaultPinScaleOf(FRED)).toBe(PIN_SCALE_NONE)
-    expect(pinScaleOf(inst('u_fred1'), FRED)).toBe(PIN_SCALE_NONE)
-    expect(resolvePlacement(inst('u_fred1'), FRED, { mainScaleMargins: MARGINS })).toEqual(EXPECTED('u_fred1:1'))
+describe("the Fred RS default (owner's live TradingView chart, 2026-11-27: the main price scale)", () => {
+  it("an unedited Fred RS copy with nothing stored is 'Same as price': the candles' scale, joining the price autoscale", () => {
+    expect(defaultPinScaleOf(FRED)).toBe(PIN_SCALE_PRICE)
+    expect(pinScaleOf(inst('u_fred1'), FRED)).toBe(PIN_SCALE_PRICE)
+    expect(resolvePlacement(inst('u_fred1'), FRED, { mainScaleMargins: MARGINS }).scaleId).toBe(MAIN_PRICE_SCALE_ID)
+    // the real Fred document declares `joinPriceScale` (its plots take part in the candles' autoscale, as an
+    // `overlay = true` study's do on TradingView)
+    const JOIN = { ...FRED, placement: { target: 'price', joinPriceScale: true } }
+    const pl = resolvePlacement(inst('u_fred1'), JOIN, { mainScaleMargins: MARGINS })
+    expect(pl.scaleId).toBe(MAIN_PRICE_SCALE_ID)
   })
 
-  it('a member who picked "Same as price" keeps it', () => {
+  it('a member who picked "No scale" keeps it, and "Same as price" too', () => {
+    expect(pinScaleOf(inst('u_fred1', { placement: { pinScale: 'none' } }), FRED)).toBe(PIN_SCALE_NONE)
+    expect(resolvePlacement(inst('u_fred1', { placement: { pinScale: 'none' } }), FRED, { mainScaleMargins: MARGINS }))
+      .toEqual(EXPECTED('u_fred1:1'))
     expect(pinScaleOf(inst('u_fred1', { placement: { pinScale: 'price' } }), FRED)).toBe(PIN_SCALE_PRICE)
   })
 
-  it('the name is case- and space-insensitive; an EDITED copy and a different script are ordinary', () => {
-    expect(defaultPinScaleOf({ ...FRED, meta: { name: '  fred rs ' } })).toBe(PIN_SCALE_NONE)
-    expect(defaultPinScaleOf(FRED_EDITED)).toBe(PIN_SCALE_PRICE)
-    expect(defaultPinScaleOf(PLAIN)).toBe(PIN_SCALE_PRICE)
-    expect(defaultPinScaleOf(null)).toBe(PIN_SCALE_PRICE)
+  it('every definition defaults to "Same as price": Fred, an edited copy, a different script, nothing', () => {
+    for (const d of [FRED, { ...FRED, meta: { name: '  fred rs ' } }, FRED_EDITED, PLAIN, null]) {
+      expect(defaultPinScaleOf(d)).toBe(PIN_SCALE_PRICE)
+    }
   })
 })
 
 describe('series options', () => {
   const PLOT = ATR.plots.find((p) => p.style !== 'hlines')
   it('carry the instance scale, the own-autoscale provider and no axis tag', () => {
-    const pl = resolvePlacement(inst('u_fred1'), FRED, {})
+    const pl = resolvePlacement(FRED_PINNED, FRED, {})
     const o = seriesOptionsForPlot(PLOT, { scaleId: pl.scaleId, autoscale: pl.autoscale, lastValue: pl.lastValue })
     expect(o.priceScaleId).toBe('pin:u_fred1:1')
     expect(o.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
@@ -206,7 +216,7 @@ describe('on a real lightweight-charts chart', () => {
   }
 
   it('the candles\' range is unchanged and the line fills the candles\' band', async () => {
-    const pl = resolvePlacement(inst('u_fred1'), FRED, { mainScaleMargins: MARGINS })
+    const pl = resolvePlacement(FRED_PINNED, FRED, { mainScaleMargins: MARGINS })
     const alone = build(null).candles.priceScale().getVisibleRange()
     const { chart, candles, line } = build(pl)
     expect(candles.priceScale().getVisibleRange()).toEqual(alone)
@@ -222,7 +232,7 @@ describe('on a real lightweight-charts chart', () => {
   })
 
   it('it re-frames to the VISIBLE window when the window moves (pan / zoom)', async () => {
-    const pl = resolvePlacement(inst('u_fred1'), FRED, { mainScaleMargins: MARGINS })
+    const pl = resolvePlacement(FRED_PINNED, FRED, { mainScaleMargins: MARGINS })
     const { chart, line } = build(pl)
     const h = chart.panes()[0].getHeight()
     const ranges = []
@@ -248,7 +258,7 @@ describe('on a real lightweight-charts chart', () => {
   })
 
   it('objects map through the instance\'s scale: the label at y = rs lands ON the line', () => {
-    const pl = resolvePlacement(inst('u_fred1'), FRED, { mainScaleMargins: MARGINS })
+    const pl = resolvePlacement(FRED_PINNED, FRED, { mainScaleMargins: MARGINS })
     const { candles, line } = build(pl)
     const host = objectPriceHost([{ series: line }], candles)
     expect(host).toBe(line)
@@ -286,9 +296,18 @@ describe('through the binder (a recording chart)', () => {
     applyData: (series, data) => { if (series && data) series.setData(data) },
   })
 
-  it('a Fred copy binds on its own scale, with no tag, writing only its own scale', () => {
+  it("a Fred copy with nothing stored binds on the candles' scale and writes no scale (the owner's TradingView default)", () => {
     const fake = createFakeChart()
     const r = createBinder({ chart: fake.chart, LWC: fake.LWC }).sync(ctxFor([inst('u_fred1')], reg(FRED)))
+    expect(r && r.bound).toBeGreaterThan(0)
+    expect(fake.seriesCreated.length).toBeGreaterThan(0)
+    for (const x of fake.seriesCreated) expect(x.__options.priceScaleId).toBe(MAIN_PRICE_SCALE_ID)
+    expect(fake.calls.filter((c) => c.method === 'priceScale.applyOptions')).toEqual([])
+  })
+
+  it('a Fred copy pinned to "No scale" binds on its own scale, with no tag, writing only its own scale', () => {
+    const fake = createFakeChart()
+    const r = createBinder({ chart: fake.chart, LWC: fake.LWC }).sync(ctxFor([FRED_PINNED], reg(FRED)))
     expect(r && r.bound).toBeGreaterThan(0)
     expect(fake.seriesCreated.length).toBeGreaterThan(0)
     for (const x of fake.seriesCreated) {

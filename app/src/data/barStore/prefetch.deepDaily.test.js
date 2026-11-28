@@ -35,14 +35,16 @@ async function boot() {
   const { createPrefetch, DEEP_JOIN_WAIT_MS } = await import('./prefetch')
   const { keyOf } = await import('./types')
   const idb = await import('../../utils/barsIDB')
-  // (2026-11-27) the D tail's first page (barsBackfill DATE_FIRST_PAGE): deeper than it means the history joined
-  const FIRST_PAINT_BARS = (await import('../../utils/barsBackfill')).dateFirstPageFor('D')
+  // (2026-11-27, #2934 B1) no D tail page is deeper than barsBackfill DATE_COVER_MAX: deeper means the history joined
+  const bb = await import('../../utils/barsBackfill')
+  const FIRST_PAINT_BARS = bb.dateCoverMaxFor('D')   // no tail page is deeper: a set deeper than it had its history join
+  const TAIL_BARS = bb.dateCoverFor('D')             // the tail a prepare with no view cover asks (review of #2934, B1)
   const store = createBarStore({
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(),
     isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
   const pf = createPrefetch({ store, tickerMeta: () => {} })
-  return { server, store, pf, idb, k: (sym, tf) => keyOf({ sym, tf }), DEEP_JOIN_WAIT_MS, FIRST_PAINT_BARS }
+  return { server, store, pf, idb, k: (sym, tf) => keyOf({ sym, tf }), DEEP_JOIN_WAIT_MS, FIRST_PAINT_BARS, TAIL_BARS }
 }
 const tick = (ms) => vi.advanceTimersByTimeAsync(ms)
 const day = (t) => new Date(t * 1000).toISOString().slice(0, 10)
@@ -60,7 +62,7 @@ describe('the daily handoff paints the whole chart once (deep history joined bef
     await tick(130)                                         // past the cache-read race
     await w.server.flush(40)
     // both on the wire before either answers, neither a shed-able warm
-    expect(w.server.open().map(what).sort()).toEqual(['history d=2026-11-09', `tail bars=${w.FIRST_PAINT_BARS}`])
+    expect(w.server.open().map(what).sort()).toEqual(['history d=2026-11-09', `tail bars=${w.TAIL_BARS}`])
     expect(w.server.open().every((c) => !c.q.warm)).toBe(true)
     // the tail alone does not commit: the prepare waits for the join
     for (const c of w.server.open()) if (!c.q.history) c.respond()

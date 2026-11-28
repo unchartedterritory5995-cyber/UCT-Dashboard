@@ -27,6 +27,7 @@ answers None after 5 s and the quote feed falls back to Finnhub.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 import os
 import queue
@@ -213,6 +214,15 @@ class FeedClient:
                          "resyncs": 0, "epoch_resets": 0, "protocol_errors": 0, "unsendable_syms": 0}
         self._warned_syms: set = set()
         self.last_error: Optional[str] = None
+        # ⛔⛔ THE DESIRED BUILD NEVER RUNS ON THE EVENT LOOP (2026-11-27). `desired()` takes four
+        # other threads' locks (bar_stream._state_lock, nhnl_live._print_lock, time_and_sales._lock,
+        # the broadcaster's) and copies the whole NH/NL universe; run every POLL_S on the uvicorn
+        # loop it was 29 of 118 captured loop freezes and most of the ~30 `loop_stalled` pages a
+        # day. It runs here, on ONE thread of the client's own (never the shared default pool),
+        # so builds stay in order and `side.on_connect` (which clears the seeds a build iterates)
+        # can never overlap one. Only the socket send stays on the loop.
+        self._worker = concurrent.futures.ThreadPoolExecutor(max_workers=1,
+                                                             thread_name_prefix="feed-desired")
         rb.on_change = self.mark_changed
 
     # ── change signalling (any thread) ───────────────────────────────────────
@@ -312,7 +322,9 @@ class FeedClient:
             self.seq.reset()
             await ws.send(fp.encode(fp.Hello(client_id=self.client_id, gen=self.gen)))
             if self.side is not None:
-                self.side.on_connect()      # ingest may have lost its NH/NL marks: re-seed
+                # ingest may have lost its NH/NL marks: re-seed. On the build thread, never
+                # beside a build still finishing for the last connection.
+                await self._off_loop(self.side.on_connect)
             await self._send_desired(ws, force=True)
             self.connected = True
             self.counters["connects"] += 1
@@ -337,17 +349,30 @@ class FeedClient:
                     except (asyncio.CancelledError, Exception):  # noqa: BLE001
                         pass
 
-    async def _send_desired(self, ws, force: bool = False) -> None:
+    async def _off_loop(self, fn, *args):
+        return await asyncio.get_running_loop().run_in_executor(self._worker, fn, *args)
+
+    def _prepare_desired(self, force: bool):
+        """BUILD THREAD. (payload, sig, keys, syms) to send, or None when nothing changed."""
         d = self.desired()
         sig = (d.owners, d.keys, d.nhnl_seeds, d.tas_syms)
         if not force and sig == self._last_sent:
+            return None
+        syms = frozenset(s for owned in d.owners.values() for s in owned)
+        return fp.encode(d), sig, d.keys, syms
+
+    async def _send_desired(self, ws, force: bool = False) -> None:
+        prepared = await self._off_loop(self._prepare_desired, force)
+        if prepared is None:
             return
-        await ws.send(fp.encode(d))
+        payload, sig, keys, syms = prepared
+        await ws.send(payload)
         self._last_sent = sig
         self.counters["desired_sent"] += 1
         # Only now may the mirror forget what is no longer wanted: ingest knows, so a
-        # later re-add is a visible change and brings a fresh snapshot.
-        self.rb.sent_desired(d.keys, frozenset(s for syms in d.owners.values() for s in syms))
+        # later re-add is a visible change and brings a fresh snapshot. (A walk of the
+        # mirror under the broadcaster's lock: the build thread, not the loop.)
+        await self._off_loop(self.rb.sent_desired, keys, syms)
 
     async def _desired_loop(self, ws, stop: asyncio.Event) -> None:
         while not stop.is_set():

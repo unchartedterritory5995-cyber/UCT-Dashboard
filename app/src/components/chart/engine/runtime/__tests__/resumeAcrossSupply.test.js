@@ -28,7 +28,8 @@ import { OP } from '../program.js'
 import { DEFAULT_LIMITS, RuntimeLimitError } from '../limits.js'
 import { OWN_DAILY_KEY } from '../../otherSymbols.js'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition.js'
-import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
+import { setOffListingCurtainEnabled as __e102Curtain, __startFreeReleaseOffForTests } from '../runtimeColumns.js'
+import { onTestFinished } from 'vitest'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
 // ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
 // test its machinery, so they turn it on for this file
@@ -205,6 +206,10 @@ describe('a run that reads requests resumes across a new supply, and draws what 
   })
   it("Fred RS's run half, off the listing (the curtain's A and B): a tick resumes both, bit for bit", () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1'); vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    // (e103) this rail is the CURTAIN's: Fred RS's start-free release (`computeStartFree`), which now answers an
+    // off-listing Fred RS run first, is switched off for it
+    __startFreeReleaseOffForTests(true)
+    onTestFinished(() => __startFreeReleaseOffForTests(false))
     const RS = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
     // the run half's own document: what the member pane hands the worker
     const ro = memberPaneDefinition({ source: RS, name: 'Fred RS', id: 'u_ras' }).definition.compute.runtimeObjects

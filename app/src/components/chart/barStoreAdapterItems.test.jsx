@@ -105,7 +105,10 @@ describe('P3-S1 adapter item 1 — typed stale-answer', () => {
   it('the type-to-search door warms through the chart\'s own source', () => {
     const pane = fs.readFileSync(path.join(SRC, 'components/chart/pane/ChartPane.jsx'), 'utf8')
     // (2026-11-23, review of #2624 2d) the call also carries the linked charts' timeframes, as an options argument
-    expect(pane).toMatch(/\(BARSTORE \? storeWarmTypedSymbol : legacyWarmTypedSymbol\)\(s, effectiveTf(, \{ alsoTfs: typedTfsRef\.current \})?\)/)
+    // (2026-11-27, review of #2934 B1) the store's call also carries the view's cover page: `{ alsoTfs, cover }`; the
+    // ternary is split over lines. Comments are stripped so a quoted call in prose can never satisfy the rail.
+    const code = pane.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
+    expect(code).toMatch(/BARSTORE\s*\?\s*storeWarmTypedSymbol\(s, effectiveTf, \{ alsoTfs: typedTfsRef\.current(, cover)? \}\)\s*:\s*legacyWarmTypedSymbol\(s, effectiveTf(, \{ alsoTfs: typedTfsRef\.current \})?\)/)
   })
 })
 

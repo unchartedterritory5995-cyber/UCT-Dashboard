@@ -46,7 +46,7 @@ test('the settled typed text reaches the host, beside the chart\'s own typed war
   const host = vi.fn()
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={host} />)
   chartSearch().onTypedIntent('AMD')
-  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', { alsoTfs: null })
+  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', expect.objectContaining({ alsoTfs: null }))
   expect(host).toHaveBeenCalledWith('AMD')
   expect(host).toHaveBeenCalledTimes(1)
   expect(legacyWarm).not.toHaveBeenCalled()
@@ -70,11 +70,20 @@ test('a host that throws never breaks the chart\'s own warm; a pane with no host
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={host} />)
   expect(() => chartSearch().onTypedIntent('AMD')).not.toThrow()
   expect(host).toHaveBeenCalledTimes(1)
-  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', { alsoTfs: null })
+  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', expect.objectContaining({ alsoTfs: null }))
   cleanup(); search.props.length = 0; storeWarm.mockClear()
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} />)
   expect(() => chartSearch().onTypedIntent('AMD')).not.toThrow()
-  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', { alsoTfs: null })
+  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', expect.objectContaining({ alsoTfs: null }))
+})
+
+// (review of #2934, B1) the typed warm asks the rows this chart's view will draw: its cover (paintLog viewNeed; COVER_ROWS
+// with no member view), which the store's D/W/M tail and the linked keys ask instead of the warms' default page
+test("the typed warm carries the view's cover (viewNeed)", async () => {
+  const { COVER_ROWS } = await import('../../../data/barStore/coverRows')
+  render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} />)
+  chartSearch().onTypedIntent('AMD')
+  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', expect.objectContaining({ cover: COVER_ROWS }))
 })
 
 // (review of #2624, 2d) the host's linked timeframes ride the chart's own warm: it tells the columns lane about each of
@@ -82,7 +91,7 @@ test('a host that throws never breaks the chart\'s own warm; a pane with no host
 test('the host\'s linked timeframes (typedIntentTfs) go into the chart\'s own typed warm, as its alsoTfs', () => {
   render(<ChartPane sym="NVDA" tf="D" onTfChange={() => {}} onSymbolChange={vi.fn()} onTypedIntent={vi.fn()} typedIntentTfs={['30', 'D']} />)
   chartSearch().onTypedIntent('AMD')
-  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', { alsoTfs: ['30', 'D'] })
+  expect(storeWarm).toHaveBeenCalledWith('AMD', 'D', expect.objectContaining({ alsoTfs: ['30', 'D'] }))
 })
 
 test('PIN: Enter hands the host the symbol synchronously; only the chart\'s refocus waits a frame', async () => {
