@@ -142,6 +142,20 @@ def _reads_lower_timeframe(tree: Any) -> bool:
     return _holds_type(tree, _LTF)
 
 
+def _reads_intraday_timeframe(tree: Any) -> bool:
+    """⭐⭐ E101 -- does this tree hold a higher-timeframe read of minutes (``ast_interpret.INTRADAY_HTF_CODES``) anywhere?"""
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if node.get("type") in ("tf", "tf_live", "tf_merge") and str(node.get("value")) in ast_interpret.INTRADAY_HTF_CODES:
+                return True
+            stack.extend(v for v in node.values() if isinstance(v, (dict, list)))
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
+
+
 def _reads_merged_timeframe(tree: Any) -> bool:
     """⭐ ENGINE 55 — does this tree hold a `tf_merge` node anywhere? Iterative."""
     return _holds_type(tree, _TF_MERGE)
@@ -609,6 +623,18 @@ def assert_scannable(definition: Any) -> dict:
             "day on each intraday bar). A saved scan is run on daily bars, where every bar already is a day, so it "
             "would answer nothing for every symbol. On a daily scan read the value itself (`close`, not "
             "`tf(close, 'D')`); the daily read works on an intraday chart.",
+        )
+    # ⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- A READ OF MINUTES IS FOR A CHART BELOW THEM, AND THE SWEEP RUNS ON DAILY BARS.
+    # `tf(x, '60')` is the last closed 60 minute bar of an intraday chart; the sweep holds daily bars, where this lane refuses
+    # it by name, so it would answer nothing for every symbol. Refused at the door, by name (the scan list never stamps
+    # it scannable: `tests/test_ast_tf_sym.py`).
+    if _reads_intraday_timeframe(tree):
+        raise ScanRefused(
+            "cadence",
+            "this formula reads a higher intraday timeframe (`tf(…, '30' | '60' | '120' | '240')`: the last closed bar "
+            "of those minutes on an intraday chart). A saved scan is run on daily bars, which hold no minutes, so it "
+            "would answer nothing for every symbol. The same read works on an intraday chart; a scan can read a daily, "
+            "weekly or monthly value.",
         )
     if _reads_merged_timeframe(tree):
         raise ScanRefused(

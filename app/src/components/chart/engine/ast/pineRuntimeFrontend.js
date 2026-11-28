@@ -77,7 +77,7 @@ import {
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
-  IrError,
+  IrError, COLUMN_TREES,
 } from '../runtime/ir.js'
 import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
@@ -245,8 +245,24 @@ const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
  *  version when a change here would hand a stored source a different program (a
  *  different output order, a different meaning); the output signature check
  *  (`runtimeColumns.js`) catches an accidental reorder either way. */
+
 export const RUNTIME_FRONTEND_LANGUAGE = 'pine'
 export const RUNTIME_FRONTEND_VERSION = 1
+
+/** ⭐⭐ (2026-11-28) Pine's price means as source AST over the bar's own fields, the host's arithmetic
+ *  (`pine.js::derivedSeriesTree`): read by the request lowering, where no columnar lane answers them. */
+const meanName = (name, tok) => ({ type: 'name', name, tok })
+const meanBin = (op, left, right, tok) => ({ type: 'binary', op, left, right, tok })
+const meanNum = (value, tok) => ({ type: 'number', value, tok })
+const PRICE_MEAN_AST = Object.freeze({
+  hl2: (t) => meanBin('/', meanBin('+', meanName('high', t), meanName('low', t), t), meanNum(2, t), t),
+  hlc3: (t) => meanBin('/', meanBin('+', meanBin('+', meanName('high', t), meanName('low', t), t), meanName('close', t), t),
+    meanNum(3, t), t),
+  ohlc4: (t) => meanBin('/', meanBin('+', meanBin('+', meanBin('+', meanName('open', t), meanName('high', t), t),
+    meanName('low', t), t), meanName('close', t), t), meanNum(4, t), t),
+  hlcc4: (t) => meanBin('/', meanBin('+', meanBin('+', meanName('high', t), meanName('low', t), t),
+    meanBin('*', meanNum(2, t), meanName('close', t), t), t), meanNum(4, t), t),
+})
 
 // ⭐⭐ P3 WS-A — FIVE SENTENCES HERE WERE STALE, each saying a capability did not
 // exist that this lane has had for months (`for`/`while`, call frames, tuples,
@@ -10065,6 +10081,14 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           if (node.name === 'na' && scope.lookup('na') === null && !env.has('na')) {
             return naValue()
           }
+          // ⭐⭐ (2026-11-28) PINE'S PRICE MEANS INSIDE A REQUEST, FOR THE SAME REASON: `hl2`, `hlc3`, `ohlc4`, `hlcc4`
+          // were "a name nothing in this script binds" inside EVERY request (weekly included) while the five fields
+          // read fine, so a source input set to `hl2` (or `request.security(t, "W", hl2)`) could not run. Each is its
+          // arithmetic of the requested bar's own fields, built exactly as the host builds it
+          // (`pine.js::derivedSeriesTree`: `(high + low) / 2`, the left-nested means, and `hlcc4` as
+          // `(high + low + 2 * close) / 4`, TradingView's bit for bit). ⛔ A name the script binds itself wins.
+          const mean = PRICE_MEAN_AST[node.name]
+          if (mean && scope.lookup(node.name) === null && !env.has(node.name)) return lowerExpr(mean(node.tok), scope)
           // ⭐⭐ AN OBJECT ENUM IS A STRING CONSTANT — `size.tiny`,
           // `position.top_right`, `text.align_left`, `line.style_dashed`.
           //
@@ -12181,6 +12205,21 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           }
           conditionalHistoryGuard('a stateful built-in', null)
           return carriedCall(idx, lowerExpr(given[0], scope))
+        }
+        // ⭐⭐ (2026-11-28, write-capability w02 re-asked live) — A SOURCE INPUT READ INSIDE A REQUEST'S VALUE IS THE BAR
+        // SERIES IT NAMES, READ IN THE REQUESTED BARS. `src = input.source(close, "Source")` then
+        // `request.security(syminfo.tickerid, "60", ta.ema(src, 50))`: the input is settled once, before bar 0, and its
+        // value is a bar series (the author's default, or the member's choice, which `applyMemberDefault` has already put
+        // in the default's place), so inside the sub-run it is that series of the requested bars, as Pine reads it.
+        // ⚰️ It fell through to the refusal below (`runtime:input-state`) for EVERY request, weekly included, while the
+        // same input read outside a request drew. ⛔ Only a bare bar series (`MEMBER_SOURCES`: the settings' own list);
+        // a source input naming anything else (another indicator's output) keeps the refusal.
+        if (inRequestValue && node.name === 'input.source') {
+          const args = Array.isArray(node.args) ? node.args : []
+          const named = args.find((a) => a && a.name === 'defval')
+          const positional = args.find((a) => a && !a.name)
+          const dv = (named || positional || {}).value
+          if (dv && dv.type === 'name' && MEMBER_SOURCES.has(dv.name)) return lowerExpr({ ...dv, tok: node.tok }, scope)
         }
                 // A builtin whose ARGUMENT is mutable state — and WHICH KIND matters.
         const g = builtinStateFamily(node.name)
@@ -17979,6 +18018,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
+  ir[COLUMN_TREES] = columnTrees   // ⭐⭐ E104: the static start-free proof reads them (`runtime/startFreeProof.js`)
 
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to

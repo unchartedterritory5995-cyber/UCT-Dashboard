@@ -108,7 +108,7 @@ describe('INS panel', () => {
 describe('INS in the registry', () => {
   it('INS opens the insider buys panel, market-only', async () => {
     expect(BY_CODE.INS.group).toBe('Market')
-    expect(BY_CODE.INS.label).toBe('Insider buying (market-wide, last 7 days)')
+    expect(BY_CODE.INS.label).toBe('Insider trades (market-wide buys or sales, last 7 to 90 days)')
     expect(variantFor('INS', false).variant.panel).toBe('InsiderBuys')
     expect(BY_CODE.INS.ticker).toBeUndefined()
     expect((await PANEL_IMPORTERS.InsiderBuys()).default).toBe(InsiderPanel)

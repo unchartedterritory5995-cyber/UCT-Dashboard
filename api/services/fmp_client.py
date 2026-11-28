@@ -565,6 +565,19 @@ def search_insider_purchases(page: int, limit: int = 100, *, timeout: Optional[i
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+def search_insider_sales(page: int, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Open-market SALES (Form 4 code S) MARKET-WIDE, newest filing first, one page at a time: the
+    same endpoint and paging as `search_insider_purchases`, `transactionType=S-Sale` (2026-11-27, the
+    Terminal's `INS SELLS`; read only by `insider.py`'s held market build, never on a request).
+    ⚠️ NOT live-verified: the parameter value follows the purchases call's own `P-Purchase` and the
+    row's `transactionType` codes the classifier already reads ("S-Sale"); every row is still
+    classified by `_classify_txn_fmp`, so a row that is not an open-market sale is dropped."""
+    return _fetch("/stable/insider-trading/search",
+                   {"transactionType": "S-Sale", "page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.search_insider_sales", data_class="insider",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
 # ── Congressional trades (COV-12 / FT-067, owner approval 2026-10-12) ───────
 # STOCK Act periodic transaction reports as FMP serves them, one endpoint per
 # chamber (`/stable/senate-trades`, `/stable/house-trades`), plus each chamber's

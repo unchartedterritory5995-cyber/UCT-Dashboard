@@ -83,7 +83,11 @@ sys.path.insert(0, str(REPO / "tools"))
 # a gate is two gates, and the day one is relaxed nobody notices the other.
 from pine_member_pane_capture import _gate, sha16, TIERS  # noqa: E402
 
-LAYOUT = "https://www.tradingview.com/chart/01f1AcIj/"
+#: ⭐ THE RIG LAYOUT (moved 2026-11-28, owner-approved): "UCT CAPTURE RIG EXTENDED — no studies", AMEX:SPY 1D,
+#: 0 studies, sessionId "extended" (60m resolves 0400-2000). It is a copy of the regular-hours rig MyS1vKSg with the
+#: session changed. ⚰️ It was 01f1AcIj until the owner's own chart (FLYW + RS Rating + MAs) came to live on that
+#: layout; a capture there would add to and remove from the owner's chart, so 01f1AcIj is never the rig again.
+LAYOUT = "https://www.tradingview.com/chart/B8PyGuX3/"
 FIXTURE = REPO / "tests" / "fixtures" / "member" / "uncharted-clouds.pine"
 
 #: ⛔ OUTSIDE EVERY WORKTREE, and refused rather than trusted — the same rule
