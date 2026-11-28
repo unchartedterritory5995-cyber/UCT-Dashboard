@@ -143,6 +143,14 @@ describe('F5 the view MODE (owner, 2026-11-27: instant scanning zoomed out 2014-
     ['view-short', locked(atLock), locked(atLock, { rows: 2000 })],                                  // its history does not reach the frame's left edge
     ['replay', locked(atLock), locked(atLock, { replay: { mode: true } })],                          // a bar-by-bar replay is running
   ])('refuses %s', (why, f, sh) => { expect(viewParity(f, sh, D)).toBe(why) })
+  // ⭐ (2026-11-28) 'view-short' IS THE LAST CHECK: a short hidden chart that differs in anything else answers THAT
+  // difference, so a 'view-short' means shortness was the only one (useDoubleBuffer flips a proved-whole short shadow on it)
+  it.each([
+    ['view-frame', locked(atLock), locked({ fromRight: 2800, toRight: -200 }, { rows: 2000 })],
+    ['view-lock', locked(atLock), meta(atLock, { rows: 2000 })],
+    ['view-lock', locked(atLock), locked(atLock, { rows: 2000 }, { ...lock, anchorFrac: 0.9 })],
+    ['replay', locked(atLock), locked(atLock, { rows: 2000, replay: { mode: true } })],
+  ])('a short hidden chart that also differs answers %s, never view-short', (why, f, sh) => { expect(viewParity(f, sh, D)).toBe(why) })
   it('a lock captured on another timeframe does not frame the switch (the pin does), but the hidden chart must still hold it', () => {
     const wk = { ...lock, tf: 'W' }
     expect(viewParity(locked({ fromRight: 152, toRight: -8 }, {}, wk), locked({ fromRight: 152, toRight: -8 }, {}, wk), D)).toBe('ok')
