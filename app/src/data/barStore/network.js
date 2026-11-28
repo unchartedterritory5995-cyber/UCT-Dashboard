@@ -758,7 +758,7 @@ export function createNetwork({
       if (r.inflight?.kind === 'scroll' && !r.side) { _tailJob(r, r.priority, { side: true }); return }
       _queueTail(r, r.priority)
       _drain(r)
-    }, EDGE_FALLBACK_MS)
+    }, ms)
   }
 
   /** Does the entry already hold its symbol's whole series (`wholeHistory`)? Never throws. */
