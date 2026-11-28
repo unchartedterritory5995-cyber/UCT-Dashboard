@@ -30,7 +30,12 @@
 # members' worth. It never sends anything a member does not.
 #
 # ⛔ PUBLIC REPO, PUBLIC LOGS: the credentials reach ONE step's environment; the rig never prints or writes them, a
-# cookie or a token; lane.py scrubs every artifact file and deletes (and fails on) any that still holds a secret.
+# cookie or a token; lane.py scrubs every artifact file after EVERY pass and in a finally, and deletes (and fails on)
+# any that still holds a secret; an artifact is uploaded only by a job that was not cancelled (a killed pass is never
+# scrubbed, so its files are never uploaded). Session cookies are HttpOnly (never in page script, a trace or a heap
+# sample) and the browser profile lives in the runner's temp, outside every uploaded folder.
+# ⛔ NO FORK REACHES A SECRET: `pull_request` (never `pull_request_target`) gives a fork's run no secrets and a read-only
+# token, and the plan job (so every job after it) runs for a pull request only when its head is THIS repository.
 name: speed rig
 
 on:
@@ -75,6 +80,8 @@ env:
 jobs:
   plan:
     name: plan the sweep
+    # a fork's pull request runs nothing here: no secret, no larger runner, no ledger
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -96,6 +103,7 @@ jobs:
         run: |
           python scripts/proofs/speed-rig/plan.py --self-check
           python scripts/proofs/speed-rig/grade.py --self-check
+          python scripts/proofs/speed-rig/lane.py --self-check
       - name: Plan (and record the tickers in the shared ledger)
         id: plan
         env:
@@ -183,7 +191,7 @@ jobs:
           echo "lane exit $rc"
           exit $rc
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}   # never a killed lane's unscrubbed files
         with:
           name: speed-rig-pass-${{ matrix.lane }}
           path: ${{ runner.temp }}/out/
@@ -256,7 +264,7 @@ jobs:
           EOF
           exit $rc
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: ${{ !cancelled() }}   # never a killed lane's unscrubbed files
         with:
           name: speed-rig-pass-${{ matrix.lane }}
           path: ${{ runner.temp }}/out/

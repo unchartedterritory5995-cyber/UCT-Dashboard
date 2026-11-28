@@ -103,10 +103,15 @@ def scrub_dir(d: str) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--plan", required=True)
-    ap.add_argument("--lane", required=True)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--plan")
+    ap.add_argument("--lane")
+    ap.add_argument("--out")
+    ap.add_argument("--self-check", action="store_true", help="prove the scrub redacts, deletes and can fail")
     a = ap.parse_args()
+    if a.self_check:
+        return self_check()
+    if not (a.plan and a.lane and a.out):
+        ap.error("--plan, --lane and --out are required")
     plan = json.load(open(a.plan, encoding="utf-8"))
     lane = next((ln for ln in plan["lanes"] if ln["lane"] == a.lane), None)
     if not lane:
@@ -114,6 +119,20 @@ def main() -> int:
         return 1
     os.makedirs(a.out, exist_ok=True)
     rig = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rig.mjs")
+    worst, leaks = 0, 0
+    try:
+        worst = run_passes(a, plan, lane, rig)
+    finally:
+        # ALWAYS, and after every pass too (run_passes): a lane that raises, or a pass that hangs until the job is
+        # killed, never leaves an unscrubbed file for the upload step (which also skips a cancelled job)
+        leaks = scrub_dir(a.out)
+    if leaks:
+        print(f"SCRUB: {leaks} file(s) still held a credential after redaction and were DELETED", flush=True)
+        return 3
+    return worst
+
+
+def run_passes(a, plan, lane, rig) -> int:
     worst = 0
     for name in lane["passes"]:
         spec = plan["passes"][name]
@@ -140,12 +159,47 @@ def main() -> int:
                 line = line.replace(v, "[redacted]")
             print(f"    {line[:300]}", flush=True)
         worst = max(worst, 0 if rc == 0 else (2 if rc == 2 else 1))
+        if scrub_dir(a.out):
+            worst = max(worst, 3)
+            print(f"SCRUB: after {name}, a file still held a credential after redaction and was DELETED", flush=True)
         time.sleep(3)   # the previous browser's port and profile are released
-    leaks = scrub_dir(a.out)
-    if leaks:
-        print(f"SCRUB: {leaks} file(s) still held a credential after redaction and were DELETED", flush=True)
-        return 3
     return worst
+
+
+def self_check() -> int:
+    """The scrub on a fake secret: redacts text, redacts token-like values, deletes a binary that holds the secret, and
+    keeps a clean file. The control (no secret in the environment) must leave the secret in place: a scrub that
+    'passes' without the secret known would prove nothing."""
+    import tempfile
+    fake = "Fake-Bench-Pw-9137!"
+    with tempfile.TemporaryDirectory() as d:
+        def put(name, data):
+            with open(os.path.join(d, name), "wb") as f:
+                f.write(data.encode() if isinstance(data, str) else data)
+        put("a.log", f"signed in with {fake} then uct_session=abc123def; ok")
+        put("b.json", json.dumps({"x": fake + '"q'}))
+        put("c.png", b"PNG-bytes" + fake.encode())
+        put("d.json", '{"clean": true}')
+        old = os.environ.get("BENCH_PASSWORD")
+        os.environ.pop("BENCH_PASSWORD", None)
+        control = scrub_dir(d)
+        if control != 0 or fake not in open(os.path.join(d, "a.log"), encoding="utf-8").read():
+            print("self-check FAILED: the control (no secret known) changed a file it cannot know about")
+            return 1
+        os.environ["BENCH_PASSWORD"] = fake
+        try:
+            leaks = scrub_dir(d)
+        finally:
+            if old is None:
+                os.environ.pop("BENCH_PASSWORD", None)
+            else:
+                os.environ["BENCH_PASSWORD"] = old
+        a_log = open(os.path.join(d, "a.log"), encoding="utf-8").read()
+        b_json = open(os.path.join(d, "b.json"), encoding="utf-8").read()
+        ok = (leaks == 1 and not os.path.exists(os.path.join(d, "c.png")) and fake not in a_log and "abc123def" not in a_log
+              and "uct_session=[redacted]" in a_log and fake not in b_json and os.path.exists(os.path.join(d, "d.json")))
+        print(f"self-check {'ok' if ok else 'FAILED'}: leaks={leaks} a.log={a_log!r}")
+        return 0 if ok else 1
 
 
 if __name__ == "__main__":
