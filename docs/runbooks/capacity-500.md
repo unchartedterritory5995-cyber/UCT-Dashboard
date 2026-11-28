@@ -2,6 +2,8 @@
 
 **Owner ruling, 2026-11-28:** *"I would rather upgrade our infrastructure than downgrade the quality and speed."* A later message added: *"whatever it takes ... get it all done ASAP."*
 
+> ⚠️ **This runbook describes PR #2962 (`BARS_API_WORKERS`, bars-api in several processes), which is NOT yet live.** Production runs ONE bars-api process. Every multi-process number below is from a local replay of #2962's topology, not from Railway.
+
 So every member gets the full client:
 - k=3 typed candidates on the linked timeframes;
 - all-timeframe dwell warms at 300 ms;
@@ -85,7 +87,7 @@ That is about 0.4-0.6 ms per request of uvicorn/starlette time.
 
 Production's single process shares one GIL with about 20 background threads; `/api/health` reported `threads: 24`. The memory-hit gap is that contention, which followers do not have.
 
-**For sizing, a Railway process = local / 2**:
+**For sizing, a Railway process = local / 2** (an assumption from the calibration above, not a measurement under load):
 
 | mix | ceiling per Railway process |
 |---|---|
@@ -95,7 +97,7 @@ Production's single process shares one GIL with about 20 background threads; `/a
 
 **Memory:** production RSS for the single process is 1.1 GB (`/api/health` `rss_mb`). The local private set after load is 1.2 GB per process.
 
-**Pending.** The live matrix (`run_matrix.py`) is queued behind the heavy lock. It runs N processes × {old, edge, full} × {200, 500, 1,000} members, plus a pass through `bars-edge-router` under workerd. Its results go in section 7.
+⛔ **Everything in this section is ONE process with a warm cache.** Nothing here measured #2962's topology (one leader, followers handing leader-only work to it). Section 7 says what the topology replay has and has not measured.
 
 ## 3. The upgrade
 
@@ -111,22 +113,29 @@ Railway already gives every big service the plan's per-replica maximum:
 So **"more vCPU/RAM" cannot be bought on Pro.** The tier used about 1 of its 32 cores: CPU p95 0.26, max 0.92 over 3 days.
 
 A volume cannot be mounted by a second replica. So the tier scales up with processes:
-- **`BARS_API_WORKERS=N`** runs uvicorn `workers=N` on one socket.
+- **`BARS_API_WORKERS=N`** runs uvicorn `workers=N` on one socket. Unset = the single process, unchanged.
 - One **leader** (it holds an flock) runs all the background work the single process ran.
 - **Followers** serve reads. They answer live-store coverage from the leader's published view, and forward the web pod's push to the leader. Without a leader they return 503, and the web pod re-queues.
-- Followers follow the leader's synced copies and re-open SQLite when the store file is replaced.
+- ⛔ **Followers never write the store and never call a provider** (review of #2962, H1/M1). In a follower the store write lock, the proof queues, every provider fetch, the caps (`_cold_fetch_sem` 3, `_deepfill_sem` 2, `_bg_delta_sem` 6, ...) and the single-flight maps raise `LeaderOnly`; the route then hands the **whole request** to the leader over its loopback port, which answers it exactly as the single process does, under the one set of caps. Follower connections are `query_only`. So the caps stay what they are with one process (not N times larger), and no follower frame can land in the store the leader swaps.
+- **The store swap barrier.** A follower holds a shared flock per read; the leader announces a file replace (install, adoption, deferred boot swap), takes the flock exclusive (it waits for in-flight follower reads; a read that starts meanwhile is handed to the leader), replaces, and persists the new file's floor before followers read again. Followers re-open their connections on the new file before reading. Connections never checkpoint on close. `force_resync` is refused with several processes.
+- Followers follow the leader's synced copies; the cash-index refresh is the leader's (followers re-read its disk copy).
 - A follower promotes itself if the leader dies.
+- The process count is bounded by memory: `workers() <= min(14, container memory / 2 GB)`.
 
-Rails and 11 of 11 mutants: see the PR. The design notes are in `api/services/bars_api_roles.py`. The real `BARS_API_WORKERS=3` mode was booted under the sandbox and showed one leader and followers serving reads. Windows' shared-socket `listen` dropped one worker (WinError 10022); this is Windows only, and production is Linux.
+Rails and mutants: see #2962 (`tests/test_bars_api_follower_never_writes.py`, `tests/test_bars_api_multiproc.py`). The design notes are in `api/services/bars_api_roles.py`. Windows' shared-socket `listen` drops workers (WinError 10022); production is Linux, and the replay (section 7) gives each process its own port instead.
 
-**Chosen size: `BARS_API_WORKERS=16`, then 24.**
+⛔⛔ **THE SIZING BELOW IS UNVALIDATED.** It multiplies ONE process's warm-cache ceiling (section 2, local / 2) by the process count. It has not been measured on #2962's leader/follower topology, where every request that needs leader-only work (a cold fetch, a delta, a W/M write, a proof) is answered by the ONE leader, so the leader's share of the load, not the follower count, can set the ceiling. The earlier `run_matrix` passes launched N INDEPENDENT single processes (each its own leader), which is not #2962's topology. Treat every number in this table as a forecast until section 7 holds the topology measurement.
 
-| workers | memory | ceiling (edge-first mix) | 500-member edge-first peak (1,503 req/s) |
-|---|---|---|---|
-| 16 | ~18-20 GB | ~2,400 req/s | carried at 63% |
-| 24 | ~27 GB, after a week of RSS shows the room | ~3,600 req/s | carried at 42% |
+**Memory bounds the process count** (review of #2962, L2): each process holds its own heap, page caches and bar caches, ~1.2 GB measured locally and up to ~2 GB under load, so #2962 caps `workers()` at `min(14, container memory / 2 GB)` = **14 in a 32 GB container**, never 24.
 
-At 24 workers, 2x the peak (3,006 req/s) runs at 83%.
+**Recommended size for 500 members: `BARS_API_WORKERS=12`** (leaves ~4-8 GB of the 32 GB for the OS page cache that every process's SQLite reads lean on), the container at the plan maximum (32 vCPU / 32 GB, already set).
+
+| workers | memory (1.2-2 GB each) | forecast ceiling, edge-first mix (150/s per process) | 500-member edge-first peak (1,503 req/s) | 2 x peak (3,006 req/s) |
+|---|---|---|---|---|
+| 12 | ~14-24 GB | ~1,800 req/s | 84% | **does not fit** |
+| 14 (the cap) | ~17-28 GB | ~2,100 req/s | 72% | **does not fit** |
+
+So even on the forecast, **one container does not carry 2 x the 500-member peak**: the target headroom needs section 6 step 1 (edge tails: 216 req/s at 500, 12% of a 12-worker box) before 500 members, or a second service (step 2).
 
 The **old** client at 500 (1,591 req/s at 57 per process) needs 28 processes, and the **full-today's-routing** client (3,233 req/s) needs about 72. Neither fits one container: they need section 6.
 
@@ -167,7 +176,7 @@ Railway Pro list prices: $20 per vCPU-month, $10 per GB-month of RAM, $0.05 per 
 
 | line | today | at 500 (edge-first client) | how |
 |---|---|---|---|
-| bars-api RAM | ~$19 | **$180-270** | 16-24 processes × ~1.1 GB, always resident |
+| bars-api RAM | ~$19 | **$150-250** | 12 processes × 1.2-2 GB, always resident |
 | bars-api CPU | ~$1 | **$25-40** | ~10 vCPU busy at the peak, ~0.5 of peak over 136 market hours/month |
 | bars-api egress (gzip) | ~$0 | **$40** (old client $100, full-today $275) | ~2 KB gz/ask edge-first, 50% of peak over market hours |
 | bars-api volume | $7.5 | $7.5 | 50 GB |
@@ -182,29 +191,40 @@ Each alarm needs a data source that already exists. They are not wired into a pa
 
 | alarm | fire when | source |
 |---|---|---|
-| origin budget | bars-api asks > **0.06 per member-second** (30/s at 500) for 15 min, info; > 60% of the measured ceiling (1,400/s at 16 workers) for 5 min, page | Railway HTTP logs for `bars-api`, or the edge `X-Bars-Edge: tier` count |
+| origin budget | bars-api asks > **0.06 per member-second** (30/s at 500) for 15 min: info (the plan's budget, kept as a signal) | Railway HTTP logs for `bars-api`, or the edge `X-Bars-Edge: tier` count |
+| origin overload | bars-api asks > **1,950/s** (1.3 x the planned 1,503/s peak, so the planned peak itself never pages) for 5 min, OR above 85% of the topology ceiling once section 7 measures it: page | the same |
+| hand-off share | followers' requests answered by the leader (`X-Bars-Served-By: leader`) > 20% of asks for 5 min: the ONE leader is carrying the tier | edge / Railway logs |
 | origin latency | server-timing `bars;dur` p99 > 250 ms for 5 min | `[bars-slow]` lines + Railway HTTP logs |
 | shed | 503 `warming` / `warm-shed` > 0.5% of asks for 5 min | edge `X-Bars-Shed` |
 | **cascade to web** | edge `X-Bars-Edge: web-hedge` or `web-breaker` > 1% of `/api/bars` for 5 min | Worker logs |
 | no leader | `/api/health` on bars-api shows no `role: leader` in 20 calls, or the coverage view `<DATA_DIR>/.bars-live-view.pkl` is older than 5 s while the stream is alive | `/api/health`; `stat` via Railway SSH |
-| memory | bars-api RSS > 27 GB, or web > 28 GB | Railway metrics `MEMORY_USAGE_GB` |
+| memory | bars-api container > **29 GB** (above the planned 12 x 2 GB = 24 GB, below the 32 GB limit), or web > 28 GB | Railway metrics `MEMORY_USAGE_GB` |
 | vendor | any member-path `fetch` / `cold-bg` serve layer > 1% of asks | server-timing `desc` |
 
 ## 6. At 1,000 members (and for the old / full-today clients at 500)
 
-Edge-first at 1,000 is 3,006 req/s at the peak, about 34 Railway processes at 60%: more than one container's memory. Members' tails dominate, so in order:
+Edge-first at 1,000 is 3,006 req/s at the peak, about 34 Railway processes at 60% on the forecast: more than one container's memory (14 at most). Members' tails dominate, so in order:
 
-1. **Edge tails** (lane E). The Worker answers `since=` tails from a per-key edge fill, single-flight, refreshed each second. Origin falls to ~430 req/s at 1,000, which one 16-worker container carries at 25%. This is the cheapest step and needs no member-facing compromise: the stream still delivers every trade.
-2. **A second bars-api service** (`bars-api-2`): its own 50 GB volume, its own R2 install, the same env. The Worker spreads `/api/bars/<sym>` across `BARS_ORIGINS` by symbol hash, so each service's memory cache sees its own half of the universe, and falls back to the other on failure. The Worker change belongs to the edge lane. Cost is about +$230/month per service.
+1. **Edge tails** (lane E). The Worker answers `since=` tails from a per-key edge fill, single-flight, refreshed each second. Origin falls to ~430 req/s at 1,000 (2 x the 216/s recorded at 500), **24%** of the 12-worker forecast ceiling (1,800 req/s), 18% of a 16-worker one; a forecast, like section 3.1. This is the cheapest step and needs no member-facing compromise: the stream still delivers every trade.
+2. **A second bars-api service** (`bars-api-2`): its own 50 GB volume, its own R2 install, the same env. The Worker gives every symbol ONE home service by symbol hash (`BARS_ORIGINS`), so each service's memory cache sees its own half of the universe. Cost is about +$230/month per service.
+   ⛔ **Never fall back across stores.** `history_rev` / `series_rev` are comparable only within ONE store (`edge/bars-edge-router/worker.js` keys its copies per store; 70 of 70 series compared differed between the web and bars-api stores). An answer from the other service would be compared by the client against a rev from the home store, and could be taken as "nothing changed" or "history rewritten" when neither is true. So when a symbol's home service fails, the Worker answers 503 + Retry-After (the client keeps its copy and re-polls) rather than asking the other service. Moving a symbol's home on purpose (a service retired, the hash re-spread) must be a STORE CHANGE the client sees: the answer carries the serving store's identity and the client re-validates the whole series, never a rev comparison. That store identity on the wire does not exist yet; until it does, the two services need a fixed home per symbol and no failover. (Today's edge already hedges and breaks to WEB, a different store: the same hazard, tracked under section 3.3.) The Worker change belongs to the edge lane.
 3. **stream-edge: 6 replicas.** stream-ingest: measure first (section 3.4). Union ~1,656 symbols.
 4. **web:** the memory investigation of 3.3 must be finished first; at 1,000 members a 32 GB single process is not credible.
 5. **Cloudflare:** costs scale linearly (~$300-500).
 
 If Railway offers Enterprise per-replica sizes above 32 GB, more processes fit in one container instead of step 2.
 
-## 7. Replay matrix results
+## 7. Replay results: #2962's topology
 
-*Queued behind the heavy lock at the time of writing.* `run_matrix.py old:500:1 old:500:6 edge:200:1 edge:200:2 edge:500:1 edge:500:6 edge:1000:6 full:500:1 full:500:6 full:1000:6 edge:500:1:edge`. The results are appended here when the run lands.
+**Harness.** `tools/capacity_replay/run_topology.py` runs #2962's REAL topology: N processes on one `DATA_DIR` with `BARS_API_WORKERS=N` (one elects leader; followers hand leader-only work to it over the loopback port), sandboxed (read-only immutable copy of a real store, loopback-only sockets, no vendor), the member model of section 1, members swept per case, a fresh `DATA_DIR` and fresh processes per case, a free-commit-memory floor, and the share of requests the leader answered for a follower (`X-Bars-Served-By`). On Windows each process has its own port and the clients round-robin (uvicorn's shared `listen` fails there); production shares one socket.
+
+**Status (2026-11-28 ~09:30Z): the measurement has NOT run.** It is queued under `heavy_lock run --solo` on the shared dev box, behind a long-running nightly job; cases `edge` x {1 process: 100, 200 members; 2: 200, 300; 4: 200, 300, 400, 500} and `old` x {4: 300}. A box of this size can only show the per-process slope and the leader's share, not 500 members' full origin load (that is ~1,500 req/s against a handful of local processes).
+
+**What the harness has shown (a smoke, not a measurement):** 2 processes, `edge` mode, 20 members, 10 s: roles `leader` + `follower`, 67.8 req/s offered, 65.3 OK, **6.8% of requests answered by the leader for the follower** (a cold start: every series is new to the follower's memory cache), 13 sheds (503 `warming`), private memory 1.0 / 1.3 GB per process.
+
+**Discarded:** the earlier `run_matrix` cases (`old:500:1`, `old:500:6`, `edge:200:1/2`, `edge:500:1`) offered 600-1,500 req/s to 1-6 independent processes and answered almost nothing (`ok_rps` 0-120, tens of thousands of timeouts): they measured an overloaded box, not a ceiling, and are not used anywhere above.
+
+When the topology run lands, record here per case: offered / OK req/s, p50 / p95 / p99, sheds, timeouts, the hand-off share, peak private MB per process; then the ceiling = the highest OK rate with p99 under 250 ms and no timeouts, per process count, and replace the forecast in section 3.1.
 
 ## 8. Needs the owner
 
@@ -216,6 +236,6 @@ If Railway offers Enterprise per-replica sizes above 32 GB, more processes fit i
 
 | when (UTC) | change | undo |
 |---|---|---|
-| (after #2962 merges) | `railway variables --service bars-api --set BARS_API_WORKERS=16`. This restarts bars-api for ~10-20 s, during which the edge serves from web. Do it outside market hours, then verify the boot: `curl https://bars-api-production-1052.up.railway.app/api/health` ×20 shows one `role: leader`, several `pid`s, `workers: 16`. | `railway variables --service bars-api --set BARS_API_WORKERS=1` (restart). A delete does not restart: redeploy after it. |
+| (after #2962 merges AND section 7 measures the topology) | `railway variables --service bars-api --set BARS_API_WORKERS=12`. This restarts bars-api for ~10-20 s, during which the edge serves from web. Do it outside market hours, then verify the boot: `/api/health` on the bars-api service ×20 shows one `role: leader`, several `pid`s, and `workers` = the value set. | `railway variables --service bars-api --set BARS_API_WORKERS=1` (restart). A delete does not restart: redeploy after it. |
 
 No Railway resource or replica change was made by this work. The limits are already at the plan maximum, and the processes change needs #2962 on master first.
