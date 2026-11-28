@@ -13,6 +13,8 @@
  *   M3 a column is never another column's array: two computes return two arrays, and a source column handed in is
  *      never handed back
  *   M4 the other types still take their own path (WMA unchanged against the shipped maSeries)
+ *   M1b a running sum that overflows leaves the shipped holes · M5 toColumn passes only an own column of the input's
+ *      length through, once (the WeakSet rule; mutation-checked)
  */
 import { describe, it, expect } from 'vitest'
 import { smaOfSeries, emaOfSeries, smaColumn, emaColumn, maSeries } from './movingAverages'
@@ -93,6 +95,30 @@ describe('the shipped SMA / EMA, written straight into a column', () => {
     const one = registry.computeFor(def, bars, { period: 1 }, { source }).ma
     expect(one).not.toBe(source)
     same(one, refColumn(smaOfSeries(source, 1, bars.length), bars.length))
+  })
+
+  it('M1b a running sum that overflows is a hole, as the shipped points made it', () => {
+    // finite closes whose sum is not finite (1.6e308 + 1.6e308 = Infinity; Infinity - Infinity = NaN): the point path
+    // wrote {value: Infinity} / {value: NaN} and toColumn dropped them; a column must leave the same holes
+    const src = [1.6e308, 1.6e308, 1.6e308, 1, 2, 3, -1.6e308, -1.6e308, 4, 5, 6, 7]
+    for (const p of [1, 2, 3, 4]) {
+      same(smaColumn(src, p, src.length), refColumn(smaOfSeries(src, p, src.length), src.length))
+      same(emaColumn(src, p, src.length), refColumn(emaOfSeries(src, p, src.length), src.length))
+    }
+    expect(smaColumn(src, 2, src.length).some((v) => v === Infinity || v === -Infinity)).toBe(false)
+  })
+
+  it('M5 only a column the compute made passes through toColumn as it is, and only once', () => {
+    const n = 6
+    const foreign = Float64Array.from([1, 2, 3, 4, 5, 6])          // a source column a native might hand back
+    const read = registry.__toColumnForTests(foreign, n)
+    expect(read).not.toBe(foreign)                                   // read as points (a number has no .value): a new column
+    same(read, Float64Array.from([NaN, NaN, NaN, NaN, NaN, NaN]))
+    const own = Float64Array.from([NaN, 2, 3, NaN, 5, 6])
+    expect(registry.__toColumnForTests(own, n, true)).toBe(own)       // made by this compute: as it is
+    expect(registry.__toColumnForTests(own, n)).not.toBe(own)         // a second hand-back is not passed through
+    const short = Float64Array.from([1, 2, 3])
+    expect(registry.__toColumnForTests(short, n, true)).not.toBe(short) // not the input's length: never as it is
   })
 
   it('M4 the other types keep their own path', () => {

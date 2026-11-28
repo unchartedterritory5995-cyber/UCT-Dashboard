@@ -2138,6 +2138,8 @@ const NATIVE_COMPUTE = {
 // as points, exactly as before, so no column is ever another column's array.
 const _ownColumns = new WeakSet()
 function ownColumn(col) { _ownColumns.add(col); return col }
+/** The test seam for that rule (movingAverages.columns.test.js M5): `toColumn` itself, and `ownColumn`. */
+export function __toColumnForTests(points, length, own = false) { return toColumn(own ? ownColumn(points) : points, length) }
 function toColumn(points, length) {
   if (_ownColumns.has(points) && points.length === length) { _ownColumns.delete(points); return points }
   const col = new Float64Array(length)
