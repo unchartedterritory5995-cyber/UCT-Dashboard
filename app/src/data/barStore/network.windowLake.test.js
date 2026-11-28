@@ -812,7 +812,7 @@ describe('W14 — review of #2986 round 4: a chart joining a warm (F-E), an unkn
       payload: { ticker: 'ABC', tf: '5', bars: M.ABC[5].slice(-300).map((b) => ({ ...b, o: b.o / 2, h: b.h / 2, l: b.l / 2, c: b.c / 2 })) } })
     const K = winKey('ABC', '5', '2006-02-15')
     h.network.start(K)
-    await h.flush()
+    await h.run()
     await new Promise((r) => setTimeout(r, NEWEST_SESSION_MAX_MS + 150))
     await h.flush()
     expect(o.urls.length, 'an unchecked basis is the origin\'s').toBe(1)
