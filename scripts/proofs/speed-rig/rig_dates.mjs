@@ -45,6 +45,20 @@ export function viewBeforeListing(v, want, before, earliest) {
   return dayOf(e.t) === first
 }
 
+/**
+ * The deep daily store's answer (/api/bars-history, read in the page: {ok, sealed, partial, header, first, n, want}) as a
+ * source: only a SEALED, non-partial answer counts. When the worker's deep origin does not answer, the route serves the
+ * web's own shallow store marked `partial: true` / `X-Bars-History: partial`; its first bar is recent and must never
+ * read as the symbol's earliest (in that outage a chart's short history would pass as 'earliest-bars').
+ */
+export function dailySource(a) {
+  const base = { source: 'bars-history', n: a && a.n }
+  if (!a || a.ok !== true || a.sealed !== true || a.partial || a.header === 'partial' || a.first == null) {
+    return { ...base, t: null, refused: !a ? 'no answer' : a.ok !== true ? 'not ok' : a.partial || a.header === 'partial' ? 'partial' : a.sealed !== true ? 'not sealed' : 'no rows' }
+  }
+  return { ...base, t: a.first, exhausted: Number.isFinite(a.n) && Number.isFinite(a.want) && a.n > 0 && a.n < a.want }
+}
+
 /** The earliest bar over the deep sources ({t, exhausted, source}[]): the oldest one that answered, or null. */
 export function deepEarliest(list) {
   const got = (list || []).filter((x) => x && x.t != null && dayOf(x.t))
@@ -83,6 +97,13 @@ export function selfCheck() {
   ok(!viewBeforeListing({ from: '2005-12-01', to: '2006-06-01', lr: { from: 0, to: 120 }, ni: 5000 }, w, present, deep('2005-12-01')), 'a first bar before the date is a cover question, not a listing one')
   ok(deepEarliest([{ t: '2016-02-01', exhausted: false, source: 'bars' }, { t: '2010-05-03', exhausted: true, source: 'bars-history' }]).t === '2010-05-03', 'the minimum over the sources')
   ok(deepEarliest([{ t: null, source: 'lake' }]) === null, 'no source answered: no earliest')
+  const ans = (o) => ({ ok: true, sealed: true, partial: false, header: null, first: '2010-05-03', n: 4000, want: 12500, ...o })
+  ok(dailySource(ans()).t === '2010-05-03' && dailySource(ans()).exhausted === true, 'a sealed answer is a source')
+  ok(dailySource(ans({ partial: true })).t === null && dailySource(ans({ partial: true })).refused === 'partial', 'a partial answer (the shallow fallback) is refused')
+  ok(dailySource(ans({ header: 'partial' })).t === null, 'the X-Bars-History: partial header is refused')
+  ok(dailySource(ans({ sealed: false })).t === null && dailySource(ans({ ok: false })).t === null && dailySource(null).t === null, 'unsealed, not ok, no answer: refused')
+  ok(dailySource(ans({ n: 12500 })).exhausted === false, 'a full page is not exhausted')
+  ok(!viewBeforeListing(qfin, w, present, deepEarliest([dailySource(ans({ partial: true, first: '2018-12-14' }))])), 'in an outage the shallow answer never accepts earliest bars')
   ok(lakeSeriesFor('240') === '60' && lakeSeriesFor('45') === '15' && lakeSeriesFor('5') === '5' && lakeSeriesFor('D') === null, 'intraday lake series per timeframe')
   return 'rig_dates self-check: ok (covers: day strings, business-day objects, seconds; earliest bars need a move and the DEEP earliest; fitted only when exhausted)'
 }

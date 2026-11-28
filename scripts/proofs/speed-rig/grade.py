@@ -495,6 +495,8 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
                 g['flags'][fl] = g['flags'].get(fl, 0) + 1
             if r.get('full') is not None:
                 g['full'].append(r['full'])
+            if r.get('earliestFull') is not None:
+                g.setdefault('earliest', []).append(r['earliestFull'])
             if r.get('warm'):
                 g['warm'][r['warm']] = g['warm'].get(r['warm'], 0) + 1
             if r.get('focus') is False:
@@ -523,7 +525,9 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
     rows = {k: {'switches': g['n'], 'failed': g['fail'], 'flags': g['flags'], 'p50': pct(g['full'], 0.5), 'p100': pct(g['full'], 1),
-                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None} for k, g in by.items()}
+                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None,
+                'earliest': {'n': len(g['earliest']), 'p50': pct(g['earliest'], 0.5), 'p100': pct(g['earliest'], 1)} if g.get('earliest') else None}
+            for k, g in by.items()}
     order = sorted((h.get('position', 0), h['pass'], h.get('side')) for h in hs if h.get('side'))
     return {'dir': d, 'run': run, 'order': order, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
             'expect': exp, 'labels': {k: sorted(v) for k, v in labels.items()}, 'rows': rows, 'problems': problems, 'results': results}
@@ -561,6 +565,10 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
             c = cmp['rows'].get(k)
             line += f" {c['p50'] if c else '-'} | {c['p100'] if c else '-'} | {c['failed'] if c else '-'} |"
         out.append(line)
+    ea = [(k, r['earliest']) for k, r in sorted(g['rows'].items()) if r.get('earliest')]
+    if ea:
+        out += ['', "EARLIEST_BARS (a date before the symbol listed: its earliest bars, verified; kept OUT of the p50 / p100 above):"]
+        out += [f"- {k}: {e['n']} switches, p50 {e['p50']} p100 {e['p100']}" for k, e in ea]
     if g['problems']:
         out += ['', 'Problems:'] + [f'- {p}' for p in g['problems']]
     return '\n'.join(out)
@@ -650,7 +658,9 @@ def mark_pass(r: dict, rec: dict, p: dict) -> dict:
         r['flags'] = sorted(set(r['flags']) | {'INVALID'})
         r['full'] = None
     elif (rec.get('goToDate') or {}).get('landedAs') == 'earliest-bars':
+        # its own class: kept out of the p50 / p100 (another frame than the date's), its time reported apart
         r['flags'] = sorted(set(r['flags']) | {'EARLIEST_BARS'})
+        r['earliestFull'], r['full'] = r.get('full'), None
     if p.get('i') in set(rec.get('profiled') or []):
         r['flags'] = sorted(set(r['flags']) | {'PROFILED'})
         r['full'] = None
@@ -701,7 +711,7 @@ def self_check() -> None:
     assert not date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': '2005-08-01'}}})   # no 'to': never vacuous
     mk = lambda rec, i=0: mark_pass({'flags': [], 'full': 40}, rec, {'i': i})  # noqa: E731
     assert mk({'goToDate': {'asked': '1/3/2006', 'landed': False}}) == {'flags': ['INVALID'], 'full': None}
-    assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'earliest-bars'}}) == {'flags': ['EARLIEST_BARS'], 'full': 40}
+    assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'earliest-bars'}}) == {'flags': ['EARLIEST_BARS'], 'full': None, 'earliestFull': 40}
     assert mk({'goToDate': {'asked': '1/3/2006', 'landed': True, 'landedAs': 'covers'}}) == {'flags': [], 'full': 40}
     assert mk({'profiled': [3, 4, 5]}, 4) == {'flags': ['PROFILED'], 'full': None} and mk({'profiled': [3, 4, 5]}, 2) == {'flags': [], 'full': 40}
     assert date_landed({'goToDate': {'asked': '1/3/2006', 'view': {'from': {'year': 2005, 'month': 8, 'day': 1}, 'to': {'year': 2006, 'month': 1, 'day': 3}}}})
