@@ -5916,6 +5916,26 @@
     "GRMN",
     "KGS"
    ]
+  },
+  {
+   "id": "cloud/46118905944-1/COV-def-dd-arrows",
+   "at": "2026-11-28T07:04:06+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CI",
+    "PSIX",
+    "ARHS",
+    "AVA",
+    "AOSL",
+    "WTTR",
+    "ATR",
+    "AMX",
+    "CLF",
+    "SEB",
+    "FTDR",
+    "HD",
+    "BABA"
+   ]
   }
  ]
 }
