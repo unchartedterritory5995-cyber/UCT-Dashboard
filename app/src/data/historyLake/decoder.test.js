@@ -293,6 +293,18 @@ describe('lake pieces decode off the main thread', () => {
     expect(dec.stats().dead).toBe(true)
   })
 
+  it('Q6 a job given up after it was posted is not decoded inline when the worker dies under it', async () => {
+    const f = fakeWorkerFactory({ failOn: (n) => n === 1, delay: 20 })
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    const ac = new AbortController()
+    const posted = dec.decode(pieces[0].headerJson, pieces[0].body, { signal: ac.signal })
+    expect(dec.stats().pending).toBe(1)                  // in the worker, not in the page queue
+    ac.abort()                                           // given up while the worker holds it
+    await expect(posted).rejects.toMatchObject({ name: 'AbortError' })
+    expect(dec.stats()).toMatchObject({ dead: true, dropped: 1, fallback: 0 })
+  })
+
   it('W6 the default source uses the page decoder, and the page decoder uses a Worker where one exists', async () => {
     const made = []
     class FakeWorker {
