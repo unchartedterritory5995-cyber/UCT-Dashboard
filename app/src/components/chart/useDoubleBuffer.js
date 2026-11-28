@@ -404,8 +404,21 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       const habit = ftf != null && !cutoffRef.current ? habitualTfs(String(ftf), { k: 1, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null })[0] : null
       const target = shadowTargetFor(f, ftf, habit)
       const s = 1 - b.front
+      // (review of #3008, F4) nothing to hold: under a replay cutoff a hidden pane still on the front's own symbol (a
+      // habitual timeframe loaded before change-date mode) is dropped, it can never be flipped to there
+      if (!target) {
+        if (cutoffRef.current && b.syms[s] != null && b.syms[s] === f) {
+          reportsRef.current[s] = null
+          startTransition(() => setBuf((x) => {
+            if (x.front !== b.front || x.syms[s] !== f) return x
+            const syms = x.syms.slice(); syms[s] = null
+            return { syms, tfs: x.tfs, front: x.front }
+          }))
+        }
+        return
+      }
       const holds = (x) => x.syms[s] === target.sym && String(x.tfs[s]) === String(target.tf)
-      if (!target || holds(b)) return
+      if (holds(b)) return
       reportsRef.current[s] = null
       timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
       noteRetarget()
@@ -430,7 +443,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     firstRetargetRef.current = true
     const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
     return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
-  }, [eligible, slotOk, frontSym, frontTf])
+  }, [eligible, slotOk, frontSym, frontTf, cutoff])   // (F4) entering or leaving change-date mode retargets
 
   // (review of #2930, LOW-4) a layer's `set` time is when its new row COMMITS (the retarget's transition), not when the
   // retarget asked for it

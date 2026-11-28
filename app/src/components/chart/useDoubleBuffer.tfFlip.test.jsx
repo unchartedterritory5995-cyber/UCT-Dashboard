@@ -140,6 +140,14 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     expect(h.result.current.tfs[0]).toBe('W')
   })
 
+  it('T6b entering change-date mode after the habitual hidden chart loaded: it is dropped (it could never flip)', async () => {
+    const h = await ready()
+    expect(h.result.current.syms[1]).toBe('AAA')
+    h.rerender({ ...base(), cutoff: '2006-03-16' })
+    await idle()
+    expect(h.result.current.syms[1]).toBe(null)
+  })
+
   it('T12 (F5) a hidden chart at another timeframe is not given the front view lock (only the pin)', async () => {
     const h = await ready()
     const writes = []
