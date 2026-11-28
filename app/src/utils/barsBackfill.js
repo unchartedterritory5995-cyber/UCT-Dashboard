@@ -21,9 +21,19 @@ export const FIRST_PAINT_BARS = 600
  * lookback in one answer. The deep history still joins older rows behind the left edge. Store path only (data/barStore
  * network: barsCountFor, the split tail, deepPending); the legacy warmers keep FIRST_PAINT_BARS.
  */
-export const DATE_FIRST_PAGE = Object.freeze({ D: 2000, W: 2000, M: 1200 })
-/** The first page of a D/W/M tail (DATE_FIRST_PAGE); FIRST_PAINT_BARS for anything else. */
-export function dateFirstPageFor(tf) { return DATE_FIRST_PAGE[String(tf)] ?? FIRST_PAINT_BARS }
+// ⭐ (review of #2934, B1) ...BUT ONLY WHERE A VIEW WILL DRAW IT. A neighbour, dwell or list warm asks the default
+// FIRST_PAINT_BARS page as before (the warms ask many keys; most are never shown). The chart's own key, the typed key and
+// the typed key's linked charts ask a COVER: the rows their member's view will draw (paintLog viewNeed), at least the
+// default page and at most DATE_COVER_MAX (data/barStore/network: barsCountFor `cover`). DATE_COVER_MAX is also the depth
+// above which a held D/W/M set counts as joined with its deep history (network deepPending): no tail page is deeper.
+export const DATE_COVER_MAX = Object.freeze({ D: 2000, W: 2000, M: 1200 })
+/** The deepest D/W/M tail page (DATE_COVER_MAX); FIRST_PAINT_BARS for anything else. */
+export function dateCoverMaxFor(tf) { return DATE_COVER_MAX[String(tf)] ?? FIRST_PAINT_BARS }
+/** The rows a D/W/M tail asks for a view that needs `cover` rows: FIRST_PAINT_BARS at least, DATE_COVER_MAX at most. */
+export function dateCoverFor(tf, cover = 0) {
+  const c = Number.isFinite(cover) ? Math.floor(cover) : 0
+  return Math.max(FIRST_PAINT_BARS, Math.min(c, dateCoverMaxFor(tf)))
+}
 
 // ── Intraday first paint is budgeted in VISIBLE bars, not fetched ones ──────
 // ⛔⛔ THE RTH FILTER DISCARDS ~60% OF AN INTRADAY PAYLOAD, AND NOTHING USED TO

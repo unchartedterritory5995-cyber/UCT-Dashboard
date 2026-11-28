@@ -12,13 +12,16 @@ import { setChartClockNotes, resetChartClockNotes } from '../engine/chartClockNo
 import { setIndexHistoryNote, _resetIndexHistoryNotes } from '../engine/indexHistoryNotice'
 import { setRuntimeErrorNotice, resetRuntimeErrorNotices } from '../engine/runtimeErrorNotice'
 import house from '../house/housePineIndicators.json'
-import { HOUSE_INDICATOR_NAMES, isHouseCopyMeta } from '../house/houseNames'
+import { HOUSE_INDICATOR_NAMES, HOUSE_SCRIPT_SHA256, isHouseCopyMeta } from '../house/houseNames'
 
 const DOC_NOTE = { name: 'Reads', note: 'This script reads `syminfo.industry`, and it uses UCT data for it.' }
 const CLOCK = { code: 'other-symbol:seed', reason: 'This script reads `SEED_FRED6725_RS_RATING:RSRATING`.' }
 const defs = {
   fred: { meta: { name: 'Fred RS', disclosures: [DOC_NOTE] } },
   edited: { meta: { name: 'Fred RS', scriptEdited: true, disclosures: [DOC_NOTE] } },
+  // the house script pasted into Create Indicator under its own title (owner 2026-11-27: the notes still showed)
+  pasted: { meta: { name: 'RS Rating', pineSourceSha256: house.indicators[0].pineSha256, disclosures: [DOC_NOTE] } },
+  pastedEdited: { meta: { name: 'RS Rating', scriptEdited: true, pineSourceSha256: house.indicators[0].pineSha256, disclosures: [DOC_NOTE] } },
   mine: { meta: { name: 'My RS', disclosures: [DOC_NOTE] } },
 }
 const registry = { getDefinition: (id) => defs[id] || null, registryGeneration: () => 1 }
@@ -65,12 +68,16 @@ describe('⭐ UCT house indicators show no data notes under the chart', () => {
 describe('house indicator names (house/houseNames.js)', () => {
   it("are exactly the house set's own names (one authority, restated only to keep the chart light)", () => {
     expect([...HOUSE_INDICATOR_NAMES].sort()).toEqual(house.indicators.map((i) => i.name).sort())
+    expect([...HOUSE_SCRIPT_SHA256].sort()).toEqual(house.indicators.map((i) => i.pineSha256).sort())
   })
   it('recognise an unedited copy, and nothing else', () => {
     expect(isHouseCopyMeta({ name: 'Fred RS' })).toBe(true)
     expect(isHouseCopyMeta({ name: ' fred rs ' })).toBe(true)
     expect(isHouseCopyMeta({ name: 'Fred RS', scriptEdited: true })).toBe(false)
     expect(isHouseCopyMeta({ name: 'My RS' })).toBe(false)
+    expect(isHouseCopyMeta({ name: 'My RS', pineSourceSha256: HOUSE_SCRIPT_SHA256[0].toUpperCase() })).toBe(true)
+    expect(isHouseCopyMeta({ name: 'My RS', pineSourceSha256: HOUSE_SCRIPT_SHA256[0], scriptEdited: true })).toBe(false)
+    expect(isHouseCopyMeta({ name: 'My RS', pineSourceSha256: 'ab'.repeat(32) })).toBe(false)
     expect(isHouseCopyMeta(null)).toBe(false)
   })
 })

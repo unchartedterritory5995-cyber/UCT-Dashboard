@@ -550,3 +550,85 @@ def test_remote_mode_records_owner_holds_without_queueing(monkeypatch):
     assert "ZZR" in bs._sub_owners and "ZZR" not in bs._pending_subscribe
     bs.unsubscribe_symbols(["ZZR"], owner="nhnl")
     assert "ZZR" not in bs._sub_owners and "ZZR" not in bs._pending_unsubscribe
+
+
+# ── 2026-11-27: the desired build never runs on the event loop ────────────────
+
+class _ThreadRecordingSide:
+    """A side-feeds stand-in that records which thread each call ran on."""
+
+    def __init__(self):
+        self.threads = {"desired_extras": set(), "on_connect": set()}
+
+    def desired_extras(self):
+        self.threads["desired_extras"].add(threading.get_ident())
+        return {}, frozenset()
+
+    def on_connect(self):
+        self.threads["on_connect"].add(threading.get_ident())
+
+    def apply(self, batch):
+        pass
+
+    def new_epoch(self):
+        pass
+
+    def status(self):
+        return {}
+
+
+def test_the_desired_build_never_runs_on_the_event_loop(monkeypatch):
+    """⛔⛔ PRODUCTION 2026-11-26/27: 29 of 118 captured event-loop freezes (loop_stalls/*.jsonl) were
+    inside `desired()` -- bar_stream_owners, _nhnl_seeds, desired_keys, _owners_wire. It ran every
+    POLL_S (4x a second) ON THE LOOP, took four other threads' locks and copied the whole NH/NL
+    universe, so every member's page and stream waited on it (~30 `loop_stalled` pages a day).
+    The build, the compare and the encode now run on the client's own thread; and a build that
+    BLOCKS (a busy lock) must not stall the loop."""
+    monkeypatch.setattr(fc, "RECONNECT_MIN_S", 0.01)
+    monkeypatch.setattr(fc, "POLL_S", 0.02)
+    sent = []
+    scripts = [[batch(1, [("ZZA", "1", bar(T0, 10.0))])]]
+
+    def connect(url, **kw):
+        return _ScriptedConn(scripts.pop(0) if scripts else [], sent)
+
+    owner_threads = set()
+
+    def owners():
+        owner_threads.add(threading.get_ident())
+        import time as _t
+        _t.sleep(0.15)                       # a busy bar_stream._state_lock, say
+        return {"bars": {"ZZA": frozenset({"AM"})}}
+
+    side = _ThreadRecordingSide()
+
+    async def go():
+        loop_thread = threading.get_ident()
+        rb, c, _ = make_rb()
+        client = fc.FeedClient(rb, url="ws://x/internal/feed", secret=SECRET, client_id="w",
+                               owners_fn=owners, connect=connect, side=side)
+        rb.subscribe("ZZA", "1", v2=True)
+        stop = asyncio.Event()
+        task = asyncio.create_task(client.run(stop))
+        # the loop's own heartbeat: the worst gap between 10 ms ticks while builds run
+        worst = 0.0
+        loop = asyncio.get_running_loop()
+        last = loop.time()
+        end = last + 1.0
+        while loop.time() < end:
+            await asyncio.sleep(0.01)
+            now = loop.time()
+            worst = max(worst, now - last)
+            last = now
+        assert client.counters["connects"] == 1
+        assert [m for m in sent if isinstance(m, fp.Desired)], "the desired set was still sent"
+        stop.set()
+        await asyncio.wait_for(task, 3)
+        return loop_thread, worst
+
+    loop_thread, worst = asyncio.run(go())
+    assert owner_threads and loop_thread not in owner_threads, "owners were built on the event loop"
+    assert side.threads["desired_extras"] and loop_thread not in side.threads["desired_extras"]
+    assert side.threads["on_connect"] and loop_thread not in side.threads["on_connect"], \
+        "on_connect clears the seeds the off-loop build iterates: it must run on that same thread"
+    assert worst < 0.1, f"the loop stalled {worst * 1000:.0f} ms behind a blocking desired build"

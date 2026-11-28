@@ -1,4 +1,5 @@
 import { mergeMonotonic } from './barsMerge'
+import { BAR_BUDGET_DESKTOP, barBudget, registerBarHolder, isDailyTf } from '../lib/barBudget'
 // Synchronous in-memory LRU cache of chart bars, keyed by `${SYM}_${TF}`.
 // This is the FAST layer in front of IndexedDB: a switch to a (sym, tf) that's
 // in here paints in the SAME synchronous frame — no async idbGet hop, no
@@ -14,9 +15,15 @@ import { mergeMonotonic } from './barsMerge'
 // itself holds. So a ROW budget too: over MEM_CACHE_MAX_ROWS the least recently used entries go
 // (never the one just written). 500,000 rows keep the watchlist's warm working set (±6 neighbours
 // × 5 timeframes of ~600 bars) plus about ten deep histories.
+// ⛔ (2026-11-27, the heap check) ...AND 500,000 WAS STILL A SECOND COPY OF EVERYTHING THE REGISTRY HOLDS: 44 MB of saved
+// copies after 50 presses on production's build, nearly all of keys the store held too. The row budget is now the page
+// budget's mem share (lib/barBudget.js: 200,000 rows; the touch tier's is smaller): this layer is the tier BEHIND the
+// registry (a key the registry dropped hydrates from here, then IndexedDB), and still holds the warm working set (+-6
+// neighbours x 5 timeframes x ~600 rows = 36k) plus a couple of deep keys.
 const MEM_CACHE_MAX = 200
-const MEM_CACHE_MAX_ROWS = 500_000
-let _maxRows = MEM_CACHE_MAX_ROWS
+const MEM_CACHE_MAX_ROWS = BAR_BUDGET_DESKTOP.mem
+let _maxRows = null
+const _max = () => (_maxRows ??= barBudget().mem)
 const _map = new Map() // insertion-ordered; delete+set marks most-recently-used
 let _rows = 0
 
@@ -72,10 +79,15 @@ export function memPut(sym, tf, bars, { savedAt, meta } = {}) {
   // another writer touched never carries a stale seal claim.
   _map.set(k, { bars, lastTs: bars[bars.length - 1]?.t ?? null, savedAt: stamp, ...(meta ? { meta } : {}) })
   _rows += bars.length
-  while (_map.size > 1 && (_map.size > MEM_CACHE_MAX || _rows > _maxRows)) {
-    const [oldK, oldE] = _map.entries().next().value   // least-recently-used (oldest)
+  while (_map.size > 1 && (_map.size > MEM_CACHE_MAX || _rows > _max())) {
+    // the least recently used INTRADAY entry first (lib/barBudget.js: a daily history is small and the base of every
+    // zoom); a daily one only when no other is left. Never the entry just written.
+    let oldK = null
+    for (const mk of _map.keys()) { if (mk !== k && !isDailyTf(mk.slice(mk.lastIndexOf('_') + 1))) { oldK = mk; break } }
+    if (oldK == null) oldK = _map.keys().next().value
+    if (oldK === k) break
+    _rows -= _map.get(oldK).bars.length
     _map.delete(oldK)
-    _rows -= oldE.bars.length
   }
 }
 
@@ -108,11 +120,13 @@ export function memPeekEntry(sym, tf) {
 export function memClear() {
   _map.clear()
   _rows = 0
-  _maxRows = MEM_CACHE_MAX_ROWS
+  _maxRows = null
 }
 
 /** Test-only: the held entries and rows; and a smaller row budget (memClear restores it). */
 export function _memStats() { return { entries: _map.size, rows: _rows } }
 export function _setMemMaxRowsForTests(n) { _maxRows = n }
+
+registerBarHolder('mem', () => ({ bars: _rows, entries: _map.size, budget: _max() }))
 
 export { MEM_CACHE_MAX, MEM_CACHE_MAX_ROWS }

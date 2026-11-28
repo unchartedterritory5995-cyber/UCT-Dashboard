@@ -18,10 +18,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork } from './network'
 import { keyOf, ACTION } from './types'
-import { fullBarsFor, dateFirstPageFor } from '../../utils/barsBackfill'
-// (2026-11-27, #2934) the D tail's first page is a covering page (DATE_FIRST_PAGE): a saved copy DEEPER than it is the
+import { fullBarsFor, dateCoverMaxFor } from '../../utils/barsBackfill'
+// (2026-11-27, #2934 B1) no D tail page is deeper than DATE_COVER_MAX: a saved copy DEEPER than it is the
 // case these rails are about, and the full-read recovery is any ask past it
-const FIRST = dateFirstPageFor('D')
+const FIRST = dateCoverMaxFor('D')   // no tail page is deeper (review of #2934, B1)
 const SAVED = FIRST + 400
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET

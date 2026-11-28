@@ -26,6 +26,7 @@ import { runtimeColumnsFor, resetRuntimeSessions, resetRuntimeLedgers } from './
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
+import { committedRunHalfEvidence } from './__tests__/committedRunHalfEvidence'
 import { objectRenderDropsFor, resetObjectRenderDrops } from './objectRenderNotice'
 import { otherSymbolsSignature, symTickersOf } from './otherSymbols'
 
@@ -65,9 +66,9 @@ beforeEach(() => {
   __allowEveryRuntimeScriptForTests()
   setRuntimeKillList([])
   registry.registerRuntimeLane(runtimeColumnsFor)
-  setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(RS), captures: [
-    { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
-    { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }] }])
+  // the committed record's evidence, as the server serves it: a new instance carries the owner's
+  // TradingView settings (house/houseNames.withHouseCreateInputs), admitted only by captures at moved settings
+  setRunHalfObjectEvidence([committedRunHalfEvidence(runtimeSourceHash(RS))])
 })
 afterEach(() => {
   if (defId) registry.uninstallUserDefinition(defId)
