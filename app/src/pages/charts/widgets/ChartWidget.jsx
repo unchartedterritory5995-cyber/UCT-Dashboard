@@ -34,6 +34,7 @@ import PendingSwitchCue, { usePendingCue } from '../../../components/chart/Pendi
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
+import { thirdLayerOn } from '../../../components/chart/doubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
 import { LayerFrontFocusContext, LayerPaintContext } from '../../../components/chart/layerPaint'
@@ -854,19 +855,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // <Activity> keep-alive, the touch tier, the store off, or the board's shadows all taken -> one pane, as before.
   const boardVisAny = useContext(BoardVisibilityContext)   // any board handle (the <Activity> one too): it must be a layer
   const [dbEligible] = useState(() => isMainTab && doubleBufferEligible({ scope: groupScope, color: activeColor, parentVis: boardVisAny }))
-  const layerInstRef = useRef([null, null])
-  const layerElRef = useRef([null, null])
+  // (lane C, plan 2.4) a THIRD layer (two hidden panes: the typed / ahead row and the behind row or the habitual timeframe)
+  // on a desktop of 8 GB or more; decided once for the widget's life (doubleBuffer.thirdLayerOn)
+  const [dbLayers] = useState(() => (dbEligible && thirdLayerOn() ? 3 : 2))
+  const layerInstRef = useRef([null, null, null])
+  const layerElRef = useRef([null, null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, tf, tfBar: tfBarCodes, settings: activeStoredSettings, cutoff: replayCutoff || null,
+    eligible: dbEligible, sym, tf, tfBar: tfBarCodes, layers: dbLayers, settings: activeStoredSettings, cutoff: replayCutoff || null,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })
   // each layer's pane instance; `paneRef` (the agent's, the symbol menu's door) is the FRONT one, and each layer's own
   // Time Navigator is bound to ITS pane (review of #2922, F7b)
-  const [layerPaneRefs] = useState(() => [{ current: null }, { current: null }])
-  const [layerElFns] = useState(() => [0, 1].map((i) => (el) => { layerElRef.current[i] = el }))
+  const [layerPaneRefs] = useState(() => [{ current: null }, { current: null }, { current: null }])
+  const [layerElFns] = useState(() => [0, 1, 2].map((i) => (el) => { layerElRef.current[i] = el }))
   // each layer's time range: the front's moves the shadow's zoom (useDoubleBuffer, F1)
-  const [layerTimeRange] = useState(() => [0, 1].map((i) => () => { dbViewChangedRef.current?.(i) }))
+  const [layerTimeRange] = useState(() => [0, 1, 2].map((i) => () => { dbViewChangedRef.current?.(i) }))
   const dbViewChangedRef = useRef(null)
   dbViewChangedRef.current = db.viewChanged
   // the workspace's mount queue is released ONCE per widget, whichever layer's chart is ready first (F7)
@@ -875,7 +879,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   panelSlotReadyRef.current = panelSlotReady
   const dbFrontRef = useRef(0)
   dbFrontRef.current = db.front
-  const [layerRefFns] = useState(() => [0, 1].map((i) => (inst) => {
+  const [layerRefFns] = useState(() => [0, 1, 2].map((i) => (inst) => {
     layerInstRef.current[i] = inst
     layerPaneRefs[i].current = inst
     if (i === dbFrontRef.current) paneRef.current = inst
@@ -888,6 +892,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerSubscribeCrosshair = [
     useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[0], db.syms[0]),
     useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[1], db.syms[1]),
+    useLayerCrosshair(crosshairBus, widgetIdRef, db.handles[2] || db.handles[1], db.syms[2] ?? null),   // (2.4) unused with two layers
   ]
 
   // ⭐ THE PANE, rendered once (one pane) or per layer (the double buffer, chart/useDoubleBuffer.js): every prop the
@@ -1097,7 +1102,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         <div className={dbStyles.slot} data-double-buffer="">
           {/* (review of #2932) a pane's refocus after a typed Enter that flipped lands in the pane shown now (ChartPane) */}
           <LayerFrontFocusContext.Provider value={db.focusFront}>
-          {[0, 1].map((i) => (db.syms[i] ? (
+          {db.handles.map((_, i) => (db.syms[i] ? (
             <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
                 <LayerSwrConfig vis={db.handles[i]}>

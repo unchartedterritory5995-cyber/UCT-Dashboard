@@ -121,6 +121,16 @@ describe('useDoubleBuffer: the timeframe flip', () => {
     expect(db.doubleBufferStats().why['view-lock']).toBe(1)
   })
 
+  it('T5c both layers hold the same view lock (the mirror gave it): still refused (a timeframe switch frames otherwise)', async () => {
+    const h = await ready()
+    const lock = { anchorFrac: 0.95, width: 160, tf: 'D' }
+    panes[0].m = { ...meta(), frame: { ...meta().frame, locked: true, lock } }
+    panes[1].m = { ...meta(), frame: { ...meta().frame, locked: true, lock: { ...lock } } }
+    press(h, { tf: 'W' })
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why['view-lock']).toBe(1)
+  })
+
   it('T5b CONTROL: the zoom widths differ: refused (view-zoom), as for a symbol press', async () => {
     const h = await ready()
     panes[0].m = meta(80)
