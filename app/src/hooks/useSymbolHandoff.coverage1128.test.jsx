@@ -166,3 +166,86 @@ describe('(3) a press to the row the double buffer can flip to is never held', (
     setFlipProbe(member, null)
   })
 })
+
+// ⭐⭐ (2026-11-28, cloud sweep 46113707532, COV-zo-wm-arrows: LONE_CHART 12 of 12, the W+M board zoomed out never moved) A
+// PRESS NEVER RESTARTS THE HANG GUARD OF A BOARD THAT HAS NOT MOVED. Zoomed out, a W/M view needs ~4,400 rows, more than
+// most listings have, so the daily hold ends only when the deep history's join settles; the edge history answered in
+// 5-22 s (app time, p50 11.3 s in that lane), and every arrow press (3.23 s apart) superseded the hold before its 4 s hang
+// guard, which each new press started again. Both charts showed NXE (header and candles) for all 12 presses while the
+// list moved through 12 rows. The guard now counts from the OLDEST request this chart has left unshown.
+describe('(4) a run of presses that each outlive their hold never freezes the chart past the hang guard', () => {
+  const press = (h, s) => act(() => { h.rerender({ s }) })
+  const run = (tf, member = null) => renderHook(({ s }) => useSymbolHandoff(s, tf, { member }), { initialProps: { s: 'AAA' } })
+
+  it('W zoomed out, the deep history never settling, a press every 3.2 s: the newest row shows 4 s after the first press', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999))
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    expect(h.result.current).toBe('AAA')
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })  // 4.1 s after BBB, 0.9 s after CCC
+    expect(h.result.current).toBe('CCC')                                // the newest, never the row it left
+  })
+
+  it('M (the sibling): the same', async () => {
+    st.rows = 411; st.answered = true; st.deep = true
+    const h = run('M', zoomedOut(3999))
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
+    expect(h.result.current).toBe('CCC')
+  })
+
+  it('intraday (the prepare route): the same bound', async () => {
+    st.displayable = false
+    const h = run('15')
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    expect(h.result.current).toBe('AAA')
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(900) })
+    expect(h.result.current).toBe('CCC')
+  })
+
+  it('control: one press still holds for the whole hang guard (nothing earlier was left unshown)', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999))
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3900) })
+    expect(h.result.current).toBe('AAA')
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })
+    expect(h.result.current).toBe('BBB')
+  })
+
+  it('control: a row that was SHOWN ends the run; the next press holds its own full guard', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999))
+    press(h, 'BBB')
+    st.deep = false                                                   // BBB's join settles: shown
+    await act(async () => { await vi.advanceTimersByTimeAsync(60) })
+    expect(h.result.current).toBe('BBB')
+    st.deep = true
+    await act(async () => { await vi.advanceTimersByTimeAsync(3200) })
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3800) })
+    expect(h.result.current).toBe('BBB')                              // CCC's own guard: 4 s from CCC
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(h.result.current).toBe('CCC')
+  })
+
+  it('control: going back to the row on screen ends the run too', async () => {
+    st.rows = 600; st.answered = true; st.deep = true
+    const h = run('W', zoomedOut(3999))
+    press(h, 'BBB')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
+    press(h, 'AAA')                                                   // back to the chart on screen
+    await act(async () => { await vi.advanceTimersByTimeAsync(100) })
+    press(h, 'CCC')
+    await act(async () => { await vi.advanceTimersByTimeAsync(3800) })
+    expect(h.result.current).toBe('AAA')
+    await act(async () => { await vi.advanceTimersByTimeAsync(300) })
+    expect(h.result.current).toBe('CCC')
+  })
+})
