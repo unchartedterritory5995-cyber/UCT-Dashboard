@@ -217,7 +217,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
+import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold, abortUrgentFamily } from '../utils/barsWarm'
 import { scanNeighbors, jumpTarget, jumpStride, strideTarget } from '../utils/scanNeighbors'
 import { afterPaint } from '../utils/afterPaint'
 import { publishScanNeighbors } from '../components/chart/neighborFrames'
@@ -1267,6 +1267,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const clickNudgeRef = useRef(null)
   const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs, group: hubGroup } = useChartsSym()
   const hubGroupRef = useRef(hubGroup)
+  const _variantsRef = useRef(new Map())   // the key families the last warm sent (id -> { tf, viewWindow })
   hubGroupRef.current = hubGroup
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
@@ -2368,6 +2369,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const holds = _holdsRef.current
       const ids = new Set(variants.map((v) => v.id))
       for (const [hid, h] of holds) if (!ids.has(hid)) { h.clear(); holds.delete(hid) }
+      // (review of #3020, follow-up) a key family the colour no longer reads: its in-flight urgent rows go too
+      for (const [vid, v] of _variantsRef.current) if (!ids.has(vid)) { try { abortUrgentFamily(v.tf, v.viewWindow) } catch { /* a warm */ } }
+      _variantsRef.current = new Map(variants.map((v) => [v.id, v]))
       for (const { id, tf, viewWindow } of variants) {
         if (!holds.has(id)) holds.set(id, createNeighborHold())
         // `deep`: once the member rests here, the next rows' older history loads too, so the flip
