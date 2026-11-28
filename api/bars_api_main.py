@@ -616,6 +616,46 @@ async def _history_here_or_by_leader(ticker, tf, bars, v, d, accept_encoding):
     return Response(content=body, status_code=code, headers=hdrs)
 
 
+_hist_flights: dict = {}
+_hist_flights_lock = threading.Lock()
+HANDOFF_FLIGHT_WAIT_S = 7.0
+
+
+def _history_for_follower(ticker, tf, bars, v, d, accept_encoding):
+    """(status, headers, body) of a handed-off history read: the router's memo, else ONE build per memo key at a
+    time across the leader's hand-off threads (the others wait for it and share it); a failed build is never shared."""
+    from api.routers import bars as rb
+    key = rb._history_memo_key(ticker, tf, bars, v, d, accept_encoding)
+    hit = rb._history_memo_get(key)
+    if hit is not None:
+        return hit[2], [(k, x) for k, x in hit[3] if k.lower() not in _HOP_HEADERS], bytes(hit[4])
+    with _hist_flights_lock:
+        fl = _hist_flights.get(key)
+        mine = fl is None
+        if mine:
+            fl = _hist_flights[key] = {"ev": threading.Event(), "out": None}
+    if not mine:
+        if fl["ev"].wait(HANDOFF_FLIGHT_WAIT_S) and fl["out"] is not None:
+            return fl["out"]
+        mine = True                                    # the build failed or outran the wait: build our own
+        fl = {"ev": threading.Event(), "out": None}
+    try:
+        resp = rb.gzip_with_length(rb.serve_bars_history(ticker, tf, bars, v, d), accept_encoding)
+        try:
+            rb._history_memo_put(key, resp)
+        except Exception:  # noqa: BLE001 - the memo is an optimisation
+            pass
+        out = (resp.status_code, [(k.decode("latin-1"), x.decode("latin-1")) for k, x in resp.raw_headers
+                                  if k.decode("latin-1").lower() not in _HOP_HEADERS], bytes(resp.body))
+        fl["out"] = out
+        return out
+    finally:
+        fl["ev"].set()
+        with _hist_flights_lock:
+            if _hist_flights.get(key) is fl:
+                _hist_flights.pop(key, None)
+
+
 def serve_for_follower(path_qs: str, spent_s: float = 0.0, accept_encoding: str = ""):
     """The leader's answer to a follower's handed-off bars request: (status, [(header, value)], body), produced by
     the same functions and the same parameter rules as the public routes. `spent_s` is what the follower already
@@ -652,10 +692,9 @@ def serve_for_follower(path_qs: str, spent_s: float = 0.0, accept_encoding: str 
         try:
             if history:
                 # The origin entry's answer (`serve_bars_history_origin`): the same build, gzipped by the member's
-                # Accept-Encoding (forwarded by the follower). Its single-flight and memo are per event loop, and
-                # this is a hand-off thread, so the build runs here directly.
-                out = gzip_with_length(serve_bars_history(ticker, tf, bars, q.get("v", ""), q.get("d", "")),
-                                       accept_encoding)
+                # Accept-Encoding (forwarded by the follower), through the router's own MEMO and a hand-off
+                # SINGLE-FLIGHT keyed like it (review F2: during a swap every follower history read lands here).
+                return _history_for_follower(ticker, tf, bars, q.get("v", ""), q.get("d", ""), accept_encoding)
             else:
                 out = serve_bars_http(ticker, tf, bars, since=q.get("since", ""), to=q.get("to", ""), warm=warm,
                                       session=q.get("session", ""))

@@ -337,16 +337,27 @@ export function sentencesOf(text) {
   return out
 }
 
+/** The attribute a panel puts on a publisher's required notice so every share carries it. */
+export const SHARE_NOTICE_ATTR = 'data-share-notice'
+
 /**
- * What the panel itself says about its list that a share must repeat: that the list was cut, and
- * that it is showing an older read. The words are the panel's own, never rewritten.
+ * What the panel itself says about its list that a share must repeat: a publisher's required
+ * notice, that the list was cut, and that it is showing an older read. The words are the panel's
+ * own, never rewritten.
  */
 export function readPanelNotes(root, { getStyle = defaultGetStyle } = {}) {
   if (!root?.querySelectorAll) return []
   const out = []
   const add = (s) => { const t = s.trim(); if (t && !out.includes(t)) out.push(t) }
+  // A publisher's required notice (`data-share-notice`: the BLS, BEA and Census wording an econ
+  // panel shows under its table) leaves with every share, whole and in the publisher's words, or
+  // the data could not leave at all. It is read first and never cut short.
+  for (const el of root.querySelectorAll(`[${SHARE_NOTICE_ATTR}]`)) {
+    if (el.closest('table') || !isShown(el, root, getStyle)) continue
+    add(plain(readLines(el, getStyle).lines))
+  }
   for (const el of root.querySelectorAll('p, span, small, li, div')) {
-    if (el.closest('table')) continue
+    if (el.closest('table') || el.closest(`[${SHARE_NOTICE_ATTR}]`)) continue
     // Only an element that holds words of its own: a wrapper is read through its children.
     if (![...el.childNodes].some((n) => n.nodeType === 3 && n.nodeValue.trim())) continue
     const raw = clean(el.textContent)

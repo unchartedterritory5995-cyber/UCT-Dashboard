@@ -1955,7 +1955,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "scope",
+      "params": "scope, side, days",
       "path": "/api/insider/feed",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -3947,6 +3947,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "view=stocks, side=any",
+      "path": "/api/options-screener/oi-change",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, side=any",
       "path": "/api/options-screener/oi-change/{sym}",
       "rate_limit_family": "options-analytics",
@@ -4525,6 +4533,14 @@
       "method": "GET",
       "params": "{sym}",
       "path": "/api/research/financials/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "rank=shares",
+      "path": "/api/research/ftd-market",
       "rate_limit_family": "research",
       "tier": "paid"
     },

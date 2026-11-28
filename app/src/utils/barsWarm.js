@@ -38,6 +38,12 @@ export function warmers() {
 }
 
 export function prefetchBars(...a) { return warmers().prefetchBars(...a) }
+/** (store only) abort one key family's in-flight urgent next rows; the legacy warm has none (0) */
+export function abortUrgentFamily(...a) {
+  let f
+  try { f = warmers().abortUrgentFamily } catch { f = undefined }   // a strict mock throws on a missing name
+  return typeof f === 'function' ? f(...a) : 0
+}
 export function prefetchBar(...a) { return warmers().prefetchBar(...a) }
 export function prefetchBarsToIDB(...a) { return warmers().prefetchBarsToIDB(...a) }
 export function prefetchAllTimeframes(...a) { return warmers().prefetchAllTimeframes(...a) }

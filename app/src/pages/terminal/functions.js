@@ -100,8 +100,13 @@ export const FUNCTIONS = [
     ticker: { panel: 'Seasonality', section: 'seasonality', flag: 'seasonalityEnabled' } },
   { code: 'CF', label: 'SEC filings', group: 'Security',
     ticker: { panel: 'Filings', section: 'filings' } },
-  { code: 'FEED', label: 'Filings feed (as filed)', group: 'Security',
-    ticker: { panel: 'FilingsFeed', section: 'filings-feed', flag: 'filingsFeedEnabled' } },
+  // FEED (market variant 2026-11-27): `NVDA FEED` one company, bare `FEED` the whole market (EDGAR's
+  // latest-filings feed, polled by the server; GET /api/research/filings-feed, the same flag and paid
+  // gate). `FEED 8-K`, `FEED DILUTION` (S-1, S-3, 424B, S-8), `NVDA FEED 10-K`: one form, written back
+  // by the tab's form chips (panels/filingsFeedModel.js).
+  { code: 'FEED', label: 'Filings feed (as filed: one company or the whole market)', group: 'Security',
+    ticker: { panel: 'FilingsFeed', section: 'filings-feed', flag: 'filingsFeedEnabled', args: [{ kind: 'feedForm', prop: 'form' }] },
+    market: { panel: 'FilingsFeed', flag: 'filingsFeedEnabled', props: { market: true }, args: [{ kind: 'feedForm', prop: 'form' }] } },
   { code: 'FIL', label: 'Filing changes (blackline)', group: 'Security',
     ticker: { panel: 'FilingChanges', section: 'filing-changes', flag: 'filingBlacklineEnabled' } },
   { code: 'RSCH', label: 'My research (notes on this ticker)', group: 'Security',
@@ -161,8 +166,11 @@ export const FUNCTIONS = [
     ticker: { panel: 'FilingSearch', section: 'depth', flag: `${DEPTH}.filing_search_enabled` } },
   { code: 'ERX', label: 'Earnings reaction', group: 'Research depth',
     ticker: { panel: 'EarningsReaction', section: 'depth', flag: `${DEPTH}.earnings_reaction_panel_enabled` } },
-  { code: 'FTD', label: 'Fails to deliver', group: 'Research depth',
-    ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` } },
+  // FTD (market variant 2026-11-27): bare `FTD` = the biggest fails across the market in the newest SEC period
+  // (GET /api/research/ftd-market, the same switch and paid gate), `FTD VALUE` ranks by dollar value.
+  { code: 'FTD', label: 'Fails to deliver (one stock, or the biggest across the market)', group: 'Research depth',
+    ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` },
+    market: { panel: 'FtdMarket', flag: `${DEPTH}.ftd_dataset_enabled`, args: [{ kind: 'ftdRank', prop: 'rank' }] } },
   { code: 'ATTN', label: 'Room attention (mentions)', group: 'Research depth',
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
   // COV-12 / FT-067: STOCK Act disclosures from FMP. `NVDA CONG` = both chambers for the name (also
@@ -265,8 +273,11 @@ export const FUNCTIONS = [
     market: { panel: 'Regime' } },
   // INS CLUSTER (2026-11-21): the stocks 3 or more insiders bought within 10 business days, built
   // each night from the SEC's own Form 4 filings (GET /api/insider/clusters). Bare INS is unchanged.
-  { code: 'INS', label: 'Insider buying (market-wide, last 7 days)', group: 'Market',
-    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] } },
+  // INS SELLS / INS BOTH / INS 30D / INS 90D (2026-11-27): the side and the window (bare INS = buys, 7 days,
+  // the read it always was); anything else is the server's held market build (panels/insiderMarketModel.js).
+  { code: 'INS', label: 'Insider trades (market-wide buys or sales, last 7 to 90 days)', group: 'Market',
+    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }, { kind: 'insSide', prop: 'side' },
+      { kind: 'insWindow', prop: 'window' }] } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
@@ -535,8 +546,11 @@ export const FUNCTIONS = [
   // (GET /api/options-screener/oi-change/{sym}, read from UCT's own options log: the two newest
   // recorded days, every contract that had an ask, open interest or volume). `NVDA OIC` = calls and
   // puts, `NVDA OIC C` / `NVDA OIC P` = one side. OIC is not in the site's stock universe.
+  // OIC (market variant 2026-11-27): bare `OIC` = the biggest open-interest changes across the whole options log,
+  // by stock (`OIC CONTRACTS`: by contract), held and built in the background (GET /api/options-screener/oi-change).
   { code: 'OIC', label: 'Open interest change (contracts that gained or lost the most since the day before)', group: 'Options',
-    ticker: { panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] } },
+    ticker: { panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] },
+    market: { panel: 'OiMarket', args: [{ kind: 'oicView', prop: 'view' }, { kind: 'oiSide', prop: 'side' }] } },
   // ── Market Tide by day (2026-11-19) ──
   // TIDEH: each finished session's net call and net put premium, as the server stored it once
   // after that session's close (GET /api/options/market-tide/history, behind Market Tide's own
@@ -905,7 +919,7 @@ export function editDistance(a, b) {
 //   MOST [UP] MINE  movers that are yours           FREC MINE   the honest tape, your names
 //   NVDA CN MINE    news across all your names       NVDA FEED MINE  new filings by your names
 const MINE_ARG = Object.freeze({ kind: 'mine', prop: 'mine' })
-for (const [code, side] of [['CAL', 'market'], ['MOST', 'market'], ['FREC', 'market'], ['CN', 'ticker'], ['FEED', 'ticker']]) {
+for (const [code, side] of [['CAL', 'market'], ['MOST', 'market'], ['FREC', 'market'], ['CN', 'ticker'], ['FEED', 'ticker'], ['FEED', 'market']]) {
   const v = BY_CODE[code]?.[side]
   if (v && !(v.args || []).some((a) => a.kind === 'mine')) v.args = [...(v.args || []), MINE_ARG]
 }
@@ -940,6 +954,8 @@ const FUNCTION_WORDS = {
   SEAS: { keywords: ['seasonality'] },
   CF: { keywords: ['filings', 'sec', '10-k', '10-q'] },
   FIL: { keywords: ['blackline', 'filing changes'] },
+  FEED: { example: 'FEED DILUTION', keywords: ['new filings', 'filings feed', 'latest filings', 'sec feed', '8-k', 'offerings',
+    'share offerings', 'shelf registration', 's-3', '424b', 's-8'], note: 'Says so if the filings feed is switched off.' },
   RSCH: { keywords: ['my notes', 'research notes'] },
   CMP: { example: 'NVDA CMP AMD', keywords: ['compare', 'versus', 'side by side'] },
   ASK: { keywords: ['ai', 'question'] },
@@ -953,7 +969,7 @@ const FUNCTION_WORDS = {
   TAS: { keywords: ['time and sales', 'time & sales', 'tape', 'prints', 'trades', 'block trades'],
     note: 'Says so if the live tape is switched off.' },
   ERX: { keywords: ['earnings reaction'] },
-  FTD: { keywords: ['fails to deliver'] },
+  FTD: { example: 'FTD VALUE', keywords: ['fails to deliver', 'ftd', 'failures to deliver', 'biggest fails', 'settlement fails'] },
   ATTN: { keywords: ['mentions', 'attention'] },
   CONG: { keywords: ['congress', 'congressional trades', 'senate', 'house', 'politicians', 'stock act'],
     note: 'Says so if this read is switched off.' },
@@ -980,7 +996,8 @@ const FUNCTION_WORDS = {
   COMM: { keywords: ['community', 'chat'] },
   NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
   REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
-  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys',
+    'insider selling', 'insider sales', 'insider sells'] },
   RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],

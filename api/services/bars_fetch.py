@@ -319,6 +319,8 @@ def _acquire_heal_slot(interactive: bool):
 # request threadpool. Kill-switch: BARS_DEEPFILL_ENABLED=0.
 _DEEPFILL_ENABLED = _os.environ.get("BARS_DEEPFILL_ENABLED", "1") == "1"
 _DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
+#: A bars-api FOLLOWER's local deep-fill throttle: a burst guard only; the leader's marker is the real throttle.
+_FOLLOWER_DEEPFILL_MARK_S = 30
 # Replay Mode cold intraday: cap the pre-cutoff window fetched from the provider. A replay
 # chart requests fullBarsFor(tf) (5m=30000 → ~239 days of 5-min = minutes-slow + a huge
 # payload — the "5m replay takes minutes + flickers" bug). A replay VIEW needs only a few
@@ -433,9 +435,11 @@ def _maybe_kick_deepfill(ticker: str, tf: str, bars: int) -> None:
         return
     if _roles.is_follower():
         # ⛔ (review of #2962, round 2 H1) a best-effort kick NEVER hands the request off: every intraday first
-        # paint passes here. Throttle locally, let the leader replay the request in the background.
-        cache.set(marker, 1, ttl=_DEEPFILL_TTL)
-        _roles.defer_to_leader("deepfill", marker)
+        # paint passes here. The LEADER runs the kick itself (`/internal/kick`), so ITS marker and semaphore decide;
+        # the follower's own marker only stops a burst (seconds, never the 6 h TTL: a kick the leader dropped -
+        # its slots full, the queue full, the leader restarting - is asked again on the next view).
+        cache.set(marker, 1, ttl=_FOLLOWER_DEEPFILL_MARK_S)
+        _roles.send_kick("deepfill", ticker_up, tf, int(bars))
         return
     if not _deepfill_sem.acquire(blocking=False):
         return
@@ -2373,8 +2377,6 @@ def _since_async_heal() -> bool:
 
 
 def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, date_tf: bool) -> None:
-    if _roles.defer_to_leader("since-heal", cache_key):   # a follower: the leader heals, this tail answers now
-        return
     """Bounded, deduped background delta heal for the `since=` path (Phase 1.4).
     Mirrors the first-paint `_bg_delta` spawn: acquire a bars-bg slot non-blocking
     (skip if the pool is full — the stale local delta was already served and the next
@@ -2382,6 +2384,8 @@ def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, d
     delta-only fetch, persist, and invalidate the full cache. Intraday-stale results
     are NOT persisted (same guard as `_bg_delta` — a yfinance hours-old fallback must
     not be stored as fresh)."""
+    if _roles.defer_to_leader("since-heal", cache_key):   # a follower: the leader heals, this tail answers now
+        return
     with _inflight_lock:
         if cache_key in _inflight or not _bg_delta_sem.acquire(blocking=False):
             return

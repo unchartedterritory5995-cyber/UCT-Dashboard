@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (809)
+## Member session reads (811)
 
 ### Limits
 
@@ -374,7 +374,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/indicator-support/reports/mine` | member | screener |  |
 | GET | `/api/indicator-support/reports/mine/{report_id}` | member | screener | {report_id} |
 | GET | `/api/insider/clusters` | paid | research |  |
-| GET | `/api/insider/feed` | paid | research | scope |
+| GET | `/api/insider/feed` | paid | research | scope, side, days |
 | GET | `/api/insider/{ticker}` | paid | research | {ticker} |
 | GET | `/api/insider/{ticker}/has-buy` | paid | research | {ticker}, days=30 |
 | GET | `/api/intraday-update` | paid | market-data |  |
@@ -623,6 +623,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
+| GET | `/api/options-screener/oi-change` | paid | options-analytics | view=stocks, side=any |
 | GET | `/api/options-screener/oi-change/{sym}` | paid | options-analytics | {sym}, side=any |
 | GET | `/api/options-screener/screen` | paid | options-analytics |  |
 | GET | `/api/options-screener/sizzle` | paid | options-analytics |  |
@@ -696,6 +697,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/filings-feed/{sym}` | paid | research | {sym}, form |
 | GET | `/api/research/financial-history/{sym}` | paid | research | {sym}, period=quarter |
 | GET | `/api/research/financials/{sym}` | paid | research | {sym} |
+| GET | `/api/research/ftd-market` | paid | research | rank=shares |
 | GET | `/api/research/ftd/{sym}` | paid | research | {sym} |
 | GET | `/api/research/group-stats` | paid | research | kind=sector, name, part |
 | GET | `/api/research/history/{sym}` | paid | research | {sym}, days=90 |

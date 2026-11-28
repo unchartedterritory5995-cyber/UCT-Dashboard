@@ -45,6 +45,7 @@ from __future__ import annotations
 import logging
 import re
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
@@ -323,6 +324,167 @@ def get_market_insider_buys() -> list[dict]:
         ttl_partial=_FEED_FAIL_TTL,
     )
     return result_rows
+
+
+# ── INS SELLS / INS BOTH and the 30- and 90-day windows (2026-11-27): a HELD market build ─────
+#
+# `get_market_insider_buys` above is the default `INS` (buys, 7 days) and is unchanged. A sale list, both
+# sides, or a longer window pages far more of the vendor's feed (sales are many times the purchases, and
+# 90 days of purchases is about 90 pages), so it never runs on a request: `get_market_insider_trades`
+# answers at once from what this module holds (`computing` until the first build, then the last answer
+# with its build time) and starts ONE background build at a time. The answer is held HERE, never handed
+# over through the shared cache. Each build is bounded by `_HELD_MAX_PAGES` vendor pages per side; a build
+# that stops before the window's start says how far back it reached (`covered_from`, `reached_window`).
+
+MARKET_SIDES = ("buys", "sells", "both")
+MARKET_WINDOWS = (7, 30, 90)
+_HELD_MAX_PAGES = {"buys": {7: 15, 30: 60, 90: 150}, "sells": {7: 60, 30: 150, 90: 150}}
+_HELD_FRESH_S = _FEED_TTL           # a complete build is served as current for an hour
+_HELD_RETRY_S = _FEED_FAIL_TTL      # a partial or failed build is rebuilt after five minutes
+_HELD_SOURCE = "SEC Form 4 filings (FMP)"
+
+_held_lock = threading.Lock()
+_held: dict = {}                    # (side, days) -> the last answer built
+_held_building: dict = {"key": None, "started": None}
+
+
+def _page_market(fetch, cutoff: str, max_pages: int, want: str):
+    """Page one side of the vendor's market-wide Form 4 feed back to `cutoff`. Returns
+    (rows, complete, oldest_filing_reached, pages_ok, reached_window)."""
+    from api.services.fmp_client import FMPNotFound
+    complete, pages_ok, reached = True, 0, False
+    oldest_seen = None
+    out: list[dict] = []
+    seen: set[tuple] = set()
+    for page in range(max_pages):
+        try:
+            result = fetch(page, _MARKET_PAGE_LIMIT, timeout=_MARKET_PAGE_TIMEOUT)
+        except FMPNotFound:
+            pages_ok += 1
+            reached = True
+            break
+        except Exception as exc:  # noqa: BLE001 -- said as an incomplete build, never silent
+            _logger.warning("insider held build: %s page %d failed: %s", want, page, exc)
+            complete = False
+            break
+        if getattr(result, "degraded", None) is not None or not isinstance(getattr(result, "value", None), list):
+            complete = False
+            break
+        pages_ok += 1
+        rows = result.value
+        oldest_filing = None
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            fd = str(r.get("filingDate") or "")[:10]
+            if fd and (oldest_filing is None or fd < oldest_filing):
+                oldest_filing = fd
+            sym = _market_symbol(r)
+            if sym is None:
+                continue
+            t = _normalize_row(r)
+            if t is None or t["type"] != want:
+                continue
+            if str(t["date"] or "")[:10] < cutoff:
+                continue
+            key = (sym, t["name"], t["date"], t["shares"], t["price"], t["type"])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({**t, "symbol": sym})
+        if oldest_filing is not None and (oldest_seen is None or oldest_filing < oldest_seen):
+            oldest_seen = oldest_filing
+        if len(rows) < _MARKET_PAGE_LIMIT:
+            reached = True
+            break
+        if oldest_filing is not None and oldest_filing < cutoff:
+            reached = True
+            break
+    return out, complete, oldest_seen, pages_ok, reached
+
+
+def build_market_trades(side: str, days: int, *, now: datetime | None = None) -> dict:
+    """ONE build of the held answer for (side, days): pages the vendor, keeps the answer in this
+    module and returns it. Runs on the background thread (and directly in tests); never raises."""
+    from api.services import fmp_client
+    now = now or datetime.utcnow()
+    cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+    legs = [("buy", fmp_client.search_insider_purchases, "buys"), ("sell", fmp_client.search_insider_sales, "sells")]
+    if side != "both":
+        legs = [leg for leg in legs if leg[2] == side]
+    rows: list[dict] = []
+    sides: dict = {}
+    for want, fetch, name in legs:
+        got, complete, oldest, pages_ok, reached = _page_market(fetch, cutoff, _HELD_MAX_PAGES[name][days], want)
+        rows.extend(got)
+        sides[name] = {"complete": complete, "pages": pages_ok, "reached_window": reached,
+                       "covered_from": cutoff if reached else oldest, "max_pages": _HELD_MAX_PAGES[name][days]}
+    built = time.time()
+    if all(s["pages"] == 0 for s in sides.values()):
+        out = {"status": "failed", "side": side, "window_days": days, "rows": None, "built_at": built,
+               "reason": "the vendor's Form 4 feed could not be read", "source": _HELD_SOURCE}
+    else:
+        rows.sort(key=lambda r: r["amount"], reverse=True)
+        out = {"status": "ok", "side": side, "window_days": days, "window_from": cutoff,
+               "rows": rows[:_MARKET_CAP], "matched": len(rows), "cap": _MARKET_CAP,
+               "cut": len(rows) > _MARKET_CAP, "sides": sides, "built_at": built,
+               "complete": all(s["complete"] and s["reached_window"] for s in sides.values()),
+               "source": _HELD_SOURCE}
+    with _held_lock:
+        prev = _held.get((side, days))
+        if out["status"] == "failed" and prev and prev.get("status") == "ok":
+            # the last good answer stays, marked; a failure never replaces it
+            _held[(side, days)] = {**prev, "last_build_failed_at": built}
+        else:
+            _held[(side, days)] = out
+        return _held[(side, days)]
+
+
+def _held_run(key) -> None:
+    try:
+        build_market_trades(*key)
+    except Exception as exc:  # noqa: BLE001 -- a crashed build must not read as computing for ever
+        _logger.warning("insider held build %s crashed: %s", key, exc)
+        with _held_lock:
+            if key not in _held:
+                _held[key] = {"status": "failed", "side": key[0], "window_days": key[1], "rows": None,
+                              "built_at": time.time(), "reason": "the build stopped on an error",
+                              "source": _HELD_SOURCE}
+    finally:
+        with _held_lock:
+            _held_building.update(key=None, started=None)
+
+
+def _start_held_build(key) -> bool:
+    """Start the ONE background build when none runs. True when this call started it."""
+    with _held_lock:
+        if _held_building["key"] is not None:
+            return False
+        _held_building.update(key=key, started=time.time())
+    threading.Thread(target=_held_run, args=(key,), name="insider-held-build", daemon=True).start()
+    return True
+
+
+def get_market_insider_trades(side: str, days: int) -> dict:
+    """REQUEST PATH for `INS SELLS`, `INS BOTH`, `INS 30D`, `INS SELLS 90D`: the held answer at once,
+    never a vendor read. `status`: `ok` (with `built_at`; `refreshing` while a newer build runs),
+    `computing` (nothing held yet: ask again), `failed` (the last build could not read the vendor)."""
+    if side not in MARKET_SIDES or days not in MARKET_WINDOWS:
+        raise ValueError("side must be buys, sells or both; days 7, 30 or 90")
+    key = (side, days)
+    with _held_lock:
+        held = _held.get(key)
+    age = time.time() - held["built_at"] if held else None
+    fresh_for = _HELD_FRESH_S if held and held.get("status") == "ok" and held.get("complete") else _HELD_RETRY_S
+    if held is None or age >= fresh_for:
+        _start_held_build(key)
+    with _held_lock:
+        building = _held_building["key"]
+    if held is None:
+        return {"status": "computing", "side": side, "window_days": days, "rows": None, "source": _HELD_SOURCE,
+                "reason": "the list is being built from the newest Form 4 filings; it appears in a minute or two"}
+    rows = [dict(r) for r in held["rows"]] if isinstance(held.get("rows"), list) else held.get("rows")
+    return {**held, "rows": rows, "refreshing": building == key}
 
 
 def has_recent_insider_buy(ticker: str, days: int = 30) -> bool:

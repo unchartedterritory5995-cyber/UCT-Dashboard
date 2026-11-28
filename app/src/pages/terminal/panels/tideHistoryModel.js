@@ -4,6 +4,8 @@
 // each close. One row is one finished session: net call premium, net put premium and their
 // difference, from the prints on UCT's own flow tape. A session with no row is MISSING: it is
 // named, never drawn as a zero row, and a sum is refused when one sits inside its window.
+// A session the after-close tries missed is read again from the tape later (the catch-up): a row
+// it stored says "recovered later", and a day it could not recover whole is named missing for good.
 import { signedPremium } from '../../optionsAnalytics/optionsFormat'
 
 export const TIDE_HISTORY_CODE = 'TIDEH'
@@ -92,6 +94,7 @@ function readRow(raw) {
     unsigned: finite(raw.prints_unsigned),
     unreadable: finite(raw.prints_unreadable),
     through: typeof raw.data_through === 'string' ? raw.data_through : null,
+    recovered: raw.source === 'catchup',
   }
 }
 
@@ -100,7 +103,7 @@ function readRow(raw) {
 export function tideHistoryRead(body) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.sessions) || !Object.prototype.hasOwnProperty.call(TIDE_SCOPES, body.scope)) {
     return { state: 'failed', scope: null, rows: [], stored: 0, began: null, latest: null, missing: [], checkedThrough: null,
-      filters: '', method: '', storedNote: '', backfill: false }
+      recovered: [], forGood: [], filters: '', method: '', storedNote: '', backfill: false }
   }
   const rows = body.sessions.map(readRow).filter(Boolean)
   const days = (list) => (Array.isArray(list) ? list.filter((d) => ISO_DAY.test(String(d ?? ''))) : [])
@@ -115,6 +118,10 @@ export function tideHistoryRead(body) {
     latest: day(body.latest_session) ?? (rows.length ? rows[0].session : null),
     missing: days(body.missing_sessions),
     checkedThrough: day(body.missing_checked_through),
+    recovered: days(body.recovered_sessions),
+    forGood: Array.isArray(body.missing_for_good)
+      ? body.missing_for_good.map((g) => day(g?.session)).filter(Boolean)
+      : [],
     filters: typeof body.filters === 'string' ? body.filters : '',
     method: typeof body.method === 'string' ? body.method : '',
     storedNote: typeof body.stored_note === 'string' ? body.stored_note : '',
@@ -135,6 +142,9 @@ export function printsLine(row) {
 export function leftOutText(row) {
   return row.prints != null && row.unreadable > 0 ? `${countText(row.unreadable)} left out` : null
 }
+
+/** "recovered later" under a day the after-close tries missed and the catch-up stored afterwards; null otherwise. */
+export const recoveredText = (row) => (row.recovered ? 'recovered later' : null)
 
 /** True when a row on screen left unreadable prints out, so the note under the table says what that means. */
 export const anyUnreadable = (rows) => rows.some((r) => r.unreadable > 0)
@@ -169,6 +179,33 @@ export function missingNote(view) {
   const named = missing.slice(-TIDE_MISSING_NAMED).map(dayWords).join(', ')
   return `No tide was stored for ${countText(missing.length)} sessions between the first and the last stored day. `
     + `The newest: ${named}.`
+}
+
+/** Names a list of days: all of them up to TIDE_MISSING_NAMED, else the count and the newest that many. */
+function daysWords(list) {
+  if (list.length <= TIDE_MISSING_NAMED) {
+    const w = list.map(dayWords)
+    return w.length <= 1 ? w.join('') : `${w.slice(0, -1).join(', ')} and ${w[w.length - 1]}`
+  }
+  return `${countText(list.length)} sessions (the newest: ${list.slice(-TIDE_MISSING_NAMED).map(dayWords).join(', ')})`
+}
+
+/** The plain note on sessions the after-close tries missed and the tape gave back later; null when none. */
+export function recoveredNote(view) {
+  const days = view.recovered || []
+  if (!days.length) return null
+  const one = days.length === 1
+  return `${daysWords(days)} ${one ? 'was' : 'were'} missed after ${one ? 'its' : 'their'} close and recovered later from the tape, `
+    + `which still held all of ${one ? 'that day' : 'those days'}.`
+}
+
+/** The plain note on sessions the catch-up could not recover whole and has stopped trying; null when none. */
+export function forGoodNote(view) {
+  const days = view.forGood || []
+  if (!days.length) return null
+  const one = days.length === 1
+  return `${daysWords(days)} ${one ? 'is' : 'are'} missing for good: the tape was read again later and did not hold `
+    + `all of ${one ? 'that day' : 'those days'}.`
 }
 
 /** The sum of net over the newest `n` stored sessions, or the reason there is none.

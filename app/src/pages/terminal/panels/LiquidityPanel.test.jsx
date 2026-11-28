@@ -262,6 +262,7 @@ describe('LIQ parts', () => {
     serve(liqRoutes())
     renderPanel()
     const credits = await screen.findAllByTestId('terminal-liq-credit')
+    for (const c of credits) expect(c.hasAttribute('data-share-notice')).toBe(true)
     expect(credits.map((c) => c.getAttribute('data-source'))).toEqual(['fed_board', 'fiscaldata', 'nyfed'])
     expect(credits.map((c) => c.textContent)).toEqual(['Invented Board line.', 'Invented Fiscal Data line.',
       'The ON RRP Facility Take-up and Secured Overnight Financing Rate is invented for UCT Intelligence.'])

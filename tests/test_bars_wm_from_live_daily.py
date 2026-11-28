@@ -30,8 +30,26 @@ def _sessions(n):
     return out[::-1]
 
 
+def _assert_delta_pools_free(timeout=10.0):
+    """Both bounded-delta pools hold every permit: no thread from an earlier test (here or in another file) still owns a
+    slot. Waits up to `timeout` for a straggler to finish, then FAILS naming the pool (a leak elsewhere, never this test)."""
+    for name, size in (("_date_delta_sem", bars_fetch._DATE_DELTA_MAX), ("_date_delta_warm_sem", bars_fetch._DATE_DELTA_WARM_MAX)):
+        sem, got, deadline = getattr(bars_fetch, name), 0, time.monotonic() + timeout
+        while got < size and sem.acquire(timeout=max(0.0, deadline - time.monotonic())):
+            got += 1
+        for _ in range(got):
+            sem.release()
+        assert got == size, f"bars_fetch.{name}: {size - got} of {size} slots still held by an earlier test's thread"
+
+
 @pytest.fixture
 def store(monkeypatch, tmp_path):
+    # ⛔ ISOLATION (2026-11-28: the merge queue's bars rails, ONE process of ~2,290 tests on a slower runner, went red
+    # here only in company). The request budget is THREAD-local, so a file that starts one and never ends it hands this
+    # test an EXPIRED budget and the bounded W/M delta gives up at once ('delta-deadline'); and a slot another test's
+    # thread still holds does the same. Every rail here starts with no budget and both delta pools free.
+    bars_fetch.end_request_budget()
+    _assert_delta_pools_free()
     monkeypatch.setenv("BARS_LIVE_COVERAGE_ENABLED", "1")
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
     bars_sqlite._drop_local_conn()
@@ -43,8 +61,10 @@ def store(monkeypatch, tmp_path):
     for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_fetch_daily_full"):
         if hasattr(bars_fetch, name):
             monkeypatch.setattr(bars_fetch, name, _no_provider)
-    bars_fetch.cache.delete_prefix("bars_AAA_")
+    for _p in ("bars_AAA_", "dhole_", "towin_", "towinfail_"):   # no marker leaks into, or out of, a test
+        bars_fetch.cache.delete_prefix(_p)
     yield
+    bars_fetch.end_request_budget()
     bars_sqlite._drop_local_conn()
     bls._reset_for_tests()
 
@@ -142,7 +162,7 @@ def _slow_wm_writes(monkeypatch, gate):
 
     def put(ticker, tf, bars, *a, **k):
         if tf in ("W", "M"):
-            gate.wait(5)
+            gate.wait(30)
         return real(ticker, tf, bars, *a, **k)
     monkeypatch.setattr(bars_sqlite, "put_bars", put)
 
@@ -157,7 +177,7 @@ def test_the_answer_never_waits_for_the_write(store, monkeypatch, tf):
         resp = bars_fetch._get_bars_inner("AAA", tf, len(periods))
         took = time.monotonic() - t0
         body = json.loads(resp.body)
-        assert took < 0.5, f"the read waited {took:.2f} s for the W/M write"
+        assert took < 5.0, f"the read waited {took:.2f} s for the W/M write (it blocks 30 s)"
         assert body["bars"][-1]["c"] == daily[-1]["c"]
         assert bars_fetch.get_serve_layer() == "sqlite"
         assert "wm_drv" in [m[0] for m in bars_fetch.get_serve_marks()], "the derive cost is not on Server-Timing"
@@ -583,10 +603,15 @@ def test_a_stored_wm_behind_a_holed_daily_is_answered_from_the_provider_first(st
     calls = []
     monkeypatch.setattr(bars_fetch, "_delta_weekly" if tf == "W" else "_delta_monthly",
                         lambda t, last: calls.append(last) or [provider])
-    t0 = time.monotonic()
+    # DETERMINISTIC on any runner: the synchronous delta's slot wait and ceilings are pinned well past what an instant
+    # stub needs, so only a wrong PATH (stale-while-revalidate) can fail this rail, never a slow machine
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_SLOT_WAIT_S", 10.0)
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_INPROC_CEILING_S", 30.0)
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_DEADLINE_SECONDS", 30.0)
     body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(stored)).body)
     assert calls, "a stored W/M behind a holed daily was served stale-while-revalidate"
-    assert body["bars"][-1]["c"] == provider["c"] and time.monotonic() - t0 < 5
+    assert bars_fetch.get_serve_layer() == "fetch", bars_fetch.get_serve_layer()
+    assert body["bars"][-1]["c"] == provider["c"]
 
 
 @pytest.mark.parametrize("tf", ["W", "M"])
@@ -596,13 +621,13 @@ def test_a_slow_provider_answers_the_store_at_the_deadline(store, monkeypatch, c
     full, stored = _seed_old_tail(tf, WED, monkeypatch, hole=hole, old_sessions=2 if tf == "W" else 10)
     gate = threading.Event()
     monkeypatch.setattr(bars_fetch, "_delta_weekly" if tf == "W" else "_delta_monthly",
-                        lambda t, last: gate.wait(5) and [])
+                        lambda t, last: gate.wait(30) and [])
     monkeypatch.setattr(bars_fetch, "_DATE_DELTA_INPROC_CEILING_S", 0.3)
     try:
         t0 = time.monotonic()
         body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(stored)).body)
         took = time.monotonic() - t0
-        assert took < 2.0, f"the first answer waited {took:.2f} s for the provider"
+        assert took < 10.0, f"the first answer waited {took:.2f} s for the provider (it blocks 30 s)"
         assert body["bars"][-1]["c"] == stored[-1]["c"]
         assert bars_fetch.get_serve_layer() == "delta-deadline", bars_fetch.get_serve_layer()
     finally:

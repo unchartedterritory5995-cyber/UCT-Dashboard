@@ -14,6 +14,9 @@
 //     bar's length is that day's share of the largest net among the rows on screen.
 //   * It never reads as live or as revised: a session is stored once, and the line above the table
 //     says how many are stored and since which day.
+//   * It never passes a recovered day off as one stored on the night: a session the after-close
+//     tries missed and the tape gave back later says "recovered later" under its day, and a day the
+//     catch-up could not recover whole is named missing for good, in plain notes.
 import { useMemo, useState } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness,
@@ -22,17 +25,17 @@ import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {
   TIDE_HISTORY_CODE, TIDE_HISTORY_SOURCE, TIDE_HISTORY_WHAT, TIDE_ROWS_SHOWN, TIDE_SCOPES, anyUnreadable, barWidth, barsFor,
-  countText, cutLine, dayWords, leftOutText, missingNote, normTideScope, premiumText, printsLine, signOf, storedLine, summaryFor, throughWords,
-  tideHistoryCommandArgs, tideHistoryRead, tideHistoryUrl,
+  countText, cutLine, dayWords, forGoodNote, leftOutText, missingNote, normTideScope, premiumText, printsLine, recoveredNote, recoveredText, signOf,
+  storedLine, summaryFor, throughWords, tideHistoryCommandArgs, tideHistoryRead, tideHistoryUrl,
 } from './tideHistoryModel'
 import styles from './marketPanels.module.css'
 import bars from './barCells.module.css'
 
 export {
   TIDE_HISTORY_CODE, TIDE_HISTORY_SOURCE, TIDE_HISTORY_WHAT, TIDE_MISSING_NAMED, TIDE_ROWS_SHOWN, TIDE_SCOPES, TIDE_SCOPE_ARG_WORDS,
-  TIDE_SESSIONS_ASKED, TIDE_SUM_WINDOWS, anyUnreadable, barWidth, barsFor, countText, cutLine, dayWords, leftOutText, missingNote, normTideScope,
-  parseTideScope, premiumText, printsLine, signOf, storedLine, sumOver, summaryFor, throughWords, tideHistoryCommandArgs,
-  tideHistoryRead, tideHistoryUrl,
+  TIDE_SESSIONS_ASKED, TIDE_SUM_WINDOWS, anyUnreadable, barWidth, barsFor, countText, cutLine, dayWords, forGoodNote, leftOutText, missingNote,
+  normTideScope, parseTideScope, premiumText, printsLine, recoveredNote, recoveredText, signOf, storedLine, sumOver, summaryFor, throughWords,
+  tideHistoryCommandArgs, tideHistoryRead, tideHistoryUrl,
 } from './tideHistoryModel'
 
 /** The store changes once a day, after the close; the panel asks again this often while it is on screen. */
@@ -56,6 +59,7 @@ function Row({ row, bar }) {
   // "Nov 18" never breaks apart (a no-break space); the one break allowed is after the weekday.
   const [weekday, ...rest] = dayWords(row.session).split(' ')
   const leftOut = leftOutText(row)
+  const later = recoveredText(row)
   return (
     <tr data-testid="terminal-tideh-row" data-session={row.session}>
       <td className={styles.phoneWrap} title={through ? `Stored through ${through}` : undefined}>
@@ -63,6 +67,7 @@ function Row({ row, bar }) {
         <br />
         <span className={styles.muted} data-testid="terminal-tideh-prints">
           {printsLine(row)}{leftOut ? <>, <span style={LEFT_OUT}>{leftOut}</span></> : null}
+          {later ? <>, <span style={LEFT_OUT} data-testid="terminal-tideh-recovered-row">{later}</span></> : null}
         </span>
       </td>
       <td data-testid="terminal-tideh-call"><span className={signClass(row.netCall)}>{premiumText(row.netCall)}</span></td>
@@ -158,6 +163,8 @@ function TideHistoryBody({ code, scope: scopeProp }) {
   const rowBars = barsFor(shown)
   const sums = summaryFor(view)
   const missing = missingNote(view)
+  const recovered = recoveredNote(view)
+  const forGood = forGoodNote(view)
   const cut = cutLine(view, shown.length)
   const one = view.rows.length === 1
   return wrap(one ? 'one' : 'ok', (
@@ -168,6 +175,8 @@ function TideHistoryBody({ code, scope: scopeProp }) {
       </p>
       {chips}
       {missing ? <p className={styles.note} role="status" data-testid="terminal-tideh-missing">{missing} A day with no stored tide is left out, not drawn as zero.</p> : null}
+      {forGood ? <p className={styles.note} role="status" data-testid="terminal-tideh-for-good">{forGood}</p> : null}
+      {recovered ? <p className={styles.muted} role="status" data-testid="terminal-tideh-recovered">{recovered}</p> : null}
       {one ? (
         <p className={styles.muted} role="status" data-testid="terminal-tideh-one">
           Only one session is stored so far, so there is nothing to compare or sum yet. The next is stored after the

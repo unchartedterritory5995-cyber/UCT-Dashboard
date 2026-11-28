@@ -151,6 +151,7 @@ const ARG_SAMPLE = {
   pubrView: 'TRIALS',
   oscrView: 'CHEAP', ipoView: 'LOCKUP',
   ernscSeason: 'YEARAGO', ernscMetric: 'REVENUE',
+  feedForm: 'DILUTION', insSide: 'SELLS', insWindow: '30D', ftdRank: 'VALUE', oicView: 'CONTRACTS',
 }
 
 afterEach(cleanup)
