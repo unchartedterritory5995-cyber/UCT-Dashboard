@@ -38,6 +38,7 @@ vi.mock('../data/deviceStore/switch', () => ({ deviceStoreEnabled: () => false }
 import useSymbolHandoff, { COVER_ROWS, VIEW_LOOKBACK_ROWS, routeView } from './useSymbolHandoff'
 import { noteMemberView } from '../components/chart/paintLog'
 import { baseBarsFor } from '../components/chart/timeframes'
+import { setFlipProbe } from '../components/chart/flipReady'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -128,5 +129,40 @@ describe('(2) the daily hold ends when nothing more is coming, not at the hang g
     await act(async () => { await vi.advanceTimersByTimeAsync(3800) })
     expect(result.current).toBe('AAA')
     expect(COVER_ROWS).toBeGreaterThan(145)
+  })
+})
+
+// ⭐⭐ (2026-11-28, COV-def-wm-arrows: presses 0-2 and 7-8 never moved the W+M board) A PRESS THAT MOVES THE LIST MOVES EVERY
+// LINKED CHART. The double buffer decides on the symbol the handoff releases, so a W/M daily hold that outlived the 3.2 s
+// between presses was superseded by the next one and nothing ever showed, though the shadow already held FNB whole (no
+// double-buffer decision was logged for any of the five presses). A row the shadow can flip to is now released at once.
+describe('(3) a press to the row the double buffer can flip to is never held', () => {
+  it('W, short of the view and the deep history still due (a daily hold), but the shadow can flip to it: shown at once', () => {
+    st.rows = 145; st.answered = true; st.deep = true
+    const member = {}
+    setFlipProbe(member, (s) => s === 'BBB')
+    const { result } = flip('W', member)
+    expect(result.current).toBe('BBB')
+    setFlipProbe(member, null)
+  })
+
+  it('control: the shadow cannot flip to it (another row, short, unreported): the daily hold holds as before', async () => {
+    st.rows = 145; st.answered = true; st.deep = true
+    const member = {}
+    setFlipProbe(member, (s) => s === 'CCC')
+    const { result } = flip('W', member)
+    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+    expect(result.current).toBe('AAA')
+    setFlipProbe(member, null)
+  })
+
+  it('control: a probe that throws is a "no", never a crash and never a release', async () => {
+    st.rows = 145; st.answered = true; st.deep = true
+    const member = {}
+    setFlipProbe(member, () => { throw new Error('pane mid-unmount') })
+    const { result } = flip('M', member)
+    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+    expect(result.current).toBe('AAA')
+    setFlipProbe(member, null)
   })
 })
