@@ -260,8 +260,29 @@ def intraday_update(_user: dict = Depends(require_paid)):
 
 
 @router.get("/api/analyst-actions")
-def analyst_actions(_user: dict = Depends(require_paid)):
+def analyst_actions(
+    date: Optional[str] = Query(None, description="YYYY-MM-DD: exactly that day's actions"),
+    full: int = Query(0, ge=0, le=1, description="1: the whole list, both sources (no 12/12/15 cut)"),
+    limit: Optional[int] = Query(None, ge=1, le=2000, description="most per list on a full read"),
+    _user: dict = Depends(require_paid),
+):
+    """The analyst actions. With NO argument the answer is exactly what it always was: the last pushed
+    wire's list, cut to 12 upgrades / 12 downgrades / 15 target changes (`engine.get_analyst_actions`).
+
+    Gap audit P1 + R3: `date=YYYY-MM-DD` and/or `full=1` (or `limit`) read the dated store instead
+    (`api/services/analyst_history.py`): the uncapped list for that day (no date = the latest wire's
+    day), the wire's own list plus the nightly FMP pass's upgrades and downgrades dated that day, each
+    item naming its `source`, and `dates`, every day held. A day not held is `held: false`, never a
+    neighbouring day."""
+    if date is None and not full and limit is None:
+        try:
+            return get_analyst_actions()
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
+    from api.services import analyst_history
     try:
-        return get_analyst_actions()
+        return analyst_history.actions_view(date, limit)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))

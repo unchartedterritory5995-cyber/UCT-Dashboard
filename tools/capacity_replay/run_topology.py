@@ -124,7 +124,8 @@ def _env(src, procs, base, data):
                 "DATA_DIR": data, "BARS_API_ENABLED": "1", "BARS_API_WORKERS": str(procs),
                 "BARS_API_LEADER_PORT": str(base + 900), "HTTP_PROXY": "http://127.0.0.1:9",
                 "HTTPS_PROXY": "http://127.0.0.1:9", "NO_PROXY": "127.0.0.1,localhost", "BARS_OFFGRID_SWEEP": "0",
-                "TMPDIR": os.path.join(data, "tmp"), "PYTHONDONTWRITEBYTECODE": "1"})
+                "TMPDIR": os.path.join(data, "tmp"), "PYTHONDONTWRITEBYTECODE": "1",
+                "BARS_API_LISTEN_HOST": "127.0.0.1"})        # loopback only: the sandbox is never on the LAN
     return env
 
 

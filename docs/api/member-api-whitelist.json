@@ -251,7 +251,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "",
+      "params": "date, full=0, limit",
       "path": "/api/analyst-actions",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -1835,7 +1835,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "sym (required), n=8",
+      "params": "sym (required), n=8, prefer",
       "path": "/api/groups/peers",
       "rate_limit_family": "market-analytics",
       "tier": "paid"

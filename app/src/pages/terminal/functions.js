@@ -370,8 +370,11 @@ export const FUNCTIONS = [
   // loads into the linked group like every other list.
   // UPDG: the analyst actions in the latest morning wire (GET /api/analyst-actions), which no
   // screen showed. The list is dated by its wire, never worded as the current day's on its own.
-  { code: 'UPDG', label: 'Analyst upgrades, downgrades and target changes (latest morning wire)', group: 'Market',
-    market: { panel: 'Upgrades', args: [{ kind: 'analystKind', prop: 'kind' }] } },
+  // Since gap audit P1 (2026-11-28) the whole list, not the first 12/12/15, and any held day:
+  // `UPDG 2026-11-20` / `UPDG DOWN 11/20` (args.js `etDate`), with the nightly FMP pass's
+  // upgrades and downgrades folded in, each row naming its source.
+  { code: 'UPDG', label: 'Analyst upgrades, downgrades and target changes (morning wire and FMP, by day)', group: 'Market',
+    market: { panel: 'Upgrades', args: [{ kind: 'analystKind', prop: 'kind' }, { kind: 'etDate', prop: 'date' }] } },
   // HILO: new highs and lows OF THE DAY, per session, from the live scanner (GET /api/nhnl/live).
   // Not the 52-week lists: those are the drill lists of the Breadth Monitor.
   { code: 'HILO', label: 'New highs and lows of the day (live scanner)', group: 'Market',
@@ -1018,7 +1021,7 @@ const FUNCTION_WORDS = {
   PLAN: { example: 'NVDA PLAN 203 195', keywords: ['plan', 'trade plan', 'buy point', 'stop', 'entry'] },
   MON: { keywords: ['watchlist', 'watchlists', 'monitor'] },
   GRADE: { keywords: ['grade', 'compass', 'verdict', 'buy or skip'], note: 'Says so if grades are not available yet.' },
-  UPDG: { example: 'UPDG DOWN', keywords: ['analyst actions', 'rating changes', 'target changes', 'upgrades and downgrades'] },
+  UPDG: { example: 'UPDG DOWN', keywords: ['analyst actions', 'rating changes', 'target changes', 'upgrades and downgrades', 'analyst history'] },
   HILO: { example: 'HILO LOWS', keywords: ['new highs', 'new lows', 'highs and lows'],
     note: 'Says so if the live scanner is switched off or the market is closed.' },
   SCTR: { example: 'SCTR 1M', keywords: ['sector performance', 'sector funds', 'sector ranking'] },

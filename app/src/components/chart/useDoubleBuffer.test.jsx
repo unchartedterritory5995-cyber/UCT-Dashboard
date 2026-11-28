@@ -34,10 +34,10 @@ vi.mock('../../utils/afterPaint', () => ({ afterPaint: (fn) => { fn(); return ()
 const painted = vi.hoisted(() => [])
 vi.mock('./paintLog', async (orig) => ({ ...(await orig()), recordPaint: (...a) => { painted.push(a) } }))
 // the rows the store holds for the shadow's row, counted in the view's session (0: uncountable, the check stands aside)
-const held = vi.hoisted(() => ({ rows: 0, deep: true }))
+const held = vi.hoisted(() => ({ rows: 0, deep: true, complete: false }))
 // ...and whether more is still coming for it (D: the deep history due; review of #2934, L3)
 // (`rows` may be a function: the count per key asked, `(sym, tf, opts)`)
-vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: (...a) => (typeof held.rows === 'function' ? held.rows(...a) : held.rows), deepPending: () => held.deep, lakePending: () => held.deep }))
+vi.mock('../../data/barStore/prefetch', async (orig) => ({ ...(await orig()), heldRows: (...a) => (typeof held.rows === 'function' ? held.rows(...a) : held.rows), deepPending: () => held.deep, lakePending: () => held.deep, historyComplete: (...a) => (typeof held.complete === 'function' ? held.complete(...a) : held.complete) }))
 
 const { useDoubleBuffer, __setDoubleBufferBarsSourceForTests } = await import('./useDoubleBuffer')
 const { chartKeyFor, viewWindowOfDate } = await import('./useBarSnapshotBars')
@@ -70,6 +70,7 @@ const report = (result, i, sym, cutoff = null, anchor = null) => act(() => { res
 
 beforeEach(() => {
   held.rows = 0
+  held.complete = false
   vi.useFakeTimers()
   vi.stubGlobal('requestIdleCallback', undefined)
   painted.length = 0
@@ -513,5 +514,59 @@ describe('useDoubleBuffer', () => {
     expect(panes[1].m.frame).toEqual({ fromRight: expect.closeTo(2850, 6), toRight: expect.closeTo(-150, 6), locked: true, lock })
     press(h, 'BBB')
     expect(h.result.current.front).toBe(1)
+  })
+
+  // ⭐ (2026-11-28, zoomed-out boards) A SHADOW SHORT OF ITS FRAME ONLY BECAUSE ITS SYMBOL HAS NO MORE HISTORY FLIPS:
+  // FVAV, 828 1m rows under a 4,019-bar lock. The normal switch frames the same lock on the same rows, so the flip shows
+  // what it would (same bars array as the store's, same lock frame); a history not PROVED whole still refuses.
+  const zoomed = (rows) => {
+    const lock = { anchorFrac: 0.99, width: 4019, tf: 'D', top: null, bottom: null }
+    const frame = { fromRight: 0.99 * 4019, toRight: (0.99 - 1) * 4019, locked: true, lock }
+    return [{ ...meta(160), frame, rows: 25553 }, { ...meta(160), frame: { ...frame, lock: { ...lock } }, rows }]
+  }
+  it("H22 a short shadow whose history is PROVED whole (historyComplete) flips, at the lock frame, on the store's bars", async () => {
+    const h = await ready()
+    await idle()
+    ;[panes[0].m, panes[1].m] = zoomed(828)
+    held.complete = (sym, tf) => sym === 'BBB' && tf === 'D'
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(1)
+    expect(db.doubleBufferStats().flips).toBe(1)
+    // what the flip shows IS what the normal switch would: the store's bars for BBB now, framed at the front's lock
+    expect(painted.at(-1)[0]).toBe('BBB')
+    expect(db.flipDecision({ sym: 'BBB', tf: 'D', ext: false, settings, cutoff: null, anchor: null },
+      { sym: 'BBB', tf: 'D', ext: false, bars: bars.BBB, settings, cutoff: null, anchor: null }, () => bars.BBB,
+      () => db.viewParity(panes[0].m, { ...panes[1].m, rows: Infinity }, { tf: 'D' }))).toEqual({ flip: true, why: 'flip' })
+  })
+
+  it('H22b a short shadow whose history is NOT proved whole (pending, partial, failed) still refuses view-short', async () => {
+    const h = await ready()
+    await idle()
+    ;[panes[0].m, panes[1].m] = zoomed(828)
+    held.complete = false
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why['view-short']).toBe(1)
+  })
+
+  it('H22c control: whole but not at the lock frame (shortness is not the only difference) refuses', async () => {
+    const h = await ready()
+    await idle()
+    const [fm, sm] = zoomed(828)
+    panes[0].m = fm
+    panes[1].m = { ...sm, frame: { ...sm.frame, fromRight: sm.frame.fromRight - 300, toRight: sm.frame.toRight - 300 } }
+    held.complete = true
+    press(h, 'BBB')
+    expect(h.result.current.front).toBe(0)
+    expect(db.doubleBufferStats().why['view-frame']).toBe(1)
+  })
+
+  it('H22d control: at a date (the anchor frames the press) a whole short shadow is not flipped by this rule', async () => {
+    const h = await ready({ anchor: '2016-06-14|4019' })
+    await idle()
+    ;[panes[0].m, panes[1].m] = zoomed(828)
+    held.complete = true
+    press(h, 'BBB', { anchor: '2016-06-14|4019' })
+    expect(h.result.current.front).toBe(0)
   })
 })
