@@ -301,7 +301,7 @@ def test_a_follower_hands_a_request_needing_leader_work_to_the_leader(monkeypatc
         roles._role = "solo"
     assert r.status_code == 200 and r.json() == {"ok": 1}
     assert r.headers["X-Bars-Served-By"] == "leader" and r.headers["ETag"] == "x1"
-    assert calls and calls[0][0] == "/api/bars/ZZZ?tf=5&bars=300"
+    assert calls and calls[0][0] == "/api/bars/ZZZ?tf=5&bars=300&warm=0"
 
 
 def test_a_follower_serves_a_plain_read_itself(monkeypatch):

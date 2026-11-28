@@ -38,7 +38,7 @@ import time
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query
 
 # ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
 # EVERY log record of this pod -- httpx logs each request URL at INFO and an
@@ -504,7 +504,6 @@ def _build_app() -> FastAPI:
     # production outage, not a hardening.
     @app.get("/api/bars/{ticker}")
     def bars_route(
-        request: Request,
         ticker: str,
         tf: str = "D",
         bars: int = Query(default=200, ge=1, le=60000),
@@ -515,13 +514,16 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return _served_here_or_by_leader(request, lambda: serve_bars_http(
-            ticker, tf, bars, since=since, to=to, warm=warm, session=session))
+        # ⛔ No `Request` parameter: this route takes no identity input (tests/test_bars_tail_edge_cache.py); a
+        # hand-off rebuilds the query from the route's own parameters.
+        return _served_here_or_by_leader(
+            "/api/bars/%s" % _q(ticker),
+            {"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm, "session": session},
+            lambda: serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session))
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")
     def bars_history_route(
-        request: Request,
         ticker: str,
         tf: str = "D",
         bars: int = Query(default=60000, ge=1, le=60000),
@@ -530,7 +532,9 @@ def _build_app() -> FastAPI:
     ):
         if _pair_is_webs(ticker):
             return _pair_handed_to_web(ticker)
-        return _served_here_or_by_leader(request, lambda: serve_bars_history(ticker, tf, bars, v, d))
+        return _served_here_or_by_leader("/api/bars-history/%s" % _q(ticker),
+                                         {"tf": tf, "bars": bars, "v": v, "d": d},
+                                         lambda: serve_bars_history(ticker, tf, bars, v, d))
 
     return app
 
@@ -539,7 +543,12 @@ def _build_app() -> FastAPI:
 _HOP_HEADERS = frozenset({"content-length", "transfer-encoding", "connection", "date", "server", "keep-alive"})
 
 
-def _served_here_or_by_leader(request, serve):
+def _q(s) -> str:
+    from urllib.parse import quote
+    return quote(str(s), safe="")
+
+
+def _served_here_or_by_leader(path: str, params: dict, serve):
     """The bars answer. In a FOLLOWER (BARS_API_WORKERS > 1) it is read here, under the store swap barrier, unless
     it needs leader-only work (a store write, a provider fetch, a capped job: `bars_api_roles.LeaderOnly`); then
     the WHOLE request is answered by the leader, which runs it exactly as the single process does, under the one
@@ -554,7 +563,8 @@ def _served_here_or_by_leader(request, serve):
             return serve()
     except bars_api_roles.LeaderOnly:
         pass                                   # the scope is released BEFORE the hand-off (no barrier is held)
-    path_qs = request.url.path + (("?" + request.url.query) if request.url.query else "")
+    from urllib.parse import urlencode
+    path_qs = path + "?" + urlencode([(k, v) for k, v in params.items() if v not in ("", None)])
     code, headers, body = bars_api_roles.proxy_to_leader(path_qs, time.monotonic() - t0)
     hdrs = {k: v for k, v in headers if k.lower() not in _HOP_HEADERS}
     hdrs["X-Bars-Served-By"] = "leader"
