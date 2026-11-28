@@ -63,6 +63,7 @@ export const WINDOW_LAKE_HEAD_START_MS = 80
 /** (review of #2986, F-A) Once the origin has answered a window short (or failed), how much longer the lake is waited for. */
 export const WINDOW_LAKE_MAX_WAIT_MS = 800
 const HEAD_START = Symbol('head start')
+const JOINED = Symbol('a non-warm joiner')
 
 /** The D/W/M refresh cadence (StockChart's daily `refreshInterval`). */
 export const DAILY_POLL_MS = 300_000
@@ -519,9 +520,17 @@ export function createNetwork({
     // asks the origin beside it; the first WHOLE answer lands, else the LONGER of the two once both are in (a tie: the
     // lake's); the other is given up (the origin's request aborted; the lake's pieces still land in the page's cache).
     // A warm never races.
-    if (warm && !(r.refs > 0)) {
-      const v = await orAbort(lake)
+    // ⛔⛔ (review of #2986, F-E) ...UNTIL A CHART JOINS IT. A chart that joins a warm still reading the lake rides this read
+    // (`_tail`: a lake-first record is no lane request yet), so the warm's wait was the chart's, with no head start and no
+    // ceiling: a stalled R2 never settled the chart, and a cold lake cost it 380-650 ms instead of a race at 80. A non-warm
+    // joiner (`rec.onJoin`) or a chart subscribing switches this read to the racing path, from that moment.
+    let joinedNow = null
+    const joined = new Promise((resolve) => { joinedNow = resolve })
+    if (rec) rec.onJoin = () => joinedNow(JOINED)
+    if (warm && !(r.refs > 0) && !rec?.wantPlain) {
+      const v = await orAbort(Promise.race([lake, joined]))
       if (signal?.aborted) throw abortErr()
+      if (v === JOINED) return _windowRace()
       if (lakeWhole(v)) { won('lake'); return v }
       if (!v) refused()
       // ⛔ (review of #2986, F-B) a SHORT lake window from a warm is not landed outright (it would be displayable, and
@@ -534,6 +543,8 @@ export function createNetwork({
       if (o.e) throw o.e
       return o.o
     }
+    return _windowRace()
+    async function _windowRace() {
     let timer = null
     const head = new Promise((resolve) => { timer = setTimer(() => { timer = null; resolve(HEAD_START) }, WINDOW_LAKE_HEAD_START_MS) })
     const first = await orAbort(Promise.race([lake, head])).finally(() => { if (timer != null) { clearTimer(timer); timer = null } })
@@ -545,7 +556,9 @@ export function createNetwork({
     }
     // the lake is slow, or short: the origin beside it
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
-    const giveUp = () => { try { ac?.abort() } catch { /* aborted */ } }
+    let ceil = null
+    // (review of #2986, LOW) the ceiling's timer goes with an abort too
+    const giveUp = () => { try { ac?.abort() } catch { /* aborted */ } if (ceil != null) { clearTimer(ceil); ceil = null } }
     signal?.addEventListener?.('abort', giveUp, { once: true })
     const origin = ask(plainUrl(), { priority, signal: ac ? ac.signal : signal, ...(front ? { front: true } : {}) })
       .then((o) => ({ o }), (e) => ({ e }))
@@ -559,8 +572,8 @@ export function createNetwork({
           // ⛔ (review of #2986, F-A) A CEILING ON THE WAIT FOR THE LAKE. The origin answered short (or failed): the lake is
           // waited for at most WINDOW_LAKE_MAX_WAIT_MS more (its piece reads and the shared index read take no timeout of
           // their own: a stalled R2 never settles), then the origin's answer lands (a `filling` one keeps its repeat)
-          const t = setTimer(() => fin(res), WINDOW_LAKE_MAX_WAIT_MS)
-          lake.then(() => clearTimer(t), () => clearTimer(t))
+          ceil = setTimer(() => { ceil = null; fin({ ...res, ceiling: true }) }, WINDOW_LAKE_MAX_WAIT_MS)
+          lake.then(() => { if (ceil != null) { clearTimer(ceil); ceil = null } }, () => {})
         })
         Promise.allSettled([lake, origin]).then(([lx, ox]) => {
           const x = lx.status === 'fulfilled' ? lx.value : null
@@ -572,11 +585,35 @@ export function createNetwork({
       if (signal?.aborted) throw abortErr()
       if (v.lake) { giveUp(); won('lake'); return v.lake }
       won('origin')
+      // ⭐ (review of #2986, the deepening) the origin landed short at the ceiling: a lake that settles WHOLE later adds
+      // its older rows behind the left edge, as a background deepening (one visible draw; a right-pinned view stays)
+      if (v.ceiling && v.o) lake.then((x) => { if (lakeWhole(x)) _queueLakeDeepening(r, x.bars) }, () => {})
       if (v.e) throw v.e
       return v.o
     } finally {
       signal?.removeEventListener?.('abort', giveUp)
     }
+    }
+  }
+  /** (the deepening) the rows of a whole lake window OLDER than the entry's oldest, joined behind the left edge through the
+   *  key's slot (after the answer that landed), in idle time, on the seam rule (prependOlder) */
+  function _queueLakeDeepening(r, rows) {
+    if (keys.get(r.key) !== r || !registry.has(r.key)) return
+    r.queue.push({
+      run: () => {
+        const s = registry.getSnapshot(r.key)
+        if (!s.bars.length) return Promise.resolve({ ok: false })
+        const older = rows.filter((b) => b.t < s.bars[0].t)
+        if (!older.length || prependOlder(s.bars, older) === s.bars) return Promise.resolve({ ok: true, added: 0 })
+        return Promise.resolve(_landBackground(r, 'background', () => {
+          const now0 = registry.getSnapshot(r.key)
+          registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen: now0.gen, payload: { bars: older, ticker: parseKey(r.key)?.sym } })
+          return { ok: true, added: older.length, source: 'lake' }
+        }))
+      },
+      resolve: () => {},
+    })
+    _drain(r)
   }
   /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
    *  last shared one, the 2% rule)? True when none are shared. */
@@ -600,6 +637,9 @@ export function createNetwork({
       if (held?.length && !_seamAgrees(held, rows)) return false
     }
     const plainBars = plain ? registry.peek(plain)?.bars : null
+    // ⛔ (review of #2986, F-F) the newest session NOT KNOWN in time (its read timed out) is no pass: with the present key
+    // held, an unchecked basis is the origin's
+    if (plainBars?.length && got?.newestUnknown) return false
     if (plainBars?.length && got?.newest?.length && !_seamAgrees(plainBars, got.newest)) return false
     const p = parseKey(key)
     const daily = p ? registry.peek(`${p.sym}_D`)?.bars : null
@@ -948,7 +988,7 @@ export function createNetwork({
     if (inf?.kind === 'tail') {
       const best = _best(inf.priority, priority)
       // (review of #2986, F1) a window still reading the lake: a non-warm joiner makes its origin fallback non-warm
-      if (inf.viaLake && !inf.sent && !opts.warm) inf.wantPlain = true
+      if (inf.viaLake && !inf.sent && !opts.warm) { inf.wantPlain = true; try { inf.onJoin?.() } catch { /* the read's */ } }
       // ⛔ A NON-WARM CALLER NEVER RIDES A `&warm=1` REQUEST (#1118 finding 4): the server may
       // shed a warm, and the chart would get 'warming' for its own data.
       if (inf.warm && !opts.warm) {

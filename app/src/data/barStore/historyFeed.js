@@ -170,9 +170,14 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
     // (F-A) the newest-session read is bounded like the window's wait: no answer in time, no check (the other checks stand)
     if (newestP) {
       let t = null
-      const cap = new Promise((resolve) => { t = setTimeout(() => resolve(null), NEWEST_SESSION_MAX_MS) })
-      out.newest = (await Promise.race([newestP, cap])) || null
-      clearTimeout(t)
+      const TIMED_OUT = {}
+      const cap = new Promise((resolve) => { t = setTimeout(() => resolve(TIMED_OUT), NEWEST_SESSION_MAX_MS) })
+      try {
+        const got = await Promise.race([newestP, cap])
+        // (review of #2986, F-F) timed out is NOT "no newest rows": the caller must not take an unchecked basis
+        if (got === TIMED_OUT) out.newestUnknown = true
+        else out.newest = got || null
+      } finally { clearTimeout(t) }
     }
     return out
   }

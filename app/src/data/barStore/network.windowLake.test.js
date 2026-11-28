@@ -759,3 +759,103 @@ describe('W13 — review of #2986 round 3: a ceiling on the lake wait (F-A), a w
     expect(fresh.network.windowSource(K), 'published yesterday: the lake').toBe('lake')
   })
 })
+
+describe('W14 — review of #2986 round 4: a chart joining a warm (F-E), an unknown newest session (F-F), the deepening, the ceiling on abort', () => {
+  const fire = async (h, ms) => { const i = h.timers.findIndex((t) => t.ms === ms); if (i < 0) return false; const [t] = h.timers.splice(i, 1); t.fn(); await h.flush(); return true }
+  const stalled = (market, opts) => { const s = fakeSource(market, opts); s.loadIndex = vi.fn(() => new Promise(() => {})); return s }
+  function gatedLake(market, opts) {
+    const source = fakeSource(market, opts)
+    let open
+    const gate = new Promise((r) => { open = r })
+    const inner = source.loadIndex
+    source.loadIndex = vi.fn(async (sym) => { await gate; return inner(sym) })
+    return { source, open }
+  }
+  function gatedOrigin(market) {
+    const pend = []
+    const request = vi.fn((url, opts) => new Promise((resolve, reject) => {
+      opts?.signal?.addEventListener?.('abort', () => { const e = new Error('aborted'); e.name = 'AbortError'; reject(e) })
+      const q = parseUrl(url)
+      pend.push({ url, q, go: (shape = (b) => b, extra = {}) => resolve({ ticker: q.sym, tf: q.tf, bars: shape(originTo(market[q.sym][q.tf], q.to, q.bars)), ...extra }) })
+    }))
+    return { request, pend }
+  }
+
+  it('(F-E) a chart that joins a warm still reading a STALLED lake races from that moment: head start, then the origin lands', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS } = await import('./network')
+    const o = originOf(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: stalled(M, { through: LAKE_THROUGH }) }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.fetchOnce(K, { priority: 'background', warm: true })   // the date warm / a neighbour warm
+    await h.flush()
+    expect(o.urls).toEqual([])
+    h.network.start(K)                                               // the chart joins it
+    await h.run()
+    expect(h.timers.some((t) => t.ms === WINDOW_LAKE_HEAD_START_MS), 'the race\'s head start').toBe(true)
+    await fire(h, WINDOW_LAKE_HEAD_START_MS)
+    expect(o.urls.length).toBe(1)
+    expect(o.urls[0], 'the chart never rides a shed-able warm').not.toMatch(/[?&]warm=1(?:&|$)/)
+    expect(h.network.answered(K)).toBe(true)
+    expect(h.network.windowSource(K)).toBe('origin')
+  })
+
+  it('(F-F) the newest session not known in time (NEWEST_SESSION_MAX_MS), the present key held after an unapplied split: the origin', async () => {
+    const { NEWEST_SESSION_MAX_MS } = await import('./historyFeed')
+    expect(NEWEST_SESSION_MAX_MS).toBeLessThanOrEqual(1000)
+    const src = fakeSource(M, { through: LAKE_THROUGH })
+    const inner = src.loadBars
+    src.loadBars = vi.fn((sym, tf, q) => (q.to > etMidnightEpoch('2006-03-01') ? new Promise(() => {}) : inner(sym, tf, q)))   // the newest read stalls
+    const o = originOf(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: src }) })
+    const P = keyOf({ sym: 'ABC', tf: '5' })
+    h.registry.dispatch(P, { type: 'rest-full', key: P, gen: h.registry.getSnapshot(P).gen,
+      payload: { ticker: 'ABC', tf: '5', bars: M.ABC[5].slice(-300).map((b) => ({ ...b, o: b.o / 2, h: b.h / 2, l: b.l / 2, c: b.c / 2 })) } })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.flush()
+    await new Promise((r) => setTimeout(r, NEWEST_SESSION_MAX_MS + 150))
+    await h.flush()
+    expect(o.urls.length, 'an unchecked basis is the origin\'s').toBe(1)
+    expect(h.network.windowSource(K)).toBe('origin')
+  }, 10_000)
+
+  it('the deepening: the origin landed short at the ceiling; the lake settling whole later adds ONLY older rows, once', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS, WINDOW_LAKE_MAX_WAIT_MS } = await import('./network')
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    await fire(h, WINDOW_LAKE_HEAD_START_MS)
+    const asked = o.pend[0].q.bars
+    o.pend[0].go((b) => b.slice(-738))
+    await h.flush()
+    await fire(h, WINDOW_LAKE_MAX_WAIT_MS)
+    const first = h.registry.peek(K).bars
+    expect(first.length, 'one visible draw: the origin\'s rows').toBe(738)
+    open()
+    await h.flush()
+    const after = h.registry.peek(K).bars
+    expect(after.length, 'the lake\'s older rows joined').toBe(asked)
+    expect(after.at(-1).t, 'the newest bar did not move').toBe(first.at(-1).t)
+    expect(after.slice(-738).map((b) => b.t)).toEqual(first.map((b) => b.t))
+  })
+
+  it('(LOW) the ceiling\'s timer goes with the caller\'s abort', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS, WINDOW_LAKE_MAX_WAIT_MS } = await import('./network')
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: stalled(M, { through: LAKE_THROUGH }) }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    const ac = new AbortController()
+    h.network.fetchOnce(K, { priority: 'visible', signal: ac.signal })
+    await h.flush()
+    await fire(h, WINDOW_LAKE_HEAD_START_MS)
+    o.pend[0].go((b) => b.slice(-738))
+    await h.flush()
+    expect(h.timers.some((t) => t.ms === WINDOW_LAKE_MAX_WAIT_MS)).toBe(true)
+    ac.abort()
+    await h.flush()
+    expect(h.timers.some((t) => t.ms === WINDOW_LAKE_MAX_WAIT_MS), 'no timer outlives the abort').toBe(false)
+  })
+})
