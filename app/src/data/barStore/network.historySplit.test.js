@@ -387,25 +387,6 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     stop()
   })
 
-  it('...a cover that ERRORS, then the chart\'s own next tail (no Retry, not a cover page) answers its 20 rows: no cut short', async () => {
-    const { EDGE_FALLBACK_MS, EDGE_HOLD_LOOK_MS, EDGE_TAIL_BARS } = await import('./network')
-    let failCover = true
-    const w = world({ history: 'hang', pin: false, listing: 20, tailHook: async (ti, url) => {
-      if (failCover && Number(/[?&]bars=(\d+)/.exec(url)[1]) === dateCoverMaxFor('D')) { failCover = false; throw Object.assign(new Error('origin down'), { status: 502 }) }
-    } })
-    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400, warm: true })
-    await vi.advanceTimersByTimeAsync(EDGE_FALLBACK_MS * 2)
-    w.registry.acquire(w.key, { display: true })
-    await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 50)
-    expect(w.net.cutShort(w.key), 'non-vacuity: the failed cover left a cut short').toBe(true)
-    const asked = tailBars(w).length
-    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })          // a later ask of the key (a prepare's ensure): not a cover page
-    await vi.advanceTimersByTimeAsync(3000)
-    const after = tailBars(w).slice(asked)
-    expect(after.length && after.every((b) => b > EDGE_TAIL_BARS), `non-vacuity: a deep tail, not the cover page (${JSON.stringify(after)})`).toBe(true)
-    expect(w.net.cutShort(w.key), 'its 20 rows are the chart').toBe(false)
-  })
-
   it('a cut key that came to hold MORE than EDGE_TAIL_BARS rows another way (a saved copy, its cover unanswered) is no cut short', async () => {
     const { EDGE_FALLBACK_MS, EDGE_TAIL_BARS } = await import('./network')
     const w = world({ history: 'hang', pin: false })

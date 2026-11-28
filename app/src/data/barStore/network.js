@@ -1577,8 +1577,9 @@ export function createNetwork({
       const r = keys.get(key)
       if (!r || r.refs <= 0) return
       if (abort && r.inflight) { r.inflight.ac?.abort(); r.inflight = null }   // its answer is dropped
-      // (review 3 of #3034, a1) a retry of a cut short (its cover failed) asks the whole cover page again
-      if (api.cutShort(key)) r.coverPage = true
+      // (#3034 a1) a retry of a cut short needs no mark of its own: the tail it asks is deeper than EDGE_TAIL_BARS, and
+      // ANY such answer ends the cut short (_tailJob). One guard, not two: a mark here was a second copy (mutant S13
+      // survived it) that hid the one that matters (mutant S2 survived that).
       // An explicit kick (stream reconnect, invalidate) still never sends two requests
       // inside the repair dedupe window — unless it aborted the one in flight.
       _schedule(r, abort ? 0 : Math.max(0, REPAIR_DEDUP_MS - (now() - r.lastStart)))
