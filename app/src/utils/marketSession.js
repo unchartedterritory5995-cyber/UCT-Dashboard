@@ -479,7 +479,10 @@ function _bucketStartUnix(unixSec, tfMin) {
 export function expectedLatestCompletedBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
   const tfMin = Number(tf)
   if (!Number.isFinite(tfMin) || tfMin <= 0) return null
-  const d = new Date(nowMs)
+  // ⛔ THE ET CALENDAR, NEVER THE BROWSER'S (2026-11-28): `new Date(nowMs)` read the LOCAL weekday, so east of New York
+  // the ET evening was already the next day (20:49 ET Friday = Saturday in Berlin / Tokyo): the frontier read null and no
+  // intraday copy counted as behind. Every other reader here takes etWallDate (marketSession.localZone.test.js).
+  const d = etWallDate(nowMs)
   if (_isNonTradingDayET(d)) return null
   const nowSec = Math.floor(nowMs / 1000)
   const mins = _etMinutesOfUnix(nowSec)
@@ -625,7 +628,7 @@ export function isCacheCurrentForView(bars, lastT, tf, { session = 'rth', nowMs 
 export function expectedFormingBar(tf, nowMs = Date.now(), { session = 'rth' } = {}) {
   if (expectedLatestCompletedBar(tf, nowMs, { session }) == null) return null
   const tfMin = Number(tf)
-  const d = new Date(nowMs)
+  const d = etWallDate(nowMs)   // (the ET calendar's date: the early close of the ET day, never the browser's)
   const nowSec = Math.floor(nowMs / 1000)
   const mins = _etMinutesOfUnix(nowSec)
   const close = session === 'extended' ? _EXT_CLOSE_MINUTES : _effectiveCloseMinutesET(d)
