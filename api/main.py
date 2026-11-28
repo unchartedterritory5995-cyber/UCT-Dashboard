@@ -9331,6 +9331,14 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
                 id="market_tide_history_capture", max_instances=1, coalesce=True,
                 misfire_grace_time=1800, replace_existing=True)
+            # Catch-up (R1, 2026-11-28): each run above also re-reads a missed session from
+            # the tape; the store of scheduled runs is in memory, so a restart across the
+            # window would lose a day. Once, a few minutes after start-up, the catch-up alone
+            # (it reads nothing when no session is missing).
+            from datetime import datetime as _dt_tide, timedelta as _td_tide
+            _scheduler.add_job(_tide_history.run_startup_job, trigger="date",
+                run_date=_dt_tide.now(_ET) + _td_tide(seconds=_tide_history.CATCHUP_BOOT_DELAY_S),
+                id="market_tide_history_catchup_boot", max_instances=1, replace_existing=True)
         except Exception as e:
             print(f"[scheduler] market_tide_history_capture job registration error: {e}")
 
