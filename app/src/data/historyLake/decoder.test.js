@@ -55,7 +55,7 @@ const expectBars = (got) => {
 
 /** A worker double that runs decode.worker.js's handler for real, a task later, through a structured clone with the
  *  transfer list (so a transferred buffer is detached on the sending side, as in a browser). */
-function fakeWorkerFactory({ ready = true, failOn = null } = {}) {
+function fakeWorkerFactory({ ready = true, failOn = null, delay = 0 } = {}) {
   const made = []
   const make = () => {
     const w = {
@@ -68,7 +68,7 @@ function fakeWorkerFactory({ ready = true, failOn = null } = {}) {
           if (failOn && failOn(n)) { w.onerror?.({ preventDefault() {} }); return }
           const { msg, transfer: back } = decodeReply(sent)
           w.onmessage?.({ data: structuredClone(msg, { transfer: back }) })
-        }, 0)
+        }, delay)
       },
       terminate() { w.terminated = true },
       sayReady() { w.onmessage?.({ data: { ready: true } }) },
@@ -184,7 +184,7 @@ describe('lake pieces decode off the main thread', () => {
   })
 
   it('Q1 a paint-awaited decode never waits behind background jobs', async () => {
-    const f = fakeWorkerFactory()
+    const f = fakeWorkerFactory({ delay: 25 })   // each worker decode takes 25 ms: A's twelve hold it for ~150 ms
     const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
     dec.warm(); await tick()
     // ticker A's deep history: background pieces handed to the decoder (they wait in the worker / the page queue)
