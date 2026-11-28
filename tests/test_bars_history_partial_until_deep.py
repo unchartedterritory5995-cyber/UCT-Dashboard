@@ -106,3 +106,24 @@ def test_a_monthly_series_pinned_to_its_floor_is_partial(store):
               for y in range(2003, 2027) for m in range(1, 13) if (y, m) >= (2003, 9) and (y, m) <= (2026, 10)]
     bars_sqlite.put_bars("MFLOOR", "M", months, date_tf=True)
     _assert_partial(*_history("MFLOOR", "M"))
+
+
+def test_a_partial_answer_never_stops_the_sealed_answer_from_being_cached_once_the_deep_store_lands(store):
+    # partial is no-store, so nothing pins it: when the deep warm lands the pre-2003 graft, the SAME request (same d)
+    # answers sealed and immutable
+    rows = _daily("LAND", date(2003, 9, 10))
+    d = rows[-1]["t"]
+    _assert_partial(*_history("LAND", "D", d=d))
+    bars_sqlite.put_bars("LAND", "D", [{"t": "1999-01-04", "o": 5.0, "h": 5.5, "l": 4.5, "c": 5.2, "v": 1000}],
+                         date_tf=True)
+    r, body = _history("LAND", "D", d=d)
+    assert not body.get("partial") and body["sealed"] is True
+    assert r.headers.get("cache-control") == "public, max-age=31536000, immutable", r.headers.get("cache-control")
+
+
+def test_stale_metadata_naming_an_earlier_listing_keeps_a_later_store_partial(store):
+    # the cached listing date says 2001 (a stale or reused-ticker record) while the store starts in 2015: not proven
+    meta, kicks = store
+    meta["STALE"] = {"ipo": "2001-02-01", "splits": []}
+    _daily("STALE", date(2015, 1, 2))
+    _assert_partial(*_history("STALE"))
