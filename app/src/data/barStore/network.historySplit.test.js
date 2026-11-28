@@ -399,12 +399,11 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     await vi.advanceTimersByTimeAsync(EDGE_HOLD_LOOK_MS + 50)
     expect(w.net.cutShort(w.key), 'non-vacuity: the failed cover left a cut short').toBe(true)
     const asked = tailBars(w).length
-    const stop = w.net.start(w.key, { depth: w.depth })              // the chart mounts: its own first tail
+    w.net.fetchOnce(w.key, { depth: w.depth, cover: 1400 })          // a later ask of the key (a prepare's ensure): not a cover page
     await vi.advanceTimersByTimeAsync(3000)
     const after = tailBars(w).slice(asked)
-    expect(after.length && after.every((b) => b > EDGE_TAIL_BARS), `non-vacuity: the chart's own deep tail (coverPage not set) (${JSON.stringify(after)})`).toBe(true)
+    expect(after.length && after.every((b) => b > EDGE_TAIL_BARS), `non-vacuity: a deep tail, not the cover page (${JSON.stringify(after)})`).toBe(true)
     expect(w.net.cutShort(w.key), 'its 20 rows are the chart').toBe(false)
-    stop()
   })
 
   it('a cut key that came to hold MORE than EDGE_TAIL_BARS rows another way (a saved copy, its cover unanswered) is no cut short', async () => {
