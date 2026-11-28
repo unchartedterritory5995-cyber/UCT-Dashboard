@@ -15,13 +15,17 @@ byte a lake piece body, so `app/src/data/historyLake/piece.js` `decodeBody` deco
 
 | tf   | `tunit` (s) | N (newest bars) | which bars                                                         |
 |------|-------------|-----------------|--------------------------------------------------------------------|
-| `1`  | 60          | 600             | regular session only                                               |
-| `5`  | 300         | 300             | regular session only                                               |
-| `15` | 900         | 300             | regular session only                                               |
-| `30` | 1800        | 300             | regular session only                                               |
+| `1`  | 60          | 1000            | regular session only                                               |
+| `5`  | 300         | 1000            | regular session only                                               |
+| `15` | 900         | 1000            | regular session only                                               |
+| `30` | 1800        | 1000            | regular session only                                               |
 | `60` | 1800        | 1000            | regular session only, the `'60'` key's stored 09:30-anchored grid  |
 | `D`  | 86400       | 350             | every daily bar; W and M are derived on the device from D          |
 
+* **Intraday depth 1000 (2026-11-28, owner decision, zero-network switch PR 1.6).** `1` `5` `15` `30` were 600 / 300 /
+  300 / 300: a device copy draws a view whole only from `COVER_ROWS` (600, `app/src/data/barStore/coverRows.js`) rows
+  on, so a 300-row copy never covered and every present-day intraday switch on a never-viewed ticker waited for the
+  network. `FFSEED_DEPTH_<tf>` on the worker overrides each (a variable, no code). Sizes: section 7.
 * **The bars are `/api/bars`' bars**, value for value: the builder reads them through the two calls
   `/api/bars` answers a warm request with (`bars_sqlite.get_bars` + `bars_fetch._fmt_sqlite_bars`:
   split-adjusted, sanitized, 4-decimal store grain), reading the same row count the chart's first
