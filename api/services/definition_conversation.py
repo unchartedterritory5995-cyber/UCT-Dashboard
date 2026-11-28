@@ -160,7 +160,9 @@ def _scope_defs() -> Dict[str, Any]:
     return {
         "sym": wrapper("sym", {"type": "string", "pattern": cc["tickerPattern"]}),
         # ⭐⭐ U-DAILY (e96) -- and D, the last finished day, on a chart below a day only (``check_daily_reads``)
-        "tf": wrapper("tf", {"enum": list(cc["tfCodes"]) + list(cc["tfBelowADayCodes"])}),
+        # ⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- and 30 / 60 / 120 / 240 minutes, the last closed bucket, on a chart below a
+        # day whose minutes divide the code (``check_intraday_reads``)
+        "tf": wrapper("tf", {"enum": list(cc["tfCodes"]) + list(cc["tfBelowADayCodes"]) + list(cc["tfIntradayCodes"])}),
         "tf_live": wrapper("tf_live", {"enum": list(cc["tfLiveCodes"])}),
     }
 
@@ -435,6 +437,9 @@ GUARD_REFUSALS: Mapping[str, str] = {
     "envelope:daily-read-on-days": (
         "the assistant read the last finished day on a chart whose bars already are days, where the value itself "
         "is that reading, so nothing was offered to apply"),
+    "envelope:intraday-read-placement": (
+        "the assistant read a higher intraday timeframe that this chart cannot read inside a formula, so nothing was "
+        "offered to apply"),
     "envelope:daily-read-and-daily-bars": (
         "the assistant both read the last finished day and moved the whole indicator onto daily bars, two ways of "
         "doing one thing, so nothing was offered to apply"),
@@ -844,7 +849,12 @@ DAY_LENGTH_CHOICE_RULE = (
     "words: `uct_language_notes.day_lengths_choice_room` is how many characters of your own that choice may hold "
     "beside the phrase. Count them. Never call that version by its number of days. If "
     "`uct_language_notes.daily_measure_inside` is true, a daily measure CAN be read inside a formula of this chart: "
-    "build what the member asked that way, and ask only about what still cannot be written. ")
+    "build what the member asked that way, and ask only about what still cannot be written. "
+    # ⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- the same for a higher intraday timeframe
+    "If `uct_language_notes.intraday_reads_inside` lists minute codes, a formula of this chart can read each of them "
+    "inside it: `tf(x, \"60\")` is x on 60 minute bars of this chart's own symbol, as of the last CLOSED 60 minute bar "
+    "(the daily read's rule, one rung down), so \"the 1 hour 50 EMA\" on a 15 minute chart is tf(ema(close, 50), \"60\"), "
+    "and the rest of the formula stays on this chart's bars. Use only the codes it lists. ")
 
 #: ⭐ 2026-11-23 -- THE SAME FACT, WHERE THE FIRST ATTEMPT READS IT. `WHICH_BAR_EXIT` reached the assistant only in a
 #: repair note, after a guard had refused its formula. Six live samples of one request ("how many bars back the most
@@ -1797,6 +1807,83 @@ def check_daily_reads(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
             "moves the whole indicator onto bars that already are days or longer. Use one or the other: the daily "
             "read alone (the rest of the formula stays on this chart's bars), or the calculation timeframe with the "
             "value itself.")
+
+
+def intraday_codes_on_chart(chart: Any) -> List[str]:
+    """⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- the minute codes a formula on THIS chart may read inside it: the cross
+    context's ``tfIntradayCodes`` that are a whole multiple above the chart's own minutes. The port of the browser
+    gate's rule (``applyPatch.js::gateTree``: ``intradayHtfRefusal``), read off the CHART'S OWN timeframe only, as the
+    browser reads it (never the member's words: an answer the browser would refuse is never offered). [] on a daily or
+    higher chart, and on one that does not state its timeframe."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    if not ast_interpret.is_below_a_day(tf):
+        return []
+    base = int(str(tf))
+    return [c for c in cross_context()["tfIntradayCodes"] if int(c) > base and int(c) % base == 0]
+
+
+def intraday_turn_notes(chart: Any) -> Dict[str, Any]:
+    """What a turn is told about reading a higher intraday timeframe inside its formula: the codes this chart may read
+    (``intraday_codes_on_chart``), or {} when there are none."""
+    codes = intraday_codes_on_chart(chart)
+    return {"intraday_reads_inside": codes} if codes else {}
+
+
+def check_intraday_reads(envelope: Mapping[str, Any], chart: Any) -> None:
+    """⭐⭐ E101 INTRADAY-HTF (2026-11-28) -- A READ OF MINUTES (`tf` of 30 / 60 / 120 / 240: the last closed bucket) IS
+    FOR A CHART BELOW A DAY WHOSE MINUTES DIVIDE IT, above it only. Refused here so the model gets its repair, with the
+    codes this chart can read; the browser gate (``applyPatch.js``) and the evaluator (``interpret.js``) hold the same
+    rule, so an answer refused here is one they would refuse."""
+    if envelope.get("disposition") not in (None, "change"):
+        return
+    cc = cross_context()
+    allowed = set(intraday_codes_on_chart(chart))
+    for where, tree in _trees_of(envelope):
+        for node in _walk(tree):
+            if node.get("type") != "tf" or str(node.get("value")) not in cc["tfIntradayCodes"]:
+                continue
+            code = str(node.get("value"))
+            if code in allowed:
+                continue
+            tf = chart.get("tf") if isinstance(chart, Mapping) else None
+            here = (f"this chart is {tf} minutes, so it reads " + (", ".join(sorted(allowed, key=int)) or "none of them")
+                    if ast_interpret.is_below_a_day(tf) else "this chart's bars are days or longer, or its timeframe is not said")
+            raise _Refused(
+                "envelope:intraday-read-placement",
+                f"{where}: tf(..., {code}) reads the last closed {code} minute bar, which a formula can do only on a "
+                f"chart below a day whose minutes divide {code}, below {code}; {here}. On a daily or higher chart read "
+                "the value itself, or a weekly / monthly read.")
+
+
+#: ⭐⭐ (2026-11-28) -- A DAILY READ WRITTEN ON A DAILY CHART IS THE VALUE ITSELF (`mend_daily_read_on_days`). Found live
+#: (the fifty-set's f34 on a daily chart): the model wrapped its formula in `tf(..., D)` on a chart whose bars are days,
+#: the door refused it (`envelope:daily-read-on-days`, whose own sentence says "read the value itself") and the turn ran
+#: out of calls: the member was told to rephrase. On a DAILY chart that read has exactly one meaning, the value itself,
+#: so the node is unwrapped and the change is checked as it then stands. ⛔ ONLY on a chart that states it is daily: on a
+#: weekly or monthly chart the value itself is a weekly / monthly value, a different number, so the refusal stands there.
+MEND_DAILY_READ_ON_DAYS = "daily-read-on-days"
+
+
+def mend_daily_read_on_days(candidate: Any, chart: Any) -> Tuple[Any, bool]:
+    """``(envelope, mended)``: on a daily chart, every `tf(x, D)` node replaced by its child ``x``."""
+    tf = chart.get("tf") if isinstance(chart, Mapping) else None
+    if str(tf) not in ("D", "1D") or not isinstance(candidate, Mapping):
+        return candidate, False
+    hits = [0]
+
+    def unwrap(node: Any) -> Any:
+        if isinstance(node, list):
+            return [unwrap(x) for x in node]
+        if not isinstance(node, Mapping):
+            return node
+        if (node.get("type") == "tf" and str(node.get("value")) == "D" and isinstance(node.get("args"), list)
+                and len(node["args"]) == 1):
+            hits[0] += 1
+            return unwrap(node["args"][0])
+        return {k: unwrap(v) for k, v in node.items()}
+
+    work = unwrap(copy.deepcopy(dict(candidate)))
+    return (work, True) if hits[0] else (candidate, False)
 
 
 def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
@@ -3838,7 +3925,8 @@ def _check_scopes(where: str, tree: Any) -> None:
     cc = cross_context()
     ambiguous = set(cc["ambiguousBare"])
     # ⭐⭐ U-DAILY (e96) -- a daily read's code too: WHERE it may be used (a chart below a day) is ``check_daily_reads``'s
-    codes = {"tf": set(cc["tfCodes"]) | set(cc["tfBelowADayCodes"]), "tf_live": set(cc["tfLiveCodes"])}
+    codes = {"tf": set(cc["tfCodes"]) | set(cc["tfBelowADayCodes"]) | set(cc["tfIntradayCodes"]),
+             "tf_live": set(cc["tfLiveCodes"])}
     for node in _walk(tree):
         kind = node.get("type")
         if kind not in SCOPE_NODES:
@@ -6528,6 +6616,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if days_as_bars:
         notes = {**notes, **days_as_bars}
         trace["day_lengths"] = len(days_as_bars["day_lengths"])       # how many, never which
+    intraday_notes = intraday_turn_notes(chart)                     # ⭐⭐ E101: the minute codes this chart reads
+    if intraday_notes:
+        notes = {**notes, **intraday_notes}
     from api.services import worked_examples
     carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
     content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
@@ -6634,6 +6725,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         candidate, shortened = mend_choice_phrases(candidate, bars_phrases(message, chart))
         # BEFORE `mend`: an operator named after a function is a schema error, and `mend` leaves those alone
         candidate, respelled = mend_operator_named_function(candidate)
+        candidate, unwrapped_daily = mend_daily_read_on_days(candidate, chart)   # a daily read on a daily chart is the value
         try:
             candidate, mended = mend(candidate, view)
         except _Refused as inlined:                # the inlined form is over its cap: answered by name, nothing built
@@ -6645,6 +6737,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             mended = list(mended) + [MEND_CHOICE_PHRASE]
         if respelled:
             mended = list(mended) + [MEND_OPERATOR_FUNCTION]
+        if unwrapped_daily:
+            mended = list(mended) + [MEND_DAILY_READ_ON_DAYS]
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
@@ -6654,6 +6748,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_date_numbers(envelope, date_numbers)         # a date number is the door's, never the assistant's
             check_day_lengths(envelope, message, chart)        # below a day, a length in days is never that many bars
             check_daily_reads(envelope, message, chart)        # a daily read is for a chart below a day (U-DAILY)
+            check_intraday_reads(envelope, chart)              # a read of minutes is for a chart below them (E101)
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written

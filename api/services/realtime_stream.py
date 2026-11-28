@@ -95,10 +95,12 @@ def stream_enabled() -> bool:
 
     Off, `start_stream()` opens no connection. `/api/stream/prices` then carries the Massive overlay
     alone (api/routers/stream.py: Massive is already the primary price and this feed the layer
-    under it), the `/api/live-prices` poll covers a symbol the overlay is quiet on, and nothing
-    feeds `realtime_candle`, so the `tick` / `bar_close` / `bar_correction` events of the tick
-    fallback are not sent. The REST reads through `finnhub_client` are a different thing and are
-    untouched. Read when the process starts the stream: a change needs a restart of `web`.
+    under it), the `/api/live-prices` poll covers a symbol the overlay is quiet on, and
+    `realtime_candle` is fed by the Massive feed alone (api/services/realtime_candle_feed.py, since
+    2026-11-28) when STREAM_CANDLE_MASSIVE_ENABLED=1 (arm it first), so the `tick` / `bar_close` /
+    `bar_correction` events keep coming as long as the Massive bars feed runs (STREAM_BARS_ENABLED=1). The day % fields come from the licensed previous
+    close (api/services/stream_prev_close.py). The REST reads through `finnhub_client` are a different
+    thing and are untouched. Read when the process starts the stream: a change needs a restart of `web`.
     """
     return os.environ.get("FINNHUB_STREAM_ENABLED", "").strip().lower() not in _OFF_WORDS
 
@@ -114,7 +116,17 @@ def get_stream_status():
         "prices_cached": len(_prices),
         "subscribed_tickers": sorted(_subscribed)[:50],
         "last_seen_ages": get_last_seen_ages(),
+        # Who feeds the live candle per symbol (Massive first, Finnhub only while Massive is silent).
+        "candle_feed": _candle_feed_status(),
     }
+
+
+def _candle_feed_status() -> dict:
+    try:
+        from api.services import realtime_candle_feed
+        return realtime_candle_feed.status()
+    except Exception:  # noqa: BLE001 - a status read never fails the status route
+        return {}
 
 
 def _record_tick(sym: str, price: float, ts: int) -> None:
@@ -514,8 +526,14 @@ def _process_finnhub_trade(trade):
     # _record_tick is NOT called from this production path, so we hook the
     # candle state machine directly here. Wrapped in try/except so observability
     # failures never break tick handling.
+    # ⭐ ONE SOURCE PER SYMBOL (2026-11-28): the Massive feed builds the candle too
+    # (api/services/realtime_candle_feed.py), so a Finnhub print goes in only while
+    # Massive is silent for this symbol; the same print can never be counted twice.
     try:
-        from api.services import realtime_candle
+        from api.services import realtime_candle, realtime_candle_feed
+        if not realtime_candle_feed.admit(sym, realtime_candle_feed.SOURCE_FINNHUB,
+                                          int(timestamp) if timestamp else ts_seconds * 1000):
+            return
         actual_size = int(trade_vol) if trade_vol else 1
         for tf in ("1", "5", "15", "30", "60"):
             realtime_candle.apply_tick(

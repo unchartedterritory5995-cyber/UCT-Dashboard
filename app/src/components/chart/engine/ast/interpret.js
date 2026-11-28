@@ -50,7 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, MULTI_STATES, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
-  SERIES_LOOKBACK, usableWindowBound, RUNTIME_AT_CALL,
+  SERIES_LOOKBACK, usableWindowBound, RUNTIME_AT_CALL, INTRADAY_HTF_CODES,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -807,8 +807,8 @@ export function tfBucket(iso, code) {
 // clock multiples) and are NOT measured. They, and 30 / 60 as REQUEST reads above a lower chart, are served only once
 // the TradingView probe (queue row Q-IHTF-1, `tools/visual_conformance/probes/vw-ihtf-grid.pine`) agrees, by the door's
 // admission (`intradayHtfGate.js`). A target must be a whole multiple of the chart's minutes (15 -> 60; 45 -> 60 refused).
-/** The intraday codes a higher-timeframe read may name above an intraday chart. */
-export const INTRADAY_HTF_CODES = Object.freeze(['30', '60', '120', '240'])
+/** The intraday codes a higher-timeframe read may name above an intraday chart: the grammar's (`parse.js`), re-exported. */
+export { INTRADAY_HTF_CODES }
 const INTRADAY_HTF_SET = new Set(INTRADAY_HTF_CODES)
 /** The bars of an intraday read whose chart is on neither measured grid (`intradayHtfMask`). */
 export const INTRADAY_HTF_SESSION_CODE = 'request:htf-intraday-session'
@@ -5515,7 +5515,7 @@ export function maxLookback(ast) {
       // (`INTRADAY_HTF_MIN_SPAN`: the fewest a whole multiple above the chart can hold). The tree sum has no base, so
       // this is the claim the 2026-08-30 ruling keeps for an intraday base (`TF_BASE_BARS`): low, never a wrong number.
       // Formula `tf` keeps its own codes.
-      if (node.type === TF_MERGE && isIntradayHtfCode(code)) {
+      if (isIntradayHtfCode(code)) {
         seen.set(node, (seen.get(node.args[0]) + 1) * INTRADAY_HTF_MIN_SPAN)
         continue
       }
@@ -8580,9 +8580,11 @@ export function intradayHtfMask(tree, bars, opts) {
     const [node, sym] = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
-    if ((node.type === TF_MERGE || node.type === 'tf_live') && isIntradayHtfCode(node.value)) {
+    if ((node.type === TF_MERGE || node.type === 'tf_live' || node.type === 'tf') && isIntradayHtfCode(node.value)) {
       const series = sym === null ? bars : supplied[sym]
-      if (Array.isArray(series) && series.length && periodStamps(series, String(node.value)).some((d) => !d)) unplaced = true
+      // a chart that states no timeframe is not placed either: the evaluator computes nothing for it
+      if (!(opts && opts.tf !== undefined && opts.tf !== null)) unplaced = true
+      else if (Array.isArray(series) && series.length && periodStamps(series, String(node.value)).some((d) => !d)) unplaced = true
     }
     const symHere = node.type === 'sym' ? String(node.value).trim().toUpperCase() : sym
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, symHere])
@@ -10725,12 +10727,17 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       case TF_MERGE: {
         const code = String(n.value)
         // ⭐ C47 — a forming read may also name the quarter, from daily bars.
-        // ⭐⭐ E101 INTRADAY-HTF — a Pine read (`tf_merge` / `tf_live`) of an intraday code, above an intraday chart that
-        // the caller STATED, a whole multiple of its minutes (`intradayHtfRefusal`, the one decision). Formula `tf`
-        // keeps its own codes, and an unstated chart is refused: its bars' minutes are not assumed.
-        const intradayRead = n.type !== 'tf' && isIntradayHtfCode(code)
+        // ⭐⭐ E101 INTRADAY-HTF — a read of an intraday code (Pine's `tf_merge` / `tf_live`, and since 2026-11-28 the
+        // FORMULA lane's `tf`: the last CLOSED bucket, its daily read's rule one rung down), above an intraday chart
+        // that the caller STATED, a whole multiple of its minutes (`intradayHtfRefusal`, the one decision). A stated chart
+        // it cannot sit above is refused. A chart NOT stated (the Builder's chart-free probe, which asks only whether a
+        // tree runs) is withheld whole BY NAME (`intradayHtfMask`), as a daily read with no daily bars in hand is: its
+        // bars' minutes are never assumed, and nothing is computed from them.
+        const intradayRead = isIntradayHtfCode(code)
         if (intradayRead) {
-          const why = intradayHtfRefusal(code, (opts && opts.tf) ?? null)
+          const stated = (opts && opts.tf) ?? null
+          if (stated === null) return nan(length)
+          const why = intradayHtfRefusal(code, stated)
           if (why) refuse('interpret:timeframe', `${why}.`)
         } else if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
         else assertResamplable(code, refuse)

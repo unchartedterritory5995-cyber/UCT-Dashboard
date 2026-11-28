@@ -14,9 +14,8 @@
 //   * It never reads as live: the two recorded days are named above the table, and the one
 //     sentence about the clearing house's once-a-day figure is always on screen with them.
 import { useMemo, useState } from 'react'
-import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness,
-} from '../../../components/terminal'
+import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {
@@ -38,7 +37,19 @@ export const HELD_POLL_MS = 10 * 60 * 1000
 
 const signClass = (n) => (signOf(n) === 'up' ? styles.up : signOf(n) === 'down' ? styles.down : undefined)
 
-function Row({ row, session, withVolume }) {
+/** Customization pass 1: the table's columns (components/terminal/PanelTable). The server's order
+ *  (biggest change in contracts first) is the default and decides which contracts are listed; a
+ *  header click sorts the contracts listed. A new contract's change is its whole open interest. */
+export const OIC_COLUMNS = Object.freeze([
+  { key: 'contract', label: 'Contract', type: 'text', firstDir: 'asc', sort: (r) => r.expiration, required: true,
+    title: 'Sorts by expiration date' },
+  { key: 'oi', label: 'Open interest', sort: (r) => r.oi },
+  { key: 'change', label: 'Change', sort: (r) => (r.kind === 'new' ? r.oi : r.change), title: 'The change in contracts, and as a percent of the earlier figure' },
+  { key: 'volume', label: 'Volume', sort: (r) => r.volume, phoneHide: true },
+])
+const OIC_SORTED_BY = { contract: 'expiration', oi: 'open interest', change: 'change in contracts', volume: 'volume' }
+
+function Row({ row, session, withVolume, shows }) {
   const [change, pct] = changeLines(row)
   const [oi, was] = oiLines(row)
   return (
@@ -48,17 +59,17 @@ function Row({ row, session, withVolume }) {
         <br />
         <span className={styles.muted}>{expiryText(row.expiration, session)}</span>
       </td>
-      <td>
+      {shows('oi') && <td>
         {oi}
         <br />
         <span className={styles.muted}>{was}</span>
-      </td>
-      <td data-testid="terminal-oic-change">
+      </td>}
+      {shows('change') && <td data-testid="terminal-oic-change">
         <span className={row.kind === 'new' ? undefined : signClass(row.change)}>{change}</span>
         <br />
         <span className={styles.muted}>{pct}</span>
-      </td>
-      {withVolume ? <td className={styles.phoneHide}>{row.kind === 'new' ? 'n/a' : countText(row.volume)}</td> : null}
+      </td>}
+      {withVolume && shows('volume') ? <td className={styles.phoneHide}>{row.kind === 'new' ? 'n/a' : countText(row.volume)}</td> : null}
     </tr>
   )
 }
@@ -71,6 +82,10 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(oiChangeUrl(s, side), { refreshInterval: pace })
   const view = useMemo(() => oiChangeRead(read.body), [read.body])
+  // Volume is offered only when the answer carries it (the log has no volume for some days).
+  const volumeHere = view.state === 'ok' && !!view.volumePresent
+  const columns = useMemo(() => OIC_COLUMNS.map((c) => (c.key === 'volume' ? { ...c, available: volumeHere } : c)), [volumeHere])
+  const table = usePanelTable({ columns })
   // The pace follows the server's own word (adjusted during render from the last answer).
   const wantPace = view.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS
   if (wantPace !== pace) setPace(wantPace)
@@ -146,7 +161,8 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
   }
 
   const noun = OI_SIDES[side].noun
-  const shown = showAll ? view.rows : view.rows.slice(0, OI_ROWS_SHOWN)
+  const listed = showAll ? view.rows : view.rows.slice(0, OI_ROWS_SHOWN)
+  const shown = table.apply(listed)
   const cut = cutLine(view, shown.length)
   const notes = limitNotes(view, s)
   const withVolume = view.volumePresent
@@ -166,6 +182,7 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
               data-testid={`terminal-oic-side-${key}`}>{spec.label}</button>
           ))}
         </div>
+        <PanelColumns table={table} testId="terminal-oic-columns" />
       </div>
       <dl className={styles.fields} data-testid="terminal-oic-summary">
         <div style={{ display: 'contents' }}>
@@ -190,17 +207,13 @@ function OiChangeBody({ sym: s, code, side: sideProp }) {
       {shown.length ? (
         <div className={styles.tableBox}>
           <table className={styles.table} data-testid="terminal-oic-table"
-            aria-label={`Open interest change for ${s}, ${side === 'any' ? 'calls and puts' : `${noun}s only`}, biggest change in contracts first`}>
-            <thead>
-              <tr>
-                <th scope="col">Contract</th>
-                <th scope="col" title={`Open interest in the ${dayWords(view.session)} record, and in the ${prior} record`}>Open interest</th>
-                <th scope="col" title="The change in contracts, and as a percent of the earlier figure">Change</th>
-                {withVolume ? <th scope="col" className={styles.phoneHide} title={`Contracts traded on ${dayWords(view.volumeSession)}`}>Volume</th> : null}
-              </tr>
-            </thead>
+            aria-label={`Open interest change for ${s}, ${side === 'any' ? 'calls and puts' : `${noun}s only`}, ${table.sort
+              ? `sorted by ${OIC_SORTED_BY[table.sort.key]}, ${table.sort.dir === 'asc' ? 'lowest' : 'highest'} first` : 'biggest change in contracts first'}`}>
+            <PanelTableHead testId="terminal-oic" table={{ ...table, visible: table.visible.map((c) => (
+              c.key === 'oi' ? { ...c, title: `Open interest in the ${dayWords(view.session)} record, and in the ${prior} record` }
+                : c.key === 'volume' ? { ...c, title: `Contracts traded on ${dayWords(view.volumeSession)}` } : c)) }} />
             <tbody>
-              {shown.map((r) => <Row key={r.contract} row={r} session={view.session} withVolume={withVolume} />)}
+              {shown.map((r) => <Row key={r.contract} row={r} session={view.session} withVolume={withVolume} shows={table.shows} />)}
             </tbody>
           </table>
         </div>

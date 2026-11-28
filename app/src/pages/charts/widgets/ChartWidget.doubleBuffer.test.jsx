@@ -21,8 +21,6 @@
 //   W12 (the cold-ticker measurement, 2026-11-28: every arrow dropped the date and the zoom; 16 of 16 refused for a view
 //      lock) at the date the member zooms and pans the front: the date and the span follow its view, both layers carry
 //      them, the next press flips and opens there; a pan or zoom with no date set never sets one
-//   W14 (lane C, PR 2.1) no list: the hidden layer's CHART is the front's symbol at the habitual next timeframe, and a
-//      press of that timeframe on the widget shows that very layer, its chart not rendered for it
 import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { Profiler, useMemo, useState } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -65,7 +63,7 @@ vi.mock('../../../components/StockChart', async () => {
       const report = useContext(LayerPaintContext)
       const latest = useRef(props)
       latest.current = props
-      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[`${sym}@${tf}`] ?? renders.storeBars[sym], cutoff: replayCutoff || null, anchor: anchorWidth ? `${anchorDate}|${anchorWidth}` : null }) })
+      useLayoutEffect(() => { report?.({ sym, tf, ext: false, bars: renders.storeBars[sym], cutoff: replayCutoff || null, anchor: anchorWidth ? `${anchorDate}|${anchorWidth}` : null }) })
       useLayoutEffect(() => { renders.mounts += 1; return () => { renders.unmounts += 1 } }, [])
       useEffect(() => {
         if (typeof onDateNavApi !== 'function') return undefined
@@ -179,7 +177,7 @@ const symIn = (el) => el?.querySelector('[data-testid="chart-sym"]')?.textConten
 beforeEach(() => {
   vi.useFakeTimers(); vi.setSystemTime(NOW)
   vi.stubGlobal('requestIdleCallback', undefined)
-  for (const s of ['AAA', 'BBB', 'CCC']) { renders.storeBars[s] = Object.freeze([s, 1]); renders.storeBars[`${s}@W`] = Object.freeze([s, 'W', 1]) }
+  for (const s of ['AAA', 'BBB', 'CCC']) renders.storeBars[s] = Object.freeze([s, 1])
   dbm.__setDoubleBufferForTests(true)
   __setDoubleBufferStoreForTests(true)
   dbm.__resetDoubleBufferStatsForTests()
@@ -187,7 +185,6 @@ beforeEach(() => {
     for (const sym of ['AAA', 'BBB', 'CCC']) {
       for (const ext of [false, true]) {
         if (chartKeyFor({ sym, resolvedTf: 'D', showExtended: ext, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[sym]
-        if (chartKeyFor({ sym, resolvedTf: 'W', showExtended: ext, replayCutoff: null, hasOverride: false }) === key) return renders.storeBars[`${sym}@W`]
       }
     }
     return null
@@ -488,40 +485,4 @@ test('W11 (owner) Enter on an empty date field clears the date; entering replay 
   view.rerender(<Wrap initial="S0" cutoff="2006-06-30" />)
   await settle()
   expect(lastProps('S0').anchorDate ?? null).toBe(null)
-})
-
-// (lane C, PR 2.1) a widget whose timeframe the test can press (the bar's setTf writes opts.tf as this does)
-let setWidgetTf = null
-function WrapTf() {
-  const [store] = useState(() => createGroupSymsStore({ A: 'AAA', B: null, C: null, D: null }))
-  const [opts, setOpts] = useState({ tf: 'D', settings: { header: { timeframes: ['60', 'D', 'W'] } } })
-  setWidgetTf = (tf) => setOpts((o) => ({ ...o, tf }))
-  const value = useMemo(() => ({
-    groupSyms: store.get(), groupSymsStore: store, setGroupSym: (c, sv) => store.set((p) => ({ ...p, [c]: sv })),
-    chartsTheme: 'default', crosshairBus: { emit: () => {}, subscribe: () => () => {} },
-    aiSearchBus: { subscribe: () => () => {}, request: () => false }, activeChartRef: { current: null }, replayCutoff: null,
-  }), [store])
-  return (
-    <MemoryRouter>
-      <WorkspaceContext.Provider value={value}>
-        <ChartWidget color="A" opts={opts} onOptsChange={(o) => setOpts(o)} />
-      </WorkspaceContext.Provider>
-    </MemoryRouter>
-  )
-}
-
-test('W14 (lane C, PR 2.1) no list: the hidden layer is AAA at W; pressing W shows that very layer, no chart rendered for it', async () => {
-  nf.__resetScanForTests()   // no list publishes rows around AAA
-  render(<WrapTf />)
-  await settle()
-  const shadowEl = layer('shadow')
-  expect(symIn(shadowEl)).toBe('AAA')
-  const tfsOf = () => (renders.props.AAA || []).map((p) => p.tf)
-  expect(tfsOf()).toContain('W')                            // the hidden layer's chart was given W
-  const wRenders = tfsOf().filter((t) => t === 'W').length
-  act(() => { setWidgetTf('W') })
-  await settle(200)
-  expect(layer('front')).toBe(shadowEl)                     // the very layer, now shown
-  expect(dbm.doubleBufferStats().flips, JSON.stringify(dbm.doubleBufferStats().why)).toBe(1)
-  expect(tfsOf().filter((t) => t === 'W').length, 'the flip rendered the W chart again').toBe(wRenders)
 })

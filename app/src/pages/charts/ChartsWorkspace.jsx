@@ -22,7 +22,7 @@ import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSym
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { SWRConfig, unstable_serialize, useSWRConfig } from 'swr'
 import { isAppVisible } from '../../lib/deskVisibility'
-import { useAgentFlag, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import { useAgentAccess, AGENT_OPEN_EVENT, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
@@ -2541,7 +2541,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   }, [])
 
   // ── Named layout templates (prebuilt + personal) ──
-  const { user, addressSpaceEnabled } = useAuth()
+  const auth = useAuth()
+  const { user, addressSpaceEnabled } = auth
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, renameLayout, deleteLayout, adoptRow: adoptLayoutRow, refresh: refreshLayouts, isLoading: templatesLoading } = useChartLayouts()
 
@@ -3876,13 +3877,14 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     </div>
   )
 
-  // ── UCT Agent (admin-dark) ── the far-right workspace column. Two keys: the
-  // per-browser flag AND the admin role; the server routes are admin-only too.
+  // ── UCT Agent ── the far-right workspace column. The shared gate (agentFlag.useAgentAccess): an
+  // admin with the per-browser switch, or, while the member door is open (UCT_AGENT_MEMBERS_ENABLED=1),
+  // a paid member whose switch is not off; the server routes hold the same door.
   // The host reads the charts through chartApiById (each ChartWidget's own agent
   // adapter) and the visible board below — it never writes prefs itself.
-  const agentFlag = useAgentFlag()
+  const agentAccessOn = useAgentAccess(auth)
   // A hidden board is not the page showing: it offers no Agent and registers no page host for it.
-  const agentAllowed = agentFlag && isAdmin && !boardHidden
+  const agentAllowed = agentAccessOn && !boardHidden
   // The panel's code is fetched in the background before the first open, so that open slides
   // in on the first click instead of waiting on the download.
   useEffect(() => {

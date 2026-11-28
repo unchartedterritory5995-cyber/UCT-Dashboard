@@ -75,28 +75,6 @@ export function nextShadowSym(sym) {
   return order.length ? order[0] : null
 }
 
-/**
- * ⭐ (lane C, zero-network PR 2.1) WHAT THE HIDDEN LAYER HOLDS: `{sym, tf}`. The row ahead at the front's timeframe when a
- * list (or a typed ticker) names one; with none, the front's OWN symbol at the member's habitual next timeframe
- * (`habitTf`, tfHabit.js), so a timeframe press flips. null: nothing to hold.
- */
-export function shadowTargetFor(frontSym, frontTf, habitTf) {
-  if (!frontSym) return null
-  const next = nextShadowSym(frontSym)
-  if (next && next !== frontSym) return { sym: next, tf: frontTf }
-  if (habitTf && frontTf && String(habitTf) !== String(frontTf)) return { sym: frontSym, tf: String(habitTf) }
-  return null
-}
-
-/** (PR 2.1) The view check of a TIMEFRAME press: a timeframe switch keeps the outgoing zoom WIDTH in bars and pins the
- *  newest bar at the right margin (StockChart pendingTfReframeRef / settlingFrameOf), exactly the pin the hidden chart is
- *  held at; a view lock or a replay view lock frames a timeframe switch by rules not proved here: refused. */
-export function tfViewParity(front, shadow, ctx = {}) {
-  if (front && front.frame && (lockOf(front) || front.replayLock)) return 'view-lock'
-  if (shadow && shadow.frame && (lockOf(shadow) || shadow.replayLock)) return 'view-lock'
-  return viewParity(front, shadow, ctx)
-}
-
 // ─── the flip rule ──────────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Show the shadow, or switch the front as today?
@@ -115,11 +93,6 @@ export function tfViewParity(front, shadow, ctx = {}) {
 export function flipDecision(want, report, barsNow, view) {
   if (!want) return { flip: false, why: 'no-front' }
   if (!report) return { flip: false, why: 'no-shadow' }
-  // ⭐ (lane C, zero-network PR 2.1) THE TIMEFRAME-PRESS FORM (`want.press === 'tf'`): the same symbol at the timeframe
-  // pressed (`want.tf`: the code the bar pressed, which a plain ticker's chart resolves to itself; any other resolution
-  // refuses on 'tf' below). Not in change-date mode: an intraday replay reads a window per timeframe, its switch has its
-  // own warm (prefetchReplayTimeframes), and a hidden chart is never proved against it here.
-  if (want.press === 'tf' && want.cutoff) return { flip: false, why: 'tf-replay' }
   // (owner, 2026-11-27; it was F6's refusal of any replay) change-date mode: the hidden chart drew under the front's
   // cutoff, or it shows other bars than the switch would (StockChart cuts every bar after it; intraday reads its window)
   if ((want.cutoff || null) !== (report.cutoff || null)) return { flip: false, why: 'cutoff' }
@@ -276,6 +249,24 @@ export function mirrorFrameFor(front, shadow, ctx = {}) {
   if (pin) return modeOf(pin)
   return locksAlike ? null : modeOf(shadow.frame)
 }
+/**
+ * (2026-11-28, sweep 2 COV-zo-h4h2-arrows: 24 of 24 refused 'view-frame', 24 flips the sweep before) WHAT A VIEW REFUSAL
+ * COMPARED: both charts' frames (counted from the newest bar), their locks, rows, plot widths and pins, and the frame the
+ * front's lock gives the next symbol. Diagnostics only: logged with the decision (doubleBufferStats().log[].view).
+ */
+export function viewDetail(front, shadow, ctx = {}) {
+  const r1 = (v) => (Number.isFinite(v) ? Math.round(v * 100) / 100 : v ?? null)
+  const of = (m) => (!m ? null : {
+    fromRight: r1(m.frame?.fromRight), toRight: r1(m.frame?.toRight), locked: !!m.frame?.locked,
+    lock: m.frame?.lock ? { anchorFrac: r1(m.frame.lock.anchorFrac), width: r1(m.frame.lock.width), tf: m.frame.lock.tf ?? null } : null,
+    replayLock: m.replayLock || null, rows: m.rows ?? null, plotWidthPx: r1(m.plotWidthPx), pinReserve: m.pinReserve ?? null,
+    anchor: m.anchor || null, priceAuto: m.priceAuto ?? null,
+  })
+  let lf = null
+  try { lf = front && front.frame ? lockFrameFor(front, ctx.tf) : null } catch { lf = null }
+  return { front: of(front), shadow: of(shadow), lockFrame: lf ? { fromRight: r1(lf.fromRight), toRight: r1(lf.toRight), refuse: lf.refuse ?? null } : null, tf: ctx.tf ?? null }
+}
+
 /** (N4) Is the mirror's frame still the front's mode at the write? restoreView writes the hidden chart's view lock under
  *  the pane's key, which both layers share (`uct.charts.viewLock.<chartId>`): only the lock the front holds may go there. */
 export function mirrorStillFits(frame, front) {
@@ -294,7 +285,7 @@ export function noteDecision(d, sym, extra = {}) {
   _stats.why[d.why] = (_stats.why[d.why] || 0) + 1
   _stats.last.push(`${sym}:${d.why}`)
   if (_stats.last.length > 32) _stats.last.splice(0, _stats.last.length - 32)
-  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null, press: extra.press ?? 'sym' })
+  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null, ...(extra.view ? { view: extra.view } : {}) })
   if (_stats.log.length > 64) _stats.log.splice(0, _stats.log.length - 64)
   try { if (typeof window !== 'undefined') window.__uctDoubleBuffer = _stats } catch { /* no window */ }
 }

@@ -19,9 +19,8 @@
 // The read goes through marketRead.js (the terminal's one bare-SWR reader), and SWR skips ticks
 // while the app is hidden.
 import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { PanelColumns, PanelTableHead, usePanelTable } from '../../../components/terminal/PanelTable'
 import {
   formatCompactTerminal, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -82,6 +81,21 @@ function FailedRead({ read, code }) {
   )
 }
 
+/** Customization pass 1: the board's columns (components/terminal/PanelTable), one sort for every
+ *  size band. The server's rank (inside each band) is the default and decides which stocks are
+ *  listed; a header click sorts the stocks listed, band by band. */
+export const CONFL_COLUMNS = Object.freeze([
+  { key: 'sym', label: 'Symbol', type: 'text', sort: (r) => r.sym, required: true, title: 'Click a symbol to load it into the linked panels' },
+  { key: 'direction', label: 'Direction', type: 'text', sort: (r) => r.direction, thClass: styles.phoneWrap,
+    title: 'Which way the open option premium leans, and whether the last 5 trading days are still adding to it' },
+  { key: 'net', label: 'Open option premium', sort: (r) => r.net, thClass: styles.phoneWrap,
+    title: 'Bullish premium less bearish premium on option contracts that are still open, then the part of the open premium that sits in long-dated contracts and its share of all of it' },
+  { key: 'darkPool', label: 'Dark pool', sort: (r) => r.darkPool, thClass: `${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`,
+    title: "Dollars traded in the dark pool over the window, the average price paid there, and the last dark pool session's price against that average" },
+  { key: 'contract', label: 'Largest contract', sort: (r) => r.topPremium, phoneHide: true, thClass: `${styles.wrapCell} ${styles.snugTight}`,
+    title: "The stock's largest open contract by premium (sorts by its premium)" },
+])
+
 function Board({ code, lean, onLean }) {
   // The pace follows the server's own word that it has no board yet. `warming` is adjusted during
   // render from the last answer (no effect, so no extra pass through an old value).
@@ -92,7 +106,9 @@ function Board({ code, lean, onLean }) {
   const [all, setAll] = useState(false)
   const wanted = useMemo(() => leanRows(view.rows, lean), [view.rows, lean])
   // Cut by the server's own rank, then listed by size band: row N is the Nth row on screen.
-  const groups = useMemo(() => bandGroups(all ? wanted : wanted.slice(0, MAX_ROWS)), [wanted, all])
+  const table = usePanelTable({ columns: CONFL_COLUMNS })
+  const groups = useMemo(() => bandGroups(all ? wanted : wanted.slice(0, MAX_ROWS)).map((g) => ({ ...g, rows: table.apply(g.rows) })),
+    [wanted, all, table.apply])
   const shown = useMemo(() => groups.flatMap((g) => g.rows), [groups])
   usePanelFreshness(view.state === 'ok' && view.rows.length ? panelAsOf(SOURCE, view.windowEnd) : null)
   usePanelSymbolRows(shown.map((r) => r.sym), 'the confluence board', { total: wanted.length })
@@ -139,6 +155,7 @@ function Board({ code, lean, onLean }) {
           over the last {count(days)} trading days: {count(counts.bullish)} bullish, {count(counts.bearish)} bearish,{' '}
           {count(counts.building)} building now.
         </span>
+        <PanelColumns table={table} testId="terminal-confl-columns" />
       </div>
       {view.partial ? (
         <p className={styles.note} role="status" data-testid="terminal-confl-partial">
@@ -159,17 +176,7 @@ function Board({ code, lean, onLean }) {
             <caption className={styles.caption}>
               {view.bands[g.band].name} ({view.bands[g.band].range}): {count(g.rows.length)}
             </caption>
-            <thead>
-              <tr>
-                <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-                <th scope="col" className={styles.phoneWrap} title="Which way the open option premium leans, and whether the last 5 trading days are still adding to it">Direction</th>
-                <th scope="col" className={styles.phoneWrap}
-                  title="Bullish premium less bearish premium on option contracts that are still open, then the part of the open premium that sits in long-dated contracts and its share of all of it">Open option premium</th>
-                <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}
-                  title="Dollars traded in the dark pool over the window, the average price paid there, and the last dark pool session's price against that average">Dark pool</th>
-                <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`} title="The stock's largest open contract by premium">Largest contract</th>
-              </tr>
-            </thead>
+            <PanelTableHead table={table} testId={`terminal-confl-${g.band}`} />
             <tbody>
               {g.rows.map((r) => (
                 <tr key={r.key} data-testid={`terminal-confl-row-${r.sym}`} data-direction={r.direction} data-status={r.status || ''}>
@@ -177,25 +184,25 @@ function Board({ code, lean, onLean }) {
                     <span className={styles.rowNum} aria-hidden="true">{rowNumber.get(r.key)}</span>
                     <PanelSymbol sym={r.sym} className={styles.sym} />
                   </td>
-                  <td className={`${toneOf(r.direction) || ''} ${styles.phoneWrap}`.trim()}>{leanWords(r)}</td>
+                  {table.shows('direction') && <td className={`${toneOf(r.direction) || ''} ${styles.phoneWrap}`.trim()}>{leanWords(r)}</td>}
                   {/* One cell of two fixed lines, not two columns: six columns cut the last one off at a
                       half-width panel, and a wrapping cell broke a word in the middle on a phone. */}
-                  <td>
+                  {table.shows('net') && <td>
                     <span className={tone(r.net)}>{r.net == null ? NA : `${signedMoney(r.net)} net`}</span>
                     <br />
                     <span className={`${styles.muted} ${styles.phoneWrap}`}>
                       {`${money(r.leapPremium)} long-dated`}
                       {r.leapSharePct == null ? null : ` (${formatPercent(r.leapSharePct, { decimals: 0 })})`}
                     </span>
-                  </td>
-                  <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
+                  </td>}
+                  {table.shows('darkPool') && <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
                     {money(r.darkPool)}
                     {r.avgPrice == null ? null : <span className={styles.muted}>{` avg${NBSP}${price(r.avgPrice)}`}</span>}
                     {r.lastVsAvgPct == null ? null : (
                       <span className={tone(r.lastVsAvgPct)}>{` last${NBSP}${formatPercent(r.lastVsAvgPct, { decimals: 1, signed: true })}`}</span>
                     )}
-                  </td>
-                  <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>{unbroken(contractText(r))}</td>
+                  </td>}
+                  {table.shows('contract') && <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>{unbroken(contractText(r))}</td>}
                 </tr>
               ))}
             </tbody>
@@ -217,7 +224,7 @@ function Board({ code, lean, onLean }) {
         a buyer. Building means the last 5 trading days added a large part of the net premium in the same direction; steady
         means they are still adding, more slowly; established means the position is in place and not being added to. In the
         Dark pool column, avg is the average price paid there and last is the last dark pool session&apos;s price against
-        that average (not a live quote). Each size band is listed in the server&apos;s own rank. A word and a sign (+/-) mark
+        that average (not a live quote). Each size band is listed in the server&apos;s own rank{table.sort ? ' (sorted here by the column header you picked; which stocks are listed is still the rank)' : ''}. A word and a sign (+/-) mark
         every direction, so color is never the only signal. A board says which stocks to study; it is not a forecast or a
         recommendation. Click a symbol to load it into the linked panels; type a row number to do the same.
         {view.window ? ` Dark pool window: ${view.window}.` : ''}

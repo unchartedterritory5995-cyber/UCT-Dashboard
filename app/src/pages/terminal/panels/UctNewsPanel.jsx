@@ -27,6 +27,7 @@
 // says so, and the one-stock view says how far back it has searched.
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import Input from '../../../components/ui/Input'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { declareNeed, DELIVERY } from '../../../lib/panelContract'
@@ -36,7 +37,7 @@ import {
 } from '../../charts/widgets/tradeExchangeNewsModel'
 import { canRetry, failureKind, failureText } from './marketRead'
 import {
-  FILTER_DEBOUNCE_MS, FILTER_MAX, SCROLL_HOLD_PX, UCT_NEWS_CODE, UCT_NEWS_NAME, UCT_NEWS_SOURCE, canStep, cleanFilter,
+  FILTER_DEBOUNCE_MS, FILTER_MAX, SCROLL_HOLD_PX, UCT_NEWS_CODE, UCT_NEWS_NAME, UCT_NEWS_SOURCE, canStep, cleanFilter, cleanTypes,
   connectionWords, emptyWords, feedOff, heldLabel, matchingSentence, newsView, offState, reachSentence, rowPieces, rowTime,
   splitHeld, toggleType, topSeq,
 } from './uctNewsModel'
@@ -97,15 +98,29 @@ export default function UctNewsPanel({ sym = null }) {
   const off = feedOff(feed)
 
   // ── filters: a typed word (sent after a pause) and the type chips ──
-  const [draft, setDraft] = useState('')
-  const [query, setQuery] = useState('')
+  // Customization pass 1: both are the panel's VIEW (usePanelView), saved with the board, so a
+  // reload, a saved board and a share link reopen the wire filtered as the member left it. The
+  // types are kept as one comma-joined text (a view keeps plain values), cleaned on the way in.
+  const [pv, setPv] = usePanelView({ filters: { q: '', types: '' } })
+  const [draft, setDraft] = useState(() => cleanFilter(pv.filters.q))
+  const [query, setQuery] = useState(() => cleanFilter(pv.filters.q))
   useEffect(() => {
-    const t = setTimeout(() => setQuery(cleanFilter(draft)), FILTER_DEBOUNCE_MS)
+    const t = setTimeout(() => {
+      const q = cleanFilter(draft)
+      setQuery(q)
+      setPv({ filters: { q } })
+    }, FILTER_DEBOUNCE_MS)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft])
-  const [types, setTypes] = useState([])
+  const typesText = typeof pv.filters.types === 'string' ? pv.filters.types : ''
+  const types = useMemo(() => cleanTypes(typesText ? typesText.split(',') : []), [typesText])
+  const setTypes = (next) => {
+    const list = cleanTypes(typeof next === 'function' ? next(types) : next)
+    setPv({ filters: { types: list.join(',') } })
+  }
   const filtered = !!query || types.length > 0
-  const clearFilters = () => { setDraft(''); setQuery(''); setTypes([]) }
+  const clearFilters = () => { setDraft(''); setQuery(''); setPv({ filters: { q: '', types: '' } }) }
 
   // ── the day (or, for one stock, every archived day), filtered by the server ──
   const rule = useMemo(() => ({ query, linkedSym: view.sym, categories: types, hidePlaceholders: true }), [query, view.sym, types])

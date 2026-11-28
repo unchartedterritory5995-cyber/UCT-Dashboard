@@ -1,5 +1,31 @@
 # RESUME.md — exact state to resume from (written 2026-11-03 ≈07:00Z, owner's usage limit approaching)
 
+## Opening the Agent to members (2026-11-27). Read this section first.
+
+Built in the PR from `feat/agent-open-to-members`. Decided 2026-11-24 by the integrator (Claude) under the owner's delegation of 2026-11-24 ("you decide it all and get it all done"; 2026-11-19 "do it all and make all decisions"). These are the integrator's decisions, not the owner's rulings; he may overrule any of them.
+
+- **The door:** `UCT_AGENT_MEMBERS_ENABLED=1` lets every PAID account use the Agent; unset or any other value is the admin-only Agent exactly as before (`api/routers/uct_agent.py::members_enabled`, read per request). The budget page stays admin-only. Ledger: `docs/feature_flags.json` `flags.UCT_AGENT_MEMBERS_ENABLED` (pending until set).
+- **Spending (replaces open decision 7's `UCT_AGENT_DAILY_CAP=3000` below):** `UCT_AGENT_DAILY_CAP=50` questions per member per day; `UCT_AGENT_BUDGET_USD=15` for all members together per day (fails closed). Unchanged: model Haiku 4.5 (D2), `UCT_AGENT_TURN_USD` $0.25 per question, at most 2 model calls per question. At about $0.015 a call the $15 day is roughly 500 to 1,000 questions across all members; past it the Agent says it has reached today's limit.
+- **Data kinds served:** the 11 already live, plus `cot.positioning` and `history.eventStudy`, plus 58 model-isolated kinds (still isolated, ADR-005 unchanged; one decision per name, D9). Generated from `api/services/uct_agent/marketdata/kinds.py`, never typed. Kept dark, with the reason:
+  - `earnings.callSearch`: third-party text (earnings-call transcript excerpts) whose display / AI rights are not settled
+  - `earnings.callThemes`: third-party text (earnings-call phrases) whose display / AI rights are not settled
+  - `fed.watch`: third-party text (news-wire headlines with no licensing-register row) whose rights are not settled
+  - `catalysts.board`: third-party text (news-wire headlines) whose display / AI rights are not settled
+  - `sectors.performance`: not model-isolated: Massive daily-bar figures would reach the model; AI use of Massive figures is its own decision in the register (T-14 / N-16), not cleared
+  - `index.quote`: no licensed index price source (T-71 / T-72)
+  - `commodity.quote`: no licensed commodity price source (T-71 / T-72)
+  - `crypto.quote`: no licensed crypto price source (T-71 / T-72)
+  - `research.company`: a paid web search per question
+  - `knowledge.search`: owner HOLD until he admits sources (docs/agent/knowledge/STATUS.md)
+  - `setup.playbook`: owner HOLD until he admits sources (docs/agent/knowledge/STATUS.md)
+  - `setup.record`: owner HOLD until he admits sources (docs/agent/knowledge/STATUS.md)
+  - `leaders.longRun`: MD-1 provider_calls 'at most 1': a vendor request on the Agent's path
+- **The owner's commands**, run with `!` from `C:/Users/pgosz/projects/UCT-Dashboard` after the PR is live, in this order (command 2 only after command 1's redeploy is live):
+  1. `railway variables --service web --set "UCT_AGENT_DAILY_CAP=50" --set "UCT_AGENT_BUDGET_USD=15" --set "UCT_AGENT_ISOLATED=1" --set "UCT_AGENT_ISOLATED_KINDS=breadth.current,ratings,rs.leadership,analyst.actions,highsLows.session,levels.darkpool,highsLows.yearly,themes.rotation,confluence.board,earnings.expectedMove,levels.gamma,flow.topPicks,flow.record,earnings.reactions,earnings.season,group.drill,short.interest,short.list,seasonality.stock,seasonality.board,options.tideHistory,options.oiChange,rates.treasury,market.regime,stock.setups,stock.eventsTimeline,uct20.list,options.ivHistory,dilution.watch,stock.corporateActions,calendar.ipos,calendar.dividends,rates.auctions,rates.realYields,stock.stats,stock.volumeFootprint,stock.factorExposure,stock.setupHistory,company.publicRecords,ownership.funds,groups.rank,groups.crowding,earnings.seasonBySector,estimates.revisionBreadth,options.ivRankLeaders,ipo.lockups,cot.byTrader,estimates.history,analyst.ratings,company.segments,stock.failsToDeliver,company.deals,insider.market,market.history,econ.latest,market.liquidity,market.oil,market.analogs"`
+  2. `railway variables --service web --set "UCT_AGENT_DATA_KINDS=instrument.resolve,quote,quotes,bars.daily,fundamentals,earnings,news.company,themes,screen.run,screen.count,screen.saved,cot.positioning,history.eventStudy,breadth.current,ratings,rs.leadership,analyst.actions,highsLows.session,levels.darkpool,highsLows.yearly,themes.rotation,confluence.board,earnings.expectedMove,levels.gamma,flow.topPicks,flow.record,earnings.reactions,earnings.season,group.drill,short.interest,short.list,seasonality.stock,seasonality.board,options.tideHistory,options.oiChange,rates.treasury,market.regime,stock.setups,stock.eventsTimeline,uct20.list,options.ivHistory,dilution.watch,stock.corporateActions,calendar.ipos,calendar.dividends,rates.auctions,rates.realYields,stock.stats,stock.volumeFootprint,stock.factorExposure,stock.setupHistory,company.publicRecords,ownership.funds,groups.rank,groups.crowding,earnings.seasonBySector,estimates.revisionBreadth,options.ivRankLeaders,ipo.lockups,cot.byTrader,estimates.history,analyst.ratings,company.segments,stock.failsToDeliver,company.deals,insider.market,market.history,econ.latest,market.liquidity,market.oil,market.analogs" --set "UCT_AGENT_MEMBERS_ENABLED=1"`
+  - OFF (members out again, admins unchanged): `railway variables --service web --set "UCT_AGENT_MEMBERS_ENABLED=0"`
+- **Still owed by a person:** the MD-1 §8.1 notices for v1.9 to v1.19 (the contract text of the dark kinds). The integrator did not acknowledge them; the arming above does not depend on them.
+
 **Standing instruction at stop time (owner):** do not merge, deploy, activate features, or change approval boundaries. Everything below is saved to branches; nothing is merged beyond what this file says.
 
 ## STOP 2 — weekly usage limit (2026-11-03, resets 12pm America/New_York). Read this section first.

@@ -86,10 +86,15 @@ describe('⭐ the one decision — whole multiples above a stated intraday chart
     expect(intradayHtfRefusal('60', 'D')).toMatch(/intraday chart/)
     expect(intradayHtfRefusal('60', null)).toMatch(/no stated timeframe/)
   })
-  it('the evaluator refuses each by name, and formula `tf` keeps its own codes', () => {
+  it('the evaluator refuses each by name, an unstated chart is withheld by name, and formula `tf` shares the decision', () => {
     expect(() => col(node(TF_MERGE, '60'), BARS, { ...OPTS, tf: '45' })).toThrow(/whole number/)
-    expect(() => col(node(TF_MERGE, '60'), BARS, { ...OPTS, tf: undefined })).toThrow(/no stated timeframe/)
-    expect(() => col(node('tf', '60'))).toThrow(/interpret:timeframe|resamples W, M/)
+    // a chart that states no timeframe (the Builder's chart-free probe) computes nothing: withheld whole, by name
+    expect(col(node(TF_MERGE, '60'), BARS, { ...OPTS, tf: undefined }).every((v) => v === null)).toBe(true)
+    const named = new Map()
+    withheldReadMask(node(TF_MERGE, '60'), BARS, {}, undefined, undefined, { ...OPTS, tf: undefined, chartClockSink: named })
+    expect(named.has(INTRADAY_HTF_SESSION_CODE)).toBe(true)
+    // ⭐ formula `tf` (the last CLOSED bucket) reads intraday codes too since 2026-11-28, under the same decision
+    expect(() => col(node('tf', '60'), BARS, { ...OPTS, tf: '45' })).toThrow(/whole number/)
   })
 })
 

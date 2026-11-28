@@ -9,19 +9,26 @@ every stocks, test using different ones each time to make sure they are cold"), 
   (d) typed D and W zoomed out to 2014 on a single chart
   (e) a past date (1/3/2006) through the Time Navigator on D and 15m, arrows and typed
   (f) memory after 50 arrows over a fresh 51-ticker list
-41 passes, 443 tickers (37 + the 4 timeframe-change passes, lane C). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
+43 passes, 449 tickers (37 + the 4 timeframe-change passes, lane C, + the 2 re-open passes). Every pass gets its OWN tickers from the shared ledger (ledger.py), recorded there BEFORE
 the sweep starts: no ticker is shared between two passes of a sweep, nor between two sweeps (or a sweep and a PC run)
 inside the REUSE WINDOW (REUSE_AFTER_DAYS, 14 by default, 2026-11-28): never-used tickers are handed out first, then
 names whose last run is older than the window. A reused name is cold on the CLIENT (every pass's browser profile is
 fresh) but maybe not on the server, so each pass names its reused tickers (--reused, the ledger run's `reused`) and
 grade.py grades them apart from the never-used ones.
 
-LANES. isolate=browser (default): one pass per lane, every lane in parallel on the ONE bench account (each pass's
-board state lives in its own browser; rig.mjs header). isolate=account: N lanes for N bench accounts, a lane's passes
-one after another (two passes on one account's real board collide).
+LANES. isolate=browser (default): each pass's board state lives in its own browser (rig.mjs header), so passes on one
+account never collide on its board, but they DO share its rate limit: production's api/rate_limit_policy.py (enforced)
+keys a signed-in caller as `member:<user id>`, one bucket per family per member, and the bars family
+("market-data") allows 1200 requests a minute. One pass's browser peaks at ~120-425 market-data requests in a minute
+(sweep 46113707532: the MEM50 pass 425, the switching passes 155-360), so 8 browsers on one account (~2,000-2,800 a
+minute) were answered 429 by the limiter and the grade counted the instrument as product failures. So at most
+--per-account browsers (default 2: two peaks, ~850, under the 1200) run on one account at a time: browser lanes are
+accounts x per-account, each lane runs its passes one after another, and lane j signs in as account j % accounts
+(BENCH_EMAIL, BENCH_EMAIL_2, ...). More accounts = more lanes at once. isolate=account: N lanes for N bench accounts,
+a lane's passes one after another (two passes on one account's real board collide).
 
     python scripts/proofs/speed-rig/plan.py --sweep-id <id> --out <dir> [--select REGEX] [--isolate browser|account]
-        [--accounts N] [--max-parallel M] [--dry] [--limit K] [--ledger-file F] [--reuse-after-days D]
+        [--accounts N] [--per-account P] [--max-parallel M] [--dry] [--limit K] [--ledger-file F] [--reuse-after-days D]
     python scripts/proofs/speed-rig/plan.py --self-check
 Writes <out>/plan.json and <out>/matrix.json, and (in Actions) the step outputs matrix / max_parallel / passes.
 --dry allocates from the ledger but never writes it (the pull-request dry run). Exit 0 ok, 1 refused, 2 git.
@@ -47,7 +54,7 @@ FC = ["--focus-check=1", "--human-type=1"]
 BOARDS = [("dd", "test-board"), ("tc", "tc2000-sw-board"), ("m1", "one-fifteen-board"), ("m5h1", "m5h1-board"),
           ("d30", "d30-board"), ("h4h2", "h4h2-board"), ("wm", "wm-board")]
 #: a pass's wall time on the PC (2026-11-28 coverage run: ~85-95 s a switching pass, ~150 s the tab pass), for lanes
-SECONDS = {"arrows": 90, "typed": 92, "tabs": 155, "zoom": 100, "date": 95, "mem": 175, "tf": 200}
+SECONDS = {"arrows": 90, "typed": 92, "reopen": 92, "tabs": 155, "zoom": 100, "date": 95, "mem": 175, "tf": 200}
 
 
 def passes() -> list[dict]:
@@ -63,6 +70,11 @@ def passes() -> list[dict]:
         add(f"COV-{zk}-tabs", [f"--board={BOARDS_DIR}/test-board.json", f"--tab-b={BOARDS_DIR}/tc2000-board.json", "--tab-b-ids=own",
                                "--pattern=tabs", "--flips=20", "--dwell=2500", "--stale-check=1", "--tab-diag=1", "--mem-probe=1", *za, *J],
             3, 0, "tabs", "tabs", zk)
+    # (2026-11-28, the busy-time attribution of #2954) RE-OPENS: 3 cold typed Enters, then the same 3 again (the PC rig's
+    # typed list), so a switch back to a symbol this browser already drew is measured and, with cpu_profile=3,4,5, profiled
+    for k in ("dd", "m5h1"):
+        f = dict(BOARDS)[k]
+        add(f"COV-reopen-{k}", [f"--board={BOARDS_DIR}/{f}.json", "--pattern=typed", "--dwell=2500", *J, *FC], 0, 3, "reopen", f"reopen-{k}", "def")
     add("COV-zoom-D", ["--tf=D", "--pattern=typed", "--dwell=2500", "--zoom-out-to=2014-01-02", *J, *FC, "--screencast=0,1,2"], 3, 6, "zoom", "zoom-D", "zoom")
     add("COV-zoom-W", ["--tf=W", "--pattern=typed", "--dwell=2500", "--zoom-out-to=2014-01-02", *J, *FC], 3, 6, "zoom", "zoom-W", "zoom")
     for tf in ("D", "15"):
@@ -116,11 +128,18 @@ def allocate(sel: list[dict], led: dict, sweep: str, reuse_after_days=REUSE_AFTE
     return picks, led
 
 
-def lanes(sel: list[dict], isolate: str, accounts: int) -> list[dict]:
+#: browsers one bench account carries at once under isolate=browser (see LANES above: two pass peaks stay under the
+#: market-data family's 1200 a minute per member)
+PER_ACCOUNT = 2
+
+
+def lanes(sel: list[dict], isolate: str, accounts: int, per_account: int = PER_ACCOUNT) -> list[dict]:
     if isolate == "browser":
-        return [{"lane": f"L{i + 1:02d}", "slot": 1, "passes": [p["name"]]} for i, p in enumerate(sel)]
-    n = max(1, accounts)
-    acc = [{"lane": f"A{j + 1}", "slot": j + 1, "passes": [], "s": 0} for j in range(n)]
+        n = max(1, min(len(sel), max(1, accounts) * max(1, per_account)))
+        acc = [{"lane": f"L{j + 1:02d}", "slot": j % max(1, accounts) + 1, "passes": [], "s": 0} for j in range(n)]
+    else:
+        n = max(1, accounts)
+        acc = [{"lane": f"A{j + 1}", "slot": j + 1, "passes": [], "s": 0} for j in range(n)]
     for p in sorted(sel, key=lambda p: -SECONDS[p["kind"]]):   # longest first onto the least loaded account
         lane = min(acc, key=lambda a: a["s"])
         lane["passes"].append(p["name"])
@@ -138,33 +157,69 @@ def build(args, led: dict) -> tuple[dict, dict]:
     rad = getattr(args, "reuse_after_days", REUSE_AFTER_DAYS)
     picks, led = allocate(sel, led, args.sweep_id, None if rad is None or rad < 0 else rad)
     plan = {"sweep": args.sweep_id, "created": L.now(), "isolate": args.isolate, "dry": bool(args.dry), "common": COMMON,
-            "passes": {}, "lanes": lanes(sel, args.isolate, args.accounts)}
+            "passes": {}, "lanes": lanes(sel, args.isolate, args.accounts, getattr(args, "per_account", PER_ACCOUNT))}
     for p in sel:
         pk = picks[p["name"]]
         extra = [f"--isolate={args.isolate}", f"--run-id=cloud/{args.sweep_id}/{p['name']}"]
         if pk["list"]:
             extra.append("--fresh-list=" + ",".join(pk["list"]))
         if pk["typed"]:
-            extra.append("--typed=" + ",".join(pk["typed"]))
+            # a re-open pass types its tickers twice: the second three are re-opens of the first
+            seq = pk["typed"] * 2 if p["kind"] == "reopen" else pk["typed"]
+            extra.append("--typed=" + ",".join(seq))
         if pk.get("reused"):
             extra.append("--reused=" + ",".join(pk["reused"]))   # the rig records them; grade.py grades them apart
         if p["kind"] == "tabs":
             extra.append(f"--tab-suffix={re.sub(r'[^0-9A-Za-z]', '', args.sweep_id)[-10:]}{p['zoom']}")
+        # --cpu-profile=i,j: a CPU profile of those switches, written beside the record as <name>.flip<i>.cpuprofile and
+        # uploaded with it. The rig names it per pattern: --cpuprofile (arrows: 700 ms after the key; a tab click: 1.5 s) and
+        # --typed-profile (a typed Enter: 1.5 s); both are passed, each pattern reads its own
+        cp = getattr(args, "cpu_profile", "") or ""
+        if cp:
+            extra += [f"--cpuprofile={cp}", f"--typed-profile={cp}"]
         if args.dry:
             extra = ["--dry=1"]
         plan["passes"][p["name"]] = {"args": [*COMMON, *p["args"], *extra], "kind": p["kind"], "board": p["board"], "zoom": p["zoom"],
                                      "tickers": pk}
-    cap = 1 if args.isolate == "account" else 12
-    plan["maxParallel"] = max(1, min(args.max_parallel, cap * (args.accounts if args.isolate == "account" else 1), len(plan["lanes"])))
+    # every lane is bound to one account, and no account has more lanes than it may carry at once, so any number of
+    # lanes at once keeps each account under its limit; 12 is the larger runner's ceiling
+    plan["maxParallel"] = max(1, min(args.max_parallel, 12, len(plan["lanes"])))
     return plan, led
 
 
+# at most this many profiled switches per pass: each profile is 1-4 MB (100 us samples for 1.5 s)
+CPU_PROFILE_MAX = 6
+CPU_PROFILE_RE = re.compile(r"\d{1,2}(,\d{1,2}){0," + str(CPU_PROFILE_MAX - 1) + r"}")
+
+
 def self_check() -> None:
+    # --cpu-profile: indices only, bounded; reaches each selected pass's rig arguments, and nothing when unset
+    assert CPU_PROFILE_RE.fullmatch("3,4,5") and CPU_PROFILE_RE.fullmatch("0")
+    for bad in ("", "3;rm -rf /", "1,2,3,4,5,6,7", "a", "3,", "--x"):
+        assert not CPU_PROFILE_RE.fullmatch(bad), bad
+    led0 = L.empty()
+    led0["pool"]["tickers"] = [f"P{i:04d}" for i in range(1000)]
+
+    class C:
+        sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days, cpu_profile = "cp", "^COV-def-dd-typed$", 0, "browser", 1, 8, False, None, "3,4,5"
+    pc, _ = build(C, json.loads(json.dumps(led0)))
+    assert {"--cpuprofile=3,4,5", "--typed-profile=3,4,5"} <= set(pc["passes"]["COV-def-dd-typed"]["args"]), pc["passes"]
+    C.cpu_profile, C.sweep_id = "", "cp2"
+    pc2, _ = build(C, json.loads(json.dumps(led0)))
+    assert not any(x.startswith(("--cpuprofile", "--typed-profile")) for x in pc2["passes"]["COV-def-dd-typed"]["args"])
+    class Rr:
+        sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days, cpu_profile = "ro", "^COV-reopen-dd$", 0, "browser", 1, 8, False, None, "3,4,5"
+    pr, _ = build(Rr, json.loads(json.dumps(led0)))
+    ra = pr["passes"]["COV-reopen-dd"]
+    ty = [x for x in ra["args"] if x.startswith("--typed=")]
+    t3 = ra["tickers"]["typed"]
+    assert len(t3) == 3 and len(set(t3)) == 3 and ty == ["--typed=" + ",".join(t3 + t3)], (ty, t3)
+    assert {"--cpuprofile=3,4,5", "--typed-profile=3,4,5"} <= set(ra["args"]) and "--pattern=typed" in ra["args"]
     allp = passes()
     names = [p["name"] for p in allp]
-    assert len(names) == 41 and len(set(names)) == 41, len(names)
+    assert len(names) == 43 and len(set(names)) == 43, len(names)
     need = sum(p["list"] + p["typed"] for p in allp)
-    assert need == 443, need
+    assert need == 449, need
     led = L.empty()
     led["pool"]["tickers"] = [f"T{i:04d}" for i in range(1000)]
     led["runs"] = [{"id": "pc/x", "at": L.now(), "tickers": [f"T{i:04d}" for i in range(100)]}]
@@ -173,9 +228,20 @@ def self_check() -> None:
         sweep_id, select, limit, isolate, accounts, max_parallel, dry, reuse_after_days = "s1", ".*", 0, "browser", 1, 8, False, None
     plan, led2 = build(A, json.loads(json.dumps(led)))
     got = [t for p in plan["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
-    assert len(got) == 443 and len(set(got)) == 443, "two passes share a ticker"
+    assert len(got) == 449 and len(set(got)) == 449, "two passes share a ticker"
     assert not set(got) & {f"T{i:04d}" for i in range(100)}, "a ticker an earlier run used was handed out"
-    assert len(led2["runs"]) == 1 + 41 and len(plan["lanes"]) == 41 and plan["maxParallel"] == 8
+    # browser lanes on ONE account: PER_ACCOUNT lanes, every pass once, never more lanes per account than it may carry
+    flat1 = [n for ln in plan["lanes"] for n in ln["passes"]]
+    assert len(led2["runs"]) == 1 + 43 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
+    assert sorted(flat1) == sorted(names) and {ln["slot"] for ln in plan["lanes"]} == {1}
+    A.sweep_id, A.accounts = "s1b", 4
+    planb, _ = build(A, json.loads(json.dumps(led)))
+    per_slot = {}
+    for ln in planb["lanes"]:
+        per_slot[ln["slot"]] = per_slot.get(ln["slot"], 0) + 1
+    assert len(planb["lanes"]) == 8 and planb["maxParallel"] == 8 and per_slot == {1: 2, 2: 2, 3: 2, 4: 2}, (per_slot, planb["maxParallel"])
+    assert sorted(n for ln in planb["lanes"] for n in ln["passes"]) == sorted(names)
+    A.accounts = 1
     # a second sweep on the updated ledger never meets the first
     A.sweep_id = "s2"
     plan2, _ = build(A, json.loads(json.dumps(led2)))
@@ -203,12 +269,12 @@ def self_check() -> None:
     allr = [t for p in planr["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
     reused = [t for p in planr["passes"].values() for t in p["tickers"]["reused"]]
     nums = lambda ts: {int(t[1:]) for t in ts}  # noqa: E731
-    assert len(allr) == 443 and len(set(allr)) == 443
+    assert len(allr) == 449 and len(set(allr)) == 449
     assert nums([t for t in allr if t not in reused]) == set(range(400, 600)), "the never-used names did not all go first"
-    assert len(reused) == 243 and nums(reused) <= set(range(0, 300)), "a reused name was not an old one"
+    assert len(reused) == 249 and nums(reused) <= set(range(0, 300)), "a reused name was not an old one"
     assert not nums(allr) & set(range(300, 400)), "a name used inside the window was handed out"
     runs = {r["id"]: r for r in ledr2["runs"]}
-    assert sum(len(r.get("reused", [])) for r in runs.values()) == 243
+    assert sum(len(r.get("reused", [])) for r in runs.values()) == 249
     for p in planr["passes"].values():
         if p["tickers"]["reused"]:
             assert any(a == "--reused=" + ",".join(p["tickers"]["reused"]) for a in p["args"]), "the rig is not told which names are reused"
@@ -225,7 +291,7 @@ def self_check() -> None:
     plan4, _ = build(A, json.loads(json.dumps(led)))
     flat = [n for ln in plan4["lanes"] for n in ln["passes"]]
     assert sorted(flat) == sorted(names) and len(plan4["lanes"]) == 3 and plan4["maxParallel"] == 3
-    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window)")
+    print("plan self-check: ok (43 passes, 449 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window, at most 2 browsers per account)")
 
 
 def main() -> int:
@@ -236,14 +302,18 @@ def main() -> int:
     ap.add_argument("--isolate", default="browser", choices=["browser", "account"])
     ap.add_argument("--accounts", type=int, default=1)
     ap.add_argument("--max-parallel", type=int, default=8)
+    ap.add_argument("--per-account", type=int, default=PER_ACCOUNT, help="browser isolation: browsers one account carries at once")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--ledger-file", default=None, help="plan against a ledger FILE (offline; nothing is pushed)")
     ap.add_argument("--reuse-after-days", type=float, default=REUSE_AFTER_DAYS,
                     help="a ticker last used more than this many days ago is eligible again, after every never-used one (-1 = never)")
     ap.add_argument("--git-dir", default=None)
+    ap.add_argument("--cpu-profile", default="", help="switch indices to CPU-profile in every selected pass (e.g. 3,4,5); empty = none")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args()
+    if a.cpu_profile and not CPU_PROFILE_RE.fullmatch(a.cpu_profile):
+        ap.error(f"--cpu-profile takes switch indices like 3,4,5 (at most {CPU_PROFILE_MAX}), not {a.cpu_profile!r}")
     if a.self_check:
         L.self_check()
         self_check()

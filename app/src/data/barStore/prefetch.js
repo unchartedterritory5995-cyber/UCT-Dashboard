@@ -1492,6 +1492,13 @@ export function createPrefetch(o = {}) {
 
   /** D/W/M: is the deep sealed history still due for the chart `sym` / `tf` would show? The handoff
    *  then prepares instead of painting a held shallow set at once (see prepareDailyForDisplay). */
+  /** (2026-11-28) Is the key's whole history here, proved (store historyComplete: a sealed deep join, or a lake load that
+   *  took every older piece)? Keyed as heldRows keys it (a custom timeframe: its native base key). */
+  function historyComplete(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().historyComplete?.(key)
+  }
+
   function deepPending(sym, tf, { showExtended, viewWindow = null } = {}) {
     const key = keyFor(sym, tf, { showExtended, window: viewWindow })
     return !!key && !!S().deepPending?.(key)
@@ -1553,6 +1560,23 @@ export function createPrefetch(o = {}) {
       }
     }
     if (!wOpts) _many(syms.slice(nUrgent), tf, 'background', { warm: true, front: !!priority })
+  }
+
+  /** (review of #3020, follow-up) Abort the in-flight urgent next rows of ONE key family: `tf` plain, or `tf` at the window
+   *  `viewWindow`. A list whose colour stops reading that family (Latest, a date change, a chart leaving the tf) gives
+   *  up those rows at once instead of letting at most URGENT_MAX_PER_CALL requests per family run on for nothing.
+   *  Returns how many it aborted. */
+  function abortUrgentFamily(tf, viewWindow = null) {
+    const probe = keyFor('X', tf, viewWindow && Number.isFinite(viewWindow.to) ? { window: { to: viewWindow.to } } : {})
+    const pp = probe ? parseKey(probe) : null
+    if (!pp) return 0
+    const to = pp.window?.to ?? null
+    let n = 0
+    for (const [k, c] of [...urgentCtl]) {
+      const p = parseKey(k)
+      if (p?.tf === pp.tf && (p.window?.to ?? null) === to) { c.abort(); urgentCtl.delete(k); n++ }
+    }
+    return n
   }
 
   /**
@@ -2565,11 +2589,11 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, coverIfCut, devicePaints, deviceVerdict, deviceWarm, watch,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, lakeJoined, deepPending, coverIfCut, historyComplete, devicePaints, deviceVerdict, deviceWarm, watch,
     deviceHold, askForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes, prefetchViewWindow,
-    prefetchBarOnIntent, warmTypedSymbol, warmTypedCandidates, createNeighborHold, edgeWarmList,
+    prefetchBarOnIntent, warmTypedSymbol, warmTypedCandidates, createNeighborHold, abortUrgentFamily, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -2592,6 +2616,7 @@ export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, t
 export function lakeJoined(sym, tf, opts = {}) { return _f().lakeJoined(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function coverIfCut(sym, tf, opts = {}) { return _f().coverIfCut(sym, tf, opts) }
+export function historyComplete(sym, tf, opts = {}) { return _f().historyComplete(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function deviceWarm(sym, tf, opts = {}) { return _f().deviceWarm(sym, tf, opts) }
@@ -2614,6 +2639,7 @@ export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().pref
 export function warmTypedSymbol(sym, tf = 'D', opts = {}) { return _f().warmTypedSymbol(sym, tf, opts) }
 export function warmTypedCandidates(syms, tf = 'D', opts = {}) { return _f().warmTypedCandidates(syms, tf, opts) }
 export function createNeighborHold() { return _f().createNeighborHold() }
+export function abortUrgentFamily(tf, viewWindow) { return _f().abortUrgentFamily(tf, viewWindow) }
 export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
@@ -2626,5 +2652,6 @@ export const STORE_WARMERS = Object.freeze({
   prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
   prefetchBarOnIntent,
   createNeighborHold,   // store only: the legacy caches have no LRU to pin against
+  abortUrgentFamily,    // store only: the legacy warm has no key families
 })
 if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS

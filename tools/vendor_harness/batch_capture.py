@@ -627,7 +627,8 @@ def utcnow() -> str:
 #: above): the queue matches a target's session against what each capture RECORDED with the same words.
 ROW_SESSIONS = SESSIONS
 
-#: ⭐⭐ THE LAYOUT A BATCH RUNS ON (`--layout`, ruling B1 2026-11-21). The rig layout is `01f1AcIj`, saved with EXTENDED
+#: ⭐⭐ THE LAYOUT A BATCH RUNS ON (`--layout`, ruling B1 2026-11-21). The rig layout is `B8PyGuX3` since 2026-11-28
+#: (`pine_vendor_capture.LAYOUT` says why; it was `01f1AcIj`, which the history below describes), saved with EXTENDED
 #: hours (probe R1, 2026-11-21: sessionId "extended", 60m resolves 0400-2000 with 186 of 300 bars outside 09:30-16:00);
 #: regular-hours rows run on a COPY of it saved with regular hours (made once by patrick-54). ONE layout per batch: a
 #: row that names another `layout` is skipped (a later batch on that layout takes it, same run dir), and the page must

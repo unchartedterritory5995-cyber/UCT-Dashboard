@@ -8,10 +8,9 @@
 // ⛔ A cold server answers 503 {"status":"warming"} while it computes (never in the request); that
 // reads "Loading, the server is preparing this" and re-polls briefly, never "no leaders". A 503
 // without that body is an outage (error with Retry); a 402 or a switched-off route has no Retry.
-import { useMemo, useState } from 'react'
-import {
-  PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
-} from '../../../components/terminal'
+import { useMemo } from 'react'
+import { PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'
@@ -65,7 +64,9 @@ export default function RsLeadersPanel() {
   const warming = !read.body && isWarmingError(read.error)
   const warmPoll = useWarmingPoll(warming, read.retry, { everyMs: 10_000, maxTries: 12 })
   const board = useMemo(() => rsLeaders(read.body), [read.body])
-  const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
   usePanelFreshness(board.rows.length ? panelAsOf('UCT RS ranking (daily closes)', read.receivedAt) : null)
   usePanelSymbolRows(rows.map((r) => r.sym), 'RS leaders', { total: board.total })

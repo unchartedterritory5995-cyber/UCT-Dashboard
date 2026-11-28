@@ -23,6 +23,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import ThemeRotationPanel, { THEME_ROTATION_CODE, THEME_ROTATION_URL, rotationRead } from './ThemeRotationPanel'
 import * as model from './themeRotationModel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { stampedKey } from './marketRead'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -54,13 +55,14 @@ function Grab() {
   return null
 }
 
-function renderPanel(props = {}, { open = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { open = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const inner = saved ? <ViewHost saved={saved}><ThemeRotationPanel {...props} /></ViewHost> : <ThemeRotationPanel {...props} />
   const body = (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <Grab />
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open, run: vi.fn(), rerun: vi.fn(), publish: vi.fn(), publishRows: vi.fn() }}>
-          <ThemeRotationPanel {...props} />
+          {inner}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>
@@ -276,4 +278,32 @@ describe('theme rotation accessibility', () => {
     await screen.findByTestId('terminal-trot-empty')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('TROT sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('one sort orders both lists (the server still decides which themes rotate); kept on remount', async () => {
+    jsonFetcher.mockResolvedValue(BODY)
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-trot-in')
+    expect(keysOf('in')).toEqual(['SEMI', 'GOLDM'])
+    expect(keysOf('out')).toEqual(['SOLAR', 'BANKS'])
+    fireEvent.click(screen.getByTestId('terminal-trot-in-sort-ret1w'))
+    fireEvent.click(screen.getByTestId('terminal-trot-in-sort-ret1w'))
+    expect(keysOf('in')).toEqual(['GOLDM', 'SEMI'])
+    expect(keysOf('out')).toEqual(['SOLAR', 'BANKS'])
+    fireEvent.click(screen.getByTestId('terminal-trot-out-sort-ret1m'))
+    expect(keysOf('out')).toEqual(['SOLAR', 'BANKS'])   // no 1M return sinks
+    fireEvent.click(screen.getByTestId('terminal-trot-out-sort-ret1w'))
+    expect(keysOf('out')).toEqual(['BANKS', 'SOLAR'])
+    expect(screen.getByTestId('terminal-trot-method').textContent).toContain('sorted here by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-trot-columns'))
+    fireEvent.click(screen.getByTestId('terminal-trot-columns-col-rank'))
+    cleanup()
+    jsonFetcher.mockResolvedValue(BODY)
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-trot-in')
+    expect(keysOf('out')).toEqual(['BANKS', 'SOLAR'])
+    expect(screen.queryAllByRole('columnheader', { name: /Rank, 1M to 1W/ })).toHaveLength(0)
+  })
 })

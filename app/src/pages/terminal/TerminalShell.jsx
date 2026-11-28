@@ -33,7 +33,7 @@ import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
 import Provenance from '../../components/provenance/Provenance'
-import { PanelFreshnessContext, PanelLinkContext, PanelListContext, PanelSkeleton, PanelState, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
+import { PanelFreshnessContext, PanelLinkContext, PanelListContext, PanelSkeleton, PanelState, PanelViewContext, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
@@ -42,7 +42,7 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, canonicalCode, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { planAlert, setAlert } from './alertCommand'
 import { marketWideNote } from './grammar'
@@ -56,7 +56,7 @@ import {
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
   rowLinkPlan,
   groupStyle, recentSecurities, saveBoard, setCount as countTo,
-  setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
+  setDensity, setKeepCalendar, setPanelChannel, setPanelView, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
@@ -271,6 +271,12 @@ export function Panel({
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
   reorder = null, linkedSym = null, onNotice = null,
+  // Customization pass 1: `(panelId, view)` saves the panel's view (sort, columns, filters) with
+  // the board, without re-running its command. null (a pop-out) keeps the view in the panel.
+  onView = null,
+  // `(panelId) => view`: the panel's view as the board holds it NOW (two hooks in one panel write
+  // from it, so neither writes over the other's change).
+  onViewGet = null,
   // The new shell (boards in tabs): `{ editing }` draws the one-line header and shows the layout
   // controls only while "Edit board" is on. null (the default) is today's header, untouched.
   tabsHeader = null,
@@ -341,6 +347,13 @@ export function Panel({
     // its state back into its own command (`FREC MINE`), so a reload keeps it.
     rerun: (text) => runHere(text, { here: true }),
   } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
+  // The panel's view (components/terminal/usePanelView): read from the record, written up to the
+  // shell. NOT part of `identity`, so a view change never remounts the body.
+  const panelId = panel.id
+  const writeView = useCallback((v) => onView?.(panelId, v), [onView, panelId])
+  const readView = useCallback(() => onViewGet?.(panelId), [onViewGet, panelId])
+  const viewApi = useMemo(() => ({ view: panel.view || null, setView: onView ? writeView : null, get: onViewGet ? readView : null }),
+    [panel.view, onView, writeView, onViewGet, readView])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -471,6 +484,7 @@ export function Panel({
               <PanelListContext.Provider value={listApi}>
               <PanelLinkContext.Provider value={linkedSym}>
               <TerminalPanelContext.Provider value={frame}>
+              <PanelViewContext.Provider value={viewApi}>
                 {/* ONE loading treatment: the same skeleton a panel shows while its own data
                     loads (components/terminal/PanelSkeleton), never a "Loading CODE..." line
                     followed by a second, different loader. */}
@@ -482,6 +496,7 @@ export function Panel({
                       ? <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} onRun={runHere} onRows={rowsProp} />
                       : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
                 </Suspense>
+              </PanelViewContext.Provider>
               </TerminalPanelContext.Provider>
               </PanelLinkContext.Provider>
               </PanelListContext.Provider>
@@ -1107,9 +1122,12 @@ export default function TerminalShell() {
     const prev = cur.panels[target]
     const channel = prev.linkable === false ? null : panelChannel(prev)
     const panels = cur.panels.slice()
-    const { popout: _popout, ...prevKept } = prev
+    // A view (sort, columns, filters) belongs to the function it was made for: re-running the same
+    // code with new arguments keeps it, another code starts clean.
+    const { popout: _popout, view: prevView, ...prevKept } = prev
     panels[target] = {
       ...prevKept,
+      ...(prevView && canonicalCode(cmd.code) === canonicalCode(prev.code) ? { view: prevView } : {}),
       code: cmd.code,
       args: cmd.args || [],
       sym: !channel && scope === 'ticker' ? sym : prev.sym,
@@ -1373,7 +1391,8 @@ export default function TerminalShell() {
     const f = empty >= 0 ? empty : Math.min(cur.focus, cur.count - 1)
     const panels = cur.panels.slice()
     const replaced = panels[f]
-    panels[f] = { ...replaced, code: 'CAL', args: [] }
+    const { view: _v, ...replacedKept } = replaced
+    panels[f] = { ...replacedKept, code: 'CAL', args: [] }
     if (empty >= 0 || !BY_CODE[replaced.code]) { save({ ...cur, focus: f, panels }); return }
     const { popout: _p, ...kept } = replaced
     const closed = [{ panel: kept, index: f }, ...cur.closed].slice(0, CLOSED_MAX)
@@ -1456,6 +1475,15 @@ export default function TerminalShell() {
     setNotice({ kind: 'info', text: `Re-opened ${back.code} in panel ${res.layout.focus + 1}.${parked
       ? ` ${parked.code} moved off the board to make room; close a panel to bring it back.` : ''}` })
   }
+  // Customization pass 1: a panel's view saved with the board (debounced by the layout's save),
+  // never through the command, so the panel is not remounted.
+  const onPanelView = useCallback((panelId, view) => {
+    const next = setPanelView(layoutRef.current, panelId, view)
+    if (next === layoutRef.current) return
+    layoutRef.current = next
+    save(next)
+  }, [save])
+  const onPanelViewGet = useCallback((panelId) => layoutRef.current.panels.find((p) => p.id === panelId)?.view, [])
   const onDuplicate = (i) => {
     const res = duplicatePanel(layout, i)
     if (!res.ok) { setNotice({ kind: 'error', text: `This board already shows ${MAX_VISIBLE} panels. Close one to make room.` }); return }
@@ -2106,6 +2134,8 @@ export default function TerminalShell() {
                 linkedSym={syms[panelChannel(p) || layout.activeChannel || 'A'] || null}
                 onNotice={setNotice}
                 tabsHeader={tabsOn ? { editing: boardEditing } : null}
+                onView={onPanelView}
+                onViewGet={onPanelViewGet}
               />
           ))}
         </div>

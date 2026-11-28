@@ -231,6 +231,8 @@ export function createBarStore(o = {}) {
     lakePending: (key) => !!network.lakePending?.(key),
     /** The lake load of `key` in flight, or null (network.lakeLoading). Starts nothing. */
     lakeLoading: (key) => network.lakeLoading?.(key) ?? null,
+    /** Is `key`'s whole history here, proved (network.historyComplete)? */
+    historyComplete: (key) => !!network.historyComplete?.(key),
     /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
     deepPending: (key) => !!network.deepPending?.(key),
     /** The hang guard's last look: a cut D/W/M tail whose cover never went out asks it now (network.coverNow). */

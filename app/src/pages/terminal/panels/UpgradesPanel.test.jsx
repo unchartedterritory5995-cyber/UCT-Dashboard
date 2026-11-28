@@ -23,6 +23,7 @@ import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '.
 import UpgradesPanel, {
   UPGRADES_URL, UPGRADE_KINDS, analystActions, normKind, rowsOfKind, stampOf, targetNumber, upgradesCommandArgs,
 } from './UpgradesPanel'
+import { upgradesUrl } from './upgradesModel'
 import { stampedKey } from './marketRead'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -177,9 +178,10 @@ describe('UPDG panel states', () => {
     jsonFetcher.mockResolvedValueOnce(PAYLOAD)
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByTestId('terminal-updg-table')).toBeTruthy()
-    expect(jsonFetcher).toHaveBeenCalledWith('/api/analyst-actions')
+    // the panel reads the WHOLE list (gap audit P1), never the bare route's 12/12/15 cut
+    expect(jsonFetcher).toHaveBeenCalledWith('/api/analyst-actions?full=1')
     expect(UPGRADES_URL).toBe('/api/analyst-actions')
-    expect(stampedKey(UPGRADES_URL)).toEqual(['/api/analyst-actions', 'terminal-stamped'])
+    expect(stampedKey(upgradesUrl())).toEqual(['/api/analyst-actions?full=1', 'terminal-stamped'])
   })
 
   it('a 402 says paid plan and a 404 says not switched on, both locked with no Retry', async () => {
@@ -362,6 +364,148 @@ describe('UPDG accessibility', () => {
     await screen.findByTestId('terminal-updg-table')
     await expectNoAxeViolations(document.body.firstElementChild)
     fireEvent.click(screen.getByTestId('terminal-updg-sort-target'))
+    await expectNoAxeViolations(document.body.firstElementChild)
+  }, 20_000)
+})
+
+// ── gap audit P1 + R3 (2026-11-28): the whole list, any held day, both sources ───────────────────
+// The dated answer's real shape (api/services/analyst_history.py actions_view), made-up names.
+const FULL = {
+  upgrades: [
+    { ticker: 'AAA', action: 'upgrade', firm: 'Harbor Securities', from_rating: 'Hold', to_rating: 'Buy', price_target: '$120', source: 'wire' },
+    { ticker: 'GGG', action: 'upgrade', firm: 'Eastline Capital', from_rating: 'Neutral', to_rating: 'Buy', price_target: null, source: 'fmp' },
+  ],
+  downgrades: [{ ticker: 'CCC', action: 'downgrade', firm: 'Harbor Securities', from_rating: 'Buy', to_rating: 'Neutral', price_target: null, source: 'wire' }],
+  pt_changes: [{ ticker: 'DDD', action: 'raises pt', firm: 'Northgate Research', to_rating: 'Buy', price_target: '$90', source: 'wire' }],
+  summary: { upgrades: 2, downgrades: 1, pt_changes: 1 },
+  totals: { upgrades: 2, downgrades: 1, pt_changes: 1 },
+  cut: { limit: 2000, lists: [], from: 'end' },
+  date: '2026-11-26', requested_date: null, latest: true, held: true, wire_date: '2026-11-26', wire_status: 'fresh',
+  sources: { wire: { held: true, count: 3, recorded_at: '2026-11-26T12:35:00+00:00' }, fmp: { count: 1, held_rows: 1, may_grow: true, settle_days: 7 } },
+  store_ok: true, dates: ['2026-11-26', '2026-11-25', '2026-11-20'], retention_days: 400, full: true,
+}
+const PAST = {
+  ...FULL,
+  upgrades: [{ ticker: 'HHH', action: 'upgrade', firm: 'Eastline Capital', from_rating: 'Hold', to_rating: 'Buy', source: 'fmp' }],
+  downgrades: [], pt_changes: [],
+  summary: { upgrades: 1, downgrades: 0, pt_changes: 0 }, totals: { upgrades: 1, downgrades: 0, pt_changes: 0 },
+  date: '2026-11-20', requested_date: '2026-11-20', latest: false, wire_date: null, wire_status: null,
+  sources: { wire: { held: false, count: 0, recorded_at: null }, fmp: { count: 1, held_rows: 1, may_grow: false, settle_days: 7 } },
+}
+const NOT_HELD = {
+  ...FULL, upgrades: [], downgrades: [], pt_changes: [], summary: { upgrades: 0, downgrades: 0, pt_changes: 0 },
+  totals: { upgrades: 0, downgrades: 0, pt_changes: 0 }, date: '2026-11-10', requested_date: '2026-11-10', latest: false,
+  held: false, wire_date: null, wire_status: null,
+  sources: { wire: { held: false, count: 0, recorded_at: null }, fmp: { count: 0, held_rows: 0, may_grow: false, settle_days: 7 } },
+}
+const byUrl = (map) => (url) => (url in map ? Promise.resolve(map[url]) : Promise.reject(Object.assign(new Error('unmocked'), { status: 500 })))
+
+describe('UPDG by day (gap audit P1 + R3)', () => {
+  it('the latest read is the whole list from both sources, each FMP row marked, with the day picker', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?full=1': FULL }))
+    const { setFreshness } = renderPanel()
+    await screen.findByTestId('terminal-updg-table')
+    expect(symsInTable()).toEqual(['AAA', 'GGG', 'CCC', 'DDD'])
+    expect(screen.getByTestId('terminal-updg-row-GGG').getAttribute('data-source')).toBe('fmp')
+    expect(within(screen.getByTestId('terminal-updg-row-GGG')).getByTestId('terminal-updg-source').textContent).toBe('FMP pass')
+    expect(within(screen.getByTestId('terminal-updg-row-AAA')).queryByTestId('terminal-updg-source')).toBeNull()
+    const day = screen.getByTestId('terminal-updg-day')
+    expect([...day.options].map((o) => o.textContent)).toEqual(['Latest wire', 'Thu Nov 26, 2026', 'Wed Nov 25, 2026', 'Fri Nov 20, 2026'])
+    expect(day.value).toBe('')
+    const method = screen.getByTestId('terminal-updg-method').textContent
+    expect(method).toContain('plus upgrades and downgrades from the nightly FMP analyst pass')
+    expect(method).toContain('Every action held for the day is listed.')
+    expect(method).toContain('List dated 2026-11-26.')
+    expect(method).toContain('for up to 7 days after it')
+    expect(method).not.toContain('The server keeps up to 12')
+    await waitFor(() => expect(setFreshness).toHaveBeenCalledWith({
+      source: 'UCT morning wire and the nightly FMP analyst pass (analyst actions)', age: { asOfDate: '2026-11-26' } }))
+    expect(screen.queryByTestId('terminal-updg-cut')).toBeNull()
+    expect(document.body.textContent).not.toMatch(/[—–]/)
+  })
+
+  it('a typed day reads exactly that day, says when no wire covered it, and can go back to the latest', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?date=2026-11-20': PAST, '/api/analyst-actions?full=1': FULL }))
+    renderPanel({ date: '2026-11-20' })
+    await screen.findByTestId('terminal-updg-table')
+    expect(jsonFetcher).toHaveBeenCalledWith('/api/analyst-actions?date=2026-11-20')
+    expect(jsonFetcher).not.toHaveBeenCalledWith('/api/analyst-actions?full=1')
+    expect(symsInTable()).toEqual(['HHH'])
+    expect(screen.getByTestId('terminal-updg').getAttribute('data-date')).toBe('2026-11-20')
+    expect(screen.getByTestId('terminal-updg-day').value).toBe('2026-11-20')
+    const method = screen.getByTestId('terminal-updg-method').textContent
+    expect(method).toContain('Showing Fri Nov 20, 2026; no morning wire was recorded for this day, so every row comes from the FMP pass.')
+    expect(method).not.toContain('for up to 7 days')
+    expect(screen.queryByTestId('terminal-updg-stale')).toBeNull()
+    fireEvent.click(screen.getByTestId('terminal-updg-latest'))
+    await waitFor(() => expect(symsInTable()).toEqual(['AAA', 'GGG', 'CCC', 'DDD']))
+  })
+
+  it('a past day never draws the latest list under its date while it loads', async () => {
+    let release
+    jsonFetcher.mockImplementation((url) => (url === '/api/analyst-actions?full=1'
+      ? Promise.resolve(FULL) : new Promise((r) => { release = () => r(PAST) })))
+    renderPanel()
+    await screen.findByTestId('terminal-updg-table')
+    fireEvent.change(screen.getByTestId('terminal-updg-day'), { target: { value: '2026-11-20' } })
+    expect(screen.getByTestId('terminal-updg-loading')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-updg-table')).toBeNull()
+    release()
+    await waitFor(() => expect(symsInTable()).toEqual(['HHH']))
+  })
+
+  it('a day the store does not hold says so, keeps the picker, and never shows a neighbour', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?date=2026-11-10': NOT_HELD }))
+    renderPanel({ date: '2026-11-10' })
+    const none = await screen.findByTestId('terminal-updg-not-held')
+    expect(none.textContent).toContain('No analyst actions held for Tue Nov 10, 2026.')
+    expect(none.textContent).toContain('Days are kept for 400 days')
+    expect(screen.queryByTestId('terminal-updg-table')).toBeNull()
+    const opts = [...screen.getByTestId('terminal-updg-day').options].map((o) => o.textContent)
+    expect(opts).toContain('Tue Nov 10, 2026 (not held)')
+    expect(screen.getByTestId('terminal-updg-latest')).toBeTruthy()
+  })
+
+  it('a failed dated read is an error with Retry and a way back, never "nothing that day"', async () => {
+    jsonFetcher.mockRejectedValueOnce(fail(503))
+    renderPanel({ date: '2026-11-20' })
+    const err = await screen.findByTestId('terminal-updg-error')
+    expect(err.textContent).toContain('That is not the same as no analyst actions.')
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+    expect(screen.getByTestId('terminal-updg-latest')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-updg-not-held')).toBeNull()
+  })
+
+  it('says when the server cut a list, from which end, and how many there were', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?full=1': {
+      ...FULL, cut: { limit: 2, lists: ['upgrades', 'pt_changes'], from: 'end' }, totals: { upgrades: 9, downgrades: 1, pt_changes: 4 } } }))
+    renderPanel()
+    const cut = await screen.findByTestId('terminal-updg-cut')
+    expect(cut.textContent).toBe('The server sends at most 2 of each kind, so the list is cut at the end for upgrades (9 in all) and target changes (4 in all).')
+  })
+
+  it('says when the list of earlier days could not be read', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?full=1': { ...FULL, store_ok: false, dates: ['2026-11-26'] } }))
+    renderPanel()
+    expect((await screen.findByTestId('terminal-updg-store')).textContent).toContain('Earlier days could not be read just now')
+  })
+
+  it('a day pick and a kind pick write themselves into the command together', async () => {
+    // EMOV is an existing code whose market variant takes one `etDate` only: the day writes back, a kind cannot.
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?full=1': FULL, '/api/analyst-actions?date=2026-11-25': { ...PAST, date: '2026-11-25' } }))
+    const { rerun } = renderPanel({}, { code: 'EMOV' })
+    await screen.findByTestId('terminal-updg-table')
+    fireEvent.change(screen.getByTestId('terminal-updg-day'), { target: { value: '2026-11-25' } })
+    expect(rerun).toHaveBeenLastCalledWith('EMOV 2026-11-25')
+    await screen.findByTestId('terminal-updg-table')
+    fireEvent.click(screen.getByTestId('terminal-updg-latest'))
+    expect(rerun).toHaveBeenLastCalledWith('EMOV')
+  })
+
+  it('the dated list passes axe', async () => {
+    jsonFetcher.mockImplementation(byUrl({ '/api/analyst-actions?date=2026-11-20': PAST }))
+    renderPanel({ date: '2026-11-20' })
+    await screen.findByTestId('terminal-updg-table')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
 })
