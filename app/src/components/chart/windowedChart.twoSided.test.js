@@ -222,6 +222,22 @@ describe('a dated view is cut on the right too', () => {
     expect(rawOf(b.candles).data().at(-1).time).toBe(T(N - 1))
   })
 
+  it('D3c a drag that shows the cut bar extends the end and leaves the view where the drag put it', async () => {
+    // (review of #2970, F2) the library moves its own view (a drag, a kinetic scroll) past the margin in one step, so
+    // the cut's last bar is on screen when the end extends: the re-set must not scroll the view to keep that bar in view
+    const b = board(); await openDated(b)
+    const ws = b.chart.window.windowStart()
+    const held = b.chart.window.windowEnd() - ws
+    const raw = rawOf(b.ts)
+    const want = { from: held - SPAN + 40, to: held + 40 }      // library indices: the last held bar 40 bars inside the view
+    raw.setVisibleLogicalRange(want)
+    await frame()
+    expect(b.chart.window.windowEnd() === null || b.chart.window.windowEnd() - ws > held).toBe(true)   // the end moved
+    const got = b.ts.getVisibleLogicalRange()
+    expect(Math.abs(got.from - (want.from + ws))).toBeLessThan(0.01)
+    expect(Math.abs(got.to - (want.to + ws))).toBeLessThan(0.01)
+  })
+
   it('D8 a view near the present is never cut', async () => {
     const b = board(); await openDated(b, 300, N - 1 - 300 - SPAN)
     expect(b.chart.window.windowEnd()).toBeNull()
