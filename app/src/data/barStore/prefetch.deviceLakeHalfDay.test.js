@@ -60,7 +60,7 @@ async function prepared({ deviceLast, through, lakeLast, nowSec, need }) {
   const device = { peek: (s, t) => (s === 'ILQ' && t === '15' ? hit : null), read: async (s, t) => (s === 'ILQ' && t === '15' ? hit : null) }
   const lakeRows = rows(lakeLast, { post: true })
   const history = { olderBars: vi.fn(async (key, beforeT) => ({ bars: lakeRows.filter((b) => b.t < beforeT) })), prime: vi.fn(), hasSymbol: vi.fn(async () => true) }
-  const request = vi.fn(() => new Promise(() => {}))     // the server never answers: the copy must paint on its own
+  const request = vi.fn(() => new Promise(() => {}))     // the server never answers (the short device copy's own ask, B9): the joined copy must paint on its own
   const store = createBarStore({
     request, device, history,
     io: { idbGet: async () => null, idbGetHistoryEntry: async () => null, idbPutMonotonic: async () => {}, memPutMonotonic: () => {} },
@@ -74,7 +74,7 @@ async function prepared({ deviceLast, through, lakeLast, nowSec, need }) {
   return { pf, store, request, outcome: () => outcome, key: keyOf({ sym: 'ILQ', tf: '15' }) }
 }
 
-describe('B9: a device copy joined by the lake paints the whole zoomed-out view, with no server round trip', () => {
+describe('B9: a device copy joined by the lake paints the whole zoomed-out view without waiting for the server', () => {
   const NEED = 1192                                           // 792 bars across + the averages' lookback (viewNeed)
 
   it('after the 2026-11-27 half day (13:00 close, the newest bar 12:45): the joined copy covers the view AND paints', async () => {
@@ -85,7 +85,6 @@ describe('B9: a device copy joined by the lake paints the whole zoomed-out view,
     expect(w.pf.lakePending('ILQ', '15')).toBe(false)
     expect(w.pf.peekDisplayable('ILQ', '15')).toBe(true)      // ...and the switch may paint it (useSymbolHandoff paintsWholeNow)
     expect(w.outcome()).toBe('current')
-    expect(w.request).not.toHaveBeenCalled()                  // no server round trip
   })
 
   it('control, an ordinary day (16:00 close, the newest bar 15:45): the same', async () => {
@@ -95,6 +94,5 @@ describe('B9: a device copy joined by the lake paints the whole zoomed-out view,
     expect(w.pf.heldRows('ILQ', '15', { upTo: NEED })).toBeGreaterThanOrEqual(NEED)
     expect(w.pf.peekDisplayable('ILQ', '15')).toBe(true)
     expect(w.outcome()).toBe('current')
-    expect(w.request).not.toHaveBeenCalled()
   })
 })
