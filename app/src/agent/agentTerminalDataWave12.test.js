@@ -446,7 +446,7 @@ describe('routing words', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
-    expect([...g.actions].sort()).toEqual([...ALL].sort())
+    expect([...g.actions].sort()).toEqual([...ALL, 'stock.edgarFeed', 'stock.congressTrades'].sort())   // wave 14 (2026-11-28) joined this group by action
     expect(g.domains).toEqual([])
     expect(g.id).toMatch(/^[a-z][a-zA-Z]{1,23}$/)
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)

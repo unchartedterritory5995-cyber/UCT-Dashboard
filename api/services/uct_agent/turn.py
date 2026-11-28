@@ -1331,6 +1331,11 @@ _OUTCOME_LABEL = {
 # and breadth-derived, T-04 / T-09 / T-11 / T-14, T-71 / T-72, T-75 / N-25; econ.latest / market.liquidity / market.oil:
 # the agencies' series through UCT's econ store, which no row names, N-14 the nearest), so the member sees the card and a
 # model never sees a value
+# stock.straddleHistory / stock.optionsPositioning / stock.edgarFeed / stock.congressTrades / stock.dealsMarket / stock.setupStudy /
+# stock.periodChange (terminal data wave 14): each reads a model-isolated kind (options.straddleHistory and
+# options.positioning: the vendor's options data, T-28 / T-14; filings.feed: SEC EDGAR, T-83, isolated as the builder's
+# default; congress.trades: the vendor's list, T-39 / T-44, and 5 U.S.C. 13107; market.deals: T-39 / T-44; market.setupStudy
+# and market.periodChange: price-derived, T-04 / T-09 / T-14), so the member sees the card and a model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
@@ -1351,7 +1356,9 @@ LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afte
                                 "stock.uctRating", "stock.estimatesHistory", "stock.consensusRating", "stock.revenueSplit",
                                 "stock.failsToDeliver", "stock.companyDeals",
                                 "stock.insiderBuying", "stock.marketHistory", "stock.economyBoard", "stock.liquidityBoard",
-                                "stock.oilReport", "stock.daysLikeToday"})
+                                "stock.oilReport", "stock.daysLikeToday",
+                                "stock.straddleHistory", "stock.optionsPositioning", "stock.edgarFeed", "stock.congressTrades",
+                                "stock.dealsMarket", "stock.setupStudy", "stock.periodChange"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

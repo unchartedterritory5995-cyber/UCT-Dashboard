@@ -55,7 +55,9 @@ export const ALL_KINDS = [...new Set([...PROD_KINDS, 'history.eventStudy', 'rese
   // terminal data wave 12 (dark): the Agent half of RTG, EEH, ANR, SEG, FTD and one stock's MNA / IDXC
   'ratings', 'estimates.history', 'analyst.ratings', 'company.segments', 'stock.failsToDeliver', 'company.deals',
   // terminal data wave 13 (dark): the Agent half of INS (with INS CLUSTER), MKTH, ECON, LIQ, OIL and ANLG
-  'insider.market', 'market.history', 'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs'])]
+  'insider.market', 'market.history', 'econ.latest', 'market.liquidity', 'market.oil', 'market.analogs',
+  // terminal data wave 14 (dark): the Agent half of OHIS, POS, FEED, CONG, the bare MNA / IDXC, SETH and PCHG
+  'options.straddleHistory', 'options.positioning', 'filings.feed', 'congress.trades', 'market.deals', 'market.setupStudy', 'market.periodChange'])]
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks an entry run only by corpus.dark.test.jsx with every
  *  gated kind on (written while its kind was not in production's list: the asset quotes, and before 2026-11-24

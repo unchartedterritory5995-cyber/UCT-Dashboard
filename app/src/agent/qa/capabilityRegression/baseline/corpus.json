@@ -17147,6 +17147,319 @@
           "det": "required"
         }
       ]
+    },
+    {
+      "id": "stock.straddleHistory",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.straddleHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.straddleHistory"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.straddleHistory",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.straddleHistory.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":20\\}"
+        ],
+        "says": [
+          "• Oct 31, 2025: \\$9\\.50, 4\\.75% of the stock, 7 days to its expiry"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA straddle history",
+        "straddle history for NVDA",
+        "implied vs actual moves for NVDA",
+        "options history for NVDA"
+      ]
+    },
+    {
+      "id": "stock.optionsPositioning",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.optionsPositioning"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.optionsPositioning"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.optionsPositioning",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "window": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.positioning.*\"params\":\\{\"symbol\":\"NVDA\",\"window\":\"month\"\\}"
+        ],
+        "says": [
+          "• Nov 7, 2025: \\$97\\.50 \\(-2\\.50% from the stock price then\\)",
+          "• Call wall: \\$105\\.00 \\(Pin\\)"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "max pain for NVDA",
+        "what is the max pain on NVDA",
+        "maximum pain NVDA",
+        "options positioning for NVDA"
+      ]
+    },
+    {
+      "id": "stock.edgarFeed",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.edgarFeed"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.edgarFeed"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.edgarFeed",
+            "target": "$stockData",
+            "args": {
+              "symbol": null,
+              "form": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*filings\\.feed.*\"params\":\\{\"symbol\":null,\"form\":null,\"rows\":15\\}"
+        ],
+        "says": [
+          "• Oct 30, 2025: 8-K by Made-up Filer Inc \\(QZFL\\): Results of operations"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "latest sec filings",
+        "show me the filings feed",
+        "newest edgar filings",
+        "latest 8-Ks"
+      ]
+    },
+    {
+      "id": "stock.congressTrades",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.congressTrades"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.congressTrades"
+      ],
+      "ownWords": [
+        "stockResearch"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.congressTrades",
+            "target": "$stockData",
+            "args": {
+              "symbol": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*congress\\.trades.*\"params\":\\{\"symbol\":null,\"rows\":15\\}"
+        ],
+        "says": [
+          "• Made-up Senator \\(Senate\\) bought QZCG, \\$1,001 - \\$15,000, traded Oct 1, 2025, disclosed Oct 30, 2025"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "congressional trades",
+        "senators stock trades",
+        "show me the congressional trades",
+        "stock act disclosures"
+      ]
+    },
+    {
+      "id": "stock.dealsMarket",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dealsMarket"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dealsMarket"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dealsMarket",
+            "target": "$stockData",
+            "args": {
+              "part": null,
+              "index": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.deals.*\"params\":\\{\"part\":null,\"index\":null,\"rows\":10\\}"
+        ],
+        "says": [
+          "• Oct 30, 2025: Made-up Acquirer \\(QZAQ\\) and Made-up Target",
+          "• Oct 27, 2025, S&P 500: Made-up Added \\(QZAD\\) added, Made-up Gone \\(QZRM\\) removed"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "latest mergers",
+        "recent acquisitions",
+        "m&a activity",
+        "recent index changes"
+      ]
+    },
+    {
+      "id": "stock.setupStudy",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.setupStudy"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.setupStudy"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.setupStudy",
+            "target": "$stockData",
+            "args": {
+              "phase": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.setupStudy.*\"params\":\\{\"phase\":null\\}"
+        ],
+        "says": [
+          "• Made-up breakout: in corrections 58% up, average \\+3\\.4% \\(the baseline \\+1\\.2%\\)"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "how do breakouts act in corrections",
+        "setup statistics",
+        "setup win rates",
+        "how did pullbacks perform"
+      ]
+    },
+    {
+      "id": "stock.periodChange",
+      "source": "Terminal data wave 14 (11-28): the Agent half of OHIS, POS, FEED, CONG, the bare MNA and IDXC, the bare SETH and PCHG (gap audit A1-A3), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.periodChange"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.periodChange"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.periodChange",
+            "target": "$stockData",
+            "args": {
+              "start": "2025-01-02",
+              "end": "2025-03-31",
+              "side": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*market\\.periodChange.*\"params\":\\{\"start\":\"2025-01-02\",\"end\":\"2025-03-31\",\"side\":\"gainers\",\"rows\":15\\}"
+        ],
+        "says": [
+          "• QZUP: \\+42\\.50% \\(\\$10\\.00 to \\$14\\.25\\), Made-up"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "top gainers between jan 2 and mar 31",
+        "biggest gainers from 2025-01-02 to 2025-03-31",
+        "best performers from 1/2/2025 to 3/31/2025",
+        "between jan 2 and mar 31 who were the top gainers"
+      ]
     }
   ],
   "refusals": [

@@ -579,8 +579,14 @@ export const GROUPS = [
   // corpus phrasings stopped routing). `words` stays EMPTY here: capabilities/terminalDataWave3.js arms each capability's own words
   // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
   // byte-identical to the base (pinned in agentTerminalDataWave3.test.js).
+  // Terminal data wave 14 (2026-11-28, gap audit A1-A3) adds actions to three EXISTING words-only groups, because all 56 of
+  // turn.MAX_GROUPS are in use: stock.straddleHistory / stock.optionsPositioning join `marketBoards` (beside the gamma walls),
+  // stock.edgarFeed / stock.congressTrades join `stockResearch`, stock.dealsMarket / stock.setupStudy / stock.periodChange join
+  // `marketViews`. Each group's title is unchanged (a title is sent on every request); each capability's own words are armed
+  // on its group only while it is registered (capabilities/terminalDataWave14.js), so a dark server routes as before.
   { id: 'marketBoards', title: 'Gamma walls of a stock (call wall, put wall, zero gamma), UCT\'s Top Flow picks and Flow Record win rates, how a day\'s earnings reporters moved',
-    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions'], fillLast: true, wordsOnly: true,
+    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions',
+      'stock.straddleHistory', 'stock.optionsPositioning'], fillLast: true, wordsOnly: true,
     words: [] },
   // Terminal data wave 4 (stock.earningsSeason / stock.callThemes / stock.groupDrill): one day's earnings season, the phrases rising
   // across earnings calls and the stocks inside one sector, industry or theme, in their OWN group for wave 3's reasons: WORDS-ONLY
@@ -591,7 +597,8 @@ export const GROUPS = [
   // it is registered (the server serves its kind), so on a dark server this group never matches and routing is byte-identical to the
   // base (pinned in agentTerminalDataWave4.test.js).
   { id: 'marketViews', title: 'One day\'s earnings season (who reports, priced and past moves), phrases rising across earnings calls, the stocks inside one sector, industry or theme',
-    domains: [], actions: ['stock.earningsSeason', 'stock.callThemes', 'stock.groupDrill'], fillLast: true, wordsOnly: true,
+    domains: [], actions: ['stock.earningsSeason', 'stock.callThemes', 'stock.groupDrill',
+      'stock.dealsMarket', 'stock.setupStudy', 'stock.periodChange'], fillLast: true, wordsOnly: true,
     words: [] },
   // Terminal data wave 5 (stock.shortInterest / stock.shortList): one stock's FINRA short interest and the market-wide short
   // interest list, in their OWN group for wave 3's and wave 4's reasons: WORDS-ONLY and fillLast, so it is never a filler and no
@@ -697,7 +704,7 @@ export const GROUPS = [
   // server keeps (turn.MAX_GROUPS); the cap is not changed here.
   { id: 'stockResearch', title: 'One stock: UCT composite rating, estimate history, analyst ratings and price targets, revenue by segment, fails to deliver, deals and index changes',
     domains: [], actions: ['stock.uctRating', 'stock.estimatesHistory', 'stock.consensusRating', 'stock.revenueSplit', 'stock.failsToDeliver',
-      'stock.companyDeals'], fillLast: true, wordsOnly: true,
+      'stock.companyDeals', 'stock.edgarFeed', 'stock.congressTrades'], fillLast: true, wordsOnly: true,
     words: [] },
   // Terminal data wave 13 (stock.insiderBuying / stock.marketHistory / stock.economyBoard / stock.liquidityBoard /
   // stock.oilReport / stock.daysLikeToday): the market's insider buying and insider clusters, the S&P 500's and the
