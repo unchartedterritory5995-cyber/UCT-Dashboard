@@ -251,6 +251,9 @@
           "function": "get_bars"
         },
         {
+          "function": "get_bars"
+        },
+        {
           "function": "get_bars_since"
         },
         {
