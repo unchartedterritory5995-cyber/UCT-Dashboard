@@ -36,6 +36,23 @@ ORDER = ['WRONG_CHART', 'SHORT_PAINT', 'VISIBLE_CHANGE', 'LONE_CHART', 'STALE', 
 INTRA_MIN = {'1': 1, '5': 5, '15': 15, '30': 30, '45': 45, '60': 60, '120': 120, '240': 240}
 
 
+def tf_paints(tf, sp):
+    """(F6) Does a frame whose smallest gap between its newest bars is `sp` seconds (rig.mjs --pattern=tf samples it per
+    frame) show timeframe `tf`? None: not sampled / unknown, so the frame cannot be told apart."""
+    if sp is None or tf is None:
+        return None
+    t = str(tf).upper()
+    if t in INTRA_MIN:
+        return abs(sp - INTRA_MIN[t] * 60) < 1
+    if t in ('D', '1D'):
+        return abs(sp - 86400) < 1
+    if t in ('W', '1W'):
+        return abs(sp - 7 * 86400) < 1
+    if t in ('M', '1M'):
+        return 28 * 86400 - 1 <= sp <= 31 * 86400 + 1
+    return None
+
+
 def day(t):
     if t is None:
         return None
@@ -81,7 +98,8 @@ def expectations(passes: list, opts: dict) -> dict:
                 nb = (x or {}).get('nb')
                 if not nb:
                     continue
-                tf = str(tfs.get(cid) or 'D').upper()
+                # (F7) a timeframe press's chart is at the timeframe pressed, not the board's
+                tf = str((p.get('tf') if p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf') else tfs.get(cid)) or 'D').upper()
                 t = nb[0]
                 if isinstance(t, (int, float)) and tf in INTRA_MIN:
                     best_i[tf] = max(best_i.get(tf, t), t)
@@ -168,7 +186,16 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         # while both charts switched together at 4035 ms. A frame is that tick when the header still names the old symbol
         # and the newest bar's time, the row count and the view are the pre-key frame's, and its close is not the close the
         # chart shows once the header names the target (that would be the new bars under a late header: WRONG_CHART stands).
-        k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
+        tfpress = p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf')
+        sampled = tfpress and any(f['c'][cid].get('sp') is not None for f in post)
+        if sampled:
+            # (F6/F8) a timeframe press keeps its header: the new chart is the first frame AT THE TIMEFRAME PRESSED (a tick on
+            # the old timeframe's chart, or the old chart itself still on screen, is not it); _skip_old_ticks reads headers
+            k0 = next((k for k, f in enumerate(post) if f['c'][cid].get('nb') and tf_paints(p['tf'], f['c'][cid].get('sp'))), None)
+            if k0 is None:
+                flags.add('WRONG_CHART')   # the pressed timeframe never painted within the probe
+        else:
+            k0 = _skip_old_ticks(post, cid, k0, pre[-1] if pre else None, p)
         if k0 is None:
             detail[cid] = {'shown': None}
             continue
@@ -216,7 +243,8 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
         tgt = str(p.get('sym') or '').upper()
         same = lambda h, sym: bool(sym) and _first_word(h) == str(sym).upper()  # noqa: E731  (exact: AA is not AAPL)
         wrong = []
-        if any(f['c'][cid].get('hs') for f in post):
+        # (F6) the symbol-header rules do not read a timeframe press (one symbol before and after); its own rule is below
+        if any(f['c'][cid].get('hs') for f in post) and not tfpress:
             for j2, f in enumerate(post[:k0]):
                 if same(f['c'][cid].get('hs'), tgt) and not (hs_pre and same(hs_pre, tgt)):
                     wrong.append({'kind': 'new-header-over-old-candles', 'frame': j2, 'dt': round(f['t'] - key)})
@@ -226,6 +254,12 @@ def grade_switch(p: dict, rec: dict, tfs: dict, exp: dict) -> dict:
                     wrong.append({'kind': 'old-header-over-new-candles', 'frame': k0 + j2, 'dt': round(f['t'] - key)})
         if wrong:
             flags.add('WRONG_CHART')
+        if sampled:
+            for j2, f in enumerate(post[k0 + 1:]):
+                if tf_paints(p['tf'], f['c'][cid].get('sp')) is False:
+                    wrong.append({'kind': 'other-tf-after-the-press-painted', 'frame': k0 + 1 + j2, 'dt': round(f['t'] - key), 'sp': f['c'][cid].get('sp')})
+                    flags.add('WRONG_CHART')
+                    break
         ctf = p.get('tf') if (p.get('dir') == 'tf' and cid == 'flip-chart' and p.get('tf')) else tfs.get(cid)   # a timeframe press (--pattern=tf): its own tf
         if stale(fin.get('nb', [None])[0] if fin.get('nb') else None, ctf, exp):
             flags.add('STALE')
@@ -417,9 +451,26 @@ def self_check() -> None:
     assert g[1]['flags'] == ['OVER_30MS'] and g[1]['full'] == 80, g[1]
     assert 'VISIBLE_CHANGE' in g[2]['flags'] and g[2]['full'] == 29, g[2]
     assert g[3]['flags'] == ['STALE'], g[3]
+    # (F6/F8) timeframe presses: the old 1m chart (and a tick on it) is not the 5m paint; a frame back at 1m after the 5m paint
+    # is a wrong chart; a press that never paints its timeframe is one too
+    def tfr(t, close, sp, ni=999):
+        f = fr(t, 'AAA', close, ni=ni)
+        f['c']['flip-chart'].update({'nb': [1795784340, close], 'sp': sp})
+        return f
+    tfok = {'i': 20, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1030, 11, 60), tfr(1272, 10, 300, ni=600)]}
+    tfback = {'i': 21, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1029, 10, 300, ni=600), tfr(1050, 10, 60)]}
+    tfnever = {'i': 22, 'dir': 'tf', 'tf': '5', 'sym': 'AAA', 'key': 1000, 'frames': [tfr(1015, 10, 60), tfr(1030, 11, 60)]}
+    tg = [grade_switch(x, {'flips': []}, tfs, {**exp, 'intraday': {'5': 0, '1': 0}}) for x in (tfok, tfback, tfnever)]
+    assert tg[0]['charts']['flip-chart']['shown'] == 272 and 'WRONG_CHART' not in tg[0]['flags'] and 'VISIBLE_CHANGE' not in tg[0]['flags'], tg[0]
+    assert 'WRONG_CHART' in tg[1]['flags'] and tg[1]['charts']['flip-chart']['wrong'][0]['kind'] == 'other-tf-after-the-press-painted', tg[1]
+    assert 'WRONG_CHART' in tg[2]['flags'], tg[2]
+    assert tf_paints('240', 14400) and not tf_paints('240', 3600) and tf_paints('M', 30 * 86400) and tf_paints('5', None) is None
+    # (F7) STALE on a timeframe press is judged at its own timeframe
+    e7 = expectations([('x', {}, [{'dir': 'tf', 'tf': '45', 'frames': [{'c': {'flip-chart': {'nb': [5000, 1]}}}]}], {'flip-chart': 'D'})], {})
+    assert '45' in e7['intraday'], e7
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
-    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair told apart)')
+    print('grade self-check: ok (clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
 
 
 def main() -> int:
