@@ -68,7 +68,7 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, expectedLatestCompletedBar, isHolidayISO } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
@@ -747,10 +747,31 @@ export function createPrefetch(o = {}) {
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
-    return !_ownGrace(key, s, n)
+    return !_ownGrace(key, s, n, showExtended)
+  }
+  /**
+   * ⭐⭐ (2026-11-28, B9: the cold-coverage run after the 11-27 half day, CRAI on a 1m + 15m board: the switch held the
+   * previous chart to the 4 s hang guard) THE ROLL A PROOF MUST REACH IS THE VIEW'S NEWEST CLOSED BUCKET, NOT THE CLOCK'S.
+   * In the session the two are one instant (the current bucket opened when the newest closed one ended). After the close
+   * the clock keeps rolling every bucket while the session's frontier stays at its close (13:00 on a half day): an
+   * illiquid name's tail (CRAI 1m 12:56, three buckets short of the close) came back `verified` by the server's proof
+   * (the live stream's watermark, 20:00 ET), and the grace asked that proof to reach 20:49, the minute the member pressed
+   * Enter. It never could, so the copy read behind all evening, the switch never painted it and nothing more was asked.
+   * The earlier of the two: the clock's roll inside the session, the session frontier's end after it. Unmeasurable
+   * (no frontier: a holiday, before the open): the clock's, as before.
+   */
+  function _proofRollMs(key, tf, showExtended) {
+    const clock = _rollMs(tf)
+    const p = parseKey(key)
+    const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
+    let f = null
+    try { f = expectedLatestCompletedBar(tf, now(), { session: ext ? 'extended' : 'rth' }) } catch { f = null }
+    if (f == null) return clock
+    const end = bucketEndUnix(f, tf) * 1000
+    return Number.isFinite(end) && end < clock ? end : clock
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
-  function _ownGrace(key, s, n) {
+  function _ownGrace(key, s, n, showExtended) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -772,7 +793,7 @@ export function createPrefetch(o = {}) {
     // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
-      const roll = _rollMs(tf0)
+      const roll = _proofRollMs(key, tf0, showExtended)
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
