@@ -20,9 +20,11 @@ describe('_hasSplicedGap', () => {
   it('flags the MSFT shape: one 2008 island row before dense June-2016 rows', () => {
     expect(_hasSplicedGap([bar(et(2008, 5, 13, 10, 0)), ...june2016], '15')).toBe(true)
   })
-  it('keeps a dense series with weekends and a 4-day holiday weekend', () => {
-    const withHoliday = [...session(2016, 6, 30), ...session(2016, 7, 5)]   // Jul 1 Fri -> Jul 4 closed
-    expect(_hasSplicedGap([...june2016, ...withHoliday], '15')).toBe(false)
+  it('keeps a dense series with weekends and a long holiday weekend', () => {
+    // Thu Jun 30 15:45 -> Tue Jul 5 09:30: Fri Jul 1 has no bars here and Mon Jul 4 is closed
+    const withHoliday = [...session(2016, 6, 29), ...session(2016, 6, 30), ...session(2016, 7, 5)]
+    expect(_hasSplicedGap(withHoliday, '15')).toBe(false)
+    expect(_hasSplicedGap(june2016, '15')).toBe(false)
   })
   it('the boundary is the server rule: exactly 7 days passes, one second more is a splice', () => {
     const t0 = et(2016, 6, 1, 9, 30)
