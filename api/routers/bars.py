@@ -1844,6 +1844,44 @@ def _is_iso_date(t) -> bool:
     return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
 
 
+def _history_known_complete(sym: str, tf: str) -> bool:
+    """Is the STORED (sym, tf) history known to reach the series' start, so a sealed answer may be cached as whole?
+    True when the deep graft has landed (`deep_history_warm._already_deep`: a bar before the vendor's floor, or a
+    post-floor series holding the full deep target), or when the stored first bar is the listing itself: within a week
+    of the listing date in `bars_sanitize`'s CACHED corporate-action metadata (read only; a cold miss schedules its warm
+    and reads as unknown). Anything else, including a series pinned to the vendor's floor (never grafted), is NOT
+    known complete. A failed read is not known complete either."""
+    try:
+        from datetime import timedelta
+        from api.services import deep_history_warm as _dhw
+        if _dhw._already_deep(sym, tf):
+            return True
+        first = _bars_fetch._sqlite.get_first_ts(sym, tf)
+        if first is None or _dhw._floor_pinned(sym, tf):
+            return False
+        from api.services import bars_sanitize as _bsan
+        ipo = str((_bsan._meta_cached(sym) or {}).get("ipo") or "")[:10]
+        if not _is_iso_date(ipo):
+            return False
+        s0 = str(int(first))
+        first_d = datetime(int(s0[:4]), int(s0[4:6]), int(s0[6:])).date()
+        return first_d <= (datetime.strptime(ipo, "%Y-%m-%d").date() + timedelta(days=7))
+    except Exception:                      # noqa: BLE001 — unknown is not complete
+        return False
+
+
+def _kick_history_backfill(sym: str, tf: str) -> None:
+    """Start the bounded, deduped deep warm for (sym, tf), on the WORKER only: the web pod never warms bars (the
+    2026-08-31 OOM class). `kick_snapshot_warm` is the existing door (one dispatch per (ticker, tf) per its TTL,
+    the deep-fill semaphore, a pytest no-op)."""
+    if os.environ.get("WORKER_ENABLED") != "1":
+        return
+    try:
+        _bars_fetch.kick_snapshot_warm(sym, tf)
+    except Exception:                      # noqa: BLE001 — a warm never breaks a read
+        pass
+
+
 def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
                        v: str = "", d: str = "", if_none_match: str = "", partial: bool = False):
     """Core serving logic for edge-cacheable SEALED history — SHARED by the web route
@@ -1904,6 +1942,13 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
             # PURE read — no fetch, no write; cut at an unproven gap like /api/bars (`read_newest`)
             rows = _bars_fetch.read_newest(sym, tfu, bars)
             all_bars = _fmt_sqlite_bars(rows, tfu, sym) if rows else []
+            # ⛔⛔ (2026-11-28) A SHALLOW STORE IS NOT A WHOLE HISTORY. An un-warmed symbol "serves whatever depth is
+            # stored", and that answer was stamped sealed + immutable for a year: the client held a short D/W/M
+            # history as the complete one (a short chart; `historyComplete` read complete). Until the store is KNOWN
+            # to reach the series' start the answer is `partial` (no-store, marked), and the worker starts its backfill.
+            if not partial and not _history_known_complete(sym, tfu):
+                partial = True
+                _kick_history_backfill(sym, tfu)
     except Exception:
         return _no_store(JSONResponse(content={"ticker": sym, "tf": tfu, "bars": [], "sealed": False}))
 
