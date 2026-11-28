@@ -869,8 +869,19 @@ function applyRest(state, action, ctx, kind) {
         const r = reconcileWithServerTail(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
         dev = fromChartDev(r.bar, dev.rev, dev.src === DEV_SRC.TICK || dev.src === DEV_SRC.LOCAL ? DEV_SRC.SERVER : dev.src)
       } else if (dev.provisional || dev.ticked || revOf(devIn.rev) > revOf(dev.rev)) {
-        const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym })
-        if (m.kind === 'update') dev = fromChartDev(m.bar, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
+        // ⛔ (2026-11-28, review of #2956, F2) AN ANSWER OLDER THAN THE LAST TICK NEVER MOVES THE CLOSE BACK. The edge
+        // caches the tail for seconds, so a re-read mid-stream can carry the bar as it was before the newest tick; with no
+        // time it was merged as newer and its close replaced the live one until the next tick. The answer's as-of time
+        // (`_asOfMs`, utils/prefetchBars _chartLaneFetch) orders it against the bar's last trade (mergePushBar `older`).
+        const asOf = numOrNull(p._asOfMs)
+        const m = mergePushBar(toChartBar(dev, state.sym), toChartBar(devIn, state.sym), { sym: state.sym, ...(asOf != null && finite(dev.tradeTs) ? { tradeTs: asOf } : {}) })
+        // (review of #2967) `asOf` is serverNow() at the send, an ESTIMATE that can run ahead of the trade clock: it ORDERS
+        // the answer and is never kept as the bar's trade time. Left on the bar, a real tick traded between the send and
+        // the estimate was judged older and its close dropped. The bar keeps its last REAL trade time (the answer's own, if newer).
+        if (m.kind === 'update') {
+          const merged = asOf != null && finite(dev.tradeTs) ? { ...m.bar, tradeTs: finite(devIn.tradeTs) ? Math.max(dev.tradeTs, devIn.tradeTs) : dev.tradeTs } : m.bar
+          dev = fromChartDev(merged, Math.max(revOf(dev.rev), revOf(devIn.rev)), DEV_SRC.SERVER)
+        }
       }
       // The server answered for this very bucket: a restored (LOCAL) forming bar is now its.
       if (dev && dev.src === DEV_SRC.LOCAL) dev = Object.freeze({ ...dev, src: DEV_SRC.SERVER })

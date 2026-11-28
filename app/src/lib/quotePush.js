@@ -28,7 +28,7 @@
 
 import { STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS } from '../utils/streamStatus'
 import { _applyLiveChange, _applyLiveExtPrice } from './liveQuoteMerge'
-import { quotePushFlagOn } from './quotePushGate'
+import { quotePushFlagOn, __resetQuotePushFlagForTest } from './quotePushGate'
 // The transport is constructed by a pool entry point (lib/panelContract.rail.test.js): this module is loaded
 // lazily (lib/quotePushGate.js), so it opens its connection through the prices pool.
 import { openQuotesEventSource } from './priceStreamManager'
@@ -480,6 +480,7 @@ if (typeof document !== 'undefined') {
 // ── test hooks ──────────────────────────────────────────────────────────────
 
 export function _resetForTests() {
+  __resetQuotePushFlagForTest()
   if (_setTimer) { clearTimeout(_setTimer); _setTimer = null }
   for (const b of _buckets) _teardown(b)
   _buckets = []

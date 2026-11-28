@@ -90,7 +90,7 @@ export default function useFocusSelection({
     const behind = symbols.slice(Math.max(0, at - WARM_BEHIND), at).filter(Boolean)
     const around = [...ahead, ...behind]
     if (!around.length) return
-    prefetchBarsToIDB(around, onTf, { priority: true }) // normal path: held during pack ingest
+    prefetchBarsToIDB(around, onTf, { priority: true, edge: true }) // (plan 1.7) device + edge only, never /api/bars
     // Next rows: opt-in bypass of the cold-start hold, capped at URGENT_NEXT inside.
     prefetchBars(ahead.slice(0, URGENT_NEXT), onTf, { urgent: true })
   }, [symbols, selTicker, tf])
