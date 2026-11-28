@@ -8009,6 +8009,36 @@
     "CRSR",
     "STUB"
    ]
+  },
+  {
+   "id": "cloud/46124779890-1/COV-def-dd-arrows",
+   "at": "2026-11-28T08:13:28+00:00",
+   "source": "cloud",
+   "tickers": [
+    "SLRC",
+    "NRC",
+    "KEEL",
+    "HNRG",
+    "WEAV",
+    "UFCS",
+    "NWFL",
+    "GHM",
+    "DRTS",
+    "WBS",
+    "OPFI",
+    "ESBA",
+    "MNR"
+   ]
+  },
+  {
+   "id": "cloud/46124779890-1/COV-def-tabs",
+   "at": "2026-11-28T08:13:28+00:00",
+   "source": "cloud",
+   "tickers": [
+    "EVEX",
+    "ATAI",
+    "DCH"
+   ]
   }
  ]
 }
