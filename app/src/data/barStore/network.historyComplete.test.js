@@ -68,11 +68,27 @@ describe('historyComplete', () => {
   })
   // (review of #3038, LOW) a lake seed BEFORE the server's answer never stamps the key: the answer may discard its rows
   it('C8 a lake load that landed before any server answer: not complete', async () => {
-    const w = world(vi.fn(async () => ({ bars: older(300), exhausted: false, complete: true })))
-    await w.net.lakeSeed(w.key)
+    // the server's answer is held back: the lake seeds the entry first (restSeen false when it settles)
+    let release
+    const gate = new Promise((r) => { release = r })
+    const request = vi.fn(async () => {
+      await gate
+      const bars = []
+      for (let i = 0; i < 12; i++) { const t = OPEN + i * 300; bars.push({ t, o: 10, h: 11, l: 9, c: 10, v: 5 }) }
+      return { ticker: 'SIM', tf: '5', bars }
+    })
+    const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
+    const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {}, history: { olderBars: vi.fn(async () => ({ bars: older(300), exhausted: false, complete: true })) } })
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    net.fetchOnce(key)
+    await vi.advanceTimersByTimeAsync(5)
+    await net.lakeSeed(key)
     await vi.advanceTimersByTimeAsync(0)
-    w.net.fetchOnce(w.key)
+    expect(registry.peek(key)?.restSeen).toBeFalsy()
+    expect(registry.peek(key)?.bars.length).toBeGreaterThan(12)        // the lake seeded it
+    release()
     await vi.advanceTimersByTimeAsync(20)
-    expect(w.net.historyComplete(w.key)).toBe(false)
+    expect(registry.peek(key)?.restSeen).toBe(true)
+    expect(net.historyComplete(key)).toBe(false)
   })
 })
