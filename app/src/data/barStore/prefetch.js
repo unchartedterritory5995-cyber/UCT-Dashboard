@@ -68,13 +68,13 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind, isHolidayISO, sessionCloseMinuteOfUnix } from '../../utils/marketSession'
 import { deviceCopyFresh, inRegularSession } from '../deviceStore/fresh'
 import { deviceServesTf } from '../deviceStore/tfs'
 import { deviceStoreKillSeen } from '../../lib/chartSpeed'
 import { isAppVisible } from '../../lib/deskVisibility'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
-import { bucketStartUnix, etDateOf, etMinuteOfDay, rthCloseMinuteOf, isRthBar } from '../../components/chart/barTime'
+import { bucketStartUnix, etDateOf, etMinuteOfDay, isRthBar } from '../../components/chart/barTime'
 import { serverNow } from '../../lib/serverClock'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { isKnownTicker } from '../../lib/tickerUniverse'
@@ -713,7 +713,7 @@ export function createPrefetch(o = {}) {
       const iso = etDateOf(probe)
       const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
       if (dow === 0 || dow === 6 || isHolidayISO(iso)) continue
-      const closeMin = ext ? 1200 : rthCloseMinuteOf(probe)
+      const closeMin = sessionCloseMinuteOfUnix(probe, { extended: ext })   // (17:00 extended on a half day)
       let c = probe - etMinuteOfDay(probe) * 60 + closeMin * 60
       c += (closeMin - etMinuteOfDay(c)) * 60      // (a DST change in between)
       return c
@@ -742,8 +742,6 @@ export function createPrefetch(o = {}) {
   // last bar of the day runs 15:30-16:00 (12:30-13:00 on a half-day), so the end minus 60 min read 15:00. On every other
   // timeframe the two are the same number (the grid is regular: bucketEndUnix = bucketStartUnix + tf).
   const _rollMs = (tf) => bucketStartUnix(Math.floor(now() / 1000), tf) * 1000
-  /** When the newest CLOSED bucket of `tf` opened (ms): what `_markShort` stamps a short copy as lacking (#2721). */
-  const _prevRollMs = (tf) => bucketStartUnix(Math.floor(_rollMs(tf) / 1000) - 1, tf) * 1000
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
@@ -772,7 +770,7 @@ export function createPrefetch(o = {}) {
     const day = !(dow === 0 || dow === 6 || isHolidayISO(iso))
     const m = etMinuteOfDay(sec)
     const open = ext ? 240 : 570
-    const closeMin = ext ? 1200 : rthCloseMinuteOf(sec)
+    const closeMin = sessionCloseMinuteOfUnix(sec, { extended: ext })     // (marketSession: the one session close)
     if (day && m >= open && m < closeMin) return clock          // in the session: the clock's roll IS the frontier's
     const close = day && m >= closeMin
       ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
@@ -806,7 +804,11 @@ export function createPrefetch(o = {}) {
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
-      if (now() - roll >= TAIL_LAG_WINDOW_MS && s.verifiedThrough * 1000 >= roll) return true
+      // ⛔ (2026-11-28, hardening) OUTSIDE THE SESSION the roll stands still (the close), so "TAIL_LAG_WINDOW_MS since the
+      // roll" is true all evening of any answer, even one the server built before it had stored the session's last
+      // bucket. There the ANSWER itself must have landed that long after the close (`a.at`: when ensure noted it).
+      const settled = roll < _rollMs(tf0) ? a.at - roll >= TAIL_LAG_WINDOW_MS : now() - roll >= TAIL_LAG_WINDOW_MS
+      if (settled && s.verifiedThrough * 1000 >= roll) return true
     }
     // ⛔ ...BUT, WITHOUT THAT PROOF, NOT WHERE IT CANNOT MEAN THAT (live session 2026-11-24: AMD and AMAT 3-5 s after a roll,
     // RDDT two closed bars short; each painted short for 166 ms to ~1 s):
@@ -869,7 +871,11 @@ export function createPrefetch(o = {}) {
     if (!_short(key, showExtended)) return
     const tf = parseKey(key)?.tf
     if (!tf || !isIntradayTf(tf)) return
-    try { S().registry?.dispatch?.(key, { type: ACTION.AWAIT_CLOSED, key, payload: { t: Math.floor(_prevRollMs(tf) / 1000) } }) } catch { /* a status only */ }
+    // ⛔ (2026-11-28) the bucket the copy lacks is the one ending at the PROOF ROLL (_proofRollMs): in the session the newest
+    // closed bucket by the clock, after the close the session's last one. The clock's previous bucket (#2721's rule) after
+    // the close named a bucket no regular-session copy can ever hold, and it read UPDATING until the next answer.
+    const t = bucketStartUnix(Math.floor(_proofRollMs(key, tf, showExtended) / 1000) - 1, tf)
+    try { S().registry?.dispatch?.(key, { type: ACTION.AWAIT_CLOSED, key, payload: { t } }) } catch { /* a status only */ }
   }
   /** What the switch reports after painting `key`: 'updating' while its copy is marked short (see _markShort). */
   function _paintedOutcome(key) {
