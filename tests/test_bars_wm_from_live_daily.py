@@ -766,3 +766,47 @@ def test_control_an_ordinary_further_along_daily_still_wins(store, monkeypatch):
     bars_sqlite.put_bars("AAA", "W", weeks, date_tf=True)
     out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "W", 400), "W", "AAA")
     assert out[-1]["c"] == daily[-1]["c"]
+
+
+def _holed_month_with_provider(monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    full, stored = _seed_old_tail("M", WED, monkeypatch, hole=date(2026, 11, 10))
+    provider = dict(bars_fetch._resample_monthly_iso(full)[-1])
+    provider["c"] = provider["h"]
+    monkeypatch.setattr(bars_fetch, "_delta_monthly", lambda t, last: [provider])
+    return stored
+
+
+def _wait_jobs(prefix="dhole::"):
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and any(k.startswith(prefix) for k in list(bars_fetch._inflight)):
+        time.sleep(0.05)
+
+
+def test_a_hole_the_provider_cleanly_has_no_bar_for_is_asked_once(store, monkeypatch, clock):
+    # a genuine halt: the provider ANSWERS, with nothing for the session; the hole stays, and is not re-asked per read
+    stored = _holed_month_with_provider(monkeypatch, clock)
+    aggs = []
+    monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [])
+    for _ in range(3):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        _wait_jobs()
+    assert aggs == [("2026-11-10", "2026-11-10")], aggs
+
+
+def test_a_hole_repair_the_provider_faulted_on_is_asked_again(store, monkeypatch, clock):
+    stored = _holed_month_with_provider(monkeypatch, clock)
+    aggs = []
+
+    def faulted(t, f, to):
+        aggs.append((f, to))
+        from api.services import provider_fault_scope
+        provider_fault_scope.note(RuntimeError("daily agg 503"))
+        return []
+    monkeypatch.setattr(_massive, "get_agg_bars", faulted)
+    for _ in range(2):
+        bars_fetch.cache.delete_prefix("bars_AAA_")
+        bars_fetch._get_bars_inner("AAA", "M", len(stored))
+        _wait_jobs()
+    assert len(aggs) == 2, "a faulted repair was marked done and never retried"
