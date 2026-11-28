@@ -25,6 +25,7 @@
 // Sends no OS keys: key presses are DevTools-dispatched into this run's own page.
 // ⛔ The repo is PUBLIC and Actions logs are public: nothing here prints or writes a credential, a cookie or a token
 // (scrub() below runs over every line printed and every file written; the workflow scans the artifacts again).
+import { dateCoverOf, viewCovers, viewBeforeListing } from './rig_dates.mjs'
 import { readFileSync, writeFileSync as writeFileSyncRaw, openSync, writeSync, closeSync, mkdirSync } from 'node:fs'
 import os from 'node:os'
 import { startApp, sleep, BASE, browserVersion } from './launch.mjs'
@@ -141,31 +142,6 @@ const ZOOM_TO = arg('zoom-out-to', '')
 const TYPED_PROF = new Set(arg('typed-profile', '').split(',').filter(Boolean).map(Number))   // (cold-arch) CPU profile around these typed Enters
 const PHASE_JS = `(()=>{const P=window.__phase;if(!P)return null;const F=window.__flip;const k=(F&&F.keys&&F.keys[0])||performance.now();const req=P.req.filter((r)=>r.call>=k-3000).map((r)=>({...r,call:Math.round((r.call-k)*10)/10,hdr:r.hdr==null?null:Math.round((r.hdr-k)*10)/10,bodyS:r.bodyS==null?null:Math.round((r.bodyS-k)*10)/10,bodyE:r.bodyE==null?null:Math.round((r.bodyE-k)*10)/10,parseS:r.parseS==null?null:Math.round((r.parseS-k)*10)/10,parseE:r.parseE==null?null:Math.round((r.parseE-k)*10)/10}));const res=performance.getEntriesByType('resource').filter((e)=>e.startTime>=k-3000&&(e.name.indexOf('/api/bars')>=0||e.name.indexOf('/api/hist/')>=0)).map((e)=>({u:e.name.replace(location.origin,'').slice(0,160),s:Math.round((e.startTime-k)*10)/10,rqS:Math.round((e.requestStart-k)*10)/10,rsS:Math.round((e.responseStart-k)*10)/10,rsE:Math.round((e.responseEnd-k)*10)/10,conn:Math.round((e.connectEnd-e.connectStart)*10)/10,proto:e.nextHopProtocol,tx:e.transferSize,enc:e.encodedBodySize,dec:e.decodedBodySize,rs:e.responseStatus,st:(e.serverTiming||[]).map((x)=>x.name+(x.description?'('+x.description+')':'')+'='+Math.round(x.duration)).join(',')}));let up=null;try{const U=window.__uctPaints;const a=Array.isArray(U)?U:(U&&(U.ring||U.list||U.items||(typeof U.slice==='function'?U:null)));up=a?a.slice(-40).map((x)=>({...x,at:typeof x.at==='number'?Math.round((x.at-k)*10)/10:x.at})):(U?Object.keys(U).slice(0,10):null)}catch(e){up=String(e)}return {key:k,req,res,uctPaints:up}})()`
 const GO_TO_DATE = arg('go-to-date', '')
-/** M/D/YYYY -> the asked ET day as 'YYYY-MM-DD' and its UTC-midnight seconds (a day's bars sit inside [s, s + 1 day + 6 h)). */
-export function dateCoverOf(mdy) {
-  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(mdy || '').trim())
-  if (!m) return null
-  const day = `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`
-  return { day, s: Date.UTC(+m[3], +m[1] - 1, +m[2]) / 1000 }
-}
-/** The view sits at the symbol's first bar (logical index <= 0) and that bar is after the asked day: it listed later. */
-export function viewBeforeListing(v, want) {
-  if (!v || !want || !v.lr || v.from == null || !(v.lr.from <= 0.5)) return false
-  const first = typeof v.from === 'string' ? v.from : typeof v.from === 'object' && v.from.year
-    ? `${v.from.year}-${String(v.from.month).padStart(2, '0')}-${String(v.from.day).padStart(2, '0')}` : null
-  if (first != null) return first > want.day
-  return v.from >= want.s + 86400
-}
-/** Does a visible time range ({from, to}: 'YYYY-MM-DD' strings on D/W/M, epoch seconds intraday) reach the asked day? */
-export function viewCovers(v, want) {
-  if (!v || !want || v.from == null || v.to == null) return false
-  if (typeof v.from === 'string') return v.from <= want.day && want.day <= v.to
-  if (typeof v.from === 'object' && v.from.year) {
-    const s = (t) => `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
-    return s(v.from) <= want.day && want.day <= s(v.to)
-  }
-  return v.from < want.s + 86400 + 6 * 3600 && v.to >= want.s
-}
 // --zoom-out-max=1 (owner, 2026-11-27: "it needs to be fully zoomed out"): before the pass, wheel EVERY chart of the
 // board out to its limit (until the view stops widening: D to its max, W/M to their whole history, intraday to its max)
 const ZOOM_MAX = arg('zoom-out-max', '') === '1'
@@ -394,6 +370,9 @@ async function probeMemory(port) {
   } finally { try { ws.close() } catch { /* closed */ } }
 }
 const out = { startedUtc: new Date().toISOString(), tf: TF, set: SET, flips: [], dwell: DWELL, cheapSampler: CHEAP_SAMPLER, origin: ORIGIN }
+// (2026-11-28) the switches a CPU profile ran on: 100 us sampling and the profile's alignment loop inflate their timings,
+// so grade.py marks them PROFILED and never times them
+out.profiled = [...new Set([...PROFILE_FLIPS, ...TYPED_PROF])].sort((x, y) => x - y)
 // (speed rig) the isolation store is written as its keys and sizes only: a pref VALUE never enters a result
 const save = () => writeFileSync(OUT, JSON.stringify(out, function (k, v) { return k === 'store' && this && this.mode === 'browser' && v && typeof v === 'object' ? Object.keys(v).map((x) => `${x}:${String(v[x]).length}`) : v }, 1))
 // --headless=1 (+ --chrome-version=<x.y.z.w>): an OFF-SCREEN Chrome (headless=new draws real frames) for a run
@@ -1246,6 +1225,11 @@ try {
     await c.send('Input.insertText', { text: GO_TO_DATE.replace(/[^0-9]/g, '') })
     await sleep(150)
     const typedAs = await run(`(()=>{const el=document.activeElement;return el?String(el.value||''):null})()`)
+    // the view before Enter (a jump must MOVE it) and the symbol's earliest bar by an independent read (the API's
+    // deepest page for this timeframe, as --live-accuracy reads it): an 'earliest bars' landing must be THAT bar
+    const VIEW_JS0 = `(()=>{const h=(window.__uctChartDebug||{})['flip-chart'];if(!h)return null;const v=h.visibleTimeRange();return {from:v?v.from:null,to:v?v.to:null,lr:h.visibleRange(),ni:h.newestIndex()}})()`
+    const viewBefore = await run(VIEW_JS0)
+    const earliest = await run(`(async()=>{const sel=document.querySelector('[data-watch-sym][aria-selected="true"]');const sym=sel&&sel.getAttribute('data-watch-sym');if(!sym)return null;const tf=${JSON.stringify(String(TF))};const daily=tf==='D'||tf==='W'||tf==='M';try{const r=await fetch('/api/bars/'+encodeURIComponent(sym)+'?tf='+tf+'&bars='+(daily?20000:50000)+(daily?'':'&session=rth'),{credentials:'include'});const j=await r.json();const a=Array.isArray(j)?j:(j&&(j.bars||j.data||j.candles))||[];const x=a[0];return x?{sym,t:x.t!=null?x.t:x.time,n:a.length}:{sym,t:null,n:0}}catch(e){return {sym,t:null,error:String(e).slice(0,80)}}})()`)
     await c.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
     await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 })
     // ⛔ WAIT UNTIL THE VIEW COVERS THE ASKED DATE, and stop the pass if it never does: a pass that measures the present
@@ -1263,13 +1247,13 @@ try {
       // a symbol that LISTED after the asked date has no bar there: the chart frames its earliest bars (its first bar at
       // the view's left edge, logical 0), which is the date's frame for that symbol. Only once its history is whole: a
       // first bar that later loads older rows moves, so the check waits for the view to hold still at index 0 for 2 s.
-      if (v && viewBeforeListing(v, want)) {
+      if (v && viewBeforeListing(v, want, viewBefore, earliest && earliest.t)) {
         if (!landedAs) landedAs = { at: Date.now(), from: v.from }
         else if (landedAs.from === v.from && Date.now() - landedAs.at >= 2000) { landed = true; landedAs = 'earliest-bars'; break }
       } else if (landedAs && typeof landedAs === 'object') landedAs = null
     }
     if (landedAs && typeof landedAs === 'object') landedAs = null
-    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedAs, landedInMs: landed ? Date.now() - t0 : null, view: v, wantDay: want && want.day }
+    out.goToDate = { asked: GO_TO_DATE, typedAs, landed, landedAs, landedInMs: landed ? Date.now() - t0 : null, view: v, viewBefore, earliest, wantDay: want && want.day }
     console.log(`go to date: ${JSON.stringify(out.goToDate)}`)
     save()
     if (!landed) throw new Error(`go to date ${GO_TO_DATE}: the view never reached it in 15 s (typed as ${JSON.stringify(typedAs)}, view ${JSON.stringify(v && { from: v.from, to: v.to })})`)
