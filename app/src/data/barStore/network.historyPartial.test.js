@@ -29,18 +29,23 @@ function weekdays(n, last) {
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 const partial = () => ({ ticker: 'SIM', tf: 'D', sealed: true, partial: true, last_sealed: '2026-11-09', bars: weekdays(400, '2026-11-09').map((t) => bar(t)) })
 const sealed = () => ({ ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) })
-function world(answers) {
+function world(answers, { pin = true, maxKeys, hidden = () => false } = {}) {
   const hist = []
+  const vis = []
   const request = vi.fn(async (url) => {
-    if (url.startsWith('/api/bars-history/')) { hist.push(Date.now()); return (answers[hist.length - 1] || answers[answers.length - 1])() }
+    const sym = /\/api\/bars(?:-history)?\/([A-Z]+)/.exec(url)[1]
+    if (url.startsWith('/api/bars-history/')) {
+      if (sym === 'SIM') hist.push(Date.now())
+      return { ...(answers[Math.max(0, hist.length - 1)] || answers[answers.length - 1])(), ticker: sym }
+    }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
-    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), '2026-11-10').map((t) => bar(t)) }
+    return { ticker: sym, tf: 'D', bars: weekdays(Math.min(n, 3001), '2026-11-10').map((t) => bar(t)) }
   })
-  const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
-  const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {} })
+  const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }), ...(maxKeys ? { maxKeys } : {}) })
+  const net = createNetwork({ registry, request, isHidden: () => hidden(), onVisible: (cb) => { vis.push(cb); return () => {} } })
   const key = keyOf({ sym: 'SIM', tf: 'D' })
-  registry.acquire(key)
-  return { registry, net, key, hist }
+  if (pin) registry.acquire(key)
+  return { registry, net, key, hist, visible: () => vis.forEach((cb) => cb()) }
 }
 
 describe('a partial deep D/W/M answer', () => {
@@ -79,5 +84,65 @@ describe('a partial deep D/W/M answer', () => {
     await vi.advanceTimersByTimeAsync(200)
     await vi.advanceTimersByTimeAsync(5 * 60_000)
     expect(w.hist.length).toBe(1)
+  })
+
+  // ── review of #3050 ──
+  it('P4 a key nothing holds (no chart, no pin, no waiting display) is not asked again', async () => {
+    const w = world([partial], { pin: false })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.hist.length).toBe(1)
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(w.hist.length).toBe(1)
+  })
+
+  it('P5 an evicted key is not asked again, and the retry never recreates its entry', async () => {
+    const w = world([partial], { maxKeys: 1 })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    w.registry.release(w.key)
+    const other = keyOf({ sym: 'OTH', tf: 'D' })
+    w.registry.acquire(other)
+    w.net.fetchOnce(other, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.registry.has(w.key)).toBe(false)                     // evicted for OTH
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(w.hist.length).toBe(1)
+    expect(w.registry.has(w.key)).toBe(false)                     // never resurrected
+  })
+
+  it('P6 while the page is hidden nothing is asked; shown again, the due retry asks at once', async () => {
+    let hidden = false
+    const w = world([partial, sealed], { hidden: () => hidden })
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    hidden = true
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(w.hist.length).toBe(1)
+    hidden = false
+    w.visible()
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.hist.length).toBe(2)
+  })
+
+  it('P7 stop() of the last chart leaves no retry pending', async () => {
+    const w = world([partial], { pin: false })
+    w.net.start(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    const n = w.hist.length
+    w.net.stop(w.key)
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
+    expect(w.hist.length).toBe(n)
+  })
+
+  it('P8 after a partial answer nothing more is coming NOW: deepPending is false and a waiting display is not held 5 s', async () => {
+    const w = world([partial])
+    w.net.fetchOnce(w.key, { depth: fullBarsFor('D') })
+    await vi.advanceTimersByTimeAsync(200)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    let joined = null
+    w.net.deepJoined(w.key).then((v) => { joined = v })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(joined).toBe(true)                                      // at once, not after DEEP_WANT_MS
   })
 })
