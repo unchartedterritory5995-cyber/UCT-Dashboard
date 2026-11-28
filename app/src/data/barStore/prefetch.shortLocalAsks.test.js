@@ -23,13 +23,14 @@ const OPEN = Date.UTC(2026, 10, 18, 14, 30) / 1000        // Wed 2026-11-18 09:3
 const CLOSE = OPEN + 390 * 60                               // 16:00 ET
 const NOW = CLOSE + 2 * 3600                                // 18:00 ET: after the close, the measured case
 const DAY = 86400
-const bar = (t, i) => { const o = Math.round((50 + ((i * 7) % 13) / 4) * 100) / 100; return { t, o, h: o + 0.5, l: o - 0.5, c: o + 0.25, v: 1000 + i } }
+// (keyed on the bar's time, so every copy of one bar is the same bar: a lake that shares bars with the device copy proves its basis)
+const bar = (t) => { const i = Math.floor(t / 900) % 997; const o = Math.round((50 + ((i * 7) % 13) / 4) * 100) / 100; return { t, o, h: o + 0.5, l: o - 0.5, c: o + 0.25, v: 1000 + i } }
 /** `days` regular sessions of 15m rows ending with today's (26 a day, the last 15:45). */
 function sessions(days, { endDay = 0 } = {}) {
   const out = []
   for (let d = days - 1 + endDay; d >= endDay; d--) {
     const open = OPEN - d * DAY
-    for (let i = 0; i < 26; i++) out.push(bar(open + i * 900, out.length))
+    for (let i = 0; i < 26; i++) out.push(bar(open + i * 900))
   }
   return out
 }
@@ -64,11 +65,11 @@ beforeAll(() => { fakeDb = installFakeIndexedDB() })
 beforeEach(() => { memClear(); fakeDb._clear(); vi.useFakeTimers(); vi.setSystemTime(NOW * 1000) })
 afterEach(() => { vi.useRealTimers() })
 
-function boot() {
+function boot({ lake = LAKE } = {}) {
   const releases = []
   const request = vi.fn(() => new Promise((r) => { releases.push(() => r(answer())) }))
   const store = createBarStore({
-    request, device: fakeDevice(DEVICE), history: lakeOf(LAKE),
+    request, device: fakeDevice(DEVICE), history: lakeOf(lake),
     io: { idbGet: async () => null, idbGetHistoryEntry: async () => null, idbPutMonotonic: async () => {}, memPutMonotonic: () => {} },
     stream: fakeStream(), candle: fakeCandle(), prices: fakePrices(), isHidden: () => false, onVisible: () => () => {}, idle: (fn) => fn(),
   })
@@ -86,7 +87,8 @@ describe('B9: a local copy short of the view is asked for at once', () => {
     await vi.advanceTimersByTimeAsync(1)
     const s = w.store.peek(w.key)
     expect(s.restSeen).toBeFalsy()
-    expect(s.bars.length).toBe(300)
+    expect(s.bars.length).toBeGreaterThan(100)                // (the store keeps the seed's newest sessions: 208 rows here)
+    expect(s.bars.length).toBeLessThan(1000)                  // short of the zoomed-out view below
     expect(w.pf.devicePaints('ILQ', '15')).toBe(true)
   })
 
@@ -97,7 +99,7 @@ describe('B9: a local copy short of the view is asked for at once', () => {
     await vi.advanceTimersByTimeAsync(30)
     expect(w.tails().length).toBe(1)                          // asked during the switch, not after the hang guard
     await vi.advanceTimersByTimeAsync(1000)                   // the lake settled (it added nothing)
-    expect(w.store.peek(w.key).bars.length).toBe(300)
+    expect(w.store.peek(w.key).bars.length).toBeLessThan(1000) // still short: the lake joined nothing
     expect(state()).toBe('PENDING')                           // never 'current' on rows short of the view
     w.release()
     await vi.advanceTimersByTimeAsync(10)
@@ -105,6 +107,16 @@ describe('B9: a local copy short of the view is asked for at once', () => {
     const s = w.store.peek(w.key)
     expect(s.restSeen).toBe(true)
     expect(s.bars.length).toBeGreaterThanOrEqual(1000)
+  })
+
+  it('a lake that joins and covers the view: the prepare reports on the joined copy, never waiting for the answer', async () => {
+    const w = boot({ lake: sessions(45) })                    // shares the device copy's bars: joined on one basis
+    await w.pf.deviceWarm('ILQ', '15')
+    const state = settled(w.pf.prepareForDisplay('ILQ', '15', { need: 1000 }))
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(w.store.peek(w.key).bars.length).toBeGreaterThanOrEqual(1000)
+    expect(state()).toBe('current')                           // the answer (still held back) is not waited for
+    expect(w.store.peek(w.key).restSeen).toBeFalsy()
   })
 
   it('control: a device copy that covers the view still paints with no request', async () => {

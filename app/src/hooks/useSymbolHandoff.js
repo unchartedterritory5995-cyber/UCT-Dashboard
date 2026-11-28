@@ -618,7 +618,8 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       let committed = false
       const commitHere = () => { committed = true; commit() }
       P.prefetchBarsToIDB([requestedSym], fetchTf(tf), { priority: true, immediate: true, ...sess })
-      P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess }).then((outcome) => {
+      // (B9) `need`: the rows this view draws, in the prepared key's rows (routeView): a local copy short of it is asked for
+      P.prepareForDisplay(requestedSym, fetchTf(tf), { signal: prepCtl?.signal ?? null, ...sess, need: rv.need }).then((outcome) => {
         if (!alive || genRef.current !== gen || committed) return   // a newer request owns the screen
         lastOutcomeRef.current = outcome
         // ⭐⭐ (2026-11-27) NEVER A SHORT PAGE: a prepare that reports while the held rows are still short of the view
