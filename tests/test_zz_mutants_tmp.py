@@ -44,12 +44,8 @@ def _run(tree):
 @pytest.fixture(scope="module")
 def tree():
     d = tempfile.mkdtemp(prefix="mut-")
-    for item in ("api", "tests", "data", "app/src/utils", "app/src/lib/marketClock", "pytest.ini", "conftest.py"):
-        src = ROOT / item
-        if src.is_dir():
-            shutil.copytree(src, pathlib.Path(d) / item, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
-        elif src.exists():
-            shutil.copy2(src, pathlib.Path(d) / item)
+    shutil.copytree(ROOT, d, dirs_exist_ok=True, symlinks=True,
+                    ignore=shutil.ignore_patterns(".git", "node_modules", "__pycache__", "dist", "external"))
     (pathlib.Path(d) / "tests" / "test_zz_mutants_tmp.py").unlink()
     yield pathlib.Path(d)
     shutil.rmtree(d, ignore_errors=True)
