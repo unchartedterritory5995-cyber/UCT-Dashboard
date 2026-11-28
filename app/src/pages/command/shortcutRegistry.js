@@ -549,6 +549,15 @@ export const SHORTCUTS = Object.freeze([
     target: 'window', capture: true, inEditable: true, repeat: true,
     why: 'Board keep-alive: a press holds the hidden board catch-up off for half a second.',
   }),
+  // the board pre-mount (pages/charts/boardPremount.js): every key restarts its quiet spell, so no board is
+  // pre-mounted within PREMOUNT_QUIET_MS of a press
+  decl({
+    id: 'board.premountQuietClock',
+    chord: { any: true },
+    observe: true,
+    target: 'window', capture: true, inEditable: true, repeat: true,
+    why: 'Board pre-mount: a press restarts the quiet spell before the next hidden board mounts.',
+  }),
 ])
 
 const BY_ID = new Map(SHORTCUTS.map((d) => [d.id, d]))

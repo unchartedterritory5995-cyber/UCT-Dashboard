@@ -3,6 +3,7 @@ import { BoardVisibilityContext, boardHiddenNow, createBoardVisibility } from '.
 import { boardLayerProps } from '../../components/chart/boardLayer'
 import { boardKeepAliveMode, keptBoardLimit, sameBoard, KEPT_BOARD_HIDDEN_DISPOSE_MS, KEPT_BOARD_MAX_HIDDEN_MS } from './boardKeepAlive'
 import { boardPremountEnabled, createPremountScheduler, premountOrder } from './boardPremount'
+import { registerShortcuts } from '../command/shortcutRegistry'
 import { readDockPref, DOCK_PREF } from './layoutDockPins'
 import { msSincePressure } from '../../data/barStore/serverPressure'
 import { getBarStore } from '../../data/barStore'
@@ -3557,13 +3558,15 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     premountRef.current = sch
     const onInput = () => sch.noteInput()
     const opts = { capture: true, passive: true }
-    window.addEventListener('keydown', onInput, opts)
+    // keys through the shortcut registry (a declared every-key observer: TERM-063 counts raw key listeners)
+    let unKeys = null
+    try { unKeys = registerShortcuts({ 'board.premountQuietClock': onInput }) } catch { unKeys = null }
     window.addEventListener('pointerdown', onInput, opts)
     window.addEventListener('wheel', onInput, opts)
     return () => {
       sch.stop()
       premountRef.current = null
-      window.removeEventListener('keydown', onInput, opts)
+      if (unKeys) unKeys()
       window.removeEventListener('pointerdown', onInput, opts)
       window.removeEventListener('wheel', onInput, opts)
     }

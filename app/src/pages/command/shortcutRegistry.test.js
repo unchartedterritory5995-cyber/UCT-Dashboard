@@ -300,7 +300,7 @@ describe('TERM-063 — an observer hears every key and can answer none', () => {
   const observers = SHORTCUTS.filter((d) => d.observe === true)
 
   it('NON-VACUITY: the registry declares an observer, and every observer is exactly { any: true }', () => {
-    expect(observers.map((d) => d.id)).toEqual(['notebook.inputKind', 'agent.guideEscapeGate', 'tickerPopup.escapeGate', 'board.keptQuietClock'])
+    expect(observers.map((d) => d.id)).toEqual(['notebook.inputKind', 'agent.guideEscapeGate', 'tickerPopup.escapeGate', 'board.keptQuietClock', 'board.premountQuietClock'])
     for (const d of observers) expect(d.chord).toEqual({ any: true })
   })
 
