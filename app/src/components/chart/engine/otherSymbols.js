@@ -618,6 +618,16 @@ export function witnessedBarsOf(row, bars, own = null) {
  *  own session until reloaded); here the index's session is over, so it reads the previous one. */
 const NEWEST_BAR_READS_OWN_PERIOD = (entry) => !!(entry && entry.newestBarIsForming === true)
 
+/** How many grid rows before the chart's first bar are laid (`atOrBeforeGridOf` `from`): a request expression's own
+ *  look-back on the chart's first bars, up to this many rows (Fred RS reads a bare `close`; its `max_bars_back` is 253). */
+export const GRID_ROWS_BEFORE_CHART = 1000
+
+/** The chart's first bar's open (unix seconds) from `ctx.chartBars` (`withChartNewestDay`), or null. */
+function chartFirstTimeOf(ctx) {
+  const b = ctx && Array.isArray(ctx.chartBars) && ctx.chartBars.length ? ctx.chartBars[0] : null
+  return b && typeof b.t === 'number' && Number.isFinite(b.t) ? b.t : null
+}
+
 /** `ctx` with `chartNewestDay`: the session day of `bars`' newest bar (the bind reads no bars). */
 export function withChartNewestDay(ctx, bars) {
   const n = Array.isArray(bars) ? bars.length : 0
@@ -797,8 +807,15 @@ const RTH_OPEN_MIN = 9 * 60 + 30
  *  back by whole steps to the slot that holds 04:00: a REGULAR chart 01:30, 05:30, 09:30, 13:30, 17:30 (its bars 09:30
  *  and 13:30), an EXTENDED chart 04:00, 08:00, 12:00, 16:00 (TradingView's extended-hours 4h chart, Q-FRED-4H). The
  *  reads are unchanged: the index's own bars, by the slot's OPEN. `extended`: the CHART's session (`CHART_SESSION_KEY`);
- *  absent, `resampleSpec`'s own default (regular). */
-export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extended = false } = {}) {
+ *  absent, `resampleSpec`'s own default (regular).
+ *  ⭐⭐ (2026-11-28) `from`: the chart's first bar (unix seconds). Of the rows before it only the newest
+ *  `GRID_ROWS_BEFORE_CHART` are laid: the grid over the store's whole depth passed the run's `HISTORY` ceiling. Those rows
+ *  keep (1) where the series' rows begin before the chart, so a chart bar missing its row is the HOLE it was (never read
+ *  as a depth gap: `interpret.js::symAlignmentMasks`, `requestSupply.js::firstHeldTime`), and (2) the history a request's
+ *  own expression reads on the chart's first bars (`ta.sma(close, n)` inside `request.security`, a sub-run over these
+ *  rows) for any look-back up to that many rows. The sessions before them are still walked, so every laid row carries the
+ *  right previous close. */
+export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extended = false, from = null } = {}) {
   const out = []
   Object.defineProperty(out, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
   const step = GRID_STEP_MIN[String(tf)]
@@ -828,6 +845,7 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extend
   // the session before the first held one: its close is what that first session's pre-market reads
   let prevClose = null
   for (const [day, c] of closes) if (day < firstDay) prevClose = c
+  const before = []                                          // (`from`) the newest rows before the chart's first bar
   let p = 0                                                  // the first held bar not before this session's open
   for (let d = firstDay, k = 0; k < 4000; d = nextDayOf(d), k += 1) {
     if (d > lastHeld && prevClose === null) break
@@ -857,11 +875,18 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false, extend
             : { t: g, o: r.o, h: Math.max(r.h, c), l: Math.min(r.l, c), c, v: r.v }
         }
       }
-      if (row) out.push(row)
+      if (row && from !== null && row.t < from) {
+        before.push(row)
+        if (before.length > GRID_ROWS_BEFORE_CHART) before.shift()
+      } else if (row) {
+        if (before.length) { out.push(...before); before.length = 0 }
+        out.push(row)
+      }
     }
     if (own !== null) prevClose = own
     if (d > lastHeld) break
   }
+  if (before.length) out.push(...before)
   return out
 }
 
@@ -1018,7 +1043,7 @@ export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.SAME_MONTH) return previousMonthBarsOf(held).map((m) => ({ ...m, t: previousMonthFirst(m.t) }))
   if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
     return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming),
-      extended: !!(also && also.extended) })
+      extended: !!(also && also.extended), from: also && typeof also.from === 'number' ? also.from : null })
   }
   return null
 }
@@ -1838,6 +1863,11 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
           continue
         }
         also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true,
+          // ⭐⭐ (2026-11-28) the grid starts at the CHART's first bar: no row before it is read (`interpret.js` `sym`, an
+          // exact `t` match), and our index store holds years more than any chart loads (SP:SPX 15m, 39,012 rows), so a
+          // grid over all of it (96,406 rows on a 30,396-bar SPY 15m chart) passed the run's 32,768-bar `HISTORY`
+          // ceiling and every deep intraday Fred RS run half was refused `runtime:limit` (`atOrBeforeGridOf` `from`)
+          from: chartFirstTimeOf(ctx),
           // ⭐⭐ e98 — a custom timeframe's grid is laid where the CHART's spec starts its bars (`CHART_SESSION_KEY`)
           ...(Object.prototype.hasOwnProperty.call(CUSTOM_INTRADAY_STEP_MIN, tf) ? { extended: chartExtendedOf(secondary) } : {}) }
       }
