@@ -288,7 +288,8 @@ class PackBuilder:
     Symbols are written in sorted order whatever order they were added in, so a pack is a pure
     function of (timeframe, as-of, build id, compression, depth, the bar sets)."""
 
-    def __init__(self, tf: str, *, asof: str, build: str, depth: int, comp: str = "gzip"):
+    def __init__(self, tf: str, *, asof: str, build: str, depth: int, comp: str = "gzip",
+                 whole: bool = False, partial: Iterable[str] = ()):
         if tf not in T_UNIT:
             raise SeedError(f"unknown timeframe {tf!r}")
         if comp not in COMPRESSIONS:
@@ -296,6 +297,15 @@ class PackBuilder:
         self.tf, self.asof, self.build, self.depth, self.comp = tf, asof, build, int(depth), comp
         self._asof_int = asof_int(asof)
         self._items: Dict[str, Tuple[bytes, dict]] = {}
+        # ⭐ WHOLE (2026-11-28, the full-depth daily pack): every symbol's window is its WHOLE served series as of
+        # `asof` (nothing older exists on the server), except the symbols named in `partial`. Two optional trailer
+        # keys (section 8: readers ignore keys they do not know), written only when `whole` is set.
+        self.whole = bool(whole)
+        self.partial = set(partial or ())
+
+    def mark_partial(self, symbol: str) -> None:
+        """`symbol`'s window may not be its whole series (only meaningful on a `whole` pack)."""
+        self.partial.add(symbol)
 
     def add_served(self, symbol: str, bars: List[dict]) -> dict:
         """Encode one symbol's served bars. Raises SeedError (the symbol is then not in the pack)."""
@@ -321,12 +331,16 @@ class PackBuilder:
             entries[sym] = [off, len(blob), f["bars"], f["first"], f["last"], self._asof_int,
                             f["crc"], f["body"], f["pscale"], f["vscale"]]
             off += len(blob)
-        trailer = _json({
+        tr = {
             "v": FORMAT_VERSION, "kind": KIND, "tf": self.tf, "tunit": T_UNIT[self.tf],
             "basis": BASIS, "grid": GRID, "comp": self.comp, "depth": self.depth,
             "asof": self.asof, "build": self.build, "fields": list(ENTRY_FIELDS),
             "symbols": entries,
-        })
+        }
+        if self.whole:
+            tr["whole"] = True
+            tr["partial"] = sorted(s for s in self.partial if s in entries)
+        trailer = _json(tr)
         parts.append(trailer)
         parts.append(_TAIL.pack(len(trailer)))
         parts.append(MAGIC)
@@ -379,8 +393,18 @@ def read_trailer(data: bytes) -> dict:
             raise SeedError(f"entry for {sym!r} reaches past the blobs")
         if e[2] < 1 or e[8] not in POWERS_OF_TEN or e[9] not in POWERS_OF_TEN:
             raise SeedError(f"entry for {sym!r} has no bars or a bad scale")
+    if "whole" in tr and (tr["whole"] is not True or not isinstance(tr.get("partial"), list)
+                          or not all(isinstance(x, str) for x in tr["partial"])):
+        raise SeedError("trailer whole/partial are malformed")
     tr["blob_bytes"] = blob_end
     return tr
+
+
+def whole_symbols(tr: dict) -> frozenset:
+    """The symbols of a pack whose window is their whole served series (empty unless the trailer says `whole`)."""
+    if tr.get("whole") is not True:
+        return frozenset()
+    return frozenset(tr["symbols"]) - frozenset(tr.get("partial") or ())
 
 
 def decode_body(body: bytes, *, bars: int, first: int, last: int, crc: int, body_len: int,

@@ -30,7 +30,7 @@ import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
   rw.applied = true
-  chart.window.setWindow(rw.rows, { span: rw.span })
+  chart.window.setWindow(rw.rows, { span: rw.span, tail: rw.tail })
 }
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -4194,6 +4194,7 @@ function StockChartBody({
   onCrosshairMove = null,   // (payload: {time, price}) => void — fires when local user hovers chart
   onChartTap = null,        // (payload: {time, price, point}) => void — the library's click, which a TOUCH TAP also raises (a hover-based crosshair read never sees a tap on a phone: Study workbench, 2026-11-03). `price` is the cursor's level via coordinateToPrice; null off the candle series.
   onTimeRangeChange = null, // (payload: {from, to}, { memberMoved }) => void — fires when visible time range changes; memberMoved says a member moved this chart, not a load or a re-frame
+  tfBarCodes = null, // (lane C) the codes on the host's timeframe bar: the habitual timeframes prepared ahead (useNeighborFrames)
   onDateNavApi = null, // (api|null) => void — publishes the imperative date-nav API (goToDate/goToYear/stepBar/ensureFullHistory/getDateMeta) for the top-bar Time Navigator
   externalCrosshair = null, // {time, price} | null — render external crosshair from sync context
   subscribeCrosshair = null, // optional (cb) => unsubscribe — IMPERATIVE sync channel. Preferred over externalCrosshair: the parent hands crosshair payloads straight to this chart with no React state in between, so a linked crosshair glides instead of stepping once per re-render.
@@ -11421,7 +11422,7 @@ function StockChartBody({
       sessionCandleActive, sessionBars, filteredBars, sessionAppliedBars,
     })
   }
-  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow })
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes, rows: bars, viewWindow: _anchorViewWindow, tfBar: tfBarCodes })
   const overlayData = useMemo(() => {
     if (!__heavy.sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -11977,14 +11978,20 @@ function StockChartBody({
   // (owner, 2026-11-27) keyed on the date AND the date box's span: a new span at the same date is a new frame too
   const _anchorKey = anchorDate ? `${anchorDate}|${_anchorBox ? anchorWidth : ''}` : null
   const prevAnchorRef = useRef(_anchorKey)
+  const prevAnchorSeriesRef = useRef(`${sym}|${resolvedTf}`)
   useEffect(() => {
     const prev = prevAnchorRef.current
-    if (prev === _anchorKey) return
+    const series = `${sym}|${resolvedTf}`
+    const switched = prevAnchorSeriesRef.current !== series
+    // (review of #3004, F1) the series advances only where the transition is CONSUMED: a cold switch's first run (no bars
+    // yet) returns below and must still see `switched` on the run that brings them
+    if (prev === _anchorKey) { prevAnchorSeriesRef.current = series; return }
     const chart = chartRef.current
     // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
     // that brings them (filteredBars is a dep) instead of dropping the transition.
     if (!chart || !__heavy.filteredBars || __heavy.filteredBars.length === 0) return
     prevAnchorRef.current = _anchorKey
+    prevAnchorSeriesRef.current = series
     if (anchorDate) {
       // A new anchor is a FRESH user intent (they clicked a different moment), so it
       // re-takes a view the user had panned away from — the same re-arm a symbol or
@@ -12001,6 +12008,10 @@ function StockChartBody({
       return
     }
     if (!prev) return   // never anchored → nothing to restore
+    // ⛔ (2026-11-28, the correctness builder: a 6-bar time shift one frame after a switch) THE DATE WENT WITH A SWITCH:
+    // the switch's own framing (updateChart's zoomKey branch: the carried zoom, newest at its margin) already framed
+    // the new series in the frame it painted; a default re-frame here moved it again a frame later (margin and width)
+    if (switched) return
     // "Back to today": re-frame to the canonical present-day default (the same helper
     // first load and right-click "Reset view" use) and re-arm the pinned-right net.
     userViewMovedRef.current = false
@@ -12278,7 +12289,9 @@ function StockChartBody({
         } catch { /* no view yet */ }
         const _geom = paintedGeomRef.current
         const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
-        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+        // (`tail`: bars right of the view's right edge, so a view scrolled back in history is cut on the right too)
+        const _tail = _geom && Number.isFinite(_geom.ro) && _geom.ro < 0 ? -_geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, tail: _tail, applied: false }
       }
       applyRenderWindow(chartRef.current, _pw.rw)
     }

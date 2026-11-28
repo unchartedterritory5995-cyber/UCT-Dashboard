@@ -221,7 +221,8 @@ def bands_bb(p, m):
 # ─── the studies, by UCT semantics ───────────────────────────────────────────
 
 def ma_types(src, p, vol):
-    half, root = max(1, p // 2), max(1, round(math.sqrt(p)))
+    # 2026-11-27 (engine e100): FLOOR(sqrt(p)), as TradingView's ta.hma (FRED's Q-HMA capture; at 21: 4, not 5)
+    half, root = max(1, p // 2), max(1, math.floor(math.sqrt(p)))
     raw = 2 * wma(src, half) - wma(src, p)
     vw = nan(len(src))
     for i in range(p - 1, len(src)):

@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, act, waitFor, fireEvent } from '@testing-library/react'
 
-const lw = vi.hoisted(() => ({ created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map(), reads: 0 }))
+const lw = vi.hoisted(() => ({ created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map(), reads: 0, ranges: [] }))
 // every adaptive frame loop made under the chart, with the options it was made with
 const loops = vi.hoisted(() => [])
 vi.mock('./chart/adaptiveFrameLoop', async (orig) => {
@@ -48,6 +48,7 @@ vi.mock('lightweight-charts', () => {
     applyOptions: () => {}, fitContent: () => {},
     setVisibleLogicalRange: (r) => {
       lw.last = r
+      lw.ranges.push({ from: r.from, to: r.to })
     },
     getVisibleLogicalRange: () => { lw.reads++; return lw.last },
     setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
@@ -127,7 +128,7 @@ const idxOn = (bars, iso) => { let k = -1; const end = Date.parse(`${iso}T23:59:
 
 beforeEach(() => {
   cleanup()
-  Object.assign(lw, { created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map(), reads: 0 })
+  Object.assign(lw, { created: 0, removed: 0, setData: 0, autoSize: [], resize: [], last: null, subs: new Map(), reads: 0, ranges: [] })
   loops.length = 0
   try { localStorage.clear() } catch { /* jsdom always has it */ }
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })))
@@ -209,6 +210,52 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
     expect(onRelease).toHaveBeenCalledTimes(1)
     act(() => { api.resetView() })
     expect(onRelease).toHaveBeenCalledTimes(2)
+    view.unmount()
+  })
+  // ⭐ (2026-11-28, the correctness builder's VISIBLE_CHANGE: a 6-bar time shift one frame after a switch) A SWITCH FROM A
+  // VIEW WHOSE RIGHT MARGIN IS NOT THE DEFAULT (a date before the held rows: the earliest bars at +0.5) PAINTS ITS FIRST
+  // FRAME AT THE MARGIN IT KEEPS, and no later frame moves it: with the date kept, and with the date gone in the same switch
+  it('V9 a switch from a non-default right margin: its first frame is its last (no time shift a frame later)', async () => {
+    for (const nextDate of ['2004-01-02', null]) {
+      const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
+      await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })   // the earliest bars, +0.5
+      await new Promise((r) => setTimeout(r, 200))
+      lw.ranges.length = 0
+      view.rerender(<Chart sym="BBB" bars={BBB} date={nextDate} width={120} />)
+      await new Promise((r) => setTimeout(r, 600))
+      const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
+      expect(seen.length, `${nextDate ?? 'date gone'}: frames ${JSON.stringify(seen)}`).toBe(1)
+      view.unmount()
+      cleanup()
+    }
+  })
+  it("V9b a COLD switch (the new symbol's bars not in yet) with the date gone: still one frame once they land", async () => {
+    const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
+    await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })
+    await new Promise((r) => setTimeout(r, 200))
+    view.rerender(<Chart sym="BBB" bars={[]} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 200))
+    lw.ranges.length = 0
+    view.rerender(<Chart sym="BBB" bars={BBB} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 600))
+    const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
+    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBe(1)
+    expect(seen[0].to, 'the present: newest at its margin').toBeGreaterThan(BBB.length - 1)
+    view.unmount()
+  })
+  // (review of #3004, residual) the date cleared in a LATER commit than the switch is the member's own act: ONE frame, the
+  // present, after the switch's own frame at the date
+  it('V9c the date cleared a commit after the switch: one more frame, the present', async () => {
+    const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
+    await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })
+    view.rerender(<Chart sym="BBB" bars={BBB} date="2004-01-02" width={120} />)
+    await new Promise((r) => setTimeout(r, 300))
+    lw.ranges.length = 0
+    view.rerender(<Chart sym="BBB" bars={BBB} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 600))
+    const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
+    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBe(1)
+    expect(seen[0].to).toBeGreaterThan(BBB.length - 1)
     view.unmount()
   })
   it('V8 (M2) while the history is still loading, a date before the held rows shows a loading cue, never the false note', async () => {

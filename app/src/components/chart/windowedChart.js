@@ -52,6 +52,21 @@ const wide = (s) => s > RENDER_WINDOW_WIDE_SPAN
 /** The margin (bars) kept left of a view `s` bars across, and the reach of one extension. */
 const marginFor = (s) => (wide(s) ? Math.max(Math.ceil(s / 4), RENDER_WINDOW_MARGIN_BARS) : Math.max(s, RENDER_WINDOW_MARGIN_BARS))
 const reachFor = (s) => (wide(s) ? Math.max(Math.ceil(s), RENDER_WINDOW_MIN_BARS) : Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
+/**
+ * ⚡ (2026-11-28, Phase E1 second half) A DATED VIEW IS CUT ON THE RIGHT TOO. A view scrolled back in history (a
+ * go-to-date, a date carried across a switch) was handed every bar from its window start to the newest: a 60m view of
+ * 2012 held ~40k rows for the ~2k it shows. When the view's right edge is more than this many bars (and two screens)
+ * left of the newest bar, the window ENDS a margin right of the view as well. The library numbers its logical indices
+ * from the window START, so a right cut shifts no index; the bars right of the cut stay in the app's rows, a pan right
+ * extends the window before paint exactly as a pan left does, and anything that goes to the present (scrollToPosition,
+ * scrollToRealTime) takes the cut away first.
+ */
+export const RENDER_WINDOW_RIGHT_CUT_MIN = 1000
+/** The bars right of a view that make it a dated view (0: not one). */
+const rightCutFor = (s, tail) => {
+  const t = Number.isFinite(tail) && tail > 0 ? Math.floor(tail) : 0
+  return t > Math.max(RENDER_WINDOW_RIGHT_CUT_MIN, 2 * Math.max(0, s)) ? t : 0
+}
 
 export function renderWindowDisabled() {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(RENDER_WINDOW_OFF_KEY) === '1' } catch { return false }
@@ -148,10 +163,11 @@ const RAW = Symbol('raw')
 const WINDOW_CTL = Symbol('windowControl')
 /**
  * ⭐ (2026-11-23, next-row chart walks, item ii) A facade series' `[SET_DATA_PAINTED](rows, paint)`: `setData(rows)`, but
- * the library is handed `paint(rows, from)` (rows `from..end`, transformed) instead of the cut `rows.slice(from)`, on
+ * the library is handed `paint(rows, from, to)` (rows `from..to`, transformed) instead of the cut `rows.slice(from, to)`, on
  * this setData and on every re-cut after it (an extension left, a consistency re-cut), until the next setData. So a
  * per-row transform (the candles' net-change colours, chart/netChangePaint.js) runs on the rows the library is handed,
- * not on every row: `paint(rows, from)` must equal `transformAll(rows).slice(from)`. `data()` keeps the rows as given.
+ * not on every row: `paint(rows, from, to)` must equal `transformAll(rows).slice(from, to)` (`to` is the row count unless
+ * the window is cut on the right too). `data()` keeps the rows as given.
  * A plain `setData` drops the paint. Absent on the pass-through (window off): there `setData` takes every row.
  */
 export const SET_DATA_PAINTED = Symbol('setDataPainted')
@@ -160,7 +176,8 @@ export function rawOf(x) { return (x && x[RAW]) || x }
 
 function passThrough(chart) {
   const inert = {
-    setWindow() {}, windowStart: () => 0, windowStartTime: () => null, ensureFrom() {}, raw: () => chart,
+    setWindow() {}, windowStart: () => 0, windowStartTime: () => null, windowEnd: () => null, windowEndTime: () => null,
+    ensureFrom() {}, raw: () => chart,
     onChange: () => () => {}, setPrimary() {},
   }
   try { Object.defineProperty(chart, 'window', { value: inert, configurable: true }) } catch { /* frozen double */ }
@@ -184,6 +201,9 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     ws: 0,               // the window's first full index (of the primary series)
     wsTime: null,        // its time: every other series is cut from here
     wanted: null,        // rows the load asked for (null: no window)
+    tailWanted: 0,       // bars right of the view the load opened at (0: no right cut)
+    we: null,            // the window's END (full index, exclusive; null: to the newest bar)
+    weTime: null,        // the time of the first bar right of the window (every other series is cut before it)
     span: 0,             // bars across the view, for extensions
     extending: false,
     placePending: false, // a new load: the next primary setData places the window
@@ -257,12 +277,22 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     if (!Array.isArray(rows) || !rows.length) return rows
     const paint = series.get(w)?.paint || null   // (SET_DATA_PAINTED: the rows handed over, transformed)
     let from = 0
-    if (w === primary) from = st.ws > 0 ? st.ws : 0
-    else if (st.wsTime != null) {
-      const k = firstAtOrAfter(rows, st.wsTime)
-      from = k == null ? 0 : k
+    let to = rows.length
+    if (w === primary) {
+      from = st.ws > 0 ? st.ws : 0
+      if (st.we != null) to = Math.max(from, Math.min(rows.length, st.we))
+    } else {
+      if (st.wsTime != null) {
+        const k = firstAtOrAfter(rows, st.wsTime)
+        from = k == null ? 0 : k
+      }
+      if (st.weTime != null) {
+        const k = firstAtOrAfter(rows, st.weTime)
+        if (k != null) to = Math.max(from, Math.min(rows.length, k))
+      }
     }
-    if (paint) return paint(rows, from)
+    if (paint) return paint(rows, from, to)
+    if (to < rows.length) return rows.slice(from, to)
     return from > 0 ? rows.slice(from) : rows
   }
   function applyOne(w) {
@@ -271,24 +301,50 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     const cut = cutFor(w, rec.full)
     rec.cutFirst = cut && cut.length ? cut[0].time : null
     rec.set(cut)
-    // the live forming bar(s) after a re-set: what update() planted since the last setData
-    for (const item of rec.tail.values()) { try { rec.upd(item) } catch { /* an older item */ } }
+    // the live forming bar(s) after a re-set: what update() planted since the last setData (none right of the cut)
+    for (const item of rec.tail.values()) {
+      if (beyondCut(item.time)) continue
+      try { rec.upd(item) } catch { /* an older item */ }
+    }
   }
   /** Place ws / wsTime on the primary's full rows: a forced start (an extension), a new load's rows, or (the
    *  same load: appended or prepended bars) the index of the start TIME, so live bars never move it. */
   function placeWindow(forcedWs = null) {
     const full = primary ? series.get(primary)?.full : null
-    if (!on() || !full || !full.length) { st.ws = 0; st.wsTime = null; st.placePending = false; return }
-    if (forcedWs == null && !st.placePending && st.wsTime != null) {
+    if (!on() || !full || !full.length) { st.ws = 0; st.wsTime = null; st.we = null; st.weTime = null; st.placePending = false; return }
+    if (forcedWs == null && !st.placePending && (st.wsTime != null || st.weTime != null)) {
       // the same load: the start TIME is the anchor. An array that starts after it (a session-filtered copy set
       // on the candles beside the whole one) is drawn whole, and the anchor stays for the next array.
-      st.ws = Math.max(0, Math.min(firstAtOrAfter(full, st.wsTime) ?? 0, full.length - 1))
+      st.ws = st.wsTime != null ? Math.max(0, Math.min(firstAtOrAfter(full, st.wsTime) ?? 0, full.length - 1)) : 0
+      // ...and so is the end's: bars appended (live) or prepended (history) never move what the library holds
+      if (st.weTime != null) {
+        const k = firstAtOrAfter(full, st.weTime)
+        if (k == null || k >= full.length || k <= st.ws) { st.we = null; st.weTime = null } else st.we = k
+      }
       return
     }
-    const ws = forcedWs != null ? forcedWs : anchorStart(full, st.wanted)
+    if (forcedWs != null) {
+      st.ws = Math.max(0, Math.min(forcedWs, full.length - 1))
+      st.wsTime = st.ws > 0 ? full[st.ws].time : null
+      return
+    }
+    const ws = anchorStart(full, st.wanted)
     st.placePending = false
     st.ws = Math.max(0, Math.min(ws, full.length - 1))
     st.wsTime = st.ws > 0 ? full[st.ws].time : null
+    // a dated view: the window ends a margin right of the view (a step-aligned index; at or past the newest bar, no cut)
+    st.we = null
+    st.weTime = null
+    const tail = rightCutFor(st.span, st.tailWanted)
+    if (tail > 0) {
+      const viewRight = full.length - 1 - tail
+      const end = Math.ceil((viewRight + marginFor(st.span) + 1) / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
+      if (end > st.ws && end < full.length) { st.we = end; st.weTime = full[end].time }
+    }
+  }
+  /** Is a time right of the window's end (a bar the library does not hold)? */
+  function beyondCut(t) {
+    return st.weTime != null && t != null && cmpTime(t, st.weTime) !== -1
   }
   /** After a pass that moved the window: any other series still holding a time older than its start (one the
    *  pass did not re-set) is re-cut, so no series can widen the library's time scale past the candles. */
@@ -323,8 +379,70 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   function ensureFrom(from, span = st.span) {
     if (!(st.ws > 0)) return
     const full = primary ? series.get(primary)?.full : null
-    const next = extendedStart(st.ws, from, span, full ? full.length - st.ws : 0)
+    const next = extendedStart(st.ws, from, span, full ? (st.we ?? full.length) - st.ws : 0)
     if (next < st.ws) extendTo(next)
+  }
+  /** Move the window END right to full index `newWe` (null: to the newest bar): every series re-set, primary first. */
+  function extendEndTo(newWe) {
+    if (st.extending || st.we == null) return false
+    const full = primary ? series.get(primary)?.full : null
+    if (!full) return false
+    st.extending = true
+    // ⛔ (review of #2970, F2) NOTHING MOVES. The library numbers its indices from the window START, which an end move
+    // leaves where it is, so the view is the same logical range after the re-set, unless the library shifts it: bars
+    // added right of a visible last bar are what `shiftVisibleRangeOnNewBar` scrolls the view for (a new live bar), and
+    // the cut's last bar is often visible. So that option is off for the re-set and put back after it (not a saved range
+    // put back: the library applies a range set in the same task later, so a range read here can be stale).
+    const tsr = chart.timeScale()
+    let shift = null
+    if (!st.dropping) {
+      try { shift = tsr.options().shiftVisibleRangeOnNewBar } catch { shift = null }
+      if (shift) { try { tsr.applyOptions({ shiftVisibleRangeOnNewBar: false }) } catch { shift = null } }
+    }
+    try {
+      if (newWe == null || newWe >= full.length) { st.we = null; st.weTime = null } else { st.we = newWe; st.weTime = full[newWe].time }
+      if (primary) applyOne(primary)
+      for (const w of series.keys()) if (w !== primary) applyOne(w)
+    } finally {
+      st.extending = false
+      if (shift) { try { tsr.applyOptions({ shiftVisibleRangeOnNewBar: shift }) } catch { /* torn down */ } }
+    }
+    syncCutLabels()
+    fireChange()
+    return true
+  }
+  /** Make sure full index `to` (and the margin right of it) is inside the window: the end moves right by a reach. */
+  function ensureTo(to, span = st.span) {
+    if (st.we == null || !Number.isFinite(to)) return
+    const s = Number.isFinite(span) && span > 0 ? span : 0
+    if (Math.ceil(to) + marginFor(s) < st.we) return
+    extendEndTo(Math.ceil((Math.ceil(to) + marginFor(s) + reachFor(s)) / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP)
+  }
+  /** Take the right cut away (the view goes to the present). */
+  // (the caller moves the view at once: scrollToPosition / scrollToRealTime / a rightOffset that re-scrolls)
+  function dropEnd() { if (st.we == null) return; st.dropping = true; try { extendEndTo(null) } finally { st.dropping = false } }
+
+  // ⛔⛔ (review of #2970, F1) A CUT SERIES' LAST BAR IS NOT THE LAST PRICE. Under a right cut the library's last bar is
+  // the bar at the cut (a 2012 close on a dated view), and `priceLineVisible` / `lastValueVisible` (price line source
+  // LastBar) would draw it on the axis labelled as the last price, inside the visible range, and the averages' and the
+  // volume's axis tags would read the cut too. While the window is cut on the right every series' price line and last
+  // value tag are hidden; the app's own options come back when the cut goes. `options()` answers the app's.
+  function syncCutLabels() {
+    const cut = st.we != null
+    for (const rec of series.values()) {
+      if (!rec.raw) continue
+      if (cut && !rec.labels) {
+        let o = null
+        try { o = rec.raw.options() } catch { /* a double */ }
+        rec.labels = { priceLineVisible: o ? o.priceLineVisible : undefined, lastValueVisible: o ? o.lastValueVisible : undefined }
+        try { rec.raw.applyOptions({ priceLineVisible: false, lastValueVisible: false }) } catch { /* a double */ }
+      } else if (!cut && rec.labels) {
+        const back = {}
+        for (const k of ['priceLineVisible', 'lastValueVisible']) if (rec.labels[k] !== undefined) back[k] = rec.labels[k]
+        rec.labels = null
+        try { if (Object.keys(back).length) rec.raw.applyOptions(back) } catch { /* a double */ }
+      }
+    }
   }
 
   const ts = () => chart.timeScale()
@@ -353,7 +471,17 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
         case 'getVisibleLogicalRange': return () => plus(raw.getVisibleLogicalRange())
         case 'setVisibleLogicalRange': return (r) => {
           if (r && Number.isFinite(r.from)) ensureFrom(r.from, Number.isFinite(r.to) ? r.to - r.from : st.span)
+          if (r && Number.isFinite(r.to)) ensureTo(r.to, Number.isFinite(r.from) ? r.to - r.from : st.span)
           return raw.setVisibleLogicalRange(r ? { ...r, from: r.from - st.ws, to: r.to - st.ws } : r)
+        }
+        // a position counts from the NEWEST bar, and the library's newest is the cut's: the cut goes first
+        case 'scrollToPosition': return (...a) => { dropEnd(); return raw.scrollToPosition(...a) }
+        case 'scrollToRealTime': return (...a) => { dropEnd(); return raw.scrollToRealTime(...a) }
+        case 'applyOptions': return (o) => { if (o && o.rightOffset !== undefined) dropEnd(); return raw.applyOptions(o) }
+        case 'scrollPosition': return () => {
+          const v = raw.scrollPosition()
+          const full = primary ? series.get(primary)?.full : null
+          return st.we != null && full && Number.isFinite(v) ? v - (full.length - st.we) : v
         }
         case 'subscribeVisibleLogicalRangeChange': return (h) => {
           const lib = (r) => h(plus(r))
@@ -372,10 +500,23 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
             const k = primaryIndexOfTime(r.from) ?? firstAtOrAfter(series.get(primary)?.full || [], r.from)
             if (k != null) ensureFrom(k, st.span)
           }
+          if (r && beyondCut(r.to)) {
+            const k = primaryIndexOfTime(r.to) ?? firstAtOrAfter(series.get(primary)?.full || [], r.to)
+            if (k != null) ensureTo(k, st.span)
+          }
           return raw.setVisibleRange(r)
         }
         case 'timeToIndex': return (t, findNearest) => {
           const k = raw.timeToIndex(t, findNearest)
+          if (beyondCut(t)) {
+            // newer than the window's end: its full-history index (exact, or the nearest bar when asked)
+            const full = primary ? series.get(primary)?.full : null
+            if (!full) return k
+            const j = firstAtOrAfter(full, t)
+            if (j == null) return k
+            if (j < full.length && cmpTime(full[j].time, t) === 0) return j
+            return findNearest ? Math.min(full.length - 1, Math.max(0, j - 1)) : null
+          }
           if (st.wsTime != null && cmpTime(t, st.wsTime) === -1) {
             // older than the window: its full-history index (exact, or the nearest bar when asked)
             const full = primary ? series.get(primary)?.full : null
@@ -389,7 +530,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
         }
         case 'timeToCoordinate': return (t) => {
           const x = raw.timeToCoordinate(t)
-          if (x != null || st.wsTime == null || cmpTime(t, st.wsTime) !== -1) return x
+          if (x != null) return x
+          if (!beyondCut(t) && (st.wsTime == null || cmpTime(t, st.wsTime) !== -1)) return x
           const i = primaryIndexOfTime(t)
           return i == null ? x : raw.logicalToCoordinate(i - st.ws)
         }
@@ -485,6 +627,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
         rec.handed = cut
         st.passSkipped.push({ rec, w, cut })
       } else rec.set(cut)
+      if ((st.we != null) !== !!rec.labels || (st.we == null && [...series.values()].some((r) => r.labels))) syncCutLabels()
       // the window moved (a new load): the other series are normally re-set in this same pass; any that is
       // not is re-cut before the frame paints
       if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
@@ -500,7 +643,9 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
           case 'setData': return (rows) => setFull(rows, null)
           case SET_DATA_PAINTED: return (rows, paint) => setFull(rows, typeof paint === 'function' ? paint : null)
           case 'update': return (item, ...rest) => {
-            const r = rec.upd(item, ...rest)
+            // a bar right of the window's end (a live tick on a dated view) is kept for the app and the next re-cut,
+            // never handed to a library that holds none of the bars before it
+            const r = item && beyondCut(item.time) ? undefined : rec.upd(item, ...rest)
             if (item && item.time != null) {
               const full = rec.full
               const last = full && full.length ? full[full.length - 1].time : null
@@ -508,7 +653,11 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
             }
             return r
           }
-          case 'dataByIndex': return (i, mismatch) => target.dataByIndex(i - st.ws, mismatch)
+          case 'dataByIndex': return (i, mismatch) => {
+            // right of the window's end: the app's own row (the library holds none there)
+            if (st.we != null && Number.isFinite(i) && i >= st.we && rec.full && i < rec.full.length) return rec.full[Math.floor(i)] ?? null
+            return target.dataByIndex(i - st.ws, mismatch)
+          }
           // `data()`: the rows the app handed `setData`, AS GIVEN, plus the live tail. A series set through
           // SET_DATA_PAINTED (the candles with net-change colours) holds them UNPAINTED here: the colours exist only
           // in what the library holds, so read a colour through `dataByIndex` (the library's rows), never `data()`.
@@ -526,7 +675,23 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
           }
           case 'barsInLogicalRange': return (r) => {
             const b = target.barsInLogicalRange(r ? { ...r, from: r.from - st.ws, to: r.to - st.ws } : r)
-            return b ? { ...b, barsBefore: b.barsBefore + st.ws } : b
+            const after = st.we != null && rec.full ? Math.max(0, rec.full.length - st.we) : 0
+            return b ? { ...b, barsBefore: b.barsBefore + st.ws, barsAfter: b.barsAfter + after } : b
+          }
+          // while the window is cut on the right the price line and last-value tag stay hidden (syncCutLabels): the app's
+          // own choice is kept for when the cut goes, and `options()` answers it
+          case 'applyOptions': return (o) => {
+            if (!rec.labels || !o) return target.applyOptions(o)
+            const own = { ...o }
+            for (const k of ['priceLineVisible', 'lastValueVisible']) if (k in own) { rec.labels[k] = own[k]; delete own[k] }
+            return target.applyOptions(own)
+          }
+          case 'options': return () => {
+            const o = target.options()
+            if (!rec.labels) return o
+            const out = { ...o }
+            for (const k of ['priceLineVisible', 'lastValueVisible']) if (rec.labels[k] !== undefined) out[k] = rec.labels[k]
+            return out
           }
           case 'attachPrimitive': return (p, ...rest) => target.attachPrimitive(wrapPrimitive(p), ...rest)
           case 'getPane': return () => wrapPane(target.getPane())
@@ -562,7 +727,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
   // (checked in a microtask: after the library's own update and the app's setData pass, before the rAF paint)
   let rangeQueued = false
   const onRange = (r) => {
-    if (!r || st.extending || !(st.ws > 0)) return
+    if (!r || st.extending || (!(st.ws > 0) && st.we == null)) return
     st.span = Math.max(0, r.to - r.from)
     if (rangeQueued) return
     rangeQueued = true
@@ -570,17 +735,21 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
       rangeQueued = false
       const cur = chart.timeScale().getVisibleLogicalRange()
       if (cur && st.ws > 0) ensureFrom(cur.from + st.ws, Math.max(0, cur.to - cur.from))
+      if (cur && st.we != null) ensureTo(cur.to + st.ws, Math.max(0, cur.to - cur.from))
     })
   }
   try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* a stub chart */ }
 
   const control = {
     /** Turn the window on for a load: `rows` bars (renderWindowRows), or null for every bar. Re-cuts every series. */
-    setWindow(rows, { span } = {}) {
+    setWindow(rows, { span, tail } = {}) {
       if (Number.isFinite(span) && span > 0) st.span = span
+      st.tailWanted = Number.isFinite(tail) && tail > 0 ? tail : 0
       if (!(Number.isFinite(rows) && rows > 0)) {
         // every bar: re-set what is windowed now (a compare / replay / pinned view turning on)
         st.wanted = null
+        st.tailWanted = 0
+        if (st.we != null) extendEndTo(null)
         if (st.ws > 0) extendTo(0)
         st.wsTime = null
         fireChange()
@@ -593,6 +762,9 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled, an
     /** The window start (full index) and its time; 0 / null when off. */
     windowStart: () => st.ws,
     windowStartTime: () => st.wsTime,
+    /** The window end (full index, exclusive) and the time of the first bar right of it; null / null: to the newest bar. */
+    windowEnd: () => st.we,
+    windowEndTime: () => st.weTime,
     /** Extend the window so full index `from` (and a screen before it) is inside it. */
     ensureFrom,
     /** The library chart. */
@@ -657,7 +829,9 @@ export function createWindowedMarkers(createSeriesMarkers, series, markers) {
   let all = Array.isArray(markers) ? markers : []
   const inWindow = () => {
     const t0 = ctl?.windowStartTime?.()
-    return t0 == null ? all : all.filter((m) => cmpTime(m?.time, t0) !== -1)
+    const t1 = ctl?.windowEndTime?.() ?? null
+    if (t0 == null && t1 == null) return all
+    return all.filter((m) => (t0 == null || cmpTime(m?.time, t0) !== -1) && (t1 == null || cmpTime(m?.time, t1) === -1))
   }
   const inner = createSeriesMarkers(rawOf(series), inWindow())
   const off = ctl?.onChange ? ctl.onChange(() => { try { inner.setMarkers(inWindow()) } catch { /* detached */ } }) : null

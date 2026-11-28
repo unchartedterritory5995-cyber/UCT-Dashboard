@@ -81,6 +81,18 @@ describe('barsLaneRequest — the BarStore uses the existing gate', () => {
     expect(pending.map((p) => p.url)).toContain('/x/held')
   })
 
+  // (review of #3012, LOW) a 429 says when to ask again too: the error carries its Retry-After, as a 503's does
+  it('a 429 and a 503 each carry their Retry-After on the error (retryAfterMs)', async () => {
+    for (const [status, url] of [[429, '/x/rl'], [503, '/x/sh']]) {
+      const r = lane.barsLaneRequest(url, { priority: 'visible' })
+      await flush()
+      pending.at(-1).resolve({ error: 'busy' }, status, { 'Retry-After': '4' })
+      await expect(r).rejects.toMatchObject({ status, retryAfterMs: 4000 })
+      await vi.advanceTimersByTimeAsync(5000)
+      await flush()
+    }
+  })
+
   it('a waiting request honors its abort (and never reaches the network)', async () => {
     lane.barsLaneRequest('/x/1', { priority: 'urgent' })
     lane.barsLaneRequest('/x/2', { priority: 'urgent' })

@@ -27,7 +27,7 @@ import { createDeviceEngine } from './engine'
 import { createCrossTab } from './crossTab'
 import { createLiveOverlay } from './live'
 import { createLiveFeed } from './liveFeed'
-import { deviceServesTf } from './tfs'
+import { workerServesTf } from './tfs'
 import { MINUTE_APPLIED_CHANNEL, appliedSignal } from '../../lib/minuteFrames/applied'
 
 /**
@@ -43,6 +43,18 @@ import { MINUTE_APPLIED_CHANNEL, appliedSignal } from '../../lib/minuteFrames/ap
  * ⭐ NO ROOM (M5): while the engine's "no room" marker stands, an ingest asks NOTHING, not even the manifest.
  */
 export const MANIFEST_RECHECK_MIN_MS = 25 * 60_000
+/**
+ * ⭐ THE DOWNLOAD START IS JITTERED (2026-11-28, owner ruling for the full-depth daily pack: "jitter only the START of
+ * each browser's background download, e.g. 0-10 minutes after first paint + idle, so it never competes with a chart's
+ * own requests"). When the manifest names a build this browser does not hold for some timeframe (a first seed, the
+ * nightly delta, a full pack), the leader waits a uniformly random 0..DOWNLOAD_JITTER_MS before the first byte. 500
+ * members opening the app at the bell then spread their downloads over ten minutes instead of starting together, and
+ * the member's own first charting minutes keep the connection. Nothing else waits: reads keep serving the held
+ * generation, the minute feed starts on a seed that serves (`_live`), and a manifest that names nothing new waits for
+ * nothing. A page that reloads during the wait draws a new one (no state is kept: a wait is never owed).
+ * The worker entry (deviceStore.worker.js) passes it; a core made without `jitterMs` (the tests' fakes) waits nothing.
+ */
+export const DOWNLOAD_JITTER_MS = 10 * 60_000
 
 /** The transferable buffers of a read answer (each distinct ArrayBuffer once). */
 export function transferablesOf(res) {
@@ -64,11 +76,14 @@ export function transferablesOf(res) {
  * @param {object} [o.engineOpts] extra createDeviceEngine options (tests: `now`)
  */
 export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, tabId, timeoutMs = 300, setTimer, clearTimer, liveOpts = {}, engineOpts = {},
-  now = () => Date.now(), recheckMinMs = MANIFEST_RECHECK_MIN_MS } = {}) {
+  now = () => Date.now(), recheckMinMs = MANIFEST_RECHECK_MIN_MS, jitterMs = 0, random = Math.random,
+  wait = (ms) => new Promise((resolve) => (setTimer || setTimeout)(resolve, ms)) } = {}) {
   let engine = null
   let ready = null
   let made = null            // resolves once the engine exists (a read then waits only for its timeframe's open)
   let ingesting = null
+  let jittering = false      // the ingest in flight is waiting out its download jitter (DOWNLOAD_JITTER_MS)
+  let lastJitterMs = null    // the last wait drawn (diagnostics: `info`)
   let lastIngest = null      // the last ingest's per-timeframe outcome (diagnostics: `info`)
   let feed = null            // liveFeed.js, the leader's, created on the first 'live' ask
   let overlay = null         // the feed's overlay (live.js)
@@ -112,7 +127,12 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     }
     feed.visible(!!visible)
     _feedCheck()
-    if (!feed.running()) Promise.resolve(ingesting).then(() => { if (_seedServes()) feed.start() }).catch(() => {})
+    // (a seed that serves starts the feed at once while the ingest only waits out its jitter: a new build then
+    // resyncs it, _kickIngest; otherwise after the ingest in flight, so the overlay knows the seed's symbols)
+    if (!feed.running()) {
+      if (jittering && _seedServes()) feed.start()
+      else Promise.resolve(ingesting).then(() => { if (_seedServes()) feed.start() }).catch(() => {})
+    }
     return { status: feed.running() ? 'running' : (ingesting || _seedServes() ? 'starting' : _seedHeld() ? 'seed-refused' : 'no-seed') }
   }
 
@@ -134,6 +154,16 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
       if (!r.ok) return [{ status: 'error', error: `manifest ${r.status}` }]
       const manifest = await r.json()
       if (!manifest || manifest.v !== 1 || manifest.kind !== 'ffseed' || !manifest.build || !manifest.tfs) return [{ status: 'error', error: 'manifest shape' }]
+      // a download is due (some timeframe's build is not held): its start is jittered (DOWNLOAD_JITTER_MS)
+      if (jitterMs > 0 && engine.due(manifest).length) {
+        let r = 0
+        try { r = Number(random()) } catch { r = 0 }
+        const ms = Math.floor(Math.min(1, Math.max(0, Number.isFinite(r) ? r : 0)) * jitterMs)
+        lastJitterMs = ms
+        jittering = true
+        try { await wait(ms) } finally { jittering = false }
+        if (!engine) return [{ status: 'error', error: 'closed' }]
+      }
       return engine.ingestAll(manifest, { base: manifestUrl })
     })().catch((e) => [{ status: 'error', error: String(e?.message || e) }])
       .then((out) => {
@@ -154,7 +184,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     // ⛔ NEVER A TIMEFRAME THE DEVICE DOES NOT SERVE (review of #2549, P2-L2): W / M from the device's D window lack the
     // period in progress and the depth (tfs.SERVED_TFS). The page stopped asking, but this is the LEADER: any tab asks it,
     // a tab still on the previous client (the deploy overlap) included. Its reads answer null, its diagnostics 'tf'.
-    if (req && (req.op === 'read' || req.op === 'readMany' || req.op === 'why') && !deviceServesTf(req.tf)) {
+    if (req && (req.op === 'read' || req.op === 'readMany' || req.op === 'why') && !workerServesTf(req.tf)) {
       return req.op === 'read' ? null : req.op === 'readMany' ? (req.syms || []).map(() => null) : 'tf'
     }
     // ⭐ (2026-11-21, the cold switch) a READ waits for its own timeframe's open, never for all six (engine.openTf)
@@ -167,7 +197,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     await ready
     if (!engine || !req) return null
     switch (req.op) {
-      case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null, ingestState: engine.ingestState(), crossTab: xt.stats() }
+      case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null, ingestState: engine.ingestState(), crossTab: xt.stats(), jitter: { waiting: jittering, lastMs: lastJitterMs } }
       case 'ingest': return _kickIngest(req.manifestUrl, req.recheck === true)
       case 'live': return _live(req.visible)
       // diagnostics (data/deviceStore/diag.js): the rule behind what read() answers for (sym, tf)

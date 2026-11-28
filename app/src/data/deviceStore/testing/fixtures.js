@@ -77,7 +77,7 @@ export function encodeSeedBody(rows, { tunit }) {
 }
 
 /** A whole timeframe pack: {SYM: rows} → UFFSEED1 bytes. */
-export function seedPackOf(bySym, { tf = 'D', build = '20261119T0131Z', asof = '2026-11-18', comp = 'gzip' } = {}) {
+export function seedPackOf(bySym, { tf = 'D', build = '20261119T0131Z', asof = '2026-11-18', comp = 'gzip', whole = null } = {}) {
   const tunit = SEED_TUNIT[tf]
   const asofN = Number(asof.replace(/-/g, ''))
   const blobs = []
@@ -92,6 +92,8 @@ export function seedPackOf(bySym, { tf = 'D', build = '20261119T0131Z', asof = '
     depth = Math.max(depth, b.bars)
   }
   const tr = { asof, basis: 'served', build, comp, depth, fields: [...SEED_FIELDS], grid: 'rth', kind: 'ffseed', symbols, tf, tunit, v: 1 }
+  // `whole`: {partial: [syms]} writes the full-depth daily pack's keys (codec.wholeOf); null writes none
+  if (whole) { tr.whole = true; tr.partial = [...(whole.partial || [])] }
   const trailer = new TextEncoder().encode(JSON.stringify(tr))
   const out = new Uint8Array(at + trailer.length + 16)
   let p = 0
