@@ -27,7 +27,10 @@ export function viewCovers(v, want) {
  * A symbol that LISTED after the asked date has no bar there; the chart frames its earliest bars. That counts only when
  * (1) the view MOVED from the one before Enter (the newest bar left it), unless the whole history already fitted;
  * (2) the view sits at the first bar (logical <= 0.5) and that bar is after the asked day;
- * (3) that first bar IS the symbol's earliest, by an independent read (`earliest`: the API's oldest bar time).
+ * (3) that first bar IS the symbol's earliest by the product's DEEP sources (`earliest`: {t, exhausted, source}, the
+ *     minimum over them: D/W/M /api/bars-history, intraday the history lake's index), never the live /api/bars window
+ *     a chart can be stuck on.
+ * The whole-history-fitted exemption from (1) holds only when the deep source says the history is EXHAUSTED.
  * A chart that loaded SHORT history and never moved meets (2) alone at the present; (1) and (3) refuse it.
  */
 export function viewBeforeListing(v, want, before, earliest) {
@@ -36,8 +39,26 @@ export function viewBeforeListing(v, want, before, earliest) {
   if (!first || !(first > want.day)) return false
   const fitted = !!(before && before.lr && before.lr.from <= 0.5 && Number.isFinite(before.ni) && before.lr.to >= before.ni - 0.5)
   const moved = !!(before && before.lr && Number.isFinite(v.ni) && (v.lr.to < v.ni - 0.5) && (before.lr.to >= before.ni - 0.5))
-  if (!(moved || fitted)) return false
-  return earliest != null && dayOf(earliest) === first
+  const e = earliest && typeof earliest === 'object' ? earliest : null
+  if (!e || e.t == null) return false
+  if (!(moved || (fitted && e.exhausted === true))) return false
+  return dayOf(e.t) === first
+}
+
+/** The earliest bar over the deep sources ({t, exhausted, source}[]): the oldest one that answered, or null. */
+export function deepEarliest(list) {
+  const got = (list || []).filter((x) => x && x.t != null && dayOf(x.t))
+  if (!got.length) return null
+  got.sort((a, b) => (dayOf(a.t) < dayOf(b.t) ? -1 : dayOf(a.t) > dayOf(b.t) ? 1 : 0))
+  return got[0]
+}
+/** The history lake's series for an intraday timeframe (custom 2h / 4h read the 60m series, 45m the 15m), or null. */
+export function lakeSeriesFor(tf) {
+  const s = String(tf)
+  if (['1', '5', '15', '30', '60'].includes(s)) return s
+  if (s === '120' || s === '240') return '60'
+  if (s === '45') return '15'
+  return null
 }
 
 export function selfCheck() {
@@ -50,15 +71,20 @@ export function selfCheck() {
   ok(!viewCovers({ from: 1795438800, to: 1795788000 }, w) && viewCovers({ from: 1135782000, to: 1136304000 }, w), 'intraday seconds')
   const present = { from: '2026-05-29', to: '2026-12-08', lr: { from: 1282, to: 1413.6 }, ni: 1407 }
   const qfin = { from: '2018-12-14', to: '2019-06-26', lr: { from: -0.08, to: 131.5 }, ni: 1998 }
-  ok(viewBeforeListing(qfin, w, present, '2018-12-14'), 'a jump to a symbol that listed later lands at its first bar')
-  ok(!viewBeforeListing(qfin, w, present, '2015-03-02'), 'a first bar that is not the earliest (short history) is refused')
-  ok(!viewBeforeListing(qfin, w, present, null), 'no independent earliest: refused')
+  const deep = (t, exhausted = true) => ({ t, exhausted, source: 'bars-history' })
+  ok(viewBeforeListing(qfin, w, present, deep('2018-12-14')), 'a jump to a symbol that listed later lands at its first bar')
+  ok(!viewBeforeListing(qfin, w, present, deep('2015-03-02')), 'a first bar later than the DEEP earliest (stuck on the live window) is refused')
+  ok(!viewBeforeListing(qfin, w, present, null) && !viewBeforeListing(qfin, w, present, { t: null }), 'no independent earliest: refused')
   // the blocker: short history, the view never moved, at the present (its first bar in view, newest in view)
   const short = { from: '2025-11-20', to: '2026-12-08', lr: { from: 0, to: 260 }, ni: 255 }
-  ok(!viewBeforeListing(short, w, { ...short, lr: { from: 40, to: 260 } }, '2025-11-20'), 'a view still showing its newest bar did not jump')
-  ok(viewBeforeListing({ ...short, lr: { from: 0, to: 260 } }, w, short, '2025-11-20') === true, 'whole history fitted before: no move needed')
-  ok(!viewBeforeListing({ from: '2005-12-01', to: '2006-06-01', lr: { from: 0, to: 120 }, ni: 5000 }, w, present, '2005-12-01'), 'a first bar before the date is a cover question, not a listing one')
-  return 'rig_dates self-check: ok (covers: day strings, business-day objects, seconds; earliest bars need a move and the API earliest)'
+  ok(!viewBeforeListing(short, w, { ...short, lr: { from: 40, to: 260 } }, deep('2025-11-20')), 'a view still showing its newest bar did not jump')
+  ok(viewBeforeListing({ ...short, lr: { from: 0, to: 260 } }, w, short, deep('2025-11-20')) === true, 'whole history fitted before, deep source exhausted: no move needed')
+  ok(!viewBeforeListing({ ...short, lr: { from: 0, to: 260 } }, w, short, deep('2025-11-20', false)), 'fitted, but the deep source is not exhausted: refused')
+  ok(!viewBeforeListing({ from: '2005-12-01', to: '2006-06-01', lr: { from: 0, to: 120 }, ni: 5000 }, w, present, deep('2005-12-01')), 'a first bar before the date is a cover question, not a listing one')
+  ok(deepEarliest([{ t: '2016-02-01', exhausted: false, source: 'bars' }, { t: '2010-05-03', exhausted: true, source: 'bars-history' }]).t === '2010-05-03', 'the minimum over the sources')
+  ok(deepEarliest([{ t: null, source: 'lake' }]) === null, 'no source answered: no earliest')
+  ok(lakeSeriesFor('240') === '60' && lakeSeriesFor('45') === '15' && lakeSeriesFor('5') === '5' && lakeSeriesFor('D') === null, 'intraday lake series per timeframe')
+  return 'rig_dates self-check: ok (covers: day strings, business-day objects, seconds; earliest bars need a move and the DEEP earliest; fitted only when exhausted)'
 }
 
 if (process.argv.includes('--self-check') && String(process.argv[1] || '').endsWith('rig_dates.mjs')) {
