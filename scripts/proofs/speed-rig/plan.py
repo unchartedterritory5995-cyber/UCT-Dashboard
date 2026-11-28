@@ -16,12 +16,19 @@ names whose last run is older than the window. A reused name is cold on the CLIE
 fresh) but maybe not on the server, so each pass names its reused tickers (--reused, the ledger run's `reused`) and
 grade.py grades them apart from the never-used ones.
 
-LANES. isolate=browser (default): one pass per lane, every lane in parallel on the ONE bench account (each pass's
-board state lives in its own browser; rig.mjs header). isolate=account: N lanes for N bench accounts, a lane's passes
-one after another (two passes on one account's real board collide).
+LANES. isolate=browser (default): each pass's board state lives in its own browser (rig.mjs header), so passes on one
+account never collide on its board, but they DO share its rate limit: production's api/rate_limit_policy.py (enforced)
+keys a signed-in caller as `member:<user id>`, one bucket per family per member, and the bars family
+("market-data") allows 1200 requests a minute. One pass's browser peaks at ~120-425 market-data requests in a minute
+(sweep 46113707532: the MEM50 pass 425, the switching passes 155-360), so 8 browsers on one account (~2,000-2,800 a
+minute) were answered 429 by the limiter and the grade counted the instrument as product failures. So at most
+--per-account browsers (default 2: two peaks, ~850, under the 1200) run on one account at a time: browser lanes are
+accounts x per-account, each lane runs its passes one after another, and lane j signs in as account j % accounts
+(BENCH_EMAIL, BENCH_EMAIL_2, ...). More accounts = more lanes at once. isolate=account: N lanes for N bench accounts,
+a lane's passes one after another (two passes on one account's real board collide).
 
     python scripts/proofs/speed-rig/plan.py --sweep-id <id> --out <dir> [--select REGEX] [--isolate browser|account]
-        [--accounts N] [--max-parallel M] [--dry] [--limit K] [--ledger-file F] [--reuse-after-days D]
+        [--accounts N] [--per-account P] [--max-parallel M] [--dry] [--limit K] [--ledger-file F] [--reuse-after-days D]
     python scripts/proofs/speed-rig/plan.py --self-check
 Writes <out>/plan.json and <out>/matrix.json, and (in Actions) the step outputs matrix / max_parallel / passes.
 --dry allocates from the ledger but never writes it (the pull-request dry run). Exit 0 ok, 1 refused, 2 git.
@@ -116,11 +123,18 @@ def allocate(sel: list[dict], led: dict, sweep: str, reuse_after_days=REUSE_AFTE
     return picks, led
 
 
-def lanes(sel: list[dict], isolate: str, accounts: int) -> list[dict]:
+#: browsers one bench account carries at once under isolate=browser (see LANES above: two pass peaks stay under the
+#: market-data family's 1200 a minute per member)
+PER_ACCOUNT = 2
+
+
+def lanes(sel: list[dict], isolate: str, accounts: int, per_account: int = PER_ACCOUNT) -> list[dict]:
     if isolate == "browser":
-        return [{"lane": f"L{i + 1:02d}", "slot": 1, "passes": [p["name"]]} for i, p in enumerate(sel)]
-    n = max(1, accounts)
-    acc = [{"lane": f"A{j + 1}", "slot": j + 1, "passes": [], "s": 0} for j in range(n)]
+        n = max(1, min(len(sel), max(1, accounts) * max(1, per_account)))
+        acc = [{"lane": f"L{j + 1:02d}", "slot": j % max(1, accounts) + 1, "passes": [], "s": 0} for j in range(n)]
+    else:
+        n = max(1, accounts)
+        acc = [{"lane": f"A{j + 1}", "slot": j + 1, "passes": [], "s": 0} for j in range(n)]
     for p in sorted(sel, key=lambda p: -SECONDS[p["kind"]]):   # longest first onto the least loaded account
         lane = min(acc, key=lambda a: a["s"])
         lane["passes"].append(p["name"])
@@ -138,7 +152,7 @@ def build(args, led: dict) -> tuple[dict, dict]:
     rad = getattr(args, "reuse_after_days", REUSE_AFTER_DAYS)
     picks, led = allocate(sel, led, args.sweep_id, None if rad is None or rad < 0 else rad)
     plan = {"sweep": args.sweep_id, "created": L.now(), "isolate": args.isolate, "dry": bool(args.dry), "common": COMMON,
-            "passes": {}, "lanes": lanes(sel, args.isolate, args.accounts)}
+            "passes": {}, "lanes": lanes(sel, args.isolate, args.accounts, getattr(args, "per_account", PER_ACCOUNT))}
     for p in sel:
         pk = picks[p["name"]]
         extra = [f"--isolate={args.isolate}", f"--run-id=cloud/{args.sweep_id}/{p['name']}"]
@@ -154,8 +168,9 @@ def build(args, led: dict) -> tuple[dict, dict]:
             extra = ["--dry=1"]
         plan["passes"][p["name"]] = {"args": [*COMMON, *p["args"], *extra], "kind": p["kind"], "board": p["board"], "zoom": p["zoom"],
                                      "tickers": pk}
-    cap = 1 if args.isolate == "account" else 12
-    plan["maxParallel"] = max(1, min(args.max_parallel, cap * (args.accounts if args.isolate == "account" else 1), len(plan["lanes"])))
+    # every lane is bound to one account, and no account has more lanes than it may carry at once, so any number of
+    # lanes at once keeps each account under its limit; 12 is the larger runner's ceiling
+    plan["maxParallel"] = max(1, min(args.max_parallel, 12, len(plan["lanes"])))
     return plan, led
 
 
@@ -175,7 +190,18 @@ def self_check() -> None:
     got = [t for p in plan["passes"].values() for t in p["tickers"]["list"] + p["tickers"]["typed"]]
     assert len(got) == 443 and len(set(got)) == 443, "two passes share a ticker"
     assert not set(got) & {f"T{i:04d}" for i in range(100)}, "a ticker an earlier run used was handed out"
-    assert len(led2["runs"]) == 1 + 41 and len(plan["lanes"]) == 41 and plan["maxParallel"] == 8
+    # browser lanes on ONE account: PER_ACCOUNT lanes, every pass once, never more lanes per account than it may carry
+    flat1 = [n for ln in plan["lanes"] for n in ln["passes"]]
+    assert len(led2["runs"]) == 1 + 41 and len(plan["lanes"]) == PER_ACCOUNT and plan["maxParallel"] == PER_ACCOUNT, plan["lanes"]
+    assert sorted(flat1) == sorted(names) and {ln["slot"] for ln in plan["lanes"]} == {1}
+    A.sweep_id, A.accounts = "s1b", 4
+    planb, _ = build(A, json.loads(json.dumps(led)))
+    per_slot = {}
+    for ln in planb["lanes"]:
+        per_slot[ln["slot"]] = per_slot.get(ln["slot"], 0) + 1
+    assert len(planb["lanes"]) == 8 and planb["maxParallel"] == 8 and per_slot == {1: 2, 2: 2, 3: 2, 4: 2}, (per_slot, planb["maxParallel"])
+    assert sorted(n for ln in planb["lanes"] for n in ln["passes"]) == sorted(names)
+    A.accounts = 1
     # a second sweep on the updated ledger never meets the first
     A.sweep_id = "s2"
     plan2, _ = build(A, json.loads(json.dumps(led2)))
@@ -225,7 +251,7 @@ def self_check() -> None:
     plan4, _ = build(A, json.loads(json.dumps(led)))
     flat = [n for ln in plan4["lanes"] for n in ln["passes"]]
     assert sorted(flat) == sorted(names) and len(plan4["lanes"]) == 3 and plan4["maxParallel"] == 3
-    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window)")
+    print("plan self-check: ok (41 passes, 443 tickers, no ticker shared, exhaustion refused, never-used first, reuse only past the window, at most 2 browsers per account)")
 
 
 def main() -> int:
@@ -236,6 +262,7 @@ def main() -> int:
     ap.add_argument("--isolate", default="browser", choices=["browser", "account"])
     ap.add_argument("--accounts", type=int, default=1)
     ap.add_argument("--max-parallel", type=int, default=8)
+    ap.add_argument("--per-account", type=int, default=PER_ACCOUNT, help="browser isolation: browsers one account carries at once")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--ledger-file", default=None, help="plan against a ledger FILE (offline; nothing is pushed)")

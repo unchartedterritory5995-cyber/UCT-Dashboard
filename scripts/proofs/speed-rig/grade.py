@@ -24,6 +24,14 @@ What changed from the PC copy, and why:
   * The summary: per pass, then per BOARD (zoom x board, arrows and typed together), p50 / p100 of the full frame,
     with every label the rig recorded (runner, CPU, Chrome, Cloudflare colo, production commit, isolation).
   * --compare <dir>: grade another sweep (the owner-PC run) with the SAME rules and print both side by side.
+  * THE INSTRUMENT'S OWN ERRORS (2026-11-28): per pass, the API answers 429 (production's rate limiter, keyed on the
+    bench MEMBER: api/rate_limit_policy.py) and 503 (the bars route's warming / fetch failure), from the rig's resource
+    record (allRes[].rs, the HTTP status). A pass with a 429 is listed under Problems: its failures may be the
+    instrument (too many browsers on one account), never read them as the product's.
+  * A/B (2026-11-28, the workflow's base_ref / build_ref): a sweep whose files sit in <dir>/A and <dir>/B (lane.py
+    --side) is graded per side with ONE expectation (derived from both sides' bars, so a side is never judged
+    against a fresher day than the other), and printed as one side-by-side table (A, B, B minus A) above each
+    side's own table. Each side names its front end (labels.build: production, or the candidate's ref@commit).
 
     python scripts/proofs/speed-rig/grade.py <dir> [--compare <pc dir>] [--expect-day=YYYY-MM-DD] [--md <file>]
     python scripts/proofs/speed-rig/grade.py --self-check
@@ -359,6 +367,38 @@ def pct(xs, q):
     return xs[min(len(xs) - 1, int(q * len(xs)))] if q < 1 else xs[-1]
 
 
+def http_counts(rec: dict) -> dict:
+    """{'429': n, '503': n, 'known': n}: the API answers of one pass by status (allRes[].rs; 'known' = entries with a
+    status, 0 on a record made before the rig kept it)."""
+    out = {'429': 0, '503': 0, 'known': 0}
+    for e in rec.get('allRes') or []:
+        rs = e.get('rs') if isinstance(e, dict) else None
+        if isinstance(rs, int) and rs > 0:
+            out['known'] += 1
+            if rs in (429, 503):
+                out[str(rs)] += 1
+    if out['known']:
+        return out
+    # a record made before allRes kept the status: the per-switch fetch hooks' own status (phase.req[].st), which see
+    # only the requests in each switch's window (deduplicated across the overlapping windows), so a lower bound
+    seen = {}
+    for f in rec.get('flips') or []:
+        ph = (f or {}).get('phase') or {}
+        for r in ph.get('req') or []:
+            if isinstance(r, dict) and isinstance(r.get('st'), int):
+                seen[(r.get('u'), round((ph.get('key') or 0) + (r.get('call') or 0)))] = r['st']
+    for st in seen.values():
+        out['known'] += 1
+        if st in (429, 503):
+            out[str(st)] += 1
+    return out
+
+
+def run_base(name: str) -> str:
+    """'COV-def-dd-arrows@2' (an A/B side's 2nd run of the pass, lane.py) -> 'COV-def-dd-arrows'."""
+    return re.sub(r'@\d+$', '', name)
+
+
 def ticker_class(sym, planned: set, reused: set, first: set):
     """Which TICKERS row a switch counts in (2026-11-28, #3014 review): 'never-used' / 'reused' ONLY for the FIRST switch
     to one of the pass's planned tickers (freshTickers.list + typed); every other switch that names a symbol (the board's
@@ -384,7 +424,10 @@ def board_of(name: str) -> str:
     return name.replace('COV-', '')
 
 
-def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
+def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None, cold_runs: set | None = None) -> dict:
+    """Grade one directory of pass files. `exp` (the STALE expectation) is derived from this directory's bars unless
+    given (an A/B grades both sides against one, derived from both). `cold_runs` (an A/B): the run files whose
+    switches may count as never-used / reused; every other run of a pass met its tickers after an earlier run did."""
     names = sorted(os.path.basename(p)[:-len('.jump.json')] for p in glob.glob(os.path.join(d, '*.jump.json')))
     passes, problems = [], []
     for n in names:
@@ -396,21 +439,24 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             problems.append(f'{n}: unreadable ({e})')
             continue
         passes.append((n, rec, raw, chart_tfs(rec, root)))
-    exp = expectations(passes, opts)
+    if exp is None:
+        exp = expectations(passes, opts)
     results, by, labels = [], {}, {}
     for n, rec, raw, tfs in passes:
         ft = rec.get('freshTickers') or {}
         planned = {str(x).upper() for x in (ft.get('list') or []) + (ft.get('typed') or [])}
+        if cold_runs is not None and n not in cold_runs:
+            planned = set()   # an A/B run after the pass's first (ABBA, the same tickers): revisit/fixed, never cold
         reused = {str(x).upper() for x in (ft.get('reused') or [])}
         first = set()
         for p in sorted(raw, key=lambda q: q.get('key') or 0):
             r = grade_switch(p, rec, tfs, exp)
-            r['pass'] = n
+            r['pass'] = run_base(n)   # an A/B run's '<pass>@<k>' grades as its pass
             r['tickers'] = ticker_class(r.get('sym'), planned, reused, first)
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
-            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'webBuildId', 'isolate', 'os'):
+            for f in ('runner', 'cpu', 'cores', 'chrome', 'colo', 'apiCommit', 'webBuild', 'webBuildId', 'build', 'isolate', 'os'):
                 if lb.get(f) is not None:
                     labels.setdefault(f, set()).add(str(lb[f]))
         if rec.get('inconclusive'):
@@ -425,10 +471,20 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             problems.append(f"{n}: no switches recorded{(' (' + str(rec.get('error') or '')[:160] + ')') if rec.get('error') else ''}")
         except (OSError, ValueError):
             problems.append(f'{n}: unreadable')
+    new_row = lambda: {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0, 'h429': 0, 'h503': 0, 'hKnown': 0}  # noqa: E731
+    for n, rec, _raw, _tfs in passes:
+        h = http_counts(rec)
+        for key in (run_base(n), 'BOARD ' + board_of(run_base(n))):
+            g = by.setdefault(key, new_row())
+            g['h429'] += h['429']
+            g['h503'] += h['503']
+            g['hKnown'] += h['known']
+        if h['429']:
+            problems.append(f"{n}: {h['429']} API answer(s) 429 from production's rate limiter (the bench account's budget: the INSTRUMENT, not the product)")
     for r in results:
         tk = [] if r.get('tickers') is None else ['TICKERS ' + r['tickers']]
         for key in (r['pass'], 'BOARD ' + board_of(r['pass']), *tk):
-            g = by.setdefault(key, {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0})
+            g = by.setdefault(key, new_row())
             g['n'] += 1
             g['fail'] += 1 if r['flags'] else 0
             for fl in r['flags']:
@@ -463,8 +519,9 @@ def grade_dir(d: str, opts: dict, root: str = '.') -> dict:
             if h.get('exit') not in (0, None):
                 problems.append(f"{h['pass']}: exit {h.get('exit')}")
     rows = {k: {'switches': g['n'], 'failed': g['fail'], 'flags': g['flags'], 'p50': pct(g['full'], 0.5), 'p100': pct(g['full'], 1),
-                'warm': g['warm'], 'focusFail': g['focusFail']} for k, g in by.items()}
-    return {'dir': d, 'run': run, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
+                'warm': g['warm'], 'focusFail': g['focusFail'], 'http429': g['h429'] if g['hKnown'] else None, 'http503': g['h503'] if g['hKnown'] else None} for k, g in by.items()}
+    order = sorted((h.get('position', 0), h['pass'], h.get('side')) for h in hs if h.get('side'))
+    return {'dir': d, 'run': run, 'order': order, 'passes': len(passes), 'switches': len(results), 'failedSwitches': sum(1 for r in results if r['flags']),
             'expect': exp, 'labels': {k: sorted(v) for k, v in labels.items()}, 'rows': rows, 'problems': problems, 'results': results}
 
 
@@ -475,7 +532,8 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
            f"runner {', '.join(lb.get('runner', ['?']))} | CPU {', '.join(lb.get('cpu', ['?']))} x{', '.join(lb.get('cores', ['?']))} | "
            f"Chrome {', '.join(lb.get('chrome', ['?']))} | Cloudflare colo {', '.join(lb.get('colo', ['?']))} | "
            f"production API {', '.join(lb.get('apiCommit', ['?']))} | FRONT {', '.join(lb.get('webBuild', ['?']))} "
-           f"({', '.join(lb.get('webBuildId', ['?']))}; they deploy apart) | isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
+           f"({', '.join(lb.get('webBuildId', ['?']))}; they deploy apart) | front end {', '.join(lb.get('build', ['production']))} | "
+           f"isolation {', '.join(lb.get('isolate', ['account (PC rig)']))}",
            '',
            f"STALE judged against: day {g['expect']['day']} ({g['expect']['dayHow']}), intraday {g['expect']['intradayHow']}",
            '']
@@ -488,18 +546,95 @@ def table(g: dict, cmp: dict | None = None, title: str = 'sweep') -> str:
                     *[f"- {n}: API {' -> '.join(dict.fromkeys(str(x) for x in b['api']))} | FRONT {' -> '.join(dict.fromkeys(str(x) for x in b['front']))} "
                       f"({' -> '.join(dict.fromkeys(str(x) for x in b['frontBuildId']))})"
                       + (f" | A DEPLOY LANDED ({', '.join(b['deploys'])})" if b['deploys'] else '') for n, b in sorted(r.get('builds', {}).items())], '']
-    head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
-    out += [head, '|' + '---|' * (len(ORDER) + 5 + (3 if cmp else 0))]
+    head = '| board / pass | switches | FAILED | ' + ' | '.join(ORDER) + ' | full p50 | full p100 | HTTP 429 | HTTP 503 |' + (' PC p50 | PC p100 | PC FAILED |' if cmp else '')
+    out += [head, '|' + '---|' * (len(ORDER) + 7 + (3 if cmp else 0))]
     keys = sorted(g['rows'], key=lambda k: (0 if k.startswith('TICKERS ') else 1 if k.startswith('BOARD ') else 2, k))
     for k in keys:
         r = g['rows'][k]
-        line = f"| {k} | {r['switches']} | {r['failed']} | " + ' | '.join(str(r['flags'].get(o, 0)) for o in ORDER) + f" | {r['p50']} | {r['p100']} |"
+        line = (f"| {k} | {r['switches']} | {r['failed']} | " + ' | '.join(str(r['flags'].get(o, 0)) for o in ORDER)
+                + f" | {r['p50']} | {r['p100']} | {'?' if r.get('http429') is None else r['http429']} | {'?' if r.get('http503') is None else r['http503']} |")
         if cmp:
             c = cmp['rows'].get(k)
             line += f" {c['p50'] if c else '-'} | {c['p100'] if c else '-'} | {c['failed'] if c else '-'} |"
         out.append(line)
     if g['problems']:
         out += ['', 'Problems:'] + [f'- {p}' for p in g['problems']]
+    return '\n'.join(out)
+
+
+def ab_dirs(d: str):
+    """(<d>/A, <d>/B) when the sweep is an A/B (both hold pass files), else None."""
+    a, b = os.path.join(d, 'A'), os.path.join(d, 'B')
+    has = lambda x: os.path.isdir(x) and bool(glob.glob(os.path.join(x, 'COV-*.json')))  # noqa: E731
+    return (a, b) if has(a) and has(b) else None
+
+
+def first_runs(a: str, b: str) -> dict:
+    """{'A': {run files}, 'B': {run files}}: per pass, the ONE run that met its tickers first (the lowest lane position
+    over both sides, from lane.py's health records). Every pass of an A/B runs 4+ times (ABBA) on the same tickers, so
+    only that run's switches may count as never-used / reused. A pass with no health record has no cold run."""
+    best = {}
+    for side, x in (('A', a), ('B', b)):
+        for p in glob.glob(os.path.join(x, '*.health.json')):
+            try:
+                h = json.load(open(p, encoding='utf-8'))
+            except (OSError, ValueError):
+                continue
+            if h.get('pass') is None or not isinstance(h.get('position'), int):
+                continue
+            key = (h.get('lane'), h['pass'])
+            run = os.path.basename(p)[:-len('.health.json')]
+            if key not in best or h['position'] < best[key][0]:
+                best[key] = (h['position'], side, run)
+    out = {'A': set(), 'B': set()}
+    for _pos, side, run in best.values():
+        out[side].add(run)
+    return out
+
+
+def grade_ab(d: str, opts: dict, root: str = '.') -> tuple[dict, dict]:
+    """Both sides against ONE expectation, derived from both sides' bars (or given)."""
+    loaded = []
+    for side in ab_dirs(d):
+        for n in sorted(os.path.basename(p)[:-len('.jump.json')] for p in glob.glob(os.path.join(side, '*.jump.json'))):
+            try:
+                rec, raw = load_pass(side, n)
+            except (OSError, ValueError):
+                continue
+            loaded.append((n, rec, raw, chart_tfs(rec, root)))
+    exp = expectations(loaded, opts)
+    a, b = ab_dirs(d)
+    cold = first_runs(a, b)
+    ga, gb = grade_dir(a, opts, root, exp, cold['A']), grade_dir(b, opts, root, exp, cold['B'])
+    for g, x in ((ga, a), (gb, b)):   # the build job's record of a candidate side (vite_env.py meta), when there is one
+        try:
+            g['buildMeta'] = json.load(open(os.path.join(x, 'build-meta.json'), encoding='utf-8'))
+        except (OSError, ValueError):
+            g['buildMeta'] = None
+    return ga, gb
+
+
+def ab_table(ga: dict, gb: dict) -> str:
+    """One row per board and pass: A, B and B minus A (full-frame ms; negative = B faster)."""
+    side = lambda g: ', '.join(g['labels'].get('build', ['?']))  # noqa: E731
+    d = lambda x, y: ('-' if x is None or y is None else f'{round(y - x):+d}')  # noqa: E731
+    order = sorted(ga.get('order', []) + gb.get('order', []))
+    out = [f"### A/B: A = {side(ga)} | B = {side(gb)}", '',
+           f"same tickers on both sides; run order per pass {'; '.join(f'{p_} ' + ''.join(s for _, n_, s in order if n_ == p_) for p_ in dict.fromkeys(n_ for _, n_, _s in order)) or '?'} "
+           "(ABBA / BAAB: a pass's FIRST run meets the server cold, so a claim needs the order balanced over passes or --reps, "
+           "and an A/A calibration whose delta is ~0)", '',
+           f"STALE judged against: day {ga['expect']['day']} ({ga['expect']['dayHow']}), intraday {ga['expect']['intradayHow']} (both sides)", '',
+           *[f"side {k} built: {m.get('label')} entry {m.get('entry')}; production-parity {(m.get('parity') or {}).get('verdict')}; "
+             f"VITE_* {len(m.get('viteEnv') or [])} set" for k, m in (('A', ga.get('buildMeta')), ('B', gb.get('buildMeta'))) if m], '',
+           '| board / pass | A switches | A FAILED | A p50 | A p100 | B switches | B FAILED | B p50 | B p100 | B-A p50 | B-A p100 |',
+           '|' + '---|' * 11]
+    keys = sorted(set(ga['rows']) | set(gb['rows']), key=lambda k: (not k.startswith('BOARD '), k))
+    for k in keys:
+        ra, rb = ga['rows'].get(k) or {}, gb['rows'].get(k) or {}
+        cell = lambda r, f: '-' if r.get(f) is None else str(r.get(f))  # noqa: E731
+        out.append(f"| {k} | {cell(ra, 'switches')} | {cell(ra, 'failed')} | {cell(ra, 'p50')} | {cell(ra, 'p100')} | "
+                   f"{cell(rb, 'switches')} | {cell(rb, 'failed')} | {cell(rb, 'p50')} | {cell(rb, 'p100')} | "
+                   f"{d(ra.get('p50'), rb.get('p50'))} | {d(ra.get('p100'), rb.get('p100'))} |")
     return '\n'.join(out)
 
 
@@ -599,7 +734,21 @@ def self_check() -> None:
     assert 'BLANK' not in gb[2]['flags'], gb[2]   # a chart that never had bars before the key is the first paint's case
     assert 'BLANK' not in g[0]['flags']
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
+    assert run_base('COV-def-dd-arrows@2') == 'COV-def-dd-arrows' and run_base('COV-MEM50') == 'COV-MEM50'
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
+    # A/B: the side-by-side table carries both sides' numbers and B minus A, and a missing row on one side is '-'
+    ga = {'labels': {'build': ['production']}, 'order': [(0, 'P', 'A')], 'expect': exp,
+          'rows': {'BOARD def dd': {'switches': 12, 'failed': 1, 'p50': 20, 'p100': 90}, 'P': {'switches': 12, 'failed': 1, 'p50': 20, 'p100': 90}}}
+    gb = {'labels': {'build': ['master@abc']}, 'order': [(1, 'P', 'B')], 'expect': exp,
+          'rows': {'BOARD def dd': {'switches': 12, 'failed': 0, 'p50': 17, 'p100': 95}}}
+    t = ab_table(ga, gb)
+    assert 'A = production | B = master@abc' in t and '| BOARD def dd | 12 | 1 | 20 | 90 | 12 | 0 | 17 | 95 | -3 | +5 |' in t, t
+    assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'per pass P AB' in t, t
+    hc = http_counts({'allRes': [{'rs': 200}, {'rs': 429}, {'rs': 429}, {'rs': 503}, {'rs': 0}, {}]})
+    assert hc == {'429': 2, '503': 1, 'known': 4}, hc
+    ph = {'flips': [{'phase': {'key': 1000, 'req': [{'u': '/a', 'call': -5, 'st': 429}, {'u': '/b', 'call': 1, 'st': 503}]}},
+                    {'phase': {'key': 2000, 'req': [{'u': '/a', 'call': -1005, 'st': 429}, {'u': '/c', 'call': 1, 'st': 200}]}}]}
+    assert http_counts(ph) == {'429': 1, '503': 1, 'known': 3}, http_counts(ph)   # the same /a request seen by two windows: once
     # the ticker rows: only the FIRST switch to a PLANNED ticker is never-used / reused; a second switch to it, an
     # unplanned symbol (the board's SPY) and a record with no plan count as revisit/fixed
     fs = set()
@@ -617,6 +766,20 @@ def self_check() -> None:
         ru, nu, rv = (gd['rows'].get('TICKERS ' + k) for k in ('reused', 'never-used', 'revisit/fixed'))
         assert ru and nu and rv and ru['switches'] == 1 and ru['p100'] == 12 and nu['switches'] == 1 and rv['switches'] == 2, gd['rows']
         assert table(gd).index('TICKERS never-used') < table(gd).index('BOARD def dd'), 'the ticker split is not at the top of the table'
+    # an A/B pass runs ABBA on the SAME tickers: only its first run (lowest position over both sides) counts as cold
+    with tempfile.TemporaryDirectory() as td:
+        for side, k, pos in (('A', 1, 0), ('B', 1, 1), ('B', 2, 2), ('A', 2, 3)):
+            os.makedirs(os.path.join(td, side), exist_ok=True)
+            run = f'COV-def-dd-arrows@{k}'
+            json.dump({'flips': [], 'freshTickers': {'list': ['BBB']}, 'tf': 'D'}, open(os.path.join(td, side, run + '.json'), 'w'))
+            json.dump([clean], open(os.path.join(td, side, run + '.jump.json'), 'w'))
+            json.dump({'pass': 'COV-def-dd-arrows', 'lane': 'L01', 'side': side, 'run': k, 'position': pos, 'exit': 0, 'seconds': 1,
+                       'before': {'at': '2026-11-28T08:00:00+00:00'}, 'after': {'at': '2026-11-28T08:00:01+00:00'}},
+                      open(os.path.join(td, side, run + '.health.json'), 'w'))
+        assert first_runs(os.path.join(td, 'A'), os.path.join(td, 'B')) == {'A': {'COV-def-dd-arrows@1'}, 'B': set()}
+        gA, gB = grade_ab(td, {'expect-day': '2026-11-27'})
+        assert gA['rows']['TICKERS never-used']['switches'] == 1 and gA['rows']['TICKERS revisit/fixed']['switches'] == 1, gA['rows']
+        assert 'TICKERS never-used' not in gB['rows'] and gB['rows']['TICKERS revisit/fixed']['switches'] == 2, gB['rows']
     # both builds per pass, and a FRONT-only deploy is flagged (the API's commit alone would have hidden it)
     with tempfile.TemporaryDirectory() as td:
         hb = {"pass": "P", "exit": 0, "seconds": 80, "session": "x", "deploys": ["front"], "deployDuring": True,
@@ -625,7 +788,7 @@ def self_check() -> None:
         json.dump(hb, open(os.path.join(td, 'P.health.json'), 'w'))
         tb = table(grade_dir(td, {'expect-day': '2026-11-27'}))
         assert '- P: API 93b68df463 | FRONT 271b53f2d2 -> 7ddc3190ad (assets/index-A.js -> assets/index-B.js) | A DEPLOY LANDED (front)' in tb, tb
-    print('grade self-check: ok (API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
+    print('grade self-check: ok (http 429/503 counted; A/B table; only the first run of an A/B pass cold; API + FRONT builds per pass; reused / never-used split; clean / late / visible change / stale / old-chart tick / late header / no pre-key frame / prefix pair / timeframe presses told apart)')
 
 
 def main() -> int:
@@ -642,6 +805,16 @@ def main() -> int:
     pos = sys.argv[1:]
     cmp_dir = pos[pos.index('--compare') + 1] if '--compare' in pos else opts.get('compare')
     md = pos[pos.index('--md') + 1] if '--md' in pos else opts.get('md')
+    if ab_dirs(d):
+        ga, gb = grade_ab(d, opts)
+        text = ab_table(ga, gb) + '\n\n' + table(ga, None, 'side A') + '\n\n' + table(gb, None, 'side B')
+        print(text)
+        json.dump({'A': ga['results'], 'B': gb['results']}, open(os.path.join(d, 'grade.json'), 'w', encoding='utf-8'), indent=1, default=str)
+        json.dump({k: {kk: vv for kk, vv in g.items() if kk != 'results'} for k, g in (('A', ga), ('B', gb))},
+                  open(os.path.join(d, 'summary.json'), 'w', encoding='utf-8'), indent=1, default=str)
+        if md:
+            open(md, 'w', encoding='utf-8').write(text + '\n')
+        return 0
     g = grade_dir(d, opts)
     c = grade_dir(cmp_dir, opts) if cmp_dir else None
     text = table(g, c, 'cloud sweep' if cmp_dir else 'sweep')

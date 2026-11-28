@@ -30,6 +30,7 @@ vi.mock('./ListAlertSwitch', async () => {
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import ConfluencePanel, { CONFLUENCE_URL, MAX_ROWS, contractText } from './ConfluencePanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { stampedKey } from './marketRead'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
@@ -84,8 +85,9 @@ function serve(routes) {
 }
 const asked = () => jsonFetcher.mock.calls.map(([url]) => url)
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <ConfluencePanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <ConfluencePanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
@@ -370,5 +372,29 @@ describe('CONFL list alert', () => {
     const stub = screen.getByTestId('list-alert-stub')
     expect(stub.getAttribute('data-kind')).toBe('confluence')
     expect(stub.closest('[role="toolbar"]')).toBeNull()
+  })
+})
+
+describe('CONFL sorts and picks columns, kept with the board (customization pass 1)', () => {
+  const TWO_LARGE = { ...BOARD, rows: [...BOARD.rows, { ...BOARD.rows[0], sym: 'DDD', net: 20000000.0, dpn: 300000000, score: 2.5 }],
+    counts: { total: 4, bull: 3, bear: 1, building: 2 } }
+  it('sorts inside each size band; the rank still decides what is listed; kept on remount', async () => {
+    serve({ [CONFLUENCE_URL]: TWO_LARGE })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-confl-band-L')
+    expect(syms()).toEqual(['AAA', 'DDD', 'BBB', 'CCC'])
+    fireEvent.click(screen.getByTestId('terminal-confl-L-sort-net'))
+    expect(syms()).toEqual(['DDD', 'AAA', 'BBB', 'CCC'])
+    expect(screen.getByTestId('terminal-confl-row-DDD').textContent.startsWith('1')).toBe(true)
+    expect(screen.getByTestId('terminal-confl-method').textContent).toContain('sorted here by the column header you picked')
+    fireEvent.click(screen.getByTestId('terminal-confl-columns'))
+    fireEvent.click(screen.getByTestId('terminal-confl-columns-col-contract'))
+    cleanup()
+    serve({ [CONFLUENCE_URL]: TWO_LARGE })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-confl-band-L')
+    expect(syms()).toEqual(['DDD', 'AAA', 'BBB', 'CCC'])
+    expect(screen.queryByRole('columnheader', { name: /Largest contract/ })).toBeNull()
   })
 })

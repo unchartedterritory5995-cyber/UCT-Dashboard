@@ -3,8 +3,9 @@
 // opened from a row of the positioning table. Each symbol is the kit's symbol cell (it loads the linked panels, and
 // its row number works). One read: GET /api/research/group-stats?kind=&name=&part=positioning
 // (groupPositioningModel.js says what it answers). Sortable by any column; the most shorted first.
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { PanelSkeleton, PanelState, PanelSymbol, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSortSlot } from '../../../components/terminal/usePanelView'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
 import SidewaysScroll from '../../../components/research/fmpDepth/SidewaysScroll'
@@ -35,7 +36,9 @@ export default function GroupPositioningMembers({ kind, name, onBack }) {
   const k = GROUP_STATS_KINDS[kind] || GROUP_STATS_KINDS.sector
   const read = useMarketRead(groupStatsUrl(kind, name, POSITIONING_PART), { refreshInterval: GROUP_STATS_POLL_MS })
   const view = useMemo(() => readMembers(read.body), [read.body])
-  const [sort, setSort] = useState(DEFAULT_MEMBERS_SORT)
+  // Customization pass 1: the stocks' sort is kept with the board under its own slot (`s.members`),
+  // beside the group table's own sort, so neither replaces the other.
+  const [sort, setSort] = usePanelSortSlot('members', DEFAULT_MEMBERS_SORT)
   const rows = useMemo(() => (view.state === 'ok' ? sortMembers(view.rows, sort, view.sources) : []), [view, sort])
   usePanelSymbolRows(rows.map((r) => r.sym), `GRPS ${name}`, { total: view.state === 'ok' ? view.total : null })
 
