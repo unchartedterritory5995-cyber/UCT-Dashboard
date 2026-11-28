@@ -177,7 +177,9 @@ export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYe
   )
 }
 
-export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null }) {
+// ⭐ (2026-11-28, PR 1.2) `onDraft(text)`: each draft as the member types it (the masked text, '' when the edit ends
+// without a date), so a host can warm the date before Enter (chart/dateWarm.js).
+export default function ChartDateNav({ paneRef, themeVars = null, nav = null, anchored = false, onLatest = null, onDraft = null }) {
   const jump = () => nav || paneRef?.current
   const [meta, setMeta] = useState(null)
   const [open, setOpen] = useState(false)
@@ -251,11 +253,11 @@ export default function ChartDateNav({ paneRef, themeVars = null, nav = null, an
         title="Go to a date — type and press Enter"
         data-guide="chart.goToDate"
         onFocus={(e) => { setEditing(true); setDraft(fmtDate(meta?.rightMs)); requestAnimationFrame(() => e.target.select()) }}
-        onChange={(e) => setDraft(maskMDY(e.target.value))}
+        onChange={(e) => { const t = maskMDY(e.target.value); setDraft(t); onDraft?.(t) }}
         onBlur={() => setEditing(false)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
-          else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
+          else if (e.key === 'Escape') { setEditing(false); onDraft?.(''); e.currentTarget.blur() }
         }}
       />
       <button

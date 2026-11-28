@@ -33,6 +33,8 @@ import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { noteMemberDate } from '../../../components/chart/viewDate'
 import { createDateBoxNav } from './dateBoxNav'
 import { useDateWindowWarm } from '../../../components/chart/useDateWindowWarm'
+import { createDateWarm, wholeDraftDate } from '../../../components/chart/dateWarm'
+import { scanNeighborsFor } from '../../../components/chart/neighborFrames'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
@@ -272,6 +274,18 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const anchorKey = viewDate && !replayCutoff ? `${viewDate.date}|${viewDate.width}` : null
   // ⭐ (review of #2947, H2) at a date on intraday the next rows' WINDOWS are warmed (the key each chart reads there)
   useDateWindowWarm({ sym, tf, day: anchorKey ? viewDate.date : null, showExtendedRef: paneExtRef })
+  // ⭐ (PR 1.2) the date box's draft warms its date before Enter: this symbol and the list's next row each side, on every
+  // intraday timeframe the colour group shows (chart/dateWarm.js; a newer text aborts the older)
+  const [dateWarm] = useState(() => createDateWarm())
+  useEffect(() => () => dateWarm.cancel(), [dateWarm])
+  const dateWarmCtx = useRef(null)
+  dateWarmCtx.current = { sym, tf, tfs: groupTfSets?.[activeColor] }
+  const onDateDraft = useCallback((text) => {
+    const c = dateWarmCtx.current
+    if (!c?.sym) return
+    const tfs = [c.tf, ...Array.from(c.tfs || [])]
+    dateWarm.draft(wholeDraftDate(text), { sym: c.sym, neighbors: scanNeighborsFor(c.sym), tfs, showExtended: !!paneExtRef.current })
+  }, [dateWarm])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -1038,7 +1052,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             // Time Navigator — seated right after the timeframe buttons, before the
             // MARKET CAP / NEXT EARNINGS / UCT RATING info fields.
             tfBarAfterTf: <ChartDateNav paneRef={layerIdx != null ? layerPaneRefs[layerIdx] : paneRef} themeVars={menuVars}
-              nav={dateNav} anchored={!!anchorKey} onLatest={clearViewDate} />,
+              nav={dateNav} anchored={!!anchorKey} onLatest={clearViewDate} onDraft={onDateDraft} />,
             tfBarRight: (
               <>
                 {/* TERM-055 split-adjustment label + "As traded" toggle: removed from the chart
