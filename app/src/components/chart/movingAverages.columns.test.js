@@ -89,10 +89,10 @@ describe('the shipped SMA / EMA, written straight into a column', () => {
     expect(a).not.toBe(b)
     expect(a).not.toBe(source)
     same(a, b)
-    // a period of 1 is the source's own values: still a column of its own
+    // a period of 1 (the running sum of one value: the shipped arithmetic, not the source copied): a column of its own
     const one = registry.computeFor(def, bars, { period: 1 }, { source }).ma
     expect(one).not.toBe(source)
-    same(one, source)
+    same(one, refColumn(smaOfSeries(source, 1, bars.length), bars.length))
   })
 
   it('M4 the other types keep their own path', () => {
