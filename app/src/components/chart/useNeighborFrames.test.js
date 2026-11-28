@@ -12,7 +12,7 @@ vi.mock('../../data/barStore/index', () => ({ getBarStore: () => fakeStore }))
 vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 
 const { prepareRow, deriveSession, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveHvc } = await import('./useNeighborFrames')
-const { chartKeyFor } = await import('./useBarSnapshotBars')
+const { chartKeyFor, viewWindowOfDate } = await import('./useBarSnapshotBars')
 const { legacyBars } = await import('../../data/barStore/adapter')
 const nf = await import('./neighborFrames')
 const { toChartTime } = await import('./barTime')
@@ -59,6 +59,19 @@ const drain = (g) => { for (const _ of g) { /* each piece */ } }
 const ctx = () => ({ recipes: () => R, view: () => view, engineRef })
 
 describe('prepareRow', () => {
+  // (review of #2947, H2) at a date the member went to an intraday chart reads the window ending there (`@to=`)
+  it('at a date the member went to, an intraday row is read from the WINDOW the chart reads there, not the plain key', () => {
+    const vw = viewWindowOfDate('2025-03-14', '15')
+    const wk = chartKeyFor({ sym: 'BBB', resolvedTf: '15', showExtended: false, replayCutoff: null, hasOverride: false, viewWindow: vw })
+    expect(wk).not.toBe(chartKeyFor({ sym: 'BBB', resolvedTf: '15', showExtended: false, replayCutoff: null, hasOverride: false }))
+    const asked = []
+    const has = fakeStore.registry.has
+    fakeStore.registry.has = (k) => { asked.push(k); return has(k) }
+    try {
+      drain(prepareRow('BBB', 0, { recipes: () => R, view: () => ({ tf: '15', showExtended: false, viewWindow: vw }), engineRef }))
+    } finally { fakeStore.registry.has = has }
+    expect(asked).toEqual([wk])
+  })
   it('derives the chart\'s arrays from the very array the chart will hold, and hands the binder those bars', () => {
     const s = Object.freeze({ key: keyOf('BBB'), tf: 'D', bars: daily(400), developing: null, baseRev: 3, status: 'current', restSeen: true })
     snaps.set(keyOf('BBB'), s)

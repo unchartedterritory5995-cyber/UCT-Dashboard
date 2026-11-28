@@ -135,7 +135,8 @@ export function* prepareRow(sym, rank, c) {
   const v = c.view()
   if (!r || !v || !r.plain || !BARSTORE) return
   const store = getBarStore()
-  const key = chartKeyFor({ sym, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false })
+  // (review of #2947, H2) at a date the member went to an intraday chart reads the window ending there (`viewWindow`)
+  const key = chartKeyFor({ sym, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false, viewWindow: v.viewWindow || null })
   if (!key || !store.registry.has(key)) { nfCount('barsSkipped'); return }
   const snap = store.getBaseSnapshot(key)
   if (!snap || !PAINTS.has(snap.status)) { nfCount('barsSkipped'); return }
@@ -176,16 +177,17 @@ export function* prepareRow(sym, rank, c) {
  * The chart's half: after it paints `sym`, prepare the rows a list published around it, and again when a
  * list publishes later or one of those rows' bars changes.
  * @param {{on: boolean, sym: string, tf: string, showExtended: boolean, engineRef: object, recipes: object|null,
- *   rows?: object[]|null}} o   `rows`: the rows the chart shows (held against the derived-bars budget)
+ *   rows?: object[]|null, viewWindow?: {to: number}|null}} o   `rows`: the rows the chart shows (held against the
+ *   derived-bars budget); `viewWindow`: the window the chart reads at a date the member went to (chart/viewWindow)
  */
-export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes, rows = null }) {
+export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipes, rows = null, viewWindow = null }) {
   const [owner] = useState(() => ({}))   // this chart, as the idle queue's owner
   // what a queued piece reads when it runs: this chart's LATEST recipes and view (written after each commit)
   const recipesRef = useRef(recipes)
-  const viewRef = useRef({ tf, showExtended })
+  const viewRef = useRef({ tf, showExtended, viewWindow })
   useLayoutEffect(() => {
     recipesRef.current = recipes
-    viewRef.current = { tf, showExtended }
+    viewRef.current = { tf, showExtended, viewWindow }
   })
   const live = !!(on && BARSTORE && neighborFramesOn() && idleSupported() && sym && tf && recipes && recipes.plain)
   // the row on screen: its derived values stay while it is shown, whatever the budget (neighborFrames.holdRow)
@@ -210,7 +212,7 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
       unwatch()
       for (const n of order) {
         const v = viewRef.current
-        const key = chartKeyFor({ sym: n, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false })
+        const key = chartKeyFor({ sym: n, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false, viewWindow: v.viewWindow || null })
         if (!key || !store.registry.has(key)) continue
         watched.push(store.registry.subscribe(key, () => {
           if (timer != null) clearTimeout(timer)

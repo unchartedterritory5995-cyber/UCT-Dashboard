@@ -1678,7 +1678,7 @@ function ChartPane({
              it one stable function, so a pane render does not re-render the chart);
              a re-created chart instance re-subscribes through StockChart's own
              `chartGen` instead of through this arrow's churn. */
-          onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
+          onTimeRangeChange={(r, info) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r, info) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
           onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}
           /* AFTER the host spread: the strip below reads this scope, so a host
