@@ -294,7 +294,9 @@ describe("a timeframe switch's lake hold waits on a load that never yields", () 
     p._onScreenSrcRef.current = { sym: SYM, tf: '5', ext: false, bars: h.result.current.bars }
     p._shownTfRef = { current: { sym: SYM, tf: '5' } }
     h.rerender(p)
-    const tailBefore = w.store.peek(k60)?.bars.at(-1)?.t
+    // the copy's newest bucket at the press (its forming bar included): what a gapped paint would show
+    const sb = w.store.peek(k60)
+    const tailBefore = Math.max(sb?.bars.at(-1)?.t ?? 0, sb?.developing?.t ?? 0)
     let painted = null
     for (let i = 0; i < 150 && painted == null; i++) {
       await act(async () => { await vi.advanceTimersByTimeAsync(20) })

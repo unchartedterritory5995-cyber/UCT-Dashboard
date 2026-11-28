@@ -355,7 +355,8 @@ export function useBarSnapshotBars({
   // and its stored status, derived then, still read 'current'), so until this key answers the press holds the shown
   // frame (the same bounded hold) instead of painting the gapped rows and then the jump. Within the forming bucket, it
   // paints at once.
-  // (review of #3063) a 503 `warming` is not an answer for this rule: it keeps holding
+  // (review of #3063) a 503 `warming` is not an answer for this rule: it keeps holding (the store marks the key answered
+  // and keeps the copy chosen, so without this the gapped copy painted on the warming answer: lakeHoldAwaited H8)
   const _answeredRows = _answered && snap?.error !== 'warming'
   const _behindForming = _fromOtherTf && isIntraday && !_isCustomTf && !!snap && !_answeredRows && (() => {
     const tail = snap.developing?.t ?? (snap.bars.length ? snap.bars[snap.bars.length - 1].t : null)
