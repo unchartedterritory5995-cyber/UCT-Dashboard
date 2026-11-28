@@ -18,7 +18,7 @@
 // The two blocks fail apart: one is drawn while the other says why it is missing.
 //
 // WIDTH. Two two-column tables, which fit a 340px panel with nothing folded.
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
@@ -27,6 +27,7 @@ import {
   CACT_CODE, CACT_NAMES_WHAT, CACT_ROWS_SHOWN, CACT_SOURCE, CACT_WHAT, amountWords, cactNamesUrl, cactRead, cactUrl, cutLine,
   NO_TICKER_NOW, dateWords, formerlyLine, heldLine, namesRead, previousLead, splitWords,
 } from './corporateActionsModel'
+import usePanelView from '../../../components/terminal/usePanelView'
 import styles from './marketPanels.module.css'
 
 export {
@@ -70,8 +71,16 @@ function ActionTable({ sym, kind, rows, shown, total }) {
   )
 }
 
+// Settings pass (2026-11-28): a "show more" switch is kept in the panel's VIEW (usePanelView), so a reload, a
+// saved board and a share link reopen the panel the way the member left it. Off (today's panel) stores nothing.
+function useKeptSwitch(name) {
+  const [pv, setPv] = usePanelView({ filters: { [name]: false } })
+  const on = pv.filters[name] === true
+  return [on, (next) => setPv({ filters: { [name]: !!(typeof next === 'function' ? next(on) : next) } })]
+}
+
 function ActionBlock({ sym, kind, view }) {
-  const [all, setAll] = useState(false)
+  const [all, setAll] = useKeptSwitch(kind === 'splits' ? 'allSplits' : 'allDividends')
   const noun = kind === 'splits' ? 'splits' : 'dividends'
   if (!view.rows.length) {
     return <p className={styles.muted} data-testid={`terminal-cact-${kind}-none`}>No {kind === 'splits' ? 'split' : 'cash dividend'} is in the held record for {sym}.</p>

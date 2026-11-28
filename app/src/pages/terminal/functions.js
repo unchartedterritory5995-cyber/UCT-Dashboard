@@ -633,16 +633,18 @@ export const FUNCTIONS = [
   // reverse repo, a UCT calculation on each H.4.1 Wednesday) with its 1, 4, 13 and 52-week change and
   // two years of it, then the parts (the Fed's assets, the TGA weekly and daily, reverse repo, reserves,
   // M2, SOFR). GET /api/econ/latest + GET /api/econ/series: the econ routes' own flag and gate, answered
-  // from what the econ service already published. No argument. LIQ is not in the site's universe.
+  // from what the econ service already published. `LIQ 1Y` / `LIQ 5Y`: the net liquidity line's span (bare: two years;
+  // settings pass 2026-11-28, written back by the panel's chips). LIQ is not in the site's universe.
   { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
-    market: { panel: 'Liquidity' } },
+    market: { panel: 'Liquidity', args: [{ kind: 'lineRange', prop: 'range' }] } },
   // OIL (2026-11-21): the EIA's weekly oil report. The week's crude build or draw (the econ service's own
   // weekly change, a UCT calculation from the EIA's stock figures), when it came out and the next weekly
   // report from the release calendar; each series' latest week, the week before, the change and the same
   // week a year ago; two years of crude stocks (GET /api/econ/latest and /api/econ/series: the econ routes'
-  // own flag and gate). No argument. OIL is not in the site's stock universe.
+  // own flag and gate). `OIL 1Y` / `OIL 5Y`: the crude stocks line's span (bare: two years; settings pass 2026-11-28,
+  // written back by the panel's chips). OIL is not in the site's stock universe.
   { code: 'OIL', label: 'Weekly oil report (EIA: crude, gasoline, distillate stocks, production, refining, pump prices)', group: 'Market',
-    market: { panel: 'Oil' } },
+    market: { panel: 'Oil', args: [{ kind: 'lineRange', prop: 'range' }] } },
   // FUND (2026-11-21): one company's metrics over time, point in time from its SEC filings (revenue, EPS,
   // margins, cash flow, and the valuation ratios composed with UCT's stored closes), one column per fiscal
   // quarter, and up to three more companies beside it, lined up by calendar quarter. GET /api/fundamentals/

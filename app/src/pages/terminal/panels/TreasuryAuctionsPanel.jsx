@@ -23,12 +23,14 @@
 // columns, two on a phone (the announcement day folds away).
 import { useMemo, useState } from 'react'
 import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import { formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { dayWords } from './ipoCalendarModel'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
   AUCT_CODE, AUCT_RESULTS_SHOWN, AUCT_SOURCE, AUCT_URL, AUCT_WHAT, NO_FIGURE, amountWords, asOfSentence, auctionsRead,
+  AUCT_KINDS, DEFAULT_AUCT_KIND, auctKind, auctionsOfKind,
   checkWords, countLine, coverWords, cutDays, cutWords, dateCell, rateKindWords, rateWords, securityWords, shareWords,
   tagWords, unavailableWords,
 } from './treasuryAuctionsModel'
@@ -162,10 +164,15 @@ function Notes({ view }) {
 
 function Auctions({ code, inPanel }) {
   const [today] = useState(todayIso)
-  const [all, setAll] = useState(false)
+  // Settings pass (2026-11-28): which auctions, and "show all results", are the panel's VIEW, kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { kind: DEFAULT_AUCT_KIND, allResults: false } })
+  const kind = auctKind(pv.filters.kind)
+  const all = pv.filters.allResults === true
+  const setAll = (fn) => setPv({ filters: { allResults: !!fn(all) } })
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(AUCT_URL, { refreshInterval: pace })
-  const view = useMemo(() => auctionsRead(read.body), [read.body])
+  const full = useMemo(() => auctionsRead(read.body), [read.body])
+  const view = useMemo(() => auctionsOfKind(full, kind), [full, kind])
   // The pace follows the server's own word (adjusted during render from the last answer).
   const wantPace = view.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS
   if (wantPace !== pace) setPace(wantPace)
@@ -224,13 +231,41 @@ function Auctions({ code, inPanel }) {
     ))
   }
   const results = all ? view.results : cutDays(view.results, AUCT_RESULTS_SHOWN)
+  const kindWords = AUCT_KINDS[kind].words
+  const picker = (
+    <div className={styles.toolbar} role="toolbar" aria-label="Treasury auction settings">
+      <div className={styles.group} role="group" aria-label="Which auctions">
+        {Object.entries(AUCT_KINDS).map(([k, spec]) => (
+          <button key={k} type="button" className={styles.chip} aria-pressed={kind === k} onClick={() => setPv({ filters: { kind: k } })}
+            data-testid={`terminal-auct-kind-${k}`}>{spec.chip}</button>
+        ))}
+      </div>
+    </div>
+  )
+  if (kind !== DEFAULT_AUCT_KIND && !view.upcomingCount && !view.resultCount) {
+    return frame('ok', (
+      <>
+        {notes}
+        {picker}
+        <PanelState kind="empty" compact role="status" testId="terminal-auct-kind-empty"
+          title={`No ${kindWords} auction is coming up or listed for the last ${view.windowDays || 45} days.`}
+          action={<button type="button" className={styles.chip} onClick={() => setPv({ filters: { kind: DEFAULT_AUCT_KIND } })}>Show every auction</button>} />
+        <Notes view={view} />
+      </>
+    ))
+  }
   return frame('ok', (
     <>
       {notes}
-      <p className={styles.lede} data-testid="terminal-auct-count">{countLine(view, today)}</p>
+      {picker}
+      <p className={styles.lede} data-testid="terminal-auct-count">
+        {countLine(view, today)}{kindWords ? ` Only ${kind === 'bills' ? 'bills' : 'notes, bonds, TIPS and floating rate notes'} are shown.` : ''}
+      </p>
       {view.upcomingCount
         ? <UpcomingTable days={view.upcoming} today={today} count={view.upcomingCount} />
-        : <p className={styles.muted} data-testid="terminal-auct-upcoming-none">The Treasury lists no auction from today on. That is its list, not a failed read.</p>}
+        : <p className={styles.muted} data-testid="terminal-auct-upcoming-none">{kindWords
+          ? `The Treasury lists no ${kindWords} auction from today on. That is its list, not a failed read.`
+          : 'The Treasury lists no auction from today on. That is its list, not a failed read.'}</p>}
       {view.resultCount ? (
         <>
           <ResultsTable days={results} today={today} count={view.resultCount} />
@@ -243,7 +278,7 @@ function Auctions({ code, inPanel }) {
             </div>
           ) : null}
         </>
-      ) : <p className={styles.muted} data-testid="terminal-auct-results-none">No auction is listed for the last {view.windowDays || 45} days.</p>}
+      ) : <p className={styles.muted} data-testid="terminal-auct-results-none">No {kindWords ? `${kindWords} ` : ''}auction is listed for the last {view.windowDays || 45} days.</p>}
       {cutWords(view.cut) ? <p className={styles.note} role="status" data-testid="terminal-auct-cut">{cutWords(view.cut)}</p> : null}
       {view.dropped ? (
         <p className={styles.note} role="status" data-testid="terminal-auct-dropped">

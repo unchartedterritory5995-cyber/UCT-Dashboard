@@ -24,12 +24,14 @@
 // panel; nothing folds away (measured at 592, 462 and 340px).
 import { Fragment, useMemo, useState } from 'react'
 import { PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
   HELD_POLL_MS, STAT_CODE, STAT_SOURCE, STAT_WHAT, adrText, afterCell, atrText, avgVolumeText, betaText,
   captureText, correctionsLine, daysText, deepestLine, drawdownsLine, fellCell, highFirstCell, highLine, kindText,
   changeText, moveCell, periodCell, range52Text, realizedText, recoveredCell, relVolumeText, sectorLabel, sessionsText,
   spanText, statPollMs, statRead, statUrl,
+  STAT_DEPTHS, deeperThan, statDepth,
 } from './stockStatsModel'
 import { dayText } from './ratesModel'
 import styles from './marketPanels.module.css'
@@ -187,6 +189,10 @@ function Drawdowns({ d, sym, jumpPct }) {
   const deepest = deepestLine(d)
   const high = highLine(d)
   const flagged = d.episodes.some((e) => e.check)
+  // Settings pass: only the deeper declines is the panel's view (`filters.depth`), kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { depth: 0 } })
+  const depth = statDepth(pv.filters.depth)
+  const listed = useMemo(() => deeperThan(d.episodes, depth), [d.episodes, depth])
   return (
     <Section title="Its own drawdowns" asOf={closeOf(d.asOf)} testId="terminal-stat-drawdowns">
       <p className={styles.lede} data-testid="terminal-stat-drawdowns-line">{drawdownsLine(d, sym)}</p>
@@ -194,8 +200,23 @@ function Drawdowns({ d, sym, jumpPct }) {
         <p className={styles.muted} data-testid="terminal-stat-deepest">{[deepest, high].filter(Boolean).join(' ')}</p>
       ) : null}
       {d.episodes.length ? (
+        <div className={styles.toolbar} role="toolbar" aria-label="Drawdown list settings">
+          <div className={styles.group} role="group" aria-label="Shallowest decline listed">
+            {STAT_DEPTHS.map((z) => (
+              <button key={z} type="button" className={styles.chip} aria-pressed={depth === z} onClick={() => setPv({ filters: { depth: z } })}
+                data-testid={`terminal-stat-depth-${z}`}>{`${z || d.minDepthPct}%+`}</button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {d.episodes.length && !listed.length ? (
+        <PanelState kind="empty" compact role="status" testId="terminal-stat-depth-empty"
+          title={`None of the ${d.episodes.length} declines listed for ${sym} was ${depth}% or deeper.`}
+          action={<button type="button" className={styles.chip} onClick={() => setPv({ filters: { depth: 0 } })}>Show every decline</button>} />
+      ) : null}
+      {listed.length ? (
         <div className={styles.tableBox}>
-          <table className={styles.table} data-testid="terminal-stat-drawdown-table" aria-label={`Every decline of ${d.minDepthPct}% or more in ${sym}, newest first`}>
+          <table className={styles.table} data-testid="terminal-stat-drawdown-table" aria-label={`Every decline of ${depth || d.minDepthPct}% or more in ${sym}, newest first`}>
             <thead>
               <tr>
                 <th scope="col">Peak to low</th>
@@ -204,7 +225,7 @@ function Drawdowns({ d, sym, jumpPct }) {
               </tr>
             </thead>
             <tbody>
-              {d.episodes.map((e) => {
+              {listed.map((e) => {
                 const rec = recoveredCell(e)
                 return (
                   <tr key={e.id} data-testid="terminal-stat-drawdown" data-ongoing={e.ongoing ? 'true' : undefined}>
@@ -229,6 +250,9 @@ function Drawdowns({ d, sym, jumpPct }) {
         <p className={styles.muted} data-testid="terminal-stat-drawdowns-check-note">
           {`A decline marked "check the chart" holds a change of more than ${jumpPct}% in one session, which can be a split the history did not adjust.`}
         </p>
+      ) : null}
+      {depth && listed.length ? (
+        <p className={styles.muted} data-testid="terminal-stat-depth-shown">{`Showing the ${listed.length} of ${d.episodes.length} declines listed that were ${depth}% or deeper.`}</p>
       ) : null}
       {d.total > d.episodes.length ? (
         <p className={styles.muted} data-testid="terminal-stat-drawdowns-cut">{`Showing the newest ${d.episodes.length} of ${d.total}.`}</p>

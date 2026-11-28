@@ -378,6 +378,60 @@ export function spreadGeometry(history, key = 's10y2y', { w = 320, h = 120, padX
   }
 }
 
+// ── the spread picture's settings (settings pass, 2026-11-28) ─────────────────────────────────
+// Both are the panel's VIEW: the answer already carries every day of both spreads for the years it holds
+// (`history`), so a choice only changes what is drawn, never what is read. The defaults are today's picture:
+// the 10-year minus 2-year over everything held.
+/** The spreads the history carries: the setting's key -> the history column. */
+export const RATES_SPREADS = Object.freeze({ '10y2y': 's10y2y', '10y3m': 's10y3m' })
+export const DEFAULT_RATES_SPREAD = '10y2y'
+/** How far back the spread picture reaches; `all` is everything the answer holds (today's picture). */
+export const RATES_RANGES = Object.freeze([
+  { key: 'all', label: 'All held', months: null },
+  { key: '2y', label: '2Y', months: 24 },
+  { key: '1y', label: '1Y', months: 12 },
+  { key: '6m', label: '6M', months: 6 },
+])
+export const DEFAULT_RATES_RANGE = 'all'
+export const ratesSpread = (v) => (Object.prototype.hasOwnProperty.call(RATES_SPREADS, v) ? v : DEFAULT_RATES_SPREAD)
+export const ratesRange = (v) => (RATES_RANGES.some((r) => r.key === v) ? v : DEFAULT_RATES_RANGE)
+
+/** Pure: the day `months` calendar months before `iso` (the same day of the month, or the month's last). */
+export function monthsBefore(iso, months) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const y = +iso.slice(0, 4)
+  const m = +iso.slice(5, 7) - 1 - months
+  const d = +iso.slice(8, 10)
+  const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate()
+  const at = new Date(Date.UTC(y, m, Math.min(d, last)))
+  const p = (n) => String(n).padStart(2, '0')
+  return `${at.getUTCFullYear()}-${p(at.getUTCMonth() + 1)}-${p(at.getUTCDate())}`
+}
+
+/** Pure: `history` cut to its newest `range` (a RATES_RANGES key), every column cut alike; `all` (or a range
+ *  longer than what is held) returns it as it is. `cut` says whether days were left out. */
+export function historyWindow(history, range = DEFAULT_RATES_RANGE) {
+  const spec = RATES_RANGES.find((r) => r.key === range)
+  const dates = history?.dates || []
+  const newest = [...dates].reverse().find(Boolean) || null
+  const from = spec?.months && newest ? monthsBefore(newest, spec.months) : null
+  if (!from) return { ...history, cut: false }
+  const keep = dates.map((d) => !!d && d >= from)
+  if (keep.every(Boolean)) return { ...history, cut: false }
+  const out = { ...history, cut: true, from, dates: dates.filter((_d, i) => keep[i]) }
+  for (const k of ['y2y', 'y10y', 'y30y', 's10y2y', 's10y3m']) {
+    if (Array.isArray(history?.[k])) out[k] = history[k].filter((_v, i) => keep[i])
+  }
+  return out
+}
+
+/** Pure: the span a range names, in words ("1 year", "6 months"); for `all`, the years the answer holds. */
+export function rangeWords(range, years) {
+  const spec = RATES_RANGES.find((r) => r.key === range)
+  if (!spec?.months) return years ? `${years} years` : ''
+  return spec.months % 12 === 0 ? `${spec.months / 12} year${spec.months === 12 ? '' : 's'}` : `${spec.months} months`
+}
+
 /** Pure: the spread picture's numbers as a sentence (its accessible name, and the line under it). */
 export function spreadHistoryWords(geo, label) {
   if (!geo) return ''

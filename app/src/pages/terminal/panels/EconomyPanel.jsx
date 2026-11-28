@@ -19,9 +19,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import { useMarketRead } from './marketRead'
 import {
-  ECON_CODE, ECON_LATEST_URL, ECON_POLL_MS, ECON_SOURCE, STRIP_DAYS, econFailure, economyRead, etToday, noFigureText,
+  ECON_CODE, ECON_LATEST_URL, ECON_POLL_MS, ECON_SOURCE, ECON_THEME_CHIPS, STRIP_DAYS, econFailure, econTheme, economyRead, etToday,
+  noFigureText, themesShown,
 } from './economyModel'
 import styles from './marketPanels.module.css'
 import own from './economyPanel.module.css'
@@ -149,6 +151,10 @@ function Economy({ code, inPanel }) {
   const view = useMemo(() => economyRead(read.body, { today }), [read.body, today])
   const ok = !read.loading && !!read.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(ECON_SOURCE, view.newestT) : null)
+  // Settings pass: one theme or every theme, the panel's view (`filters.theme`), kept with the board.
+  const [pv, setPv] = usePanelView({ filters: { theme: '' } })
+  const theme = econTheme(pv.filters.theme)
+  const themes = useMemo(() => themesShown(view.themes, theme), [view.themes, theme])
 
   const frame = (state, body) => (
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-econ" data-state={state}>{body}</div>
@@ -167,7 +173,17 @@ function Economy({ code, inPanel }) {
     <>
       {read.error ? <p className={styles.note} role="status" data-testid="terminal-econ-stale-read">{econFailure(read.error).title} Showing the last read.</p> : null}
       <Ahead ahead={view.ahead} />
-      <Board themes={view.themes} />
+      <div className={styles.toolbar} role="toolbar" aria-label="Economy board settings">
+        <div className={styles.group} role="group" aria-label="Theme">
+          <button type="button" className={styles.chip} aria-pressed={!theme} onClick={() => setPv({ filters: { theme: '' } })}
+            data-testid="terminal-econ-show-all">Every theme</button>
+          {Object.entries(ECON_THEME_CHIPS).map(([k, label]) => (
+            <button key={k} type="button" className={styles.chip} aria-pressed={theme === k} onClick={() => setPv({ filters: { theme: k } })}
+              data-testid={`terminal-econ-show-${k}`}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <Board themes={themes} />
       <Footer credits={view.credits} />
     </>
   ))

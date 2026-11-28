@@ -36,8 +36,17 @@ import {
   floatWords, maxShortOf, ratioSummary, shortDataRead, shortDataUrl, unavailableWords,
 } from './shortInterestModel'
 import ShortDataNotes from './ShortDataNotes'
+import usePanelView from '../../../components/terminal/usePanelView'
 import styles from './marketPanels.module.css'
 import own from './shortPanels.module.css'
+
+// Settings pass (2026-11-28): a "show more" switch is kept in the panel's VIEW (usePanelView), so a reload, a
+// saved board and a share link reopen the panel the way the member left it. Off (today's panel) stores nothing.
+function useKeptSwitch(name) {
+  const [pv, setPv] = usePanelView({ filters: { [name]: false } })
+  const on = pv.filters[name] === true
+  return [on, (next) => setPv({ filters: { [name]: !!(typeof next === 'function' ? next(on) : next) } })]
+}
 
 export {
   REPORTS_MORE, REPORTS_SHOWN, SHORT_INTEREST_CODE, SOURCE, VOLUME_DAYS_SHOWN, barShare, changeWay, dayText, daysBetween, etDayOf,
@@ -198,8 +207,8 @@ function VolumeTable({ sym, rows }) {
 function ShortInterestBody({ sym: s, code }) {
   const inPanel = useInTerminalPanel()
   const [today] = useState(todayIso)
-  const [moreReports, setMoreReports] = useState(false)
-  const [allDays, setAllDays] = useState(false)
+  const [moreReports, setMoreReports] = useKeptSwitch('moreReports')
+  const [allDays, setAllDays] = useKeptSwitch('allDays')
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(shortDataUrl(s), { refreshInterval: pace })
   const view = useMemo(() => shortDataRead(read.body), [read.body])

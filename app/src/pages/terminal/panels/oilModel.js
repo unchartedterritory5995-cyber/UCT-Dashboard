@@ -48,6 +48,35 @@ export const LINE_WEEKS = 104
 export const YEAR_DAYS = 364
 export const MATCH_DAYS = 3
 
+// ── the line's span: a typed argument (settings pass, 2026-11-28) ────────────────────────────────
+// `OIL 1Y`, `OIL 5Y`; bare `OIL` is two years, today's line. It is an ARGUMENT, not a view, because a
+// longer span changes what is READ (the line's history read starts further back): it shows in the command line,
+// a saved board and a share link, and the chips write it back (usePanelWriteBack). One year reads the same
+// 25 months as two (one shared cache entry, and every change under the headline keeps the history it needs);
+// five years reads 61 months. args.js keeps a copy of the words (pinned by args.lineRange.test.js).
+export const LINE_RANGES = Object.freeze({
+  '1y': Object.freeze({ word: '1Y', weeks: 52, months: 25, words: '1 year', last: 'the last year' }),
+  '2y': Object.freeze({ word: '2Y', weeks: 104, months: 25, words: '2 years', last: 'the last two years' }),
+  '5y': Object.freeze({ word: '5Y', weeks: 260, months: 61, words: '5 years', last: 'the last five years' }),
+})
+export const DEFAULT_LINE_RANGE = '2y'
+export const LINE_RANGE_ARG_WORDS = Object.freeze({ '1Y': '1y', '2Y': '2y', '5Y': '5y' })
+const ownKey = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
+export const parseLineRange = (tok) => { const k = String(tok ?? '').trim().toUpperCase(); return ownKey(LINE_RANGE_ARG_WORDS, k) ? LINE_RANGE_ARG_WORDS[k] : null }
+export const normLineRange = (v) => (ownKey(LINE_RANGES, v) ? v : parseLineRange(v) || DEFAULT_LINE_RANGE)
+/** Pure: the command's words for a span (none for the default, so the command stays bare). */
+export const lineRangeArgs = (range) => { const r = normLineRange(range); return r === DEFAULT_LINE_RANGE ? [] : [LINE_RANGES[r].word] }
+
+/** Pure: a line longer than today's that reaches back before the first value held starts at that value
+ *  (`heldFrom`), so a series held for fewer years than asked is not drawn as years of gaps. The default span
+ *  is never trimmed (today's line, gaps and all). */
+function trimLeading(rows, weeks, hasValue) {
+  if (weeks <= LINE_WEEKS) return { rows, heldFrom: null }
+  const first = rows.findIndex(hasValue)
+  if (first <= 0) return { rows, heldFrom: null }
+  return { rows: rows.slice(first), heldFrom: rows[first].date }
+}
+
 const SYM = Object.freeze({
   crude: 'USCRUDEINV', change: 'USCRUDEINVCHG', gasoline: 'USGASINV', distillate: 'USDISTINV', spr: 'USSPR',
   production: 'USCRUDEPROD', refining: 'USREFUTIL', gasPrice: 'USGASPRICE', dieselPrice: 'USDIESELPRICE',
@@ -103,8 +132,8 @@ export function monthStartBefore(today, months) {
 
 /** `{ symbol: url }` for the history reads: crude stocks 25 months back (the 2-year line), the rest 14
  *  months back (the week a year ago, with room for a late release). */
-export function historyUrls(today) {
-  const long = monthStartBefore(today, 25)
+export function historyUrls(today, range = DEFAULT_LINE_RANGE) {
+  const long = monthStartBefore(today, LINE_RANGES[normLineRange(range)].months)
   const short = monthStartBefore(today, 14)
   if (!long || !short) return {}
   return Object.fromEntries(OIL_SYMBOLS.map((s) => [s, `/api/econ/series/${s}?start=${s === LINE_SYMBOL ? long : short}`]))
@@ -402,7 +431,8 @@ export function stocksLine(points, { weeks = LINE_WEEKS } = {}) {
     const p = byDay.get(date)
     rows.push({ date, v: p && Number.isFinite(p.v) ? p.v : null })
   }
-  return { rows, gaps: rows.filter((r) => r.v == null).length, end }
+  const { rows: kept, heldFrom } = trimLeading(rows, weeks, (x) => x.v != null)
+  return { rows: kept, gaps: kept.filter((r) => r.v == null).length, end, heldFrom }
 }
 
 /**
@@ -464,7 +494,7 @@ export function stocksPicture(line, meta, today) {
  *   line          `{ state: 'ok' | 'loading' | 'failed' | 'not_held' | 'too_few', picture }`
  * `state` 'bad_shape' for a latest answer that is not the route's shape (drawn as a failed read).
  */
-export function oilRead({ latest, histories = {}, historyState = {}, today = null } = {}) {
+export function oilRead({ latest, histories = {}, historyState = {}, today = null, weeks = LINE_WEEKS } = {}) {
   const by = latestBySymbol(latest)
   if (!by) return { state: 'bad_shape', head: null, groups: [], line: null, credits: [], newestT: null, historyFailed: false }
   const merged = (s) => mergePoints(histories[s] || null, by[s]?.points || [])
@@ -481,8 +511,9 @@ export function oilRead({ latest, histories = {}, historyState = {}, today = nul
     const hs = historyState[LINE_SYMBOL] || 'ok'
     if (hs !== 'ok') line = { state: hs }
     else {
-      const picture = stocksPicture(stocksLine(merged(LINE_SYMBOL)), crude.meta, today)
-      line = picture ? { state: 'ok', picture } : { state: 'too_few' }
+      const sl = stocksLine(merged(LINE_SYMBOL), { weeks })
+      const picture = stocksPicture(sl, crude.meta, today)
+      line = picture ? { state: 'ok', picture, heldFrom: sl?.heldFrom || null } : { state: 'too_few' }
     }
   }
   const shown = rows.filter((r) => r.state === 'ok')

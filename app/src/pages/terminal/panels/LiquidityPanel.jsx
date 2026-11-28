@@ -23,9 +23,11 @@ import { useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { useMarketRead } from './marketRead'
+import { usePanelWriteBack } from './commandWriteBack'
 import { etToday, noFigureText } from './economyModel'
 import {
   LIQ_CODE, LIQ_LATEST_URL, LIQ_POLL_MS, LIQ_SOURCE, LINE_SYMBOLS, NET_LABEL, RRP_LOOKBACK_DAYS,
+  LINE_RANGES, lineRangeArgs, normLineRange,
   dayWords, historyPoints, historyUrls, lineFailureText, lineReadState, liqFailure, liquidityRead, usdText, wantedHistory,
 } from './liquidityModel'
 import styles from './marketPanels.module.css'
@@ -35,10 +37,24 @@ export { LIQ_CODE, LIQ_LATEST_URL, LIQ_POLL_MS, LIQ_SOURCE } from './liquidityMo
 
 const SPAN = { 1: '1 week', 4: '4 weeks', 13: '13 weeks', 52: '52 weeks' }
 
-function NetPicture({ picture }) {
+/** The line's span: 1Y, 2Y (today's) or 5Y, written back into the command (`LIQ 5Y`). */
+function RangeChips({ range, onPick }) {
+  return (
+    <div className={styles.toolbar} role="toolbar" aria-label="Net liquidity line settings">
+      <div className={styles.group} role="group" aria-label="How far back">
+        {Object.entries(LINE_RANGES).map(([k, spec]) => (
+          <button key={k} type="button" className={styles.chip} aria-pressed={range === k} onClick={() => onPick(k)}
+            data-testid={`terminal-liq-range-${k}`}>{spec.word}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function NetPicture({ picture, range }) {
   return (
     <figure className={own.figure} data-testid="terminal-liq-line">
-      <span className={own.figTitle}>Net liquidity, 2 years, every Wednesday</span>
+      <span className={own.figTitle}>{`Net liquidity, ${LINE_RANGES[range].words}, every Wednesday`}</span>
       <svg className={own.chart} viewBox={`0 0 ${picture.w} ${picture.h}`} preserveAspectRatio="none" role="img" aria-label={picture.words}>
         <path className={own.line} d={picture.path} vectorEffect="non-scaling-stroke" data-series="net" />
       </svg>
@@ -52,7 +68,7 @@ function NetPicture({ picture }) {
   )
 }
 
-function Net({ net, today, onRetry }) {
+function Net({ net, today, onRetry, range, onRange }) {
   const titleId = useId()
   const shell = (state, body) => (
     <section className={own.section} aria-labelledby={titleId} data-testid="terminal-liq-net" data-state={state}>
@@ -60,13 +76,17 @@ function Net({ net, today, onRetry }) {
       {body}
     </section>
   )
-  if (net.state === 'loading') return shell('loading', <PanelSkeleton label="Loading two years of the Fed's figures" testId="terminal-liq-net-loading" />)
+  const chips = <RangeChips range={range} onPick={onRange} />
+  if (net.state === 'loading') return shell('loading', <>{chips}<PanelSkeleton label={`Loading ${LINE_RANGES[range].words} of the Fed's figures`} testId="terminal-liq-net-loading" /></>)
   if (net.state === 'failed') {
     return shell('failed', (
+      <>
+      {chips}
       <PanelState kind="error" compact testId="terminal-liq-net-error" title={lineFailureText('failed')}
         action={<button type="button" className={styles.chip} onClick={onRetry}>Retry</button>}>
         That is not the same as no figures. The parts below are still read.
       </PanelState>
+      </>
     ))
   }
   if (net.state === 'not_held') {
@@ -78,7 +98,7 @@ function Net({ net, today, onRetry }) {
   if (net.state === 'no_value') {
     return shell('no_value', (
       <p className={styles.muted} data-testid="terminal-liq-net-none">
-        No Wednesday in the last two years has all three figures held, so net liquidity has no value to show.
+        {`No Wednesday in ${LINE_RANGES[range].last} has all three figures held, so net liquidity has no value to show.`}
       </p>
     ))
   }
@@ -119,7 +139,13 @@ function Net({ net, today, onRetry }) {
         </p>
       ) : null}
       {sentence ? <p className={own.sentence} data-testid="terminal-liq-sentence">{sentence}</p> : null}
-      {picture ? <NetPicture picture={picture} /> : null}
+      {chips}
+      {picture ? <NetPicture picture={picture} range={range} /> : null}
+      {net.line?.heldFrom ? (
+        <p className={styles.muted} data-testid="terminal-liq-held-from">
+          {`The figures held start on ${dayWords(net.line.heldFrom, today)}, so the line starts there.`}
+        </p>
+      ) : null}
       <p className={styles.muted} data-testid="terminal-liq-next">
         {next.state === 'ok' ? `Next Fed balance sheet (H.4.1): ${next.text}.` : `Fed balance sheet (H.4.1): ${next.text}.`}
         {note ? ` ${note}.` : ''}
@@ -196,10 +222,14 @@ function Footer({ credits }) {
   )
 }
 
-function Liquidity({ code, inPanel }) {
+function Liquidity({ code, inPanel, range: rangeProp }) {
   const [today] = useState(() => etToday(Date.now()))
+  // `LIQ 5Y` remounts the panel (the shell keys the body on code + args), so the typed word only seeds the state.
+  const [range, setRange] = useState(() => normLineRange(rangeProp))
+  const writeBack = usePanelWriteBack()
+  const pickRange = (next) => { const r = normLineRange(next); setRange(r); writeBack(lineRangeArgs(r)) }
   const latest = useMarketRead(LIQ_LATEST_URL, { refreshInterval: LIQ_POLL_MS })
-  const urls = useMemo(() => historyUrls(today), [today])
+  const urls = useMemo(() => historyUrls(today, range), [today, range])
   const want = useMemo(() => wantedHistory(latest.body), [latest.body])
   const opts = { refreshInterval: LIQ_POLL_MS }
   const fed = useMarketRead(want.USFEDBAL ? urls.USFEDBAL : null, opts)
@@ -222,12 +252,12 @@ function Liquidity({ code, inPanel }) {
   }
   const lineState = lineReadState(LINE_SYMBOLS.map((s) => reads[s]))
   // a few hundred points and 105 Wednesdays: cheap, and it runs only when a read answers
-  const view = liquidityRead({ latest: latest.body, histories, historyFailed, lineState, today })
+  const view = liquidityRead({ latest: latest.body, histories, historyFailed, lineState, today, weeks: LINE_RANGES[range].weeks })
   const ok = !latest.loading && !!latest.body && view.state === 'ok'
   usePanelFreshness(ok ? panelAsOf(LIQ_SOURCE, view.newestT) : null)
 
   const frame = (state, body) => (
-    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-liq" data-state={state}>{body}</div>
+    <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-liq" data-state={state} data-range={range}>{body}</div>
   )
   if (latest.loading) return frame('loading', <PanelSkeleton label="Loading the liquidity figures" testId="terminal-liq-loading" />)
   if (!ok) {
@@ -243,15 +273,15 @@ function Liquidity({ code, inPanel }) {
   return frame('ok', (
     <>
       {latest.error ? <p className={styles.note} role="status" data-testid="terminal-liq-stale-read">{liqFailure(latest.error).title} Showing the last read.</p> : null}
-      <Net net={view.net} today={today} onRetry={retryLine} />
+      <Net net={view.net} today={today} onRetry={retryLine} range={range} onRange={pickRange} />
       <Parts parts={view.parts} />
       <Footer credits={view.credits} />
     </>
   ))
 }
 
-export default function LiquidityPanel() {
+export default function LiquidityPanel({ range = null }) {
   const inPanel = useInTerminalPanel()
   const code = inPanel?.code || LIQ_CODE
-  return <Liquidity code={code} inPanel={inPanel} />
+  return <Liquidity code={code} inPanel={inPanel} range={range} />
 }

@@ -201,6 +201,9 @@ export const SEG_PERIOD_WORDS = Object.freeze({ ANNUAL: 'annual', YEARLY: 'annua
 // IDXC: a copy of the panel model's words (functions.indexChanges.test.js pins it to its owner). SP500, SPX, NDX, DOW
 // and DJIA are COT's own market words, so they are not IDXC's.
 export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'nasdaq100', DOW30: 'dow' })
+// LIQ / OIL (settings pass, 2026-11-28): a copy of the line span words both panel models own (liquidityModel.js and
+// oilModel.js LINE_RANGE_ARG_WORDS; args.lineRange.test.js pins it to both)
+export const LINE_RANGE_WORDS = Object.freeze({ '1Y': '1y', '2Y': '2y', '5Y': '5y' })
 // EEHSC (2026-11-21): copies of the panel model's words (functions.revisionBreadth.test.js pins each to its owner)
 export const EEHSC_WINDOW_WORDS = Object.freeze({ '7D': 7, '1W': 7, '30D': 30, '1M': 30 })
 export const EEHSC_METRIC_WORDS = Object.freeze({ EPS: 'eps', REVENUE: 'revenue', REV: 'revenue', SALES: 'revenue' })
@@ -943,6 +946,16 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(EEHSC_METRIC_WORDS, key) ? EEHSC_METRIC_WORDS[key] : null
     },
     describe: (v) => (v === 'revenue' ? 'revenue estimates' : 'EPS estimates'),
+  },
+  // ── LIQ / OIL (settings pass, 2026-11-28): the line's span (pinned by args.lineRange.test.js) ──
+  /** How far back the LIQ / OIL line reaches; bare `LIQ` / `OIL` is two years. */
+  lineRange: {
+    takes: 'a span for the line (1Y, 2Y or 5Y)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(LINE_RANGE_WORDS, key) ? LINE_RANGE_WORDS[key] : null
+    },
+    describe: (v) => ({ '1y': 'a line of 1 year', '2y': 'a line of 2 years', '5y': 'a line of 5 years' })[v] || v,
   },
   // ── ERNSC (2026-11-22): the panel model's words (panels/sectorEarningsModel.js; pinned by functions.sectorEarnings.test.js) ──
   /** ERNSC's season: the one before, or the same one a year earlier (bare `ERNSC` is the season that holds today). */

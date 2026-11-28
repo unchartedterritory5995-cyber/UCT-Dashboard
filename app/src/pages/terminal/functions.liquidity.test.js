@@ -1,6 +1,6 @@
 // LIQ (2026-11-21): the liquidity panel's code in the registry, how it parses, and the words that find it.
 //
-// LIQ is market-wide and takes no argument. It is not a stock in the site's universe. Its words must find it
+// LIQ is market-wide; its one argument is the line's span (`LIQ 5Y`, args.lineRange.test.js). It is not a stock in the site's universe. Its words must find it
 // without taking a word another function already answers to: 'fed' and 'federal reserve' stay with FED,
 // 'treasury' with RATES, 'economy' with SENT, 'cpi' with ECON.
 import { describe, it, expect } from 'vitest'
@@ -14,18 +14,18 @@ import { PANEL_IMPORTERS } from './panels'
 import { LIQ_CODE } from './panels/liquidityModel'
 
 describe('LIQ in the registry', () => {
-  it('the model names the code, it is registered once, in the Market group, market-wide, with no argument', () => {
+  it('the model names the code, it is registered once, in the Market group, market-wide, with the line span its one argument', () => {
     expect(LIQ_CODE).toBe('LIQ')
     expect(FUNCTIONS.filter((f) => f.code === 'LIQ')).toHaveLength(1)
     expect(FUNCTION_GROUPS).toContain(BY_CODE.LIQ.group)
     expect(BY_CODE.LIQ.group).toBe('Market')
     expect(BY_CODE.LIQ.label).toBe('Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)')
-    expect(BY_CODE.LIQ.market).toEqual({ panel: 'Liquidity' })
+    expect(BY_CODE.LIQ.market).toEqual({ panel: 'Liquidity', args: [{ kind: 'lineRange', prop: 'range' }] })
     expect(BY_CODE.LIQ.ticker).toBeUndefined()
     expect(BY_CODE.LIQ.market.flag).toBeUndefined()             // it says "switched off" itself, in words
     expect(exampleFor(BY_CODE.LIQ)).toBe('LIQ')
     expect(variantFor('LIQ', false)).toMatchObject({ scope: 'market' })
-    expect(applyArgs(BY_CODE.LIQ.market, ['TGA']).ignored).toEqual(['TGA'])   // no argument: said, never guessed at
+    expect(applyArgs(BY_CODE.LIQ.market, ['TGA']).ignored).toEqual(['TGA'])   // not a span: said, never guessed at
     expect(typeof PANEL_IMPORTERS.Liquidity).toBe('function')
   })
 
