@@ -3305,10 +3305,12 @@ export const POINTWISE_FOR_PARITY = POINTWISE
  *  place: the columnar `hma` below and the runtime lane's `ta.hma` over a
  *  mutable value (`pineRuntimeFrontend.js`, a respelling into three `wma`
  *  windows) both read them, so the two lanes cannot size them differently.
- *  `floor(n / 2)` and `round(sqrt(n))`, each floored at 1 (`_functions_hull`). */
+ *  `floor(n / 2)` and `floor(sqrt(n))`, each floored at 1 (`_functions_hull`).
+ *  ⭐ 2026-11-27 (engine e100, NUMBER PENDING) -- THE ROOT WINDOW IS FLOORED, NOT ROUNDED. Measured, not read: FRED's Q-HMA capture (2026-11-27, AMEX:SPY 1D, 8,505 rows) -- at n = 21 the floor window (4) is exact on 8,482 of 8,482 bars and the round window (5) is off on every one (up to 1.49%); the square lengths 9 and 16 agree both ways. TradingView's own `ta.hma` is wma(2 * wma(src, floor(n / 2)) - wma(src, n), floor(sqrt(n))).
+ *  `round` drew every Hull of a non-square length one window too long. */
 export const hullWindows = (n) => ({
   half: Math.max(1, Math.floor(n / 2)),
-  root: Math.max(1, Math.round(Math.sqrt(n))),
+  root: Math.max(1, Math.floor(Math.sqrt(n))),
 })
 
 function cumCol(series) {

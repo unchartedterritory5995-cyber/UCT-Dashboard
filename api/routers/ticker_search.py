@@ -275,12 +275,30 @@ def _universe_version() -> str:
     return _UNIVERSE_VERSION
 
 
+def _universe_pop(symbols) -> List[int]:
+    """(2026-11-28, zero-network plan 1.4) Each symbol's popularity rank, aligned with `symbols`: 1 = the busiest by the
+    search index's 20-session dollar volume (`ticker_search_index._LIQ`, the order /api/ticker-search breaks ties by),
+    0 = no number (yet). The chart's symbol search warms the likeliest completions of the typed text before Enter
+    (lib/tickerUniverse rankedCompletions). Never raises: no map (boot, bars.db unreadable) is all zeros."""
+    try:
+        from api.services import ticker_search_index as _tsi
+        liq = _tsi._LIQ or {}
+    except Exception:  # noqa: BLE001 -- a ranking aid never breaks the list
+        liq = {}
+    ranked = sorted((s for s in symbols if liq.get(s, 0) > 0), key=lambda s: (-liq[s], s))
+    rank = {s: i + 1 for i, s in enumerate(ranked)}
+    return [rank.get(s, 0) for s in symbols]
+
+
 @router.get("/api/ticker-universe")
 def ticker_universe():
-    """`{"v": <list id>, "symbols": [sorted upper-case tickers]}`: the cap universe the symbol search ranks."""
+    """`{"v": <list id>, "symbols": [sorted upper-case tickers], "pop": [rank per symbol, 0 = unknown]}`: the cap
+    universe the symbol search ranks. `pop` is additive and does not change `v` (the list's identity): a browser copy
+    refreshes its ranks with its daily refresh."""
     from fastapi.responses import JSONResponse
+    syms = list(_UNIVERSE)
     return JSONResponse(
-        {"v": _universe_version(), "symbols": list(_UNIVERSE)},
+        {"v": _universe_version(), "symbols": syms, "pop": _universe_pop(syms)},
         headers={"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"},
     )
 

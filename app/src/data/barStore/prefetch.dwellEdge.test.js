@@ -4,6 +4,7 @@
 // signal aborted when the member leaves the symbol asks nothing more.
 //   E1 edge: every timeframe of the bar warmed, no /api/bars
 //   E2 aborted before the warm runs: nothing asked at all
+//   E4 the edge dwell tells no companion warmer (no indicator-column batch); the list's dwell does
 //   E3 CONTROL: without `edge` (the list's dwell, unchanged) the origin warms go out, so E1 can fail
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -63,6 +64,20 @@ describe('the chart\'s timeframe dwell: device and edge only', () => {
     await settle(w)
     await w.server.drain()
     expect(w.server.calls).toEqual([])
+  })
+
+  it('E4 (F1b) the edge dwell tells no companion warmer (server indicator columns: an origin batch per timeframe); the list dwell does', async () => {
+    const w = await boot()
+    const { registerSymbolWarmer } = await import('./prefetch')
+    const told = []
+    const off = registerSymbolWarmer((syms, tf) => { told.push(tf) })
+    try {
+      w.pf.prefetchAllTimeframes('NVDA', { tfs: TFS, edge: true, signal: new AbortController().signal })
+      await settle(w)
+      expect(told, 'the dwell asked the server-column warmers').toEqual([])
+      w.pf.prefetchAllTimeframes('NVDA', { tfs: TFS })
+      expect(told.length, 'CONTROL: the list dwell tells them').toBeGreaterThan(0)
+    } finally { if (typeof off === 'function') off() }
   })
 
   it('E3 CONTROL: without edge (the list\'s dwell) the origin warms go out', async () => {

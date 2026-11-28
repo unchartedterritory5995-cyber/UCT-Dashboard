@@ -55,3 +55,27 @@ def test_an_in_process_call_still_works_without_a_response():
     out = ticker_search.ticker_search(q="AAPL", limit=3, type="", uct_session=None)
     assert "results" in out
 
+
+
+def test_pop_ranks_each_symbol_by_the_search_index_dollar_volume(monkeypatch):
+    """(2026-11-28, zero-network plan 1.4) `pop` is aligned with `symbols`: 1 = the busiest, 0 = no number. The browser
+    ranks the typed text's completions by it (lib/tickerUniverse rankedCompletions) to warm the likeliest before Enter."""
+    from api.services import ticker_search_index as tsi
+    syms = ticker_search._UNIVERSE
+    a, b, c = syms[0], syms[1], syms[2]
+    monkeypatch.setattr(tsi, "_LIQ", {a: 5.0e6, b: 9.0e9, c: 1.0e8})
+    body = _client().get("/api/ticker-universe").json()
+    pop = body["pop"]
+    assert len(pop) == len(body["symbols"])
+    assert dict(zip(body["symbols"], pop))[b] == 1
+    assert dict(zip(body["symbols"], pop))[c] == 2
+    assert dict(zip(body["symbols"], pop))[a] == 3
+    assert sum(1 for r in pop if r) == 3, "a symbol with no dollar volume ranks 0 (unknown), never a made-up rank"
+
+
+def test_pop_is_additive_without_a_liquidity_map(monkeypatch):
+    from api.services import ticker_search_index as tsi
+    monkeypatch.setattr(tsi, "_LIQ", {})
+    body = _client().get("/api/ticker-universe").json()
+    assert body["pop"] == [0] * len(body["symbols"])
+    assert body["symbols"] == ticker_search._UNIVERSE

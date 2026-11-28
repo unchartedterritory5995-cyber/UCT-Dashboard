@@ -12,9 +12,9 @@ function painted() {
 }
 
 /** Run `fn` once the page's first chart has painted (now, if it has), or after `maxWaitMs` whatever happens. Returns a
- *  cancel. */
-export function whenFirstChartPainted(fn, { maxWaitMs = 15000 } = {}) {
-  if (painted()) { fn(); return () => {} }
+ *  cancel. `checkMark: false`: the caller has asked "painted yet?" its own way (barsPackClient's flag); only the wait. */
+export function whenFirstChartPainted(fn, { maxWaitMs = 15000, checkMark = true } = {}) {
+  if (checkMark && painted()) { fn(); return () => {} }
   let done = false
   let timer = null
   const go = () => {

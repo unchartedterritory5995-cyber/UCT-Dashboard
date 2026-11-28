@@ -31,7 +31,7 @@
  * pins this; `'omit'` here reads as a cacheability optimisation and is a
  * total outage.
  */
-import { FIRST_CHART_PAINT_EVENT } from './firstChartPaint'
+import { FIRST_CHART_PAINT_EVENT, whenFirstChartPainted } from './firstChartPaint'
 import { idbApplyDelta, idbCountKeys } from '../utils/barsIDB'
 import { decodeShardPayload } from './barsPackShard'
 // The worker client loads on the first pack job, so it stays off the page's first-open bytes.
@@ -180,17 +180,8 @@ export function markFirstChartPaint() {
 /** Runs `fn` after the first chart paint, or after `maxWaitMs`, whichever comes first. Once. */
 export function afterFirstChartPaint(fn, { maxWaitMs = PACK_START_MAX_WAIT_MS } = {}) {
   if (_firstChartPainted) { fn(); return }
-  let done = false
-  let timer = null
-  const go = () => {
-    if (done) return
-    done = true
-    if (timer) clearTimeout(timer)
-    try { window.removeEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window */ }
-    fn()
-  }
-  timer = setTimeout(go, maxWaitMs)
-  try { window.addEventListener(FIRST_CHART_PAINT_EVENT, go) } catch { /* no window: the timer runs it */ }
+  // ONE wait (the leaf's: the event, else the timer), not two implementations of it
+  whenFirstChartPainted(fn, { maxWaitMs, checkMark: false })
 }
 
 /** Test seam: forget that a chart painted. */
