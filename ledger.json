@@ -7899,6 +7899,36 @@
     "MTUS",
     "BIPC"
    ]
+  },
+  {
+   "id": "cloud/46124145617-1/COV-def-dd-arrows",
+   "at": "2026-11-28T08:05:24+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CTMX",
+    "CZFS",
+    "UNIT",
+    "ONDS",
+    "THFF",
+    "KREF",
+    "EIG",
+    "JANX",
+    "BCSS",
+    "PBFS",
+    "BBAI",
+    "CLNE",
+    "NKLR"
+   ]
+  },
+  {
+   "id": "cloud/46124145617-1/COV-def-tabs",
+   "at": "2026-11-28T08:05:24+00:00",
+   "source": "cloud",
+   "tickers": [
+    "GLPG",
+    "PGC",
+    "TUYA"
+   ]
   }
  ]
 }
