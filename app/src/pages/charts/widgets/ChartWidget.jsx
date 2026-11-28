@@ -917,7 +917,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerInstRef = useRef([null, null])
   const layerElRef = useRef([null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null, anchor: anchorKey,
+    eligible: dbEligible, sym, tf, tfBar: tfBarCodes, settings: activeStoredSettings, cutoff: replayCutoff || null, anchor: anchorKey,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })
@@ -964,11 +964,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   // ⭐ THE PANE, rendered once (one pane) or per layer (the double buffer, chart/useDoubleBuffer.js): every prop the
   // same for both layers except the symbol, the ref and the crosshair subscription (each layer's own handle gates it).
+  // (lane C, PR 2.1) and the TIMEFRAME: each layer's own (the hidden one may hold the front's symbol at the member's
+  // habitual next timeframe, so a timeframe press flips); the front's is always the widget's
   const renderPane = (paneSym, paneRefArg, paneSubscribeCrosshair, layerIdx = null) => (
         <ChartPane
           ref={paneRefArg}
           sym={paneSym}
-          tf={tf}
+          tf={layerIdx != null && layerIdx !== db.front && db.tfs?.[layerIdx] ? db.tfs[layerIdx] : tf}
           onSymbolChange={handleSymbolChange}
           onTypedIntent={handleTypedIntent}
           typedIntentTfs={groupTfSets?.[activeColor] || null}
