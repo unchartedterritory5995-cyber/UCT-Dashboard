@@ -90,6 +90,19 @@ def test_first_paint_read_matches_the_chart_source():
     assert ffseed.FIRST_PAINT_READ == want
 
 
+def test_intraday_depth_covers_the_view(monkeypatch):
+    """PR 1.6 (2026-11-28): every intraday pack holds at least COVER_ROWS bars a symbol, so a device copy draws the
+    default view whole (coverRows.js; a 300-row copy never covered and the switch waited for the network)."""
+    for tf in ffseed.SEED_TFS:
+        monkeypatch.delenv(f"FFSEED_DEPTH_{tf}", raising=False)
+    src = (REPO / "app/src/data/barStore/coverRows.js").read_text(encoding="utf-8")
+    cover = int(re.search(r"export const COVER_ROWS = (\d+)", src).group(1))
+    for tf in ("1", "5", "15", "30", "60"):
+        assert ffseed.depth_for(tf) == 1000 >= cover, tf
+    monkeypatch.setenv("FFSEED_DEPTH_5", "300")                  # the variable still overrides (a rollback needs no deploy)
+    assert ffseed.depth_for("5") == 300
+
+
 # ---- selection ---------------------------------------------------------------------------------
 
 WED, THU, FRI_HALF, MON = date(2026, 11, 25), date(2026, 11, 26), date(2026, 11, 27), date(2026, 11, 30)

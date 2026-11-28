@@ -23,6 +23,7 @@
 
 import { chartSpeedKilled } from '../../lib/chartSpeed'
 import { scanNeighborsFor } from './neighborFrames'
+import { lastCandlePos } from './rightMargin'
 
 export const DOUBLE_BUFFER_KEY = 'uct.doubleBuffer'
 /** The touch tier: one chart, a phone's memory. No shadow there (owner ruling, 2026-11-27). */
@@ -80,19 +81,21 @@ export function nextShadowSym(sym) {
  * ⭐ (review of #2922, F3) THE SHADOW PROVES WHAT IT SHOWS: its chart REPORTS every pass it committed (chart/layerPaint.js:
  * the symbol, its resolved timeframe and session, and the very bars array it handed the library), and the flip asks the
  * store what that array would be NOW. Nothing is inferred from when a render happened.
- * @param {{sym, tf, ext, settings, replay}} want  what the front would show now: the symbol pressed to; the front chart's
+ * @param {{sym, tf, ext, settings, cutoff}} want  what the front would show now: the symbol pressed to; the front chart's
  *   OWN last report's timeframe and session (its resolved values); the pane's stored settings (identity: the board hands
- *   both layers the same object); a replay cutoff (no flip while one is set: F6)
- * @param {{sym, tf, ext, bars, settings}|null} report  the shadow chart's last committed pass (`settings`: the widget's
- *   settings when it reported)
+ *   both layers the same object); the widget's replay cutoff (change-date mode), or null
+ * @param {{sym, tf, ext, bars, settings, cutoff}|null} report  the shadow chart's last committed pass (`settings`: the
+ *   widget's settings when it reported; `cutoff`: the replay cutoff it drew under)
  * @param {(report) => any} barsNow  the bars array the store's base snapshot of that key gives NOW (null: none)
  * @param {() => string} view  'ok', or why the two charts' views differ (F1: viewParity)
  * @returns {{flip: boolean, why: string}}
  */
 export function flipDecision(want, report, barsNow, view) {
   if (!want) return { flip: false, why: 'no-front' }
-  if (want.replay) return { flip: false, why: 'replay' }
   if (!report) return { flip: false, why: 'no-shadow' }
+  // (owner, 2026-11-27; it was F6's refusal of any replay) change-date mode: the hidden chart drew under the front's
+  // cutoff, or it shows other bars than the switch would (StockChart cuts every bar after it; intraday reads its window)
+  if ((want.cutoff || null) !== (report.cutoff || null)) return { flip: false, why: 'cutoff' }
   if (report.sym !== want.sym) return { flip: false, why: 'sym' }
   if (want.tf == null || report.tf !== want.tf) return { flip: false, why: 'tf' }
   if (!!report.ext !== !!want.ext) return { flip: false, why: 'session' }
@@ -106,54 +109,149 @@ export function flipDecision(want, report, barsNow, view) {
   return { flip: true, why: 'flip' }
 }
 
-// ─── the view (review of #2922, F1) ──────────────────────────────────────────────────────────────────────────────
-// The normal switch on /charts keeps the zoom LEVEL and re-anchors the newest bar at the right (ChartPane
-// `keepPresentOnSymbolChange`). A shadow framed itself when IT switched, from its own view. So a flip is allowed only when
-// the two charts' views say the same thing, read from each chart's own date-nav meta (StockChart getDateMeta: `frame`
-// = bars from the right edge to the view's left and right ends, the Time Navigator's active range, the view lock, the
-// price scale's auto state, the replay bar): no range, no lock, no hand-set price scale, no replay on either, the SAME
-// span and the SAME right edge. Anything else is the normal switch. And the shadow MIRRORS the front's span in idle time
-// (mirrorFrameFor), so after a zoom the flips come back.
+// ─── the view (review of #2922, F1; the typed-Enter dry run, 2026-11-27; the view mode, 2026-11-27) ─────────────
+// What frames the NEXT symbol on a normal switch on /charts (StockChart's symbol-switch branch, in this order):
+//   1. a REPLAY VIEW LOCK (a pan or zoom in change-date mode; replay only): `to = rows - barsFromRight`, its width;
+//   2. a VIEW LOCK (a range button writes one, as a pan or a zoom does; tf-tagged): the newest bar at `anchorFrac` of
+//      `width` (`from = lastIdx - anchorFrac x width`); one with the newest bar past the right edge (`anchorFrac > 1`)
+//      is refused by the switch's back-in-time guard, which frames the default instead;
+//   3. otherwise the PIN (`keepPresentOnSymbolChange` -> chart/rightMargin.js `pinNewestRange`): the zoom WIDTH kept,
+//      the newest bar at the right margin (to = lastIdx + reserve + width x gap, the gap a fraction of the plot that
+//      depends only on its pixel width, `reserve` the new SYMBOL's own developing-period slot), from ANY outgoing frame:
+//      a front panned into history still switches to present.
+// So the hidden chart is alike when it holds the SAME locks as the front (they frame every later switch too, once it
+// is shown) and sits where they, or the pin, put its own symbol. A range button's read-back (`activeRange`) frames
+// nothing by itself: the switch reads the lock the button wrote.
+// ⚰️ The first rule also compared the two right edges: but the margin scales with the width, so two widths always had two
+// right edges, and the mirror (which kept the hidden chart's right edge) never ran -> after the first width change every
+// press refused 'view-offset' (1m+15m typed dry run: 4 of 14).
+// ⚰️ (owner, 2026-11-27) Until the view mode, a range, a lock and replay were refused outright: zoomed out (2014-2026) or
+// in change-date mode (a 2006 cutoff) every press was the normal switch.
 const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 0.5
 const spanOf = (f) => f.fromRight - f.toRight
+const _same = (a, b) => (a == null && b == null) || (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6)
 function viewBlocked(m) {
   if (!m || !m.frame || !Number.isFinite(m.frame.fromRight) || !Number.isFinite(m.frame.toRight)) return 'view-unknown'
-  if (m.activeRange != null) return 'view-range'
-  if (m.frame.locked) return 'view-locked'
   if (m.priceAuto === false) return 'view-price'
-  if (m.replay && m.replay.on) return 'replay'
+  if (m.replay && (m.replay.on || m.replay.mode)) return 'replay'   // a bar-by-bar replay is running on that chart
   return null
 }
-/** 'ok' when the front's and the shadow's views would frame a symbol alike, else why not. */
-export function viewParity(front, shadow) {
+/** The view lock a chart holds (StockChart userLockedViewRef, as getDateMeta reads it back), or null. */
+const lockOf = (m) => (m.frame.locked && m.frame.lock ? m.frame.lock : null)
+const sameLock = (a, b) => (!a && !b) || (!!a && !!b && _same(a.anchorFrac ?? null, b.anchorFrac ?? null) && _same(a.width ?? null, b.width ?? null)
+  && (a.tf ?? null) === (b.tf ?? null) && _same(a.top ?? null, b.top ?? null) && _same(a.bottom ?? null, b.bottom ?? null))
+const sameReplayLock = (a, b) => (!a && !b) || (!!a && !!b && _same(a.barsFromRight, b.barsFromRight) && _same(a.width, b.width))
+const sameLocks = (front, shadow) => !!lockOf(front) === !!lockOf(shadow) && sameLock(lockOf(front), lockOf(shadow))
+  && sameReplayLock(front.replayLock ?? null, shadow.replayLock ?? null)
+/**
+ * The frame the switch gives the next symbol under the front's locks ({fromRight, toRight}), `{refuse}` when the switch
+ * would frame what cannot be proved here (a lock past the newest bar: its default view), or null: no lock frames it (the
+ * pin does).
+ */
+function lockFrameFor(front, tf) {
+  const rl = front.replayLock
+  if (rl && Number.isFinite(rl.barsFromRight) && rl.width > 0) return { fromRight: rl.barsFromRight - 1 + rl.width, toRight: rl.barsFromRight - 1 }
+  const l = lockOf(front)
+  if (l && Number.isFinite(l.anchorFrac) && l.width > 0 && (l.tf == null || l.tf === tf)) {
+    const toRight = (l.anchorFrac - 1) * l.width
+    if (toRight > 0.5) return { refuse: 'view-locked-past' }
+    return { fromRight: l.anchorFrac * l.width, toRight }
+  }
+  return null
+}
+/** The hidden chart's history does not reach its frame's left edge (the switch would wait for the rows that cover it). */
+const shortOf = (m) => Number.isFinite(m.rows) && m.frame.fromRight > m.rows - 1 + 0.5
+/** 'ok' when the normal switch from the front's view would frame the symbol as the hidden chart shows it: the same
+ *  locks, at the frame they give it (or, with none framing it, the same width), its history covering that frame; nothing
+ *  that overrides the frame on either (a hand-set price scale, a running replay). `ctx.tf`: the front chart's timeframe. */
+export function viewParity(front, shadow, ctx = {}) {
   const b = viewBlocked(front) || viewBlocked(shadow)
   if (b) return b
-  if (!near(front.frame.toRight, shadow.frame.toRight)) return 'view-offset'
-  if (!near(spanOf(front.frame), spanOf(shadow.frame))) return 'view-zoom'
+  if (!sameLocks(front, shadow)) return 'view-lock'
+  const lf = lockFrameFor(front, ctx.tf)
+  if (lf && lf.refuse) return lf.refuse
+  if (lf) {
+    if (!near(shadow.frame.fromRight, lf.fromRight) || !near(shadow.frame.toRight, lf.toRight)) return 'view-frame'
+  } else if (!near(spanOf(front.frame), spanOf(shadow.frame))) return 'view-zoom'
+  if (shortOf(shadow)) return 'view-short'
   return 'ok'
 }
-/** The frame that gives the shadow the front's span at its own right edge (StockChart restoreView), or null when there
- *  is nothing to mirror or nothing may be (a range, a lock, a hand-set price scale, replay, or a front panned away from
- *  the right edge: the normal switch re-anchors, so the flip is refused there instead). */
-export function mirrorFrameFor(front, shadow) {
+/** The right-margin fraction of a plot `plotWidthPx` wide (chart/rightMargin.js lastCandlePos), or null. */
+function gapFracOf(plotWidthPx) {
+  if (!Number.isFinite(plotWidthPx) || plotWidthPx <= 0) return null
+  return 1 - lastCandlePos(plotWidthPx)
+}
+/** The pin's frame for the hidden chart at width `w` ({fromRight, toRight}), or null when it is already there or cannot
+ *  be known (see mirrorFrameFor). */
+function pinFrameFor(front, shadow, w) {
+  const ws = spanOf(shadow.frame)
+  const own = Number.isFinite(shadow.pinReserve) ? Math.max(0, shadow.pinReserve) : null
+  if (near(w, ws)) {
+    const g = gapFracOf(shadow.plotWidthPx)
+    if (g == null || own == null) return null
+    const pin = -(own + ws * g)
+    if (Math.abs(shadow.frame.toRight - pin) <= 0.5) return null
+    return { fromRight: pin + ws, toRight: pin }
+  }
+  const gf = gapFracOf(shadow.plotWidthPx) ?? gapFracOf(front.plotWidthPx)
+  // without a plot width, the margin is read from the hidden chart itself (its whole right edge, no reserve)
+  const gap = gf != null ? gf : (ws > 0 ? Math.max(0, -shadow.frame.toRight) / ws : 0)
+  const reserve = gf == null ? 0 : own != null ? own : Math.max(0, Math.round(-shadow.frame.toRight - ws * gap))
+  const toRight = -(reserve + w * gap)
+  return { fromRight: toRight + w, toRight }
+}
+/**
+ * The frame that prepares the hidden chart in the front's view MODE (StockChart restoreView): the front's locks (view
+ * lock, replay view lock) and the frame they give its symbol, or, with none framing it, the front's WIDTH pinned as the
+ * switch pins it. null when it is already there, or when nothing may be mirrored (a hand-set price scale, a running
+ * replay, a lock past the newest bar). The pin's `reserve` is the one the hidden chart says a switch would use now
+ * (`pinReserve`, StockChart getDateMeta), or else is read back from its current pin: its right edge minus its width's
+ * margin. (review of #2932) The widths alike, the hidden chart is still re-pinned when its right edge is more than half a
+ * bar off that pin: the widget was resized while it was hidden (a new plot width, a new margin), or a D/W/M chart got
+ * today's first bar while pinned (its reserve went, the library moved the range). Only with its own plot width and
+ * pinReserve: without them the pin is not known.
+ */
+export function mirrorFrameFor(front, shadow, ctx = {}) {
   if (viewBlocked(front) || viewBlocked(shadow)) return null
-  if (!near(front.frame.toRight, shadow.frame.toRight)) return null
-  if (near(spanOf(front.frame), spanOf(shadow.frame))) return null
-  return { fromRight: shadow.frame.toRight + spanOf(front.frame), toRight: shadow.frame.toRight, activeRange: null, locked: false, lock: null }
+  const locksAlike = sameLocks(front, shadow)
+  const l = lockOf(front)
+  const modeOf = (f) => ({ fromRight: f.fromRight, toRight: f.toRight, activeRange: null, locked: !!l, lock: l ? { ...l } : null,
+    replayLock: front.replayLock ? { ...front.replayLock } : null })
+  const lf = lockFrameFor(front, ctx.tf)
+  if (lf && lf.refuse) return null
+  if (lf) {
+    if (locksAlike && near(shadow.frame.fromRight, lf.fromRight) && near(shadow.frame.toRight, lf.toRight)) return null
+    return modeOf(lf)
+  }
+  const w = spanOf(front.frame)
+  if (!(w > 0)) return null
+  const pin = pinFrameFor(front, shadow, w)
+  if (pin) return modeOf(pin)
+  return locksAlike ? null : modeOf(shadow.frame)
+}
+/** (N4) Is the mirror's frame still the front's mode at the write? restoreView writes the hidden chart's view lock under
+ *  the pane's key, which both layers share (`uct.charts.viewLock.<chartId>`): only the lock the front holds may go there. */
+export function mirrorStillFits(frame, front) {
+  if (!frame || !front || !front.frame) return false
+  return sameLock(frame.locked ? frame.lock : null, lockOf(front)) && sameReplayLock(frame.replayLock ?? null, front.replayLock ?? null)
 }
 
 // ─── what happened (diagnostics: window.__uctDoubleBuffer, the flip proof's peek) ────────────────────────────────
-const _stats = { flips: 0, switches: 0, why: {}, retargets: 0, last: [] }
+const _stats = { flips: 0, switches: 0, why: {}, retargets: 0, last: [], log: [] }
 export function doubleBufferStats() { return _stats }
-export function noteDecision(d, sym) {
+/** One press's decision: `extra.sinceSet` / `extra.sinceReport`: ms since the hidden pane was set to its row / since its
+ *  chart last reported (null: never), so a live A/B can tell a slow retarget from a slow chart. */
+export function noteDecision(d, sym, extra = {}) {
   if (d.flip) _stats.flips += 1
   else _stats.switches += 1
   _stats.why[d.why] = (_stats.why[d.why] || 0) + 1
   _stats.last.push(`${sym}:${d.why}`)
   if (_stats.last.length > 32) _stats.last.splice(0, _stats.last.length - 32)
+  _stats.log.push({ sym, why: d.why, sinceSet: extra.sinceSet ?? null, sinceReport: extra.sinceReport ?? null })
+  if (_stats.log.length > 64) _stats.log.splice(0, _stats.log.length - 64)
   try { if (typeof window !== 'undefined') window.__uctDoubleBuffer = _stats } catch { /* no window */ }
 }
 export function noteRetarget() { _stats.retargets += 1 }
 export function __resetDoubleBufferStatsForTests() {
-  _stats.flips = 0; _stats.switches = 0; _stats.why = {}; _stats.retargets = 0; _stats.last.length = 0
+  _stats.flips = 0; _stats.switches = 0; _stats.why = {}; _stats.retargets = 0; _stats.last.length = 0; _stats.log.length = 0
 }

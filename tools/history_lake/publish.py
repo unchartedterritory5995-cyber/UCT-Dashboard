@@ -178,7 +178,7 @@ INDEX_RETRY_BASE_S = 0.5
 def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callable, put_bytes: Callable, *,
            prefix: str = "", jobs: int = 16, log=print, exists: Optional[Callable] = None,
            every: int = 10, sleep: Callable[[float], None] = time.sleep,
-           force: Optional[set] = None) -> dict:
+           force: Optional[set] = None, before_indexes: Optional[Callable[[], None]] = None) -> dict:
     """Packs first, indexes last (an index never names a pack the bucket does not have yet).
     `put_file(key, path, content_type)` / `put_bytes(key, data, content_type)` do the network.
 
@@ -215,6 +215,10 @@ def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callabl
                 log(f"packs {n}/{total}: {stats['packs']} sent ({stats['pack_bytes'] / 1e9:.1f} GB), "
                     f"{stats['skipped']} already there")
     log(f"uploaded {stats['packs']} packs, {stats['pack_bytes']:,} bytes ({stats['skipped']} already there)")
+
+    # A coordinated writer re-proves it still holds the lake here (lake_state.renew); raising stops the indexes.
+    if before_indexes is not None:
+        before_indexes()
 
     # ⚰️ 2026-11-17: ONE of 36,676 index puts failed with R2's "Reduce your concurrent request rate for
     # the same object" (503, after botocore's own retries) and the whole run died on it, logging nothing
@@ -289,6 +293,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--jobs", type=int, default=16)
     ap.add_argument("--check-jobs", type=int, default=min(8, os.cpu_count() or 1),
                     help="processes reading and checking the packs (default: up to 8)")
+    ap.add_argument("--lease-holder", default=None,
+                    help="the coordinated writer's lease holder (lake_state.py): renewed before packs and indexes")
+    ap.add_argument("--lease-ttl", type=float, default=8 * 3600)
     ap.add_argument("--force-since", type=float, default=None,
                     help="epoch seconds: packs written at or after this are always uploaded (daily refresh)")
     args = ap.parse_args(argv)
@@ -332,9 +339,27 @@ def main(argv: Optional[List[str]] = None) -> int:
                     return False
 
             force = forced_keys(packs, args.force_since, prefix=args.prefix) if args.force_since is not None else None
+            renew = None
+            if args.lease_holder:
+                # FAIL CLOSED: this writer must still hold the lake (lake_state.py) before the packs and again
+                # before the indexes; a lease that expired or changed hands stops the publish.
+                try:
+                    import lake_state
+                except ImportError:
+                    from . import lake_state  # type: ignore[no-redef]
+                st = lake_state.LakeState(client, args.bucket, args.prefix)
+                st.holder = args.lease_holder
+
+                def renew():
+                    try:
+                        st.renew(args.lease_ttl)
+                    except lake_state.LeaseBusy as e:
+                        raise BuildError(f"lease lost: {e}") from None
+                renew()
             if force:
                 print(f"{len(force)} packs rebuilt since {args.force_since:.0f}: always sent")
             upload(packs, indexes, put_file, put_bytes, prefix=args.prefix, jobs=args.jobs, exists=exists,
+                   before_indexes=renew,
                    force=force)
     except BuildError as exc:
         print(f"PUBLISH FAILED: {exc}")

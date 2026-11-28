@@ -39,6 +39,7 @@ import { createValueChannel } from '../chartMetaStore'
 const TRAMPOLINED_PROPS = Object.freeze([
   'onSettingsPersist', 'onSymbolChange', 'onTfChange', 'onWatermarkAdjustEnd', 'onWatermarkAnchor',
   'onTimeRangeChange', 'onDateNavApi', 'onDrawnBarCount', 'onSaveColor', 'onDeleteColor', 'onVolumePaneResize',
+  'onSymbolPainted',
 ])
 
 const MemoStockChart = memo(StockChart)

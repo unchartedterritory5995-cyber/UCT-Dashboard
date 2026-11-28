@@ -224,7 +224,8 @@ describe('scope — what the handoff must NOT hold back', () => {
     const { result, rerender } = renderHook(
       ({ s }) => useSymbolHandoff(s, 'D'), { initialProps: { s: 'A' } })
     act(() => { rerender({ s: 'B' }) })
-    expect(prepareDailyMock).toHaveBeenCalledWith('B', 'D', { signal: expect.any(AbortSignal) })
+    // (review of #2934, B1) ...asking the rows the view will draw (COVER_ROWS with no member view): the daily tail's cover
+    expect(prepareDailyMock).toHaveBeenCalledWith('B', 'D', expect.objectContaining({ signal: expect.any(AbortSignal), cover: 600 }))
     expect(result.current).toBe('A')          // never B over a blank canvas
     await act(async () => { done('current'); await vi.advanceTimersByTimeAsync(1) })
     expect(result.current).toBe('B')

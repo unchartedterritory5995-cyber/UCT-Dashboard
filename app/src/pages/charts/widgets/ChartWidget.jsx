@@ -27,12 +27,13 @@ import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
+import PendingSwitchCue, { usePendingCue } from '../../../components/chart/PendingSwitchCue'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
 import { PaintMemberContext } from '../../../components/chart/paintLog'
 import { useDoubleBuffer, doubleBufferEligible } from '../../../components/chart/useDoubleBuffer'
 import dbStyles from '../../../components/chart/doubleBuffer.module.css'
 import { boardLayerProps } from '../../../components/chart/boardLayer'
-import { LayerPaintContext } from '../../../components/chart/layerPaint'
+import { LayerFrontFocusContext, LayerPaintContext } from '../../../components/chart/layerPaint'
 import { SWRConfig } from 'swr'
 import { primeTypedIntent } from './typedIntentPrime'
 import { memHas } from '../../../utils/barsMemCache'
@@ -97,7 +98,7 @@ function useLayerCrosshair(crosshairBus, widgetIdRef, vis, layerSym) {
 }
 
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
+  const { groupSyms, groupSymsStore, setGroupSym, setGroupTf, registerGroupTf, groupTfSets, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, matchChart, setMatchChart, markDay, markDayColor, replayWarmIntraday, showReplayExit } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -208,6 +209,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
     member: switchMember,
   })
+  // (review of #2934, U1) a switch still held after PENDING_CUE_MS shows a small cue over the outgoing chart
+  const pendingCueSym = usePendingCue(requestedSym, sym)
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -368,6 +371,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // active chart's comparison overlays + the % price scale). Reads live settings
   // through a ref so the registered fns never go stale.
   const chartCsRef = useRef(chartCs)
+  const matchChartRef = useRef(matchChart)
+  matchChartRef.current = matchChart
   chartCsRef.current = chartCs
 
   // Chart Settings → "Apply to all charts" (owner 11-16): this surface's address in the layout (the slot's group id +
@@ -380,8 +385,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     return {
       count: () => countOtherCharts(source),
       apply: () => applyAppearanceToOtherCharts(source, chartCsRef.current),
+      // "Widgets match this chart" (owner 11-27): on = the board's widgets follow THIS chart.
+      matchWidgets: typeof setMatchChart === 'function'
+        ? { isOn: () => !!matchChartRef.current?.on && String(matchChartRef.current?.chartId ?? '') === String(chartId), set: (on) => setMatchChart(on, on ? chartId : null) }
+        : null,
     }
-  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts])
+  }, [chartId, appearanceTabId, countOtherCharts, applyAppearanceToOtherCharts, setMatchChart, matchChart])
 
   // ⭐ UCT AGENT ADAPTER (agent/host.js). The Agent never resolves a chart's
   // settings, tab or colour group itself — it reads them from HERE, as this
@@ -813,7 +822,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const layerInstRef = useRef([null, null])
   const layerElRef = useRef([null, null])
   const db = useDoubleBuffer({
-    eligible: dbEligible, sym, settings: activeStoredSettings, replay: !!replayCutoff,
+    eligible: dbEligible, sym, settings: activeStoredSettings, cutoff: replayCutoff || null,
     scope: groupScope, member: switchMember, parentVis: layerBoard,
     panes: () => layerInstRef.current, layerEls: () => layerElRef.current,
   })
@@ -1034,7 +1043,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                     rail), so nothing about either needed header space. */}
               </>
             ),
-            overlay: ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null,
+            overlay: (ctxToast || pendingCueSym) ? (
+              <>
+                {ctxToast ? <div className={styles.flagToast}>{ctxToast}</div> : null}
+                {pendingCueSym && (layerIdx == null || layerIdx === db.front) ? <PendingSwitchCue sym={pendingCueSym} /> : null}
+              </>
+            ) : null,
           }}
         />
   )
@@ -1044,6 +1058,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       <ChartDetailDock sym={sym} dock={dock} setDock={setDock} onPickSymbol={handleSymbolChange} chartSettings={activeStoredSettings}>
       {db.on ? (
         <div className={dbStyles.slot} data-double-buffer="">
+          {/* (review of #2932) a pane's refocus after a typed Enter that flipped lands in the pane shown now (ChartPane) */}
+          <LayerFrontFocusContext.Provider value={db.focusFront}>
           {[0, 1].map((i) => (db.syms[i] ? (
             <div key={i} ref={layerElFns[i]} {...boardLayerProps(i !== db.front, dbStyles.layer)} data-db-layer={i === db.front ? 'front' : 'shadow'}>
               <BoardVisibilityContext.Provider value={db.handles[i]}>
@@ -1055,6 +1071,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               </BoardVisibilityContext.Provider>
             </div>
           ) : null))}
+          </LayerFrontFocusContext.Provider>
         </div>
       ) : renderPane(sym, paneRef, subscribeCrosshair)}
       </ChartDetailDock>

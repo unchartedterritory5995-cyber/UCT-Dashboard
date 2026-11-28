@@ -1297,3 +1297,29 @@ and the one layer primitive (`components/chart/boardLayer.js`). The handle is re
 against the 2,266,113 B line (+733 B). Raised by the owner's standing approval of budget raises, given 2026-11-27
 ("just raise the budget and get it done", then "always"): max 2,266,113 -> 2,268,161 B (+2,048 B, headroom for the
 double-buffered row itself, #2922), listed in `owner_raises`.
+
+## 2026-11-27: +4,096 B for a first paint that holds the rows its view will draw (#2934), owner standing approval
+
+#2934 makes a symbol's first paint wait for the rows its view will draw: the chart records its view width on its paint
+token (`components/chart/paintLog.js`), the handoff and the double buffer read it (`useSymbolHandoff`, `useDoubleBuffer`),
+the daily first page is a covering page (`utils/barsBackfill.js`), the header follows the symbol the chart last painted,
+and the typed warm fetches every linked chart's key (`data/barStore/prefetch.js`). The handoff and bar-store hooks are
+shared, so this sits in the main chunk, and the Notebook's first open grew: CI read 2,268,832 B at 14e9a22bd6 against
+the 2,268,161 B line (+671 B). Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just raise
+the budget and get it done", then "always"): max 2,268,161 -> 2,272,257 B (+4,096 B, headroom for the stacked
+typed-universe / prefetch PR), listed in `owner_raises`.
+
+## 2026-11-28: +8,192 B as ONE raise for the chart-speed queue, owner standing approval
+
+Master read 2,272,185 B at 2eb9294ed5 against the 2,272,257 B line, 72 B of headroom. Every pending PR that touches a
+shared chart hook then breached alone, each by a few hundred bytes. CI read 2,272,459 B for #2951 (bars never spliced
+across a hole), 2,272,451 B for #2967 (a REST answer older than the live tick), 2,272,842 B for perf/ma-columns-direct,
+2,272,285 B for perf/quote-push-cookie-once and 2,273,036 B for feat/agent-open-to-members, and #2959 adds +31 B. Their
+deltas over master sum to about 2,200 B. Raising for each one in turn would cost one budget PR per merge. This is one
+raise sized for the whole queue: max 2,272,257 -> 2,280,449 B (+8,192 B). That covers the PRs above plus about 6 KB for
+the chart-speed PRs still in flight. Raised by the owner's standing approval of budget raises, given 2026-11-27 ("just
+raise the budget and get it done", then "always"), and listed in `owner_raises`.
+
+The bytes job checks out the pull request's merge commit, so it reads this budget from master once this lands. A PR
+whose last bytes run was red goes green on its next push or re-run against the new base. A re-run of the OLD run keeps
+the old merge SHA, so push or re-trigger the run instead.

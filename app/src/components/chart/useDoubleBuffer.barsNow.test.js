@@ -4,6 +4,8 @@
 //      chart's hook holds, so a 4h / 2h / 45m shadow can prove its bars and flip; a new base snapshot is another array
 //   B3 W / M whose own key is still empty: the filed resample of the held DAILY rows (deriveWmFromDaily), as the hook's
 //      `_aggBars`; once the W key holds its own rows, those
+//   B4 (owner, 2026-11-27: change-date mode) under a replay cutoff: an intraday chart's own window (the key ENDING at the
+//      cutoff), never the plain key's rows; a daily chart reads the plain key (StockChart cuts every bar after it)
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 const base = new Map()   // key -> base snapshot
@@ -46,6 +48,19 @@ beforeEach(() => { base.clear(); state.clear(); nf.__setNeighborFramesForTests(t
 afterEach(() => nf.__setNeighborFramesForTests(null))
 
 describe('barsNowFor (N2)', () => {
+  it('B4 (owner) under a replay cutoff: an intraday chart reads its window ending at the cutoff, a daily chart the plain key', () => {
+    const cutoff = '2006-03-15'
+    const win = chartKeyFor({ sym: 'AAA', resolvedTf: '5', showExtended: false, replayCutoff: cutoff, hasOverride: false })
+    expect(win).not.toBe(ck('AAA', '5'))
+    const sw = snapOf(win, '5', daily(10)), sp = snapOf(ck('AAA', '5'), '5', daily(20))
+    base.set(win, sw); base.set(ck('AAA', '5'), sp)
+    expect(barsNowFor({ sym: 'AAA', tf: '5', ext: false, cutoff })).toBe(legacyBars(sw))
+    expect(barsNowFor({ sym: 'AAA', tf: '5', ext: false })).toBe(legacyBars(sp))
+    const sd = snapOf(ck('AAA', 'D'), 'D', daily(30))
+    base.set(ck('AAA', 'D'), sd)
+    expect(barsNowFor({ sym: 'AAA', tf: 'D', ext: false, cutoff })).toBe(legacyBars(sd))
+  })
+
   it('B1 a native timeframe: the base snapshot\'s rows', () => {
     const s = snapOf(ck('AAA', 'D'), 'D', daily(30))
     base.set(ck('AAA', 'D'), s)

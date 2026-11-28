@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { recordPaint, PaintMemberContext } from './chart/paintLog'
+import { recordPaint, PaintMemberContext, noteMemberView } from './chart/paintLog'
 import { LayerPaintContext } from './chart/layerPaint'
 import { BoardVisibilityContext, boardIsHiding, boardHiddenNow, boardLoopGate } from './chart/boardVisibility'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
@@ -24,6 +24,7 @@ import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+import { MIN_BAR_SPACING } from './chart/zoomOutLimit'
 /** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
 function applyRenderWindow(chart, rw) {
   if (!rw || rw.applied || !chart?.window) return
@@ -1451,7 +1452,7 @@ function zoomLimitsOf(chart) {
     const w = ts?.width?.(), o = ts?.options?.() || {}
     if (!(Number.isFinite(w) && w > 0)) return null
     const maxSp = o.maxBarSpacing > 0 ? o.maxBarSpacing : w * 0.5
-    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : 0.5
+    const minSp = o.minBarSpacing > 0 ? o.minBarSpacing : MIN_BAR_SPACING
     return { minWidth: w / maxSp - 1, maxWidth: w / minSp - 1 }
   } catch { return null }
 }
@@ -1583,6 +1584,39 @@ function chartDebugHandle({
      *  drawing layer uses it). Lets a probe measure the candle band itself. */
     priceToY: (price) => {
       try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
+    },
+    /** ⭐ (2026-11-27, the CRBG 15m rescale ~240 ms after a deep join that changed neither the range nor the candles)
+     *  WHAT THE PRICE SCALE FITS, BY SERIES: every series in the candles' pane on their scale, with its extent over the
+     *  visible time range and whether it joins the autoscale. A rig that sees the scale move reads which series moved
+     *  it, instead of inferring it from pixels. Diagnostic only: copies each series' rows (`data()`), so a probe calls it
+     *  on a change it saw, never per frame. */
+    autoscaleSources: () => {
+      try {
+        const chart = chartRef.current
+        const candles = candleSeriesRef.current
+        const vr = chart?.timeScale?.().getVisibleRange?.()
+        const pane = candles?.getPane?.()
+        if (!vr || !pane) return null
+        const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
+        const inView = (t) => t != null && typeof t !== 'object' && cmp(t, vr.from) >= 0 && cmp(t, vr.to) <= 0
+        const scaleId = candles.options?.()?.priceScaleId ?? 'right'
+        return (pane.getSeries?.() || []).filter((s) => (s.options?.()?.priceScaleId ?? 'right') === scaleId).map((s) => {
+          const o = s.options?.() || {}
+          let lo = Infinity, hi = -Infinity, n = 0
+          for (const r of (s.data?.() || [])) {
+            if (!inView(r.time)) continue
+            const a = Number.isFinite(r.low) ? r.low : r.value
+            const b = Number.isFinite(r.high) ? r.high : r.value
+            if (!Number.isFinite(a) || !Number.isFinite(b)) continue
+            n++; if (a < lo) lo = a; if (b > hi) hi = b
+          }
+          let joins = o.visible !== false
+          if (joins && typeof o.autoscaleInfoProvider === 'function') {
+            try { joins = o.autoscaleInfoProvider(() => ({ priceRange: { minValue: 0, maxValue: 1 } })) != null } catch { /* unknown: as drawn */ }
+          }
+          return { type: s.seriesType?.() || '?', title: o.title || null, candles: s === candles, joins, n, lo: n ? lo : null, hi: n ? hi : null }
+        })
+      } catch { return null }
     },
   }
 }
@@ -1888,7 +1922,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
-import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
+import { armRuntimeLaneWarm } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
@@ -1947,7 +1981,17 @@ engineRegistry.registerRuntimeLaneLoader(() => (runtimePaneEnabled()
 // paying the ~1.3 MB worker chunk on its first run. ⛔ The import stays here, in the chart's module,
 // for the reason above, and it is reached only through `armRuntimeLaneWarm` (after the first chart
 // paint, in idle time, for a permitted member with a definition on that lane: `runtimeLaneWarm.js`).
-const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js').then((m) => m.warmRuntimeLane())
+// ⭐⭐ (Fred RS run half, 2026-11-26) — AT BOOT NOW, NOT AFTER THE FIRST PAINT, AND WITH THE DOCUMENTS: the worker is
+// spawned as soon as the member's installed definitions say a chart will use the lane, and their run halves / runtime
+// documents are run once over stand-in bars as soon as it is ready (`runtimeWarmDocuments`, the WARM job), so the
+// chart's first real run meets a loaded, compiled, optimised worker. ⚰️ Measured (production-flag bundle, smoke@ AGL
+// 1D, n=20 reloads): the worker was spawned only when the first run was asked (after the host lane), and that run took
+// 520-650 ms from its post, against 390-440 ms in a worker that had already loaded. The worker loads on its own thread
+// and its bytes are its own chunk (no first-open bytes); the page's own cost is the 8 KB loader and one `new Worker`.
+const warmRuntimeLaneNow = () => import('./chart/engine/runtime/runtimeAsync.js')
+  .then((m) => m.warmRuntimeLane({ warm: engineRegistry.runtimeWarmDocuments() }))
+const startNow = (fn) => fn()
+const nextTask = (fn) => { setTimeout(fn, 0) }
 
 // ⚡ THE SERVER LANE'S COLUMNS ARE ASKED FOR AHEAD OF THE MEMBER (2026-11-12). The bars
 // prefetch already knows which symbols are next; this registers the lane's warmer with it
@@ -4116,6 +4160,7 @@ function StockChartBody({
   backgroundWarm: backgroundWarmProp = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
   deepWarm: deepWarmProp = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
+  onSymbolPainted = null,   // optional (sym) => void: the symbol each paint pass drew (ChartPane's header follows it)
   onDrawnBarCount = null,   // optional (n) => void — the number of candles currently handed to the chart, fired whenever it changes. `onBarsReady` says the bars question SETTLED (it fires on a fatal error too, deliberately, so a dead ticker never starves the grid mount queue); this says whether the answer had any DATA in it. The export page publishes it as `window.__chartBarCount` and the Discord renderer probes it, because a screenshot of an empty chart is indistinguishable from a drawn one by pixel variance alone (2026-08-31: three candle-less charts posted publicly).
   onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
   onTfChange = null,        // optional callback(tf) — called when keyboard TF shortcut fires
@@ -4308,6 +4353,8 @@ function StockChartBody({
   // The identity this chart paints under when it is a member of a linked group (chart/paintLog.js: the switch-speed
   // instrument reads its paint record). Null everywhere else; a stable token, read by no rendering decision.
   const paintMember = useContext(PaintMemberContext)
+  const paintMemberRef = useRef(paintMember)
+  paintMemberRef.current = paintMember
   // the double buffer's proof (chart/layerPaint.js): each pass reports what it committed; null outside a buffered widget
   const layerPaint = useContext(LayerPaintContext)
   const ownNoticeScope = useId()
@@ -5243,11 +5290,12 @@ function StockChartBody({
   // on every chart.
   const { generation: userDefsGeneration } = useInstalledUserDefinitions()
   // ⚡ PRELOAD — re-asked whenever the installed definitions change (a later install can make the
-  // answer yes); `armRuntimeLaneWarm` warms at most once per page, after the first paint, in idle time.
+  // answer yes); `armRuntimeLaneWarm` warms at most once per page. ⭐⭐ (2026-11-26) at boot, in the next task (not
+  // after the first paint, not in idle time: `warmRuntimeLaneNow` above says why).
   useEffect(() => {
     armRuntimeLaneWarm({
-      afterPaint: afterFirstChartPaint,
-      idle: whenIdle,
+      afterPaint: startNow,
+      idle: nextTask,
       permitted: runtimePaneEnabled,
       usesLane: engineRegistry.anyInstalledRuntimeDefinition,
       load: warmRuntimeLaneNow,
@@ -9887,6 +9935,7 @@ function StockChartBody({
   // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
   const replayCutoffRef = useRef(null)
   replayCutoffRef.current = replayCutoff
+  __heavy.put('cutoff', replayCutoff)
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -10826,6 +10875,8 @@ function StockChartBody({
     const apply = () => {
       let lr = null
       try { lr = ts.getVisibleLogicalRange() } catch { return }
+      // the view this member shows, for its next switch (chart/paintLog noteMemberView: a first paint holds this many bars)
+      if (lr) noteMemberView(paintMemberRef.current, lr.to - lr.from)
       const N = barCountRef.current
       if (!lr || N < 1) return
       const lastIdx = N - 1
@@ -11121,6 +11172,8 @@ function StockChartBody({
   // 0 forever and reject a chart that is, by then, perfectly drawn.
   const onDrawnBarCountRef = useRef(onDrawnBarCount)
   onDrawnBarCountRef.current = onDrawnBarCount
+  const onSymbolPaintedRef = useRef(onSymbolPainted)
+  onSymbolPaintedRef.current = onSymbolPainted
   useEffect(() => {
     // Count only REAL drawn candles. The load-anchor whitespace seed appends a
     // trailing whitespace point (the developing-bar slot that makes today's bar a
@@ -12247,7 +12300,13 @@ function StockChartBody({
     // the chart on screen, and a flip records its own (chart/useDoubleBuffer.js)
     recordPaint(sym, resolvedTf, __heavy.committed.displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full',
       boardHiddenNow(boardVisibilityRef.current) ? null : paintMember)
-    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars }) } catch { /* a proof never costs a paint */ } }
+    // ⭐⭐ (2026-11-27, owner on production: a new header over the OLD chart for a frame) the host learns the symbol this
+    // pass DREW, so its header, logo and day change follow the candles, never run ahead of them (ChartPane `shownSym`).
+    // Called inside this pass: from the layout effect on a switch, so the header's re-render lands in the same frame.
+    if (typeof onSymbolPaintedRef.current === 'function') { try { onSymbolPaintedRef.current(sym) } catch { /* the host's */ } }
+    // (owner, 2026-11-27) and the replay cutoff it drew under: in change-date mode a hidden chart flips only under the front's
+    // (review of #2936, INFO: the COMMITTED render's cutoff, as its bars are)
+    if (layerPaint) { try { layerPaint({ sym, tf: resolvedTf, ext: !!showExtended, bars: __heavy.committed.bars, cutoff: __heavy.committed.cutoff || null }) } catch { /* a proof never costs a paint */ } }
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -12477,6 +12536,9 @@ function StockChartBody({
         // bug. Exact-range charts are frozen historical windows: never
         // auto-shift them.
         shiftVisibleRangeOnNewBar: exactDateRange ? false : true,
+        // ⭐ (2026-11-28, cold-arch 3.3 item 7) zoomed all the way out, a daily chart holds 2014 to today: the library's
+        // 0.5 px floor held 787 bars on a 394 px plot (chart/zoomOutLimit.js)
+        minBarSpacing: MIN_BAR_SPACING,
       },
     }
 
@@ -20080,22 +20142,26 @@ function StockChartBody({
       // auto-scaling per symbol. Gated to the workspace carry (carryDragPlacement),
       // off during replay.
       if (carryDragPlacement && !replayCutoffRef.current) {
-        requestAnimationFrame(() => {
-          try {
-            const m = measureViewLockRef.current?.(chartRef.current, __heavy.committed.filteredBars)
-            if (!m || m.anchorFrac == null || !(m.width > 0)) return
+        // ⭐ (review of #2936, LOW-1) WRITTEN IN THE SAME TASK, from the range just set (the measure's own rule,
+        // _measureViewLock: anchorFrac = (lastIdx - from) / width). It used to wait one frame: a press inside that frame
+        // could flip the double buffer, and the frame then wrote the lock into the now-hidden old front, whose next
+        // mirror put the new front's (older) lock back in the shared key: the range lost on later switches and reload.
+        try {
+          const w = to - from
+          const anchorFrac = (lastIdx - from) / w
+          if (Number.isFinite(anchorFrac) && w > 0) {
             const prev = userLockedViewRef.current || {}
             userViewLockedRef.current = true
             userLockedViewRef.current = {
               ...prev,               // keep any vertical lock (top/bottom/vLocked)
-              anchorFrac: m.anchorFrac,
-              width: m.width,
+              anchorFrac,
+              width: w,
               tf: resolvedTf,        // width is in bars → must not apply on another tf
               hLocked: true,
             }
             persistViewLock()        // no-ops when viewLockKey unset; survives refresh on /charts
-          } catch { /* noop */ }
-        })
+          }
+        } catch { /* noop */ }
       }
     } catch { /* noop */ }
   }
@@ -20259,6 +20325,17 @@ function StockChartBody({
     } catch { /* disposed */ }
     return {
       firstMs, lastMs, rightMs, activeRange, atDefaultView, frame, priceAuto,
+      // the plot's width (px): the right margin the newest candle is pinned at scales with it (chart/rightMargin.js); the
+      // double buffer's zoom mirror re-pins a hidden chart at a new width with it (chart/doubleBuffer.js mirrorFrameFor)
+      plotWidthPx: (() => { try { return plotWidthOf(chartRef.current, containerRef.current) } catch { return null } })(),
+      // (review of #2932) the developing-period slots a symbol switch would pin this chart's newest bar behind NOW
+      // (_intradayLoadReserve, the switch's own): the double buffer re-pins a hidden chart that is off that pin
+      pinReserve: (() => { try { return _intradayLoadReserve(bars, resolvedTf) } catch { return null } })(),
+      // (owner, 2026-11-27) the double buffer prepares a hidden chart in the front's view MODE (chart/doubleBuffer.js): the
+      // rows its frame is counted in (a frame reaching past them is a short paint), and the replay view lock the next
+      // symbol switch frames from (a pan or zoom in change-date mode; null outside replay or with none)
+      rows: bars.length,
+      replayLock: replayCutoffRef.current && replayViewLockedRef.current && replayLockedViewRef.current ? { ...replayLockedViewRef.current } : null,
       // UCT Agent's zoom refusal: how far the + / - zoom can still go (the time scale's bar-spacing clamp); null = unreadable
       zoomLimits: zoomLimitsOf(chartRef.current),
       indicatorsHidden: !!indicatorsHiddenRef.current,
@@ -20294,6 +20371,17 @@ function StockChartBody({
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = f.activeRange != null ? { val: f.activeRange, from, to } : null
       userViewLockedRef.current = !!f.locked; userLockedViewRef.current = f.lock ? { ...f.lock } : null; persistViewLock()
+      // (owner, 2026-11-27) the double buffer's mirror also carries the front's REPLAY view lock (getDateMeta replayLock);
+      // a frame without the key (UCT Agent's Undo) leaves it as it is. Replay only: outside it there is none to hold.
+      if ('replayLock' in f) {
+        const rl = f.replayLock
+        if (rl && replayCutoffRef.current && Number.isFinite(rl.barsFromRight) && rl.width > 0) {
+          replayViewLockedRef.current = true; replayLockedViewRef.current = { barsFromRight: rl.barsFromRight, width: rl.width }
+          // (review of #2936, INFO) latched as a member's gesture latches it: the settling and pinned-right guards then
+          // leave the lock frame alone on the hidden chart's next retarget
+          userViewMovedRef.current = true
+        } else if (!rl) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      }
     } catch { /* noop */ }
   }
   useEffect(() => {

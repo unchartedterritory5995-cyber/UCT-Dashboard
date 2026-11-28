@@ -1919,15 +1919,12 @@ REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-16-draw1-drawing-objects
 #: not "drawn by the runtime lane". ⛔ A record that drifts from that shape (any plot compared, any
 #: object, any non-paint DIVERGE) is a REACH stop again. ⛔ A capture not named here never gets this
 #: reading: the set is closed.
-WITHHELD_WHOLE = {
-    "vw-deadband-ticks-brk-a-1d-2026-09-28": (
-        "runtime:warmup-never-converges on every column: the capture does not assert its history "
-        "starts at the listing (history.startsAtBar0 'not asserted'), so the run is off the listing and "
-        "its two warm-up runs never agree exactly; with the history stated from bar 0 (its own "
-        "D00_bar_index_CONTROL reads 0 on its first bar) D03_dbhf equals TradingView on 11,335 / 11,335 "
-        "bars. The ATR branch holding the conditional ta.atr is never taken (Threshold Mode = Ticks). "
-        "docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md"),
-}
+#: ⚰️ Removed 2026-11-27 (coordinator ruling, after the e102 curtain off #2893): vw-deadband-ticks-brk-a-1d-2026-09-28.
+#: Its run is now withheld by name as `runtime:history-start`, and the harness grades a paint a run withheld by name
+#: left unrun INCONCLUSIVE (`paintColours.js::RUN_STOP_GUARDS`), so the capture no longer DIVERGEs and needs no name.
+#: The set stays, EMPTY and CLOSED: it guards the next one, and its rail proves an unnamed whole-run withholding is a
+#: REACH stop (`test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_reads_that_way`).
+WITHHELD_WHOLE: dict = {}
 
 
 #: ⭐⭐ admit:request-other (coordinator ruling 2026-11-19) — ONE SCRIPT IS SERVED THROUGH ITS OWN SHA ALLOWLIST ENTRY, NOT BY
@@ -1943,7 +1940,16 @@ WITHHELD_WHOLE = {
 #: ⚰️ rs-rating-fred6724-pc-nvda-1d-2026-11-17 (the same, NASDAQ:NVDA 1D): INCONCLUSIVE, by the Fred RS ruling (b).
 #: ⚰️ rs-rating-fred6724-pc-rddt-1d-2026-11-17 (the same, NYSE:RDDT 1D): INCONCLUSIVE, by the Fred RS ruling (b).
 #: ⚰️ rs-rating-fred6724-pm-alab-1d-2026-11-16 (objectsV2, a label y after the close): INCONCLUSIVE, otherSymbolUnsettled.
-SERVED_BY_OWN_SHA: dict = {}
+_FRED_2893_WHY = ("drawings withheld (pine:object-removal-lost) since #2893 switched off the off-listing curtain; "
+                  "restored by #2919 in e100, which must remove these 4 entries")
+#: ⭐ (2026-11-27, coordinator ruling (c)) four runtime-on DIVERGEs of the allowlisted sha, family `objects`: the plots
+#: are served and agree (MATCH_SUBSTITUTED), the drawing program is withheld by name; TradingView holds 2 objects.
+SERVED_BY_OWN_SHA: dict = {
+    "rs-rating-fred6724-m-nvda-1m-2026-11-18": ("objects", _FRED_2893_WHY),
+    "rs-rating-fred6724-m-rddt-1m-2026-11-18": ("objects", _FRED_2893_WHY),
+    "rs-rating-fred6724-w-nvda-1w-2026-11-17": ("objects", _FRED_2893_WHY),
+    "rs-rating-fred6724-w-rddt-1w-2026-11-17": ("objects", _FRED_2893_WHY),
+}
 
 
 def _allowlisted_shas() -> set:
@@ -2165,6 +2171,29 @@ def test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_r
     other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
                  and r["id"] not in held_kill_captures(rtv))
     assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
+    # ⭐ (2026-11-27, the set EMPTY) CONTROL: a capture doctored into EXACTLY the whole-run-withheld shape (every plot
+    # with no column, no object on either side, the only DIVERGE a paint not drawn) is a REACH stop while it is not
+    # named, and passes once it is: the closed set, not the shape, is what exempts
+    shaped = copy.deepcopy(rtv)
+    prod_of = {r["id"]: r["verdict"] for r in prodv["results"]}
+    cid = next(r["id"] for r in shaped["results"] if r["id"] not in WITHHELD_WHOLE
+               and r["id"] not in held_kill_captures(rtv) and r.get("plots") and prod_of.get(r["id"]) != "MATCH")
+    for r in shaped["results"]:
+        if r["id"] == cid:
+            r.update(verdict="DIVERGE", verdictWithoutPaints="INCONCLUSIVE",
+                     plots=[dict(pl, verdict="INCONCLUSIVE", reason="our side produced no column for this plot")
+                            for pl in r["plots"]],
+                     objects={"verdict": "MATCH", "reason": "neither side draws an object"},
+                     paints={"verdict": "DIVERGE", "rows": [{"state": "notDrawn"}]})
+    rec = next(r for r in shaped["results"] if r["id"] == cid)
+    assert withheld_whole(rec)
+    report = {"captures": [{"capture": cid, "lane": "runtime"}]}
+    assert any(cid in p for p in reach_rule_violations(report, shaped, prodv))
+    WITHHELD_WHOLE[cid] = "SYNTHETIC"
+    try:
+        assert all(cid not in p for p in reach_rule_violations(report, shaped, prodv))
+    finally:
+        del WITHHELD_WHOLE[cid]
 
 
 # ═══ SERVING COST, FLAG ON (re-verify of #1204, 2026-11-13) ════════════════════
