@@ -43,23 +43,24 @@ def declared(dockerfile_text: str) -> dict[str, str]:
 
 def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = None) -> dict:
     env = dict(base_env)
-    for part in [p.strip() for p in (extra or "").split(",") if p.strip()]:
+    # ⛔ an error names an item's POSITION and LENGTH, never its text (a mistyped credential must not reach the log)
+    for i, part in enumerate([p.strip() for p in (extra or "").split(",") if p.strip()], 1):
         k, sep, v = part.partition("=")
         if not sep:
-            raise ValueError(f"--extra {part!r}: KEY=VALUE")
+            raise ValueError(f"build_env item {i} ({len(part)} characters) is not KEY=VALUE")
         env[k.strip()] = v.strip()
-    for k, v in env.items():
+    for i, (k, v) in enumerate(env.items(), 1):
         if not KEY.fullmatch(k):
-            raise ValueError(f"{k!r} is not a VITE_* name")
+            raise ValueError(f"name {i} ({len(k)} characters) is not a VITE_* name")
         if SECRETISH.search(k):
-            raise ValueError(f"{k}: a credential's name (TOKEN/KEY/SECRET/PASSWORD) is never a build flag here")
+            raise ValueError(f"name {i} ({len(k)} characters) reads as a credential (TOKEN/KEY/SECRET/PASSWORD): never a build flag here")
         if not isinstance(v, str) or not VALUE.fullmatch(v):
-            raise ValueError(f"{k}: the value is not a short flag (refused, not printed)")
+            raise ValueError(f"the value of name {i} ({len(str(v))} characters) is not a short flag (refused, not printed)")
     if dockerfile_text is not None:
         decl = declared(dockerfile_text)
         missing = sorted(set(env) - set(decl))
         if missing:
-            raise ValueError(f"not declared as an ARG in the candidate's Dockerfile.web (never in a production build): {', '.join(missing)}")
+            raise ValueError(f"{len(missing)} name(s) not declared as an ARG in the candidate's Dockerfile.web (never in a production build)")
         # ⛔ EVERY declared ARG is SET in production's build, empty when Railway leaves it unset: Dockerfile.web's
         # `ENV VITE_X=$VITE_X` exports each one, so vite inlines '' where an unset variable would inline undefined. The
         # bundle (and its content-hashed entry) then differs from production's even with every flag equal: measured
@@ -68,8 +69,11 @@ def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = Non
         for k, v in decl.items():
             if k not in env:
                 # a credential-named ARG (VITE_PICOVOICE_ACCESS_KEY) is filled only EMPTY, as an unset one builds
+                # ⚠️ PARITY RISK: if Railway ever SETS VITE_PICOVOICE_ACCESS_KEY, production's bundle inlines the key and no
+                # candidate's does (the rig never handles a credential): the parity check then reads MISMATCH even on
+                # production's own commit, and the wake word is off in every candidate. Refusing is the right answer.
                 if not VALUE.fullmatch(v) or (SECRETISH.search(k) and v):
-                    raise ValueError(f"{k}: the ARG default is not a short flag (refused, not printed)")
+                    raise ValueError(f"an ARG default ({len(v)} characters) is not a short flag (refused, not printed)")
                 env[k] = v
     return env
 

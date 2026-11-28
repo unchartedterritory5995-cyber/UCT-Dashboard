@@ -297,6 +297,11 @@ def http_counts(rec: dict) -> dict:
     return out
 
 
+def run_base(name: str) -> str:
+    """'COV-def-dd-arrows@2' (an A/B side's 2nd run of the pass, lane.py) -> 'COV-def-dd-arrows'."""
+    return re.sub(r'@\d+$', '', name)
+
+
 def board_of(name: str) -> str:
     """COV-<zoom>-<board>-<pattern> -> '<zoom> <board>' (arrows and typed together); the others by their own name."""
     m = re.match(r'COV-(def|zo)-([^-]+)-(arrows|typed)$', name)
@@ -328,7 +333,7 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None) -> d
     for n, rec, raw, tfs in passes:
         for p in raw:
             r = grade_switch(p, rec, tfs, exp)
-            r['pass'] = n
+            r['pass'] = run_base(n)   # an A/B run's '<pass>@<k>' grades as its pass
             results.append(r)
         for k in ('labels', 'labelsEnd'):
             lb = rec.get(k) or {}
@@ -350,7 +355,7 @@ def grade_dir(d: str, opts: dict, root: str = '.', exp: dict | None = None) -> d
     new_row = lambda: {'n': 0, 'fail': 0, 'flags': {}, 'full': [], 'warm': {}, 'focusFail': 0, 'h429': 0, 'h503': 0, 'hKnown': 0}  # noqa: E731
     for n, rec, _raw, _tfs in passes:
         h = http_counts(rec)
-        for key in (n, 'BOARD ' + board_of(n)):
+        for key in (run_base(n), 'BOARD ' + board_of(run_base(n))):
             g = by.setdefault(key, new_row())
             g['h429'] += h['429']
             g['h503'] += h['503']
@@ -461,8 +466,9 @@ def ab_table(ga: dict, gb: dict) -> str:
     d = lambda x, y: ('-' if x is None or y is None else f'{round(y - x):+d}')  # noqa: E731
     order = sorted(ga.get('order', []) + gb.get('order', []))
     out = [f"### A/B: A = {side(ga)} | B = {side(gb)}", '',
-           f"same tickers on both sides; run order {' -> '.join(f'{n} {s}' for _, n, s in order) or '?'} "
-           "(the side that runs second meets server caches the first one warmed: compare passes whose order alternates)", '',
+           f"same tickers on both sides; run order per pass {'; '.join(f'{p_} ' + ''.join(s for _, n_, s in order if n_ == p_) for p_ in dict.fromkeys(n_ for _, n_, _s in order)) or '?'} "
+           "(ABBA / BAAB: a pass's FIRST run meets the server cold, so a claim needs the order balanced over passes or --reps, "
+           "and an A/A calibration whose delta is ~0)", '',
            f"STALE judged against: day {ga['expect']['day']} ({ga['expect']['dayHow']}), intraday {ga['expect']['intradayHow']} (both sides)", '',
            *[f"side {k} built: {m.get('label')} entry {m.get('entry')}; production-parity {(m.get('parity') or {}).get('verdict')}; "
              f"VITE_* {len(m.get('viteEnv') or [])} set" for k, m in (('A', ga.get('buildMeta')), ('B', gb.get('buildMeta'))) if m], '',
@@ -519,6 +525,7 @@ def self_check() -> None:
     assert 'VISIBLE_CHANGE' in g[2]['flags'] and g[2]['full'] == 29, g[2]
     assert g[3]['flags'] == ['STALE'], g[3]
     assert pct([5, 1, 9, 3], 0.5) == 5 and pct([5, 1, 9, 3], 1) == 9 and pct([], 1) is None
+    assert run_base('COV-def-dd-arrows@2') == 'COV-def-dd-arrows' and run_base('COV-MEM50') == 'COV-MEM50'
     assert board_of('COV-zo-m5h1-typed') == 'zo m5h1' and board_of('COV-def-tabs') == 'def tabs' and board_of('COV-MEM50') == 'MEM50'
     # A/B: the side-by-side table carries both sides' numbers and B minus A, and a missing row on one side is '-'
     ga = {'labels': {'build': ['production']}, 'order': [(0, 'P', 'A')], 'expect': exp,
@@ -527,7 +534,7 @@ def self_check() -> None:
           'rows': {'BOARD def dd': {'switches': 12, 'failed': 0, 'p50': 17, 'p100': 95}}}
     t = ab_table(ga, gb)
     assert 'A = production | B = master@abc' in t and '| BOARD def dd | 12 | 1 | 20 | 90 | 12 | 0 | 17 | 95 | -3 | +5 |' in t, t
-    assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'P A -> P B' in t, t
+    assert '| P | 12 | 1 | 20 | 90 | - | - | - | - | - | - |' in t and 'per pass P AB' in t, t
     hc = http_counts({'allRes': [{'rs': 200}, {'rs': 429}, {'rs': 429}, {'rs': 503}, {'rs': 0}, {}]})
     assert hc == {'429': 2, '503': 1, 'known': 4}, hc
     ph = {'flips': [{'phase': {'key': 1000, 'req': [{'u': '/a', 'call': -5, 'st': 429}, {'u': '/b', 'call': 1, 'st': 503}]}},

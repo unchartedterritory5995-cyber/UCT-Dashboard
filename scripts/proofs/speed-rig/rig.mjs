@@ -475,19 +475,36 @@ try {
   const isoOwns = (path) => ISOLATE === 'browser' && (path === '/api/auth/preferences' || path === '/api/workspace/doc' || path.startsWith('/api/workspace/doc/'))
   if (DIST) {
     if (OVERRIDE || STUB > 0) throw new Error('--dist cannot be combined with --override or --stub')
-    const { existsSync, lstatSync, realpathSync } = await import('node:fs')
+    const { lstatSync, realpathSync, readdirSync } = await import('node:fs')
     const { join, extname, sep } = await import('node:path')
     // (2026-11-28 audit) the build is the CANDIDATE's output: a symlink in it (assets/x.js -> /proc/self/environ, which
     // is THIS process's environment, BENCH_* included) would hand a file outside the build to the candidate's own page.
     // Only regular files, really inside the build directory, are ever served.
     const DIST_REAL = realpathSync(DIST)
-    const inBuild = (f) => { try { const st = lstatSync(f); if (!st.isFile() || st.isSymbolicLink()) return false; return realpathSync(f).startsWith(DIST_REAL + sep) } catch { return false } }
+    const inBuild = (f) => { try { const st = lstatSync(f); if (!st.isFile() || st.isSymbolicLink() || st.nlink !== 1) return false; return realpathSync(f).startsWith(DIST_REAL + sep) } catch { return false } }
     if (!inBuild(join(DIST, 'index.html'))) throw new Error('--dist: index.html is not a regular file inside the build')
     const TYPES = { '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.map': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.wasm': 'application/wasm' }
     const indexHtml = readFileSync(join(DIST, 'index.html'))
     const entry = (String(indexHtml).match(/\/assets\/index-[\w-]+\.js/) || [''])[0]
     if (!entry) throw new Error('--dist: no /assets/index-*.js in its index.html (is it a vite build?)')
     out.dist = { dir: DIST, entry, documents: 0, served: 0, passedOn: [] }
+    // (2026-11-28 audit: the A/B was biased by construction) EVERY file is read and base64-encoded ONCE, here, before
+    // the page loads: no readFileSync or encoding on the event loop while the sampler runs. Hashed assets are answered
+    // as the CDN answers them (public, max-age=31536000, immutable: the browser keeps them and V8 their code cache);
+    // the document no-store. Both sides of an A/B are builds served by this same code, so they meet identical headers.
+    const ASSETS = new Map()
+    const walk = (dir) => {
+      for (const ent of readdirSync(dir, { withFileTypes: true })) {
+        const f = join(dir, ent.name)
+        if (ent.isDirectory()) { walk(f); continue }
+        if (!inBuild(f)) throw new Error('--dist: the build holds a symlink, hardlink or special file')
+        ASSETS.set('/' + f.slice(DIST.length).replace(/^[\\/]+/, '').split(sep).join('/'), { type: TYPES[extname(f).toLowerCase()] || 'application/octet-stream', b64: readFileSync(f).toString('base64') })
+      }
+    }
+    walk(join(DIST, 'assets'))
+    out.dist.files = ASSETS.size
+    const INDEX_B64 = Buffer.from(indexHtml).toString('base64')
+    const IMMUTABLE = 'public, max-age=31536000, immutable'
     const origin = new URL(BASE).origin
     await c.send('Network.enable')
     await c.send('Network.setCacheDisabled', { cacheDisabled: true })
@@ -497,7 +514,7 @@ try {
       try { const u = new URL(request.url); return u.origin === origin && (u.pathname.startsWith('/assets/') || (resourceType === 'Document' && !u.pathname.startsWith('/api/'))) } catch { return false }
     }
     await c.send('Fetch.enable', { patterns: [...distPatterns, ...(DELAY_BARS > 0 ? [{ urlPattern: '*/api/bars/*' }] : []), ...(replay ? replay.patterns : [])] })
-    const answer = (requestId, type, buf) => c.send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: type }, { name: 'Cache-Control', value: 'no-store' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: Buffer.from(buf).toString('base64') }).catch(() => {})
+    const answer = (requestId, type, b64, cacheControl) => c.send('Fetch.fulfillRequest', { requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: type }, { name: 'Cache-Control', value: cacheControl }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: b64 }).catch(() => {})
     c.on((m) => {
       if (m.method !== 'Fetch.requestPaused') return
       const { requestId, request, resourceType } = m.params
@@ -506,12 +523,12 @@ try {
       if (DELAY_BARS > 0 && u.pathname.startsWith('/api/bars/')) return    // the --delay-bars handler owns these
       if (isoOwns(u.pathname) && !distOwns(m.params)) return    // the --isolate=browser handler owns these
       if (u.pathname.startsWith('/assets/')) {
-        const f = join(DIST, decodeURIComponent(u.pathname))
-        if (existsSync(f) && inBuild(f)) { out.dist.served += 1; answer(requestId, TYPES[extname(f).toLowerCase()] || 'application/octet-stream', readFileSync(f)); return }
+        const a = ASSETS.get(decodeURIComponent(u.pathname))
+        if (a) { out.dist.served += 1; answer(requestId, a.type, a.b64, IMMUTABLE); return }
         if (out.dist.passedOn.length < 40) out.dist.passedOn.push(u.pathname)
       } else if (resourceType === 'Document' && !u.pathname.startsWith('/api/')) {
         out.dist.documents += 1
-        answer(requestId, TYPES['.html'], indexHtml)
+        answer(requestId, TYPES['.html'], INDEX_B64, 'no-store')
         return
       }
       c.send('Fetch.continueRequest', { requestId }).catch(() => {})
