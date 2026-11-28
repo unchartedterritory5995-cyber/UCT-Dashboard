@@ -41,7 +41,7 @@ import {
   RUNTIME_WORKER_UNRESPONSIVE_GUARD, RUNTIME_WORKER_FAILED_GUARD,
 } from '../runtimeAsync'
 import { DEFAULT_LIMITS } from '../limits'
-import { setOffListingCurtainEnabled as __e102Curtain } from '../runtimeColumns.js'
+import { setOffListingCurtainEnabled as __e102Curtain, __barCapOffForTests } from '../runtimeColumns.js'
 import { beforeAll as __e102BeforeAll, afterAll as __e102AfterAll } from 'vitest'
 // ⛔ (e102, 2026-11-27) the off-listing curtain is OFF in production (`runtimeCurtainOff.rail.test.js`): these rails
 // test its machinery, so they turn it on for this file
@@ -103,9 +103,12 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
   })
 
   it('⛔ a VM limit (more bars than `HISTORY` holds) is `runtime:limit`, naming the limit', () => {
+    // (2026-11-28) a chart longer than `HISTORY` is computed on its newest bars (`limits.js::runBarCapCut`); this rail
+    // holds how a limit stop is NAMED, so the cap is switched off to reach one (`fredDeepIndexStore.test.js` holds the cap)
+    __barCapOffForTests(true)
     let err = null
     const over = DEFAULT_LIMITS.HISTORY + 1
-    try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
+    try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e } finally { __barCapOffForTests(false) }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
     // the NAME rides as a field; the member reads plain words and the numbers
     expect(err.limit).toBe('HISTORY')
