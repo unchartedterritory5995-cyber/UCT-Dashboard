@@ -29,6 +29,11 @@ import { noteTfPress, habitualTfs } from '../../../components/chart/tfHabit'
 import { TF_ORDER } from '../../../components/chart/keyboardShortcuts'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
+import { getBarStore } from '../../../data/barStore/index'
+import { chartKeyFor } from '../../../components/chart/useBarSnapshotBars'
+import { BARSTORE } from '../../../components/chart/barStoreSwitch'
+/** (P3) the native intraday keys a habitual timeframe's live watch may hold (a date key never: D / W / M are not streamed) */
+const LIVE_INTRADAY = new Set(['1', '5', '15', '30', '60'])
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
 import PendingSwitchCue, { usePendingCue } from '../../../components/chart/PendingSwitchCue'
 import { chartGroupKey } from '../../../hooks/handoffGroups'
@@ -428,6 +433,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     // (review of #2996, F1) leaving the symbol or timeframe aborts what the dwell has not asked yet
     const ctl = typeof AbortController === 'function' ? new AbortController() : null
     let cancelPaintWait = null
+    const liveOffs = []   // (P3) the habitual timeframes' live watches, released when the symbol or timeframe moves on
     const timer = setTimeout(() => {
       cancelPaintWait = whenFirstChartPainted(() => {
         if (!alive) return
@@ -441,9 +447,28 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // device + edge only, never an origin warm (F1)
           if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current, edge: true, signal: ctl?.signal })
         } catch { /* a warm never breaks the chart */ }
+        // ⭐ (P3, 2026-11-28, the tf-press p100: a press waited on its key's tail answer, 183-334 ms) THE TWO HABITUAL
+        // TIMEFRAMES STAY CURRENT: their intraday keys ride this page's bars stream as speculative `ahead` pairs (no new
+        // connection, no polling, 1 Hz developing frames; the server sheds them first under load, and a shed key takes
+        // today's path: the press holds for its answer, never a short first paint). Never at a date (a window key).
+        if (!dated && BARSTORE) {
+          try {
+            const store = getBarStore()
+            const ext = !!paneExtRef.current
+            for (const c of first) {
+              const base = fetchTf(c)
+              if (!LIVE_INTRADAY.has(String(base)) || String(base) === String(fetchTf(tf))) continue
+              const key = chartKeyFor({ sym, resolvedTf: String(base), showExtended: ext, replayCutoff: null, hasOverride: false })
+              if (key) liveOffs.push(store.watchLive(key, { session: ext ? 'eth' : 'rth', front: true }))
+            }
+          } catch { /* a live watch never breaks the chart */ }
+        }
       })
     }, TF_DWELL_MS)
-    return () => { alive = false; clearTimeout(timer); cancelPaintWait?.(); try { ctl?.abort() } catch { /* gone */ } }
+    return () => {
+      alive = false; clearTimeout(timer); cancelPaintWait?.(); try { ctl?.abort() } catch { /* gone */ }
+      for (const off of liveOffs.splice(0)) { try { off() } catch { /* gone */ } }
+    }
   }, [sym, tf, tfBarKey, replayCutoff, dated])
   // Identity-stable write sink for the active surface. MUST be useCallback, not
   // an inline arrow at the ChartPane call site: it flows through

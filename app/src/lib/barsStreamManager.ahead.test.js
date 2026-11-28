@@ -5,6 +5,7 @@
 //       open no connection at all (no chart on screen, nothing to keep current for)
 //   M2  a pair with an ordinary subscriber (the chart) is wired as ordinary, even while a row-ahead subscription also holds it
 //   M3  at most AHEAD_MAX_PAIRS ahead pairs per page (the oldest subscriptions first)
+//   M3b (P3) the FRONT chart's habitual timeframes (`front: true`) win the cap over older speculative pairs
 //   M4  ahead pairs only fill room left in the connections the charts already open (the 50-pair cap counts both)
 //   M5  getStatus().liveSince: the time since which the pair has been delivering WITHOUT A BREAK. Set by the first
 //       developing frame; kept across a rebuild only when the new connection's first frame is the SAME bucket as the last
@@ -83,6 +84,15 @@ describe('M: the rows ahead on the bars stream', () => {
     for (const s of ['A1', 'A2', 'A3', 'A4', 'A5']) bars.subscribe(s, '1', { ahead: true })
     flush()
     expect(q(open()[0].url).ahead.split(',').sort()).toEqual(['A1:1', 'A2:1', 'A3:1', 'A4:1'])
+  })
+
+  it('M3b the front chart pairs (front: true) are taken first, the oldest rows after them', () => {
+    bars.subscribe('AAPL', '1', {})
+    for (const s of ['A1', 'A2', 'A3', 'A4']) bars.subscribe(s, '1', { ahead: true })
+    bars.subscribe('AAPL', '5', { ahead: true, front: true })
+    bars.subscribe('AAPL', '15', { ahead: true, front: true })
+    flush()
+    expect(q(open()[0].url).ahead.split(',').sort()).toEqual(['A1:1', 'A2:1', 'AAPL:15', 'AAPL:5'])
   })
 
   it('M4 ahead pairs only fill the room the charts\' connections leave (the 50-pair cap counts both)', () => {

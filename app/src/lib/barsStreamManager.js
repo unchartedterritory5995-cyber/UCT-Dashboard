@@ -286,9 +286,9 @@ function _notifyAllStatus() {
  *   session — the chart's session mode; only affects 60m (see _normSession)
  * @returns {() => void} unsubscribe
  */
-export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session, ahead = false } = {}) {
+export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session, ahead = false, front = false } = {}) {
   const id = _nextId++
-  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf, session), ahead: ahead === true, onBar, onReconnect, onStatus })
+  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf, session), ahead: ahead === true, front: ahead === true && front === true, onBar, onReconnect, onStatus })
   _scheduleRebuild()
   return () => {
     const wasKey = _subscribers.get(id)?.key
@@ -354,14 +354,18 @@ export function getLastResume() {
   return _lastResume
 }
 
-/** The pairs to stream: { pairs: the ordinary ones, sorted; ahead: the rows ahead no chart holds, oldest first, capped }. */
+/** The pairs to stream: { pairs: the ordinary ones, sorted; ahead: the rows ahead no chart holds, oldest first, capped }.
+ *  ⭐ (P3, 2026-11-28) the FRONT chart's habitual next timeframes (`front: true`, ChartWidget's dwell) are taken first, so
+ *  on a multi-chart board they win the AHEAD_MAX_PAIRS cap over older speculative pairs. */
 function _union() {
   if (_killed()) return { pairs: [], ahead: [] }
   const set = new Set()
   for (const sub of _subscribers.values()) if (!sub.ahead) set.add(sub.key)
   const ahead = []
-  for (const sub of _subscribers.values()) {
-    if (sub.ahead && !set.has(sub.key) && !ahead.includes(sub.key) && ahead.length < AHEAD_MAX_PAIRS) ahead.push(sub.key)
+  for (const pass of [true, false]) {
+    for (const sub of _subscribers.values()) {
+      if (sub.ahead && !!sub.front === pass && !set.has(sub.key) && !ahead.includes(sub.key) && ahead.length < AHEAD_MAX_PAIRS) ahead.push(sub.key)
+    }
   }
   return { pairs: [...set].sort(), ahead }
 }
