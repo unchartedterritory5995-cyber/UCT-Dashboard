@@ -54,4 +54,25 @@ describe('a typed cold D ticker while the edge history is slow', () => {
     ac.abort()
     expect(asked, `the cover page went out for the display that waits (tails asked: ${JSON.stringify(asked)}; history: ${w.server.calls.filter((c) => c.q.history).length})`).toContain(dateCoverMaxFor('D'))
   }, 20_000)
+
+  // ⛔⛔ (review of #3034, HIGH) THE PRODUCTION ENTER PATH: typed, a pause, Enter. prepareForDisplay pins the key and never
+  // asks deepPrime(want); the warm's look ran long before with nothing holding the key. The pin itself arms the cover.
+  for (const pauseMs of [800, 7500]) {
+    it(`typed, a ${pauseMs} ms pause, Enter (prepareForDisplay, pin only): the cover page goes out while the edge history hangs`, async () => {
+      const w = await boot()
+      const { EDGE_TAIL_BARS, EDGE_HOLD_LOOK_MS } = w.net
+      const { dateCoverMaxFor } = await import('../../utils/barsBackfill')
+      w.pf.warmTypedSymbol('EVMN', 'D', { cover: 1400 })
+      await runFor(w, pauseMs)
+      const before = tails(w, 'EVMN')
+      expect(before, 'non-vacuity: the typed warm cut the tail').toContain(EDGE_TAIL_BARS)
+      expect(before, 'non-vacuity: no cover while nothing held it').not.toContain(dateCoverMaxFor('D'))
+      const ac = new AbortController()
+      w.pf.prepareForDisplay('EVMN', 'D', { signal: ac.signal }).catch(() => {})   // Enter
+      await runFor(w, (EDGE_HOLD_LOOK_MS ?? 150) + 250)   // (?? : the rail runs red on the head before the fix too)
+      const asked = tails(w, 'EVMN')
+      ac.abort()
+      expect(asked, `the cover page for the display (tails asked: ${JSON.stringify(asked)})`).toContain(dateCoverMaxFor('D'))
+    }, 30_000)
+  }
 })
