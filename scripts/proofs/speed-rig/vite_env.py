@@ -33,8 +33,9 @@ def base() -> str:
     return os.environ.get("UCT_PROOF_BASE", "https://uctintelligence.com")
 
 
-def declared(dockerfile_text: str) -> set[str]:
-    return set(re.findall(r"^ARG\s+(VITE_[A-Z0-9_]+)", dockerfile_text, re.M))
+def declared(dockerfile_text: str) -> dict[str, str]:
+    """{VITE name: its ARG default ('' when none)} for every `ARG VITE_*` Dockerfile.web declares."""
+    return {m.group(1): (m.group(2) or "").strip().strip('"') for m in re.finditer(r"^ARG\s+(VITE_[A-Z0-9_]+)(?:=(\S*))?", dockerfile_text, re.M)}
 
 
 def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = None) -> dict:
@@ -50,9 +51,20 @@ def build_env(base_env: dict, extra: str = "", dockerfile_text: str | None = Non
         if not isinstance(v, str) or not VALUE.fullmatch(v):
             raise ValueError(f"{k}: the value is not a short flag (refused, not printed)")
     if dockerfile_text is not None:
-        missing = sorted(set(env) - declared(dockerfile_text))
+        decl = declared(dockerfile_text)
+        missing = sorted(set(env) - set(decl))
         if missing:
             raise ValueError(f"not declared as an ARG in the candidate's Dockerfile.web (never in a production build): {', '.join(missing)}")
+        # ⛔ EVERY declared ARG is SET in production's build, empty when Railway leaves it unset: Dockerfile.web's
+        # `ENV VITE_X=$VITE_X` exports each one, so vite inlines '' where an unset variable would inline undefined. The
+        # bundle (and its content-hashed entry) then differs from production's even with every flag equal: measured
+        # 2026-11-28, the same commit built here without them hashed index-Dxho7ZLT.js against production's
+        # index-Dbeet4b5.js (the parity check's MISMATCH). So a declared ARG Railway leaves unset gets its ARG default.
+        for k, v in decl.items():
+            if k not in env:
+                if not VALUE.fullmatch(v):
+                    raise ValueError(f"{k}: the ARG default is not a short flag (refused, not printed)")
+                env[k] = v
     return env
 
 
@@ -100,6 +112,9 @@ def meta(dist: str, side: str, ref: str, sha: str, env_keys: list[str]) -> tuple
 def self_check() -> int:
     df = "ARG VITE_A\nARG VITE_B=1\nENV VITE_A=$VITE_A\n"
     ok = build_env({"VITE_A": "1"}, "VITE_B=0", df) == {"VITE_A": "1", "VITE_B": "0"}
+    # a declared ARG the file leaves unset is set as production's build sets it: its default, else empty
+    df2 = df + "ARG VITE_C\nARG VITE_D=1\n"
+    ok = ok and build_env({"VITE_A": "1"}, "", df2) == {"VITE_A": "1", "VITE_B": "1", "VITE_C": "", "VITE_D": "1"}
     for bad in (({"VITE_A": "1"}, "VITE_C=1", df), ({"VITE_A": "a b"}, "", None), ({"NODE_OPTIONS": "x"}, "", None),
                 ({"VITE_A": "x" * 65}, "", None), ({}, "VITE_A", None)):
         try:
