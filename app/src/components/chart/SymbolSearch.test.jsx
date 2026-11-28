@@ -159,7 +159,8 @@ test('the highlighted suggestion is reported once it holds still, and the arrow 
   fireEvent.change(input, { target: { value: 'nv' } })
   await within(screen.getByRole('dialog')).findByRole('button', { name: /^NVDA/ })
   await wait(SETTLED)
-  expect(onTypedIntent.mock.calls.map((c) => c[0])).toContain('NVDA')
+  // (2026-11-28) the top row is not what Enter opens (Enter opens the typed text): it is not warmed
+  expect(onTypedIntent.mock.calls.map((c) => c[0])).not.toContain('NVDA')
   onTypedIntent.mockClear()
   fireEvent.keyDown(input, { key: 'ArrowDown' })
   await wait(SETTLED)
@@ -251,27 +252,28 @@ test('universe: a prefix with one completion names it at once, and the prefix it
   expect(onTypedIntent.mock.calls).toEqual([['NVDA']])  // NVD itself never (it would abort NVDA's warm)
 })
 
-test('universe: a ticker typed to its last key is told at once; a ticker prefix (GOOG) after a short settle, then GOOGL', async () => {
+test('universe: a ticker typed to its last key is told at once, a ticker prefix (GOOG) too, then GOOGL', async () => {
   const onTypedIntent = vi.fn()
   const input = await openWithUniverse(onTypedIntent)
   for (const v of ['G', 'GO', 'GOO']) { fireEvent.change(input, { target: { value: v } }); await wait(20) }
-  expect(onTypedIntent).not.toHaveBeenCalled()           // ambiguous prefixes: nothing yet
-  fireEvent.change(input, { target: { value: 'GOOG' } }); await wait(20)
-  expect(onTypedIntent).not.toHaveBeenCalled()           // a ticker that can still grow (GOOGL) settles briefly first
-  await wait(EXACT_PREFIX_SETTLE_MS)
+  expect(onTypedIntent).not.toHaveBeenCalled()           // ambiguous prefixes that are no ticker: nothing yet
+  // (2026-11-28, cold-arch 3.3 item 2) a ticker that can still grow (GOOGL) is told on its key: no settle
+  expect(EXACT_PREFIX_SETTLE_MS).toBe(0)
+  fireEvent.change(input, { target: { value: 'GOOG' } }); await wait(5)
   expect(onTypedIntent.mock.calls).toEqual([['GOOG']])
-  fireEvent.change(input, { target: { value: 'GOOGL' } }); await wait(20)
+  fireEvent.change(input, { target: { value: 'GOOGL' } }); await wait(5)
   expect(onTypedIntent.mock.calls).toEqual([['GOOG'], ['GOOGL']])   // nothing longer: at once
 })
 
-// ⛔ (review of #2938, T2) an exact ticker that still has longer completions fired on single letters (A, AM, AMZN, each with
-// up to three linked fetches): typed through at a typist's pace, only the finished ticker is told
-test('universe: typing through A and AM to AMZN tells AMZN alone', async () => {
+// ⭐ (2026-11-28, cold-arch 3.3 item 2, supersedes review of #2938 T2) EVERY KEYSTROKE THAT SPELLS A KNOWN TICKER IS TOLD:
+// A, AM, then AMZN (AMZ's one completion), each on its key, and AMZN once. The fetches are bounded by the chart's typed warm,
+// which keeps ONE text live and aborts the older text's tail and linked fetches (prefetch.typedUniverse.test.js).
+test('universe: typing through A and AM to AMZN tells A, AM and AMZN, each on its key, AMZN once', async () => {
   const onTypedIntent = vi.fn()
   const input = await openWithUniverse(onTypedIntent)
   for (const v of ['A', 'AM', 'AMZ']) { fireEvent.change(input, { target: { value: v } }); await wait(30) }
   fireEvent.change(input, { target: { value: 'AMZN' } }); await wait(20)
-  expect(onTypedIntent.mock.calls).toEqual([['AMZN']])
+  expect(onTypedIntent.mock.calls).toEqual([['A'], ['AM'], ['AMZN']])
 })
 
 test('CONTROL universe: text it does not know still waits for the typing pause', async () => {

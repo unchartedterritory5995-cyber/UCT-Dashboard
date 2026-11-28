@@ -217,8 +217,17 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(calendarSealedDate('D', et(2026, 11, 28, 10, 0))).toBe('2026-11-27')    // Sat -> the half day
     expect(calendarSealedDate('D', et(2026, 11, 10, 23, 30))).toBe('2026-11-09')   // 23:30 ET Tue is still Tue
     expect(calendarSealedDate('D', et(2026, 11, 11, 0, 30))).toBe('2026-11-10')    // 00:30 ET Wed rolls
-    expect(calendarSealedDate('W', et(2026, 11, 10, 10, 0))).toBe('')              // W/M keep the held-bars rule
-    expect(calendarSealedDate('M', et(2026, 11, 10, 10, 0))).toBe('')
+    // ⭐ (2026-11-28, cold-arch 3.3 item 1) W and M by the calendar too: the server's labels (a week's calendar Friday, a
+    // month's 1st) of the newest period before the current one (this week's Monday, this month's 1st, ET)
+    expect(calendarSealedDate('W', et(2026, 11, 10, 10, 0))).toBe('2026-11-06')    // Tue -> the previous Friday
+    expect(calendarSealedDate('W', et(2026, 11, 9, 9, 0))).toBe('2026-11-06')      // Mon: this week is not sealed
+    expect(calendarSealedDate('W', et(2026, 11, 8, 12, 0))).toBe('2026-10-30')     // Sun: the week of 11-02 still runs
+    expect(calendarSealedDate('W', et(2026, 11, 28, 10, 0))).toBe('2026-11-20')    // Sat: production's d that day
+    expect(calendarSealedDate('W', et(2026, 4, 6, 10, 0))).toBe('2026-04-03')      // a Good Friday is still the label
+    expect(calendarSealedDate('M', et(2026, 11, 10, 10, 0))).toBe('2026-10-01')
+    expect(calendarSealedDate('M', et(2026, 11, 1, 0, 30))).toBe('2026-10-01')     // the 1st: October is sealed
+    expect(calendarSealedDate('M', et(2026, 1, 15, 10, 0))).toBe('2025-12-01')     // across the year
+    expect(calendarSealedDate('M', et(2026, 11, 30, 23, 30))).toBe('2026-10-01')   // 23:30 ET on the 30th is still November
     // a ticker that did not trade yesterday still asks the calendar's URL (the one the sweep warmed)
     expect(historySealedDate('D', ['2026-11-04', '2026-11-05'], et(2026, 11, 10, 10, 0))).toBe('2026-11-09')
     expect(historySealedDate('W', ['2026-10-30', '2026-11-06', '2026-11-09'], et(2026, 11, 10, 10, 0))).toBe('2026-11-06')
