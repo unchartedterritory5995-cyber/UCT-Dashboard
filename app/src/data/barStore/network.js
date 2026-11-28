@@ -1244,6 +1244,8 @@ export function createNetwork({
       if (awaited) lakeAwaited.add(key)
       if (running) return running
       const yieldTask = () => (lakeAwaited.has(key) ? null : nextTask())
+      // (a piece already waiting in the lake decoder's queue when the load becomes awaited goes to the worker first)
+      yieldTask.urgentNow = () => lakeAwaited.has(key)
       let failed = false
       const p = Promise.resolve()
         .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target, yieldTask }))
