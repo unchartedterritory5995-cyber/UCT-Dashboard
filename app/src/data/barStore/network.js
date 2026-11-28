@@ -335,7 +335,10 @@ export function createNetwork({
     // the hang guard, which painted 30 bars and filled: the two-phase paint again. So the ask arms a fallback: still
     // unlanded EDGE_FALLBACK_MS later, the origin is asked the view's cover as well, and whichever covers the view first
     // is what the hold commits on (the join then lands behind the left edge).
-    if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
+    // ⭐ (2026-11-28, cold-arch 3.3 item 1) W AND M TOO: their history URL is known from the calendar now (barsHistorySplit
+    // calendarSealedDate), so it leaves beside the tail like D's. A cold W cover from the origin was 160-189 ms of server
+    // work on production (sqlite get_bars of 2,000 weeks 32-71 ms cold, the W-from-D overlay, the JSON build).
+    if (split && isDateTf(p.tf) && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
       _armEdgeFallback(r)
     }
@@ -454,7 +457,7 @@ export function createNetwork({
     // The answer a prime already fetched (or is fetching) is taken, once: no second request, no
     // second parse. A prime that failed asks again here.
     const primed = _primed(url)
-    if (primed) deepPrimes.delete(url)
+    if (primed) { const e = deepPrimes.get(url); if (e) e.pinned = true; deepPrimes.delete(url) }   // the job holds it now
     const viaPrime = primed
       ? { fetch: (signal) => primed.catch(() => request(url, { priority, signal })) }
       : undefined
@@ -927,19 +930,36 @@ export function createNetwork({
      * answer, see `_historyJob`). `want`: a display is waiting on the join, so the job leaves at
      * `visible` rank. Resolves true when the history arrived; never rejects. Nothing when the history
      * is not due or its URL cannot be known yet (W/M holding no bars).
+     * ⭐ (2026-11-28, cold-arch 3.3 item 2) `signal`: the typed warm's own. Every keystroke that spells a known ticker now
+     * primes its history, and a prime with no way to stop held one of the lane's two slots after its text was gone, so
+     * the NEWEST text's tail queued behind the older texts' histories. An aborted prime leaves the lane and is forgotten
+     * (the history job then asks for itself, as for a prime that failed).
      */
-    deepPrime(key, { priority = 'urgent', want = false } = {}) {
-      if (!api.deepPending(key)) return Promise.resolve(false)
+    deepPrime(key, { priority = 'urgent', want = false, signal = null } = {}) {
+      if (signal?.aborted || !api.deepPending(key)) return Promise.resolve(false)
       if (want) deepWanted.set(key, now() + DEEP_WANT_MS)
       // The depth was lost since the key's last join (the entry was evicted and rebuilt): ask again.
       const r = keys.get(key)
       if (r?.histAsked && !(r.inflight?.kind === 'scroll') && deepSettled.has(key)) r.histAsked = false
       const url = _deepUrl(key)
       if (!url) return Promise.resolve(false)
+      // ⛔ (2026-11-28, lead's capacity rules) A JOINED PRIME IS DETACHED, NEVER ABORTED. Each caller attaches with its own
+      // signal (none: held for good, as the switch's own and the history job's are); the request is aborted only when every
+      // attached caller has aborted, so the next text cancels a prime nobody else is waiting on, and never Enter's.
+      const attach = (e) => {
+        if (!signal) { e.pinned = true; return }
+        if (signal.aborted) return
+        e.holders += 1
+        signal.addEventListener?.('abort', () => { if (--e.holders <= 0 && !e.pinned) e.ac?.abort() }, { once: true })
+      }
+      const held = deepPrimes.get(url)
       const have = _primed(url)
-      if (have) return have.then(() => true, () => false)
-      const p = Promise.resolve().then(() => request(url, { priority }))
-      deepPrimes.set(url, { p, at: now() })
+      if (have) { attach(held); return have.then(() => true, () => false) }
+      const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+      const p = Promise.resolve().then(() => request(url, { priority, ...(signal && ac ? { signal: ac.signal } : {}) }))
+      const entry = { p, at: now(), ac, holders: 0, pinned: false }
+      attach(entry)
+      deepPrimes.set(url, entry)
       p.catch(() => { if (deepPrimes.get(url)?.p === p) deepPrimes.delete(url) })
       while (deepPrimes.size > DEEP_PRIME_MAX) deepPrimes.delete(deepPrimes.keys().next().value)
       return p.then(() => true, () => false)

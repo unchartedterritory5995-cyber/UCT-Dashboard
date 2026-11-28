@@ -39,7 +39,7 @@ permissions:
 jobs:
   engine:
     name: engine whole-app rails (merge queue)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     env:
       UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
@@ -67,7 +67,7 @@ jobs:
 
   bars:
     name: bars rails (merge queue)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +106,7 @@ jobs:
     name: merge queue gate rails
     needs: [engine, bars]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.FAST_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 5
     steps:
       - name: Both rails succeeded
