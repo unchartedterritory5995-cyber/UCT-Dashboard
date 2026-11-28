@@ -7139,6 +7139,36 @@
     "IMMX",
     "MEVO"
    ]
+  },
+  {
+   "id": "cloud/46122694373-1/COV-def-dd-arrows",
+   "at": "2026-11-28T07:46:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CBAN",
+    "CWBC",
+    "OCGN",
+    "SSP",
+    "KOYN",
+    "BXC",
+    "DCOM",
+    "LOMA",
+    "PKX",
+    "WIT",
+    "TROX",
+    "GEMI",
+    "IPSC"
+   ]
+  },
+  {
+   "id": "cloud/46122694373-1/COV-def-tabs",
+   "at": "2026-11-28T07:46:04+00:00",
+   "source": "cloud",
+   "tickers": [
+    "EPRX",
+    "GYRE",
+    "LMB"
+   ]
   }
  ]
 }
