@@ -7929,6 +7929,86 @@
     "PGC",
     "TUYA"
    ]
+  },
+  {
+   "id": "cloud/46123195531-1/COV-def-dd-arrows",
+   "at": "2026-11-28T08:07:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "TOYO",
+    "DNUT",
+    "SFIX",
+    "IDR",
+    "CHW",
+    "QS",
+    "BTDR",
+    "FSBW",
+    "AEXA",
+    "TE",
+    "RRBI",
+    "CHY",
+    "CAPR"
+   ]
+  },
+  {
+   "id": "cloud/46123195531-1/COV-def-tc-arrows",
+   "at": "2026-11-28T08:07:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "URG",
+    "MESH",
+    "HCMA",
+    "IIIN",
+    "ALDF",
+    "MCFT",
+    "LUCK",
+    "THM",
+    "TK",
+    "LAB",
+    "COFS",
+    "FPI",
+    "SOUN"
+   ]
+  },
+  {
+   "id": "cloud/46123195531-1/COV-def-m1-arrows",
+   "at": "2026-11-28T08:07:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "JBGS",
+    "KNOP",
+    "CABO",
+    "EMBC",
+    "PKE",
+    "DBRG",
+    "BCSF",
+    "ASLE",
+    "FIP",
+    "FISI",
+    "ASTL",
+    "ATLC",
+    "NXDR"
+   ]
+  },
+  {
+   "id": "cloud/46123195531-1/COV-def-d30-arrows",
+   "at": "2026-11-28T08:07:44+00:00",
+   "source": "cloud",
+   "tickers": [
+    "ZKP",
+    "TSBK",
+    "BGIN",
+    "ITHA",
+    "RWT",
+    "TWO",
+    "TBPH",
+    "MLCO",
+    "ATKR",
+    "MYE",
+    "ACAA",
+    "CRSR",
+    "STUB"
+   ]
   }
  ]
 }
