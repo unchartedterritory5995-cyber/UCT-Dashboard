@@ -7089,6 +7089,36 @@
     "HD",
     "BABA"
    ]
+  },
+  {
+   "id": "cloud/46121220448-1/COV-def-dd-arrows",
+   "at": "2026-11-28T07:26:41+00:00",
+   "source": "cloud",
+   "tickers": [
+    "CAN",
+    "MTA",
+    "JMIA",
+    "PACK",
+    "SAAQ",
+    "GLOO",
+    "TYRA",
+    "RGR",
+    "BWMX",
+    "CVLG",
+    "VMD",
+    "KIDS",
+    "SBR"
+   ]
+  },
+  {
+   "id": "cloud/46121220448-1/COV-def-tabs",
+   "at": "2026-11-28T07:26:41+00:00",
+   "source": "cloud",
+   "tickers": [
+    "AUNA",
+    "GDRX",
+    "VRTS"
+   ]
   }
  ]
 }
