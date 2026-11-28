@@ -247,6 +247,13 @@ export function createNetwork({
   const deepSettled = new Map()    // key -> bars its entry held when its history join settled on this page
   const deepSubs = new Map()       // key -> Set<cb>: waiters on the key's history join settling
   const deepWanted = new Map()     // key -> ms until which a display waits on its join (its job: visible)
+  // ⭐⭐ (2026-11-28, the cold-coverage run) key -> Set<cb>: listeners of the key's depth SETTLING (its history join or its lake
+  // load), whatever it added. A settle that adds nothing moves no entry, so a waiter woken only by the entry (the switch's
+  // hold: prefetch.watch) never learned that nothing more was coming, and held the previous chart to the hang guard.
+  const settleSubs = new Map()
+  function _noteSettled(key) {
+    for (const cb of [...(settleSubs.get(key) || [])]) { try { cb() } catch { /* a listener's */ } }
+  }
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -427,6 +434,8 @@ export function createNetwork({
       if (deepSettled.size > LAKE_SETTLED_MAX) deepSettled.delete(deepSettled.keys().next().value)
     }
     for (const cb of [...(deepSubs.get(key) || [])]) { try { cb() } catch { /* ignore */ } }
+    // (a failed join is not "nothing more is coming": the split is off and the full read it queued wakes the entry)
+    if (joined) _noteSettled(key)
   }
 
   /** The deep sealed history of a D/W/M key from the edge (see `_splitFor`). */
@@ -896,9 +905,17 @@ export function createNetwork({
           lakeSettled.delete(key)
           lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
+          _noteSettled(key)
         })
       lakeSeeds.set(key, p)
       return p
+    },
+    /** `cb` on each settle of `key`'s depth (its history join, its lake load), whatever it added; returns the unsubscribe. */
+    subscribeSettled(key, cb) {
+      let set = settleSubs.get(key)
+      if (!set) { set = new Set(); settleSubs.set(key, set) }
+      set.add(cb)
+      return () => { set.delete(cb); if (!set.size && settleSubs.get(key) === set) settleSubs.delete(key) }
     },
     /** The lake load of `key` in flight (lakeSeed's shared promise), or null. Starts nothing. */
     lakeLoading(key) { return lakeSeeds.get(key) || null },
