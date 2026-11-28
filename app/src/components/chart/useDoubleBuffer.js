@@ -255,11 +255,8 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, layers
       syms[f] = sym
       tfs[f] = tf
       reportsRef.current[f] = null   // the front's next pass reports the new symbol / timeframe
-      // a hidden layer on a row follows the front's timeframe (every layer did before PR 2.1); one holding the front's own
-      // symbol at another timeframe stays until the retarget
-      for (const i of hid) {
-        if (tfs[i] != null && syms[i] !== sym && String(tfs[i]) !== String(tf)) { tfs[i] = tf; reportsRef.current[i] = null }
-      }
+      // (the hidden layers follow in the retarget the front's new timeframe schedules: a row at the new timeframe; their
+      // charts' reports name their own timeframe, so none of them can be flipped to at the old one meanwhile)
       setBuf({ syms, tfs, front: f })
     }
   }
