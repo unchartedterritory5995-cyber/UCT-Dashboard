@@ -101,9 +101,11 @@ def test_no_ticker_means_no_lookup_and_a_failed_lookup_changes_nothing(monkeypat
     assert bf._fmt_sqlite_bars(AMD_WEEKLY, "W", "AMD")[-1]["c"] == 615.52
 
 
-def test_daily_and_monthly_serving_is_untouched(monkeypatch):
+def test_daily_serving_is_untouched_and_the_monthly_serve_reads_the_daily(monkeypatch):
+    # (review of #3001, (b)) the developing MONTH is rebuilt from the stored daily too, like the week
     calls = []
     monkeypatch.setattr(bf._sqlite, "get_bars", lambda *a: calls.append(a) or [])
     bf._fmt_sqlite_bars(AMD_DAILY, "D", "AMD")
+    assert calls == [], "the daily serve reads no other store"
     bf._fmt_sqlite_bars([(20260901, 1.0, 2.0, 0.5, 1.5, 10)], "M", "AMD")
-    assert calls == [], "only the weekly serve reads the daily store"
+    assert calls and calls[0][1] == "D", calls

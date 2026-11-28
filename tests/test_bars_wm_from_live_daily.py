@@ -96,7 +96,8 @@ def test_a_period_holding_the_derivation_is_fresh(store, monkeypatch, tf):
 # SNAPSHOT: the live store does not cover the daily (its snapshot is not flowing), yet the STORED daily runs into the
 # present. The first W/M answer served the days-old W/M table (a developing month two weeks behind its own daily).
 @pytest.mark.parametrize("tf", ["W", "M"])
-def test_off_hours_a_stored_daily_that_runs_into_the_present_derives_the_first_answer(store, monkeypatch, tf):
+def test_off_hours_a_stored_daily_that_runs_into_the_present_derives_the_first_answer(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)     # Saturday: off-hours by construction, never the CI runner's wall clock
     daily, periods = _seed(tf, stale=True, live=False, monkeypatch=monkeypatch)
     resp = bars_fetch._get_bars_inner("AAA", tf, len(periods))
     body = json.loads(resp.body)
@@ -104,7 +105,8 @@ def test_off_hours_a_stored_daily_that_runs_into_the_present_derives_the_first_a
 
 
 @pytest.mark.parametrize("tf", ["W", "M"])
-def test_off_hours_a_period_holding_the_derivation_is_fresh(store, monkeypatch, tf):
+def test_off_hours_a_period_holding_the_derivation_is_fresh(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)
     daily, periods = _seed(tf, live=False, monkeypatch=monkeypatch)
     last = int(periods[-1]["t"].replace("-", ""))
     assert bars_fetch._needs_fresh(last, tf, "AAA") is False
@@ -266,6 +268,9 @@ def clock(monkeypatch):
             def utcnow(cls):
                 return at.astimezone(_tz.utc).replace(tzinfo=None)
         monkeypatch.setattr(bars_fetch, "datetime", _Frozen)
+        # the daily poll succeeded at this instant (after the latest session's close whenever `at` is off-hours);
+        # the residual's rails override it (review of #3001)
+        monkeypatch.setitem(bls._state, "daily_last_ok_wall", at.timestamp())
         return at
     return pin
 
@@ -519,3 +524,113 @@ def test_the_contiguity_check_reads_sessions_not_weekdays():
     assert bars_fetch._wm_daily_contiguous(rows, 20261123) is True
     assert bars_fetch._wm_daily_contiguous(rows[:2] + rows[3:], 20261123) is False   # 11-25 missing
     assert bars_fetch._wm_daily_contiguous(rows + [(20261128, 0, 0, 0, 0, 0)], 20261123) is False   # a Saturday row
+
+
+# ── review of #3001, (b): IN RTH AN UNCOVERED NAME'S FIRST M ANSWER IS THE CURRENT DEVELOPING MONTH ─────────────────
+# ⛔⛔ the stored M row can be WEEKS old (ACIW M 61.26 against its 52.24 daily); uncovered = outside the snapshot, any
+# name that did not print the previous session, every name after a day the poll was down. (1) the serve chokepoint
+# rebuilds the developing month (as it did the week) from a daily holding every session of it; (2) a daily with a
+# hole cannot, so a stored W/M behind it goes to the bounded synchronous provider delta before the first answer.
+def _seed_old_tail(tf, last, monkeypatch, hole=None, sym="AAA", old_sessions=10):
+    """A stored D through `last` (missing `hole` if given) and a stored W/M table built from the daily as it stood
+    `old_sessions` sessions earlier: its current-period row is weeks old (smaller volume, an older close)."""
+    full = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+            for i, d in enumerate(_sessions_through(last))]
+    stored_d = [b for b in full if hole is None or b["t"] != hole.isoformat()]
+    bars_sqlite.put_bars(sym, "D", stored_d, date_tf=True)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    stored = [dict(p) for p in rs(full[:-old_sessions])]
+    bars_sqlite.put_bars(sym, tf, stored, date_tf=True)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: [])
+    return full, stored
+
+
+def test_in_rth_an_uncovered_name_with_a_weeks_old_month_answers_the_current_month_first(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    full, stored = _seed_old_tail("M", WED, monkeypatch)
+    assert stored[-1]["t"] == "2026-11-01" and stored[-1]["c"] != full[-1]["c"]
+    body = json.loads(bars_fetch._get_bars_inner("AAA", "M", len(stored)).body)
+    tail = body["bars"][-1]
+    assert tail["t"] == "2026-11-01" and tail["c"] == full[-1]["c"], "the first M answer kept a weeks-old close"
+    assert tail["v"] == sum(b["v"] for b in full if b["t"] >= "2026-11-01")
+
+
+def test_the_developing_week_is_never_rebuilt_from_a_daily_with_a_hole(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    full, stored = _seed_old_tail("W", WED, monkeypatch, hole=TUE, old_sessions=2)   # stored W: Monday only
+    rows = bars_sqlite.get_bars("AAA", "W", 400)
+    out = bars_fetch._fmt_sqlite_bars(rows, "W", "AAA")
+    assert out[-1]["c"] == stored[-1]["c"], "the week was rebuilt from a daily missing Tuesday"
+
+
+def test_the_developing_month_is_never_rebuilt_from_a_daily_with_a_hole(store, monkeypatch, clock):
+    clock(2026, 11, 18, 11, 0)
+    full, stored = _seed_old_tail("M", WED, monkeypatch, hole=date(2026, 11, 10))
+    out = bars_fetch._fmt_sqlite_bars(bars_sqlite.get_bars("AAA", "M", 400), "M", "AAA")
+    assert out[-1]["c"] == stored[-1]["c"]
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_stored_wm_behind_a_holed_daily_is_answered_from_the_provider_first(store, monkeypatch, clock, tf):
+    clock(2026, 11, 18, 11, 0)
+    hole = TUE if tf == "W" else date(2026, 11, 10)
+    full, stored = _seed_old_tail(tf, WED, monkeypatch, hole=hole, old_sessions=2 if tf == "W" else 10)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    provider = dict(rs(full)[-1])                                   # the provider's own developing period
+    calls = []
+    monkeypatch.setattr(bars_fetch, "_delta_weekly" if tf == "W" else "_delta_monthly",
+                        lambda t, last: calls.append(last) or [provider])
+    t0 = time.monotonic()
+    body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(stored)).body)
+    assert calls, "a stored W/M behind a holed daily was served stale-while-revalidate"
+    assert body["bars"][-1]["c"] == provider["c"] and time.monotonic() - t0 < 5
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_slow_provider_answers_the_store_at_the_deadline(store, monkeypatch, clock, tf):
+    clock(2026, 11, 18, 11, 0)
+    hole = TUE if tf == "W" else date(2026, 11, 10)
+    full, stored = _seed_old_tail(tf, WED, monkeypatch, hole=hole, old_sessions=2 if tf == "W" else 10)
+    gate = threading.Event()
+    monkeypatch.setattr(bars_fetch, "_delta_weekly" if tf == "W" else "_delta_monthly",
+                        lambda t, last: gate.wait(5) and [])
+    monkeypatch.setattr(bars_fetch, "_DATE_DELTA_INPROC_CEILING_S", 0.3)
+    try:
+        t0 = time.monotonic()
+        body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(stored)).body)
+        took = time.monotonic() - t0
+        assert took < 2.0, f"the first answer waited {took:.2f} s for the provider"
+        assert body["bars"][-1]["c"] == stored[-1]["c"]
+        assert bars_fetch.get_serve_layer() == "delta-deadline", bars_fetch.get_serve_layer()
+    finally:
+        gate.set()
+
+
+# ── review of #3001, residual: OFF-HOURS, THE STORED PATH NEEDS PROOF THE DAILY POLL RAN AFTER THE CLOSE ───────────
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_poll_that_died_mid_session_derives_nothing_after_hours(store, monkeypatch, clock, tf):
+    at = clock(2026, 11, 18, 21, 0)
+    _seed_through(tf, WED, monkeypatch)                            # the stored D's tail is today's (partial) row
+    monkeypatch.setitem(bls._state, "daily_last_ok_wall", at.replace(hour=11).timestamp())   # last success 11:00
+    assert bars_fetch._wm_live_daily("AAA") is False, "W/M derived from a daily the poll last wrote mid-session"
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_after_a_restart_with_no_poll_yet_the_stored_path_derives_nothing(store, monkeypatch, clock, tf):
+    clock(2026, 11, 21, 12, 0)                                     # Saturday
+    _seed_through(tf, date(2026, 11, 20), monkeypatch)
+    monkeypatch.setitem(bls._state, "daily_last_ok_wall", None)
+    assert bars_fetch._wm_live_daily("AAA") is False
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_a_poll_that_succeeded_after_the_close_lets_the_stored_path_derive(store, monkeypatch, clock, tf):
+    at = clock(2026, 11, 18, 21, 0)
+    daily, periods, _ = _seed_through(tf, WED, monkeypatch)
+    monkeypatch.setitem(bls._state, "daily_last_ok_wall", at.replace(hour=16, minute=1).timestamp())
+    assert bars_fetch._wm_live_daily("AAA") is True
+    assert _overlay(tf) is not None
