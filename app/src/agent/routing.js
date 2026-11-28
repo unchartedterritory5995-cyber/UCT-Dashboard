@@ -717,7 +717,7 @@ export const GROUPS = [
   // PRODUCTION ARMING (2026-11-24; the kinds armed by the integrator under the owner's delegation, docs/feature_flags.json
   // knobs.UCT_AGENT_ISOLATED_KINDS): the event study (history.afterEvent) and terminal data waves 1-2's eight local answers rode
   // in `data` by their history / stock domain. With their kinds served, `data` grew from the 8 actions production routed
-  // with to 16, and requests sitting exactly at the 55-action budget lost a group: v1's nothing-recognised fill dropped
+  // with to 15 (stock.sectorPerformance stays in `data`: its kind, sectors.performance, is not served in production), and requests sitting exactly at the 55-action budget lost a group: v1's nothing-recognised fill dropped
   // `data` ("whats nvda at", "NVDA price", "quote NVDA" lost stock.quote), and "add the short float to the info row" (v1)
   // and the watchlist-note and period-sort phrasings (v2) lost a needed group to the cut. So they move here, the pattern of
   // waves 3-13: listed by `actions`, WORDS-ONLY and fillLast (never a filler), so `data` keeps exactly the size production
@@ -725,8 +725,8 @@ export const GROUPS = [
   // (the same objects `data` keeps) and each wave capability's own words, which capabilities/terminalDataLocal.js and
   // terminalDataWave2.js arm on this group AND on `data` (unchanged there) only while the capability is registered. This is
   // the 56th of the 56 groups the server keeps (turn.MAX_GROUPS): none is left.
-  { id: 'marketAnswers', title: 'Analyst actions, session and 52-week highs/lows, sector and long-run leaders, dark pools, theme rotation, confluence, expected move, call search, event study',
-    domains: [], actions: ['history.afterEvent', 'stock.analystActions', 'stock.sessionHighsLows', 'stock.sectorPerformance', 'stock.longRunLeaders',
+  { id: 'marketAnswers', title: 'Analyst actions, session and 52-week highs/lows, long-run leaders, dark pools, theme rotation, confluence, expected move, call search, event study',
+    domains: [], actions: ['history.afterEvent', 'stock.analystActions', 'stock.sessionHighsLows', 'stock.longRunLeaders',
       'stock.darkPoolLevels', 'stock.yearlyHighsLows', 'stock.themeRotation', 'stock.confluenceBoard', 'stock.expectedMove', 'stock.callSearch'],
     fillLast: true, wordsOnly: true,
     words: [...EVENT_STUDY_WORDS] },

@@ -265,7 +265,7 @@ Catalog: **281** capabilities (every server-gated kind on; 267 with production's
 | stock.seasonality | marketRecords | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | stock.seasonalityBoard | marketRecords | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | stock.sectorEarnings | marketTables | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| stock.sectorPerformance | marketAnswers | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
+| stock.sectorPerformance | data | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | stock.sessionHighsLows | marketAnswers | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | stock.setupHistory | stockStudies | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | stock.setups | marketReads | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |

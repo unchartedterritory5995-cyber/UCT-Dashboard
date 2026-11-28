@@ -13919,7 +13919,6 @@
     {
       "id": "stock.themeRotation",
       "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
-      "kinds": "ALL",
       "capabilities": [
         "stock.themeRotation"
       ],

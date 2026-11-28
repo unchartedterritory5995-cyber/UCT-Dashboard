@@ -2946,7 +2946,7 @@
   },
   "stock.sectorPerformance": {
    "domain": "stock",
-   "group": "marketAnswers",
+   "group": "data",
    "target": "market",
    "risk": "local",
    "reversible": true,
