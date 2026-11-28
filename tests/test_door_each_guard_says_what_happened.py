@@ -92,10 +92,10 @@ def problems(raised, guard_gates, refusals):
 
 def test_THE_RAIL_no_guard_borrows_another_gates_sentence():
     assert problems(raisers(), dc.GUARD_REFUSALS, dc.REFUSALS) == []
-    # what it read is real: fifteen guard gates, each with its one owner, and the fourteen ways a reference can be wrong
+    # what it read is real: sixteen guard gates (E101 added the intraday read's placement), each with its one owner, and the fourteen ways a reference can be wrong
     # (U-DAILY (e96) added the daily read's two: `check_daily_reads` had borrowed `envelope:reference`)
     raised = raisers()
-    assert set(dc.GUARD_REFUSALS) <= set(raised) and len(dc.GUARD_REFUSALS) == 15
+    assert set(dc.GUARD_REFUSALS) <= set(raised) and len(dc.GUARD_REFUSALS) == 16
     assert {gate: next(iter(raised[gate])) for gate in dc.GUARD_REFUSALS} == {
         "envelope:days-as-bars": "check_day_lengths", "envelope:days-choice-in-days": "check_day_lengths",
         "envelope:date-number": "check_date_numbers", "envelope:bars-back-sign": "_refuse_negative_bars_back",
@@ -108,7 +108,9 @@ def test_THE_RAIL_no_guard_borrows_another_gates_sentence():
         "envelope:fill-in-drawn-bare": "_refuse_a_bare_fill_in_setting",
         "envelope:reply-silent-on-your-figure": "_refuse_a_reply_silent_on_a_figure_only_the_member_has",
         "envelope:replayed": "_converse_turn",
-        "envelope:daily-read-on-days": "check_daily_reads", "envelope:daily-read-and-daily-bars": "check_daily_reads"}
+        "envelope:daily-read-on-days": "check_daily_reads", "envelope:daily-read-and-daily-bars": "check_daily_reads",
+        # ⭐⭐ E101 (2026-11-28): the intraday read's placement
+        "envelope:intraday-read-placement": "check_intraday_reads"}
 
 
 @pytest.mark.parametrize("gate", sorted(dc.GUARD_REFUSALS))

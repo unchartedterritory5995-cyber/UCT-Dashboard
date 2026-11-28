@@ -138,7 +138,7 @@ function Footer({ credits }) {
         Each figure is the agency&apos;s own, as published. A row marked UCT calculation is a change UCT works out from the
         agency&apos;s own index. A series name opens it on the chart.
       </p>
-      {credits.map((c) => <p key={c.key} data-testid="terminal-econ-credit" data-source={c.key}>{c.text}</p>)}
+      {credits.map((c) => <p key={c.key} data-testid="terminal-econ-credit" data-source={c.key} data-share-notice="">{c.text}</p>)}
     </div>
   )
 }

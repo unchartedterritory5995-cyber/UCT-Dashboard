@@ -38,7 +38,7 @@ import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
 import { subscribeScanNeighbors } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
 import { setFlipProbe } from './flipReady'
-import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
+import { heldRows, lakePending, deepPending, historyComplete } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
   doubleBufferOn, acquireShadow, shadowTargetFor, flipDecision, viewParity, tfViewParity, viewDetail, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
@@ -235,6 +235,21 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       return v
     }
     let d = flipDecision(want, report, barsNowFor, view)
+    // ⭐ (2026-11-28, zoomed-out boards: 52 of 330 arrow presses refused 'view-short', p50 ~110 ms vs a flip's ~50) A
+    // SHADOW SHORT OF ITS FRAME BECAUSE ITS SYMBOL HAS NO MORE HISTORY FLIPS. FVAV holds 828 1m rows under a 4,019-bar
+    // zoomed lock: the normal switch frames the same lock on the same rows (from = lastIdx - anchorFrac x width, before
+    // the first bar) and draws exactly what the hidden chart shows. Only when (1) its history is PROVED whole (the
+    // store's historyComplete: a sealed deep join or a lake load that took every older piece; never a partial, failed or
+    // pending read), (2) shortness was the ONLY difference (same locks, at the lock's frame, nothing overriding it), and (3) no date or replay frames the press (nor a timeframe press, once #3033 brings them back).
+    // (2) needs no second check: viewParity answers its FIRST difference and 'view-short' is its LAST check on the
+    // unanchored path (blocked views, locks, the lock's frame or the zoom are all decided before it), so a 'view-short'
+    // there means every other part matched (doubleBuffer.test.js pins that order).
+    // ⛔ (when timeframe presses return, #3033) this rule is never for a timeframe press: add `!tfPress &&` here
+    if (!d.flip && d.why === 'view-short' && report && !anch && !cut && BARSTORE) {
+      try {
+        if (historyComplete(report.sym, report.tf, { showExtended: !!report.ext })) d = { flip: true, why: 'flip', short: true }
+      } catch { /* the refusal stands */ }
+    }
     // ⭐⭐ (2026-11-27, review of #2934: a typed cold ticker flipped to a shadow painted from a short page, and the deep
     // history's join then rescaled both charts at 966 ms) A SHADOW IS FLIPPABLE ONLY WHEN ITS ROWS COVER THE VIEW: the
     // same rule as the switch (paintLog viewNeed, counted in the view's session by the store's heldRows). Short, the

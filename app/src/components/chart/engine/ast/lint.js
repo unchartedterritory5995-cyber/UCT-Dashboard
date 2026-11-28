@@ -92,6 +92,12 @@ export const DAILY_READ_CODE = 'D'
  *  `interpret.js::TF_LIVE_BASE_BARS` (the quarter, read live only), bound to it
  *  by `lint.test.js` for the same forced reason as the table above. */
 export const TF_LIVE_BASE_BARS = Object.freeze({ ...TF_BASE_BARS, '3M': 63 })
+/** ⭐⭐ E101 INTRADAY-HTF (2026-11-28) — the span a read of MINUTES above an intraday chart counts its child in: the fewest
+ *  chart bars such a bucket holds (`interpret.js::INTRADAY_HTF_MIN_SPAN`, bound to it by `intradayHtfFormula.test.js`).
+ *  The lint walk has no base, so this is the low claim the 2026-08-30 ruling keeps for an intraday base; `forward` is
+ *  unchanged by it (0 stays 0: a CLOSED read stays `non-repainting`, a merge or a forming read keeps its badge). */
+export const INTRADAY_HTF_SPANS = Object.freeze({ 30: 2, 60: 2, 120: 2, 240: 2 })
+const spanOf = (table, code) => (table[code] !== undefined ? table[code] : INTRADAY_HTF_SPANS[code])
 
 // --------------------------------------------------------------------------- //
 // the vocabulary
@@ -699,7 +705,7 @@ export function astReach(ast, opts = {}) {
           })
           break
         }
-        const span = TF_BASE_BARS[String(node.value)]
+        const span = spanOf(TF_BASE_BARS, String(node.value))
         if (args.length !== 1 || span === undefined) {
           reachOf.set(node, noteUnknown(
             'a higher-timeframe node carries one child and a timeframe this engine '
@@ -726,7 +732,7 @@ export function astReach(ast, opts = {}) {
         // TradingView's realtime bar. `modeFromReach` reads that as `preview-repaints`.
         // Mirrors `ast_lint.ast_reach`'s `tf_merge` arm.
         const args = Array.isArray(node.args) ? node.args : []
-        const span = TF_BASE_BARS[String(node.value)]
+        const span = spanOf(TF_BASE_BARS, String(node.value))
         if (args.length !== 1 || span === undefined) {
           reachOf.set(node, noteUnknown(
             'a higher-timeframe node carries one child and a timeframe this engine '
@@ -751,7 +757,7 @@ export function astReach(ast, opts = {}) {
         // the verdict is DERIVED here by a walker that already runs, instead of
         // being threaded in by hand and dropped by the next refactor.
         const args = Array.isArray(node.args) ? node.args : []
-        const span = TF_LIVE_BASE_BARS[String(node.value)]
+        const span = spanOf(TF_LIVE_BASE_BARS, String(node.value))
         if (args.length !== 1 || span === undefined) {
           reachOf.set(node, noteUnknown(
             'a live higher-timeframe node carries one child and a timeframe this '

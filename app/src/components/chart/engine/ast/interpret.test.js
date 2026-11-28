@@ -8,7 +8,7 @@ import {
 } from './parse.js'
 import {
   interpret, maxLookback, nodeCount, FN, BAR_FN, TableRefusal, REFUSALS, TF_RESAMPLABLE,
-  MAX_RECURRENCE_STEPS, DAILY_READ,
+  MAX_RECURRENCE_STEPS, DAILY_READ, INTRADAY_HTF_CODES,
 } from './interpret.js'
 import { computeVWAP, computeAVWAP, AVWAP_MIN_INSTANT } from '../../indicators.js'
 import { DEFAULT_BUDGET } from './budget.js'
@@ -1932,16 +1932,23 @@ describe('maxLookback and interpret agree about which timeframes exist', () => {
   const refuses = (fn) => {
     try { fn(); return false } catch (e) { return e instanceof TableRefusal }
   }
+  // 09:30 ET on 2026-01-12, every 5 minutes through the session
+  const fiveMinBars = Array.from({ length: 78 }, (_, i) => ({
+    t: Date.UTC(2026, 0, 12, 14, 30) / 1000 + i * 300, o: 100 + i, h: 101 + i, l: 99 + i, c: 100 + i, v: 1e6,
+  }))
   const verdicts = CODES.map((code) => {
     const tree = { type: 'tf', value: code, args: [CLOSE] }
     // ⭐⭐ U-DAILY (e96) — the one code whose answer depends on the chart: a daily read is evaluated on a chart BELOW A
     // DAY, so that is where both gates are asked about it. On a daily base the evaluator refuses it by name (asked
     // below), and the scan door refuses it up front by its own gate (`tests/test_ast_daily_read.py`).
-    const base = code === DAILY_READ ? '5' : 'D'
+    // ⭐⭐ E101 (2026-11-28) — and a read of MINUTES is evaluated on a chart below them (5 minute bars, one session)
+    const intraday = INTRADAY_HTF_CODES.includes(code)
+    const base = code === DAILY_READ || intraday ? '5' : 'D'
     return {
       code,
       lookback: refuses(() => maxLookback(tree)),
-      evaluate: refuses(() => interpret(tree, bars, undefined, undefined, undefined, { tf: base, newestBarIsForming: false })),
+      evaluate: refuses(() => interpret(tree, intraday ? fiveMinBars : bars, undefined, undefined, undefined,
+        { tf: base, newestBarIsForming: false, historyFromListing: true })),
     }
   })
 
@@ -1962,7 +1969,13 @@ describe('maxLookback and interpret agree about which timeframes exist', () => {
     expect(through.length, 'both gates accept every timeframe — the guard is gone')
       .toBeLessThan(CODES.length)
     // ⭐⭐ U-DAILY (e96): and the daily read, the one code read on a chart below a day (not a resample)
-    expect(through.slice().sort()).toEqual([...TF_RESAMPLABLE, DAILY_READ].sort())
+    // ⭐⭐ E101: and the minute codes, read above an intraday chart (refused by name on a daily one, asked below)
+    const minutes = INTRADAY_HTF_CODES.filter((c) => CODES.includes(c))
+    expect(through.slice().sort()).toEqual([...TF_RESAMPLABLE, DAILY_READ, ...minutes].sort())
+    for (const code of minutes) {
+      expect(refuses(() => interpret({ type: 'tf', value: code, args: [CLOSE] }, bars, undefined, undefined,
+        undefined, { tf: 'D', newestBarIsForming: false }))).toBe(true)
+    }
     // …which the evaluator refuses by name on the daily base every other code here was asked on
     expect(refuses(() => interpret({ type: 'tf', value: DAILY_READ, args: [CLOSE] }, bars, undefined, undefined,
       undefined, { tf: 'D', newestBarIsForming: false }))).toBe(true)

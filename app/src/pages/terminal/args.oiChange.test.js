@@ -36,19 +36,20 @@ describe('the open interest side matches the panel that owns the words', () => {
       expect(run(tokens).props).toEqual(key === 'any' ? {} : { side: key })
       expect(writeBackCommand('OIC', tokens, 'nvda')).toBe(['NVDA', 'OIC', ...tokens].join(' '))
     }
-    expect(writeBackCommand('OIC', ['P'])).toBeNull()         // a per-stock code: no command without its stock
+    // with no stock it is the market list's own side (bare OIC, 2026-11-27: args.oiMarket.test.js)
+    expect(writeBackCommand('OIC', ['P'])).toBe('OIC P')
   })
 })
 
 describe('the code', () => {
-  it('OIC is one stock, in the Options group, and the model names it', () => {
+  it('NVDA OIC is one stock, in the Options group, and the model names it (bare OIC is the market list since 2026-11-27)', () => {
     expect(OI_CHANGE_CODE).toBe('OIC')
     expect(BY_CODE.OIC.ticker).toEqual({ panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] })
-    expect(BY_CODE.OIC.market).toBeUndefined()
+    expect(BY_CODE.OIC.market).toEqual({ panel: 'OiMarket', args: [{ kind: 'oicView', prop: 'view' }, { kind: 'oiSide', prop: 'side' }] })
     expect(BY_CODE.OIC.group).toBe('Options')
     expect(BY_CODE.OIC.example).toBe('NVDA OIC')
     expect(variantFor('OIC', true)).toMatchObject({ scope: 'ticker' })
-    expect(variantFor('OIC', false)).toEqual({ variant: null, reason: 'needs-ticker' })
+    expect(variantFor('OIC', false)).toMatchObject({ scope: 'market' })
   })
 
   it('both orders name the stock, and a side after the code is the side', () => {
