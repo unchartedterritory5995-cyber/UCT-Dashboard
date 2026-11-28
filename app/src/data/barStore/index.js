@@ -221,7 +221,7 @@ export function createBarStore(o = {}) {
     },
     scrollBack: (key, opts) => network.scrollBack(key, opts),
     /** Prime the history lake for `key` ahead of its open (network.primeLake). */
-    primeLake: (key) => network.primeLake?.(key),
+    primeLake: (key, opts) => (opts ? network.primeLake?.(key, opts) : network.primeLake?.(key)),
     /** Warm the edge's copy of `key`'s whole lake depth, no download (network.lakeEdgeWarm). */
     lakeEdgeWarm: (key, opts) => network.lakeEdgeWarm?.(key, opts) ?? Promise.resolve(0),
     /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed).
@@ -241,6 +241,8 @@ export function createBarStore(o = {}) {
     lakeHas: (sym) => network.lakeHas?.(sym) ?? Promise.resolve(false),
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
     lakeCarries: (key) => !!network.lakeCarries?.(key),
+    /** Does a read of window `key` (a chart at a past date) ask the history lake first (network.lakeCarriesWindow)? */
+    lakeCarriesWindow: (key) => !!network.lakeCarriesWindow?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
     NEIGHBOR_LIVE_MAX_KEYS,
     /**
