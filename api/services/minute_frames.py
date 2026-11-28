@@ -18,6 +18,9 @@ FRAME ("UMF1")
                     delivery window: a symbol missing here may still have traded (a reader
                     treats the minute as a GAP, never as "no trades")
                     bit2 FLAG_DAILY = a DAILY section follows the blocks (below)
+                    bit3 FLAG_DAILY_STALE = the publisher's daily feed has not reported for longer
+                    than two polls: the rows a device holds may be frozen, so it must stop trusting
+                    them until the next full set (zero-network PR 3.4 review, C1)
     6   u16  reserved (0)
     8   u32  day       ET trading date as YYYYMMDD
     12  u32  seq       this frame's minute, as its index from 04:00 ET of `day` (0..959)
@@ -90,6 +93,7 @@ VERSION = 1
 FLAG_AV = 0x01
 FLAG_INCOMPLETE = 0x02
 FLAG_DAILY = 0x04
+FLAG_DAILY_STALE = 0x08
 NO_SEQ = 0xFFFFFFFF
 
 KIND_ONTIME = 0
@@ -266,13 +270,14 @@ def _record(out: bytearray, row: tuple, with_av: bool) -> None:
 
 def encode_frame(*, day: int, seq: int, prev_seq: int, epoch: int, minute: int,
                  blocks: list, with_av: bool = False, complete: bool = True,
-                 daily: Optional[dict] = None) -> bytes:
+                 daily: Optional[dict] = None, daily_stale: bool = False) -> bytes:
     """One frame. `blocks` = [(minute, kind, {sym: (o, h, l, c, v[, av])}), ...]; the block for
     the frame's own minute is first by convention. `daily` = {sym: (o, h, l, c, v)}, the DAILY
     section (None or empty: none). Returns the RAW (uncompressed) bytes."""
     symbols = sorted({s for _, _, rows in blocks for s in rows} | set(daily or ()))
     index = {s: i for i, s in enumerate(symbols)}
-    flags = (FLAG_AV if with_av else 0) | (0 if complete else FLAG_INCOMPLETE) | (FLAG_DAILY if daily else 0)
+    flags = ((FLAG_AV if with_av else 0) | (0 if complete else FLAG_INCOMPLETE) | (FLAG_DAILY if daily else 0)
+             | (FLAG_DAILY_STALE if daily_stale else 0))
     out = bytearray(_HDR.pack(MAGIC, VERSION, flags, 0,
                               day, seq, prev_seq & 0xFFFFFFFF, epoch & 0xFFFFFFFF, minute))
     _symbol_table(out, symbols)
@@ -419,6 +424,8 @@ def decode_frame(data: bytes) -> dict:
         blocks.append({"minute": bmin, "kind": kind, "rows": rows})
     out = {"day": day, "seq": seq, "prev_seq": prev_seq, "epoch": epoch, "minute": minute,
            "flags": flags, "blocks": blocks}
+    if flags & FLAG_DAILY_STALE:
+        out["daily_stale"] = True
     if flags & FLAG_DAILY:
         n, pos = _get_varint(buf, pos)
         out["daily"], pos = _read_records(buf, pos, n, symbols, False)

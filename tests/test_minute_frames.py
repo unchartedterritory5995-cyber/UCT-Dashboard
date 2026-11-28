@@ -530,7 +530,7 @@ def test_the_daily_feed_merges_the_changes_into_its_day_and_never_mutates_a_hand
     feed.report(("err", "provider down"))
     assert feed(20261120) == {"A": (1.0, 1.0, 1.0, 1.0, 1.0), "B": (2.0, 2.5, 2.0, 2.5, 9.0)}
     assert held["B"] == (2.0, 2.0, 2.0, 2.0, 2.0)                    # the dict an encode was iterating is untouched
-    assert feed(20261121) is None and feed.counts == {"reports": 2, "errors": 1}
+    assert feed(20261121) is None and feed.counts == {"reports": 2, "errors": 1, "restarts": 0}
     feed.report((20261123, {"C": (5.0, 5.0, 5.0, 5.0, 5.0)}))      # a new day starts empty
     assert feed(20261123) == {"C": (5.0, 5.0, 5.0, 5.0, 5.0)} and feed(20261120) is None
 
@@ -604,6 +604,104 @@ def test_the_monday_check_reads_the_newest_daily_row_per_symbol_from_the_frames(
               frame(m + 1, None), frame(m + 2, {"AAPL": (1.0, 2.0, 0.5, 1.75, 140.0)})]
     got = chk.daily_rows(frames, {"AAPL"})
     assert got == {"AAPL": ((1.0, 2.0, 0.5, 1.75, 140.0), 16 * 60 + 2)}
+
+
+# ── C1 (review of PR 3.4): a quiet daily feed is never painted as a live D bar ─────────────────
+
+class _Clock:
+    def __init__(self):
+        self.t = 1000.0
+
+    def __call__(self):
+        return self.t
+
+
+def test_a_daily_feed_that_stops_reporting_answers_stale_and_a_new_report_makes_it_current():
+    clk = _Clock()
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk)
+    assert feed(20261130) is None                                   # nothing reported yet: no section, not stale
+    feed.report((20261130, {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}))
+    assert feed(20261130) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}
+    clk.t += 2 * 30 + mfp.DAILY_STALE_SLACK_S                       # two polls and the slack: still current
+    assert feed(20261130) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}
+    clk.t += 1
+    assert feed(20261130) is mfp.DAILY_STALE
+    feed.report(("err", "vendor 503"))                              # a failed read is no proof of anything
+    assert feed(20261130) is mfp.DAILY_STALE
+    feed.report((20261130, {}))                                     # the child's heartbeat: an unchanged read
+    assert feed(20261130) == {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0)}
+    assert feed(20261127) is None                                   # another day: never this day's rows
+
+
+def test_a_stale_feed_flags_the_frame_and_the_recovery_resends_every_row():
+    r2, clock = R2(), {"ms": 0}
+    state = {"stale": False}
+    rows = {"AAPL": (1.0, 2.0, 0.5, 1.5, 100.0), "MSFT": (3.0, 4.0, 2.5, 3.5, 200.0)}
+    pub = _pub(r2, clock, daily=lambda day: mfp.DAILY_STALE if state["stale"] else dict(rows))
+    m0 = fx._unix(DAY, 11, 0) // 60
+    clock["ms"] = (m0 + 1) * 60000
+    pub.on_am("AAPL", _am(m0))
+    _run_to(pub, clock, (m0 + 1) * 60 + 5)                          # 11:00: every row
+    state["stale"] = True
+    _run_to(pub, clock, (m0 + 2) * 60 + 5)                          # 11:01: the feed went quiet
+    state["stale"] = False
+    _run_to(pub, clock, (m0 + 3) * 60 + 5)                          # 11:02: back, NOTHING changed, yet every row
+    got = {k[-8:-4]: mf.decode_frame(v) for k, v in r2.objects.items() if k.endswith(".bin") and "today" not in k}
+    assert set(got["1100"]["daily"]) == {"AAPL", "MSFT"} and not got["1100"].get("daily_stale")
+    assert got["1101"].get("daily_stale") is True and "daily" not in got["1101"]
+    assert got["1101"]["flags"] & mf.FLAG_DAILY_STALE
+    assert got["1102"]["daily"] == rows and not got["1102"].get("daily_stale")
+    assert pub.stats["daily_stale_frames"] == 1
+
+
+def test_a_dead_or_silent_daily_child_is_replaced_at_most_once_a_minute():
+    clk = _Clock()
+    feed = mfp.DailyFeed(start_child=False, poll_s=30, clock=clk)
+
+    class _Proc:
+        def __init__(self, alive):
+            self.alive, self.terminated = alive, False
+
+        def is_alive(self):
+            return self.alive
+
+        def terminate(self):
+            self.terminated = True
+
+    started = []
+    feed._start_child = lambda: started.append(1) or setattr(feed, "_proc", _Proc(True))
+    feed._proc = _Proc(False)                                       # the child died
+    feed(20261130)
+    assert started == [1] and feed.counts["restarts"] == 1
+    feed(20261130)
+    assert started == [1]                                           # alive again, and within the minute
+    feed.report((20261130, {"A": (1.0, 1.0, 1.0, 1.0, 1.0)}))
+    clk.t += mfp.DAILY_RESTART_POLLS * 30 + 1                       # silent for four polls (alive but stuck)
+    silent = feed._proc
+    feed(20261130)
+    assert started == [1, 1] and silent.terminated
+
+
+def test_the_child_reports_every_successful_read_even_an_unchanged_one(monkeypatch):
+    got = iter([(20261130, {"A": (1.0, 2.0, 0.5, 1.5, 9.0)}), (20261130, {"A": (1.0, 2.0, 0.5, 1.5, 9.0)}), None])
+    monkeypatch.setattr(mfp, "poll_daily_once", lambda: next(got))
+    sent = []
+
+    class _Q:
+        def put(self, m):
+            sent.append(m)
+
+    calls = {"n": 0}
+
+    def _sleep(_s):
+        calls["n"] += 1
+        if calls["n"] >= 3:
+            raise KeyboardInterrupt
+
+    monkeypatch.setattr(mfp.time, "sleep", _sleep)
+    with pytest.raises(KeyboardInterrupt):
+        mfp._daily_child(_Q(), 30)
+    assert sent == [(20261130, {"A": (1.0, 2.0, 0.5, 1.5, 9.0)}), (20261130, {})]   # the 3rd poll was out of window
 
 
 def test_the_daily_rows_are_read_on_the_encode_thread_never_in_tick():

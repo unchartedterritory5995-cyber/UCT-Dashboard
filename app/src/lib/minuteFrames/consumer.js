@@ -181,6 +181,10 @@ export function createMinuteFrameConsumer({
     } else {
       rollup.applyFrame(f)
       if (!f.complete) gap(f.seq, f.seq, 'incomplete', minuteOf)
+      // ⛔ C1 (review of PR 3.4): the publisher's daily feed went quiet, so the rows held here may be frozen while
+      // the bar moves. No trust until the publisher's next FULL set (it forgets what it sent when it flags this,
+      // so its next section carries every row: `seen` false makes that section the full one).
+      if (f.dailyStale) { dly.ok = false; dly.seen = false }
       if (f.daily) {
         const full = !dly.seen && dly.knownStart
         if (full) dly.ok = true

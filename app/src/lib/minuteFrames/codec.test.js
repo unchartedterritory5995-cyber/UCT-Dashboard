@@ -59,17 +59,29 @@ describe('minute frame codec: the Python encoder\'s bytes, decoded in the browse
     expect(decodeFrame(fixture('codec_daily_only.bin')).n).toBe(0)
   })
 
+  it('FLAG_DAILY_STALE (C1, review of PR 3.4) is read, never refused: the frame says its daily feed went quiet', () => {
+    const raw = fixture('codec_plain.bin')
+    expect(decodeFrame(raw).dailyStale).toBe(false)
+    const f = raw.slice()
+    f[5] |= 0x08
+    putU32(f, f.length - 4, crc32(f, 0, f.length - 4))
+    const d = decodeFrame(f)
+    expect(d.dailyStale).toBe(true)
+    expect(d.daily).toBeNull()
+    expect(d.n).toBe(decodeFrame(raw).n)
+  })
+
   it('a flag bit this decoder does not know is refused for good (never misread), with the header to account for it', () => {
     const raw = fixture('codec_plain.bin')
     const f = raw.slice()
-    f[5] |= 0x08
-    expect(KNOWN_FLAGS & 0x08).toBe(0)
+    f[5] |= 0x10
+    expect(KNOWN_FLAGS & 0x10).toBe(0)
     putU32(f, f.length - 4, crc32(f, 0, f.length - 4))
     let err = null
     try { decodeFrame(f) } catch (e) { err = e }
     expect(err).toBeInstanceOf(FrameError)
-    expect(err.message).toMatch(/unknown flags 0x8/)
-    expect(err.frame).toMatchObject({ day: 20261118, seq: 330, prevSeq: 329, flags: 0x08 })
+    expect(err.message).toMatch(/unknown flags 0x10/)
+    expect(err.frame).toMatchObject({ day: 20261118, seq: 330, prevSeq: 329, flags: 0x10 })
     // a section a decoder does not expect is trailing bytes; a flag without its section is cut short: both permanent
     const daily = fixture('codec_daily.bin')
     const noFlag = daily.slice(); noFlag[5] &= ~FLAG_DAILY; putU32(noFlag, noFlag.length - 4, crc32(noFlag, 0, noFlag.length - 4))

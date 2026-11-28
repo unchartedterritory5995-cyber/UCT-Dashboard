@@ -19,9 +19,11 @@ export const FLAG_AV = 0x01
 export const FLAG_INCOMPLETE = 0x02
 /** A DAILY section follows the blocks: the server's day row per symbol (api/services/minute_frames.py). */
 export const FLAG_DAILY = 0x04
+/** The publisher's daily feed went quiet (C1, review of PR 3.4): the DAILY rows a device holds may be frozen. */
+export const FLAG_DAILY_STALE = 0x08
 /** Every flag bit this decoder understands. A frame with any other bit is REFUSED (permanently, see
  *  FrameError.frame): a future bit may change what the bytes mean, and a misread frame is worse than a gap. */
-export const KNOWN_FLAGS = FLAG_AV | FLAG_INCOMPLETE | FLAG_DAILY
+export const KNOWN_FLAGS = FLAG_AV | FLAG_INCOMPLETE | FLAG_DAILY | FLAG_DAILY_STALE
 export const NO_SEQ = 0xFFFFFFFF
 export const KIND_ONTIME = 0
 export const KIND_LATE = 1
@@ -212,6 +214,7 @@ function _decodeBody(b, start, end, head) {
   return {
     ...head, withAv,
     complete: (flags & FLAG_INCOMPLETE) === 0,
+    dailyStale: (flags & FLAG_DAILY_STALE) !== 0,
     symbols, blocks, n: row,
     sym: rows.sym.subarray(0, row), o: rows.o.subarray(0, row), h: rows.h.subarray(0, row), l: rows.l.subarray(0, row),
     c: rows.c.subarray(0, row), v: rows.v.subarray(0, row), av: rows.av ? rows.av.subarray(0, row) : null,

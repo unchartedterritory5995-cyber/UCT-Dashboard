@@ -400,6 +400,13 @@ class Publisher:
             rows = self.daily(day)
         except Exception:  # noqa: BLE001 - a missing daily feed costs the section, never the frame
             rows = None
+        if rows is DAILY_STALE:
+            # C1 (review of PR 3.4): the feed stopped reporting. The rows devices hold may be frozen while the bar
+            # moves, so the frame SAYS so (FLAG_DAILY_STALE: consumer.js stops trusting them), and this epoch forgets
+            # what it sent: the first section after the feed recovers carries every row again (a full set).
+            self.daily_sent = {}
+            self.stats["daily_stale_frames"] = self.stats.get("daily_stale_frames", 0) + 1
+            return DAILY_STALE
         if not rows:
             return None
         changed = {sym: tuple(r) for sym, r in rows.items() if self.daily_sent.get(sym) != tuple(r)}
@@ -416,10 +423,13 @@ class Publisher:
         frames, self._enc = self._enc, []
         for fr in frames:
             t0 = time.perf_counter()
-            fr["daily"] = self._daily_rows(fr["day"], fr["seq"])
+            daily = self._daily_rows(fr["day"], fr["seq"])
+            fr["daily_stale"] = daily is DAILY_STALE
+            fr["daily"] = None if fr["daily_stale"] else daily
             raw = mf.encode_frame(day=fr["day"], seq=fr["seq"], prev_seq=fr["prev_seq"],
                                   epoch=self.epoch, minute=fr["minute"], blocks=fr["blocks"],
-                                  with_av=self.with_av, complete=fr["complete"], daily=fr.get("daily"))
+                                  with_av=self.with_av, complete=fr["complete"], daily=fr.get("daily"),
+                                  daily_stale=fr["daily_stale"])
             gz = mf.gzip_bytes(raw)
             self.stats["last_encode_ms"] = round((time.perf_counter() - t0) * 1000, 1)
             self.stats["last_frame_bytes"] = len(gz)
@@ -586,13 +596,14 @@ def daily_changes(state: dict, got: Optional[tuple]) -> Optional[tuple]:
 
 
 def _daily_child(q, poll_s: float) -> None:
-    """CHILD PROCESS: poll the snapshot during [close, 20:00) ET and hand (day, changed rows) to the parent."""
+    """CHILD PROCESS: poll the snapshot during [open, 20:00) ET and hand (day, changed rows) to the parent. Every
+    successful read is reported, an unchanged one as (day, {}): the parent's proof that its rows are CURRENT (C1)."""
     state: dict = {}
     while True:
         try:
-            msg = daily_changes(state, poll_daily_once())
-            if msg:
-                q.put(msg)
+            got = poll_daily_once()
+            if got:
+                q.put(daily_changes(state, got) or (got[0], {}))
         except Exception as e:  # noqa: BLE001
             try:
                 q.put(("err", str(e)[:200]))
@@ -601,21 +612,67 @@ def _daily_child(q, poll_s: float) -> None:
         time.sleep(poll_s)
 
 
+#: what `DailyFeed(day)` answers when its rows may be frozen (C1): the publisher marks the frame FLAG_DAILY_STALE
+DAILY_STALE = object()
+#: rows are current while the child's newest good report is younger than two polls plus this (seconds)
+DAILY_STALE_SLACK_S = 15.0
+#: a child that died, or has not reported for this many polls, is replaced (at most once a minute)
+DAILY_RESTART_POLLS = 4
+
+
 class DailyFeed:
     """Today's server daily rows as the child process reports them (changes merged into the day's
-    rows); `feed(day)` -> {sym: row} for that day, or None."""
+    rows); `feed(day)` -> {sym: row} for that day, None, or DAILY_STALE.
 
-    def __init__(self, start_child: bool = True, poll_s: Optional[float] = None):
+    C1 (review of PR 3.4): a dead child, or vendor reads that kept failing, left the last rows in place and every
+    device kept painting them as today's live D bar. Now the rows are CURRENT only while the child's newest good
+    report is younger than two polls plus DAILY_STALE_SLACK_S; after that the feed answers DAILY_STALE (the
+    publisher flags the frame, devices stop trusting their rows), and a child that died or has been silent for
+    DAILY_RESTART_POLLS polls is replaced (supervised from the encode thread, at most once a minute). A new
+    child's first report is every row, so trust comes back with a full set."""
+
+    def __init__(self, start_child: bool = True, poll_s: Optional[float] = None, clock=time.monotonic):
         self._latest: Optional[tuple] = None
-        self.counts = {"reports": 0, "errors": 0}
+        self.counts = {"reports": 0, "errors": 0, "restarts": 0}
+        self.poll_s = float(poll_s or _daily_poll_s())
+        self._clock = clock
+        self._fresh_at: Optional[float] = None
+        self._started_at = clock()
+        self._restarted_at = -1e18
+        self._proc = None
         if start_child:
             import multiprocessing as mp
             import threading
-            ctx = mp.get_context("spawn")
-            self._q = ctx.Queue()
-            ctx.Process(target=_daily_child, args=(self._q, poll_s or _daily_poll_s()), daemon=True,
-                        name="minute-frames-daily").start()
+            self._ctx = mp.get_context("spawn")
+            self._q = self._ctx.Queue()
+            self._start_child()
             threading.Thread(target=self._listen, daemon=True, name="minute-frames-daily-listener").start()
+
+    def _start_child(self) -> None:
+        self._proc = self._ctx.Process(target=_daily_child, args=(self._q, self.poll_s), daemon=True,
+                                       name="minute-frames-daily")
+        self._proc.start()
+
+    def _supervise(self) -> None:
+        """Replace a dead or silent child (never more than once a minute)."""
+        if self._proc is None:
+            return
+        now = self._clock()
+        silent_since = self._fresh_at if self._fresh_at is not None else self._started_at
+        dead = not self._proc.is_alive()
+        if not (dead or now - silent_since > DAILY_RESTART_POLLS * self.poll_s) or now - self._restarted_at < 60:
+            return
+        try:
+            if not dead:
+                self._proc.terminate()
+        except Exception:  # noqa: BLE001
+            pass
+        self._restarted_at = now
+        self.counts["restarts"] += 1
+        try:
+            self._start_child()
+        except Exception as e:  # noqa: BLE001 - a child that will not start leaves the feed stale, never wrong
+            _log.warning("[minute-frames] daily child restart failed: %s", e)
 
     def _listen(self) -> None:
         while True:
@@ -631,13 +688,19 @@ class DailyFeed:
             rows = dict(latest[1]) if latest is not None and latest[0] == day else {}
             rows.update(msg[1])
             self._latest = (day, rows)
+            self._fresh_at = self._clock()
             self.counts["reports"] += 1
         else:
             self.counts["errors"] += 1
 
-    def __call__(self, day: int) -> Optional[dict]:
+    def __call__(self, day: int):
+        self._supervise()
         latest = self._latest
-        return latest[1] if latest is not None and latest[0] == int(day) else None
+        if latest is None or latest[0] != int(day):
+            return None
+        if self._fresh_at is None or self._clock() - self._fresh_at > 2 * self.poll_s + DAILY_STALE_SLACK_S:
+            return DAILY_STALE
+        return latest[1]
 
 
 def publisher() -> Publisher:

@@ -31,7 +31,7 @@ const nameOf = (s) => (s === 'BRK-B' ? 'BRK.B' : s)
 
 /** An overlay fed the day's frames (up to `upto`, minus `drop`) by the real consumer. `strip`: the frames lose
  *  their DAILY section first (what an overlay that never heard of it sees). */
-function replay({ upto = Infinity, drop = [], incomplete = [], strip = false, overlayOpts = {} } = {}) {
+function replay({ upto = Infinity, drop = [], incomplete = [], stale = [], strip = false, overlayOpts = {} } = {}) {
   const overlay = createLiveOverlay({ nameOf, ...overlayOpts })
   const c = createMinuteFrameConsumer({
     sink: overlay.sink, rollup: { tfs: [...STORED_TFS] },
@@ -40,7 +40,8 @@ function replay({ upto = Infinity, drop = [], incomplete = [], strip = false, ov
   for (const f of FRAMES) {
     if (f.seq > upto) break
     if (drop.includes(f.seq)) continue
-    const g = incomplete.includes(f.seq) ? { ...f, complete: false } : f
+    let g = incomplete.includes(f.seq) ? { ...f, complete: false } : f
+    if (stale.includes(f.seq)) g = { ...g, daily: null, dailyStale: true }
     c.applyFrame(strip ? { ...g, daily: null } : g)
   }
   return overlay
@@ -208,6 +209,24 @@ describe('today\'s D bar from the server\'s own row', () => {
     o.sink.frameDone({ day: D.day, seq: 421, minute: m11 + 1, dailyOk: false })
     expect(o.read('AAA', 'D', PREV)?.forming).toBeUndefined()
     expect(o.read('AAA', 'D', PREV)?.cols ?? null).toBeNull()
+  })
+
+  // ⛔ C1 (review of PR 3.4): the publisher flags a frame FLAG_DAILY_STALE when its daily feed went quiet. From that
+  // frame the rows this device holds may be frozen while the bar moves: never painted as today's D bar again until
+  // the publisher's next full set (it re-sends every row after a stale frame, and the consumer takes that as full).
+  it('a frame flagged daily-stale drops the trust: the D answer is the rollup path\'s until a full set again', () => {
+    const at = FIRST_FULL + 5
+    const trusted = replay({ upto: at })
+    expect(trusted.state().dailyOk).toBe(true)
+    expect(trusted.read('DENSE', 'D', PREV)?.forming).toBe('D')
+    const stale = replay({ upto: at, stale: [at] })
+    expect(stale.state().dailyOk).toBe(false)
+    expect(answers(stale)).toEqual(answers(replay({ upto: at, strip: true })))
+    // the publisher's next section after a stale frame carries every row: the consumer takes it as the full set
+    const next = FRAMES.find((f) => f.seq > at && f.daily)
+    const back = replay({ upto: next.seq, stale: [at] })
+    expect(back.state().dailyOk).toBe(true)
+    expect(replay({ upto: next.seq - 1, stale: [at] }).state().dailyOk).toBe(false)
   })
 
   it('a re-sync (clear) forgets the rows and the trust until the frames say so again', () => {
