@@ -685,11 +685,13 @@ def test_an_interior_daily_hole_is_repaired_once_so_the_next_read_derives(store,
     monkeypatch.setattr(_massive, "get_agg_bars", lambda t, f, to: aggs.append((f, to)) or [_agg_raw(b) for b in missing])
     bars_fetch._get_bars_inner("AAA", "M", len(stored))
     assert len(deltas) == 1, "the first answer did not take the provider path"
+    def _hole_filled():
+        r = bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)
+        return bool(r) and int(r[-1][0]) == 20261110
     deadline = time.monotonic() + 5
-    while time.monotonic() < deadline and not bars_sqlite.get_bars_before("AAA", "D", 1, 20261110) [-1:] == [] and \
-            int(bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)[-1][0]) != 20261110:
+    while time.monotonic() < deadline and not _hole_filled():
         time.sleep(0.05)
-    assert int(bars_sqlite.get_bars_before("AAA", "D", 1, 20261110)[-1][0]) == 20261110, "the hole was never repaired"
+    assert _hole_filled(), "the interior hole was never repaired"
     assert aggs == [("2026-11-10", "2026-11-10")], aggs
     for _ in range(2):
         bars_fetch.cache.delete_prefix("bars_AAA_")
