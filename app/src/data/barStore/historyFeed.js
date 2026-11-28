@@ -159,7 +159,12 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
     if (!index) return null
     const through = lakeThrough(index, ls.series)
     if (through == null || !(through >= ls.dayStart)) return null
-    const newestP = newest ? newestSession(ls, index, through, signal).catch(() => null) : null
+    // (review of #2986, F-G) a newest read that FAILED (an R2 error, a 5xx) or came back EMPTY while the lake says it has
+    // bars through `through` is NOT KNOWN, the same as one that timed out: the caller must not take an unchecked basis
+    const UNKNOWN = {}
+    const newestP = newest
+      ? newestSession(ls, index, through, signal).then((rows) => (rows && rows.length ? rows : UNKNOWN), () => (signal?.aborted ? null : UNKNOWN))
+      : null
     const bars = await windowRows(ls, index, want, signal, yieldTask)
     if (!bars.length) return null
     const asOf = typeof index.splits_as_of === 'string' ? Date.parse(`${index.splits_as_of}T00:00:00Z`) / 1000 : NaN
@@ -175,7 +180,7 @@ export function createHistoryFeed({ source = createHistorySource(), now = () => 
       try {
         const got = await Promise.race([newestP, cap])
         // (review of #2986, F-F) timed out is NOT "no newest rows": the caller must not take an unchecked basis
-        if (got === TIMED_OUT) out.newestUnknown = true
+        if (got === TIMED_OUT || got === UNKNOWN) out.newestUnknown = true
         else out.newest = got || null
       } finally { clearTimeout(t) }
     }

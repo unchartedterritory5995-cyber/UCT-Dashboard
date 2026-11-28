@@ -836,10 +836,49 @@ describe('W14 — review of #2986 round 4: a chart joining a warm (F-E), an unkn
     expect(first.length, 'one visible draw: the origin\'s rows').toBe(738)
     open()
     await h.flush()
+    expect(h.registry.peek(K).bars, 'nothing lands by itself: a zoomed-out view would see the empty left area fill').toBe(first)
+    h.network.scrollBack(K)                                   // the member scrolls back
+    await h.flush()
     const after = h.registry.peek(K).bars
-    expect(after.length, 'the lake\'s older rows joined').toBe(asked)
+    expect(after.length, 'the kept lake rows join on the scroll').toBe(asked)
     expect(after.at(-1).t, 'the newest bar did not move').toBe(first.at(-1).t)
     expect(after.slice(-738).map((b) => b.t)).toEqual(first.map((b) => b.t))
+    expect(o.pend.length, 'in place of an origin ask (L2)').toBe(1)
+  })
+  it('(F-H) the entry reset (a basis change bumps its life) before the scroll: the kept lake rows land nothing', async () => {
+    const { WINDOW_LAKE_HEAD_START_MS, WINDOW_LAKE_MAX_WAIT_MS } = await import('./network')
+    const { source, open } = gatedLake(M, { through: LAKE_THROUGH })
+    const o = gatedOrigin(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source }) })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    await fire(h, WINDOW_LAKE_HEAD_START_MS)
+    const asked = o.pend[0].q.bars
+    o.pend[0].go((b) => b.slice(-738))
+    await h.flush()
+    await fire(h, WINDOW_LAKE_MAX_WAIT_MS)
+    open()
+    await h.flush()
+    h.registry.invalidate(K, 'adj_basis')
+    h.network.scrollBack(K)
+    await h.flush()
+    expect(h.registry.peek(K)?.bars?.length ?? 0, "the old life's lake rows never land in the new one").not.toBe(asked)
+  })
+  it('(F-G) the newest-session read FAILS (an R2 error), the present key held after a split: the origin', async () => {
+    const src = fakeSource(M, { through: LAKE_THROUGH })
+    const inner = src.loadBars
+    src.loadBars = vi.fn((sym, tf, q) => (q.to > etMidnightEpoch('2006-03-01') ? Promise.reject(Object.assign(new Error('r2 503'), { status: 503 })) : inner(sym, tf, q)))
+    const o = originOf(M)
+    const h = net({ request: o.request, history: createHistoryFeed({ source: src }) })
+    const P = keyOf({ sym: 'ABC', tf: '5' })
+    h.registry.dispatch(P, { type: 'rest-full', key: P, gen: h.registry.getSnapshot(P).gen,
+      payload: { ticker: 'ABC', tf: '5', bars: M.ABC[5].slice(-300).map((b) => ({ ...b, o: b.o / 2, h: b.h / 2, l: b.l / 2, c: b.c / 2 })) } })
+    const K = winKey('ABC', '5', '2006-02-15')
+    h.network.start(K)
+    await h.run()
+    expect(o.urls.length, 'a failed check is no pass').toBe(1)
+    expect(h.network.windowSource(K)).toBe('origin')
   })
 
   it('(LOW) the ceiling\'s timer goes with the caller\'s abort', async () => {

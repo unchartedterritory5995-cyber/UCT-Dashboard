@@ -492,9 +492,16 @@ export function createNetwork({
     const plainHeld = at > 0 ? (registry.peek(r.key.slice(0, at))?.bars?.length ?? 0) > 0 : false
     // the lake's answer: the payload, or null when the origin must answer (a refusal, a failure, a seam that disagrees)
     // (review of #2986, F2) `.then(ok).catch(...)`: a throw in the seam or daily check falls back too, never errors the chart
+    // (review of #2986, L3) a refusal only because the newest session was not known in time is TRANSIENT: the origin
+    // answers this read, and the record keeps asking the lake (`windowLakeOff` stays off)
+    let transient = false
+    const askedGen = registry.getSnapshot(r.key).gen   // (F-H) the life this read's answer lands in
     const lake = Promise.resolve().then(() => history.windowBars(r.key, { bars, signal, newest: plainHeld })).then(
-      (got) => (got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got)
-        ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null),
+      (got) => {
+        if (got && got.newestUnknown && plainHeld) transient = true
+        return got && Array.isArray(got.bars) && got.bars.length && _windowSeamOk(r.key, got)
+          ? { ticker: p.sym, tf: p.tf, bars: got.bars, source: 'lake' } : null
+      },
     ).catch((e) => { if (signal?.aborted) throw e; return null })   // the caller's abort; any other failure falls back
     lake.catch(() => {})
     // a chart that subscribed, or a non-warm ask that joined, while the lake was read never rides a shed-able warm (`_tail`)
@@ -506,7 +513,7 @@ export function createNetwork({
       if (rec) { rec.url = u; rec.warm = /[?&]warm=1(?:&|$)/.test(u); rec.sent = true }
       return request(u, o)
     }
-    const refused = () => { r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
+    const refused = () => { if (!transient) r.windowLakeOff = true; _noteWindowSource(r.key, 'origin') }
     const won = (src) => { _noteWindowSource(r.key, src) }
     // ⛔ (review of #2986, F1 blocker) A WINDOW IS WHOLE ONLY WHEN IT HOLDS THE BARS ASKED. The origin serves short windows
     // UNFLAGGED (a read >= 0.9 x asked counts as covered and is cached an hour; a cold fetch with no slot, or a failed
@@ -587,33 +594,16 @@ export function createNetwork({
       won('origin')
       // ⭐ (review of #2986, the deepening) the origin landed short at the ceiling: a lake that settles WHOLE later adds
       // its older rows behind the left edge, as a background deepening (one visible draw; a right-pinned view stays)
-      if (v.ceiling && v.o) lake.then((x) => { if (lakeWhole(x)) _queueLakeDeepening(r, x.bars) }, () => {})
+      // ⛔ (review of #2986, round 5) ...NEVER INTO A VISIBLE EMPTY LEFT AREA: a window chart zoomed out past its bar 0
+      // shows the space the rows would fill, so they are kept for the member's next scroll-back (`_scrollJob` lands them
+      // first, in place of an origin ask), on the life this read answered (`askedGen`)
+      if (v.ceiling && v.o) lake.then((x) => { if (lakeWhole(x) && keys.get(r.key) === r) r.pendingDeepen = { rows: x.bars, gen: askedGen } }, () => {})
       if (v.e) throw v.e
       return v.o
     } finally {
       signal?.removeEventListener?.('abort', giveUp)
     }
     }
-  }
-  /** (the deepening) the rows of a whole lake window OLDER than the entry's oldest, joined behind the left edge through the
-   *  key's slot (after the answer that landed), in idle time, on the seam rule (prependOlder) */
-  function _queueLakeDeepening(r, rows) {
-    if (keys.get(r.key) !== r || !registry.has(r.key)) return
-    r.queue.push({
-      run: () => {
-        const s = registry.getSnapshot(r.key)
-        if (!s.bars.length) return Promise.resolve({ ok: false })
-        const older = rows.filter((b) => b.t < s.bars[0].t)
-        if (!older.length || prependOlder(s.bars, older) === s.bars) return Promise.resolve({ ok: true, added: 0 })
-        return Promise.resolve(_landBackground(r, 'background', () => {
-          const now0 = registry.getSnapshot(r.key)
-          registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen: now0.gen, payload: { bars: older, ticker: parseKey(r.key)?.sym } })
-          return { ok: true, added: older.length, source: 'lake' }
-        }))
-      },
-      resolve: () => {},
-    })
-    _drain(r)
   }
   /** Do the bars this page holds for the window's series agree with the lake's `rows` on the shared bars (the first and the
    *  last shared one, the 2% rule)? True when none are shared. */
@@ -821,6 +811,20 @@ export function createNetwork({
    *  has nothing older, fails, or disagrees at the join hands over to the server window, queued
    *  behind whatever took the slot meanwhile (≤1 request per key still holds). */
   function _scrollJob(r, opts) {
+    // ⭐ (review of #2986, the deepening; L2) a window's lake rows kept after a short ceiling answer land first, on the
+    // life they were asked in (`gen`: the reducer drops another life's), through _joinLakeWindow's rules: the lake must
+    // hold the join bar (the gap rule) and agree with it (prependOlder's basis check). Refused or stale: discarded, and
+    // the scroll asks as it always did.
+    const pend = r.pendingDeepen
+    if (pend) {
+      r.pendingDeepen = null
+      const s0 = registry.getSnapshot(r.key)
+      if (pend.gen === s0.gen && s0.bars.length) {
+        const oldest = s0.bars[0].t
+        return Promise.resolve(_landBackground(r, opts.priority || 'urgent', () => _joinLakeWindow(r, pend.gen, { bars: pend.rows }, oldest)))
+          .then((res) => (res?.ok && res.added > 0 ? res : _scrollJob(r, opts)))
+      }
+    }
     if (!history || !_lakeCarries(r)) return _serverScrollJob(r, opts)
     return _lakeScrollJob(r, opts).then((res) => {
       if (res?.aborted || res?.ok || res?.dropped) return res   // (dropped: a window for a chart the member left, _landBackground)
