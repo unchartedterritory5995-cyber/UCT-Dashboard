@@ -31,7 +31,7 @@ const nameOf = (s) => (s === 'BRK-B' ? 'BRK.B' : s)
 
 /** An overlay fed the day's frames (up to `upto`, minus `drop`) by the real consumer. `strip`: the frames lose
  *  their DAILY section first (what an overlay that never heard of it sees). */
-function replay({ upto = Infinity, drop = [], incomplete = [], strip = false, overlayOpts = {} } = {}) {
+function replay({ upto = Infinity, drop = [], incomplete = [], stale = [], strip = false, overlayOpts = {} } = {}) {
   const overlay = createLiveOverlay({ nameOf, ...overlayOpts })
   const c = createMinuteFrameConsumer({
     sink: overlay.sink, rollup: { tfs: [...STORED_TFS] },
@@ -40,7 +40,8 @@ function replay({ upto = Infinity, drop = [], incomplete = [], strip = false, ov
   for (const f of FRAMES) {
     if (f.seq > upto) break
     if (drop.includes(f.seq)) continue
-    const g = incomplete.includes(f.seq) ? { ...f, complete: false } : f
+    let g = incomplete.includes(f.seq) ? { ...f, complete: false } : f
+    if (stale.includes(f.seq)) g = { ...g, daily: null, dailyStale: true }
     c.applyFrame(strip ? { ...g, daily: null } : g)
   }
   return overlay
@@ -187,6 +188,79 @@ describe('today\'s D bar from the server\'s own row', () => {
     sink.daily({ day: D.day, full: false, rows: [{ sym: 'BBB', o: 1, h: 2, l: 0.5, c: 1.5, v: 10 }] })   // the old consumer's
     expect(overlay.state().dailyRows).toBe(0)
     feed.stop()
+  })
+
+  // ⭐ ZERO-NETWORK PR 3.4: THE DEVELOPING D BAR MID-SESSION IS THE SERVER'S OWN ROW. The publisher carries the
+  // DAILY section from the regular OPEN (minute_frame_publisher.regular_open_seq), because the server's D bar is the
+  // snapshot's day row all session and a bar built from minutes misses it on 0.87% of symbol-days (forming.js).
+  it('mid-session the server row is the FORMING D bar, exactly; untrusted rows fall back to the rollup path', () => {
+    const o = createLiveOverlay()
+    o.sink.reset({ day: D.day })
+    const m11 = Date.UTC(2026, 10, 19, 16, 0) / 60000                 // 11:00 ET on the fixture day
+    const row = { sym: 'AAA', o: 10, h: 11.5, l: 9.25, c: 10.75, v: 123456 }
+    o.sink.daily({ day: D.day, full: true, rows: [row] })
+    o.sink.frameDone({ day: D.day, seq: 420, minute: m11, dailyOk: true })
+    const got = o.read('AAA', 'D', PREV)
+    expect(got.forming).toBe('D')
+    expect(got.through).toBe((m11 + 1) * 60)
+    expect(rowOf(got.cols)).toEqual([DAY_T, 10, 11.5, 9.25, 10.75, 123456])
+    expect(o.why('AAA', 'D', PREV)).toBe('ok')
+    // a gap mid-session: the consumer no longer vouches, and the answer is the rollup path's (no D bar from minutes)
+    o.sink.frameDone({ day: D.day, seq: 421, minute: m11 + 1, dailyOk: false })
+    expect(o.read('AAA', 'D', PREV)?.forming).toBeUndefined()
+    expect(o.read('AAA', 'D', PREV)?.cols ?? null).toBeNull()
+  })
+
+  // ⛔ C1 (review of PR 3.4): the publisher flags a frame FLAG_DAILY_STALE when its daily feed went quiet. From that
+  // frame the rows this device holds may be frozen while the bar moves: never painted as today's D bar again until
+  // the publisher's next full set (it re-sends every row after a stale frame, and the consumer takes that as full).
+  it('a frame flagged daily-stale drops the trust: the D answer is the rollup path\'s until a full set again', () => {
+    const at = FIRST_FULL + 5
+    const trusted = replay({ upto: at })
+    expect(trusted.state().dailyOk).toBe(true)
+    expect(trusted.read('DENSE', 'D', PREV)?.forming).toBe('D')
+    const stale = replay({ upto: at, stale: [at] })
+    expect(stale.state().dailyOk).toBe(false)
+    expect(answers(stale)).toEqual(answers(replay({ upto: at, strip: true })))
+    // the publisher's next section after a stale frame carries every row: the consumer takes it as the full set
+    const next = FRAMES.find((f) => f.seq > at && f.daily)
+    const back = replay({ upto: next.seq, stale: [at] })
+    expect(back.state().dailyOk).toBe(true)
+    expect(replay({ upto: next.seq - 1, stale: [at] }).state().dailyOk).toBe(false)
+  })
+
+  // ⛔ Review of PR 3.4 (MEDIUM): a split the vendor listed late. The seed holds pre-split history; the server's row is
+  // post-split. Its prevDay close (the prior session on TODAY's basis) is then far from the seed's last close, and the
+  // engine refuses the join (the client's own 2% seam, barsMerge._closeMismatch): the copy stays the seed.
+  it('a server row whose prevDay close is off the seed\'s last close (a split the seed missed) is never joined', async () => {
+    const days = []
+    for (let d = new Date(Date.UTC(2026, 10, 18)); days.length < 30; d.setUTCDate(d.getUTCDate() - 1)) {
+      const wd = d.getUTCDay()
+      if (wd !== 0 && wd !== 6 && d.toISOString().slice(0, 10) !== '2026-11-11') days.unshift(d.getTime() / 1000)
+    }
+    const seed = days.map((t, i) => ({ t, o: 90 + i, h: 91 + i, l: 89 + i, c: 100 + i, v: 5e6 }))
+    const last = seed.at(-1).c
+    const pack = seedPackOf({ DENSE: seed }, { tf: 'D', asof: PREV, build: 'b1' })
+    const at11 = Date.UTC(2026, 10, 19, 16, 0)                       // 11:00 ET
+    const eng = createDeviceEngine({ io: memoryIO(), fetchFn: async () => new Response(pack), now: () => at11 })
+    await eng.ingest({ tf: 'D', url: 'D', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: 'b1' })
+    await eng.setSplits({ splits: { session: D.day, symbols: {} } })
+    const feed = (pc) => {
+      const o = createLiveOverlay({ nameOf: (s) => eng.seedName(s) })
+      eng.attachLive(o)
+      o.sink.reset({ day: D.day })
+      o.sink.daily({ day: D.day, full: true, rows: [{ sym: 'DENSE', o: 60, h: 61, l: 59, c: 60.5, v: 1e6, pc }] })
+      o.sink.frameDone({ day: D.day, seq: 420, minute: at11 / 60000, dailyOk: true })
+    }
+    feed(last)                                                      // the same basis: joined, today's forming bar
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
+    feed(last * 1.015)                                              // inside the seam (a corrected print): joined
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
+    feed(last / 2)                                                  // a 2:1 split the seed does not know: refused
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length)
+    expect(eng.why('DENSE', 'D')).toBe('seed-only:prev-close')
+    feed(null)                                                      // no prevDay close in the snapshot: joined as before
+    expect(eng.read('DENSE', 'D').t.length).toBe(seed.length + 1)
   })
 
   it('a re-sync (clear) forgets the rows and the trust until the frames say so again', () => {
