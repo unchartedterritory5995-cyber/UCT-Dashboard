@@ -1028,7 +1028,9 @@ def test_each_layouts_rows_run_on_their_own_layout_and_one_run_dir_takes_both(tm
 
 
 def test_a_layout_is_a_layout_id_or_nothing_starts(tmp_path):
-    assert bc.layout_url("01f1AcIj") == "https://www.tradingview.com/chart/01f1AcIj/" == bc.LAYOUT
+    assert bc.layout_url("B8PyGuX3") == "https://www.tradingview.com/chart/B8PyGuX3/" == bc.LAYOUT
+    # the old rig now holds the owner's own chart: it must never be the rig, nor any session's layout, again
+    assert bc.RIG_LAYOUT_ID != "01f1AcIj" and "01f1AcIj" not in bc.SESSION_LAYOUT.values()
     assert bc.layout_id_of("https://www.tradingview.com/chart/01f1AcIj/?symbol=X") == "01f1AcIj"
     assert bc.layout_url(bc.RIG_REGULAR_LAYOUT_ID).endswith("/chart/MyS1vKSg/") and bc.RIG_REGULAR_LAYOUT_ID != bc.RIG_LAYOUT_ID
     for bad in ("", "../x", "01f1AcIj/../y", "a b"):
