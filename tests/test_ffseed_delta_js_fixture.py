@@ -36,12 +36,14 @@ def _b(s):
 
 def test_every_committed_delta_is_proven_by_the_server_and_names_its_manifest_entry():
     fx = _committed()
-    assert set(fx["cases"]) == {"5", "D"}
+    assert set(fx["cases"]) == {"5", "D", "Dwhole"}
     for tf, c in fx["cases"].items():
         base, new, delta = _b(c["base"]), _b(c["new"]), _b(c["delta"])
         dl.verify_delta(base, delta, new)                      # raises unless delta + base == new, exactly
         tr = dl.read_delta_trailer(delta)
-        assert (tr["base"], tr["build"], tr["tf"]) == (fx["base_build"], fx["build"], tf)
+        assert (tr["base"], tr["build"], tr["tf"]) == (fx["base_build"], fx["build"], c["tf"])
+        # the full-depth daily case: the delta says what the new pack says about whole / partial
+        assert (tr.get("whole"), tr.get("partial")) == ((True, ["DEEP"]) if tf == "Dwhole" else (None, None))
         assert {s: dl.OP_NAMES[e[0]] for s, e in tr["symbols"].items()} == c["ops"]
         e = c["entry"]
         assert (e["bytes"], e["sha256"]) == (len(new), hashlib.sha256(new).hexdigest())

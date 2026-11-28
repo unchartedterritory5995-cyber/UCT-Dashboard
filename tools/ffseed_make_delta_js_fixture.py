@@ -15,7 +15,10 @@ Every operation is covered (docs/charts/first-frame-seed-format.md section 10):
     DOWN    merge    the new window needs FEWER decimals: the kept rows are scaled down
     GONE    remove   in the base only
     NEWSYM  replace  in the new build only
-plus a D case (one new daily bar per symbol) in `raw` blobs, so both compressions are exercised.
+plus a D case (one new daily bar per symbol) in `raw` blobs, so both compressions are exercised, and a
+FULL-DEPTH D case (`Dwhole`, zero-network PR 3.1): `whole` packs (each window the symbol's whole series, one named
+`partial`), the window GROWING by one session (nothing drops off its start), so the delta must carry the new
+build's whole/partial for the device to write them into the pack it rebuilds.
 
 Synthetic prices only: this repository is public and never carries vendor data.
 
@@ -114,9 +117,18 @@ def _daily_series():
     return {"AAA": (a[:-1][-350:], a[-350:]), "BRK-B": (b[:-1][-350:], b[-350:])}
 
 
-def _case(tf, series, depth, comp, splits):
-    pb = fmt.PackBuilder(tf, asof=BASE_ASOF, build=BASE_BUILD, depth=depth, comp=comp)
-    pn = fmt.PackBuilder(tf, asof=NEW_ASOF, build=NEW_BUILD, depth=depth, comp=comp)
+def _daily_whole_series():
+    def daily(days, px, step):
+        return [{"t": d.isoformat(), "o": px + i * step, "h": px + i * step + 1, "l": px - 1 + i * step,
+                 "c": px + i * step + 0.5, "v": 100 + i} for i, d in enumerate(days)]
+    young = daily(_days(date(2026, 11, 20), 41), 25.0, 0.5)            # a recent listing: 40 sessions, then 41
+    deep = daily(_days(date(2026, 11, 20), 1201), 80.0, 0.0625)
+    return {"YNG": (young[:-1], young), "DEEP": (deep[:-1], deep)}
+
+
+def _case(tf, series, depth, comp, splits, whole=False, partial=()):
+    pb = fmt.PackBuilder(tf, asof=BASE_ASOF, build=BASE_BUILD, depth=depth, comp=comp, whole=whole, partial=partial)
+    pn = fmt.PackBuilder(tf, asof=NEW_ASOF, build=NEW_BUILD, depth=depth, comp=comp, whole=whole, partial=partial)
     for sym, (b, n) in sorted(series.items()):
         if b:
             pb.add_served(sym, b)
@@ -154,8 +166,10 @@ def fixture() -> dict:
     assert five["ops"] == WANT_OPS, five["ops"]
     daily = _case("D", _daily_series(), 350, "raw", [])
     assert daily["ops"] == {"AAA": "merge", "BRK-B": "merge"}, daily["ops"]
+    whole = _case("D", _daily_whole_series(), 60000, "gzip", [], whole=True, partial=["DEEP"])
+    assert whole["ops"] == {"DEEP": "merge", "YNG": "merge"}, whole["ops"]
     return {"base_build": BASE_BUILD, "build": NEW_BUILD, "base_asof": BASE_ASOF, "asof": NEW_ASOF,
-            "cases": {"5": five, "D": daily}}
+            "cases": {"5": five, "D": daily, "Dwhole": whole}}
 
 
 def main() -> int:

@@ -20,8 +20,10 @@ byte a lake piece body, so `app/src/data/historyLake/piece.js` `decodeBody` deco
 | `15` | 900         | 1000            | regular session only                                               |
 | `30` | 1800        | 1000            | regular session only                                               |
 | `60` | 1800        | 1000            | regular session only, the `'60'` key's stored 09:30-anchored grid  |
-| `D`  | 86400       | 350             | every daily bar; W and M are derived on the device from D          |
+| `D`  | 86400       | FULL (60000)    | the WHOLE served daily series (section 11)                                          |
 
+* **D is the whole series (2026-11-28, owner decision, zero-network switch PR 3.1; was 350).** Section 11.
+  `FFSEED_DEPTH_D=350` on the worker restores the shallow first-paint window.
 * **Intraday depth 1000 (2026-11-28, owner decision, zero-network switch PR 1.6).** `1` `5` `15` `30` were 600 / 300 /
   300 / 300: a device copy draws a view whole only from `COVER_ROWS` (600, `app/src/data/barStore/coverRows.js`) rows
   on, so a 300-row copy never covered and every present-day intraday switch on a never-viewed ticker waited for the
@@ -176,6 +178,12 @@ by code point) and do not overlap; a pack is a pure function of its inputs.
 | `build`   | the build id (equals the URL's)                                                |
 | `fields`  | the names of a symbol entry's 10 numbers, in order (fixed in version 1)        |
 | `symbols` | ticker (as `/api/bars` names it, e.g. `BRK-B`) -> its entry                    |
+| `whole`   | OPTIONAL (2026-11-28, section 11): `true` = every symbol's window is its WHOLE served series as of `asof`, except those in `partial`. Absent: nothing is known whole |
+| `partial` | with `whole` only: the symbols whose window may not be their whole series (a list, usually empty) |
+
+`whole` and `partial` are new keys, not a version change (section 8): an older reader ignores them and
+treats every copy as it always did. A reader that knows them refuses a file whose `whole` is not `true`
+or whose `partial` is not a list of strings (`ffseed_format.read_trailer`, `codec.wholeOf`).
 
 Symbol entry, 10 non-negative integers:
 
@@ -328,9 +336,16 @@ under shared load, one timeframe at a time as the worker runs them):
 | `15` | 1000 | 3,528 | 3,511,578 | **26.0 MB** | 7.33 | 40  | 104 s |
 | `30` | 1000 | 3,528 | 3,507,231 | **28.0 MB** | 7.89 | 44  | 117 s |
 | `60` | 1000 | 3,528 | 3,501,709 | **30.1 MB** | 8.53 | 56  | 120 s |
+| `D`  | FULL | 3,527 | 16,664,317 | **128.8 MB** | 7.71 | whole: all (partial 0) | 115 s |
 
 `1` `5` `15` `30` at 1000 are 94.7 MB together, +58.1 MB over 600 / 300 / 300 / 300 (36.6 MB). `short`: the
 store holds fewer than N regular-session bars (recent listings), packed as they are.
+
+The full-depth D pack (section 11) is 128.8 MB for every cap-universe symbol's whole served series (mean
+~4,725 sessions; 2003 or the listing onward), every symbol whole. All six packs: 253.6 MB, the device's OPFS
+footprint on a desktop that holds them all. **The nightly D delta** (2026-11-24 -> 2026-11-25): **232 KB**
+(3,516 one-row merges, 11 whole `replace` records for splits, 19 removals), built in 23 s: a device that holds
+the pack downloads ~0.23 MB a night, not the pack.
 
 * 94 of the 3,639 symbols were left out of every timeframe: no bars, or a series that ends before
   the as-of session (names no longer trading). 0 refused as inexact.
@@ -514,7 +529,9 @@ the device's, never written. Why version 2: the trailer is ~0.3 MB per timeframe
 of bars in a 0.43 MB delta); gzip takes it to 20-28% (0.42 MB for all six).
 
 Trailer: `v` 2 (1 under `"UFFSDLT1"`), `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
-`build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`.
+`build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`, and, when the new
+pack has them, its `whole` and `partial` (section 11): the device writes them into the pack it rebuilds, and the
+builder's proof (`verify_delta`) refuses a delta that does not carry exactly the new pack's.
 `fields` = `["op","off","len","rows","bars","first","last","asof","crc","body","pscale","vscale"]`:
 
 | field           | meaning                                                                          |
@@ -593,3 +610,44 @@ reader opens, removed by the next ingest. Measured (Node, this repository's dev 
 1,000 bars): ~1.5-2.5 ms of worker time per symbol, the worker handing back control every 12 ms so other
 tabs' reads keep being answered. Tests: `app/src/data/deviceStore/delta.test.js` against deltas the server
 built (`tools/ffseed_make_delta_js_fixture.py`, pinned by `tests/test_ffseed_delta_js_fixture.py`).
+
+## 11. The full-depth daily pack (2026-11-28, zero-network switch PR 3.1)
+
+**Why.** A D / W / M switch on a never-viewed ticker should need no network at all. With a 350-session D copy
+the device could paint the newest rows, but the chart still asked the origin for its tail and the edge for
+the deep history (`/api/bars-history`) and waited for that join; W and M were not served at all (a shallow D
+window cannot build them). The D pack now holds every symbol's WHOLE served series.
+
+**What a window is** (`ffseed.daily_full_window`): exactly what a daily chart holds once its history joined.
+
+* the TAIL: the chart's first-paint read (`FIRST_PAINT_READ["D"]` = 600 rows through the serve formatter), as
+  the shallow seed read it;
+* the DEEP history: one read of the whole stored series (up to `n` = 60000 rows, the history route's own
+  ceiling) through the same formatter, which is what `/api/bars-history` serves from the worker's store;
+* joined by the client's seam rule (`utils/historyPrepend.prependOlder`): the deep bars older than the tail's
+  first bar, then the tail; when the closes at that bar differ by more than 2% the join is refused and the deep
+  read alone is the window (the client turns the split off and asks the full depth from `/api/bars`, the same
+  formatter over the whole series). Pinned by `tests/test_ffseed_full_daily.py` against the real
+  `/api/bars` warm path and the real `serve_bars_history`, a deep split included.
+
+**Whole.** A symbol whose store read returned fewer than `n` rows holds nothing older: its window starts at the
+series' first served bar. The trailer says `whole: true` and lists any other symbol in `partial` (section 3).
+On the device a whole copy carries `whole` (engine.js), the bar store records its first bar (`wholeFrom`,
+source.js / persist.js) and asks no deep history join for an entry that still starts there
+(`network.deepPending`); its tail asks only the newest 30 rows. An entry the server's answer rebuilds onto
+another basis no longer starts there and is due its history again.
+
+**W and M** come from a whole D copy whose period in progress is known (PR 3.3, `resample.deriveServed`).
+
+**The daily delta** is one merged row per symbol per night (the new session's bar, plus any bar the serve path
+changed: a corrections-ledger edit, a healed split); a symbol named in the base manifest's `splits` is a whole
+`replace` record. The window grows by one row instead of sliding.
+
+**Fetch policy on the device.** Unchanged in kind (section 9, `client.js`, `engine.js`): after the page's first
+chart paint and an idle period, one timeframe at a time, `priority: 'low'`, `cache: 'no-store'`, resumable Range
+downloads (the edge answers 206 from R2), the generation verified (size, sha256, trailer, one record decoded)
+before it is committed and the held one serving throughout; a delta is rebuilt into a new generation and read
+back in full. New for the full-depth pack: the START of every download waits a random 0-10 minutes
+(`workerCore.DOWNLOAD_JITTER_MS`, owner ruling 2026-11-28), so members opening the app together do not start
+together, and the page's synchronous cache is bounded by bytes as well as keys (`client.SYNC_CACHE_MAX_BYTES`,
+32 MiB beside `SYNC_CACHE_MAX` 96 keys).

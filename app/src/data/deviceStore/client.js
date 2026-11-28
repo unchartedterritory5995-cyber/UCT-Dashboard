@@ -100,6 +100,10 @@ import { noteDeviceFiles } from './residue'
 export const DEVICE_SEED_MANIFEST = '/api/seed/v1/latest.json'
 export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
+/** ⭐ ...AND A BYTE BOUND (2026-11-28, the full-depth daily pack). A full-depth D copy is up to ~12,600 rows (six Float64
+ *  columns: ~0.6 MB), so 96 of them could hold ~58 MB of one page's heap. The least recently read go first once the
+ *  cached columns pass this (the newest copy always stays): ~110 median-depth D copies, any number of intraday ones. */
+export const SYNC_CACHE_MAX_BYTES = 32 * 1024 * 1024
 export const SYNC_CACHE_TTL_MS = 20_000
 export const VISIBLE_HEARTBEAT_MS = 60_000
 /** A page left open re-asks the leader to bring the seed up to date this often, while visible (M2). The nightly build
@@ -144,6 +148,7 @@ export function createDeviceClient({
   afterPaint = afterFirstChartPaint,
   idle = _whenIdle,
   cacheMax = SYNC_CACHE_MAX,
+  cacheMaxBytes = SYNC_CACHE_MAX_BYTES,
   cacheTtlMs = SYNC_CACHE_TTL_MS,
   now = () => Date.now(),
   visible = isAppVisible,
@@ -174,7 +179,8 @@ export function createDeviceClient({
   let visibleQueued = false      // a visible report waits for idle (back from hidden)
   const pending = new Map()      // id → resolve
   let readTimeouts = 0           // reads the worker did not answer in time (diagnostics)
-  const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
+  const cache = new Map()        // `${tf}|${SYM}` → {cols, at, bytes} (LRU: Map order)
+  let cacheBytes = 0             // the columns' bytes the cache holds (SYNC_CACHE_MAX_BYTES)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
   // background reads not sent yet: one Map per ASK (the reads of one task), oldest ask first; each Map
   // `${tf}|${SYM}` → {send, drop} in the order asked
@@ -204,9 +210,21 @@ export function createDeviceClient({
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
+  const _bytesOf = (cols) => {
+    let n = 0
+    for (const c of ['t', 'o', 'h', 'l', 'c', 'v']) n += cols?.[c]?.byteLength || 0
+    return n
+  }
+  function _del(k) {
+    const c = cache.get(k)
+    if (!c) return
+    cacheBytes -= c.bytes || 0
+    cache.delete(k)
+  }
+
   function _drop(tf) {
     const tfs = tf === 'D' ? ['D', 'W', 'M'] : [tf]
-    for (const k of [...cache.keys()]) if (tfs.includes(k.slice(0, k.indexOf('|')))) cache.delete(k)
+    for (const k of [...cache.keys()]) if (tfs.includes(k.slice(0, k.indexOf('|')))) _del(k)
   }
 
   function _worker() {
@@ -328,9 +346,11 @@ export function createDeviceClient({
   }
 
   function _put(k, cols) {
-    cache.delete(k)
-    cache.set(k, { cols, at: now() })
-    while (cache.size > cacheMax) cache.delete(cache.keys().next().value)
+    _del(k)
+    const bytes = _bytesOf(cols)
+    cache.set(k, { cols, at: now(), bytes })
+    cacheBytes += bytes
+    while (cache.size > cacheMax || (cacheBytes > cacheMaxBytes && cache.size > 1)) _del(cache.keys().next().value)
   }
 
   const _visibleNow = () => { try { return visible() !== false } catch { return true } }
@@ -415,7 +435,7 @@ export function createDeviceClient({
       const k = keyOf(sym, tf)
       const c = cache.get(k)
       if (!c) return null
-      if (now() - c.at > cacheTtlMs) { cache.delete(k); return null }
+      if (now() - c.at > cacheTtlMs) { _del(k); return null }
       cache.delete(k)
       cache.set(k, c)
       return c.cols
@@ -469,6 +489,8 @@ export function createDeviceClient({
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
+    /** Diagnostics: the bytes of columns the synchronous cache holds (SYNC_CACHE_MAX_BYTES). */
+    cacheBytes: () => cacheBytes,
     /** Stop for good (a kill reached this open page, M9): the worker is terminated and never started again (its leader
      *  lock goes with it, and with it the minute feed this tab ran); the visible beat stops. Every read answers null. */
     shutdown() {
@@ -486,6 +508,7 @@ export function createDeviceClient({
       for (const r of pending.values()) r(null)
       pending.clear()
       cache.clear()
+      cacheBytes = 0
       try { worker?.terminate() } catch { /* gone */ }
       worker = null
     },
