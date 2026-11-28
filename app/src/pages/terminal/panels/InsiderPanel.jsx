@@ -14,9 +14,8 @@
 import { useMemo, useState } from 'react'
 import InsiderClustersPanel from './InsiderClustersPanel'
 import { normInsView } from './insiderClustersModel'
-import {
-  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
-} from '../../../components/terminal'
+import { PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { usePanelSort } from '../../../components/terminal/usePanelView'
 import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { canRetry, failureText, useMarketRead } from './marketRead'
@@ -81,7 +80,9 @@ function InsiderBuysView() {
   const inPanel = useInTerminalPanel()
   const read = useMarketRead(INSIDER_URL, { refreshInterval: POLL_MS })
   const base = useMemo(() => insiderRows(read.body), [read.body])
-  const [sort, setSort] = useState({ key: 'amount', dir: 'desc' })
+  // Customization pass 1: the sort is kept with the board (the panel's view), so a reload, a saved
+  // board and a share link keep it (components/terminal/usePanelView.js `usePanelSort`).
+  const [sort, setSort] = usePanelSort({ key: 'amount', dir: 'desc' })
   const rows = useMemo(() => sortRows(base, sort, { valueOf, isNumeric, tiebreak: byOrder }), [base, sort])
   const asOf = newestFiling(base)
   usePanelFreshness(base.length ? panelAsOf('SEC Form 4 filings (FMP)', asOf) : null)

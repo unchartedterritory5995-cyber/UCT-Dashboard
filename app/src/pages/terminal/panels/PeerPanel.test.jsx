@@ -15,6 +15,7 @@ vi.mock('../../../hooks/useLivePrices', () => ({
 }))
 
 import PeerPanel, { PERF_URL, peerSyms, peersUrl } from './PeerPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -125,5 +126,36 @@ describe('PEER in the registry', () => {
     const cmd = parseCommand('NVDA PEER')
     expect(cmd).toMatchObject({ ok: true, type: 'function', code: 'PEER', sym: 'NVDA' })
     expect((await PANEL_IMPORTERS.Peer()).default).toBe(PeerPanel)
+  })
+})
+
+describe('PEER sorts its peers and picks columns, kept with the board (customization pass 1)', () => {
+  const order = () => within(screen.getByTestId('terminal-peer-table')).getAllByRole('row').slice(1)
+    .map((r) => r.getAttribute('data-testid').replace('terminal-peer-row-', ''))
+  const renderIn = (saved) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <ViewHost saved={saved}><PeerPanel sym="NVDA" /></ViewHost>
+    </SWRConfig>,
+  )
+  it('the stock stays row 1; the peers under it sort; sort and hidden columns survive a remount', async () => {
+    live.prices = { NVDA: { price: 182.4, change_pct: 3.1 }, AMD: { price: 150.25, change_pct: -1.25 }, AVGO: { price: 300, change_pct: 2 } }
+    serve({ [peersUrl('NVDA')]: PEERS, [PERF_URL]: {} })
+    const saved = savedView()
+    renderIn(saved)
+    await screen.findByTestId('terminal-peer-table')
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])
+    fireEvent.click(screen.getByTestId('terminal-peer-sort-pct'))
+    expect(order()).toEqual(['NVDA', 'AVGO', 'AMD'])
+    fireEvent.click(screen.getByTestId('terminal-peer-sort-pct'))
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])   // lowest first, and the stock (+3.10%) still row 1
+    fireEvent.click(screen.getByTestId('terminal-peer-columns'))
+    fireEvent.click(screen.getByTestId('terminal-peer-columns-col-ytd'))
+    cleanup()
+    serve({ [peersUrl('NVDA')]: PEERS, [PERF_URL]: {} })
+    renderIn(saved)
+    await screen.findByTestId('terminal-peer-table')
+    expect(order()).toEqual(['NVDA', 'AMD', 'AVGO'])
+    expect(screen.queryByRole('columnheader', { name: 'YTD' })).toBeNull()
+    expect(screen.getByTestId('terminal-peer-method').textContent).toContain('the peers under it are sorted')
   })
 })

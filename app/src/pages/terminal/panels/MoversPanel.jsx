@@ -34,6 +34,7 @@ import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import { BoardFromList, PanelSkeleton, PanelState, WatchMark, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
+import usePanelView from '../../../components/terminal/usePanelView'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -100,9 +101,16 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
   // A new `MOST <lens>` remounts the panel (the shell keys the body on code + args), so the
   // typed lens only ever seeds the state.
   const [lens, setLens] = useState(lensProp || 'all')
-  const [sort, setSort] = useState(() => defaultSort(lensProp || 'all'))
-  const [minPrice, setMinPrice] = useState(0)
-  const [minVolume, setMinVolume] = useState(0)
+  // Customization pass 1: the sort and the two floors are the panel's VIEW (usePanelView), saved
+  // with the board so a reload, a saved board and a share link keep them. The lens is the command
+  // (`MOST UP`), written back by its chip. A stored floor that is not one of the choices reads as
+  // Any rather than a number the picker cannot show.
+  const [view, setView] = usePanelView({ sort: defaultSort(lens), filters: { minPrice: 0, minVolume: 0 } })
+  const sort = view.sort || defaultSort(lens)
+  const minPrice = PRICE_FLOORS.includes(view.filters.minPrice) ? view.filters.minPrice : 0
+  const minVolume = VOLUME_FLOORS.includes(view.filters.minVolume) ? view.filters.minVolume : 0
+  const setMinPrice = (v) => setView({ filters: { minPrice: v } })
+  const setMinVolume = (v) => setView({ filters: { minVolume: v } })
   const [open, setOpen] = useState(null)   // the symbol whose "why" is expanded
   // `MOST MINE` (wave 3 #6): only the member's own names (hooks/useMyTickers). Read only while on.
   const [mine, setMine] = useState(!!mineProp)
@@ -125,8 +133,15 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
     ? { freshnessClass: session === 'closed' ? 'end_of_day' : 'real_time', asOf, sessionState: sessionModel(market) }
     : null)
 
-  const pickLens = (next) => { setLens(next); setSort(defaultSort(next)); setOpen(null) }
-  const toggleSort = (key) => setSort((s) => nextSort(s, key, firstDirFor))
+  // The lens chip writes itself into the command (`MOST UP`, `MOST UP MINE`) so a reload keeps it;
+  // the sort goes back to the new lens's own order first. Outside the shell the state is all there is.
+  const pickLens = (next) => {
+    setView((cur) => ({ ...cur, sort: null }))
+    setOpen(null)
+    setLens(next)
+    if (onRun && next !== lens) onRun(moversCommand(next, mine), { here: true })
+  }
+  const toggleSort = (key) => setView((cur) => ({ ...cur, sort: nextSort(sort, key, firstDirFor) }))
   // The chip writes itself into the command (`MOST UP MINE`) so a reload keeps it; outside the
   // shell (no onRun) it is plain component state.
   const toggleMine = (next) => { if (onRun) onRun(moversCommand(lens, next), { here: true }); else setMine(next) }

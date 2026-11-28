@@ -21,6 +21,7 @@ vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import SectorEarningsPanel from './SectorEarningsPanel'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { sectorDetailUrl, sectorEarningsUrl } from './sectorEarningsModel'
 import { COMPUTING, CURRENT, EMPTY, FAILED, NONE_YET, NOT_FOUND, TECH_DETAIL, UTIL_DETAIL, YEAR_AGO } from './__fixtures__/sectorEarningsFixture'
 import { colourLiteralsIn } from '../__tests__/themeScope'
@@ -45,13 +46,14 @@ function serve(routes) {
 }
 const asked = () => [...new Set(jsonFetcher.mock.calls.map(([url]) => url))]
 
-function renderPanel(props = {}, { rerun = vi.fn(), run = vi.fn(), publish = vi.fn(), setFreshness = vi.fn() } = {}) {
+function renderPanel(props = {}, { rerun = vi.fn(), run = vi.fn(), publish = vi.fn(), setFreshness = vi.fn(), saved = null } = {}) {
+  const body = saved ? <ViewHost saved={saved}><SectorEarningsPanel {...props} /></ViewHost> : <SectorEarningsPanel {...props} />
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
         <PanelListContext.Provider value={{ open: vi.fn(), run, rerun, publish, publishRows: vi.fn() }}>
           <TerminalPanelContext.Provider value={{ code: 'ERNSC', density: 'comfortable', inset: true }}>
-            <SectorEarningsPanel {...props} />
+            {body}
           </TerminalPanelContext.Provider>
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
@@ -315,4 +317,36 @@ describe('ERNSC follows the member\'s theme and passes axe', () => {
     await screen.findByTestId('terminal-ernsc-error')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('ERNSC sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('sorts the sectors (the all-stocks row stays on top); sort and hidden columns survive a remount', async () => {
+    serve({ [CUR]: CURRENT })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-ernsc-table')
+    expect(rowNames()).toEqual(['Healthcare', 'Technology', 'Energy', 'Utilities', 'Sector not on file'])
+    fireEvent.click(screen.getByTestId('terminal-ernsc-sort-sector'))
+    expect(rowNames()).toEqual(['Energy', 'Healthcare', 'Sector not on file', 'Technology', 'Utilities'])
+    expect(within(table()).getAllByRole('row')[1].getAttribute('data-testid')).toBe('terminal-ernsc-total')
+    fireEvent.click(screen.getByTestId('terminal-ernsc-columns'))
+    fireEvent.click(screen.getByTestId('terminal-ernsc-columns-col-reaction'))
+    expect(screen.queryByRole('columnheader', { name: /Reaction/ })).toBeNull()
+    expect(cells('terminal-ernsc-total')).toHaveLength(4)
+    cleanup()
+    serve({ [CUR]: CURRENT })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-ernsc-table')
+    expect(rowNames()).toEqual(['Energy', 'Healthcare', 'Sector not on file', 'Technology', 'Utilities'])
+    expect(screen.queryByRole('columnheader', { name: /Reaction/ })).toBeNull()
+  })
+  it('a season with no year earlier does not offer that column', async () => {
+    serve({ [PREV]: { ...CURRENT, season: 'previous' } })
+    renderPanel({ season: 'previous' })
+    await screen.findByTestId('terminal-ernsc-table').catch(() => null)
+    const btn = screen.queryByTestId('terminal-ernsc-columns')
+    fireEvent.click(btn)
+    expect(screen.queryByTestId('terminal-ernsc-columns-col-ago')).toBeNull()
+    expect(screen.getByTestId('terminal-ernsc-columns-col-beat')).toBeTruthy()
+  })
 })

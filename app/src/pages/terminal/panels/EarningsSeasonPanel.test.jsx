@@ -28,6 +28,7 @@ import EarningsSeasonPanel, {
   EARNINGS_SEASON_CODE, GROUP_ROWS, dayLabel, daySentence, earningsSeasonRead, moveWords, pastSentence, resultWords, shortDay,
 } from './EarningsSeasonPanel'
 import { stampedKey } from './marketRead'
+import { ViewHost, savedView } from '../__tests__/panelViewHarness'
 import { colourLiteralsIn } from '../__tests__/themeScope'
 import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
@@ -92,8 +93,9 @@ function Grab() {
   return null
 }
 
-function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
-  const body = <EarningsSeasonPanel {...props} />
+function renderPanel(props = {}, { run = vi.fn(), open = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null, saved = null } = {}) {
+  const panel = <EarningsSeasonPanel {...props} />
+  const body = saved ? <ViewHost saved={saved}>{panel}</ViewHost> : panel
   const view = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <Grab />
@@ -641,4 +643,32 @@ describe('ERNS accessibility', () => {
     await screen.findByTestId('terminal-erns-error')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 60_000)
+})
+
+describe('ERNS sorts and picks columns, kept with the board (customization pass 1)', () => {
+  it('sorts each group by a column; the cut and the label say so; sort and hidden columns survive a remount', async () => {
+    serve({ [BARE]: { ...DAY, default: true } })
+    const saved = savedView()
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-erns-table-amc')
+    expect(syms()).toEqual(['BBIG', 'BMISS', 'BWAIT', 'AAA', 'ANONE', 'ACLOSE', 'TLATE'])   // the list's own order
+    fireEvent.click(screen.getByTestId('terminal-erns-bmo-sort-priced'))
+    expect(syms()).toEqual(['BBIG', 'BMISS', 'BWAIT', 'AAA', 'ACLOSE', 'ANONE', 'TLATE'])
+    fireEvent.click(screen.getByTestId('terminal-erns-amc-sort-priced'))
+    expect(syms()).toEqual(['BMISS', 'BBIG', 'BWAIT', 'ACLOSE', 'AAA', 'ANONE', 'TLATE'])   // a missing number sinks both ways
+    const head = screen.getByTestId('terminal-erns-amc-sort-priced').closest('th')
+    expect(head.getAttribute('aria-sort')).toBe('ascending')
+    expect(screen.getByTestId('terminal-erns-table-amc').getAttribute('aria-label')).toContain('sorted by priced move, lowest first')
+    fireEvent.click(screen.getByTestId('terminal-erns-columns'))
+    fireEvent.click(screen.getByTestId('terminal-erns-columns-col-past'))
+    expect(screen.queryAllByTestId('terminal-erns-past')).toHaveLength(0)
+    expect(saved.view).toEqual({ sort: { key: 'priced', dir: 'asc' }, cols: { hidden: ['past'] } })
+    cleanup()
+    serve({ [BARE]: { ...DAY, default: true } })
+    renderPanel({}, { saved })
+    await screen.findByTestId('terminal-erns-table-amc')
+    expect(syms()).toEqual(['BMISS', 'BBIG', 'BWAIT', 'ACLOSE', 'AAA', 'ANONE', 'TLATE'])
+    expect(screen.queryAllByTestId('terminal-erns-past')).toHaveLength(0)
+    expect(screen.queryAllByTestId('terminal-erns-priced').length).toBeGreaterThan(0)
+  })
 })
