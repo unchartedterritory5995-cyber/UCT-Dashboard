@@ -29,10 +29,43 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch, tmp_path):
+    """⛔ CONTAINMENT (2026-11-28: this file, in company, turned test_bars_wm_from_live_daily red on the bars gate).
+    Every test here leaves the process as it found it: the role and its lock, the roles module's caches and queues,
+    the leader's hand-off server and every thread a test started (joined), bars_sqlite's floors / proof buffers /
+    thread-local connection / store path, and the session-wide meta flusher is never started from here."""
+    from api.services import bars_sqlite as bs
+    from api.services import bars_fetch as bf
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("BARS_API_WORKERS", raising=False)
+    for name in ("_mem_floors", "_pending_floors", "_pending_verified", "_pending_seals"):
+        monkeypatch.setattr(bs, name, dict(getattr(bs, name)))
+    monkeypatch.setattr(bs, "_floors_cache", {})
+    monkeypatch.setattr(bs, "_local", threading.local())
+    monkeypatch.setattr(bs, "_DB_PATH", bs._DB_PATH)
+    monkeypatch.setattr(bs, "_ensure_meta_flusher", lambda: None)
+    if hasattr(bs, "_proc_store_ident"):
+        monkeypatch.setattr(bs, "_proc_store_ident", None)
+    for name in ("_deferred", "_index_wanted", "_token_cache"):
+        if hasattr(roles, name):
+            monkeypatch.setattr(roles, name, {})
+    monkeypatch.setattr(roles, "_want_q", [])
+    monkeypatch.setattr(roles, "LEADER_PORT", roles.LEADER_PORT)
+    monkeypatch.setattr(bf, "_inflight", type(bf._inflight)(what="single-flight fetch"))
+    before = set(threading.enumerate())
     roles._release_for_tests()
     yield
-    roles._release_for_tests()
+    srv = getattr(roles, "_server", None)
+    if srv is not None:
+        try:
+            srv.shutdown()
+            srv.server_close()
+        except Exception:  # noqa: BLE001
+            pass
+        roles._server = None
+    roles._release_for_tests()                    # role -> solo: the publisher / watch / reload loops end
+    for t in set(threading.enumerate()) - before:
+        if t.name.startswith("bars-api-") and t.name != "bars-api-want":
+            t.join(timeout=3)
 
 
 def _mkstore(path, gen: int, rows: int = 3):
