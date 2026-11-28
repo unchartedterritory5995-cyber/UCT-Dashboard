@@ -70,9 +70,11 @@ describe('a continuous zoom-out', () => {
       b.ts.setVisibleLogicalRange(want)
       await Promise.resolve(); await Promise.resolve()          // the facade's range check (a microtask)
       const got = b.ts.getVisibleLogicalRange()
-      expect(Math.abs(got.from - want.from)).toBeLessThan(0.01)   // Z2: the view is where it was asked to be
-      expect(Math.abs(got.to - want.to)).toBeLessThan(0.01)
-      expect(want.from - b.chart.window.windowStart()).toBeGreaterThanOrEqual(Math.ceil(span / 4) - 1)
+      const ws = b.chart.window.windowStart()
+      const at = `span ${span} want ${want.from}..${want.to} got ${got.from}..${got.to} ws ${ws} sets ${JSON.stringify(b.sets)}`
+      expect(Math.abs(got.from - want.from), at).toBeLessThan(0.01)   // Z2: the view is where it was asked to be
+      expect(Math.abs(got.to - want.to), at).toBeLessThan(0.01)
+      expect(want.from - ws, at).toBeGreaterThanOrEqual(Math.ceil(span / 4) - 1)
       await frame()
     }
     const finalRows = N - b.chart.window.windowStart()
