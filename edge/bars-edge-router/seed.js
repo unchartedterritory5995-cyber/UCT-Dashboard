@@ -22,6 +22,13 @@
  * RANGES. A single `Range: bytes=a-b` / `a-` / `-n` is answered 206 from R2 (resuming an interrupted
  * download); an unsatisfiable one 416. Ranged reads bypass the edge copy.
  *
+ * ⛔ NEVER TEE A BIG PACK (2026-11-28, review of zero-network PR 3.1: the full-depth D pack is 128.8 MB). A tee
+ * buffers whatever the faster branch has read and the slower has not: with the Cache API reading at data-center
+ * speed and a member on a slow link, that gap grows toward the whole pack, in the Worker's memory, next to the
+ * 128 MB isolate limit (an exceeded limit resets every request on the isolate). A pack above `TEE_MAX_BYTES`
+ * therefore goes to the client straight from R2, and the edge copy is filled from its OWN R2 read in waitUntil
+ * (cache.put drains that stream at its own pace: nothing waits on the client). Small packs keep the tee.
+ *
  * ENTITLEMENT IS ENFORCED HERE, like /api/hist/: a valid member cookie or a valid service header, or 401.
  *
  * Bindings: `env.SEED` (R2 bucket; falls back to `env.HISTORY`), `env.SEED_PREFIX` (default "ffseed/",
@@ -36,6 +43,8 @@ export const PACK_EDGE_TTL = 31536000;
 const FOREVER = "private, max-age=31536000, immutable";
 const SHORT = "private, max-age=60";
 const BUILD_RE = /^\d{8}T\d{4}Z$/;
+/** Above this a whole-pack GET is never teed (see the header): 16 MiB, far under the isolate's 128 MB. */
+export const TEE_MAX_BYTES = 16 * 1024 * 1024;
 const TFS = new Set(["1", "5", "15", "30", "60", "D"]);
 
 /** What a seed path names, or null when it is not exactly one of the two forms. */
@@ -157,14 +166,20 @@ export async function handleSeed(request, env, entitled, ctx, { cache = defaultC
     const obj = await bucket.get(key);
     if (!obj) return plain(404, "no_such_pack", { "cache-control": SHORT });
     let body = obj.body;
-    if (ck && body && typeof body.tee === "function") {
+    const copyHeaders = { "cache-control": `public, max-age=${PACK_EDGE_TTL}`, "content-type": PACK_TYPE, "content-length": String(obj.size) };
+    let put = null;
+    if (ck && obj.size > TEE_MAX_BYTES) {
+      // its own read: the client's stream and the copy's never share a buffer (see the header)
+      put = Promise.resolve().then(async () => {
+        const own = await bucket.get(key);
+        if (own && own.body) await cache.put(ck, new Response(own.body, { headers: copyHeaders }));
+      }).catch(() => {});
+    } else if (ck && body && typeof body.tee === "function") {
       const [toClient, toCache] = body.tee();
       body = toClient;
-      const put = Promise.resolve().then(() => cache.put(ck, new Response(toCache, {
-        headers: { "cache-control": `public, max-age=${PACK_EDGE_TTL}`, "content-type": PACK_TYPE, "content-length": String(obj.size) },
-      }))).catch(() => {});
-      if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
+      put = Promise.resolve().then(() => cache.put(ck, new Response(toCache, { headers: copyHeaders }))).catch(() => {});
     }
+    if (put && ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
     return new Response(body, { status: 200, headers: packHeaders({ "content-length": String(obj.size), "x-bars-edge": "seed" }) });
   } catch (_e) {
     return plain(503, "seed_unavailable", { "retry-after": "2" });
