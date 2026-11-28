@@ -35,13 +35,13 @@ import { customSpecOf, deriveCustomTf, deriveWmFromDaily } from './customTfRows'
 import { baseBarsFor } from './timeframes'
 import { BARSTORE } from './barStoreSwitch'
 import { chartKeyFor, viewWindowOfDate } from './useBarSnapshotBars'
-import { subscribeScanNeighbors } from './neighborFrames'
+import { subscribeScanNeighbors, typedNextFor } from './neighborFrames'
 import { recordPaint, viewNeed } from './paintLog'
 import { setFlipProbe } from './flipReady'
 import { heldRows, lakePending, deepPending } from '../../data/barStore/prefetch'
 import { afterPaint } from '../../utils/afterPaint'
 import {
-  doubleBufferOn, acquireShadow, shadowTargetFor, flipDecision, viewParity, tfViewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
+  doubleBufferOn, acquireShadow, shadowTargetsFor, flipDecision, viewParity, tfViewParity, mirrorFrameFor, mirrorStillFits, noteDecision, noteRetarget,
 } from './doubleBuffer'
 import { habitualTfs } from './tfHabit'
 
@@ -112,6 +112,9 @@ export function doubleBufferEligible({ scope, color, parentVis }) {
 const _ric = (fn) => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 1000 }) : setTimeout(fn, 50))
 const _cic = (h) => { try { if (typeof cancelIdleCallback === 'function') cancelIdleCallback(h); else clearTimeout(h) } catch { /* gone */ } }
 const MIRROR_DEBOUNCE_MS = 120
+/** (lane C) How long after a retarget the hidden layer's feed re-renders in its own task, not idle time
+ *  (boardVisibility.forwardWhileCurrent `promptUntil`), unless its chart reports first. */
+export const RETARGET_PROMPT_MS = 1500
 const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /**
@@ -121,6 +124,7 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {string|null} o.tf          (lane C, PR 2.1) the widget's timeframe now: a change of it alone is a TIMEFRAME press,
  *                                    which flips when the hidden layer holds this symbol at that timeframe
  * @param {string[]|null} o.tfBar     the codes on the chart's timeframe bar (the habitual timeframe is one of them)
+ * @param {2|3} o.layers              (plan 2.4) the widget's layer count for its life: 3 = two hidden panes (thirdLayerOn)
  * @param {object|null} o.settings    the pane's stored settings (identity)
  * @param {string|null} o.cutoff     the widget's replay cutoff (change-date mode), or null: a flip needs a hidden chart that
  *                                    drew under the same one
@@ -132,29 +136,33 @@ const _now = () => (typeof performance !== 'undefined' && performance.now ? perf
  * @param {() => Element[]} o.layerEls each layer's wrapper element
  * @returns {{on: boolean, syms: (string|null)[], tfs: (string|null)[], front: number, handles: object[], reporters: Function[], viewChanged: Function, focusFront: Function}}
  */
-export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settings, cutoff = null, anchor = null, scope, member, parentVis, panes, layerEls }) {
+export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, layers = 2, settings, cutoff = null, anchor = null, scope, member, parentVis, panes, layerEls }) {
   const [owner] = useState(() => ({}))
   const [slotOk, setSlotOk] = useState(false)
   // each layer's handle: NESTED in the board's and CURRENT, made once, disposed at unmount
-  const [handles] = useState(() => {
-    const a = createBoardVisibility({ layer: true, current: true, parent: parentVis })
-    const b = createBoardVisibility({ layer: true, current: true, parent: parentVis })
-    b.state = 'hidden'   // before anything subscribes: no one to tell
-    return [a, b]
-  })
-  useEffect(() => () => { handles[0].dispose(); handles[1].dispose() }, [handles])
+  // (lane C, plan 2.4) the layer count is the widget's for its life: 2 (one hidden pane) or 3 (two) on a desktop that can
+  // hold them (doubleBuffer.thirdLayerOn; ChartWidget decides it once)
+  const [N] = useState(() => (layers === 3 ? 3 : 2))
+  const [IDX] = useState(() => Array.from({ length: N }, (_, i) => i))
+  const hiddenOf = (b) => IDX.filter((i) => i !== b.front)
+  const [handles] = useState(() => IDX.map((i) => {
+    const h = createBoardVisibility({ layer: true, current: true, parent: parentVis })
+    if (i > 0) h.state = 'hidden'   // before anything subscribes: no one to tell
+    return h
+  }))
+  useEffect(() => () => { for (const h of handles) h.dispose() }, [handles])
   // (lane C, PR 2.1) each layer's own timeframe: the front's is the widget's; the hidden one's is the front's when it holds
   // the row ahead, or the habitual next timeframe when it holds the front's own symbol (doubleBuffer.shadowTargetFor)
-  const [buf, setBuf] = useState(() => ({ syms: [sym || null, null], tfs: [tf, null], front: 0 }))
+  const [buf, setBuf] = useState(() => ({ syms: IDX.map((i) => (i ? null : sym || null)), tfs: IDX.map((i) => (i ? null : tf)), front: 0 }))
   const bufRef = useRef(buf)
   bufRef.current = buf
   const settingsRef = useRef(settings)
   settingsRef.current = settings
-  const reportsRef = useRef([null, null])   // each layer's chart's last committed pass (F3)
+  const reportsRef = useRef(IDX.map(() => null))   // each layer's chart's last committed pass (F3)
   const pendingRef = useRef(null)           // the press's decision, applied in its commit (F8: no side effect in render)
   const mirrorRef = useRef({ timer: 0, idle: 0 })
   const heldRef = useRef(false)             // the widget holds a shadow NOW (set in the board handle's own task)
-  const timesRef = useRef({ set: [null, null], report: [null, null] })   // when each layer was last set to a row / last reported
+  const timesRef = useRef({ set: IDX.map(() => null), report: IDX.map(() => null) })   // when each layer was last set to a row / last reported
   const waitFrontRef = useRef(null)         // the mount's retarget, waiting for the front chart's first report (LOW-2)
   const firstRetargetRef = useRef(false)    // the widget's first retarget has been scheduled
 
@@ -194,16 +202,16 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     const idle = _ric(() => {
       if (heldRef.current) return   // (D2-1) the board was shown again and took the shadow back: keep the pane
       const b = bufRef.current
-      if (b.syms[1 - b.front] == null) return
-      reportsRef.current[1 - b.front] = null
+      if (hiddenOf(b).every((i) => b.syms[i] == null)) return
+      for (const i of hiddenOf(b)) reportsRef.current[i] = null
       startTransition(() => setBuf((x) => {
-        if (x.syms[1 - x.front] == null) return x
-        const syms = x.syms.slice(); syms[1 - x.front] = null
+        if (hiddenOf(x).every((i) => x.syms[i] == null)) return x
+        const syms = x.syms.map((v, i) => (i === x.front ? v : null))
         return { syms, tfs: x.tfs, front: x.front }
       }))
     })
     return () => _cic(idle)
-  }, [eligible, slotOk])
+  }, [eligible, slotOk])   // eslint-disable-line react-hooks/exhaustive-deps -- hiddenOf reads the fixed layer count
 
   // ── the press: flip, or switch the front. Decided in render (`front` is the one thing that moves); its side
   // effects (stats, the paint record, the focus) wait for the commit ──
@@ -216,13 +224,15 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
   // front chart's resolved timeframe. Both carry the date the member went to (#2947's anchor).
   const decide = (want_sym, b, okSlot, set, cut, anch, wantTf = null) => {
     const f = b.front
-    const s = 1 - f
     const fr = reportsRef.current[f]
     const tfPress = wantTf != null
+    // (plan 2.4) the hidden layer that holds the press: one whose chart reported first, else any (its refusal says why)
+    const holdsAt = (i) => b.syms[i] === want_sym && (!tfPress || String(b.tfs[i]) === String(wantTf))
+    const hid = hiddenOf(b)
+    const s = hid.find((i) => holdsAt(i) && reportsRef.current[i]) ?? hid.find((i) => holdsAt(i)) ?? hid[0]
     const want = !fr ? null : tfPress ? { press: 'tf', sym: want_sym, tf: String(wantTf), ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null }
       : { sym: want_sym, tf: fr.tf, ext: fr.ext, settings: set, cutoff: cut || null, anchor: anch || null }
-    const holds = b.syms[s] === want_sym && (!tfPress || String(b.tfs[s]) === String(wantTf))
-    const report = okSlot && holds ? reportsRef.current[s] : null
+    const report = okSlot && holdsAt(s) ? reportsRef.current[s] : null
     const view = () => {
       const p = panesNowRef.current ? panesNowRef.current() : []
       return tfPress ? tfViewParity(p[f]?.getDateMeta?.(), p[s]?.getDateMeta?.(), { tf: String(wantTf) })
@@ -250,10 +260,11 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     // (2026-11-27, the live dry run) WHICH 'no-shadow': no budget, no hidden pane, the hidden pane on ANOTHER row (the
     // list's next row moved, the member reversed), or on this row with no committed pass yet (its chart still loading)
     if (d.why === 'no-shadow') {
-      d = { flip: false, why: !okSlot ? 'no-slot' : b.syms[s] == null ? 'no-shadow' : b.syms[s] !== want_sym ? 'shadow-other-row'
-        : tfPress && String(b.tfs[s]) !== String(wantTf) ? 'shadow-other-tf' : 'shadow-unreported' }
+      d = { flip: false, why: !okSlot ? 'no-slot' : hid.every((i) => b.syms[i] == null) ? 'no-shadow'
+        : !hid.some((i) => b.syms[i] === want_sym) ? 'shadow-other-row'
+          : tfPress && !hid.some((i) => holdsAt(i)) ? 'shadow-other-tf' : 'shadow-unreported' }
     }
-    return { d, report }
+    return { d, report, s }
   }
   const slotOkRef = useRef(slotOk)
   slotOkRef.current = slotOk
@@ -281,9 +292,8 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
   const tfPress = !!(eligible && sym && !symPress && tfMoved)
   if (symPress || tfPress) {
     const f = buf.front
-    const s = 1 - f
     // a symbol AND a timeframe change in one render (a template, the agent): the normal switch of both
-    const { d, report } = symPress && tfMoved ? { d: { flip: false, why: 'sym-and-tf' }, report: null }
+    const { d, report, s } = symPress && tfMoved ? { d: { flip: false, why: 'sym-and-tf' }, report: null, s: hiddenOf(buf)[0] }
       : decide(sym, buf, slotOk, settings, cutoff, anchor, tfPress ? String(tf) : null)
     const now = _now()
     const t = timesRef.current
@@ -309,7 +319,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
   useLayoutEffect(() => {
     if (!eligible) return
     const f = buf.front
-    handles[1 - f].flip('hidden')
+    for (const i of IDX) if (i !== f) handles[i].flip('hidden')
     handles[f].flip('visible')
     const p = pendingRef.current
     if (!p) return
@@ -323,7 +333,7 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
       const active = typeof document !== 'undefined' ? document.activeElement : null
       if (was && active && was.contains(active)) panes?.()?.[f]?.focus?.()
     } catch { /* focus is best effort */ }
-  }, [eligible, buf, handles, member])   // eslint-disable-line react-hooks/exhaustive-deps -- panes / layerEls are read when it runs
+  }, [eligible, buf, handles, member])   // eslint-disable-line react-hooks/exhaustive-deps -- panes / layerEls / IDX are read when it runs
 
   // ── (F1) the shadow mirrors the front's zoom, in idle time, debounced ──
   const scheduleMirror = () => {
@@ -336,16 +346,20 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
         m.idle = 0
         const b = bufRef.current
         const p = panes ? panes() : []
-        const front = p[b.front], shadow = p[1 - b.front]
-        if (!front || !shadow || !b.syms[1 - b.front]) return
-        let frame = null
-        try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
+        const front = p[b.front]
+        if (!front) return
+        for (const i of IDX) {   // (plan 2.4) every hidden pane
+          const shadow = p[i]
+          if (i === b.front || !shadow || !b.syms[i]) continue
+          let frame = null
+          try { frame = mirrorFrameFor(front.getDateMeta?.(), shadow.getDateMeta?.(), { tf: reportsRef.current[b.front]?.tf }) } catch { frame = null }
         // (N4) restoreView also writes the view lock under the pane's key, which both layers share
         // (`uct.charts.viewLock.<chartId>`): the frame carries the FRONT's locks, so the write stores the lock the front
         // holds; read again here, at the write, so a lock the member changed in between is never overwritten
-        let fits = false
-        try { fits = mirrorStillFits(frame, front.getDateMeta?.()) } catch { fits = false }
-        if (frame && fits) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
+          let fits = false
+          try { fits = mirrorStillFits(frame, front.getDateMeta?.()) } catch { fits = false }
+          if (frame && fits) { try { shadow.viewDo?.('restoreView', frame) } catch { /* a mirror is best effort */ } }
+        }
       })
     }, MIRROR_DEBOUNCE_MS)
   }
@@ -356,13 +370,15 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
   }, [])
 
   // each layer's chart reports its passes here (LayerPaintContext), with the widget's settings at that commit
-  const [reporters] = useState(() => [0, 1].map((i) => (r) => {
+  const retargetKickRef = useRef(null)   // (plan 2.4) a hidden pane reported: the others take what is left
+  const [reporters] = useState(() => IDX.map((i) => (r) => {
     reportsRef.current[i] = { sym: r.sym, tf: r.tf, ext: !!r.ext, bars: r.bars, cutoff: r.cutoff || null, anchor: r.anchor || null, settings: settingsRef.current }
     timesRef.current.report[i] = _now()
+    handles[i].promptUntil = 0   // (lane C) its first pass of the row is drawn: later updates go back to idle time
     // (review of #2930, LOW-2) the mount's retarget waits for the FRONT's first pass: the shadow does not compete with
     // the board's first paint, and is still set long before the first press
     if (i === bufRef.current.front && waitFrontRef.current) { const w = waitFrontRef.current; waitFrontRef.current = null; w() }
-    if (i !== bufRef.current.front) scheduleMirror()
+    if (i !== bufRef.current.front) { scheduleMirror(); if (N > 2) retargetKickRef.current?.() }
   }))
   // each layer's view changed (its time range moved: a zoom, a pan, a range): the front's moves the shadow's
   const [viewChanged] = useState(() => (i) => { if (i === bufRef.current.front) scheduleMirror() })
@@ -382,48 +398,72 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
   // FIRST press finds it too. ONE pending schedule at a time (LOW-1): a live-sorted list republishes its neighbours often.
   const frontSym = buf.syms[buf.front]
   const frontTf = buf.tfs[buf.front]
+  const lastTypedRef = useRef(null)   // (plan 2.4) the last typed candidate a pane was moved to
   const tfBarRef = useRef(tfBar)
   tfBarRef.current = tfBar
   useEffect(() => {
     if (!eligible || !slotOk || !frontSym) return undefined
     let alive = true
     let pending = null
-    const run = () => {
+    const run = (urgent = false) => {
       if (!alive) return
       const b = bufRef.current
       const f = b.syms[b.front]
       const ftf = b.tfs[b.front]
       // (lane C, PR 2.1) the row ahead at the front's timeframe, or (no list) the front's symbol at its habitual next one
-      const habit = ftf != null ? habitualTfs(String(ftf), { k: 1, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null })[0] : null
-      const target = shadowTargetFor(f, ftf, habit)
-      const s = 1 - b.front
-      const holds = (x) => x.syms[s] === target.sym && String(x.tfs[s]) === String(target.tf)
-      if (!target || holds(b)) return
-      reportsRef.current[s] = null
-      timesRef.current.report[s] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
+      const habit = ftf != null ? habitualTfs(String(ftf), { k: 2, available: Array.isArray(tfBarRef.current) ? tfBarRef.current : null }) : []
+      // (plan 2.4) the first N-1 targets; a TYPED retarget (urgent) moves ONE pane, and with three layers never the pane
+      // holding the previous candidate: kept until the new one reports (its report kicks the full retarget)
+      const full = shadowTargetsFor(f, ftf, habit, N - 1)
+      const targets = urgent ? full.slice(0, 1) : full
+      if (!targets.length) return
+      const avoid = urgent && N > 2 ? lastTypedRef.current : null
+      const plan = planRetarget(b, targets, avoid, full)
+      if (!plan.length) return
+      if (urgent) lastTypedRef.current = targets[0].sym
+      for (const [i] of plan) {
+        reportsRef.current[i] = null
+        timesRef.current.report[i] = null   // (its `set` time is stamped when the retarget COMMITS: LOW-4, below)
+        // (lane C) the layer's FIRST pass of its new row is rendered in its own task, not left for idle time
+        handles[i].promptUntil = _now() + RETARGET_PROMPT_MS
+      }
       noteRetarget()
-      startTransition(() => {
-        setBuf((x) => {
-          if (x.front !== b.front || holds(x)) return x
-          const syms = x.syms.slice()
-          const tfs = x.tfs.slice()
-          syms[s] = target.sym
-          tfs[s] = target.tf
-          return { syms, tfs, front: x.front }
-        })
+      const set = () => setBuf((x) => {
+        if (x.front !== b.front) return x
+        const p2 = planRetarget(x, targets, avoid, full)
+        if (!p2.length) return x
+        const syms = x.syms.slice()
+        const tfs = x.tfs.slice()
+        for (const [i, tg] of p2) { syms[i] = tg.sym; tfs[i] = tg.tf }
+        return { syms, tfs, front: x.front }
       })
+      // ⭐ (lane C, typed Enter: 'shadow-other-row' was most refusals with the data already in memory) a TYPED next symbol
+      // retargets URGENTLY: not a transition the next keystroke's render abandons, not after another frame. The same
+      // candidate published again holds already (no restart); only a new candidate moves the layer.
+      if (urgent) set()
+      else startTransition(set)
     }
     const schedule = () => {
       if (!alive) return
       if (pending) pending()
       pending = afterPaint(() => { pending = null; run() })
     }
+    retargetKickRef.current = schedule
     if (!firstRetargetRef.current && !reportsRef.current[bufRef.current.front]) waitFrontRef.current = schedule
     else schedule()
     firstRetargetRef.current = true
-    const offScan = subscribeScanNeighbors((c) => { if (c === String(frontSym).toUpperCase()) schedule() })
-    return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; offScan() }
-  }, [eligible, slotOk, frontSym, frontTf])
+    const offScan = subscribeScanNeighbors((c) => {
+      if (c !== String(frontSym).toUpperCase()) return
+      // a typed next symbol (publishTypedNext, each keystroke's top candidate): at once, in this task; a list's rows:
+      // after the frame, in a transition, as before
+      if (typedNextFor(c) && firstRetargetRef.current && reportsRef.current[bufRef.current.front]) {
+        if (pending) pending()
+        pending = null
+        run(true)
+      } else schedule()
+    })
+    return () => { alive = false; if (pending) pending(); pending = null; waitFrontRef.current = null; retargetKickRef.current = null; offScan() }
+  }, [eligible, slotOk, frontSym, frontTf, N])
 
   // (review of #2930, LOW-4) a layer's `set` time is when its new row COMMITS (the retarget's transition), not when the
   // retarget asked for it
@@ -434,11 +474,31 @@ export function useDoubleBuffer({ eligible, sym, tf = null, tfBar = null, settin
     prevSymsRef.current = buf.syms
     const wasTfs = prevTfsRef.current
     prevTfsRef.current = buf.tfs
-    for (const i of [0, 1]) {
+    for (const i of IDX) {
       if (i !== buf.front && buf.syms[i] != null && (buf.syms[i] !== was[i] || buf.tfs[i] !== wasTfs[i])) timesRef.current.set[i] = _now()
     }
-  }, [buf])
+  }, [buf])   // eslint-disable-line react-hooks/exhaustive-deps -- IDX is fixed for the widget's life
 
-  return useMemo(() => ({ on: eligible, syms: buf.syms, tfs: buf.tfs, front: buf.front, handles, reporters, viewChanged, focusFront }),
-    [eligible, buf, handles, reporters, viewChanged, focusFront])
+  return useMemo(() => ({ on: eligible, syms: buf.syms, tfs: buf.tfs, front: buf.front, layers: N, handles, reporters, viewChanged, focusFront }),
+    [eligible, buf, N, handles, reporters, viewChanged, focusFront])
+}
+
+/** (plan 2.4) Which hidden layers take which targets: `[[layer, target], ...]`, nothing for a layer already holding a
+ *  target. The free layers are those holding none of `targets`, taken in this order: empty; holding nothing wanted; holding
+ *  a lower-priority target of `full` (the whole list) before a higher one; holding `avoid` (the previous typed candidate,
+ *  kept until the new one reports) last. */
+export function planRetarget(b, targets, avoid = null, full = targets) {
+  const hidden = b.syms.map((_, i) => i).filter((i) => i !== b.front)
+  const holds = (i, tg) => b.syms[i] === tg.sym && String(b.tfs[i]) === String(tg.tf)
+  const missing = targets.filter((tg) => !hidden.some((i) => holds(i, tg)))
+  const rank = (i) => {
+    if (b.syms[i] == null) return 0
+    if (avoid && b.syms[i] === avoid) return 1000
+    const k = full.findIndex((tg) => holds(i, tg))
+    return k < 0 ? 1 : 10 + (full.length - k)
+  }
+  const free = hidden.filter((i) => !targets.some((tg) => holds(i, tg))).sort((x, y) => rank(x) - rank(y))
+  const out = []
+  for (let k = 0; k < missing.length && k < free.length; k++) out.push([free[k], missing[k]])
+  return out
 }
