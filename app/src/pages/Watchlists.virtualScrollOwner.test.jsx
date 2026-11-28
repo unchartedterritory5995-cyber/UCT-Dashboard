@@ -9,8 +9,10 @@
  *   V2 control: the same selection far down the list still moves it, through ScanRows (centred), so the list is not
  *      left un-scrolled
  *   V3 control: a row of a list rendered outright (no ScanRows) is still scrollIntoView'd, as before
+ *   V4 (review of #2982) a CLICK on a virtualized row nudges it into view a frame later (as on a short list), never in
+ *      the click's task; an arrow-style selection (the hub symbol) still is not nudged
  */
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 
 // the virtualizer as a stand-in (jsdom lays nothing out): a 300 px view of 30 px rows at the top, the first 20 rows
@@ -138,4 +140,22 @@ test("V3 control: a row of a list rendered outright is still scrollIntoView'd", 
   await new Promise((r) => setTimeout(r, 50))
   expect(document.querySelector('[data-watch-sym="AVGO"]')?.closest('[data-index]')).toBeNull()
   expect(scrolled[scrolled.length - 1]).toBe('AVGO')
+})
+
+test('V4 a click on a virtualized row nudges it into view after one frame, not in the click task', async () => {
+  render(<Watchlists embedded pickList="user:wl1" pickName="Long List" />)
+  await screen.findAllByText('Long List')
+  await new Promise((r) => setTimeout(r, 50))
+  const row = document.querySelector('[data-watch-sym="S7"]')
+  expect(row?.closest('[data-index]'), 'S7 is not in the virtualized window').toBeTruthy()
+  scrolled.length = 0
+  let inTask = null
+  act(() => { fireEvent.click(row); inTask = scrolled.slice() })
+  expect(inTask).toEqual([])                                   // nothing scrolled inside the click task
+  await act(async () => { await new Promise((r) => requestAnimationFrame(() => r())); await new Promise((r) => setTimeout(r, 20)) })
+  expect(scrolled).toContain('S7')                             // nudged a frame later
+  // an arrow-style selection afterwards (no click) is not nudged
+  scrolled.length = 0
+  await new Promise((r) => setTimeout(r, 50))
+  expect(scrolled).toEqual([])
 })

@@ -1260,6 +1260,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
   // it — only the gold highlight moves. The list only snaps on an external SEARCH.
   const clickSelectRef = useRef(null)
+  // A ticker the user CLICKED, for the selection effect alone (review of #2982): a half-cut clicked row of a
+  // virtualized list is nudged fully into view a frame later, as a list rendered outright is. Its own ref, because
+  // ScanRows' effect (which runs first) clears clickSelectRef.
+  const clickNudgeRef = useRef(null)
   const { sym: hubSym, setSym: setHubSym, tf: hubTf, tfs: hubTfs } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
@@ -2216,7 +2220,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // key task (6.3 ms of an arrow press, CPU profiles of a local build of master mapped to source), for a row ScanRows
     // has already put in view, where it scrolls nothing. A row ScanRows places is marked `data-index` (its window).
     const win = row ? row.closest('[data-index]') : null
-    if (win && pageRef.current.contains(win)) return
+    if (win && pageRef.current.contains(win)) {
+      // ...except a CLICKED row (an arrow press keeps the early return): nudged fully into view a frame later, outside
+      // the click's task, so a click behaves the same on a 100-row list and a 130-row one (review of #2982)
+      if (clickNudgeRef.current === selectedSym) {
+        clickNudgeRef.current = null
+        const sym = selectedSym
+        const page = pageRef.current
+        requestAnimationFrame(() => {
+          const r = page?.querySelector(`[data-watch-sym="${CSS.escape(sym)}"]`)
+          if (r && typeof r.scrollIntoView === 'function') r.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        })
+      }
+      return
+    }
     if (row && typeof row.scrollIntoView === 'function') {
       row.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
@@ -3279,6 +3296,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
    * ⛔ Best-effort: a failure to open a review must never stop a chart opening. */
   const onRowSelect = useCallback((sym) => {
     clickSelectRef.current = sym
+    clickNudgeRef.current = sym
     setSelectedSym(sym)
     rowStateRef.current.setHubSym(sym)
     try {
