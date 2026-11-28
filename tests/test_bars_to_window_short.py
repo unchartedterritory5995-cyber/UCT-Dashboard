@@ -331,11 +331,15 @@ def test_re_polls_inside_the_failure_window_answer_from_the_store_without_a_fetc
 # its 4 s hang on every switch, and the provider is asked again every 20 s), and a scroll-back past the listing's
 # start answered the warming 503 forever.
 def test_a_30_session_listing_at_a_date_ends_proven(store, monkeypatch):
-    _put("IPO30", _sessions(END, 30))                        # 780 of 1,000: the series starts 30 sessions back
+    days = _sessions(END, 30)
+    _put("IPO30", days)                                      # 780 of 1,000: the series starts 30 sessions back
     calls = []
     monkeypatch.setattr(bars_fetch, "_fetch_intraday_range",
                         lambda t, tf, f, to, raise_errors=False: calls.append(f) or [])
-    monkeypatch.setattr(massive, "get_agg_bars", lambda *a, **k: [])      # no daily bar before the listing
+    # the provider's daily holds the listing's own sessions and nothing before them
+    monkeypatch.setattr(massive, "get_agg_bars", lambda t, frm, to: [
+        {"t": _et(d, 0, 0) * 1000, "o": 10.0, "h": 10.5, "l": 9.5, "c": 10.0, "v": 1}
+        for d in days if frm <= d.isoformat() <= to])
     r = bars_fetch._get_bars_to_response("IPO30", "15", ASK, TO)
     body = _body(r)
     assert not body.get("filling") and not body.get("short") and len(body["bars"]) == 780, body.get("filling")
