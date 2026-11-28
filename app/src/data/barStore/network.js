@@ -768,7 +768,11 @@ export function createNetwork({
         // display holding for it keeps waiting, inside its hang guard, instead of committing a copy without its tail as
         // current. Past the rounds it is the error it always was.
         // (the count is the KEY's, not the record's: a one-shot ask's record is collected when it settles)
-        if (kind === 'tail' && (e?.status === 429 || e?.status === 503) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
+        // ⛔ (2026-11-28, chart rails: StockChart.warmingTimeout) ...BUT A 503 `warming` IS AN ANSWER: the server telling
+        // the chart it is fetching a name it may never find (a typo, a made-up ticker). The chart shows it and gives up
+        // honestly after WARMING_GIVE_UP_MS, which counts from the error it sees: held here, it never saw one and its
+        // skeleton spun on. Only a 429, or a 503 that is not `warming` (a shed), holds.
+        if (kind === 'tail' && (e?.status === 429 || (e?.status === 503 && !e?.warming)) && (limitRounds.get(r.key) || 0) < RATE_LIMIT_HOLD_ROUNDS) {
           limitRounds.set(r.key, (limitRounds.get(r.key) || 0) + 1)
           if (limitRounds.size > 500) limitRounds.delete(limitRounds.keys().next().value)
           if (!(r.refs > 0)) _armLimitRetry(r.key, e?.retryAfterMs)
