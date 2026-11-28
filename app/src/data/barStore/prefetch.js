@@ -747,10 +747,40 @@ export function createPrefetch(o = {}) {
   function _behindClock(key, s, showExtended) {
     const n = _bucketsBehind(key, s, showExtended)
     if (n < 1) return false
-    return !_ownGrace(key, s, n)
+    return !_ownGrace(key, s, n, showExtended)
+  }
+  /**
+   * ⭐⭐ (2026-11-28, B9: the cold-coverage run after the 11-27 half day, CRAI on a 1m + 15m board: the switch held the
+   * previous chart to the 4 s hang guard) THE ROLL A PROOF MUST REACH IS THE VIEW'S NEWEST CLOSED BUCKET, NOT THE CLOCK'S.
+   * In the session the two are one instant (the current bucket opened when the newest closed one ended). After the close
+   * the clock keeps rolling every bucket while the session's frontier stays at its close (13:00 on a half day): an
+   * illiquid name's tail (CRAI 1m 12:56, three buckets short of the close) came back `verified` by the server's proof
+   * (the live stream's watermark, 20:00 ET), and the grace asked that proof to reach 20:49, the minute the member pressed
+   * Enter. It never could, so the copy read behind all evening, the switch never painted it and nothing more was asked.
+   * The earlier of the two: the clock's roll inside the session, the newest session close at or before now outside it
+   * (today's once it has closed, else the previous session's; the half day's 13:00, the extended view's 20:00).
+   * ⛔ Read on the ET calendar (barTime etDateOf / etMinuteOfDay), never a local Date: on a page east of New York the
+   * evening is already the next day locally (utils/marketSession expectedLatestCompletedBar reads the local weekday).
+   */
+  function _proofRollMs(key, tf, showExtended) {
+    const clock = _rollMs(tf)
+    const p = parseKey(key)
+    const ext = p?.session ? p.session === 'eth' : session(showExtended) === 'eth'
+    const sec = Math.floor(now() / 1000)
+    const iso = etDateOf(sec)
+    const dow = new Date(`${iso}T12:00:00Z`).getUTCDay()
+    const day = !(dow === 0 || dow === 6 || isHolidayISO(iso))
+    const m = etMinuteOfDay(sec)
+    const open = ext ? 240 : 570
+    const closeMin = ext ? 1200 : rthCloseMinuteOf(sec)
+    if (day && m >= open && m < closeMin) return clock          // in the session: the clock's roll IS the frontier's
+    const close = day && m >= closeMin
+      ? (sec - (sec % 60) - m * 60 + closeMin * 60) * 1000
+      : (_prevSessionCloseUnix(sec, ext) ?? NaN) * 1000
+    return Number.isFinite(close) && close < clock ? close : clock
   }
   /** The switch's own answer, still `n` buckets behind: is it the name not printing (painted as it is), see below. */
-  function _ownGrace(key, s, n) {
+  function _ownGrace(key, s, n, showExtended) {
     const a = asked.get(key)
     // ⛔ (review of #2619, MEDIUM-1, and its re-review (A)) THE GRACE IS THE SWITCH'S OWN, BY CONSTRUCTION: only an answer to
     // an ask marked `own` (prepareForDisplay's and askForDisplay's, at `visible` rank) starts it. Any other ask made a few
@@ -772,7 +802,7 @@ export function createPrefetch(o = {}) {
     // the roll) and holds only in the first 8 s of each bucket.
     const tf0 = parseKey(key)?.tf
     if (tf0 && Number.isFinite(s?.verifiedThrough)) {
-      const roll = _rollMs(tf0)
+      const roll = _proofRollMs(key, tf0, showExtended)
       // ⛔ (review of #2733) the proof must reach the ROLL itself (the newest closed bucket's END): one reaching only its
       // start says nothing about that bucket, and only #2732's server would then stop the short paint. With the proof
       // through the roll the client proves the newest closed bucket itself, in either deploy order.
