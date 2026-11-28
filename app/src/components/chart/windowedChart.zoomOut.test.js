@@ -46,11 +46,9 @@ function board() {
   const candles = chart.addSeries(CandlestickSeries, {})
   const vol = chart.addSeries(HistogramSeries, { priceScaleId: 'vol' })
   chart.window.setPrimary(candles)
-  // count the rows the library is handed by every setData of the candles
-  const raw = rawOf(candles)
+  // every window move (an extension re-sets every series): the rows the candles hold after it
   const sets = []
-  const real = raw.setData.bind(raw)
-  raw.setData = (rows) => { sets.push(rows.length); return real(rows) }
+  chart.window.onChange(() => { sets.push(rawOf(candles).data().length) })
   return { chart, candles, vol, ts: chart.timeScale(), sets }
 }
 
@@ -61,8 +59,8 @@ describe('a continuous zoom-out', () => {
     b.candles.setData(BARS); b.vol.setData(VOL)
     b.ts.setVisibleLogicalRange({ from: N - SPAN, to: N + 8 })
     await frame()
-    const first = b.sets[b.sets.length - 1]
-    expect(b.chart.window.windowStart(), `the window is on: ${JSON.stringify(b.sets)} held ${rawOf(b.candles).data().length}`).toBeGreaterThan(0)
+    const first = rawOf(b.candles).data().length
+    expect(b.chart.window.windowStart(), 'the window is on').toBeGreaterThan(0)
     expect(first).toBeLessThan(4000)
     b.sets.length = 0
     let span = SPAN
