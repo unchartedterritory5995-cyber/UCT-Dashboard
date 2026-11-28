@@ -1531,10 +1531,12 @@ export function createPrefetch(o = {}) {
     _many([sym], tf, 'background', { warm: true })
   }
 
-  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false } = {}) {
+  function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false, visible = false, showExtended, dwell = false, edge = false, signal, warmers = true } = {}) {
     if (!tickers?.length) return
-    tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
-    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended, { network: edge === true, tail: edge === 'tail' }); return }
+    // (review of #2996, F1b) `warmers: false` (the chart's timeframe dwell): no companion warmer is told, so no server
+    // indicator-column batch goes to the origin per timeframe on every rest, never aborted on leave
+    if (warmers) tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+    if (edge && !immediate) { _warmFromEdge(tickers.filter(Boolean), tf, showExtended, { network: edge === true, tail: edge === 'tail', signal }); return }
     _many(tickers.filter(Boolean), tf, immediate ? 'urgent' : (visible ? 'grid' : 'background'), { warm: true, front: !!priority, dwell }, showExtended)
   }
 
@@ -1553,7 +1555,8 @@ export function createPrefetch(o = {}) {
    * members), so a flip still finds the row current; the press is what asks the origin. Not for `immediate` (the switch's
    * own ask). A key already held current and whole is left alone.
    */
-  function _warmFromEdge(tickers, tf, showExtended, { network = true, tail = false } = {}) {
+  // (lane C, #2996 F1) `signal`: aborted when the member leaves the symbol (the chart's dwell), nothing more is asked
+  function _warmFromEdge(tickers, tf, showExtended, { network = true, tail = false, signal = null } = {}) {
     let n = 0
     for (const sym of [...new Set(tickers)]) {
       const k = keyFor(sym, tf, { showExtended })
@@ -1565,11 +1568,13 @@ export function createPrefetch(o = {}) {
         && !(date ? S().deepPending?.(k) : S().lakePending?.(k))) continue
       n++
       Promise.resolve().then(async () => {
+        if (signal?.aborted) return
         await _hydrate(k)                                                    // the device
+        if (signal?.aborted) return                                          // (lane C) the member left meanwhile
         // ('tail': a visible row's page in the chart's own URL, shared by the edge's tail cache; never `&warm=1`)
-        if (tail) { if (!(S().peek(k)?.restSeen && HANDOFF_PAINTS.includes(S().peek(k).status))) await prefetch([k], { priority: 'grid' }); return }
+        if (tail) { if (!(S().peek(k)?.restSeen && HANDOFF_PAINTS.includes(S().peek(k).status))) await prefetch([k], { priority: 'grid', ...(signal ? { signal } : {}) }); return }
         if (!network) return                                                 // ('device': a whole list, the device alone)
-        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid' }); return }   // the edge's history
+        if (date) { if (S().deepPending?.(k)) await S().deepPrime?.(k, { priority: 'grid', ...(signal ? { signal } : {}) }); return }   // the edge's history
         try { S().primeLake?.(k) } catch { /* a warm only */ }                // the edge's lake pieces
       }).catch(() => {})
       tickerMeta(sym)
@@ -1577,11 +1582,18 @@ export function createPrefetch(o = {}) {
     return n
   }
 
-  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press): its entries go first
-   *  once no chart shows `sym` (registry `_evict`). */
-  function prefetchAllTimeframes(sym) {
-    if (!sym) return
-    for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf, { dwell: true })
+  /** The dwell's warm of every timeframe of `sym` (the watchlist, SCAN_DWELL_MS after a press; the chart's own dwell,
+   *  ChartWidget): its entries go first once no chart shows `sym` (registry `_evict`). `tfs`: the NATIVE timeframes to
+   *  warm (the chart's bar, a custom code already mapped to its base), first ones first; default every native one.
+   *  ⭐ (lane C, PR 1.5) the same keys and the same lane as the list's dwell: device -> edge -> origin is each key's own
+   *  load path (`_defer`); cancellation and single-flight are the queue's.
+   *  ⭐⭐ (review of #2996, F1) `edge`: from the DEVICE and the EDGE only (_warmFromEdge: device copy, the edge's deep
+   *  history / lake pieces), never an origin `&warm=1` /api/bars (~7 per 300 ms rest, nothing the edge tail cache can
+   *  share); `signal` aborts what has not been asked yet when the member leaves the symbol. */
+  function prefetchAllTimeframes(sym, { tfs = ALL_TFS, showExtended, edge = false, signal } = {}) {
+    if (!sym || signal?.aborted) return
+    const list = [...new Set((Array.isArray(tfs) && tfs.length ? tfs : ALL_TFS).map(String))]
+    for (const tf of list) prefetchBarsToIDB([sym], tf, edge ? { edge: true, showExtended, signal, warmers: false } : { dwell: true, showExtended })
   }
 
   function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
@@ -2499,7 +2511,7 @@ export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepare
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }
 export function prefetchBarsToIDB(tickers, tf = 'D', opts = {}) { return _f().prefetchBarsToIDB(tickers, tf, opts) }
-export function prefetchAllTimeframes(sym) { return _f().prefetchAllTimeframes(sym) }
+export function prefetchAllTimeframes(sym, opts = {}) { return _f().prefetchAllTimeframes(sym, opts) }
 export function prefetchListAllTimeframes(tickers, opts = {}) { return _f().prefetchListAllTimeframes(tickers, opts) }
 export function prefetchGridWarm(tickers) { return _f().prefetchGridWarm(tickers) }
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) { return _f().warmMemFromIDB(tickers, tfs) }

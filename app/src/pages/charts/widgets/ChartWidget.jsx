@@ -23,7 +23,10 @@ import { normalizeDock } from './chartDock'
 import { chartFeaturesOf, addFeature, removeFeature, setFeatureOpen } from './chartFeatures'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
-import { prefetchReplayTimeframes } from '../../../utils/barsWarm'
+import { prefetchReplayTimeframes, prefetchAllTimeframes } from '../../../utils/barsWarm'
+import { whenFirstChartPainted } from '../../../lib/firstChartPaint'
+import { noteTfPress, habitualTfs } from '../../../components/chart/tfHabit'
+import { TF_ORDER } from '../../../components/chart/keyboardShortcuts'
 import { viewCacheTf, resolveShowExtended } from '../../../utils/viewSession'
 import { fetchTf } from '../../../components/chart/timeframes'
 import useSymbolHandoff from '../../../hooks/useSymbolHandoff'
@@ -58,6 +61,8 @@ import useExtraGroupsEnabled from '../useExtraGroupsEnabled'
 
 // Same widget roster + labels the workspace "Widgets ▾ → Add" menu uses, so the
 // chart's right-click "Add widget" submenu never drifts from it.
+/** (lane C, PR 1.5) How long a chart rests on a symbol and timeframe before its bar's other timeframes are warmed. */
+export const TF_DWELL_MS = 300
 const ADD_WIDGET_TYPES = WORKSPACE_PICKER_TYPES
 const ADD_WIDGET_LABELS = labelMap('menu')
 /** (owner, 2026-11-27) a pan or zoom of the front chart at a date moves the date once it has rested this long. */
@@ -364,6 +369,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
+    noteTfPress(tf, nextTf)   // (lane C, PR 1.5) the member's habits: what the dwell below and the hidden layer prepare
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })
     else if (activeExtra) onOptsChange?.(patchChartTab(opts, activeExtra.id, { tf: nextTf }))
   }, [opts, tf, onOptsChange, isMainTab, activeExtra])
@@ -375,6 +381,44 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // moment you change a setting it's stored on that surface's own blob in `opts`
   // and diverges. Main tab → opts.settings; extra tab → its chartTabs[i].settings.
   const activeStoredSettings = isMainTab ? (opts?.settings || null) : (activeExtra?.settings || null)
+  // ⭐ (lane C, zero-network PR 1.5, goal A4) THE CHART'S OWN TIMEFRAME DWELL: once the chart has rested TF_DWELL_MS on a
+  // symbol and timeframe, the data of every timeframe on its bar is asked for (custom codes as their native base), the
+  // member's habitual next timeframes first (tfHabit.js). A list beside the chart warms its selection's timeframes too
+  // (Watchlists SCAN_DWELL_MS); this covers a chart with no list (a typed ticker) and the bar's own codes. Never before
+  // the page's first chart paint; never in replay (its own warm above); the keys' own path (device -> edge -> origin),
+  // the queue's cancellation and single-flight (data/barStore/prefetch.js prefetchAllTimeframes). Owner ruling
+  // 2026-11-28: full data, no caps.
+  // ONE identity per set of codes (not per press, not per settings write): it reaches both layers' charts (tfBarCodes),
+  // and a new array at every timeframe press re-rendered a hidden chart the flip must not touch
+  const tfBarKey = (() => {
+    const fav = Array.isArray(activeStoredSettings?.header?.timeframes) ? activeStoredSettings.header.timeframes : []
+    return [...new Set([...(fav.length ? fav : TF_ORDER), tf].map(String))].join(',')
+  })()
+  const tfBarCodes = useMemo(() => tfBarKey.split(','), [tfBarKey])
+  const dated = !!anchorKey
+  useEffect(() => {
+    if (!sym || replayCutoff) return undefined
+    let alive = true
+    // (review of #2996, F1) leaving the symbol or timeframe aborts what the dwell has not asked yet
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null
+    let cancelPaintWait = null
+    const timer = setTimeout(() => {
+      cancelPaintWait = whenFirstChartPainted(() => {
+        if (!alive) return
+        const codes = tfBarKey.split(',')
+        const first = habitualTfs(tf, { k: 2, available: codes })
+        const order = [...first, ...codes.filter((c) => c !== tf && !first.includes(c))]
+        // (after #2947) at a date the member went to, an intraday timeframe reads the WINDOW there (useDateWindowWarm's
+        // job, the lake-window lane): only D / W / M, whose plain keys serve a date too, are warmed here
+        const bases = [...new Set(order.map((c) => fetchTf(c)))].filter((b) => b && b !== fetchTf(tf) && (!dated || ['D', 'W', 'M'].includes(b)))
+        try {
+          // device + edge only, never an origin warm (F1)
+          if (bases.length) prefetchAllTimeframes(sym, { tfs: bases, showExtended: !!paneExtRef.current, edge: true, signal: ctl?.signal })
+        } catch { /* a warm never breaks the chart */ }
+      })
+    }, TF_DWELL_MS)
+    return () => { alive = false; clearTimeout(timer); cancelPaintWait?.(); try { ctl?.abort() } catch { /* gone */ } }
+  }, [sym, tf, tfBarKey, replayCutoff, dated])
   // Identity-stable write sink for the active surface. MUST be useCallback, not
   // an inline arrow at the ChartPane call site: it flows through
   // useChartSurfaceSettings' `write` into StockChart as onSettingsPersist, which
@@ -934,6 +978,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               ? { priceLines: paneSym === sym ? hostPriceLines : hostOverlay.priceLinesFor(paneSym) } : {}),
             onTimeRangeChange: layerIdx != null ? layerTimeRange[layerIdx] : paneTimeRange,
             onCrosshairMove: reportCrosshair,
+            tfBarCodes,   // (lane C, #2996 F2) the habitual timeframes the chart prepares are the bar's (custom codes too)
             subscribeCrosshair: paneSubscribeCrosshair,
             hotkeysActive: hotkeysIsActive,
             onBarContextMenu: handleBarContextMenu,
