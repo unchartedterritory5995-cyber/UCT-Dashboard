@@ -560,7 +560,7 @@ describe('routing words', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
-    expect([...g.actions].sort()).toEqual([...ALL].sort())
+    expect([...g.actions].sort()).toEqual([...ALL, 'stock.dealsMarket', 'stock.setupStudy', 'stock.periodChange'].sort())   // wave 14 (2026-11-28) joined this group by action
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
     // the server keeps only MAX_GROUPS groups: this wave's is the 46th, straight after wave 3's (the cap was 48 when this

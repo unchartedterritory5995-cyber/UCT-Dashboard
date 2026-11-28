@@ -494,7 +494,7 @@ describe('routing words', () => {
     expect(GROUPS.map(x => x.id).slice(52, 55)).toEqual([WAVE11_GROUP, WAVE12_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
     for (const other of GROUPS.filter(x => x.id !== ROUTE_GROUP)) for (const n of ALL) expect(other.actions || [], `${other.id}: ${n}`).not.toContain(n)
-    expect([WAVE9_GROUP, WAVE11_GROUP, WAVE12_GROUP].map(id => GROUPS.find(x => x.id === id).actions.length)).toEqual([3, 7, 6])   // held at their sizes
+    expect([WAVE9_GROUP, WAVE11_GROUP, WAVE12_GROUP].map(id => GROUPS.find(x => x.id === id).actions.length)).toEqual([3, 7, 8])   // held at their sizes (wave 14, 2026-11-28, added two actions to wave 12's group)
   })
 
   it.each([[null, 'data off'], [[], 'nothing activated'], [['quote', 'quotes', 'themes', 'earnings', 'fundamentals', 'stock.stats', 'fed.watch', 'rates.treasury'], 'other kinds only']])('dark (%j, %s): the group has no words, and the data group keeps exactly routing.js\'s', async (kinds) => {

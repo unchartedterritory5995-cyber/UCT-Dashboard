@@ -5354,3 +5354,15 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   reads the held set. `api/main.py` and `api/routers/groups.py` are not in its closure
   (`tools/flow_worker_watch_coverage.py` `verdict()` on this change: those two offenders, nothing else).
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+
+## UCT Agent data wave 14 (gap audit A1-A3: OHIS, POS, FEED, CONG, MNA / IDXC, SETH, PCHG as seven dark, model-isolated Agent kinds) · `feat/agent-reach-options-filings` · 2026-11-28
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/uct_agent/turn.py` |
+
+- **What changed.** Seven new Agent data kinds (`options.straddleHistory`, `options.positioning`, `filings.feed`, `congress.trades`, `market.deals`, `market.setupStudy`, `market.periodChange`), each a held-only reader, all default OFF and model-isolated (MD-1 v1.20 §4.23); in `turn.py` only the `LOCAL_ONLY_ACTIONS` set gains the seven capability names (and a comment).
+- **Flow-worker.** Reaches `turn.py` only through `api/routers/uct_agent.py`'s function-level imports; flow-worker serves no Agent turn, so the larger set is never read there. The new reader modules are imported only by `kinds.py` (outside its closure). `tools/flow_worker_watch_coverage.py` `verdict()` on this change: that one offender, nothing else.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.

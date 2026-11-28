@@ -779,6 +779,36 @@ const TERMINAL_DATA = {
     matches: [{ date: '2025-03-04', similarity: 97.3, distance: 0.03, forward_returns: { fwd_5d: 1.2, fwd_10d: -0.4, fwd_20d: 2.5, fwd_60d: 6.1 }, not_yet: [], measures_then: {} },
       { date: '2024-10-07', similarity: 91.0, distance: 0.09, forward_returns: { fwd_5d: -0.8, fwd_10d: 1.1, fwd_20d: 3.0, fwd_60d: 4.4 }, not_yet: [], measures_then: {} },
       { date: '2024-06-14', similarity: 88.5, distance: 0.12, forward_returns: { fwd_5d: 0.5, fwd_10d: 0.9, fwd_20d: -1.0, fwd_60d: 5.0 }, not_yet: [], measures_then: {} }].slice(0, p.rows || 5) } }),
+  // Terminal data wave 14 (dark kinds `options.straddleHistory`, `options.positioning`, `filings.feed`, `congress.trades`,
+  // `market.deals`, `market.setupStudy`, `market.periodChange`; MD-1 §4.23): the same rule, each adapter's own data shape with
+  // made-up figures, names and 2025 dates.
+  'options.straddleHistory': (p) => ({ freshness: 'historical', as_of: '2025-10-31T04:00:00Z', data: { symbol: p.symbol, as_of: '2025-10-31', logging_began: '2025-09-30',
+    sessions_logged: 23, straddle: { state: 'held', count: 2, total: 2, cut: false, sessions_without: 0, rows: [
+      { date: '2025-10-31', straddle: 9.5, straddle_pct: 4.75, underlying_price: 200, front_dte: 7 },
+      { date: '2025-10-30', straddle: 9.1, straddle_pct: 4.6, underlying_price: 198, front_dte: 8 }] },
+    daily_move: { state: 'held', count: 1, total: 1, cut: false, summary: null, summary_note: '1 pair so far; how often the move stayed inside the implied move needs 20.', broken: 0,
+      rows: [{ date: '2025-10-30', next: '2025-10-31', implied_move_pct: 2.1, actual_move_pct: 1.0, inside: true }] } } }),
+  'options.positioning': (p) => ({ freshness: 'periodic', as_of: null, data: { symbol: p.symbol, window: p.window || 'month', computed_at: '2025-10-31T19:00:00Z',
+    max_pain: { state: 'held', spot: 100, strike_band_pct: 15, count: 1, total: 1, cut: false, contracts_missing_oi: 0,
+      expirations: [{ expiration: '2025-11-07', max_pain: 97.5, distance_pct: -2.5 }] },
+    levels: { state: 'held', spot: 100, levels: [{ id: 'call_wall', label: 'Call wall', value: 105, unit: 'strike', role: 'Pin' }] } } }),
+  'filings.feed': (p) => ({ freshness: 'periodic', as_of: null, data: { scope: p.symbol ? 'stock' : 'market', symbol: p.symbol || null, company: null, form: p.form || null,
+    state: 'ok', count: 1, total: 1, cut: false, read_at: '2025-10-31T15:00:00Z',
+    rows: [{ form: '8-K', company: 'Made-up Filer Inc', ticker: 'QZFL', filed: '2025-10-30', items: [{ code: '2.02', label: 'Results of operations' }], url: 'https://www.sec.gov/x' }] } }),
+  'congress.trades': (p) => ({ freshness: 'periodic', as_of: '2025-10-30T04:00:00Z', data: { scope: p.symbol ? 'stock' : 'market', symbol: p.symbol || null, state: 'ok',
+    count: 1, total: 1, cut: false, read_at: '2025-10-31T12:00:00Z', chambers: { senate: 'ok', house: 'ok' }, newest_disclosure: '2025-10-30',
+    rows: [{ chamber: 'senate', member: 'Made-up Senator', side: 'buy', symbol: 'QZCG', amount: '$1,001 - $15,000', transaction_date: '2025-10-01', disclosure_date: '2025-10-30' }] } }),
+  'market.deals': (p) => ({ freshness: 'periodic', as_of: null, data: { part: p.part || null, index: p.index || null,
+    mergers: { state: 'held', count: 1, total: 1, cut: false, feed_cut: false, read_at: '2025-10-31T20:00:00Z',
+      rows: [{ date: '2025-10-30', acquirer: { sym: 'QZAQ', name: 'Made-up Acquirer' }, target: { sym: null, name: 'Made-up Target' } }] },
+    index_changes: { state: 'held', count: 1, total: 1, cut: false, read_at: '2025-10-31T20:00:00Z',
+      rows: [{ index: 'sp500', index_name: 'S&P 500', date: '2025-10-27', added: { sym: 'QZAD', name: 'Made-up Added' }, removed: { sym: 'QZRM', name: 'Made-up Gone' } }] } } }),
+  'market.setupStudy': () => ({ freshness: 'historical', as_of: '2025-10-31T04:00:00Z', data: { data_through: '2025-10-31', built_at: '2025-11-01T02:00:00Z', count: 1,
+    setups: [{ id: 'qz', name: 'Made-up breakout', state: 'ok', groups: [
+      { phase: 'correction', horizons: { 5: { n: 40, below_floor: false, win_rate: 55, avg_pct: 2.1, baseline_avg_pct: 0.9 }, 20: { n: 40, below_floor: false, win_rate: 58, avg_pct: 3.4, baseline_avg_pct: 1.2 }, 60: { n: 12, below_floor: true } } }] }] } }),
+  'market.periodChange': (p) => ({ freshness: 'periodic', as_of: null, data: { start: p.start, end: p.end, start_day: p.start, end_day: p.end, side: p.side || 'gainers',
+    held: 'fresh', built_at: '2025-10-31T21:00:00Z', partial: false, count: 1, total: 1, cut: false,
+    rows: [{ sym: 'QZUP', period_change: 42.5, start_close: 10, end_close: 14.25, sector: 'Made-up' }] } }),
 }
 // wave 13's econ rows: the econ routes' own shape over the registry's real series symbols, made-up meta and figures (2025)
 const W13_T = 1760531400                                                      // 2025-10-15 12:30 UTC, a made-up release time
@@ -1038,7 +1068,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 13 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 14 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

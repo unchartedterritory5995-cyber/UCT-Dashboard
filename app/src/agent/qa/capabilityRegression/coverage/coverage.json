@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 281,
+  "all": 288,
   "withProductionKinds": 267,
-  "darkGated": 14
+  "darkGated": 21
  },
  "totals": {
-  "capabilities": 281,
-  "withAnyRegressionCase": 230,
+  "capabilities": 288,
+  "withAnyRegressionCase": 237,
   "perProtection": {
    "nl": {
-    "covered": 227,
-    "applicable": 281
+    "covered": 234,
+    "applicable": 288
    },
    "routing": {
-    "covered": 224,
-    "applicable": 281
+    "covered": 231,
+    "applicable": 288
    },
    "args": {
-    "covered": 230,
-    "applicable": 281
+    "covered": 237,
+    "applicable": 288
    },
    "execution": {
-    "covered": 227,
-    "applicable": 281
+    "covered": 234,
+    "applicable": 288
    },
    "receipt": {
-    "covered": 197,
-    "applicable": 281
+    "covered": 204,
+    "applicable": 288
    },
    "refusal": {
     "covered": 35,
-    "applicable": 281
+    "applicable": 288
    },
    "permission": {
-    "covered": 273,
-    "applicable": 281
+    "covered": 280,
+    "applicable": 288
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 43,
-    "applicable": 281
+    "applicable": 288
    },
    "phrasings": {
-    "covered": 223,
-    "applicable": 281
+    "covered": 230,
+    "applicable": 288
    }
   }
  },
@@ -10024,6 +10024,60 @@
     "phrasings": []
    }
   },
+  "stock.congressTrades": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.congressTrades: \"congressional trades\"",
+     "stock.congressTrades: \"senators stock trades\"",
+     "stock.congressTrades: \"show me the congressional trades\"",
+     "stock.congressTrades: \"stock act disclosures\""
+    ],
+    "routing": [
+     "stock.congressTrades: \"congressional trades\"",
+     "stock.congressTrades: \"senators stock trades\"",
+     "stock.congressTrades: \"show me the congressional trades\"",
+     "stock.congressTrades: \"stock act disclosures\""
+    ],
+    "args": [
+     "corpus stock.congressTrades"
+    ],
+    "execution": [
+     "stock.congressTrades (c)"
+    ],
+    "receipt": [
+     "stock.congressTrades (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.consensusRating": {
    "domain": "stock",
    "group": "stockResearch",
@@ -10245,6 +10299,60 @@
     ],
     "receipt": [
      "stock.daysLikeToday (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.dealsMarket": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.dealsMarket: \"latest mergers\"",
+     "stock.dealsMarket: \"recent acquisitions\"",
+     "stock.dealsMarket: \"m&a activity\"",
+     "stock.dealsMarket: \"recent index changes\""
+    ],
+    "routing": [
+     "stock.dealsMarket: \"latest mergers\"",
+     "stock.dealsMarket: \"recent acquisitions\"",
+     "stock.dealsMarket: \"m&a activity\"",
+     "stock.dealsMarket: \"recent index changes\""
+    ],
+    "args": [
+     "corpus stock.dealsMarket"
+    ],
+    "execution": [
+     "stock.dealsMarket (c)"
+    ],
+    "receipt": [
+     "stock.dealsMarket (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10581,6 +10689,60 @@
     ],
     "receipt": [
      "stock.economyBoard (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.edgarFeed": {
+   "domain": "stock",
+   "group": "stockResearch",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.edgarFeed: \"latest sec filings\"",
+     "stock.edgarFeed: \"show me the filings feed\"",
+     "stock.edgarFeed: \"newest edgar filings\"",
+     "stock.edgarFeed: \"latest 8-Ks\""
+    ],
+    "routing": [
+     "stock.edgarFeed: \"latest sec filings\"",
+     "stock.edgarFeed: \"show me the filings feed\"",
+     "stock.edgarFeed: \"newest edgar filings\"",
+     "stock.edgarFeed: \"latest 8-Ks\""
+    ],
+    "args": [
+     "corpus stock.edgarFeed"
+    ],
+    "execution": [
+     "stock.edgarFeed (c)"
+    ],
+    "receipt": [
+     "stock.edgarFeed (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -11831,6 +11993,60 @@
     "phrasings": []
    }
   },
+  "stock.optionsPositioning": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.optionsPositioning: \"max pain for NVDA\"",
+     "stock.optionsPositioning: \"what is the max pain on NVDA\"",
+     "stock.optionsPositioning: \"maximum pain NVDA\"",
+     "stock.optionsPositioning: \"options positioning for NVDA\""
+    ],
+    "routing": [
+     "stock.optionsPositioning: \"max pain for NVDA\"",
+     "stock.optionsPositioning: \"what is the max pain on NVDA\"",
+     "stock.optionsPositioning: \"maximum pain NVDA\"",
+     "stock.optionsPositioning: \"options positioning for NVDA\""
+    ],
+    "args": [
+     "corpus stock.optionsPositioning"
+    ],
+    "execution": [
+     "stock.optionsPositioning (c)"
+    ],
+    "receipt": [
+     "stock.optionsPositioning (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.ownershipReport": {
    "domain": "stock",
    "group": "stockStudies",
@@ -11877,6 +12093,60 @@
     ],
     "receipt": [
      "stock.ownershipReport (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.periodChange": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.periodChange: \"top gainers between jan 2 and mar 31\"",
+     "stock.periodChange: \"biggest gainers from 2025-01-02 to 2025-03-31\"",
+     "stock.periodChange: \"best performers from 1/2/2025 to 3/31/2025\"",
+     "stock.periodChange: \"between jan 2 and mar 31 who were the top gainers\""
+    ],
+    "routing": [
+     "stock.periodChange: \"top gainers between jan 2 and mar 31\"",
+     "stock.periodChange: \"biggest gainers from 2025-01-02 to 2025-03-31\"",
+     "stock.periodChange: \"best performers from 1/2/2025 to 3/31/2025\"",
+     "stock.periodChange: \"between jan 2 and mar 31 who were the top gainers\""
+    ],
+    "args": [
+     "corpus stock.periodChange"
+    ],
+    "execution": [
+     "stock.periodChange (c)"
+    ],
+    "receipt": [
+     "stock.periodChange (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -12540,6 +12810,60 @@
     "phrasings": []
    }
   },
+  "stock.setupStudy": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.setupStudy: \"how do breakouts act in corrections\"",
+     "stock.setupStudy: \"setup statistics\"",
+     "stock.setupStudy: \"setup win rates\"",
+     "stock.setupStudy: \"how did pullbacks perform\""
+    ],
+    "routing": [
+     "stock.setupStudy: \"how do breakouts act in corrections\"",
+     "stock.setupStudy: \"setup statistics\"",
+     "stock.setupStudy: \"setup win rates\"",
+     "stock.setupStudy: \"how did pullbacks perform\""
+    ],
+    "args": [
+     "corpus stock.setupStudy"
+    ],
+    "execution": [
+     "stock.setupStudy (c)"
+    ],
+    "receipt": [
+     "stock.setupStudy (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.setups": {
    "domain": "stock",
    "group": "marketReads",
@@ -12748,6 +13072,60 @@
     ],
     "receipt": [
      "stock.splitsDividends (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.straddleHistory": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.straddleHistory: \"NVDA straddle history\"",
+     "stock.straddleHistory: \"straddle history for NVDA\"",
+     "stock.straddleHistory: \"implied vs actual moves for NVDA\"",
+     "stock.straddleHistory: \"options history for NVDA\""
+    ],
+    "routing": [
+     "stock.straddleHistory: \"NVDA straddle history\"",
+     "stock.straddleHistory: \"straddle history for NVDA\"",
+     "stock.straddleHistory: \"implied vs actual moves for NVDA\"",
+     "stock.straddleHistory: \"options history for NVDA\""
+    ],
+    "args": [
+     "corpus stock.straddleHistory"
+    ],
+    "execution": [
+     "stock.straddleHistory (c)"
+    ],
+    "receipt": [
+     "stock.straddleHistory (c)"
     ],
     "refusal": [],
     "permission": [],

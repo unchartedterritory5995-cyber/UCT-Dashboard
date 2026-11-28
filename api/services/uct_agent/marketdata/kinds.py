@@ -78,6 +78,12 @@ MODEL-ISOLATED, and none ever builds, searches, pages a vendor, reads the SEC or
 only what its service already holds (MD-1 §4.22). SENT gets no kind: its readings sit in the Breadth Monitor's shared-cache
 copy under keys this read could only make by calling functions that load files, so a held-only read could not be shown
 to start no work.
+
+Terminal data wave 14 (terminal-data, gap audit A1-A3): `options.straddleHistory`, `options.positioning`, `filings.feed`,
+`congress.trades`, `market.deals`, `market.setupStudy`, `market.periodChange` - the Agent half of OHIS, POS, FEED, CONG,
+the bare MNA and IDXC, the bare SETH, and PCHG for any two dates. All seven default OFF, all seven MODEL-ISOLATED, and
+none ever reads an option chain, downloads, asks the SEC or a vendor, queues a read or starts a build: each reads only
+what its service already holds (MD-1 §4.23). PEER still gets no kind (api/services/related_peers.py is not on master).
 """
 from __future__ import annotations
 
@@ -104,6 +110,9 @@ from api.services.uct_agent.marketdata import (cot_finer_read, group_crowding_re
 from api.services.uct_agent.marketdata import (analyst_ratings_read, company_deals_read, estimate_history_read, ftd_read,
                                                revenue_segments_read)
 from api.services.uct_agent.marketdata import analogues_read, econ_read, insider_market_read, market_history_read
+from api.services.uct_agent.marketdata import (congress_read, filings_feed_read, market_deals_read,
+                                               options_positioning_read, period_change_read, setup_study_read,
+                                               straddle_history_read)
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -968,6 +977,78 @@ def register(registry) -> None:
                     "what the server already holds, never a search or a request ('not held' otherwise); as_of is the "
                     "close of the reference session, never the time of the read. Shown to the member only. "
                     f"Params: {{rows (1-{analogues_read.MAX_ROWS} sessions)}}.",
+    ))
+    # Terminal data wave 14 (terminal-data): the Agent half of OHIS, POS, FEED, CONG, the bare MNA / IDXC, SETH and PCHG.
+    # Default OFF like every kind; ALL SEVEN model-isolated (each also needs its own UCT_AGENT_ISOLATED_KINDS entry) and
+    # local-only. None causes work: each member route can (a chain read, an SEC read, a vendor read, a download from the
+    # options log's storage, a build); the adapter reads only what is already held (MD-1 §4.23).
+    registry.register(Kind(
+        name=straddle_history_read.KIND, fn=straddle_history_read.read_straddle_history,
+        validate=straddle_history_read.validate, freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL,
+        model_isolated=True,
+        description="One stock's options history from UCT's options log as held on this server (OHIS): the front "
+                    "at-the-money straddle at each logged session (dollars and percent of the stock) and each session's "
+                    "implied one-day move against the move that followed, each part with its own state. Only the sessions "
+                    "the server already holds on its disk, never a download or a request ('not held' otherwise); as_of is "
+                    "the newest logged session, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{straddle_history_read.MAX_ROWS} sessions per part)}}.",
+    ))
+    registry.register(Kind(
+        name=options_positioning_read.KIND, fn=options_positioning_read.read_positioning,
+        validate=options_positioning_read.validate, freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL,
+        model_isolated=True,
+        description="One stock's options positioning as UCT worked it out (POS): max pain per expiration and the named "
+                    "levels (call wall, put wall, zero gamma, absolute gamma and key delta strikes, implied moves). Only "
+                    "what the server already holds (kept a minute after the panel works it out), never an option chain "
+                    "read or a request ('not held' otherwise); as_of is null and the build time rides beside it, never the "
+                    "time of the read. Shown to the member only. Params: {symbol, window (0dte|1dte|week|month|all)}.",
+    ))
+    registry.register(Kind(
+        name=filings_feed_read.KIND, fn=filings_feed_read.read_filings, validate=filings_feed_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="New SEC filings as UCT holds them (FEED): the newest across the market, or one company's recent "
+                    "8-K (with item codes), 10-Q, 10-K, Form 4, 13D/G and S-1 filings, each with its form, filing day, "
+                    "acceptance time and SEC page. Only what the server already holds, never an SEC request or a queued "
+                    "read ('not held' otherwise); as_of is null and each filing carries its own day, never the time of the "
+                    "read. Shown to the member only. "
+                    f"Params: {{symbol (or null), form (or null), rows (1-{filings_feed_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=congress_read.KIND, fn=congress_read.read_congress, validate=congress_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="Congressional trade disclosures as UCT holds them (CONG): the newest across every symbol, or both "
+                    "chambers' disclosures for one stock, each with the member, side, disclosed amount range, trade day and "
+                    "disclosure day. Only what the server already holds, never a request ('not held' otherwise); as_of is "
+                    "the newest disclosure day, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol (or null), rows (1-{congress_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=market_deals_read.KIND, fn=market_deals_read.read_market_deals, validate=market_deals_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The market's latest deals and index changes as UCT holds them (MNA, IDXC): the latest announced "
+                    "mergers and acquisitions with their SEC filings, and the additions to and removals from the S&P 500, "
+                    "the Nasdaq 100 and the Dow 30, each part with its own state. Only what the server already holds, never "
+                    "a build or a request ('not held' otherwise); as_of is null and each part carries its own read time, "
+                    "never the time of the read. Shown to the member only. "
+                    f"Params: {{part (mergers|index_changes or null), index (or null), rows (1-{market_deals_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=setup_study_read.KIND, fn=setup_study_read.read_setup_study, validate=setup_study_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="How chart setups acted across UCT's stock universe (SETH): for each setup of a fixed library, in each "
+                    "phase of the S&P 500, the signals, win rate and average and median move at 5, 20 and 60 days beside the "
+                    "baseline; null below the study's minimum, never 0; a record, never a forecast. Only the study the "
+                    "server already holds, never a build or a request ('not held' otherwise); as_of is the newest session "
+                    "its prices reach, never the time of the read. Shown to the member only. Params: {phase (or null)}.",
+    ))
+    registry.register(Kind(
+        name=period_change_read.KIND, fn=period_change_read.read_period_change, validate=period_change_read.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="Every US stock's change between two dates as UCT ranked it (PCHG): the biggest gainers or losers with "
+                    "their closes, sector and industry. Only a ranking the server already holds, never a build or a request "
+                    "('not held' or 'computing' otherwise); as_of is null and the two days and the build time ride beside "
+                    "it, never the time of the read. Shown to the member only. "
+                    f"Params: {{start, end (YYYY-MM-DD), side (gainers|losers), rows (1-{period_change_read.MAX_ROWS})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
