@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 4645,
+  "passed": 4638,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 6,
+  "wall_s": 515.5,
+  "failed_files": [
+    "tests/test_serve_label_budget.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 4638 passed, 6 skipped, 1 xfailed, 7290 warnings in 515.50s (0:08:35)",
+  "ok": true
+}

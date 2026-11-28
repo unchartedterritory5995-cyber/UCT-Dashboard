@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 4379,
+  "passed": 4369,
+  "failed": 5,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 638.37,
+  "failed_files": [
+    "tests/test_rate_limit_policy.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "5 failed, 4369 passed, 5 skipped, 3 xfailed, 18 warnings in 638.37s (0:10:38)",
+  "ok": true
+}

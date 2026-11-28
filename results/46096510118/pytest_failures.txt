@@ -1,0 +1,27 @@
+api.services.bars_sqlite_test | test_bump_db_epoch_propagates_across_threads | Failed: Timeout (>120.0s) from pytest-timeout.
+api.services.journal_two.test_note_convert_d3 | test_inline_raw_tags_scale_linearly[<lambda>2] | AssertionError: (0.015020987000013974, 0.13132910999996739)
+tests.test_a8_taxonomy | test_no_new_cashtag_grammar_and_the_baseline_only_shrinks | AssertionError: api/services/tx_headline_match.py:63 introduces a cashtag grammar '\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b' - read a8_taxonomy.CASHTAG_RE
+tests.test_auth_surface_reads | test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry | AssertionError: NEW unauthenticated read(s) with no gate in the dependency tree and no baseline entry. Gate them, or record each one in api/auth_surface_read_baseline.json with a reason:
+tests.test_discord_chart | test_fetch_ticker_choices_uses_the_dashboards_search_and_never_raises | AssertionError: assert {'limit', 'q'...'uct_session'} == {'limit', 'q'...'uct_session'}
+tests.test_earnings_window_single_walk | test_both_consumers_agree_across_the_window | AssertionError: the two consumers disagree about when a symbol reports -- the unification changed behaviour and must revert to scope-only
+tests.test_econ_search | test_the_signature_gained_no_parameter | AssertionError: assert {'limit', 'q'...'uct_session'} == {'limit', 'q'...'uct_session'}
+tests.test_flat_top_golden | test_every_existing_drawing_is_byte_for_byte_unchanged | AssertionError: 15 scans moved: ['12:262', '12:268', '12:280', '14:274', '15:268', '17:280', '17:286', '18:286', '19:298', '1:286']
+tests.test_flat_top_golden | test_control_the_comparison_sees_the_stamp_when_it_is_kept | AssertionError: assert 17 <= 3
+tests.test_massive_guard_census | test_real_repo_has_zero_unexempted_violations | AssertionError: unexempted api.massive.com hits: [UrlLiteralHit(path='api/services/options_universe_log.py', line=47, col=7, snippet='BASE = "https://api.massive.com"'), UrlLiteralHit(path='api/services/uct_agent/marketdata/earnings_expected_move.py', line=1, col=0, snippet='"""MD-1 kind `earnings.expectedMove` (owner: terminal-data, data wave 2) — what the options market p')]
+tests.test_open_reads_gate | test_v_the_census_reflects_the_gating | AssertionError: ([('GET', '/api/ticker-universe')], [])
+tests.test_pattern_scan_depth_and_sym | test_the_pullback_detector_declares_its_history_and_nothing_else_does | AssertionError: {'death_cross', 'golden_cross', 'pullback_to_200sma', 'pullback_to_50sma', 'uct_flag_htf', 'uct_flat_top_breakout', ...}
+tests.test_pattern_scan_depth_and_sym | test_undeclared_detectors_receive_byte_identical_bars_and_context | AssertionError: [('DEPTHX', 'D', 270)]
+tests.test_rate_limit_policy | test_vi_every_route_of_the_REAL_app_is_declared_or_exempt | AssertionError: these routes are in NO declared rate-limit family and are not exempt. Add their prefix to a family in api/rate_limit_policy.py FAMILIES, or to EXEMPT with a reason:
+tests.test_rate_limit_policy | test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME | AssertionError: unclassified=['/api/ticker-universe', '/api/zz-brand-new-family/{x}'] stale=[] dist_only_undeclared=[]
+tests.test_rate_limit_policy | test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy | AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+tests.test_rate_limit_policy | test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt | AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+tests.test_rate_limit_policy | test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one | assert False is True
+tests.test_runtime_server_stage | test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways | AssertionError: assert ('armed' == 'dark'
+tests.test_serve_label_budget | test_every_serve_label_is_declared | AssertionError: undeclared / unresolvable _mark_serve label(s) — declare them in api/services/serve_labels.py with a class, or reuse an existing label:
+tests.test_stream_edge_watch_paths | test_every_module_stream_edge_loads_is_a_watch_path | AssertionError: add to railway.edge.json watchPatterns: ['api/services/bars_payload.py', 'api/services/live_price_source.py']
+tests.test_stream_ingest_skeleton | test_watch_paths_cover_the_services_own_code | AssertionError: add to railway.ingest.json watchPatterns: ['api.services.live_price_source']
+tests.test_synthetic_session_signout | test_every_synthetic_sign_in_goes_through_the_helper_or_signs_out_in_finally | AssertionError: a tool can leave a live synthetic session behind:
+tests.test_theme_index_watchlist | test_overlay_today_replaces_stale_and_appends_missing | AssertionError: assert (3 == 2)
+tests.test_ticker_resolver | test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks | AssertionError: api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver
+tests.test_trade_exchange_news_receiver | test_only_hashes_are_configured_and_two_may_be_live_for_rotation | assert 1 == 2
+tests.test_two_engines_do_not_agree | test_the_shipped_thresholds_have_not_moved | AssertionError: these thresholds changed since the agreement table was measured:

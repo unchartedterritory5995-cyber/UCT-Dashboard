@@ -1,0 +1,81 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  4%]
+...........................................................sssssssssssss [  9%]
+ss...................................................................... [ 14%]
+........................................................................ [ 18%]
+........................................................................ [ 23%]
+........................................................................ [ 28%]
+........................................................................ [ 32%]
+........................................................................ [ 37%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 51%]
+........................................................................ [ 56%]
+........................................................................ [ 61%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................................ [ 98%]
+.....................                                                    [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_budget_denied_mid_fanout_gets_short_ttl
+tests/test_insider_cache_policy.py::TestInsiderFeedThrottleTtl::test_no_denial_gets_the_full_1h_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_dual_provider_failure_mid_fanout_gets_short_ttl
+tests/test_insider_fmp.py::TestFeedFetchFailSignal::test_no_failure_gets_full_ttl
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_insider_market_feed.py: 3402 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_insider_market_feed.py:29: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return (datetime.utcnow() - timedelta(days=offset)).strftime("%Y-%m-%d")
+
+tests/test_insider_market_feed.py: 13 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:266: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=_MARKET_WINDOW_DAYS)).strftime("%Y-%m-%d")
+
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[60]
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[5]
+tests/test_intraday_tail_currentness.py::TestVerificationIsEarnedNotInferred::test_the_real_delta_sets_ok_only_on_a_provider_answer
+tests/test_intraday_tail_currentness.py::TestVerificationIsEarnedNotInferred::test_the_real_delta_sets_ok_only_on_a_provider_answer
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3476: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=gap_days)).strftime("%Y-%m-%d")
+
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[60]
+tests/test_intraday_history_integrity.py::test_null_volume_or_price_in_a_delta_keeps_the_rest[5]
+tests/test_intraday_tail_currentness.py::TestVerificationIsEarnedNotInferred::test_the_real_delta_sets_ok_only_on_a_provider_answer
+tests/test_intraday_tail_currentness.py::TestVerificationIsEarnedNotInferred::test_the_real_delta_sets_ok_only_on_a_provider_answer
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3483: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date   = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_intraday_tail_currentness.py::TestWeeklyCurrentWeek::test_monday_weekly_request_repairs_synchronously_instead_of_serving_last_week
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:543: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_journal_styles_slots.py::test_known_blocks_prefix_test_reaches_every_module
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_intraday_watchlist_scan_bench.py:32: the scan rail drives a real browser
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:100: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:113: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:159: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [11] tests/test_inside_day_draw_lab_parity.py:176: UCT_LAB_ID_DRAW_V2 unset
+SKIPPED [1] tests/test_inside_day_draw_lab_parity.py:185: bars.db absent
+1518 passed, 16 skipped, 3431 warnings in 573.13s (0:09:33)

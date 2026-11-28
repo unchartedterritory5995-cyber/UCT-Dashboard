@@ -1,0 +1,77 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 32%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+...............................................F........................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+...........................                                              [100%]
+=================================== FAILURES ===================================
+__________ test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways __________
+
+    def test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways():
+        led = _ledger()["flags"]["PINE_RUNTIME_SERVER_STAGE"]
+        code_default, code_values = rt.PINE_RUNTIME_MODE_FLAGS["PINE_RUNTIME_SERVER_STAGE"]
+        assert led["default"] == code_default == "off"
+        assert tuple(led["values"]) == code_values == rt.STAGES
+>       assert led["status"] == "dark" and led["where"] == []
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_runtime_server_stage.py:215: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_rs_screens_u10_owner_only.py: 1 warning
+tests/test_runtime_repaint_memo.py: 1 warning
+tests/test_s6_cp2_migration.py: 3 warnings
+tests/test_sample_never_feeds_real_numbers.py: 5 warnings
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_rs_screens_u10_owner_only.py::test_the_gate_is_still_one_the_ledger_index_can_see
+tests/test_runtime_repaint_memo.py::test_M6_nothing_else_lexes_a_runtime_script_or_bypasses_the_memo
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_runtime_server_stage.py::test_T12_A_the_ledger_row_is_the_code_vocabulary_both_ways - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+1 failed, 2186 passed, 14 warnings in 593.88s (0:09:53)

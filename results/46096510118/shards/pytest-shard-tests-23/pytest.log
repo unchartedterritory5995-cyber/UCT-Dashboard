@@ -1,0 +1,253 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+.............................................................sssss...... [ 20%]
+.......................F................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+...................................................................x.... [ 38%]
+........................................................................ [ 40%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+.......................F................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+..............................................
+[txn latency, in-process, n=200] webhook->subscriber p50=1.18ms p95=1.45ms p99=1.63ms max=1.94ms | ack incl. journal fsync p50=1.36ms p95=1.60ms | store commit last=0.40ms
+.......................... [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+..........F............................................................. [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+............                                                             [100%]
+=================================== FAILURES ===================================
+____________ test_overlay_today_replaces_stale_and_appends_missing _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7683c6165be0>
+
+    def test_overlay_today_replaces_stale_and_appends_missing(monkeypatch):
+        import datetime as _dt
+        from api.services import theme_index as ti
+        from api.services import massive
+        today = _dt.date.today()
+        t_today = ti._ymd_to_ms(today.year * 10000 + today.month * 100 + today.day)
+        t_prev = ti._ymd_to_ms(20200102)
+        snap = {
+            "AAPL": {"day_open": 10.0, "day_high": 12.0, "day_low": 9.5, "day_c": 11.0, "today_vol": 500},
+            "MSFT": {"day_open": 20.0, "day_high": 21.0, "day_low": 19.0, "day_c": 20.5, "today_vol": 300},
+            "ZZZZ": {"day_open": 0.0, "day_high": 0.0, "day_low": 0.0, "day_c": 0.0, "today_vol": 0},  # pre-open → skip
+        }
+        monkeypatch.setattr(massive, "get_full_market_snapshot_hl_cached", lambda ttl=2.0: snap)
+        hb = {
+            "AAPL": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+                     {"t": t_today, "o": 9, "h": 9, "l": 9, "c": 9, "v": 1}],   # stale today-bar
+            "MSFT": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}],     # no today-bar
+            "ZZZZ": [{"t": t_prev, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}],     # no RTH print
+        }
+        ti._overlay_today(hb)
+>       assert len(hb["AAPL"]) == 2 and hb["AAPL"][-1]["c"] == 11.0 and hb["AAPL"][-1]["t"] == t_today  # replaced
+E       AssertionError: assert (3 == 2)
+E        +  where 3 = len([{'c': 1, 'h': 1, 'l': 1, 'o': 1, ...}, {'c': 9, 'h': 9, 'l': 9, 'o': 9, ...}, {'c': 11.0, 'h': 12.0, 'l': 9.5, 'o': 10.0, ...}])
+
+tests/test_theme_index_watchlist.py:96: AssertionError
+________ test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks ________
+
+    def test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks():
+        _, vocabularies = _baseline()
+        found, new = set(), []
+        for rel in _product_files():
+            try:
+                tree = _parse((REPO / rel).read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):
+                continue
+            for ln, context in restated_vocabularies(tree):
+                found.add((rel, context))
+                if (rel, context) not in vocabularies:
+                    new.append(f"{rel}:{ln} restates the {context!r} stop vocabulary - read ticker_resolver")
+        assert found, "the vocabulary scan found nothing at all - it is broken, not the repo clean"
+        stale = sorted(f"{p} {c}" for p, c in vocabularies - found)
+>       assert not new, "\n".join(new)
+E       AssertionError: api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver
+E         api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver
+E       assert not ["api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver", "api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver"]
+
+tests/test_ticker_resolver.py:404: AssertionError
+_______ test_only_hashes_are_configured_and_two_may_be_live_for_rotation _______
+
+    def test_only_hashes_are_configured_and_two_may_be_live_for_rotation():
+        cfg = _cfg(TXN_WEBHOOK_TOKEN_SHA256=f"{rx.token_sha256(TOKEN)},{rx.token_sha256(TOKEN2)}")
+        assert TOKEN not in repr(vars(cfg))
+        c, journal, _, _ = _client(cfg)
+        with c:
+            assert c.post(f"/hook/{TOKEN}", json=GOOD).status_code == 200
+            assert c.post(f"/hook/{TOKEN2}", json=GOOD).status_code == 200
+>       assert len(journal.objects) == 2
+E       assert 1 == 2
+E        +  where 1 = len({'trade-exchange-news/v1/events/01M8G2ADN7A3WRMCHBBSX337Q9.json': b'{"content":"SYNTHETIC: Example Corp announces a te...:59.463Z","received_at_ms":1795835639463,"receiver":{"commit":"unknown","instance":"local"},"source":"TXNews1","v":1}'})
+E        +    where {'trade-exchange-news/v1/events/01M8G2ADN7A3WRMCHBBSX337Q9.json': b'{"content":"SYNTHETIC: Example Corp announces a te...:59.463Z","received_at_ms":1795835639463,"receiver":{"commit":"unknown","instance":"local"},"source":"TXNews1","v":1}'} = <txn_journal.MemoryJournal object at 0x7683c41d8e90>.objects
+
+tests/test_trade_exchange_news_receiver.py:88: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-28 03:13:59,462 INFO txn.receiver: [txn] receiver up journal=memory ready=True problems=[] forwarder=True
+------------------------------ Captured log call -------------------------------
+INFO     txn.receiver:txn_app.py:106 [txn] receiver up journal=memory ready=True problems=[] forwarder=True
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_ticker_explain_refusal_names_the_gap.py::test_PART3_the_states_are_DEFINED_ONCE_across_every_I1_door
+tests/test_tool_create_keys.py::test_the_uuid4_key_rule_has_one_home
+tests/test_tool_create_keys.py::test_only_create_keys_assigns_the_replay_window
+tests/test_tool_create_keys.py::test_only_create_keys_holds_the_expiry_sweep
+tests/test_trader_blocks_no_note_door.py::test_the_writer_derivation_reaches_the_floor
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+tests/test_tests_reaching.py::test_a_widely_imported_module_reaches_many_tests
+tests/test_tests_reaching.py::test_it_finds_the_pin_that_this_tool_exists_for
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_a_leaf_module_reaches_only_the_sweep_rails
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_filesystem_sweep_rails_are_always_included
+tests/test_tests_reaching.py::test_the_sweep_set_is_neither_empty_nor_everything
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+tests/test_tests_reaching.py::test_the_graph_is_not_vacuous
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_ticker_explain.py::TestRoute::test_route_shape_when_authenticated
+tests/test_ticker_explain.py::TestRoute::test_route_degrades_safely_on_an_exception
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_tools_pin_the_root.py::test_every_tools_api_importer_pins_the_census_or_is_named_exempt
+tests/test_tools_pin_the_root.py::test_every_exempt_name_is_real_and_every_reason_is_stated
+tests/test_tools_pin_the_root.py::test_the_walk_sees_the_known_pinned_and_known_exempt_members
+  notebook_wave5_walk.py:7: SyntaxWarning: invalid escape sequence '\d'
+    (scripts/hub_sandbox_boot.py --data-dir C:\data-<name> --port 8093);
+
+tests/test_track_d_risk003_probe.py::TestClassify::test_max_as_of_matches_last_trading_day_is_healthy
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/track_d_risk003_probe.py:99: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = now_utc or datetime.datetime.utcnow()
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [3] tests/test_tf_switch_probe_refuses_production.py:48: the fixture patches playwright; CI installs no browser stack
+SKIPPED [2] tests/test_tf_switch_probe_refuses_production.py:55: the fixture patches playwright; CI installs no browser stack
+XFAIL tests/test_ticker_explain_refusal_names_the_gap.py::test_PART3_a_MODEL_authored_refusal_sentence_never_reaches_the_member - VIOLATION (I1-SPEC Part 3): 'the name is derived, never model-authored' — explain_recent_activity passes the MODEL's own refusal_reason to _result, whose `refusal_reason or derive_refusal_reason(...)` serves it verbatim as insufficient_evidence_reason. Known partial compliance, recorded in docs/terminal-research/verification/2026-09-14/F-I1-2-refusal-before-after.md ('Full compliance would need the caller to distinguish a server reason from a model reason at _result'). Mitigated, not closed: the sentence is inside _full_answer_text, so a number or verdict in it is still caught. ⚠ Fixing it also changes tests/test_ticker_explain.py::test_model_declaring_refuse_is_passed_through_honestly, which pins the current behaviour. strict=True: the day it is fixed this goes red and the marker must be removed.
+FAILED tests/test_theme_index_watchlist.py::test_overlay_today_replaces_stale_and_appends_missing - AssertionError: assert (3 == 2)
+ +  where 3 = len([{'c': 1, 'h': 1, 'l': 1, 'o': 1, ...}, {'c': 9, 'h': 9, 'l': 9, 'o': 9, ...}, {'c': 11.0, 'h': 12.0, 'l': 9.5, 'o': 10.0, ...}])
+FAILED tests/test_ticker_resolver.py::test_no_restated_stop_vocabulary_and_the_baseline_only_shrinks - AssertionError: api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver
+  api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver
+assert not ["api/services/uct_agent/knowledge/frame.py:89 restates the 'query' stop vocabulary - read ticker_resolver", "api/services/uct_agent/knowledge/frame.py:89 restates the 'headline' stop vocabulary - read ticker_resolver"]
+FAILED tests/test_trade_exchange_news_receiver.py::test_only_hashes_are_configured_and_two_may_be_live_for_rotation - assert 1 == 2
+ +  where 1 = len({'trade-exchange-news/v1/events/01M8G2ADN7A3WRMCHBBSX337Q9.json': b'{"content":"SYNTHETIC: Example Corp announces a te...:59.463Z","received_at_ms":1795835639463,"receiver":{"commit":"unknown","instance":"local"},"source":"TXNews1","v":1}'})
+ +    where {'trade-exchange-news/v1/events/01M8G2ADN7A3WRMCHBBSX337Q9.json': b'{"content":"SYNTHETIC: Example Corp announces a te...:59.463Z","received_at_ms":1795835639463,"receiver":{"commit":"unknown","instance":"local"},"source":"TXNews1","v":1}'} = <txn_journal.MemoryJournal object at 0x7683c41d8e90>.objects
+3 failed, 2811 passed, 5 skipped, 1 xfailed, 81 warnings in 571.30s (0:09:31)

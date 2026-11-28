@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 2616,
+  "passed": 2611,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 663.16,
+  "failed_files": [
+    "tests/test_stream_edge_watch_paths.py",
+    "tests/test_stream_ingest_skeleton.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 2611 passed, 3 skipped, 7436 warnings in 663.16s (0:11:03)",
+  "ok": true
+}

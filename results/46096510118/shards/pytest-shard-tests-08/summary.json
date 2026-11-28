@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 3521,
+  "passed": 3519,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 659.86,
+  "failed_files": [
+    "tests/test_earnings_window_single_walk.py",
+    "tests/test_econ_search.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 3519 passed, 14723 warnings in 659.86s (0:10:59)",
+  "ok": true
+}

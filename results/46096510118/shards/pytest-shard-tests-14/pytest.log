@@ -1,0 +1,75 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+........................................................................ [ 33%]
+........................................................................ [ 42%]
+...............................................ssssssssssssssssssssss... [ 50%]
+........................................................................ [ 59%]
+........s............................................................... [ 67%]
+........................................................................ [ 76%]
+........................................................................ [ 84%]
+.............................ss...............................sss..sssss [ 92%]
+sss.........................................................             [100%]
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+tests/test_notebook_plan_grading.py: 1 warning
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_notebook_journal_styles_router.py::test_every_route_resolves_to_this_router_in_the_real_app
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_p5_walk.py:28: tools/notebook_p5_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_notebook_nvda_pass.py:34: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:41: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:50: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:64: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:81: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:95: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:109: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:119: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:198: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:214: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:232: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:272: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:282: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:293: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:305: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:317: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:357: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:370: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:385: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:398: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:432: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:439: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_perf_harness.py:563: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_proof_walk.py:179: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:197: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:661: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:680: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:718: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:774: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:806: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:831: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1030: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1048: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1116: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1170: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1209: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+816 passed, 37 skipped, 23 warnings in 567.51s (0:09:27)

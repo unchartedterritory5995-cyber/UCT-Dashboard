@@ -1,0 +1,13 @@
+{
+  "suite": "pytest",
+  "collected": 1996,
+  "passed": 1988,
+  "failed": 0,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 702.14,
+  "failed_files": [],
+  "totals_line_found": true,
+  "runner_line": "1988 passed, 8 skipped, 28 warnings in 702.14s (0:11:42)",
+  "ok": true
+}

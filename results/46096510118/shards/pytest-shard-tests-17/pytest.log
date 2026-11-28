@@ -1,0 +1,269 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+............................................s........................... [  1%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+......[theme-perf] Computation returned all-null returns for 1 symbols — NOT persisted to disk, retrying in 120s
+.................................................................. [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+.................FF.....FFF............................................. [ 26%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+............ssss........................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+.........x..x.x......................................................... [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 98%]
+..............................................................           [100%]
+=================================== FAILURES ===================================
+__________ test_vi_every_route_of_the_REAL_app_is_declared_or_exempt ___________
+
+app = <fastapi.applications.FastAPI object at 0x747f926129c0>
+
+    def test_vi_every_route_of_the_REAL_app_is_declared_or_exempt(app):
+        res = rlp.census(app)
+        assert res["routes"] > 500, f"the census examined almost nothing: {res['routes']}"
+>       assert not res["unclassified"], (
+            "these routes are in NO declared rate-limit family and are not exempt. "
+            "Add their prefix to a family in api/rate_limit_policy.py FAMILIES, or to "
+            "EXEMPT with a reason:\n  " + "\n  ".join(res["unclassified"]))
+E       AssertionError: these routes are in NO declared rate-limit family and are not exempt. Add their prefix to a family in api/rate_limit_policy.py FAMILIES, or to EXEMPT with a reason:
+E           /api/ticker-universe
+E       assert not ['/api/ticker-universe']
+
+tests/test_rate_limit_policy.py:364: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-28 02:56:37,875 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-28 02:56:38,091 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+___________ test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME ____________
+
+app = <fastapi.applications.FastAPI object at 0x747f926129c0>
+
+    def test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME(app):
+        a = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
+        a.router.routes.extend(app.routes)
+        a.get("/api/zz-brand-new-family/{x}")(lambda x: x)
+        res = rlp.census(a)
+>       assert res["unclassified"] == ["/api/zz-brand-new-family/{x}"], _fmt(res)
+E       AssertionError: unclassified=['/api/ticker-universe', '/api/zz-brand-new-family/{x}'] stale=[] dist_only_undeclared=[]
+E       assert ['/api/ticker...w-family/{x}'] == ['/api/zz-bra...w-family/{x}']
+E         
+E         At index 0 diff: '/api/ticker-universe' != '/api/zz-brand-new-family/{x}'
+E         Left contains one more item: '/api/zz-brand-new-family/{x}'
+E         
+E         Full diff:
+E           [
+E         +     '/api/ticker-universe',
+E               '/api/zz-brand-new-family/{x}',
+E           ]
+
+tests/test_rate_limit_policy.py:381: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-28 02:56:38,095 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-28 02:56:38,112 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+_ test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy _
+
+app = <fastapi.applications.FastAPI object at 0x747f926129c0>
+
+    def test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy(app):
+        res = rlp.census(_production_shape(app))
+>       assert res["ok"], _fmt(res)
+E       AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+E       assert False
+
+tests/test_rate_limit_policy.py:562: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-28 02:56:38,407 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-28 02:56:38,713 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+________ test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt _________
+
+app = <fastapi.applications.FastAPI object at 0x747f926129c0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_vi_with_a_BUILT_bundle_ev0')
+
+    def test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt(app, tmp_path):
+        whole, built = _app_with_a_built_dist(app, tmp_path / "dist")
+        paths = {getattr(r, "path", None) for r in built.routes}
+        # non-vacuity: the executed block really registered the bundle's routes
+        assert rlp.SPA_CATCH_ALL in paths and "/live-trading-room" in paths, sorted(p for p in paths if p)
+        res = rlp.census(whole)
+        assert res["dist_served"] is True, res
+>       assert not res["unclassified"], _fmt(res)
+E       AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+E       assert not ['/api/ticker-universe']
+
+tests/test_rate_limit_policy.py:604: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-28 02:56:38,717 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-28 02:56:38,865 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+_ test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one _
+
+app = <fastapi.applications.FastAPI object at 0x747f926129c0>
+
+    def test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one(app):
+        # bare checkout: the dist-only declarations are excused
+>       assert rlp.census(app)["ok"] is True
+E       assert False is True
+
+tests/test_rate_limit_policy.py:610: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-11-28 02:56:38,869 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-11-28 02:56:38,885 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_rate_limit_policy.py::test_v_the_flag_is_declared_as_a_MODE_with_OFF_as_its_default
+tests/test_regime_at_write.py::test_only_notes_and_the_composer_pass_a_captured_mode
+tests/test_regime_authority.py::test_no_regime_label_is_restated_outside_the_authority
+tests/test_regime_vocabulary.py::test_no_api_module_restates_a_display_word
+tests/test_requirement_consumers.py::test_EVERY_consumer_the_manifest_refuses_BY_has_a_call_site_in_the_product
+tests/test_review_drafts.py::test_every_caller_that_can_freeze_a_plan_is_known
+tests/test_rollout.py::test_the_prefix_is_declared_once
+tests/test_rollout.py::test_role_user_ids_is_read_by_tests_only
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_reconcile_detect_only_daily.py::test_detect_drift_records_and_alerts_but_never_deletes
+tests/test_reconcile_detect_only_daily.py::test_closed_bar_drift_still_fires_when_today_also_drifts
+tests/test_reconcile_detect_only_daily.py::test_the_warn_count_is_on_the_audit_scale_not_the_alert_scale
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_reconciliation.py:123: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "at": datetime.utcnow().isoformat() + "Z",
+
+tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:740: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error
+tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:847: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_public_note_headers.py:206: app/dist not built here, so the real app registers no SPA catch-all; legs (1) and (2) above carry the proof (the gate builds dist and runs this leg)
+SKIPPED [1] tests/test_restore_drill_wrapper.py:145: the wrapper is a Windows batch file
+SKIPPED [1] tests/test_restore_drill_wrapper.py:156: the wrapper is a Windows batch file
+SKIPPED [1] tests/test_restore_drill_wrapper.py:164: the wrapper is a Windows batch file
+SKIPPED [1] tests/test_restore_drill_wrapper.py:174: the wrapper is a Windows batch file
+XFAIL tests/test_rs_phase3_parity.py::test_clenow_shipped_figure_is_not_the_page_figure_raw - convention, measured: the page annualises over 260 bars and the product over 252, so the shipped clenowAnnual on the page's inputs is 13.42 %, 3.3 % below its 13.88 %. Strict, so changing the exponent turns this red for a review
+XFAIL tests/test_rs_phase3_parity.py::test_vars_matches_the_published_sign_changes - OANDA publishes its VARS only as chart images: no dated zero-line crossings and no price series as text (rs_parity_vars.json `not_published`), so its sign changes cannot be reproduced
+XFAIL tests/test_rs_phase3_parity.py::test_rrg_quadrant_agreement_with_stockcharts - awaiting owner StockCharts readings
+FAILED tests/test_rate_limit_policy.py::test_vi_every_route_of_the_REAL_app_is_declared_or_exempt - AssertionError: these routes are in NO declared rate-limit family and are not exempt. Add their prefix to a family in api/rate_limit_policy.py FAMILIES, or to EXEMPT with a reason:
+    /api/ticker-universe
+assert not ['/api/ticker-universe']
+FAILED tests/test_rate_limit_policy.py::test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME - AssertionError: unclassified=['/api/ticker-universe', '/api/zz-brand-new-family/{x}'] stale=[] dist_only_undeclared=[]
+assert ['/api/ticker...w-family/{x}'] == ['/api/zz-bra...w-family/{x}']
+  
+  At index 0 diff: '/api/ticker-universe' != '/api/zz-brand-new-family/{x}'
+  Left contains one more item: '/api/zz-brand-new-family/{x}'
+  
+  Full diff:
+    [
+  +     '/api/ticker-universe',
+        '/api/zz-brand-new-family/{x}',
+    ]
+FAILED tests/test_rate_limit_policy.py::test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy - AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+assert False
+FAILED tests/test_rate_limit_policy.py::test_vi_with_a_BUILT_bundle_every_route_is_declared_or_exempt - AssertionError: unclassified=['/api/ticker-universe'] stale=[] dist_only_undeclared=[]
+assert not ['/api/ticker-universe']
+FAILED tests/test_rate_limit_policy.py::test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one - assert False is True
+5 failed, 4369 passed, 5 skipped, 3 xfailed, 18 warnings in 638.37s (0:10:38)

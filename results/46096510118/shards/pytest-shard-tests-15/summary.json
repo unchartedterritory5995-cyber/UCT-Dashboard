@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3605,
+  "passed": 3601,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 914.31,
+  "failed_files": [
+    "tests/test_open_reads_gate.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3601 passed, 3 skipped, 59 warnings in 914.31s (0:15:14)",
+  "ok": true
+}

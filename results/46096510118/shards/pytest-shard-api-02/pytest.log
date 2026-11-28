@@ -1,0 +1,105 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+...........................F............................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+......................................................................ss [ 93%]
+ss...................................................................... [ 95%]
+........................................................................ [ 98%]
+...................................................                      [100%]
+=================================== FAILURES ===================================
+________________ test_inline_raw_tags_scale_linearly[<lambda>2] ________________
+
+make = <function <lambda> at 0x7acdc8a322a0>
+
+    @pytest.mark.parametrize("make", [
+        lambda n: "<b>x " * n + "</b>" * n,
+        lambda n: "a " + "</b>" * n + " z",
+        lambda n: "<span>x " * n,
+    ])
+    def test_inline_raw_tags_scale_linearly(make):
+        """D3 review M3: every text run re-checked the whole open-mark list and every close scanned
+        the open tags: 53 / 184 / 694 / 2,891 ms at 1k / 2k / 4k / 8k nested `<b>`."""
+        import time
+    
+        def timed(n):
+            started = time.perf_counter()
+            md_to_tiptap(make(n))
+            return time.perf_counter() - started
+    
+        small, big = timed(2000), timed(8000)
+>       assert big / max(small, 1e-3) < 8, (small, big)  # quadratic is 16x for 4x the input
+E       AssertionError: (0.015020987000013974, 0.13132910999996739)
+E       assert (0.13132910999996739 / 0.015020987000013974) < 8
+E        +  where 0.015020987000013974 = max(0.015020987000013974, 0.001)
+
+api/services/journal_two/test_note_convert_d3.py:613: AssertionError
+=============================== warnings summary ===============================
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/test_note_convert_mddoc.py::test_the_invisible_character_class_is_defined_once_under_api
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+api/services/journal_two/test_obsidian_ingest.py::test_redeem_does_not_require_a_session_cookie
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+api/services/test_brain_sync.py::test_sync_installs_new_pack
+api/services/test_brain_sync.py::test_sync_skips_when_current
+api/services/test_brain_sync.py::test_sync_fires_on_install_callbacks
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/brain_sync.py:101: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tf.extractall(staging, members=members)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] api/services/test_brain_service.py:85: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:94: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:101: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:114: uct-intelligence submodule not checked out
+FAILED api/services/journal_two/test_note_convert_d3.py::test_inline_raw_tags_scale_linearly[<lambda>2] - AssertionError: (0.015020987000013974, 0.13132910999996739)
+assert (0.13132910999996739 / 0.015020987000013974) < 8
+ +  where 0.015020987000013974 = max(0.015020987000013974, 0.001)
+1 failed, 2926 passed, 4 skipped, 7 warnings in 414.75s (0:06:54)

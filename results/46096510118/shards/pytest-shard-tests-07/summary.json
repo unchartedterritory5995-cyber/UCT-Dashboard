@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 4251,
+  "passed": 4228,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 22,
+  "wall_s": 459.67,
+  "failed_files": [
+    "tests/test_discord_chart.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 4228 passed, 22 skipped, 176 warnings in 459.67s (0:07:39)",
+  "ok": true
+}

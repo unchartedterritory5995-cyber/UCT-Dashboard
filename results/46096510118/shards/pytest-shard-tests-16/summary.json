@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3682,
+  "passed": 3679,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 625.36,
+  "failed_files": [
+    "tests/test_pattern_scan_depth_and_sym.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 3679 passed, 1 skipped, 9 warnings in 625.36s (0:10:25)",
+  "ok": true
+}

@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 3593,
+  "passed": 3582,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 535.38,
+  "failed_files": [
+    "tests/test_massive_guard_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 3582 passed, 10 skipped, 28 warnings in 535.38s (0:08:55)",
+  "ok": true
+}
