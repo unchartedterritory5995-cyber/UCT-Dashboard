@@ -15,12 +15,19 @@
  *   W4 a worker that errors finishes its decodes in flight inline (the same columns) and every later decode is inline
  *   W5 the switch ('0') and a platform with no Worker decode inline
  *   W6 the app's default: a source made with no decoder uses the page's shared one, which uses a Worker where one exists
+ * Review of #2954 (a paint-awaited decode queued behind another load's deep pieces; aborted loads still decoded):
+ *   Q1 a paint-awaited load's pieces never wait behind background jobs: decoded inline at once, the same bars, while
+ *      the worker still holds the background ones (red before: they queued behind them in the worker)
+ *   Q2 the page keeps the queue: at most WORKER_IN_FLIGHT jobs are posted at once, and every job is answered
+ *   Q3 a job whose load is given up while it waits in the page's queue is never posted nor decoded; it rejects with the
+ *      abort; the source's loadBars rejects AbortError
+ *   Q4 a worker that dies with jobs waiting in the page's queue decodes the live ones inline and drops the aborted ones
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fixture from './__fixtures__/source.json'
 import { parsePrefix, PieceError } from './piece'
 import { createHistorySource, HEADER_NAME } from './source'
-import { createLakeDecoder, decodePieceColumns, decodeReply, DECODE_WORKER_OFF_KEY } from './decoder'
+import { createLakeDecoder, decodePieceColumns, decodeReply, DECODE_WORKER_OFF_KEY, WORKER_IN_FLIGHT } from './decoder'
 import zlib from 'node:zlib'
 
 const bytesOf = (b64) => new Uint8Array(Buffer.from(b64, 'base64'))
@@ -73,6 +80,8 @@ function fakeWorkerFactory({ ready = true, failOn = null } = {}) {
   return { make, made }
 }
 const tick = () => new Promise((r) => setTimeout(r, 0))
+/** A background load's yield (network.js: `nextTask()` unless a paint awaits the load). */
+const background = () => Promise.resolve()
 
 afterEach(() => { vi.unstubAllGlobals() })
 
@@ -81,7 +90,7 @@ describe('lake pieces decode off the main thread', () => {
     const f = fakeWorkerFactory()
     const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
     const spy = vi.spyOn(dec, 'decode')
-    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: null })
+    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: background })
     await src.loadIndex('MU-LT')            // the index asks the worker to start ...
     await tick(); await tick()              // ... and it says it is ready
     const got = await src.loadBars('MU-LT', '5')
@@ -139,7 +148,7 @@ describe('lake pieces decode off the main thread', () => {
     const f = fakeWorkerFactory({ failOn: (n) => n === 2 })
     const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
     dec.warm(); await tick()
-    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: null })
+    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: background })
     const got = await src.loadBars('MU-LT', '5')
     expectBars(got)
     const s = dec.stats()
@@ -172,6 +181,93 @@ describe('lake pieces decode off the main thread', () => {
     const byKey = createLakeDecoder({ makeWorker: g.make })
     byKey.warm()
     expect(g.made).toHaveLength(0)
+  })
+
+  it('Q1 a paint-awaited decode never waits behind background jobs', async () => {
+    const f = fakeWorkerFactory()
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    // ticker A's deep history: background pieces handed to the decoder (they wait in the worker / the page queue)
+    const P = (i) => pieces[i % pieces.length]
+    const deep = Array.from({ length: 12 }, (_, i) => dec.decode(P(i).headerJson, P(i).body))
+    expect(deep.every((d) => typeof d.then === 'function')).toBe(true)
+    // ticker B's first paint: its load passes no yield (network.lakeSeed awaited)
+    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: null })
+    const got = await src.loadBars('MU-LT', '5')
+    expectBars(got)
+    const s = dec.stats()
+    expect(s.urgentInline).toBe(3)                       // all three of B's pieces, at once
+    expect(s.pending + s.queued).toBeGreaterThan(0)      // A's pieces were still waiting when B's bars were ready
+    const all = await Promise.all(deep)
+    expect(all.map((d) => d.header.period)).toEqual(Array.from({ length: 12 }, (_, i) => JSON.parse(P(i).headerJson).period))
+    // with the worker idle, a paint-awaited decode goes to the worker (nothing to wait behind)
+    const idle = dec.decode(pieces[0].headerJson, pieces[0].body, { urgent: true })
+    expect(typeof idle.then).toBe('function')
+    await idle
+  })
+
+  it('Q2 at most WORKER_IN_FLIGHT jobs are posted at once, and every job is answered', async () => {
+    const f = fakeWorkerFactory()
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    const P = (i) => pieces[i % pieces.length]
+    const jobs = Array.from({ length: 9 }, (_, i) => dec.decode(P(i).headerJson, P(i).body))
+    expect(f.made[0].posted).toBe(WORKER_IN_FLIGHT)
+    expect(dec.stats()).toMatchObject({ pending: WORKER_IN_FLIGHT, queued: 9 - WORKER_IN_FLIGHT })
+    let most = 0
+    const watch = setInterval(() => { most = Math.max(most, dec.stats().pending) }, 0)
+    const out = await Promise.all(jobs)
+    clearInterval(watch)
+    expect(most).toBeLessThanOrEqual(WORKER_IN_FLIGHT)
+    expect(out).toHaveLength(9)
+    expect(f.made[0].posted).toBe(9)
+    expect(dec.stats()).toMatchObject({ pending: 0, queued: 0, worker: 9, inline: 0, fallback: 0 })
+  })
+
+  it('Q3 a job given up while it waits in the page queue is never decoded', async () => {
+    const f = fakeWorkerFactory()
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    const ac = new AbortController()
+    const live = Array.from({ length: WORKER_IN_FLIGHT }, () => dec.decode(pieces[0].headerJson, pieces[0].body))
+    const gone = Array.from({ length: 5 }, () => dec.decode(pieces[1].headerJson, pieces[1].body, { signal: ac.signal }))
+    ac.abort()
+    for (const g of gone) await expect(g).rejects.toMatchObject({ name: 'AbortError' })
+    await Promise.all(live)
+    await tick(); await tick()
+    expect(f.made[0].posted).toBe(WORKER_IN_FLIGHT)    // the given-up ones never reached the worker
+    expect(dec.stats()).toMatchObject({ dropped: 5, queued: 0, pending: 0 })
+    // already aborted: rejected without queueing
+    await expect(dec.decode(pieces[0].headerJson, pieces[0].body, { signal: ac.signal })).rejects.toMatchObject({ name: 'AbortError' })
+    // through the source: a background load aborted while its pieces wait rejects AbortError, its waiting pieces undecoded
+    const busy = Array.from({ length: WORKER_IN_FLIGHT }, () => dec.decode(pieces[0].headerJson, pieces[0].body))
+    const ac2 = new AbortController()
+    const src = createHistorySource({ fetch: edge(), decoder: dec, yieldTask: background })
+    const load = src.loadBars('MU-LT', '5', { signal: ac2.signal })
+    const before = f.made[0].posted
+    for (let i = 0; i < 50 && dec.stats().queued < 3; i++) await new Promise((r) => setImmediate(r))
+    expect(dec.stats().queued).toBe(3)                   // B's three pieces wait behind the busy worker
+    ac2.abort()
+    await expect(load).rejects.toMatchObject({ name: 'AbortError' })
+    await Promise.all(busy)
+    await tick(); await tick()
+    expect(f.made[0].posted - before).toBe(0)           // none of them was posted
+    expect(dec.stats()).toMatchObject({ dropped: 8, queued: 0 })
+  })
+
+  it('Q4 a worker that dies with jobs queued decodes the live ones inline and drops the aborted ones', async () => {
+    const f = fakeWorkerFactory({ failOn: (n) => n === 1 })
+    const dec = createLakeDecoder({ makeWorker: f.make, disabled: () => false })
+    dec.warm(); await tick()
+    const P = (i) => pieces[i % pieces.length]
+    const ac = new AbortController()
+    const live = Array.from({ length: 4 }, (_, i) => dec.decode(P(i).headerJson, P(i).body))
+    const gone = dec.decode(pieces[0].headerJson, pieces[0].body, { signal: ac.signal })
+    ac.abort()
+    await expect(gone).rejects.toMatchObject({ name: 'AbortError' })
+    const out = await Promise.all(live)
+    for (let i = 0; i < 4; i++) expect(Array.from(out[i].c)).toEqual(Array.from(decodePieceColumns(P(i).headerJson, P(i).body).c))
+    expect(dec.stats().dead).toBe(true)
   })
 
   it('W6 the default source uses the page decoder, and the page decoder uses a Worker where one exists', async () => {

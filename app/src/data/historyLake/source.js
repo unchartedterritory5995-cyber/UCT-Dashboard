@@ -251,7 +251,9 @@ export function createHistorySource(o = {}) {
       // a load given up while it waited is not decoded (the abort a fetch in flight would have thrown)
       if (signal?.aborted) throw signal.reason ?? new DOMException('The load was aborted', 'AbortError')
     }
-    let d = decoder.decode(headerJson, bytes)
+    // (`urgent`: no yield means a paint waits on this load, so its decode never queues behind other pieces; `signal`: a
+    // load given up while its decode waits in the decoder's queue is dropped there, never decoded)
+    let d = decoder.decode(headerJson, bytes, { urgent: !w, signal })
     if (d && typeof d.then === 'function') {
       d = await d
       // (a load given up while the worker decoded is not handed on, as above)
