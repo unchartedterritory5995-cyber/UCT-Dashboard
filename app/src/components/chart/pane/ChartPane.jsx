@@ -1211,7 +1211,7 @@ function ChartPane({
     let cover = 0
     try { cover = viewNeed(paintMemberRef.current) } catch { cover = 0 }
     const warm = BARSTORE
-      ? storeWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current, cover, viewWindow: _typedViewWindow(paintMemberRef.current, effectiveTf) })
+      ? storeWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current, cover, viewWindow: _typedViewWindow(paintMemberRef.current, effectiveTf), showExtended: extOnRef.current })
       : legacyWarmTypedSymbol(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
     if (!BARSTORE) return

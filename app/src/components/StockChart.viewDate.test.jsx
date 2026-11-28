@@ -239,7 +239,23 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
     view.rerender(<Chart sym="BBB" bars={BBB} date={null} width={120} />)
     await new Promise((r) => setTimeout(r, 600))
     const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
-    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBeLessThanOrEqual(1)
+    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBe(1)
+    expect(seen[0].to, 'the present: newest at its margin').toBeGreaterThan(BBB.length - 1)
+    view.unmount()
+  })
+  // (review of #3004, residual) the date cleared in a LATER commit than the switch is the member's own act: ONE frame, the
+  // present, after the switch's own frame at the date
+  it('V9c the date cleared a commit after the switch: one more frame, the present', async () => {
+    const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
+    await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })
+    view.rerender(<Chart sym="BBB" bars={BBB} date="2004-01-02" width={120} />)
+    await new Promise((r) => setTimeout(r, 300))
+    lw.ranges.length = 0
+    view.rerender(<Chart sym="BBB" bars={BBB} date={null} width={120} />)
+    await new Promise((r) => setTimeout(r, 600))
+    const seen = lw.ranges.filter((r, i, a) => i === 0 || Math.abs(r.from - a[i - 1].from) > 1e-6 || Math.abs(r.to - a[i - 1].to) > 1e-6)
+    expect(seen.length, `frames ${JSON.stringify(seen)}`).toBe(1)
+    expect(seen[0].to).toBeGreaterThan(BBB.length - 1)
     view.unmount()
   })
   it('V8 (M2) while the history is still loading, a date before the held rows shows a loading cue, never the false note', async () => {

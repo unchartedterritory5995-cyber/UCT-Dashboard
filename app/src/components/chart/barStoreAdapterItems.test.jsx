@@ -108,7 +108,7 @@ describe('P3-S1 adapter item 1 — typed stale-answer', () => {
     // (2026-11-27, review of #2934 B1) the store's call also carries the view's cover page: `{ alsoTfs, cover }`; the
     // ternary is split over lines. Comments are stripped so a quoted call in prose can never satisfy the rail.
     const code = pane.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
-    expect(code).toMatch(/BARSTORE\s*\?\s*storeWarmTypedSymbol\(s, effectiveTf, \{ alsoTfs: typedTfsRef\.current(, cover)?(, viewWindow: _typedViewWindow\(paintMemberRef\.current, effectiveTf\))? \}\)\s*:\s*legacyWarmTypedSymbol\(s, effectiveTf(, \{ alsoTfs: typedTfsRef\.current \})?\)/)
+    expect(code).toMatch(/BARSTORE\s*\?\s*storeWarmTypedSymbol\(s, effectiveTf, \{ alsoTfs: typedTfsRef\.current(, cover)?(, viewWindow: _typedViewWindow\(paintMemberRef\.current, effectiveTf\)(, showExtended: extOnRef\.current)?)? \}\)\s*:\s*legacyWarmTypedSymbol\(s, effectiveTf(, \{ alsoTfs: typedTfsRef\.current \})?\)/)
   })
 })
 

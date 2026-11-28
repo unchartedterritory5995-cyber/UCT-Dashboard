@@ -2239,15 +2239,16 @@ export function createPrefetch(o = {}) {
     return n
   }
 
-  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0, viewWindow = null) {
+  function _warmTypedIntraday(sym, tf, alsoTfs, cover = 0, viewWindow = null, showExtended = undefined) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
     // ⭐ (review of #2947, speed follow-up) A CHART AT A DATE WARMS THE WINDOW IT WILL READ: the typed ticker's window
     // ending at the member's date (chart/viewWindow), never the plain key's newest rows (another set of bars)
-    const key = keyFor(T, tf, viewWindow ? { window: viewWindow } : {})
+    // (review of #3004, LOW) on the PANE's session: its ETH can differ from the global (`showExtended`, the chart's own)
+    const key = keyFor(T, tf, viewWindow ? { window: viewWindow, showExtended } : {})
     const p = key ? parseKey(key) : null
     if (!p || !isIntradayTf(p.tf) || (p.window && !viewWindow)) return null
-    if (p.window) return _warmTypedWindow(T, tf, key, alsoTfs, viewWindow)
+    if (p.window) return _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended)
     if (typed && typed.key !== key) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
@@ -2340,7 +2341,7 @@ export function createPrefetch(o = {}) {
   /** The typed ticker's WINDOW at the member's date (an intraday chart the date box sent to a past date): its lake pieces
    *  primed now, its read asked (the window's lake-first read, network `_windowRead`), the linked intraday timeframes'
    *  windows warmed beside it. Superseded by a newer text like the plain warm. */
-  function _warmTypedWindow(T, tf, key, alsoTfs, viewWindow) {
+  function _warmTypedWindow(T, tf, key, alsoTfs, viewWindow, showExtended) {
     if (typed && typed.key !== key) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
@@ -2354,7 +2355,7 @@ export function createPrefetch(o = {}) {
     try { S().primeLake?.(key) } catch { /* a warm only */ }
     for (const t2 of alsoTfs || []) {
       if (String(t2) === String(tf) || !isIntradayTf(fetchTf(String(t2)))) continue
-      try { prefetchViewWindow([T], t2, viewWindow) } catch { /* a warm only */ }
+      try { prefetchViewWindow([T], t2, viewWindow, { showExtended }) } catch { /* a warm only */ }
     }
     return (async () => {
       // the same vouching as the plain warm (`_typedIsTicker`): a partial word nothing knows asks nothing
@@ -2367,9 +2368,9 @@ export function createPrefetch(o = {}) {
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
-  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0, viewWindow = null } = {}) {
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null, cover = 0, viewWindow = null, showExtended = undefined } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover, viewWindow)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs, cover, viewWindow, showExtended)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
