@@ -229,7 +229,7 @@ describe('StockChart: the date the member went to (the date box anchor, owner 20
       cleanup()
     }
   })
-  it('V9b a COLD switch (the new symbol's bars not in yet) with the date gone: still one frame once they land', async () => {
+  it("V9b a COLD switch (the new symbol's bars not in yet) with the date gone: still one frame once they land", async () => {
     const view = render(<Chart sym="AAA" bars={AAA} date="2004-01-02" width={120} />)
     await waitFor(() => { expect(lw.last).toBeTruthy(); expect(lw.last.to).toBeCloseTo(119.5, 6) })
     await new Promise((r) => setTimeout(r, 200))
