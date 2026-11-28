@@ -326,7 +326,7 @@ def test_in_rth_an_uncovered_stored_daily_ending_yesterday_derives_nothing(store
 
 
 @pytest.mark.parametrize("tf", ["W", "M"])
-@pytest.mark.parametrize("hh,mm", [(16, 30), (21, 0), (23, 59)])
+@pytest.mark.parametrize("hh,mm", [(20, 0), (21, 0), (23, 59)])   # after the live daily window (until 20:00 ET)
 def test_after_the_close_a_stored_daily_holding_today_derives(store, monkeypatch, clock, tf, hh, mm):
     clock(2026, 11, 18, hh, mm)
     daily, periods, _ = _seed_through(tf, WED, monkeypatch)
@@ -424,3 +424,97 @@ def test_a_derived_answer_reads_the_stored_daily_tail_once(store, monkeypatch, c
     body = json.loads(bars_fetch._get_bars_inner("AAA", tf, len(periods)).body)
     assert body["bars"][-1]["c"] == daily[-1]["c"]
     assert calls.count("D") == 1, calls
+
+
+# ── delta review of #3001, (d): IN THE LIVE WINDOW ONLY A LIVE DAILY DERIVES; NEVER FROM A DAILY WITH A HOLE ─────────
+# ⛔⛔ A stored daily can hold TODAY's bar in session while `covered(t, "D")` is False: a snapshot name whose D has a
+# hole (the poll writes today's row for every snapshot ticker; `covered` also needs `_daily_contiguous`), a dead daily
+# poll, a name outside the snapshot whose D a D read refreshed. Deriving from it set `_fresh_needed = False` and pinned
+# W/M for 900 s with no revalidation, and an EARLIER completed period was rewritten from the holed daily.
+def _seed_holed(tf, last, hole, monkeypatch, drop_tail=0, sym="AAA"):
+    """The stored W/M table built from the FULL daily (correct rows; the last `drop_tail` periods absent, so the stored
+    tail is an earlier, COMPLETED period), and a stored D missing the session `hole`."""
+    full = [{"t": d.isoformat(), "o": 100 + i, "h": 101 + i, "l": 99 + i, "c": 100.5 + i, "v": 1000 + i}
+            for i, d in enumerate(_sessions_through(last))]
+    holed = [b for b in full if b["t"] != hole.isoformat()]
+    assert len(holed) == len(full) - 1, "the hole is not a session of the seed"
+    bars_sqlite.put_bars(sym, "D", holed, date_tf=True)
+    rs = bars_fetch._resample_weekly_iso if tf == "W" else bars_fetch._resample_monthly_iso
+    stored = [dict(p) for p in rs(full)]
+    if drop_tail:
+        stored = stored[:-drop_tail]
+    else:
+        stored[-1]["c"] = stored[-1]["l"]
+        stored[-1]["v"] = int(stored[-1]["v"]) - 1
+    bars_sqlite.put_bars(sym, tf, stored, date_tf=True)
+    monkeypatch.setattr(bls, "covered", lambda t, k: False)
+    for name in ("_recent_daily_iso", "_delta_weekly", "_delta_monthly", "_delta_daily"):
+        monkeypatch.setattr(bars_fetch, name, lambda *a, **k: [])
+    return full, holed, stored
+
+
+def _spy_wm_writes(monkeypatch):
+    writes = []
+    real = bars_sqlite.put_bars
+
+    def spy(t, k, b, *a, **kw):
+        if k in ("W", "M"):
+            writes.append((k, [x["t"] for x in b]))
+        return real(t, k, b, *a, **kw)
+    monkeypatch.setattr(bars_sqlite, "put_bars", spy)
+    return writes
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+@pytest.mark.parametrize("hh,mm", [(9, 30), (11, 0), (16, 30), (19, 59)])
+def test_in_the_live_window_an_uncovered_stored_daily_holding_today_derives_nothing(store, monkeypatch, clock, tf, hh, mm):
+    clock(2026, 11, 18, hh, mm)
+    _seed_through(tf, WED, monkeypatch)            # the stored D already holds today's bar; the live store does not cover it
+    assert bars_fetch._wm_live_daily("AAA") is False, "an uncovered stored daily derived inside the live window"
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf", ["W", "M"])
+def test_on_a_half_day_the_live_window_still_runs_until_the_poll_stops(store, monkeypatch, clock, tf):
+    clock(2026, 11, 27, 14, 0)                     # after the 13:00 half-day close, the daily poll still runs
+    _seed_through(tf, date(2026, 11, 27), monkeypatch)
+    assert _overlay(tf) is None
+
+
+@pytest.mark.parametrize("tf,hole", [("W", date(2026, 11, 18)), ("M", date(2026, 11, 10))])
+def test_a_daily_with_a_hole_inside_the_derived_span_derives_nothing(store, monkeypatch, clock, tf, hole):
+    clock(2026, 11, 21, 12, 0)                     # Saturday: outside the window, the D through Friday passes the gate
+    full, holed, stored = _seed_holed(tf, date(2026, 11, 20), hole, monkeypatch)
+    writes = _spy_wm_writes(monkeypatch)
+    assert _overlay(tf) is None, "W/M were derived from a daily with a hole"
+    bars_fetch._get_bars_inner("AAA", tf, len(stored))
+    time.sleep(0.3)
+    assert writes == [], writes
+
+
+@pytest.mark.parametrize("tf,hole", [("W", date(2026, 11, 11)), ("M", date(2026, 10, 14))])
+@pytest.mark.parametrize("covered", [False, True])
+def test_an_earlier_completed_period_is_never_rewritten_from_a_daily_with_a_hole(store, monkeypatch, clock, tf, hole, covered):
+    # the stored tail is the COMPLETED week of 11-13 / month of October, correct; the stored D lacks one of its sessions
+    clock(2026, 11, 21, 12, 0)
+    full, holed, stored = _seed_holed(tf, date(2026, 11, 20), hole, monkeypatch, drop_tail=1)
+    if covered:
+        monkeypatch.setattr(bls, "covered", lambda t, k: k == "D")
+    key = int(stored[-1]["t"].replace("-", ""))
+    before = tuple(bars_sqlite.get_bars("AAA", tf, 400)[-1])
+    assert int(before[0]) == key
+    writes = _spy_wm_writes(monkeypatch)
+    assert _overlay(tf) is None, "an earlier completed period was re-derived from a daily with a hole"
+    assert bars_fetch._needs_fresh(key, tf, "AAA") is True     # the old path revalidates it (no derive reads it fresh)
+    time.sleep(0.3)
+    held = {int(r[0]): tuple(r) for r in bars_sqlite.get_bars("AAA", tf, 400)}
+    assert held[key] == before, "the completed period was overwritten"
+    assert writes == [], writes
+
+
+def test_the_contiguity_check_reads_sessions_not_weekdays():
+    # a holiday is not a hole; a row on a non-session day is not a session
+    rows = [(d, 0, 0, 0, 0, 0) for d in (20261123, 20261124, 20261125, 20261127)]   # 11-26 is Thanksgiving
+    assert bars_fetch._wm_daily_contiguous(rows, 20261123) is True
+    assert bars_fetch._wm_daily_contiguous(rows[:2] + rows[3:], 20261123) is False   # 11-25 missing
+    assert bars_fetch._wm_daily_contiguous(rows + [(20261128, 0, 0, 0, 0, 0)], 20261123) is False   # a Saturday row
