@@ -80,6 +80,10 @@ const _hit = (cols) => {
   return {
     // `lastT`: the time of the copy's newest row, read without building rows (persist.flushJoins: a copy whose newest row
     // is no newer than an answer's newest has nothing that answer could keep, whatever its stamp says; review of #2620)
+    // `wholeFrom` (zero-network PR 3.2): the copy is the symbol's WHOLE served series (the full-depth daily pack,
+    // engine.js `whole`), and this is its first bar's time: nothing older exists, so the bar store asks no deep history
+    // join for an entry that still starts there (persist.deviceWhole, network.deepPending). null: not known whole.
+    wholeFrom: cols.whole === true ? cols.t[0] : null,
     n, through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build), formingT, lastT: cols.t[n - 1],
     get rows() { return rows || (rows = columnsToRows(cols)) },
   }

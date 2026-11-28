@@ -220,6 +220,9 @@ export function createNetwork({
   beforeAnswer = null,
   // (fn) => cancel: where a BACKGROUND deepening's window lands (idleLand: idle time, giving way to input; tests pass their own)
   idle = idleLand,
+  // (key) => true when the entry already starts at its symbol's first served bar (index.js: persist.deviceWhole, the
+  // full-depth daily device copy, zero-network PR 3.2): its deep history join is never due
+  wholeHistory = null,
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
@@ -338,6 +341,10 @@ export function createNetwork({
     if (split && String(p.tf) === 'D' && r.cover > 0 && wanted > bars && !r.histAsked && !r.edgeFallback && api.deepPending(r.key)) {
       bars = Math.min(bars, EDGE_TAIL_BARS)
       _armEdgeFallback(r)
+    } else if (split && r.cover > 0 && wanted > bars && _whole(r.key)) {
+      // (zero-network PR 3.2) the entry already holds every older row (a whole device copy): the newest rows are all the
+      // origin is asked, and no history follows (`_whole`), so there is nothing to fall back for
+      bars = Math.min(bars, EDGE_TAIL_BARS)
     }
     const from = deltaStartFor(s, p)
     const delta = !full && from != null && deltaWithinBudget(p.tf, from, now(), bars)
@@ -373,7 +380,7 @@ export function createNetwork({
       // A join that settled on this page at a depth the entry still holds is not asked again (`_deepJoinedAt`).
       const heldNow = after?.bars?.length ?? 0
       const joinedHere = heldNow > dateCoverMaxFor(p.tf) && _deepJoinedAt(r.key, heldNow)
-      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere) {
+      if (split && !r.histAsked && wantNow > bars && wantNow > (after?.depth ?? 0) && !joinedHere && !_whole(r.key)) {
         r.histAsked = true
         r.queue.push({ run: () => _historyJob(r), resolve: () => {} })
       }
@@ -437,6 +444,11 @@ export function createNetwork({
       _queueTail(r, r.priority)
       _drain(r)
     }, EDGE_FALLBACK_MS)
+  }
+
+  /** Does the entry already hold its symbol's whole series (`wholeHistory`)? Never throws. */
+  function _whole(key) {
+    try { return wholeHistory?.(key) === true } catch { return false }
   }
 
   /** History answers slower than EDGE_FALLBACK_MS (most likely an edge MISS), newest last: `{ key, ms }`. */
@@ -918,6 +930,7 @@ export function createNetwork({
       const p = parseKey(key)
       if (!p || !isDateTf(p.tf) || p.window || !barsHistorySplitEnabled()) return false
       if (keys.get(key)?.splitOff) return false
+      if (_whole(key)) return false                // the entry holds the whole series: nothing older to join
       const held = registry.peek(key)?.bars.length ?? 0
       if (held > dateCoverMaxFor(p.tf)) return false
       return !_deepJoinedAt(key, held)
