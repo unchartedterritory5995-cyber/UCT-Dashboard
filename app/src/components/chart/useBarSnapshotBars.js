@@ -41,7 +41,7 @@ import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBa
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
-import { HANDOFF_HANG_MS } from '../../hooks/useSymbolHandoff'
+import { HANDOFF_HANG_MS } from '../../hooks/handoffBudget'
 
 /** How long a member rests on a symbol (after the background warm starts) before its other intraday
  *  timeframes' lake depth loads: a scan past a row never pays for it. */
@@ -120,7 +120,7 @@ function lastDailyBarInsane(arr) {
 }
 
 /** (2026-11-28) How long a timeframe press keeps the frame on screen while the new key holds no rows at all: the symbol
- *  hand-off's own budget (useSymbolHandoff HANDOFF_HANG_MS), one number for both. */
+ *  hand-off's own budget (HANDOFF_HANG_MS, hooks/handoffBudget.js), one number for both. */
 export const TF_SWITCH_EMPTY_HOLD_MS = HANDOFF_HANG_MS
 
 export function useBarSnapshotBars({
@@ -267,8 +267,13 @@ export function useBarSnapshotBars({
   // nothing else (`_tfSwitchHold` below), yet its subscription re-rendered the whole chart when the new key's first
   // answer landed on EVERY symbol switch, a render that changed nothing on screen (`StockChart.switchStateRenders.test`).
   // Off a timeframe switch the hook reads the store's value as it renders and is not woken by it.
+  // (the daily-to-intraday hold's condition, below: computed here because it subscribes `_answered` too)
+  const _shown = _shownTfRef?.current || null
+  const _fromOtherTf = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !!key
+    && !!_shown && _shown.sym === sym && String(_shown.tf) !== String(resolvedTf)
   const _answered = useSyncExternalStore(
-    useCallback((cb) => (key && _isTfSwitch ? store.network.subscribeAnswered(key, cb) : () => {}), [store, key, _isTfSwitch]),
+    useCallback((cb) => (key && (_isTfSwitch || _fromOtherTf) ? store.network.subscribeAnswered(key, cb) : () => {}),
+      [store, key, _isTfSwitch, _fromOtherTf]),
     () => (key ? store.network.answered(key) : false),
     () => false,
   )
@@ -316,19 +321,19 @@ export function useBarSnapshotBars({
   // handed the chart nothing and updateChart's empty arm cleared every series. While the new key has no rows the frame on
   // screen (the same symbol at another timeframe, `_shownTfRef`) stays, for TF_SWITCH_EMPTY_HOLD_MS at most (the symbol
   // hand-off's HANDOFF_HANG_MS); after it the chart's own loading state shows, as before.
-  const _shown = _shownTfRef?.current || null
-  const _fromOtherTf = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !!key
-    && !!_shown && _shown.sym === sym && String(_shown.tf) !== String(resolvedTf)
   if (!_fromOtherTf) {
     if (_emptySwitchRef.current.key !== null) _emptySwitchRef.current = { key: null, t0: 0, done: false }
   } else if (_emptySwitchRef.current.key !== key) {
     // eslint-disable-next-line react-hooks/purity
     _emptySwitchRef.current = { key, t0: Date.now(), done: false }
   }
-  // eslint-disable-next-line react-hooks/purity
-  const _emptyAge = Date.now() - _emptySwitchRef.current.t0
+  // A SETTLED empty answer (the server said no data, the key is unavailable, or it answered with no rows) releases the
+  // hold at once: the chart shows that answer, never the old timeframe's candles over it for the whole bound.
+  const _settledEmpty = snap?.error === 'no_data' || status === STATUS.UNAVAILABLE
+    || (_answered && !(snap?.bars?.length) && !snap?.developing)
+  // ⛔ ONE bound: the timer below sets `done` at TF_SWITCH_EMPTY_HOLD_MS (no second age check beside it, review of #3033).
   const _emptyHold = _fromOtherTf && _emptySwitchRef.current.key === key && !_emptySwitchRef.current.done
-    && !(Array.isArray(chosen) && chosen.length > 0) && _emptyAge >= 0 && _emptyAge < TF_SWITCH_EMPTY_HOLD_MS
+    && !(Array.isArray(chosen) && chosen.length > 0) && !_settledEmpty
   useEffect(() => {
     if (!_emptyHold) return undefined
     const sw = _emptySwitchRef.current
