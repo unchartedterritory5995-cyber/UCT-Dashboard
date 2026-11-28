@@ -92,7 +92,7 @@ import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
 import { deviceStoreKilledNow, noteDeviceStoreStopped } from '../../lib/chartSpeed'
 import { askPersistOnce } from '../../lib/storagePersist'
 import { deviceStoreKeyNow, deviceStoreKeyState } from './switch'
-import { SERVED_TFS } from './tfs'
+import { WORKER_SERVED_TFS } from './tfs'
 import { noteDeviceFiles } from './residue'
 
 /** Where the first-frame seed's manifest lives (the edge, docs/charts/first-frame-seed-format.md section 2:
@@ -120,7 +120,7 @@ export const BACKGROUND_READS_MAX = 2
 export const READ_TIMEOUT_MS = 8000
 /** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
 export const WAITING_READS_MAX = 256
-const SERVED = new Set(SERVED_TFS)
+const SERVED = new Set(WORKER_SERVED_TFS)
 
 /** Did this browser's member hand-set the store ON ('1')? Only then is persistence asked (see the header). */
 const _choseOn = () => { try { return deviceStoreKeyState() === 'on' } catch { return false } }

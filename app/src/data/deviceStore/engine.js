@@ -19,8 +19,9 @@
 // closed and deleted. A crash at any point leaves either the old committed generation or the new one.
 //
 // ⭐ READ: index row → ONE positioned read into a reused buffer → inflate + decodeBody (codec.js) →
-// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads only: the page is never
-// served them (tfs.SERVED_TFS, review of #2537 H1). Symbols are keyed as /api/bars names them
+// Float64 columns. W and M are derived from D (resample.js) for the engine's own reads and diagnostics only: the
+// worker never answers a W / M read (tfs.WORKER_SERVED_TFS); the PAGE derives them from the D copy it reads
+// (source.js, resample.deriveServed: only from a whole copy whose period in progress is known, PR 3.3). Symbols are keyed as /api/bars names them
 // (upper case; class shares with '-', e.g. BRK-B); a '.' spelling in a file is found too. A symbol the
 // file does not hold reads null: no device copy, the chart asks the network.
 //
@@ -69,6 +70,7 @@ import { closeMinuteOf } from './fresh'
 import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
+import { _closeMismatch } from '../../utils/barsMerge'
 
 export { STORED_TFS, DERIVED_TFS, SERVED_TFS } from './tfs'
 
@@ -394,6 +396,14 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     // bar and continues this symbol's window across exactly one night.
     const add = overlay.read(S, String(tf), asof)
     if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
+    // ⛔ A SPLIT THE SEED DOES NOT KNOW (review of PR 3.4, MEDIUM). The server's day row comes with the snapshot's
+    // prevDay close, the prior session's close on TODAY's basis. Off the seed's last close by the client's own seam
+    // rule (utils/barsMerge._closeMismatch, > 2%: the one rule, asked, not restated)
+    // (the same session, on the seed's basis), the basis moved overnight (a split the vendor listed late): the
+    // post-split row is never joined to pre-split history; the copy stays the seed, and the server answers.
+    if (add.prevClose != null && seed.c.length && _closeMismatch({ c: add.prevClose }, { c: seed.c[seed.c.length - 1] })) {
+      return { out: seed, why: 'seed-only:prev-close' }
+    }
     const out = add.cols ? _append(seed, add.cols) : seed
     out.through = Math.max(seed.through, add.through)
     if (whole) out.whole = true
